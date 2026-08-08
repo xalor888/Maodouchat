@@ -93,7 +93,8 @@ try {
   assert.ok(remainingMs > 4 * 60_000 && remainingMs <= 5 * 60_000, "admin session must be five minutes");
 
   await page.locator("#app:not(.hidden)").waitFor();
-  await page.locator("#stats .stat").first().waitFor();
+  // 仪表盘统计卡片渲染在 #content 内，类名为 .stat-card
+  await page.locator("#content .stat-card").first().waitFor();
   assert.match(await page.locator("#session-info").innerText(), /高权限会话 4:|高权限会话 5:/);
   assert.equal(await page.locator("#password").inputValue(), "");
   const storage = await page.evaluate(() => ({
