@@ -19,11 +19,12 @@ class ChatTimelineModelTest {
                 message("m3", "u1", 2_001L),
                 message("m2", "u2", 1_002L),
                 message("m1", "u1", 1_001L)
-            )
-        ) { timestamp ->
-            labelCalls++
-            if (timestamp < 2_000L) "day-1" else "day-2"
-        }
+            ),
+            labelForTimestamp = { timestamp ->
+                labelCalls++
+                if (timestamp < 2_000L) "day-1" else "day-2"
+            }
+        )
 
         assertEquals(3, labelCalls)
         assertEquals(listOf("m1", "m2", "m3"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
@@ -38,8 +39,9 @@ class ChatTimelineModelTest {
                 message("m2", "u1", 2L),
                 message("m3", "u2", 3L),
                 message("m4", "u2", 2_000L)
-            )
-        ) { if (it < 1_000L) "day-1" else "day-2" }
+            ),
+            labelForTimestamp = { if (it < 1_000L) "day-1" else "day-2" }
+        )
         val rows = items.filterIsInstance<ChatItem.Msg>()
 
         assertTrue(rows[0].showAvatar)
@@ -55,8 +57,9 @@ class ChatTimelineModelTest {
                 message("m1", "u1", 1L),
                 message("sk", "u1", 2L, MessageType.SK_DIST),
                 message("m2", "u1", 3L)
-            )
-        ) { "day-1" }
+            ),
+            labelForTimestamp = { "day-1" }
+        )
         val rows = items.filterIsInstance<ChatItem.Msg>()
         assertEquals(listOf("m1", "m2"), rows.map { it.message.id })
         assertTrue(rows[0].showAvatar)

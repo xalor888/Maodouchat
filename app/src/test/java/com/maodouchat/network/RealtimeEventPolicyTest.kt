@@ -12,14 +12,14 @@ import org.junit.Test
 class RealtimeEventPolicyTest {
     @Test
     fun `new subscriber does not receive an old business event`() = runTest {
-        val bus = NonReplayingEventBus<String>(capacity = 4)
-        assertTrue(bus.tryEmit("old-delete"))
+        val bus = NonReplayingEventBus<String>(capacity = 4, scope = this)
+        bus.post("old-delete")
 
-        val next = async(start = CoroutineStart.UNDISPATCHED) { bus.events.first() }
-        assertTrue(bus.tryEmit("new-message"))
+        val next = async(start = CoroutineStart.UNDISPATCHED) { bus.flow.first() }
+        bus.post("new-message")
 
         assertEquals("new-message", next.await())
-        assertTrue(bus.events.replayCache.isEmpty())
+        assertTrue(bus.flow.replayCache.isEmpty())
     }
 
     @Test

@@ -36,6 +36,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.transactions.transaction
 import org.signal.libsignal.protocol.ecc.Curve
 import java.security.MessageDigest
 import java.util.Base64
@@ -1799,10 +1801,28 @@ class SenderKeyDistributionRouteTest {
 
         SignalKeyRepository().apply {
             fun uploadBundle(userId: String, deviceId: Int, label: String, identityKey: String = "$label-identity") {
-                uploadIdentityKey(userId, deviceId, identityKey)
-                uploadRegistrationId(userId, deviceId, 10_000 + deviceId)
-                uploadSignedPreKey(userId, deviceId, deviceId, "$label-signed-pre-key")
-                uploadSignedPreKeySignature(userId, deviceId, "$label-signature")
+                val sessionId = "test-session-$userId-$deviceId"
+                org.jetbrains.exposed.sql.transactions.transaction {
+                    com.maodouchat.server.db.AuthSessions.insert {
+                        it[com.maodouchat.server.db.AuthSessions.id] = sessionId
+                        it[com.maodouchat.server.db.AuthSessions.userId] = userId
+                        it[com.maodouchat.server.db.AuthSessions.signalDeviceId] = deviceId
+                        it[com.maodouchat.server.db.AuthSessions.createdAt] = System.currentTimeMillis()
+                        it[com.maodouchat.server.db.AuthSessions.updatedAt] = System.currentTimeMillis()
+                    }
+                }
+                val uploadResult = uploadKeyPackage(
+                    userId = userId,
+                    authSessionId = sessionId,
+                    deviceId = deviceId,
+                    identityKey = identityKey,
+                    registrationId = 10_000 + deviceId,
+                    signedPreKeyId = deviceId,
+                    signedPreKey = "$label-signed-pre-key",
+                    signedPreKeySignature = "$label-signature",
+                    preKeys = emptyList()
+                )
+                check(uploadResult == SignalKeyRepository.UploadKeyPackageResult.UPLOADED) { "uploadKeyPackage failed: $uploadResult" }
             }
             val approverKeyPair = Curve.generateKeyPair()
             val approverIdentity = Base64.getEncoder().encodeToString(approverKeyPair.publicKey.serialize())

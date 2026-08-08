@@ -53,9 +53,9 @@ class ChatSearchModelTest {
             )
         )
 
-        assertEquals(listOf("today", "old"), searchChatDocuments(documents, "", ChatSearchScope.STARRED, ChatSearchWindow.ALL, now).map { it.id })
-        assertEquals(listOf("today"), searchChatDocuments(documents, "", ChatSearchScope.STARRED, ChatSearchWindow.TODAY, now).map { it.id })
-        assertFalse(searchChatDocuments(documents, "old", ChatSearchScope.ALL, ChatSearchWindow.SEVEN_DAYS, now).any())
+        assertEquals(listOf("today", "old"), searchChatDocuments(documents, "", ChatSearchScope.STARRED, ChatSearchWindow.ALL, now = now).map { it.id })
+        assertEquals(listOf("today"), searchChatDocuments(documents, "", ChatSearchScope.STARRED, ChatSearchWindow.TODAY, now = now).map { it.id })
+        assertFalse(searchChatDocuments(documents, "old", ChatSearchScope.ALL, ChatSearchWindow.SEVEN_DAYS, now = now).any())
     }
 
     @Test
