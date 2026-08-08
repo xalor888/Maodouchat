@@ -145,7 +145,9 @@ jobs:
       - name: Package release assets + checksums
         run: |
           mkdir -p release-assets
-          cp app/build/outputs/apk/release/app-release.apk "release-assets/maodouchat-${{ steps.version.outputs.version }}.apk"
+          # 未配置签名密钥时产物为 app-release-unsigned.apk（仍可发布，只是无法直接安装）
+          cp app/build/outputs/apk/release/app-release.apk "release-assets/maodouchat-${{ steps.version.outputs.version }}.apk" \
+            || cp app/build/outputs/apk/release/app-release-unsigned.apk "release-assets/maodouchat-${{ steps.version.outputs.version }}.apk"
           tar -czf "release-assets/maodouchat-server-${{ steps.version.outputs.version }}.tar.gz" -C server/build/install maodouchat-server
           cd release-assets
           sha256sum * > SHA256SUMS.txt
