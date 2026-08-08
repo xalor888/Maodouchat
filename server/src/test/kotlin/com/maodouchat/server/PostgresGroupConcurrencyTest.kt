@@ -102,7 +102,8 @@ class PostgresGroupConcurrencyTest {
             assertEquals(finalMembers.map { it.userId }.toSet().size, finalMembers.size)
             assertTrue(setOf("u1", "u2", "u3", "u4", "u5", "u6").all { id -> finalMembers.any { it.userId == id } })
             assertEquals(3, repo.getGroupAudit(addRaceGroup.id, 100).count { it.action == "MEMBER_ADDED" })
-            assertEquals(3L, repo.getChatById(addRaceGroup.id)?.memberRevision)
+            // memberRevision：createChat=1 + 上面 updateGroupMemberRoleAsOwner 角色变更=1 + 两次 addGroupMembersAs=2 → 4
+            assertEquals(4L, repo.getChatById(addRaceGroup.id)?.memberRevision)
         } finally {
             DriverManager.getConnection(baseUrl).use { connection ->
                 connection.createStatement().use { it.execute("DROP SCHEMA IF EXISTS \"$schema\" CASCADE") }

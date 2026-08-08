@@ -736,7 +736,10 @@ private fun migrateAuthSessionState() {
 }
 
 private fun widenClientPrefsWritingStyleColumn() {
-    val sql = if (ServerConfig.databaseDriver.contains("postgres", ignoreCase = true)) {
+    // 按「实际连接的数据库」判断（而非 ServerConfig.databaseDriver——测试直接 connect 时该值可能仍是默认 H2）
+    val isPostgres = org.jetbrains.exposed.sql.transactions.TransactionManager.current()
+        .db.vendor.contains("postgres", ignoreCase = true)
+    val sql = if (isPostgres) {
         "ALTER TABLE client_prefs ALTER COLUMN writing_style_custom TYPE VARCHAR(320)"
     } else {
         "ALTER TABLE client_prefs ALTER COLUMN writing_style_custom VARCHAR(320)"
@@ -745,7 +748,9 @@ private fun widenClientPrefsWritingStyleColumn() {
 }
 
 private fun widenFriendRequestMessageColumn() {
-    val sql = if (ServerConfig.databaseDriver.contains("postgres", ignoreCase = true)) {
+    val isPostgres = org.jetbrains.exposed.sql.transactions.TransactionManager.current()
+        .db.vendor.contains("postgres", ignoreCase = true)
+    val sql = if (isPostgres) {
         "ALTER TABLE friend_requests ALTER COLUMN message TYPE VARCHAR(300)"
     } else {
         "ALTER TABLE friend_requests ALTER COLUMN message VARCHAR(300)"
