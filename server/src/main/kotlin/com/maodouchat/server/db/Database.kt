@@ -11,6 +11,10 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.update
 
+/** 当前连接的数据库是否为 H2（测试常用）。H2 2.x 不支持 Exposed 单键 upsert 生成的 MERGE ... USING (VALUES)。 */
+internal fun isH2Db(): Boolean =
+    TransactionManager.current().db.vendor.contains("h2", ignoreCase = true)
+
 object Users : Table("users") {
     val id = varchar("id", 50)
     val name = varchar("name", 100)

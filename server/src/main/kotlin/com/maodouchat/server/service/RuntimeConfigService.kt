@@ -3,8 +3,11 @@ package com.maodouchat.server.service
 import com.maodouchat.server.config.AdminAccess
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.SystemSettings
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.upsert
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
@@ -823,11 +826,32 @@ object RuntimeConfigService {
         val cleaned = value.trim().take(4_000)
         val now = System.currentTimeMillis()
         transaction {
-            SystemSettings.upsert(SystemSettings.key) {
-                it[SystemSettings.key] = key
-                it[SystemSettings.value] = cleaned
-                it[updatedAt] = now
-                it[updatedBy] = actorId
+            if (com.maodouchat.server.db.isH2Db()) {
+                // H2 2.x 不支持 Exposed 单键 upsert 生成的 MERGE ... USING (VALUES)，用 select→update/insert
+                val existing = SystemSettings.selectAll()
+                    .where { SystemSettings.key eq key }
+                    .firstOrNull()
+                if (existing == null) {
+                    SystemSettings.insert {
+                        it[SystemSettings.key] = key
+                        it[SystemSettings.value] = cleaned
+                        it[updatedAt] = now
+                        it[updatedBy] = actorId
+                    }
+                } else {
+                    SystemSettings.update({ SystemSettings.key eq key }) {
+                        it[SystemSettings.value] = cleaned
+                        it[updatedAt] = now
+                        it[updatedBy] = actorId
+                    }
+                }
+            } else {
+                SystemSettings.upsert(SystemSettings.key) {
+                    it[SystemSettings.key] = key
+                    it[SystemSettings.value] = cleaned
+                    it[updatedAt] = now
+                    it[updatedBy] = actorId
+                }
             }
         }
         cache[key] = cleaned

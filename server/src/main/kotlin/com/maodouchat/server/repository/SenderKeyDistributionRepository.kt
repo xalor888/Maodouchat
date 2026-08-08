@@ -34,8 +34,7 @@ class SenderKeyDistributionRepository {
                 .forEach { target ->
                     val id = rowId(chatId, epoch, senderId, target.userId, target.deviceId)
                     val normalizedStatus = normalizeStatus(target.status)
-                    val isH2 = org.jetbrains.exposed.sql.transactions.TransactionManager.current()
-                        .db.vendor.equals("H2", ignoreCase = true)
+                    val isH2 = com.maodouchat.server.db.isH2Db()
                     if (isH2) {
                         // H2 2.x 不支持 Exposed 单键 upsert 生成的 `MERGE INTO ... USING (VALUES ...)`
                         // （报 `Database "COM" not found`）。生产用 PostgreSQL，走下方 upsert；

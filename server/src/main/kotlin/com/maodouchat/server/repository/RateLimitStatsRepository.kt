@@ -5,11 +5,14 @@ import com.maodouchat.server.plugins.GlobalRateLimiter
 import com.maodouchat.server.plugins.RateLimitStats
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.upsert
 
 /**
@@ -57,14 +60,41 @@ class RateLimitStatsRepository {
         val stats = GlobalRateLimiter.getInstance().stats()
         val bucketStart = now - now % 60_000L
         transaction {
-            RateLimitStatsSnapshots.upsert(RateLimitStatsSnapshots.bucketStartMs) {
-                it[RateLimitStatsSnapshots.bucketStartMs] = bucketStart
-                it[RateLimitStatsSnapshots.allowed] = stats.allowed
-                it[RateLimitStatsSnapshots.rejected] = stats.rejected
-                it[RateLimitStatsSnapshots.totalBuckets] = stats.totalBuckets
-                it[RateLimitStatsSnapshots.maxBuckets] = stats.maxBuckets
-                it[RateLimitStatsSnapshots.maxPerMinute] = stats.maxPerMinute
-                it[RateLimitStatsSnapshots.sampledAt] = now
+            if (com.maodouchat.server.db.isH2Db()) {
+                // H2 2.x 不支持 Exposed 单键 upsert 生成的 MERGE ... USING (VALUES)，用 select→update/insert
+                val existing = RateLimitStatsSnapshots.selectAll()
+                    .where { RateLimitStatsSnapshots.bucketStartMs eq bucketStart }
+                    .firstOrNull()
+                if (existing == null) {
+                    RateLimitStatsSnapshots.insert {
+                        it[RateLimitStatsSnapshots.bucketStartMs] = bucketStart
+                        it[RateLimitStatsSnapshots.allowed] = stats.allowed
+                        it[RateLimitStatsSnapshots.rejected] = stats.rejected
+                        it[RateLimitStatsSnapshots.totalBuckets] = stats.totalBuckets
+                        it[RateLimitStatsSnapshots.maxBuckets] = stats.maxBuckets
+                        it[RateLimitStatsSnapshots.maxPerMinute] = stats.maxPerMinute
+                        it[RateLimitStatsSnapshots.sampledAt] = now
+                    }
+                } else {
+                    RateLimitStatsSnapshots.update({ RateLimitStatsSnapshots.bucketStartMs eq bucketStart }) {
+                        it[RateLimitStatsSnapshots.allowed] = stats.allowed
+                        it[RateLimitStatsSnapshots.rejected] = stats.rejected
+                        it[RateLimitStatsSnapshots.totalBuckets] = stats.totalBuckets
+                        it[RateLimitStatsSnapshots.maxBuckets] = stats.maxBuckets
+                        it[RateLimitStatsSnapshots.maxPerMinute] = stats.maxPerMinute
+                        it[RateLimitStatsSnapshots.sampledAt] = now
+                    }
+                }
+            } else {
+                RateLimitStatsSnapshots.upsert(RateLimitStatsSnapshots.bucketStartMs) {
+                    it[RateLimitStatsSnapshots.bucketStartMs] = bucketStart
+                    it[RateLimitStatsSnapshots.allowed] = stats.allowed
+                    it[RateLimitStatsSnapshots.rejected] = stats.rejected
+                    it[RateLimitStatsSnapshots.totalBuckets] = stats.totalBuckets
+                    it[RateLimitStatsSnapshots.maxBuckets] = stats.maxBuckets
+                    it[RateLimitStatsSnapshots.maxPerMinute] = stats.maxPerMinute
+                    it[RateLimitStatsSnapshots.sampledAt] = now
+                }
             }
         }
     }
