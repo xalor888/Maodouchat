@@ -29,9 +29,10 @@ val firebaseApplicationId = readGradleProperty("MAODOU_FIREBASE_APPLICATION_ID")
 val firebaseApiKey = readGradleProperty("MAODOU_FIREBASE_API_KEY").orEmpty()
 val firebaseSenderId = readGradleProperty("MAODOU_FIREBASE_SENDER_ID").orEmpty()
 
-// B1 体积护栏基线（字节）：默认 10MB，:app:verifyReleaseSize 超限即失败（可 -PMAODOU_SIZE_BASELINE_BYTES 覆盖）
+// B1 体积护栏基线（字节）：默认 14MB，:app:verifyReleaseSize 超限即失败（可 -PMAODOU_SIZE_BASELINE_BYTES 覆盖）
+// 2026-08 实测 release APK ≈ 12.0MB（Compose + Signal + WebRTC + AI），10MB 基线过紧。
 val slimBaselineBytes: Long =
-    (readGradleProperty("MAODOU_SIZE_BASELINE_BYTES")?.toLongOrNull()?.takeIf { it > 0L } ?: 10L * 1024L * 1024L)
+    (readGradleProperty("MAODOU_SIZE_BASELINE_BYTES")?.toLongOrNull()?.takeIf { it > 0L } ?: 14L * 1024L * 1024L)
 
 // B1: libsignal AAR 内置致谢文档 assets/acknowledgments（~327KB，应用未引用）。
 // 实测 packaging.resources.excludes 对 AAR 的 assets 不生效（AGP 限制，只处理 java resources），

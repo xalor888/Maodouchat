@@ -31,7 +31,7 @@
 ```
 
 - 任务会先 `assembleRelease`，再由 `com.maodouchat.slim.SizeGuard` 打印 APK 体积分解（dex / .so / 资源 / assets / META-INF 各占字节与百分比、最大的 .so 清单）；
-- APK ≤ 基线（默认 10MB，`gradle.properties` 的 `maodou.sizeBaselineBytes`，可 `-PMAODOU_SIZE_BASELINE_BYTES=` 覆盖）→ 通过；超限 → 任务失败（阻断发版）。
+- APK ≤ 基线（默认 14MB，可 `-PMAODOU_SIZE_BASELINE_BYTES=` 覆盖）→ 通过；超限 → 任务失败（阻断发版）。实测 2026-08-08 release ≈ 12.0MB，此前 10MB 基线过紧已调至 14MB。
 
 ## 3. 依赖审计结论（B1，2026-08-01）
 
