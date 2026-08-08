@@ -1540,7 +1540,7 @@
     <string name="explore_post_copied">Post copied</string>
     <string name="explore_post_copied_image">[Image]</string>
     <string name="explore_likers_title">Likes</string>
-    <string name="explore_self_like_denied">You can't like your own post</string>
+    <string name="explore_self_like_denied">You can\'t like your own post</string>
     <string name="explore_likers_empty">No likes yet</string>
     <string name="explore_reply_to">Replying to %1$s</string>
     <string name="chat_silent_until_menu">Mute until</string>
@@ -2879,11 +2879,11 @@
     <string name="ai_archive_reason_low30">Almost no new messages in the last 30 days</string>
     <string name="ai_archive_reason_decline">Activity declined, archiving keeps your chat list tidy</string>
 
-    <string name="ai_emotion_fallback_happy">That's great, happy for you!</string>
-    <string name="ai_emotion_fallback_sad">I understand how you feel, I'm here whenever you need to talk.</string>
+    <string name="ai_emotion_fallback_happy">That\'s great, happy for you!</string>
+    <string name="ai_emotion_fallback_sad">I understand how you feel, I\'m here whenever you need to talk.</string>
     <string name="ai_emotion_fallback_angry">Take it easy, I understand how you feel, tell me slowly.</string>
-    <string name="ai_emotion_fallback_anxious">Don't worry too much, step by step, let's sort it out together.</string>
-    <string name="ai_emotion_fallback_neutral">Got it, go ahead, I'm listening.</string>
+    <string name="ai_emotion_fallback_anxious">Don\'t worry too much, step by step, let\'s sort it out together.</string>
+    <string name="ai_emotion_fallback_neutral">Got it, go ahead, I\'m listening.</string>
 
     <string name="server_url_empty">Server address cannot be empty</string>
     <string name="server_url_invalid">Invalid server address format</string>
