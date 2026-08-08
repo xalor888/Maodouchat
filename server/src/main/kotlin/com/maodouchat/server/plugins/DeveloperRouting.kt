@@ -969,6 +969,7 @@ data class DevMeResponse(
 private fun dayBucketExpression(column: Column<Long>): Expression<Long> =
     object : Expression<Long>() {
         override fun toQueryBuilder(queryBuilder: QueryBuilder) {
-            queryBuilder.append("CAST(($column / 86400000) AS SIGNED)")
+            // 8.63 修复：CAST AS SIGNED 是 MySQL/SQLite 语法，H2 2.x/PostgreSQL 不支持 → 改用 BIGINT
+            queryBuilder.append("CAST(($column / 86400000) AS BIGINT)")
         }
     }

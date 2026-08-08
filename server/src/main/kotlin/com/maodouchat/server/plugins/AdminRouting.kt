@@ -4335,12 +4335,13 @@ data class OpsSnapshotResponse(
 
 /**
  * 8.48 修复 M1/M2：把时间列按「Unix 天编号」（timestamp / 86400000）分组的 Exposed 表达式，
- * 供趋势统计 SQL GROUP BY 聚合（管理仪表盘 /trends、/rich-trends）。SQLite/MySQL 均接受
- * CAST(x AS SIGNED)。
+ * 供趋势统计 SQL GROUP BY 聚合（管理仪表盘 /trends、/rich-trends）。
+ * 8.63 修复：CAST(x AS SIGNED) 是 MySQL/SQLite 语法，H2 2.x 与 PostgreSQL 均不支持
+ *（H2 会把 SIGNED 误解析成数据库名报 "Database COM not found"）→ 改用跨库 BIGINT。
  */
 private fun dayBucketExpression(column: Column<Long>): Expression<Long> =
     object : Expression<Long>() {
         override fun toQueryBuilder(queryBuilder: QueryBuilder) {
-            queryBuilder.append("CAST(($column / 86400000) AS SIGNED)")
+            queryBuilder.append("CAST(($column / 86400000) AS BIGINT)")
         }
     }
