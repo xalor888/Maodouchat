@@ -329,8 +329,6 @@
     <string name="chat_exported">已导出</string>
     <string name="chat_export_success">已导出 %1$d 条消息</string>
     <string name="chat_export_empty">当前会话没有可导出的消息</string>
-    <string name="chat_export_failed">导出失败，请重试</string>
-    <string name="chat_clear_history">清除本地消息</string>
     <string name="chat_clear_history_title">清除本地消息？</string>
     <string name="chat_clear_history_body">将删除本机该会话消息与媒体缓存，无法撤销。服务端密文仍在，重新打开可能再次同步。会话 PIN、草稿与群设置保留。</string>
     <string name="chat_clear_history_done">已清除本地消息</string>
@@ -1443,7 +1441,6 @@
     <string name="security_scope_body">• 私聊/群聊正文与加密附件：端到端加密，服务端只存密文与路由元数据\n• 安全码：本应用自研 5 位分组格式，用于人工核对身份；变更时会在聊天内提示\n• 密聊：本机防截屏（FLAG_SECURE）+ 盲水印 + 通知/导出脱敏；非双端协议，无法对抗外置相机\n• 本地库：SQLCipher 加密；退出登录会按策略清理本机会话\n• 推送：当前仅 FCM；消息预览多为加密占位，无厂商通道\n• AI：默认不读密文；需你主动触发且可在设置关闭；管理端审计不含 prompt/正文\n• 备份：若启用服务端备份，范围以备份说明为准，不等于明文可读</string>
     <string name="settings_notifications">新消息通知</string>
     <string name="settings_privacy">隐私</string>
-    <string name="settings_blocked_users">屏蔽名单</string>
     <string name="settings_ai_privacy">AI 助手与隐私</string>
     <string name="settings_moderation">内容审核</string>
     <string name="settings_general">通用</string>
@@ -1473,10 +1470,8 @@
     <string name="privacy_searchable_subtitle">关闭后，不会出现在公开联系人列表中</string>
     <string name="privacy_default_post_visibility">默认动态可见范围</string>
     <string name="blocked_loading">正在加载</string>
-    <string name="blocked_empty">暂无屏蔽用户</string>
     <string name="blocked_search_hint">搜索屏蔽用户</string>
     <string name="blocked_search_empty">没有匹配的屏蔽用户</string>
-    <string name="blocked_unblock">取消屏蔽</string>
     <string name="common_refresh">刷新</string>
     <string name="common_done">完成</string>
     <string name="common_delete">删除</string>
@@ -1505,7 +1500,6 @@
     <string name="totp_regenerate_codes">重新生成恢复码</string>
     <string name="totp_disable">禁用两步验证</string>
     <string name="chat_export_menu">导出聊天记录</string>
-    <string name="chat_export_share_title">导出聊天记录</string>
     <string name="chat_export_failed">导出失败</string>
     <string name="settings_my_reports">我的举报</string>
     <string name="settings_my_posts">我的动态</string>
@@ -1563,9 +1557,6 @@
     <string name="chat_unread_divider">以下为未读消息</string>
     <string name="chat_jump_to_latest">回到最新</string>
     <string name="general_language">语言</string>
-    <string name="general_language_system">跟随系统</string>
-    <string name="general_language_chinese">简体中文</string>
-    <string name="general_language_english">English</string>
     <string name="explore_report_post">举报动态</string>
     <string name="explore_report_comment">举报评论</string>
     <string name="explore_comment_actions">评论操作</string>

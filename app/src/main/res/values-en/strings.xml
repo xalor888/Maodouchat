@@ -329,8 +329,6 @@
     <string name="chat_exported">Exported</string>
     <string name="chat_export_success">Exported %1$d messages</string>
     <string name="chat_export_empty">No messages to export in this chat</string>
-    <string name="chat_export_failed">Export failed. Please try again</string>
-    <string name="chat_clear_history">Clear local messages</string>
     <string name="chat_clear_history_title">Clear local messages?</string>
     <string name="chat_clear_history_body">Deletes local messages and media cache for this chat. This cannot be undone. Server ciphertext may resync when you reopen. Chat PIN, drafts, and group settings are kept.</string>
     <string name="chat_clear_history_done">Local messages cleared</string>
@@ -1442,7 +1440,6 @@
     <string name="security_scope_body">• 1:1 / group bodies and encrypted attachments: E2EE; the server stores ciphertext and routing metadata only\n• Safety codes: Maodouchat\u2019s own 5-digit groups for out-of-band checks; changes surface as in-chat warnings\n• Secret chat: local FLAG_SECURE + blind watermark + redacted notify/export; device-local only, not a two-party protocol; cannot stop external cameras\n• Local DB: SQLCipher; sign-out purges this device session per policy\n• Push: FCM only; message previews are mostly encrypted placeholders; no vendor push channels\n• AI: never reads ciphertext by default; user-triggered and can be disabled; admin audit has no prompts/bodies\n• Backups: if server backup is enabled, scope follows the backup notice — not plaintext access</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_privacy">Privacy</string>
-    <string name="settings_blocked_users">Blocked users</string>
     <string name="settings_ai_privacy">AI assistant and privacy</string>
     <string name="settings_moderation">Content moderation</string>
     <string name="settings_general">General</string>
@@ -1471,10 +1468,8 @@
     <string name="privacy_searchable_subtitle">Do not appear in the public contact directory</string>
     <string name="privacy_default_post_visibility">Default post audience</string>
     <string name="blocked_loading">Loading</string>
-    <string name="blocked_empty">No blocked users</string>
     <string name="blocked_search_hint">Search blocked users</string>
     <string name="blocked_search_empty">No matching blocked users</string>
-    <string name="blocked_unblock">Unblock</string>
     <string name="common_refresh">Refresh</string>
     <string name="common_done">Done</string>
     <string name="common_delete">Delete</string>
@@ -1503,7 +1498,6 @@
     <string name="totp_regenerate_codes">Regenerate recovery codes</string>
     <string name="totp_disable">Disable two-step verification</string>
     <string name="chat_export_menu">Export chat history</string>
-    <string name="chat_export_share_title">Export chat history</string>
     <string name="chat_export_failed">Export failed</string>
     <string name="settings_my_reports">My reports</string>
     <string name="settings_my_posts">My posts</string>
@@ -1561,9 +1555,6 @@
     <string name="chat_unread_divider">Unread messages below</string>
     <string name="chat_jump_to_latest">Jump to latest</string>
     <string name="general_language">Language</string>
-    <string name="general_language_system">Follow system</string>
-    <string name="general_language_chinese">简体中文</string>
-    <string name="general_language_english">English</string>
     <string name="explore_report_post">Report post</string>
     <string name="explore_report_comment">Report comment</string>
     <string name="explore_comment_actions">Comment actions</string>
@@ -2823,7 +2814,7 @@
     <string name="settings_server_hint">Enter your self-hosted server address to connect without reinstalling the app. After switching servers, sign in with an account on that server.</string>
     <string name="settings_server_current">Current server</string>
     <string name="settings_server_input_label">Server address</string>
-    <string name="settings_server_save">Save & apply</string>
+    <string name="settings_server_save">Save &amp; apply</string>
     <string name="settings_server_saved">Saved. Please sign in again to continue the current session.</string>
     <string name="settings_server_ws_hint">WebSocket address is derived automatically (http→ws, https→wss, path /ws)</string>
     <string name="settings_server_reset">Reset to default server</string>
