@@ -114,20 +114,32 @@ jobs:
       - name: Decode signing keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD_SECRET: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS_SECRET: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD_SECRET: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
             echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD_SECRET" >> "$GITHUB_ENV"
+            echo "KEY_ALIAS=$KEY_ALIAS_SECRET" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=$KEY_PASSWORD_SECRET" >> "$GITHUB_ENV"
             echo "keystore=1" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::Secret KEYSTORE_BASE64 未配置——将发布未签名 APK（无法直接安装）"
+            # 未配置生产签名密钥：生成临时 debug 签名，保证 APK 可安装（非生产签名）。
+            # 否则 Android 拒绝安装未签名 APK，报「解析包时出现问题」。
+            keytool -genkeypair -v -keystore "$RUNNER_TEMP/release.jks" \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Maodouchat Debug, OU=Maodouchat, O=Maodouchat, L=City, ST=State, C=CN" >/dev/null 2>&1
+            echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "KEYSTORE_PASSWORD=android" >> "$GITHUB_ENV"
+            echo "KEY_ALIAS=androiddebugkey" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=android" >> "$GITHUB_ENV"
+            echo "::warning::Secret KEYSTORE_BASE64 未配置——使用临时 debug 签名（APK 可安装，但非生产签名）"
           fi
 
       - name: Build & verify Android release APK
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x ./gradlew
           ./gradlew :app:assembleRelease :app:verifyReleaseSize \
