@@ -139,6 +139,33 @@ bash scripts/deploy.sh --host your.domain.com --email you@example.com
 - Android：`:app:compileDebugKotlin` + `:app:testDebugUnitTest`
 - Docker：`docker compose --env-file .env.docker.example config`
 
+## 发布 GitHub Release
+
+工作流 [`release.yml`](.github/workflows/release.yml) 在推送 `v*` 标签（或手动触发）时自动构建并发布 Release：
+
+- Android 签名 APK（`app-release.apk`）——已启用 R8 + 资源收缩 + `:app:verifyReleaseSize` 体积护栏
+- Ktor 服务端发行包（`server/build/install` 打成的 tar.gz）
+- `SHA256SUMS.txt` 校验和 + 基于 git log 的自动变更说明
+
+仓库需配置以下 Secrets：
+
+| Secret | 说明 |
+|--------|------|
+| `RELEASE_API_BASE_URL` | 发布版 App 指向的服务端地址，如 `https://chat.example.com` |
+| `RELEASE_WS_URL` | WebSocket 地址，如 `wss://chat.example.com/ws`（缺省时由 API 地址推导） |
+| `KEYSTORE_BASE64` | 签名 `.jks`/`.keystore` 的 base64（不配则发布无法安装的未签名 APK） |
+| `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD` | 签名证书信息 |
+
+触发方式：
+
+```bash
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+或仓库 Actions → Release → Run workflow（可填版本号、API/WSS 地址、预发布标记）。
+版本号同时作为 `versionName` 写入 APK；`versionCode` 默认取 git 提交数，也可手动指定。
+
 ## 构建 Android
 
 Debug 构建默认连接 Android 模拟器宿主机地址：

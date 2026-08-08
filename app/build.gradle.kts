@@ -19,6 +19,11 @@ val releaseBuildRequested = gradle.startParameter.taskNames.any { taskName ->
     taskName.contains("Release", ignoreCase = true) || taskName.contains("bundle", ignoreCase = true)
 }
 
+// Release 版本可在构建时覆盖：-PMAODOU_VERSION_NAME=1.2.3 -PMAODOU_VERSION_CODE=123
+// （GitHub Release workflow 从 tag/输入传入；不传则回退默认 1.0 / 1）
+val releaseVersionName: String = readGradleProperty("MAODOU_VERSION_NAME") ?: "1.0"
+val releaseVersionCode: Int = readGradleProperty("MAODOU_VERSION_CODE")?.toIntOrNull() ?: 1
+
 val firebaseProjectId = readGradleProperty("MAODOU_FIREBASE_PROJECT_ID").orEmpty()
 val firebaseApplicationId = readGradleProperty("MAODOU_FIREBASE_APPLICATION_ID").orEmpty()
 val firebaseApiKey = readGradleProperty("MAODOU_FIREBASE_API_KEY").orEmpty()
@@ -51,8 +56,8 @@ android {
         applicationId = "com.maodouchat"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = releaseVersionCode
+        versionName = releaseVersionName
 
         buildConfigField("String", "API_BASE_URL", "http://10.0.2.2:8080".asBuildConfigString())
         buildConfigField("String", "WS_URL", "ws://10.0.2.2:8080/ws".asBuildConfigString())
@@ -79,6 +84,23 @@ android {
     // WebRTC 原生库（~9.86MB）不进基础 APK：侧载/非 Play 渠道由运行时从自服下载
     // （见 call/WebRtcNativeLibraryLoader.kt），Play 渠道由特性模块下发。动态特性模块
     // 已移除（:feature_call），fusing=false 下侧载渠道本就无法获得该库。
+
+    // Release 签名：从环境变量读取（CI 用 GitHub Secrets：KEYSTORE_FILE / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD）。
+    // 未配置时 release 构建为未签名（可构建、不可安装），本地开发不受影响。
+    signingConfigs {
+        val ksFile = System.getenv("KEYSTORE_FILE")
+        val ksPass = System.getenv("KEYSTORE_PASSWORD")
+        val kAlias = System.getenv("KEY_ALIAS")
+        val kPass = System.getenv("KEY_PASSWORD")
+        if (!ksFile.isNullOrBlank() && !ksPass.isNullOrBlank() && !kAlias.isNullOrBlank() && !kPass.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(ksFile)
+                storePassword = ksPass
+                keyAlias = kAlias
+                keyPassword = kPass
+            }
+        }
+    }
 
     buildTypes {
         debug {
@@ -113,6 +135,8 @@ android {
 
             buildConfigField("String", "API_BASE_URL", checkedReleaseApiBaseUrl.asBuildConfigString())
             buildConfigField("String", "WS_URL", checkedReleaseWsUrl.asBuildConfigString())
+            // 环境变量配置了签名时对 release APK 签名（GitHub Release 构建必填）
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
