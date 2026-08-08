@@ -95,7 +95,8 @@ try {
   await page.locator("#app:not(.hidden)").waitFor();
   // 仪表盘统计卡片渲染在 #content 内，类名为 .stat-card
   await page.locator("#content .stat-card").first().waitFor();
-  assert.match(await page.locator("#session-info").innerText(), /高权限会话 4:|高权限会话 5:/);
+  // 会话时钟徽章只显示剩余时间（如 "4:59"），不含"高权限会话"文本
+  assert.match(await page.locator("#session-info").innerText(), /^\d+:\d{2}$/);
   assert.equal(await page.locator("#password").inputValue(), "");
   const storage = await page.evaluate(() => ({
     local: Object.keys(localStorage),
