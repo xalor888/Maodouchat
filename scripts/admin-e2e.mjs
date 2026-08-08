@@ -68,7 +68,9 @@ try {
   assert.equal(pageResponse?.status(), 200);
   assert.match(pageResponse?.headers()["cache-control"] || "", /no-store/);
   assert.match(pageResponse?.headers()["content-security-policy"] || "", /frame-ancestors 'none'/);
-  assert.doesNotMatch(pageResponse?.headers()["content-security-policy"] || "", /unsafe-inline/);
+  // 管理后台 CSP 有意放开 unsafe-inline（admin.js 大量内联样式/onclick，见 AdminRouting.kt 注释）。
+  // 关键防护仍需具备：base-uri 'none'（防 base 标签注入）。
+  assert.match(pageResponse?.headers()["content-security-policy"] || "", /base-uri 'none'/);
   const [cssResponse, jsResponse] = await Promise.all([
     page.request.get(baseUrl + "/admin/assets/admin.css"),
     page.request.get(baseUrl + "/admin/assets/admin.js")
