@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:,"/>
+<title>毛豆聊天管理后台</title>
+<link rel="stylesheet" href="/admin/assets/admin.css"/>
+</head>
+<body>
+
+<!-- ═══ 登录页 ═══ -->
+<section id="login" class="login-page">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <div class="login-brand">
+      <svg class="login-logo" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="10" fill="#6366f1"/>
+        <path d="M14 15c0-2 1.5-4 4-4h4c2.5 0 4 2 4 4v5c0 2-1.5 4-4 4h-2l-3 3v-3h-1c-1.5 0-2-1-2-2v-7z" fill="#fff"/>
+        <circle cx="17" cy="18" r="1.2" fill="#6366f1"/>
+        <circle cx="22" cy="18" r="1.2" fill="#6366f1"/>
+      </svg>
+      <div>
+        <div class="login-title">毛豆聊天</div>
+        <div class="login-subtitle">管理控制台</div>
+      </div>
+    </div>
+    <form id="login-form" class="login-form">
+      <div class="field">
+        <label for="email">邮箱</label>
+        <input id="email" type="email" autocomplete="username" placeholder="admin@maodouchat.com" required/>
+      </div>
+      <div class="field">
+        <label for="password">密码</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required/>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 1a2 2 0 012 2v1h1a2 2 0 012 2v2a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2h1V3a2 2 0 012-2zM6 7v1h4V7H6zm0 3v1h4v-1H6z"/></svg>
+        安全登录
+      </button>
+      <div id="login-error" class="login-error" role="alert"></div>
+      <div class="login-hint">需要主管理员（MASTER_ADMINS）权限，登录后需二次密码确认</div>
+    </form>
+  </div>
+</section>
+
+<!-- ═══ 主应用 ═══ -->
+<section id="app" class="app hidden">
+  <!-- 侧边栏 -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <svg class="sidebar-logo" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="10" fill="#6366f1"/>
+        <path d="M14 15c0-2 1.5-4 4-4h4c2.5 0 4 2 4 4v5c0 2-1.5 4-4 4h-2l-3 3v-3h-1c-1.5 0-2-1-2-2v-7z" fill="#fff"/>
+        <circle cx="17" cy="18" r="1.2" fill="#6366f1"/>
+        <circle cx="22" cy="18" r="1.2" fill="#6366f1"/>
+      </svg>
+      <span class="sidebar-title">毛豆聊天后台</span>
+    </div>
+    <nav class="sidebar-nav" id="nav">
+      <div class="nav-group">
+        <div class="nav-group-label">总览</div>
+        <button data-tab="dashboard" class="nav-item active">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h5v6H2V2zm7 0h5v3H9V2zm0 5h5v7H9V7zM2 10h5v4H2v-4z"/></svg>
+          <span>仪表盘</span>
+        </button>
+        <button data-tab="ranking" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 12h3v2H2v-2zm5-4h3v6H7V8zm5-6h3v12h-3V2z"/></svg>
+          <span>排行榜</span>
+        </button>
+        <button data-tab="online" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 3a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM3 12c0-2 2.2-3.5 5-3.5s5 1.5 5 3.5v1H3v-1zM3 1.5a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+          <span>在线用户</span>
+          <span class="nav-badge hidden" id="nav-online-badge">0</span>
+        </button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">用户</div>
+        <button data-tab="users" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 3a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM3 12c0-2 2.2-3.5 5-3.5s5 1.5 5 3.5v1H3v-1z"/></svg>
+          <span>用户管理</span>
+        </button>
+        <button data-tab="chats" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 3a1 1 0 011-1h10a1 1 0 011 1v7a1 1 0 01-1 1H7l-3 3v-3H3a1 1 0 01-1-1V3z"/></svg>
+          <span>群聊管理</span>
+        </button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">内容</div>
+        <button data-tab="messages" class="nav-item">
+          <span class="nav-icon">&#128172;</span>
+          <span>Messages</span>
+        </button>
+        <button data-tab="posts" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 2a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1V5l-3-3H3zm2 4h6v1H5V6zm0 3h6v1H5V9z"/></svg>
+          <span>动态管理</span>
+        </button>
+        <button data-tab="comments" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 3a1 1 0 011-1h10a1 1 0 011 1v7a1 1 0 01-1 1H7l-3 3v-3H3a1 1 0 01-1-1V3z"/></svg>
+          <span>评论管理</span>
+        </button>
+        <button data-tab="reports" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1L1 14h14L8 1zm0 4v4H7V5h1zm0 6v1H7v-1h1z"/></svg>
+          <span>举报审核</span>
+          <span class="nav-badge hidden" id="nav-reports-badge">0</span>
+        </button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">风控</div>
+        <button data-tab="rules" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l6 2v4c0 3.5-2.5 6.5-6 8-3.5-1.5-6-4.5-6-8V3l6-2z"/></svg>
+          <span>风控规则</span>
+        </button>
+        <button data-tab="risk-events" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a6 6 0 100 12 6 6 0 000-12zm0 3a1 1 0 110 2 1 1 0 010-2zm1 4v3H7V9h2z"/></svg>
+          <span>风控事件</span>
+          <span class="nav-badge nav-badge-warn hidden" id="nav-risk-badge">0</span>
+        </button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">系统</div>
+        <button data-tab="storage" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 4a1 1 0 011-1h10a1 1 0 011 1v8a1 1 0 01-1 1H3a1 1 0 01-1-1V4zm2 1v2h8V5H4zm0 4v1h2V9H4zm4 0v1h4V9H8z"/></svg>
+          <span>存储用量</span>
+        </button>
+        <button data-tab="ai-usage" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a3 3 0 013 3v1a3 3 0 01-3 3 3 3 0 01-3-3V4a3 3 0 013-3zM3 13c0-2.5 2-4 5-4s5 1.5 5 4v1H3v-1z"/></svg>
+          <span>AI 审计</span>
+        </button>
+        <button data-tab="push-tokens" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V3a1 1 0 00-1-1H4zm2 3h4v1H6V5zm0 3h4v1H6V8z"/></svg>
+          <span>推送令牌</span>
+        </button>
+        <button data-tab="watermark" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v12H2V2zm2 2v8h8V4H4zm2 2h4v1H6V6zm0 2h4v1H6V8z"/></svg>
+          <span>Watermark</span>
+        </button>
+        <button data-tab="bots" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M5 3a3 3 0 016 0v1h1a2 2 0 012 2v5a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2h1V3zm2 0a1 1 0 012 0v1H7V3zM5 8a1 1 0 100 2 1 1 0 000-2zm6 0a1 1 0 100 2 1 1 0 000-2z"/></svg>
+          <span>Bots</span>
+        </button>
+        <button data-tab="settings" class="nav-item">
+          <span class="nav-icon">&#9881;</span>
+          <span>Settings</span>
+        </button>
+        <button data-tab="audit" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 1a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V4l-3-3H4zm4 3V2l2 2H8z"/></svg>
+          <span>操作审计</span>
+        </button>
+      </div>
+      <!-- B6 运维增强：公告广播 / 用户标签 / 限流仪表盘 / 设备一致性 -->
+      <div class="nav-group">
+        <div class="nav-group-label">B6 运维增强</div>
+        <button data-tab="announcements" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a3 3 0 00-3 3v4.5L3 10.5V12h10v-1.5l-2-2V4a3 3 0 00-3-3zm-2 12a2 2 0 004 0H6z"/></svg>
+          <span>公告广播</span>
+        </button>
+        <button data-tab="user-tags" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1 3a1 1 0 011-1h5l8 8-6 6-8-8V3zm4 2a1 1 0 100 2 1 1 0 000-2z"/></svg>
+          <span>用户标签</span>
+        </button>
+        <button data-tab="rate-limit" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 7h12v2H2V7zm2-4h8v2H4V3zM4 11h8v2H4v-2z"/></svg>
+          <span>限流仪表盘</span>
+        </button>
+        <button data-tab="device-consistency" class="nav-item">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l6 2v4c0 3.5-2.5 6.5-6 8-3.5-1.5-6-4.5-6-8V3l6-2zm-1 4v3.5L9.5 11l.7-.7-2-2.3V5H7z"/></svg>
+          <span>设备一致性</span>
+        </button>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="session-badge" id="session-info" title="高权限会话剩余时间">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 100 14 7 7 0 000-14zm0 2v5l3 2"/></svg>
+        <span>--:--</span>
+      </div>
+      <button id="logout" class="btn btn-ghost btn-sm">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M6 2a1 1 0 00-1 1v2h1V3h5v10H6v-2H5v2a1 1 0 001 1h5a1 1 0 001-1V3a1 1 0 00-1-1H6zM3 7v2h6V7H3zm0 0"/></svg>
+        退出
+      </button>
+    </div>
+  </aside>
+
+  <!-- 侧边栏遮罩（移动端） -->
+  <div class="sidebar-overlay hidden" id="sidebar-overlay"></div>
+
+  <!-- 主内容区 -->
+  <div class="main-area">
+    <!-- 顶栏 -->
+    <header class="topbar">
+      <button class="topbar-menu btn btn-ghost btn-icon" id="menu-toggle">
+        <svg viewBox="0 0 16 16" width="20" height="20" fill="currentColor"><path d="M2 3h12v1.5H2V3zm0 4h12v1.5H2V7zm0 4h12v1.5H2V11z"/></svg>
+      </button>
+      <h1 class="topbar-title" id="page-title">仪表盘</h1>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" id="refresh-btn">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 3a5 5 0 014.5 3h-1.8l2.3 3 2.3-3h-1.6A6.5 6.5 0 008 1.5 6.5 6.5 0 001.5 8H3a5 5 0 015-5zm5 5a5 5 0 01-9.5 2h1.8l-2.3-3-2.3 3h1.6A6.5 6.5 0 008 14.5a6.5 6.5 0 006.5-6.5H13z"/></svg>
+          刷新
+        </button>
+      </div>
+    </header>
+
+    <!-- 内容面板 -->
+    <main class="content" id="content">
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <span>加载中…</span>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ═══ 通用组件 ═══ -->
+
+<!-- Toast 通知 -->
+<div id="toast" class="toast hidden" role="status">
+  <svg class="toast-icon" viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 1a7 7 0 100 14 7 7 0 000-14zm3.5 5.5L7 11 4.5 8.5l1-1L7 9l3.5-3.5 1 1z"/></svg>
+  <span class="toast-text"></span>
+</div>
+
+<!-- 确认对话框 -->
+<div id="modal-overlay" class="modal-overlay hidden">
+  <div class="modal" id="modal-box">
+    <div class="modal-icon" id="modal-icon-wrap"></div>
+    <h3 class="modal-title" id="modal-title"></h3>
+    <p class="modal-body" id="modal-body"></p>
+    <div class="modal-input-wrap hidden" id="modal-input-wrap">
+      <input type="text" class="modal-input" id="modal-input" placeholder=""/>
+      <div class="modal-input-hint" id="modal-input-hint"></div>
+    </div>
+    <div class="modal-select-wrap hidden" id="modal-select-wrap">
+      <select class="modal-select" id="modal-select"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="modal-cancel">取消</button>
+      <button class="btn btn-primary" id="modal-confirm">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 详情抽屉 -->
+<div id="drawer-overlay" class="drawer-overlay hidden">
+  <div class="drawer" id="drawer-box">
+    <div class="drawer-header">
+      <h3 id="drawer-title">详情</h3>
+      <button class="btn btn-ghost btn-icon" id="drawer-close">
+        <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </div>
+</div>
+
+<script src="/admin/assets/admin.js" defer></script>
+</body>
+</html>

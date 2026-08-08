@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path
+        name="cached_media"
+        path="maodouchat_media/" />
+    <!-- BUG 3 fix: 覆盖所有缓存子目录，防止 FileProvider.getUriForFile 抛 IllegalArgumentException -->
+    <cache-path
+        name="attachment_sources"
+        path="attachment-sources/" />
+    <cache-path
+        name="attachment_downloads"
+        path="attachment-downloads/" />
+    <cache-path
+        name="attachment_uploads"
+        path="attachment-uploads/" />
+    <cache-path
+        name="voice_recordings"
+        path="voice_recordings/" />
+    <!-- 8.54：聊天记录文本导出目录 -->
+    <cache-path
+        name="exports"
+        path="exports/" />
+</paths>

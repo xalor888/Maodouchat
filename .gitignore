@@ -1,0 +1,66 @@
+# Gradle / Android
+.gradle/
+build/
+**/build/
+node_modules/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Kotlin
+.kotlin/
+
+# Secrets / environment
+.env
+.env.*
+!*.env.example
+keystore.properties
+*.jks
+*.keystore
+secrets/
+*service-account*.json
+
+# Server runtime data
+uploads/
+server/uploads/
+*.db
+*.mv.db
+*.trace.db
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# AI tooling workspace state
+.trae/
+.mimocode/
+.workbuddy/
+.zcode/
+.codeartsdoer/
+.merkle-snapshot.json
+
+# Reverse-engineering tooling (jadx/cfr), not part of the app
+_tools/
+
+# stray file
+f
+
+# Logs
+*.log
+logs/
+backups/
+
+# WebRTC 原生库二进制（~9.8MB，部署时用 scripts/webrtc-sync-native.sh 从 Gradle 缓存提取）
+server/src/main/resources/webrtc/

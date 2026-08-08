@@ -1,0 +1,179 @@
+package com.maodouchat.ui.component
+
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.maodouchat.ui.theme.LocalMotionSettings
+import com.maodouchat.ui.theme.Primary
+import com.maodouchat.ui.theme.SurfaceVariant
+
+/**
+ * Animated three-dot typing indicator (Telegram / iMessage style).
+ *
+ * Each dot scales up and down with a staggered delay, creating a smooth
+ * wave-like bouncing effect. Respects the user's motion-scale settings.
+ *
+ * @param text Optional text label to show alongside the dots (e.g. "Alice is typing")
+ * @param dotColor Color of the bouncing dots
+ * @param modifier Modifier for the composable
+ */
+@Composable
+fun TypingIndicator(
+    text: String? = null,
+    modifier: Modifier = Modifier,
+    dotColor: Color = Primary
+) {
+    val motion = LocalMotionSettings.current
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(SurfaceVariant.copy(alpha = 0.55f))
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        if (text != null) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 11.sp
+                ),
+                color = Primary,
+                maxLines = 1
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (motion.animationsEnabled) {
+                val transition = rememberInfiniteTransition(label = "typing")
+                val scales = (0 until 3).map { index ->
+                    transition.animateFloat(
+                        initialValue = 0.4f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(
+                                durationMillis = motion.duration(500),
+                                delayMillis = motion.duration(index * 130)
+                            ),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "typingDot_$index"
+                    )
+                }
+                scales.forEach { scale ->
+                    val s by scale
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .graphicsLayer {
+                                scaleX = s
+                                scaleY = s
+                                alpha = 0.4f + (s - 0.4f) / 0.6f * 0.6f
+                                translationY = -(s - 0.4f) / 0.6f * 3f
+                            }
+                            .background(dotColor, CircleShape)
+                    )
+                }
+            } else {
+                // Reduced-motion: static dots, no infinite loop (avoids tween(0) flicker).
+                repeat(3) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .graphicsLayer { alpha = 0.7f }
+                            .background(dotColor, CircleShape)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Compact inline typing dots without background — for use inside chat list
+ * preview text where space is constrained.
+ */
+@Composable
+fun InlineTypingDots(
+    modifier: Modifier = Modifier,
+    dotColor: Color = Primary
+) {
+    val motion = LocalMotionSettings.current
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+    ) {
+        if (motion.animationsEnabled) {
+            val transition = rememberInfiniteTransition(label = "inlineTyping")
+            val scales = (0 until 3).map { index ->
+                transition.animateFloat(
+                    initialValue = 0.5f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(
+                            durationMillis = motion.duration(500),
+                            delayMillis = motion.duration(index * 130)
+                        ),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "inlineDot_$index"
+                )
+            }
+            scales.forEach { scale ->
+                val s by scale
+                Box(
+                    modifier = Modifier
+                        .size(4.dp)
+                        .graphicsLayer {
+                            scaleX = s
+                            scaleY = s
+                            alpha = 0.4f + (s - 0.5f) / 0.5f * 0.6f
+                            translationY = -(s - 0.5f) / 0.5f * 2f
+                        }
+                        .background(dotColor, CircleShape)
+                )
+            }
+        } else {
+            repeat(3) {
+                Box(
+                    modifier = Modifier
+                        .size(4.dp)
+                        .graphicsLayer { alpha = 0.7f }
+                        .background(dotColor, CircleShape)
+                )
+            }
+        }
+    }
+}

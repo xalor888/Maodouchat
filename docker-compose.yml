@@ -1,0 +1,160 @@
+services:
+  proxy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST to the public API hostname}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL for TLS certificate notices}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+    # 1.288：proxy 健康检查——Caddy 管理 API 存活即视为健康（容器内 localhost:2019）
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:2019/config || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-maodouchat}
+      POSTGRES_USER: ${POSTGRES_USER:-maodouchat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-maodouchat} -d ${POSTGRES_DB:-maodouchat}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks:
+      - data
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      HOST: 0.0.0.0
+      PORT: 8080
+      BASE_URL: ${BASE_URL:?Set BASE_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      # Push 签名密钥：生产模式必填（relaxed 模式可留空，推送校验降级 fail-open）。
+      PUSH_HMAC_SECRET: ${PUSH_HMAC_SECRET:-}
+      # 自托管宽松模式：允许无 SMTP / TURN 启动（验证码打日志、通话仅 STUN）。
+      RELAXED_VERIFICATION: ${RELAXED_VERIFICATION:-false}
+      DEV_LOG_CODES: ${DEV_LOG_CODES:-false}
+      DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-maodouchat}?user=${POSTGRES_USER:-maodouchat}&password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      DATABASE_DRIVER: org.postgresql.Driver
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-}
+      STORAGE_DIR: /app/uploads
+      SEED_DEMO_USERS: "false"
+      MODERATOR_EMAILS: ${MODERATOR_EMAILS:-}
+      MASTER_ADMINS: ${MASTER_ADMINS:-}
+      BOOTSTRAP_FIRST_USER_AS_ADMIN: ${BOOTSTRAP_FIRST_USER_AS_ADMIN:-false}
+      DEVELOPER_USER_IDS: ${DEVELOPER_USER_IDS:-}
+      TRUST_PROXY_HEADERS: "true"
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Maodouchat}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_MODEL_LIGHT: ${OPENAI_MODEL_LIGHT:-}
+      OPENAI_MODEL_STRONG: ${OPENAI_MODEL_STRONG:-}
+      OPENAI_MODEL_FALLBACK: ${OPENAI_MODEL_FALLBACK:-}
+      OPENAI_TRANSCRIPTION_MODEL: ${OPENAI_TRANSCRIPTION_MODEL:-gpt-4o-mini-transcribe}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+      FCM_SERVICE_ACCOUNT_FILE: ${FCM_SERVICE_ACCOUNT_FILE:-}
+      TURN_URLS: ${TURN_URLS:-}
+      TURN_SHARED_SECRET: ${TURN_SHARED_SECRET:-}
+      TURN_CREDENTIAL_TTL_SECONDS: ${TURN_CREDENTIAL_TTL_SECONDS:-3600}
+      GLOBAL_RATE_LIMIT_PER_MINUTE: ${GLOBAL_RATE_LIMIT_PER_MINUTE:-120}
+      AUTH_RATE_LIMIT_PER_MINUTE: ${AUTH_RATE_LIMIT_PER_MINUTE:-10}
+      AI_RATE_LIMIT_PER_MINUTE: ${AI_RATE_LIMIT_PER_MINUTE:-20}
+      MAX_ATTACHMENT_BYTES: ${MAX_ATTACHMENT_BYTES:-104857600}
+      USER_STORAGE_QUOTA_BYTES: ${USER_STORAGE_QUOTA_BYTES:-1073741824}
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+    volumes:
+      - server_uploads:/app/uploads
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # 1.261：日志轮转，防止容器日志写满磁盘
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "4"
+    # 1.263：init 进程回收僵尸（长驻 server 更稳）
+    init: true
+    healthcheck:
+      test: ["CMD-SHELL", "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/8080; printf \"GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; IFS= read -r status <&3; [[ \"$$status\" == *\" 200 \"* ]]'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    expose:
+      - "8080"
+    networks:
+      - edge
+      - data
+
+  turn:
+    image: coturn/coturn:4.6.3
+    restart: unless-stopped
+    # STUN 始终可用；TURN 仅在配置了 TURN_SHARED_SECRET 时启用（relaxed 模式留空时
+    # 使用本地随机密钥，TURN 用户凭据不会下发给客户端，等效于纯 STUN）。
+    command:
+      - --fingerprint
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SHARED_SECRET:-local-only-turn-secret-not-issued-0000}
+      - --realm=${TURN_REALM:-${PUBLIC_HOST}}
+      - --min-port=49160
+      - --max-port=49200
+      - --no-tls
+      - --no-dtls
+      - --log-file=stdout
+    ports:
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+      - "49160-49200:49160-49200/udp"
+    networks:
+      - turn_net
+
+volumes:
+  postgres_data:
+  server_uploads:
+  caddy_data:
+  caddy_config:
+
+networks:
+  edge:
+  data:
+    internal: true
+  turn_net:

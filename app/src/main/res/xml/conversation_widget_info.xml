@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- B5 主屏小组件 · AppWidgetProviderInfo
+     更新策略：updatePeriodMillis=0，由 ConversationWidgetSyncService（AlarmManager 周期）与
+     应用内显式触发（ConversationWidgetData.requestPushUpdate）驱动，避免系统 30min 硬性轮询。
+     initialLayout 为 4x2 列表布局（conversation_widget.xml），尺寸可横竖拉伸。 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="90dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/conversation_widget"
+    android:configure="com.maodouchat.widget.ConversationWidgetConfigActivity"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_description" />

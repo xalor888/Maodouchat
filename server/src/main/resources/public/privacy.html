@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>隐私政策 - 毛豆聊天</title>
+  <meta name="description" content="毛豆聊天隐私政策：我们收集什么、不收集什么、端到端加密、密聊与盲水印、数据留存与删除、第三方服务与儿童隐私。"/>
+  <meta name="keywords" content="毛豆聊天,隐私政策,端到端加密,数据留存,账号注销"/>
+  <link rel="canonical" href="https://maodouchat.com/privacy.html"/>
+  <meta name="robots" content="index,follow"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%236366f1'/><text x='16' y='22' text-anchor='middle' font-size='18' fill='white'>🫘</text></svg>"/>
+  <link rel="stylesheet" href="/assets/style.css"/>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle" aria-label="切换主题">🌙</button>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <svg viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#6366f1"/><path d="M14 15c0-2 1.5-4 4-4h4c2.5 0 4 2 4 4v5c0 2-1.5 4-4 4h-2l-3 3v-3h-1c-1.5 0-2-1-2-2v-7z" fill="#fff"/><circle cx="17" cy="18" r="1.2" fill="#6366f1"/><circle cx="22" cy="18" r="1.2" fill="#6366f1"/></svg>
+      毛豆聊天
+    </a>
+    <button class="nav-mobile" id="navToggle" aria-label="菜单">☰</button>
+    <nav class="nav-links" id="navLinks">
+      <a href="/#features">功能</a>
+      <a href="/#security">安全</a>
+      <a href="/#ai">AI</a>
+      <a href="/#preview">预览</a>
+      <a href="/#developers">开发者</a>
+      <a href="/faq.html">FAQ</a>
+      <a href="/#changelog">更新</a>
+      <a href="/#download" class="btn-download">下载 App</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <h1>隐私政策</h1>
+  <p>毛豆聊天以隐私优先。本政策说明我们收集什么、不收集什么，以及端到端加密如何保护你的消息。</p>
+</section>
+
+<div class="page-container">
+  <p class="doc-meta">生效日期：2026-07-21 · 最后更新：2026-07-21</p>
+
+  <div class="callout callout-info">
+    <div class="callout-title">核心承诺</div>
+    你的消息正文与附件在设备端端到端加密，服务端无法读取明文。我们以「最小必要」原则收集数据。
+  </div>
+
+  <div class="toc">
+    <h4>目录</h4>
+    <ul>
+      <li><a href="#collect">我们收集什么</a></li>
+      <li><a href="#not-collect">我们不收集什么</a></li>
+      <li><a href="#e2ee">端到端加密说明</a></li>
+      <li><a href="#secret">密聊与盲水印</a></li>
+      <li><a href="#retention">数据留存与删除</a></li>
+      <li><a href="#storage">Cookie 与本地存储</a></li>
+      <li><a href="#third-party">第三方服务</a></li>
+      <li><a href="#children">儿童隐私</a></li>
+      <li><a href="#changes">政策变更</a></li>
+      <li><a href="#contact">联系方式</a></li>
+    </ul>
+  </div>
+
+  <div class="prose">
+    <h2 id="collect">我们收集什么</h2>
+    <p>为提供即时通讯服务，毛豆聊天会收集以下必要数据：</p>
+    <ul>
+      <li><strong>账号信息</strong>：手机号（用于注册与验证）、用户昵称、头像。</li>
+      <li><strong>设备推送 token</strong>：用于在新消息到达时通过推送通道唤醒设备（如 FCM）。</li>
+      <li><strong>加密密钥的公钥部分</strong>：身份公钥、预签名一次性密钥（PreKey）的公钥，用于建立端到端加密会话。<strong>私钥永不离开设备</strong>。</li>
+      <li><strong>路由元数据</strong>：发送/接收方 ID、消息时间戳，用于密文信封投递。</li>
+      <li><strong>可选资料</strong>：个性签名、动态等由你主动提供的内容。</li>
+    </ul>
+
+    <h2 id="not-collect">我们不收集什么</h2>
+    <ul>
+      <li><strong>消息正文与附件明文</strong>：所有消息在设备端加密，服务端只存储密文信封，无法解密。</li>
+      <li><strong>精确位置数据</strong>：位置分享为你主动选择的功能，且默认关闭。我们不持续追踪你的位置。</li>
+      <li><strong>通讯录</strong>：通讯录匹配为可选功能，需你明确授权；匹配完成后原始通讯录不会被持久化上传。</li>
+      <li><strong>浏览习惯与跨站追踪</strong>：本网站不使用跨站追踪广告 Cookie。</li>
+    </ul>
+
+    <h2 id="e2ee">端到端加密说明</h2>
+    <p>毛豆聊天采用 Signal Protocol：1:1 会话使用 Double Ratchet，群聊使用 Sender Key，附件使用 AES-256-GCM。会话密钥由双方设备通过 X3DH 协议协商，服务端仅参与公钥分发，无法推导出会话密钥。</p>
+    <p>这意味着：<strong>即使服务端数据库被完整泄露，攻击者也无法解密你的历史消息</strong>。详见<a href="/security.html">安全详解</a>。</p>
+
+    <h2 id="secret">密聊与盲水印</h2>
+    <p>密聊模式开启 FLAG_SECURE 防止系统截屏与录屏，并在界面叠加不可见盲水印（含用户 ID 与时间戳），同时支持频域 DCT-QIM 盲水印。盲水印用于在内容被拍照外泄时追溯泄露源。</p>
+    <p>阅后即焚消息按设定计时（30 秒至 30 天）从双方设备与服务端自动删除；截屏会触发对端告警。</p>
+
+    <h2 id="retention">数据留存与删除</h2>
+    <ul>
+      <li><strong>密文信封</strong>：在投递成功后按消息保留策略存储；阅后即焚/定时删除消息按设定自动清除。</li>
+      <li><strong>账号注销</strong>：在「设置 -> 账号 -> 注销账号」提交后，你的资料、密钥与服务端密文信封将被删除，且不可恢复。</li>
+      <li><strong>日志</strong>：运维日志仅保留有限时间（通常 30 天），仅含运维必要信息，不含消息明文。</li>
+    </ul>
+
+    <h2 id="storage">Cookie 与本地存储</h2>
+    <p>本网站使用浏览器本地存储（localStorage）保存主题偏好（明/暗模式），不使用跨站追踪 Cookie。App 端所有数据存储在设备本地，并可在设置中清除。</p>
+
+    <h2 id="third-party">第三方服务</h2>
+    <ul>
+      <li><strong>FCM（Firebase Cloud Messaging）</strong>：用于 Android 推送唤醒。推送内容为加密通知信封，FCM 看不到消息明文。</li>
+      <li><strong>OpenAI（可选）</strong>：AI 助手能力（摘要、翻译、改写等）为可选功能。开启后，相关内容会在加密通道外临时处理以提供能力。你可随时关闭。</li>
+      <li><strong>自托管</strong>：若你自托管服务端（参见 <code>docs/docker-deployment.md</code>），可完全掌控第三方依赖。</li>
+    </ul>
+
+    <h2 id="children">儿童隐私</h2>
+    <p>毛豆聊天面向 16 岁及以上用户。我们不会有意收集 16 岁以下儿童的个人信息。若你发现未成年人未经同意使用服务，请联系我们删除相关账号。</p>
+
+    <h2 id="changes">政策变更</h2>
+    <p>本政策可能不时更新。重大变更我们会通过 App 内公告或官网通知。继续使用服务即视为接受更新后的政策。更新日期标注于本页顶部。</p>
+
+    <h2 id="contact">联系方式</h2>
+    <p>如有隐私相关问题，请联系：</p>
+    <ul>
+      <li>邮箱：<a href="mailto:support@maodouchat.com">support@maodouchat.com</a></li>
+      <li>安全披露：<a href="mailto:security@maodouchat.com">security@maodouchat.com</a></li>
+      <li>帮助中心：<a href="/help.html">/help.html</a></li>
+    </ul>
+  </div>
+
+  <div class="cta-back">
+    <a href="/">返回首页</a>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="footer-cols">
+    <div class="footer-col">
+      <div class="footer-brand" style="margin-bottom:12px">毛豆聊天 Maodouchat</div>
+      <p>轻量 · 丝滑 · 端到端加密。对标 Telegram 的优雅体验，融合微信/QQ 的核心之长。</p>
+      <p style="margin-top:8px">支持邮箱：<a href="mailto:support@maodouchat.com" style="color:var(--brand-light)">support@maodouchat.com</a></p>
+    </div>
+    <div class="footer-col">
+      <h4>产品</h4>
+      <a href="/#features">核心功能</a>
+      <a href="/#security">安全</a>
+      <a href="/#ai">AI 助手</a>
+      <a href="/#preview">产品预览</a>
+      <a href="/#compare">与主流 IM 对比</a>
+      <a href="/#download">下载</a>
+    </div>
+    <div class="footer-col">
+      <h4>资源与帮助</h4>
+      <a href="/faq.html">常见问题</a>
+      <a href="/help.html">帮助中心</a>
+      <a href="/security.html">安全详解</a>
+      <a href="/developer.html">开发者控制台</a>
+      <a href="/#changelog">更新日志</a>
+    </div>
+    <div class="footer-col">
+      <h4>法律与后台</h4>
+      <a href="/privacy.html">隐私政策</a>
+      <a href="/terms.html">服务条款</a>
+      <a href="/admin">管理后台</a>
+      <a href="mailto:security@maodouchat.com">安全披露</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>&copy; 2026 Maodouchat. All rights reserved.</span>
+    <span>毛豆聊天 · 用心做的即时通讯</span>
+  </div>
+</footer>
+
+<script>
+(function() {
+  'use strict';
+  var themeToggle = document.getElementById('themeToggle');
+  var html = document.documentElement;
+  var savedTheme = localStorage.getItem('maodou-theme') || 'dark';
+  html.setAttribute('data-theme', savedTheme);
+  themeToggle.textContent = savedTheme === 'dark' ? '🌙' : '☀️';
+  themeToggle.addEventListener('click', function() {
+    var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('maodou-theme', next);
+    themeToggle.textContent = next === 'dark' ? '🌙' : '☀️';
+  });
+  var navToggle = document.getElementById('navToggle');
+  var navLinks = document.getElementById('navLinks');
+  navToggle.addEventListener('click', function() { navLinks.classList.toggle('open'); });
+  navLinks.querySelectorAll('a').forEach(function(a) {
+    a.addEventListener('click', function() { navLinks.classList.remove('open'); });
+  });
+  var nav = document.getElementById('nav');
+  window.addEventListener('scroll', function() {
+    nav.style.boxShadow = window.scrollY > 50 ? 'var(--shadow-md)' : 'none';
+  });
+})();
+</script>
+</body>
+</html>

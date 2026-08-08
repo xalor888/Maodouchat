@@ -1,0 +1,191 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx3g
+
+jobs:
+  server:
+    name: Server
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: maodouchat_test
+          POSTGRES_USER: maodouchat_test
+          POSTGRES_PASSWORD: maodouchat_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U maodouchat_test -d maodouchat_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify product terminology
+        run: python3 scripts/check-brand-terminology.py
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ../gradlew
+        working-directory: server
+
+      - name: Compile and test server
+        run: ../gradlew compileKotlin test --no-daemon --console=plain
+        working-directory: server
+
+      - name: Run PostgreSQL concurrency integration tests
+        env:
+          POSTGRES_TEST_DATABASE_URL: "jdbc:postgresql://127.0.0.1:5432/maodouchat_test?user=maodouchat_test&password=maodouchat_test_password"
+        run: ../gradlew postgresIntegrationTest --no-daemon --console=plain
+        working-directory: server
+
+      - name: Install browser E2E dependency
+        run: npm ci --ignore-scripts
+
+      - name: Run admin browser E2E
+        env:
+          APP_ENV: development
+          HOST: 127.0.0.1
+          PORT: "18080"
+          BASE_URL: http://127.0.0.1:18080
+          JWT_SECRET: admin-e2e-ci-secret-12345678901234567890
+          DATABASE_URL: "jdbc:h2:mem:admin-e2e-ci;DB_CLOSE_DELAY=-1"
+          DATABASE_DRIVER: org.h2.Driver
+          SEED_DEMO_USERS: "true"
+          MODERATOR_EMAILS: alex@example.com
+          MASTER_ADMINS: u1
+          SMTP_HOST: ""
+          ADMIN_E2E_BASE_URL: http://127.0.0.1:18080
+        run: |
+          mkdir -p build/reports
+          (cd server && ../gradlew run --no-daemon --console=plain > ../build/admin-e2e-server.log 2>&1) &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          npm run test:admin-e2e
+
+      - name: Upload admin E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-e2e
+          path: |
+            build/reports/admin-e2e.png
+            build/admin-e2e-server.log
+          if-no-files-found: ignore
+
+  android:
+    name: Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Compile and test Android
+        run: ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest --no-daemon --console=plain
+
+      - name: Lint check (catch common bugs)
+        run: ./gradlew :app:lintDebug --no-daemon --console=plain
+        continue-on-error: true
+
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon --console=plain
+        continue-on-error: true
+
+  docker-config:
+    name: Docker Compose Config
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose config
+        run: docker compose --env-file .env.docker.example config
+
+      - name: Verify production network isolation
+        run: |
+          docker compose --env-file .env.docker.example config --format json > /tmp/maodouchat-compose.json
+          python3 - <<'PY'
+          import json
+          data = json.load(open('/tmp/maodouchat-compose.json', encoding='utf-8'))
+          services = data['services']
+          assert not services['server'].get('ports'), 'Ktor must not publish a host port'
+          assert services['server']['environment']['TRUST_PROXY_HEADERS'] == 'true'
+          assert services['server']['read_only'] is True
+          assert 'ALL' in services['server']['cap_drop']
+          assert services['server'].get('healthcheck'), 'Ktor readiness healthcheck is required'
+          assert services['proxy']['depends_on']['server']['condition'] == 'service_healthy'
+          assert set(services['server']['networks']) == {'edge', 'data'}
+          assert set(services['db']['networks']) == {'data'}
+          assert set(services['turn']['networks']) == {'turn_net'}
+          assert data['networks']['data']['internal'] is True
+          published = {(str(p['published']), p['protocol']) for p in services['proxy']['ports']}
+          assert ('443', 'tcp') in published and ('443', 'udp') in published
+          PY
+
+      - name: Validate production maintenance scripts
+        run: bash -n scripts/backup-production.sh scripts/restore-production.sh scripts/deploy.sh scripts/update.sh
+
+      - name: Validate Caddy HTTPS proxy config
+        run: |
+          docker run --rm \
+            -e PUBLIC_HOST=api.example.com \
+            -e ACME_EMAIL=admin@example.com \
+            -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.10.2-alpine caddy validate --config /etc/caddy/Caddyfile

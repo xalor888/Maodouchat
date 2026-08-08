@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>帮助中心 - 毛豆聊天</title>
+  <meta name="description" content="毛豆聊天帮助中心：快速入门、账号与登录、聊天功能、通话问题、反馈与建议、社区与开源、报告问题流程。"/>
+  <meta name="keywords" content="毛豆聊天,帮助中心,支持,反馈,快速入门,报告问题,社区"/>
+  <link rel="canonical" href="https://maodouchat.com/help.html"/>
+  <meta name="robots" content="index,follow"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%236366f1'/><text x='16' y='22' text-anchor='middle' font-size='18' fill='white'>🫘</text></svg>"/>
+  <link rel="stylesheet" href="/assets/style.css"/>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle" aria-label="切换主题">🌙</button>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <svg viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#6366f1"/><path d="M14 15c0-2 1.5-4 4-4h4c2.5 0 4 2 4 4v5c0 2-1.5 4-4 4h-2l-3 3v-3h-1c-1.5 0-2-1-2-2v-7z" fill="#fff"/><circle cx="17" cy="18" r="1.2" fill="#6366f1"/><circle cx="22" cy="18" r="1.2" fill="#6366f1"/></svg>
+      毛豆聊天
+    </a>
+    <button class="nav-mobile" id="navToggle" aria-label="菜单">☰</button>
+    <nav class="nav-links" id="navLinks">
+      <a href="/#features">功能</a>
+      <a href="/#security">安全</a>
+      <a href="/#ai">AI</a>
+      <a href="/#preview">预览</a>
+      <a href="/#developers">开发者</a>
+      <a href="/faq.html">FAQ</a>
+      <a href="/#changelog">更新</a>
+      <a href="/#download" class="btn-download">下载 App</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <h1>帮助中心</h1>
+  <p>在这里找到快速入门指南、问题排查与反馈渠道。没找到答案？随时联系我们。</p>
+</section>
+
+<div class="page-container">
+  <p class="doc-meta">最后更新：2026-07-21</p>
+
+  <div class="toc">
+    <h4>目录</h4>
+    <ul>
+      <li><a href="#quickstart">快速入门</a></li>
+      <li><a href="#faq-link">常见问题</a></li>
+      <li><a href="#account">账号与登录问题</a></li>
+      <li><a href="#chat">聊天功能</a></li>
+      <li><a href="#call">通话问题</a></li>
+      <li><a href="#report">报告问题</a></li>
+      <li><a href="#feedback">反馈与建议</a></li>
+      <li><a href="#community">社区与开源</a></li>
+      <li><a href="#changelog">更新日志</a></li>
+    </ul>
+  </div>
+
+  <div class="prose">
+    <h2 id="quickstart">快速入门</h2>
+    <ol>
+      <li><strong>下载安装</strong>：从<a href="/#download">下载页</a>获取 Android APK（iOS / 桌面端规划中）。</li>
+      <li><strong>注册账号</strong>：使用手机号注册并验证短信验证码。注册过程在设备本地生成加密密钥对。</li>
+      <li><strong>完善资料</strong>：设置昵称与头像。</li>
+      <li><strong>添加好友</strong>：通过手机号、用户名或通讯录匹配（可选）添加好友。</li>
+      <li><strong>开始聊天</strong>：所有 1:1 与群消息默认端到端加密。</li>
+      <li><strong>开启应用锁</strong>：在「设置 -> 隐私」开启应用锁与 PIN，保护账号安全。</li>
+    </ol>
+
+    <h2 id="faq-link">常见问题</h2>
+    <p>我们将最常见的疑问整理在了 FAQ 页面，涵盖账户、聊天、隐私、密聊、AI、机器人开发与故障排除。</p>
+    <p><a href="/faq.html">前往常见问题页面 -></a></p>
+
+    <h2 id="account">账号与登录问题</h2>
+    <h3>收不到短信验证码？</h3>
+    <p>请确认手机号正确、信号正常、未开启拦截。若长时间未收到，可等待 60 秒后重新发送。仍不行请联系运营商或换号尝试。</p>
+    <h3>忘记 PIN / 应用锁？</h3>
+    <p>应用锁 PIN 用于本地验证。若遗忘，可在登录界面使用绑定的恢复方式重置；重置后部分本地加密数据需重新同步。建议在「设置 -> 账号」提前备份恢复码。</p>
+    <h3>更换设备？</h3>
+    <p>在新设备登录后，会重新建立加密会话。由于端到端加密，旧设备上的历史消息无法自动迁移到新设备（除非你已开启多设备同步并验证）。</p>
+
+    <h2 id="chat">聊天功能</h2>
+    <h3>消息发不出去？</h3>
+    <ul>
+      <li>检查网络连接（Wi-Fi / 移动数据）；</li>
+      <li>确认对方未屏蔽你；</li>
+      <li>查看 App 顶部连接状态指示；</li>
+      <li>若使用自托管服务端，检查服务端与推送配置。</li>
+    </ul>
+    <h3>如何发起密聊？</h3>
+    <p>在聊天详情中开启「密聊模式」，将启用 FLAG_SECURE 防截屏、盲水印与阅后即焚。详见<a href="/security.html#secret">安全详解</a>。</p>
+    <h3>如何创建群聊？</h3>
+    <p>在聊天列表点击新建群组，选择成员即可。群聊支持万级成员，采用 Sender Key 群加密。管理员可在群设置中管理权限与邀请链接。</p>
+
+    <h2 id="call">通话问题</h2>
+    <h3>通话质量差 / 卡顿？</h3>
+    <ul>
+      <li>切换到稳定网络（Wi-Fi 或 4G/5G）；</li>
+      <li>关闭占用带宽的后台应用；</li>
+      <li>弱网下 App 会自适应降低码率；</li>
+      <li>视频通话可临时关闭视频保留语音。</li>
+    </ul>
+    <p>音视频通话基于 WebRTC 端到端加密，通话内容不被服务端可见。</p>
+
+    <h2 id="report">报告问题</h2>
+    <p>遇到 Bug 或异常行为？请按以下流程报告，帮助我们快速定位：</p>
+    <ol>
+      <li><strong>复现</strong>：记录触发问题的具体操作步骤。</li>
+      <li><strong>收集信息</strong>：App 版本（设置 -> 关于）、系统版本、网络环境、错误提示截图。</li>
+      <li><strong>选择渠道</strong>：
+        <ul>
+          <li>App 内：「设置 -> 反馈」直接提交（推荐，含诊断信息）；</li>
+          <li>邮件：<a href="mailto:support@maodouchat.com">support@maodouchat.com</a>。</li>
+        </ul>
+      </li>
+      <li><strong>安全漏洞</strong>：请勿公开，单独邮件至 <a href="mailto:security@maodouchat.com">security@maodouchat.com</a>，并给我们合理修复时间。</li>
+    </ol>
+
+    <h2 id="feedback">反馈与建议</h2>
+    <p>我们重视每一位用户的反馈。功能建议、体验改进都欢迎通过以下渠道提交：</p>
+    <ul>
+      <li>App 内「设置 -> 反馈」；</li>
+      <li>邮件：<a href="mailto:support@maodouchat.com">support@maodouchat.com</a>。</li>
+    </ul>
+    <p>我们会定期查看并回复。热门建议将进入产品路线图评估。</p>
+
+    <h2 id="community">社区与开源</h2>
+    <p>毛豆聊天倡导开放透明。服务端可自托管，部署指南见 <code>docs/docker-deployment.md</code>。其他文档包括：</p>
+    <ul>
+      <li><code>docs/bot-developer-api.md</code> - 机器人 API 文档；</li>
+      <li><code>docs/e2ee-multidevice-verification.md</code> - 端到端加密多设备验证；</li>
+      <li><code>docs/release-checklist.md</code> - 发布检查清单；</li>
+      <li><code>docs/feature-inventory.md</code> - 功能清单。</li>
+    </ul>
+    <p>开发者可通过<a href="/developer.html">开发者控制台</a>创建与管理机器人。</p>
+
+    <h2 id="changelog">更新日志</h2>
+    <p>当前版本：<strong>v1.0</strong>（更新于 2026-07）</p>
+    <ul>
+      <li>v1.0（2026-07）：首发版本，端到端加密、群聊、AI 助手、密聊模式、阅后即焚、开放机器人平台。</li>
+    </ul>
+    <p>后续版本更新将通过 App 内公告与本页发布。</p>
+  </div>
+
+  <div class="cta-back">
+    <a href="/">返回首页</a>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="footer-cols">
+    <div class="footer-col">
+      <div class="footer-brand" style="margin-bottom:12px">毛豆聊天 Maodouchat</div>
+      <p>轻量 · 丝滑 · 端到端加密。对标 Telegram 的优雅体验，融合微信/QQ 的核心之长。</p>
+      <p style="margin-top:8px">支持邮箱：<a href="mailto:support@maodouchat.com" style="color:var(--brand-light)">support@maodouchat.com</a></p>
+    </div>
+    <div class="footer-col">
+      <h4>产品</h4>
+      <a href="/#features">核心功能</a>
+      <a href="/#security">安全</a>
+      <a href="/#ai">AI 助手</a>
+      <a href="/#preview">产品预览</a>
+      <a href="/#compare">与主流 IM 对比</a>
+      <a href="/#download">下载</a>
+    </div>
+    <div class="footer-col">
+      <h4>资源与帮助</h4>
+      <a href="/faq.html">常见问题</a>
+      <a href="/help.html">帮助中心</a>
+      <a href="/security.html">安全详解</a>
+      <a href="/developer.html">开发者控制台</a>
+      <a href="/#changelog">更新日志</a>
+    </div>
+    <div class="footer-col">
+      <h4>法律与后台</h4>
+      <a href="/privacy.html">隐私政策</a>
+      <a href="/terms.html">服务条款</a>
+      <a href="/admin">管理后台</a>
+      <a href="mailto:security@maodouchat.com">安全披露</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>&copy; 2026 Maodouchat. All rights reserved.</span>
+    <span>毛豆聊天 · 用心做的即时通讯</span>
+  </div>
+</footer>
+
+<script>
+(function() {
+  'use strict';
+  var themeToggle = document.getElementById('themeToggle');
+  var html = document.documentElement;
+  var savedTheme = localStorage.getItem('maodou-theme') || 'dark';
+  html.setAttribute('data-theme', savedTheme);
+  themeToggle.textContent = savedTheme === 'dark' ? '🌙' : '☀️';
+  themeToggle.addEventListener('click', function() {
+    var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('maodou-theme', next);
+    themeToggle.textContent = next === 'dark' ? '🌙' : '☀️';
+  });
+  var navToggle = document.getElementById('navToggle');
+  var navLinks = document.getElementById('navLinks');
+  navToggle.addEventListener('click', function() { navLinks.classList.toggle('open'); });
+  navLinks.querySelectorAll('a').forEach(function(a) {
+    a.addEventListener('click', function() { navLinks.classList.remove('open'); });
+  });
+  var nav = document.getElementById('nav');
+  window.addEventListener('scroll', function() {
+    nav.style.boxShadow = window.scrollY > 50 ? 'var(--shadow-md)' : 'none';
+  });
+})();
+</script>
+</body>
+</html>

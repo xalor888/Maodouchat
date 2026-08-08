@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>安全详解 - 毛豆聊天</title>
+  <meta name="description" content="毛豆聊天安全架构详解：Signal 协议、AES-256-GCM 附件加密、密聊模式、盲水印 DCT-QIM、阅后即焚、后量子演进、安全代码与漏洞披露。"/>
+  <meta name="keywords" content="毛豆聊天,安全,Signal Protocol,Double Ratchet,Sender Key,AES-256,密聊,盲水印,DCT-QIM,阅后即焚,后量子,PQXDH,漏洞披露"/>
+  <link rel="canonical" href="https://maodouchat.com/security.html"/>
+  <meta name="robots" content="index,follow"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%236366f1'/><text x='16' y='22' text-anchor='middle' font-size='18' fill='white'>🫘</text></svg>"/>
+  <link rel="stylesheet" href="/assets/style.css"/>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle" aria-label="切换主题">🌙</button>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <svg viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#6366f1"/><path d="M14 15c0-2 1.5-4 4-4h4c2.5 0 4 2 4 4v5c0 2-1.5 4-4 4h-2l-3 3v-3h-1c-1.5 0-2-1-2-2v-7z" fill="#fff"/><circle cx="17" cy="18" r="1.2" fill="#6366f1"/><circle cx="22" cy="18" r="1.2" fill="#6366f1"/></svg>
+      毛豆聊天
+    </a>
+    <button class="nav-mobile" id="navToggle" aria-label="菜单">☰</button>
+    <nav class="nav-links" id="navLinks">
+      <a href="/#features">功能</a>
+      <a href="/#security">安全</a>
+      <a href="/#ai">AI</a>
+      <a href="/#preview">预览</a>
+      <a href="/#developers">开发者</a>
+      <a href="/faq.html">FAQ</a>
+      <a href="/#changelog">更新</a>
+      <a href="/#download" class="btn-download">下载 App</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <h1>安全详解</h1>
+  <p>毛豆聊天的加密架构、密聊防护、阅后即焚与漏洞披露机制。隐私不是功能，而是底线。</p>
+</section>
+
+<div class="page-container">
+  <p class="doc-meta">最后更新：2026-07-21</p>
+
+  <div class="callout callout-info">
+    <div class="callout-title">设计原则</div>
+    默认端到端加密 · 零知识服务端 · 设备私钥永不外传 · 可自托管 · 安全持续演进
+  </div>
+
+  <div class="toc">
+    <h4>目录</h4>
+    <ul>
+      <li><a href="#signal">Signal 协议</a></li>
+      <li><a href="#attachment">附件加密</a></li>
+      <li><a href="#secret">密聊模式</a></li>
+      <li><a href="#watermark">盲水印取证</a></li>
+      <li><a href="#burn">阅后即焚</a></li>
+      <li><a href="#sealed-pq">Sealed Sender 与后量子</a></li>
+      <li><a href="#safety-number">安全代码</a></li>
+      <li><a href="#transparency">透明度</a></li>
+      <li><a href="#disclosure">漏洞披露</a></li>
+      <li><a href="#tips">安全建议</a></li>
+    </ul>
+  </div>
+
+  <div class="prose">
+    <h2 id="signal">Signal 协议：1:1 与群</h2>
+    <p>毛豆聊天采用业界公认的 Signal Protocol：</p>
+    <ul>
+      <li><strong>1:1 会话 - Double Ratchet</strong>：通过 X3DH 协商初始会话密钥后，每条消息使用新密钥（前向保密 / Forward Secrecy）。即便长期密钥泄露，历史消息仍安全；即便某条消息密钥泄露，仅影响该条消息。</li>
+      <li><strong>群聊 - Sender Key</strong>：每个发送方在群内分发一次 Sender Key，后续群消息以群为单位加密，避免 1:1 重复协商，在大群中保持端到端加密与性能。</li>
+      <li><strong>密钥分发</strong>：身份公钥与一次性 PreKey 公钥由服务端分发，<strong>私钥永不离开设备</strong>。服务端无法推导会话密钥。</li>
+    </ul>
+
+    <h2 id="attachment">附件加密：AES-256-GCM</h2>
+    <p>所有附件（图片、视频、文档、语音等）在设备端用 AES-256-GCM 加密后上传。密文通过附件上传会话接口分块传输（<code>POST /api/attachment-uploads</code>），服务端仅存储密文并校验 SHA-256。解密密钥随消息信封端到端传递，服务端无法解密附件。</p>
+    <p>附件有用户配额限制与上传 TTL，超期未关联的密文自动清理。</p>
+
+    <h2 id="secret">密聊模式</h2>
+    <p>密聊模式针对高敏感场景，提供多层防护：</p>
+    <ul>
+      <li><strong>FLAG_SECURE</strong>：禁止系统截屏与录屏，阻止界面被投屏或截图工具捕获。</li>
+      <li><strong>可见盲水印</strong>：界面叠加含用户 ID 与时间戳的不可见水印，便于追溯。</li>
+      <li><strong>截屏检测对端告警</strong>：若检测到截屏行为，对端会收到告警提示。</li>
+      <li><strong>阅后即焚联动</strong>：可设置消息定时消失，进一步降低留存风险。</li>
+    </ul>
+    <div class="callout callout-warning">
+      <div class="callout-title">注意</div>
+      FLAG_SECURE 可阻止系统级截屏，但无法完全阻止接收方用另一台设备对其屏幕拍照。盲水印用于在发生此类外泄时追溯源头。
+    </div>
+
+    <h2 id="watermark">盲水印取证：DCT-QIM</h2>
+    <p>密聊模式支持频域盲水印（基于 DCT-QIM，离散余弦变换 + 量化索引调制）。该方案对裁剪、压缩、重拍照、亮度调整有较好鲁棒性：</p>
+    <ul>
+      <li>水印信息包含用户 ID 与时间戳，嵌入在图像频域系数中；</li>
+      <li>当内容被拍照外泄，可从泄露图像中提取水印，定位泄露者；</li>
+      <li>水印不可见，不影响正常阅读体验。</li>
+    </ul>
+
+    <h2 id="burn">阅后即焚</h2>
+    <p>单聊支持 30 秒至 30 天多档计时。消息到时自动从双方设备与服务端删除。截屏会触发对端告警；阅后即焚图片支持一次性查看后销毁。该机制结合端到端加密，最大限度减少消息留存。</p>
+
+    <h2 id="sealed-pq">Sealed Sender 与后量子（持续演进中）</h2>
+    <p>毛豆聊天的加密体系持续演进：</p>
+    <ul>
+      <li><strong>Sealed Sender（密封发送者）</strong>：在可行场景下隐藏发送者身份，降低元数据暴露。此能力正在逐步推广。</li>
+      <li><strong>后量子密钥协商 PQXDH</strong>：在 X3DH 基础上引入后量子密钥封装，抵御「现在收集、未来破解」的量子攻击威胁。当前为预览实现，标注为<strong>持续演进中</strong>，将随标准成熟逐步默认启用。</li>
+    </ul>
+
+    <h2 id="safety-number">安全代码 / Safety Number</h2>
+    <p>每个 1:1 会话有唯一的安全代码（Safety Number）。你可在聊天详情中查看，并与对方线下比对（当面或通过可信渠道）。若代码一致，说明会话未被中间人篡改。当对方更换设备或密钥变更时，安全代码会更新并提示，请重新核对。</p>
+
+    <h2 id="transparency">透明度：服务端能看到 / 看不到什么</h2>
+    <div class="compare-wrap" style="margin:16px 0">
+      <table class="compare-table">
+        <thead>
+          <tr><th>服务端</th><th>能看到</th><th>看不到</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>消息正文</td><td><span class="compare-no">✗</span></td><td class="col-maodou"><span class="compare-yes">✓ 密文</span></td></tr>
+          <tr><td>附件内容</td><td><span class="compare-no">✗</span></td><td class="col-maodou"><span class="compare-yes">✓ 密文</span></td></tr>
+          <tr><td>加密密钥</td><td><span class="compare-no">✗</span></td><td class="col-maodou"><span class="compare-yes">✓ 私钥在设备</span></td></tr>
+          <tr><td>路由元数据</td><td class="col-maodou"><span class="compare-yes">✓ ID/时间</span></td><td>—</td></tr>
+          <tr><td>账号资料</td><td class="col-maodou"><span class="compare-yes">✓ 手机号/昵称</span></td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>换言之：即便服务端数据库被完整泄露，攻击者也无法解密你的历史消息与附件。</p>
+
+    <h2 id="disclosure">漏洞披露</h2>
+    <p>我们欢迎安全研究人员负责任地报告漏洞：</p>
+    <ul>
+      <li>邮箱：<a href="mailto:security@maodouchat.com">security@maodouchat.com</a></li>
+      <li>PGP：可通过上述邮箱索取公钥。</li>
+      <li>请在公开披露前给我们合理修复时间；我们会对有效报告致谢。</li>
+    </ul>
+
+    <h2 id="tips">安全建议</h2>
+    <ul>
+      <li><strong>开启应用锁</strong>：在「设置 -> 隐私」开启应用锁，配合生物识别。</li>
+      <li><strong>设置 PIN 锁</strong>：作为应用锁的备用验证方式。</li>
+      <li><strong>使用强密码</strong>：系统锁屏与恢复码备份使用高强度密码。</li>
+      <li><strong>核对安全代码</strong>：与重要联系人线下核对 Safety Number。</li>
+      <li><strong>高敏感内容用密聊</strong>：开启 FLAG_SECURE + 阅后即焚。</li>
+      <li><strong>及时更新 App</strong>：保持最新版本以获取安全补丁。</li>
+    </ul>
+  </div>
+
+  <div class="cta-back">
+    <a href="/">返回首页</a>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="footer-cols">
+    <div class="footer-col">
+      <div class="footer-brand" style="margin-bottom:12px">毛豆聊天 Maodouchat</div>
+      <p>轻量 · 丝滑 · 端到端加密。对标 Telegram 的优雅体验，融合微信/QQ 的核心之长。</p>
+      <p style="margin-top:8px">支持邮箱：<a href="mailto:support@maodouchat.com" style="color:var(--brand-light)">support@maodouchat.com</a></p>
+    </div>
+    <div class="footer-col">
+      <h4>产品</h4>
+      <a href="/#features">核心功能</a>
+      <a href="/#security">安全</a>
+      <a href="/#ai">AI 助手</a>
+      <a href="/#preview">产品预览</a>
+      <a href="/#compare">与主流 IM 对比</a>
+      <a href="/#download">下载</a>
+    </div>
+    <div class="footer-col">
+      <h4>资源与帮助</h4>
+      <a href="/faq.html">常见问题</a>
+      <a href="/help.html">帮助中心</a>
+      <a href="/security.html">安全详解</a>
+      <a href="/developer.html">开发者控制台</a>
+      <a href="/#changelog">更新日志</a>
+    </div>
+    <div class="footer-col">
+      <h4>法律与后台</h4>
+      <a href="/privacy.html">隐私政策</a>
+      <a href="/terms.html">服务条款</a>
+      <a href="/admin">管理后台</a>
+      <a href="mailto:security@maodouchat.com">安全披露</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>&copy; 2026 Maodouchat. All rights reserved.</span>
+    <span>毛豆聊天 · 用心做的即时通讯</span>
+  </div>
+</footer>
+
+<script>
+(function() {
+  'use strict';
+  var themeToggle = document.getElementById('themeToggle');
+  var html = document.documentElement;
+  var savedTheme = localStorage.getItem('maodou-theme') || 'dark';
+  html.setAttribute('data-theme', savedTheme);
+  themeToggle.textContent = savedTheme === 'dark' ? '🌙' : '☀️';
+  themeToggle.addEventListener('click', function() {
+    var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('maodou-theme', next);
+    themeToggle.textContent = next === 'dark' ? '🌙' : '☀️';
+  });
+  var navToggle = document.getElementById('navToggle');
+  var navLinks = document.getElementById('navLinks');
+  navToggle.addEventListener('click', function() { navLinks.classList.toggle('open'); });
+  navLinks.querySelectorAll('a').forEach(function(a) {
+    a.addEventListener('click', function() { navLinks.classList.remove('open'); });
+  });
+  var nav = document.getElementById('nav');
+  window.addEventListener('scroll', function() {
+    nav.style.boxShadow = window.scrollY > 50 ? 'var(--shadow-md)' : 'none';
+  });
+})();
+</script>
+</body>
+</html>

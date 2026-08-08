@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 单色版本用于 Android 13+ 主题图标 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,42h44a4,4 0 0 1 4,4v24a4,4 0 0 1 -4,4H56l-12,12V70H32a4,4 0 0 1 -4,-4V46a4,4 0 0 1 4,-4z" />
+</vector>

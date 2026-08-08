@@ -1,0 +1,43 @@
+{
+    email {$ACME_EMAIL}
+    admin off
+}
+
+# API 和主站点
+{$PUBLIC_HOST} {
+    encode zstd gzip
+
+    request_body {
+        max_size 10MB
+    }
+
+    reverse_proxy server:8080 {
+        # Ktor only trusts these headers when TRUST_PROXY_HEADERS=true. Caddy overwrites
+        # X-Real-IP with the actual peer address so clients cannot select their rate-limit key.
+        header_up X-Real-IP {remote_host}
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer"
+        -Server
+    }
+
+    @admin path /admin /admin/*
+    header @admin Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+    # 1.275：错误统一返回 JSON（避免泄漏 Caddy 默认 HTML）
+    handle_errors {
+        @4xx expression {http.error.status_code} >= 400 && {http.error.status_code} < 500
+        @5xx expression {http.error.status_code} >= 500
+        respond @4xx `{"error":{ "code": {http.error.status_code} }}` 400
+        respond @5xx `{"error":{ "code": {http.error.status_code} }}` 500
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}
