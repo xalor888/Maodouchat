@@ -1891,7 +1891,8 @@ class ChatDetailViewModel(
 
     fun setDisappearingMessages(seconds: Int) {
         val state = _uiState.value
-        val chat = state.chat ?: return        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.DISAPPEARING_MESSAGES)) {
+        val chat = state.chat ?: return
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.DISAPPEARING_MESSAGES)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
             return
         }
@@ -4095,23 +4096,6 @@ class ChatDetailViewModel(
      * - 删除本地缓存
      * - 从 UI 移除
      */
-    /** 0.83：清空本机聊天记录（不影响对方设备/服务端）。 */
-    fun clearLocalChatHistory() {
-        val targetChatId = activeChatId.ifBlank { chatId }
-        if (targetChatId.isBlank()) return
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                messageRepo.deleteMessagesByChatId(targetChatId)
-            }
-            _uiState.update {
-                it.copy(
-                    messages = emptyList(),
-                    navigationTargetMessageId = null,
-                    unreadAiSummary = null
-                )
-            }
-        }
-    }
 
     fun deleteMessage(messageId: String) {
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_REVOKE)) {
@@ -5425,7 +5409,7 @@ class ChatDetailViewModel(
                 }
             }
             try {
-                val (wireContent, epoch) = encryptForwardedContent(targetChat, local)
+                val (wireContent, epoch) = encryptForwardedContent(targetChat, local, local.parsedMeta().forwardedFrom)
                 val viaRest = deliverOutgoing(
                     message = local.copy(content = wireContent),
                     wireContent = wireContent,

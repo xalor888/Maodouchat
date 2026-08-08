@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Campaign
@@ -1846,6 +1847,7 @@ private fun GroupInviteDialog(
     onRefresh: () -> Unit,
     onShare: () -> Unit
 ) {
+    val context = LocalContext.current
     val bitmap = remember(payload) {
         payload.takeIf { it.isNotBlank() }?.let { QrCodeGenerator.generateBitmap(it, 720) }
     }
@@ -1880,10 +1882,9 @@ private fun GroupInviteDialog(
                 // 1.120：复制邀请链接（粘贴到聊天/群发）
                 if (payload.isNotBlank()) {
                     TextButton(onClick = {
-                        val ctx = androidx.compose.ui.platform.LocalContext.current
-                        val clipboard = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("group_invite", payload))
-                        android.widget.Toast.makeText(ctx, ctx.getString(R.string.group_detail_invite_copied), android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, context.getString(R.string.group_detail_invite_copied), android.widget.Toast.LENGTH_SHORT).show()
                     }) {
                         Text(stringResource(R.string.group_detail_invite_copy), color = Primary)
                     }

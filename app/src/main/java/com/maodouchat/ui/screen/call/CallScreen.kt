@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.VideocamOff
 import androidx.compose.material.icons.outlined.SignalCellular4Bar
 import androidx.compose.material.icons.outlined.SignalCellularAlt
 import androidx.compose.material.icons.outlined.SignalCellularConnectedNoInternet0Bar
+import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -62,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -126,6 +128,7 @@ fun CallScreen(
     onLocalRendererReleased: ((org.webrtc.SurfaceViewRenderer) -> Unit)? = null,
     onRemoteRendererReleased: ((org.webrtc.SurfaceViewRenderer) -> Unit)? = null
 ) {
+    val context = LocalContext.current
     // rememberSaveable 保证旋转屏幕后静音/关摄像头状态不丢失（与实际 track 状态保持一致）
     var isMuted by rememberSaveable { mutableStateOf(false) }
     var isVideoOff by rememberSaveable { mutableStateOf(false) }
@@ -354,7 +357,7 @@ fun CallScreen(
                     // 0.70：通话最小化按钮（PiP 显式入口，此前只能按 HOME 触发）
                     FloatingActionButton(
                         onClick = {
-                            val activity = androidx.activity.compose.LocalActivity.current
+                            val activity = context as? android.app.Activity
                             if (activity != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
                                 activity.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
                             ) {

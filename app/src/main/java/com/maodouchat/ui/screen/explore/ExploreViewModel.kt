@@ -9,6 +9,7 @@ import com.maodouchat.network.ApiService
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.PostCommentDto
 import com.maodouchat.network.TokenManager
+import com.maodouchat.network.UserDto
 import com.maodouchat.util.ImagePicker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -439,7 +440,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     if (feedGeneration == generation && isCurrentOwner(loadMoreOwnerUserId)) {
                         _uiState.update { it.copy(isLoadingMore = false) }
                     }
-                throw error
+                    throw error
+                }
             }
         }
     }
@@ -672,8 +674,6 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         }
-    }
-
     }
 
     fun onComposerTextChange(text: String) {

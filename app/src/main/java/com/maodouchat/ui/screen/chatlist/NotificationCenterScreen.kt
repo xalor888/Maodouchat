@@ -393,9 +393,9 @@ fun NotificationCenterScreen(
                         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                         val copyText = buildString {
                             append(item.title)
-                            if (item.text.isNotBlank()) {
-                                if (isNotBlank()) append("\n")
-                                append(item.text)
+                            if (item.preview?.isNotBlank() == true) {
+                                if (isNotEmpty()) append("\n")
+                                append(item.preview)
                             }
                         }
                         clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.notif_center_actions), copyText))

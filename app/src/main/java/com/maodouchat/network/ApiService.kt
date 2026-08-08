@@ -1982,7 +1982,8 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
         limit: Int = 50,
         before: Long? = null,
         beforeId: String? = null
-    ): Result<List<PostCommentDto>> {        val params = buildList {
+    ): Result<List<PostCommentDto>> {
+        val params = buildList {
             add("limit=${limit.coerceIn(1, 100)}")
             before?.let { add("before=$it") }
             beforeId?.takeIf { before != null }?.let {

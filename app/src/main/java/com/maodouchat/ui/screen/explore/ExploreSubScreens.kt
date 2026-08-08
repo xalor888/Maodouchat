@@ -33,12 +33,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.NearMe
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Send
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Public
@@ -93,6 +99,8 @@ import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
+import com.maodouchat.ui.component.EmptyState
+import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.PullToRefreshLayout
 import com.maodouchat.ui.theme.Background
 import com.maodouchat.ui.theme.MaodouchatTheme
@@ -1274,7 +1282,7 @@ fun PostDetailScreen(
                                         // 1.213：点击作者名打开主页
                                         modifier = Modifier.weight(1f, fill = false).clickable { onOpenAuthor(c.author.id) }
                                     )
-                                    if (post.author.id == c.author.id) {
+                                    if (post?.author?.id == c.author.id) {
                                         Spacer(Modifier.width(4.dp))
                                         Box(
                                             modifier = Modifier
@@ -1501,7 +1509,7 @@ private fun CommentComposerBar(
             )
             IconButton(onClick = onSend, enabled = text.isNotBlank() && !isSending) {
                 if (isSending) CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                else Icon(androidx.compose.material.icons.automirrored.outlined.Send, contentDescription = stringResource(R.string.explore_send), tint = Primary)
+                else Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = stringResource(R.string.explore_send), tint = Primary)
             }
         }
     }

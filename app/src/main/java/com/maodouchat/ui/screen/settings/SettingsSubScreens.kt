@@ -117,7 +117,12 @@ import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.Surface
 import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.TextSecondary
+import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.LocalChatPalette
+import androidx.compose.foundation.layout.heightIn
+import com.maodouchat.ui.component.EmptyState
+import com.maodouchat.ui.component.EmptyStateType
+import androidx.compose.material.icons.outlined.Search
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -134,6 +139,7 @@ fun AccountSecurityScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val securityToken = remember(context) { com.maodouchat.network.TokenManager.getInstance(context).getToken().orEmpty() }
     @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     val appLockUnavailableMsg = stringResource(R.string.settings_app_lock_unavailable)
@@ -302,7 +308,7 @@ fun AccountSecurityScreen(
             if (showTotpSetupDialog) {
                 TotpSetupDialog(
                     context = context,
-                    token = token,
+                    token = securityToken,
                     onDismiss = { showTotpSetupDialog = false }
                 )
             }
@@ -3380,6 +3386,7 @@ private fun TotpSetupDialog(
     /** 0.77：null=检查中；true=已启用（进入重新生成/禁用模式）；false=未启用 */
     var alreadyEnabled by remember { mutableStateOf<Boolean?>(null) }
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         if (secret == null) {
@@ -3498,13 +3505,15 @@ private fun TotpSetupDialog(
                     onClick = {
                         isWorking = true
                         error = null
-                        com.maodouchat.network.ApiService.regenerateTotpCodes(token, code.trim())
-                            .onSuccess { codes ->
-                                backupCodes = codes
-                                code = ""
-                            }
-                            .onFailure { error = context.getString(com.maodouchat.R.string.totp_setup_error) }
-                        isWorking = false
+                        scope.launch {
+                            com.maodouchat.network.ApiService.regenerateTotpCodes(token, code.trim())
+                                .onSuccess { codes ->
+                                    backupCodes = codes
+                                    code = ""
+                                }
+                                .onFailure { error = context.getString(com.maodouchat.R.string.totp_setup_error) }
+                            isWorking = false
+                        }
                     }
                 ) { Text(stringResource(com.maodouchat.R.string.totp_regenerate_codes), color = Primary) }
             } else {
@@ -3513,13 +3522,15 @@ private fun TotpSetupDialog(
                     onClick = {
                         isWorking = true
                         error = null
-                        com.maodouchat.network.ApiService.confirmTotp(token, code.trim())
-                            .onSuccess { codes ->
-                                backupCodes = codes
-                                code = ""
-                            }
-                            .onFailure { error = context.getString(com.maodouchat.R.string.totp_setup_error) }
-                        isWorking = false
+                        scope.launch {
+                            com.maodouchat.network.ApiService.confirmTotp(token, code.trim())
+                                .onSuccess { codes ->
+                                    backupCodes = codes
+                                    code = ""
+                                }
+                                .onFailure { error = context.getString(com.maodouchat.R.string.totp_setup_error) }
+                            isWorking = false
+                        }
                     }
                 ) { Text(stringResource(com.maodouchat.R.string.totp_setup_confirm), color = Primary) }
             }
@@ -3531,10 +3542,12 @@ private fun TotpSetupDialog(
                         onClick = {
                             isWorking = true
                             error = null
-                            com.maodouchat.network.ApiService.disableTotp(token, code.trim())
-                                .onSuccess { onDismiss() }
-                                .onFailure { error = context.getString(com.maodouchat.R.string.totp_setup_error) }
-                            isWorking = false
+                            scope.launch {
+                                com.maodouchat.network.ApiService.disableTotp(token, code.trim())
+                                    .onSuccess { onDismiss() }
+                                    .onFailure { error = context.getString(com.maodouchat.R.string.totp_setup_error) }
+                                isWorking = false
+                            }
                         }
                     ) { Text(stringResource(com.maodouchat.R.string.totp_disable), color = UnreadRed) }
                 } else {
@@ -3546,9 +3559,11 @@ private fun TotpSetupDialog(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun MyReportsScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
     val tokenManager = remember(context) { com.maodouchat.network.TokenManager.getInstance(context) }
+    val scope = rememberCoroutineScope()
     val reports = remember { mutableStateOf<List<com.maodouchat.network.ReportResponse>>(emptyList()) }
     val isLoading = remember { mutableStateOf(true) }
     val error = remember { mutableStateOf<String?>(null) }
@@ -3581,7 +3596,7 @@ fun MyReportsScreen(onBack: () -> Unit = {}) {
                 type = EmptyStateType.NETWORK_ERROR,
                 title = stringResource(com.maodouchat.R.string.my_reports_load_failed),
                 actionText = stringResource(com.maodouchat.R.string.chat_load_failed_retry),
-                onAction = { androidx.compose.runtime.LaunchedEffect(Unit) { load() } }
+                onAction = { scope.launch { load() } }
             )
             reports.value.isEmpty() -> EmptyState(
                 type = EmptyStateType.GENERIC,
@@ -3654,15 +3669,17 @@ private fun MyReportCard(report: com.maodouchat.network.ReportResponse) {
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun BlockedUsersScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
     val tokenManager = remember(context) { com.maodouchat.network.TokenManager.getInstance(context) }
-    val blocked = remember { mutableStateOf<List<com.maodouchat.network.AuthApiModels.UserDto>>(emptyList()) }
+    val blocked = remember { mutableStateOf<List<com.maodouchat.network.UserDto>>(emptyList()) }
     val isLoading = remember { mutableStateOf(true) }
     val error = remember { mutableStateOf<String?>(null) }
     val unblockingIds = remember { mutableStateOf<Set<String>>(emptySet()) }
     // 1.144：黑名单搜索
     var blockedSearch by rememberSaveable { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
     val filteredBlocked = remember(blocked.value, blockedSearch) {
         val q = blockedSearch.trim()
         if (q.isBlank()) blocked.value
@@ -3697,7 +3714,7 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
                 type = EmptyStateType.NETWORK_ERROR,
                 title = stringResource(com.maodouchat.R.string.blocked_load_failed),
                 actionText = stringResource(com.maodouchat.R.string.chat_load_failed_retry),
-                onAction = { androidx.compose.runtime.LaunchedEffect(Unit) { load() } }
+                onAction = { scope.launch { load() } }
             )
             blocked.value.isEmpty() -> EmptyState(
                 type = EmptyStateType.GENERIC,
@@ -3757,10 +3774,12 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
                             enabled = !unblocking,
                             onClick = {
                                 unblockingIds.value = unblockingIds.value + user.id
-                                com.maodouchat.network.ApiService.unblockUser(tokenManager.getToken().orEmpty(), user.id)
-                                    .onSuccess { blocked.value = blocked.value.filter { it.id != user.id } }
-                                    .onFailure { error.value = context.getString(com.maodouchat.R.string.blocked_unblock_failed) }
-                                unblockingIds.value = unblockingIds.value - user.id
+                                scope.launch {
+                                    com.maodouchat.network.ApiService.unblockUser(tokenManager.getToken().orEmpty(), user.id)
+                                        .onSuccess { blocked.value = blocked.value.filter { it.id != user.id } }
+                                        .onFailure { error.value = context.getString(com.maodouchat.R.string.blocked_unblock_failed) }
+                                    unblockingIds.value = unblockingIds.value - user.id
+                                }
                             }
                         ) { Text(stringResource(com.maodouchat.R.string.blocked_unblock), color = Primary) }
                     }

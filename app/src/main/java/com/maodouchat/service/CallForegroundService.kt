@@ -83,7 +83,7 @@ class CallForegroundService : Service() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val type = if (isVideo) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
                 else ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-                startForeground(NOTIFICATION_TAG, NOTIFICATION_ID, notification, type)
+                startForeground(NOTIFICATION_ID, notification, type)
             } else {
                 // 8.44：API <29 的 startForeground 无 tag 重载——用独立高位 id 拉开与
                 // 来电/未接/动态互动 hashCode id 的碰撞空间（这些 id 通常 < 2^31 的低位区）

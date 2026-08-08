@@ -199,15 +199,17 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         // 8.39：直连 SDP/信令操作失败此前无任何反馈（onOperationError 从未接线），
         // 用户干等 30s 才见「无应答」。接线后立即结束通话并给出可读错误。
         manager.onOperationError = { peerUserId, detail ->
-            if (!current()) return@onOperationError
-            android.util.Log.w("CallViewModel", "webrtc operation error: $detail")
-            val currentContactId = _uiState.value.contactId
-            if (peerUserId == null || peerUserId.isBlank() || peerUserId == currentContactId) {
-                endCall(
-                    notifyPeer = false,
-                    errorMessage = detail.take(200).takeIf { it.isNotBlank() }
-                        ?: text(R.string.call_operation_failed)
-                )
+            run {
+                if (!current()) return@run
+                android.util.Log.w("CallViewModel", "webrtc operation error: $detail")
+                val currentContactId = _uiState.value.contactId
+                if (peerUserId == null || peerUserId.isBlank() || peerUserId == currentContactId) {
+                    endCall(
+                        notifyPeer = false,
+                        errorMessage = detail.take(200).takeIf { it.isNotBlank() }
+                            ?: text(R.string.call_operation_failed)
+                    )
+                }
             }
         }
     }
@@ -1278,7 +1280,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         }
         com.maodouchat.call.CallLogStore.upsert(
             app,
-            com.maodouchat.call.CallLogEntry(
+            com.maodouchat.call.CallLogStore.CallLogEntry(
                 id = callId,
                 peerId = peerId,
                 peerName = st.contactName.ifBlank { peerId },

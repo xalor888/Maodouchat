@@ -43,7 +43,7 @@ class ScheduledMessageWorker(
         // 改为移除待发条目 + 失败通知，让用户明确感知。
         if (ownerUserId != expectedOwnerUserId || token.isBlank()) {
             return@withContext if (runAttemptCount >= MAX_TRANSIENT_RETRIES) {
-                abandonScheduledMessage(scheduleId, expectedOwnerUserId)
+                abandonScheduledMessage(item, scheduleId, expectedOwnerUserId)
             } else {
                 Result.retry()
             }
@@ -55,7 +55,7 @@ class ScheduledMessageWorker(
             )
         ) {
             return@withContext if (runAttemptCount >= MAX_TRANSIENT_RETRIES) {
-                abandonScheduledMessage(scheduleId, expectedOwnerUserId)
+                abandonScheduledMessage(item, scheduleId, expectedOwnerUserId)
             } else {
                 Result.retry()
             }
@@ -182,7 +182,11 @@ class ScheduledMessageWorker(
     }
 
     /** 8.48：达重试上限后移除待发条目并提示失败（避免消息永久静默滞留列表）。 */
-    private suspend fun abandonScheduledMessage(scheduleId: String, expectedOwnerUserId: String): Result {
+    private suspend fun abandonScheduledMessage(
+        item: com.maodouchat.util.ScheduledMessage,
+        scheduleId: String,
+        expectedOwnerUserId: String
+    ): Result {
         runCatching {
         // 1.07：重复定时——发送前若配置了重复间隔，重新入队下一次（净增 1 条）
         // 1.21：与成功路径一致，达重复次数上限后不再重排

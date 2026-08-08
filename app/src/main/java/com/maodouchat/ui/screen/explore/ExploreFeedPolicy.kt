@@ -69,8 +69,8 @@ object ExploreFeedPolicy {
         }
     }
 
-    private fun roundToOneDecimal(n: Double): String =
-        String.format(java.util.Locale.US, "%.1f", n)
+    private fun Double.roundToOneDecimal(): String =
+        String.format(java.util.Locale.US, "%.1f", this)
 
     /**
      * Pagination entry guard (before setting isLoadingMore).

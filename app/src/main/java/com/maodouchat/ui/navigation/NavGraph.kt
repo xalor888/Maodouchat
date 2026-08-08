@@ -342,11 +342,11 @@ fun MaodouchatNavGraph(
             )
         ) { entry ->
             val chatIdArg = Uri.decode(entry.arguments?.getString("chatId") ?: "")
+            val bubbleCtx = LocalContext.current
+            val bubbleIsDark = androidx.compose.foundation.isSystemInDarkTheme()
             val bubbleColor = remember(chatIdArg) {
-                val ctx = LocalContext.current
-                val isDark = androidx.compose.foundation.isSystemInDarkTheme()
-                val id = com.maodouchat.util.ChatAppearancePreferences.getBubbleColor(ctx)
-                if (isDark) com.maodouchat.ui.theme.ChatBubbleColorPalette.dark(id)
+                val id = com.maodouchat.util.ChatAppearancePreferences.getBubbleColor(bubbleCtx)
+                if (bubbleIsDark) com.maodouchat.ui.theme.ChatBubbleColorPalette.dark(id)
                 else com.maodouchat.ui.theme.ChatBubbleColorPalette.light(id)
             }
             androidx.compose.runtime.CompositionLocalProvider(
@@ -1380,6 +1380,7 @@ private fun requestVideoCallPermissions(
  */
 @Composable
 private fun MainContainer(navController: NavHostController) {
+    val context = LocalContext.current
     var selectedTab by rememberSaveable { mutableIntStateOf(MainTab.CHATS) }
     val motion = LocalMotionSettings.current
     // Missed-call tray tap must land on chats inbox (not contacts/explore/settings/archive).
@@ -1562,11 +1563,11 @@ private fun ChatDetailListPaneRoute(navController: NavHostController) {
                 ) { entry ->
                     val chatId = Uri.decode(entry.arguments?.getString("chatId") ?: "")
                     if (chatId.isNotBlank()) {
+                        val bubbleCtx = LocalContext.current
+                        val bubbleIsDark = androidx.compose.foundation.isSystemInDarkTheme()
                         val bubbleColor = remember(chatId) {
-                            val ctx = LocalContext.current
-                            val isDark = androidx.compose.foundation.isSystemInDarkTheme()
-                            val id = com.maodouchat.util.ChatAppearancePreferences.getBubbleColor(ctx)
-                            if (isDark) com.maodouchat.ui.theme.ChatBubbleColorPalette.dark(id)
+                            val id = com.maodouchat.util.ChatAppearancePreferences.getBubbleColor(bubbleCtx)
+                            if (bubbleIsDark) com.maodouchat.ui.theme.ChatBubbleColorPalette.dark(id)
                             else com.maodouchat.ui.theme.ChatBubbleColorPalette.light(id)
                         }
                         androidx.compose.runtime.CompositionLocalProvider(

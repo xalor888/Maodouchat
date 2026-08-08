@@ -1,6 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.R
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.repository.AiEnhanceHttp
@@ -86,7 +87,7 @@ object AiEmotionReply {
         val plainTexts = messages.map { it.parsedContent() }
         val emotion = detectEmotion(plainTexts)
         if (!isAllowed(context)) {
-            return Result.success(localFallback(emotion.emotion))
+            return Result.success(localFallback(context, emotion.emotion))
         }
         val contextMessages = messages.mapNotNull { message ->
             AiPromptSafetyPolicy.sanitizeContextLine(
@@ -94,7 +95,7 @@ object AiEmotionReply {
                 text = message.parsedContent()
             )?.let { AiContextMessage(it.sender, it.text) }
         }
-        if (contextMessages.isEmpty()) return Result.success(localFallback(emotion.emotion))
+        if (contextMessages.isEmpty()) return Result.success(localFallback(context, emotion.emotion))
         val request = AiEmotionReplyRequest(
             messages = contextMessages,
             emotion = emotion.emotion.wire,

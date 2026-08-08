@@ -418,9 +418,9 @@ object WebSocketClient {
                 // 8.52 接入 isRecoverableExpiryReason（此前为死代码）：服务端通常用 1013 表示
                 // 过期，但兼容旧实例仍发 1008 + 过期文案的情况。
                 if (code == 1008 && reason != null && isRecoverableExpiryReason(reason) && shouldReconnect) {
-                    val refreshed = runCatching {
-                        com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession()
-                    }.getOrNull()
+                    val refreshed = kotlinx.coroutines.runBlocking {
+                        runCatching { com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession() }.getOrNull()
+                    }
                     if (refreshed != null && refreshed.isNotBlank()) {
                         authToken.set(refreshed)
                         scheduleReconnect()
@@ -440,9 +440,9 @@ object WebSocketClient {
                     return
                 }
                 if (code == 1008 && reason.isBlank() && shouldReconnect) {
-                    val refreshed = runCatching {
-                        com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession()
-                    }.getOrNull()
+                    val refreshed = kotlinx.coroutines.runBlocking {
+                        runCatching { com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession() }.getOrNull()
+                    }
                     if (refreshed != null && refreshed.isNotBlank()) {
                         authToken.set(refreshed)
                         scheduleReconnect()
@@ -473,9 +473,9 @@ object WebSocketClient {
                     val code = response.code
                     if (code == 401 || code == 403) {
                         if (!shouldReconnect) return
-                        val refreshed = runCatching {
-                            com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession()
-                        }.getOrNull()
+                        val refreshed = kotlinx.coroutines.runBlocking {
+                            runCatching { com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession() }.getOrNull()
+                        }
                         if (refreshed != null && refreshed.isNotBlank()) {
                             authToken.set(refreshed)
                             scheduleReconnect()
@@ -575,9 +575,9 @@ object WebSocketClient {
                 val expiresAt = tokenManager.getAccessTokenExpiresAt()
                 val stale = expiresAt > 0L && expiresAt <= System.currentTimeMillis() + 60_000L
                 if (stale) {
-                    val refreshed = runCatching {
-                        com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession()
-                    }.getOrNull()
+                    val refreshed = kotlinx.coroutines.runBlocking {
+                        runCatching { com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession() }.getOrNull()
+                    }
                     if (refreshed != null && refreshed.isNotBlank()) token = refreshed
                 }
             }

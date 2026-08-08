@@ -278,15 +278,15 @@ private fun callHistoryRelativeTime(context: android.content.Context, millis: Lo
         diff < 60_000L -> context.getString(R.string.time_just_now)
         diff < 3_600_000L -> {
             val m = (diff / 60_000L).toInt()
-            context.getQuantityString(R.plurals.time_minutes_ago, m, m)
+            context.resources.getQuantityString(R.plurals.time_minutes_ago, m, m)
         }
         diff < 86_400_000L -> {
             val h = (diff / 3_600_000L).toInt()
-            context.getQuantityString(R.plurals.time_hours_ago, h, h)
+            context.resources.getQuantityString(R.plurals.time_hours_ago, h, h)
         }
         diff < 7L * 86_400_000L -> {
             val d = (diff / 86_400_000L).toInt()
-            context.getQuantityString(R.plurals.time_days_ago, d, d)
+            context.resources.getQuantityString(R.plurals.time_days_ago, d, d)
         }
         else -> java.text.SimpleDateFormat("MM-dd", java.util.Locale.getDefault()).format(java.util.Date(millis))
     }

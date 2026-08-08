@@ -50,19 +50,19 @@ class AttachmentTransferWorker(
         }
 
         if (workerAction == AttachmentWorkerAction.FINALIZE) {
-            return finalizeReady(messageId, expectedOwnerUserId)
+            return finalizeReady(dao, messageId, expectedOwnerUserId)
         }
         if (workerAction == AttachmentWorkerAction.PROMOTE_AND_FINALIZE) {
             // 已完成上传的任务绝不能 fall-through 到重新上传路径
             if (!sessionActive(tokenManager, expectedOwnerUserId)) return Result.success()
             if (dao.retryCompletedUpload(messageId, ownerUserId = expectedOwnerUserId) == 1) {
-                return finalizeReady(messageId, expectedOwnerUserId)
+                return finalizeReady(dao, messageId, expectedOwnerUserId)
             }
             if (!sessionActive(tokenManager, expectedOwnerUserId)) return Result.success()
             val current = dao.get(messageId, ownerUserId = expectedOwnerUserId) ?: return Result.success()
             if (!sessionActive(tokenManager, expectedOwnerUserId)) return Result.success()
             return when (current.state) {
-                AttachmentTransferState.READY, AttachmentTransferState.SENDING -> finalizeReady(messageId, expectedOwnerUserId)
+                AttachmentTransferState.READY, AttachmentTransferState.SENDING -> finalizeReady(dao, messageId, expectedOwnerUserId)
                 AttachmentTransferState.PAUSED -> Result.success()
                 else -> {
                     // 仍标记为已完成上传但 promote 失败：保持失败态等待下次校准，禁止重复上传
@@ -127,7 +127,7 @@ class AttachmentTransferWorker(
                 val after = dao.get(messageId, ownerUserId = expectedOwnerUserId)
                 ensureSessionActive(tokenManager, expectedOwnerUserId)
                 if (after?.state == AttachmentTransferState.READY || after?.state == AttachmentTransferState.SENDING) {
-                    return finalizeReady(messageId, expectedOwnerUserId)
+                    return finalizeReady(dao, messageId, expectedOwnerUserId)
                 }
                 if (after?.state == AttachmentTransferState.PAUSED && after.hasCompletedUpload()) {
                     return Result.success()
@@ -136,9 +136,9 @@ class AttachmentTransferWorker(
             }
             // 若用户在 markReady 前暂停，READY 仍应继续 finalize；暂停只作用于上传阶段
             if (current?.state == AttachmentTransferState.PAUSED) {
-                return finalizeReady(messageId, expectedOwnerUserId)
+                return finalizeReady(dao, messageId, expectedOwnerUserId)
             }
-            finalizeReady(messageId, expectedOwnerUserId)
+            finalizeReady(dao, messageId, expectedOwnerUserId)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
@@ -167,7 +167,11 @@ class AttachmentTransferWorker(
         }
     }
 
-    private suspend fun finalizeReady(messageId: String, ownerUserId: String): Result = when (
+    private suspend fun finalizeReady(
+        dao: com.maodouchat.data.local.dao.AttachmentTransferDao,
+        messageId: String,
+        ownerUserId: String
+    ): Result = when (
         val outcome = AttachmentTransferFinalizer.finalize(applicationContext, messageId, ownerUserId)
     ) {
         is AttachmentFinalizeOutcome.Sent,

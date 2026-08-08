@@ -541,7 +541,9 @@ private fun TextBubble(
     /** 1.44：点击消息发送者名称 → 打开其资料。 */
     onSenderClick: ((String) -> Unit)? = null,
     /** 1.51：点击已读状态图标（✓✓）→ 打开阅读详情。 */
-    onStatusClick: ((Message) -> Unit)? = null
+    onStatusClick: ((Message) -> Unit)? = null,
+    /** 0.65：发送者群内角色（群主/管理员徽章，仅群聊显示）。 */
+    memberRole: String? = null
 ) {
     val palette = LocalChatPalette.current
     Row(
@@ -693,487 +695,175 @@ private fun TextBubble(
                     )
                     return@Column
                 }
-                val playLabel = when {
-                    com.maodouchat.util.GroupPlayPolicy.parseDice(parsedBody)?.let { (sides, value) ->
-                        "Dice $value / $sides"
-                    } ?: ""
-                    com.maodouchat.util.GroupPlayPolicy.parseRps(parsedBody) != null -> {
-                        "RPS: ${com.maodouchat.util.GroupPlayPolicy.parseRps(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseLuckyDraw(parsedBody)?.let { (picker, target) ->
-                        "Lucky: $picker -> $target"
-                    } ?: ""
-                    parsedBody.startsWith(com.maodouchat.util.GroupPlayPolicy.CHECKIN_PREFIX) ->
-                        parsedBody.removePrefix(com.maodouchat.util.GroupPlayPolicy.CHECKIN_PREFIX).substringAfter('|', parsedBody)
-                    parsedBody.startsWith(com.maodouchat.util.GroupPlayPolicy.TRUTH_PREFIX) ->
-                        "Truth: " + parsedBody.removePrefix(com.maodouchat.util.GroupPlayPolicy.TRUTH_PREFIX).substringAfter('|', parsedBody)
-                    parsedBody.startsWith(com.maodouchat.util.GroupPlayPolicy.ANON_PREFIX) ->
-                        "Anon: " + parsedBody.removePrefix(com.maodouchat.util.GroupPlayPolicy.ANON_PREFIX).substringAfter('|', parsedBody)
-                    com.maodouchat.util.GroupPlayPolicy.parseReactionRace(parsedBody)?.let { (token, label) ->
-                        "Race $token: $label"
-                    } ?: ""
-                    com.maodouchat.util.GroupPlayPolicy.parseNumberBomb(parsedBody)?.let { (max, _, label) ->
-                        "Bomb 1-$max: $label"
-                    } ?: ""
-                    parsedBody.startsWith(com.maodouchat.util.GroupPlayPolicy.WORD_PREFIX) ->
-                        parsedBody.removePrefix(com.maodouchat.util.GroupPlayPolicy.WORD_PREFIX).substringAfter('|', parsedBody)
-                    com.maodouchat.util.GroupPlayPolicy.parseWouldYouRather(parsedBody)?.let { (a, b, _) ->
-                        "Would you rather: $a  OR  $b"
-                    } ?: ""
-                    parsedBody.startsWith(com.maodouchat.util.GroupPlayPolicy.EMOJI_RAIN_PREFIX) ->
-                        parsedBody.removePrefix(com.maodouchat.util.GroupPlayPolicy.EMOJI_RAIN_PREFIX).substringAfter('|', parsedBody)
-                    com.maodouchat.util.GroupPlayPolicy.parseTwoTruthsOneLie(parsedBody)?.let { items ->
-                        "Two truths & one lie: " + items.joinToString(" / ")
-                    } ?: ""
-                    parsedBody.startsWith(com.maodouchat.util.GroupPlayPolicy.QUIZ_PREFIX) -> {
+                val playLabel = run {
+                    com.maodouchat.util.GroupPlayPolicy.parseDice(parsedBody)?.let { (sides, value) -> return@run "Dice $value / $sides" }
+                    com.maodouchat.util.GroupPlayPolicy.parseRps(parsedBody)?.let { return@run "RPS: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseLuckyDraw(parsedBody)?.let { (picker, target) -> return@run "Lucky: $picker -> $target" }
+                    if (parsedBody.startsWith(com.maodouchat.util.GroupPlayPolicy.CHECKIN_PREFIX)) { return@run parsedBody.removePrefix(com.maodouchat.util.GroupPlayPolicy.CHECKIN_PREFIX).substringAfter('|', parsedBody) }
+                    if (parsedBody.startsWith(com.maodouchat.util.GroupPlayPolicy.TRUTH_PREFIX)) { return@run "Truth: " + parsedBody.removePrefix(com.maodouchat.util.GroupPlayPolicy.TRUTH_PREFIX).substringAfter('|', parsedBody) }
+                    if (parsedBody.startsWith(com.maodouchat.util.GroupPlayPolicy.ANON_PREFIX)) { return@run "Anon: " + parsedBody.removePrefix(com.maodouchat.util.GroupPlayPolicy.ANON_PREFIX).substringAfter('|', parsedBody) }
+                    com.maodouchat.util.GroupPlayPolicy.parseReactionRace(parsedBody)?.let { (token, label) -> return@run "Race $token: $label" }
+                    com.maodouchat.util.GroupPlayPolicy.parseNumberBomb(parsedBody)?.let { (max, _, label) -> return@run "Bomb 1-$max: $label" }
+                    if (parsedBody.startsWith(com.maodouchat.util.GroupPlayPolicy.WORD_PREFIX)) { return@run parsedBody.removePrefix(com.maodouchat.util.GroupPlayPolicy.WORD_PREFIX).substringAfter('|', parsedBody) }
+                    com.maodouchat.util.GroupPlayPolicy.parseWouldYouRather(parsedBody)?.let { (a, b, _) -> return@run "Would you rather: $a  OR  $b" }
+                    if (parsedBody.startsWith(com.maodouchat.util.GroupPlayPolicy.EMOJI_RAIN_PREFIX)) { return@run parsedBody.removePrefix(com.maodouchat.util.GroupPlayPolicy.EMOJI_RAIN_PREFIX).substringAfter('|', parsedBody) }
+                    com.maodouchat.util.GroupPlayPolicy.parseTwoTruthsOneLie(parsedBody)?.let { items -> return@run "Two truths & one lie: " + items.joinToString(" / ") }
+                    if (parsedBody.startsWith(com.maodouchat.util.GroupPlayPolicy.QUIZ_PREFIX)) {
                         val q = parsedBody.removePrefix(com.maodouchat.util.GroupPlayPolicy.QUIZ_PREFIX).substringBefore('|')
-                        "Quiz: $q"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseCharades(parsedBody) != null -> {
-                        "Charades: ${com.maodouchat.util.GroupPlayPolicy.parseCharades(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseNumberGuess(parsedBody)?.let { (_, max) ->
-                        "Number guess 1..$max"
-                    } ?: ""
-                    com.maodouchat.util.GroupPlayPolicy.parseRiddle(parsedBody)?.let { (q, _) ->
-                        "Riddle: $q"
-                    } ?: ""
-                    com.maodouchat.util.GroupPlayPolicy.parseImpostor(parsedBody) != null -> {
-                        "Impostor game started"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseEmojiStory(parsedBody) != null -> {
-                        "Emoji story: ${com.maodouchat.util.GroupPlayPolicy.parseEmojiStory(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseSimon(parsedBody) != null -> {
-                        "Simon: ${com.maodouchat.util.GroupPlayPolicy.parseSimon(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseHotOrNot(parsedBody) != null -> {
-                        "Hot or not: ${com.maodouchat.util.GroupPlayPolicy.parseHotOrNot(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseAlphabet(parsedBody) != null -> {
-                        "Alphabet ${com.maodouchat.util.GroupPlayPolicy.parseAlphabet(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseTrivia(parsedBody)?.let { (q, _) ->
-                        "Trivia: $q"
-                    } ?: ""
-                    com.maodouchat.util.GroupPlayPolicy.parseSpeedChallenge(parsedBody) != null -> {
-                        "Speed ${com.maodouchat.util.GroupPlayPolicy.parseSpeedChallenge(parsedBody)}s"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseFortune(parsedBody) != null -> {
-                        "Fortune: ${com.maodouchat.util.GroupPlayPolicy.parseFortune(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseEmojiQuiz(parsedBody)?.let { (p, _) ->
-                        "Emoji quiz: $p"
-                    } ?: ""
-                    com.maodouchat.util.GroupPlayPolicy.parseChainReact(parsedBody) != null -> {
-                        "Chain: ${com.maodouchat.util.GroupPlayPolicy.parseChainReact(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseDebate(parsedBody) != null -> {
-                        "Debate: ${com.maodouchat.util.GroupPlayPolicy.parseDebate(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseMirror(parsedBody) != null -> {
-                        "Mirror: ${com.maodouchat.util.GroupPlayPolicy.parseMirror(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseHideSeek(parsedBody) != null -> {
-                        "Hide&Seek: ${com.maodouchat.util.GroupPlayPolicy.parseHideSeek(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseToast(parsedBody) != null -> {
-                        "Roast: ${com.maodouchat.util.GroupPlayPolicy.parseToast(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseHotPotato(parsedBody) != null -> {
-                        "Hot potato ${com.maodouchat.util.GroupPlayPolicy.parseHotPotato(parsedBody)}s"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseWordHint(parsedBody)?.let { (h, _) ->
-                        "Word hint: $h"
-                    } ?: ""
-                    com.maodouchat.util.GroupPlayPolicy.parseSpyfall(parsedBody) != null -> {
-                        "Spyfall @ ${com.maodouchat.util.GroupPlayPolicy.parseSpyfall(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseAcrostic(parsedBody) != null -> {
-                        "Acrostic: ${com.maodouchat.util.GroupPlayPolicy.parseAcrostic(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseEmojiTranslate(parsedBody)?.let { (p, _) ->
-                        "Emoji TR: $p"
-                    } ?: ""
-                    com.maodouchat.util.GroupPlayPolicy.parseTwentyQuestions(parsedBody) != null -> {
-                        "20Q: ${com.maodouchat.util.GroupPlayPolicy.parseTwentyQuestions(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseRhyme(parsedBody) != null -> {
-                        "Rhyme: ${com.maodouchat.util.GroupPlayPolicy.parseRhyme(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseOddOneOut(parsedBody)?.let { (o, _) ->
-                        "Odd one: $o"
-                    } ?: ""
-                    com.maodouchat.util.GroupPlayPolicy.parseCategories(parsedBody) != null -> {
-                        "Categories: ${com.maodouchat.util.GroupPlayPolicy.parseCategories(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parsePasswordGame(parsedBody) != null -> {
-                        "Password game: ${com.maodouchat.util.GroupPlayPolicy.parsePasswordGame(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseTimeCapsule(parsedBody) != null -> {
-                        "Capsule: ${com.maodouchat.util.GroupPlayPolicy.parseTimeCapsule(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseTaboo(parsedBody) != null -> {
-                        "Taboo: ${com.maodouchat.util.GroupPlayPolicy.parseTaboo(parsedBody)?.substringBefore('|')}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseLightning(parsedBody) != null -> {
-                        "Lightning: ${com.maodouchat.util.GroupPlayPolicy.parseLightning(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseTwoWords(parsedBody) != null -> {
-                        "Two words: ${com.maodouchat.util.GroupPlayPolicy.parseTwoWords(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseWhisper(parsedBody) != null -> {
-                        "Whisper: ${com.maodouchat.util.GroupPlayPolicy.parseWhisper(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseEmojiDuel(parsedBody) != null -> {
-                        "Emoji duel: ${com.maodouchat.util.GroupPlayPolicy.parseEmojiDuel(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseCountdownRace(parsedBody) != null -> {
-                        "Race ${com.maodouchat.util.GroupPlayPolicy.parseCountdownRace(parsedBody)}s"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseRapidFire(parsedBody) != null -> {
-                        "Rapid: ${com.maodouchat.util.GroupPlayPolicy.parseRapidFire(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseEmojiMemory(parsedBody) != null -> {
-                        "Memory: ${com.maodouchat.util.GroupPlayPolicy.parseEmojiMemory(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseGeoGuess(parsedBody) != null -> {
-                        "Geo: ${com.maodouchat.util.GroupPlayPolicy.parseGeoGuess(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseOneWord(parsedBody) != null -> {
-                        "One word: ${com.maodouchat.util.GroupPlayPolicy.parseOneWord(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseSpeedMath(parsedBody) != null -> {
-                        "Math: ${com.maodouchat.util.GroupPlayPolicy.parseSpeedMath(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseStorySeed(parsedBody) != null -> {
-                        "Story: ${com.maodouchat.util.GroupPlayPolicy.parseStorySeed(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseWould2(parsedBody)?.let { (a, b) ->
-                        "Would you: $a OR $b"
-                    } ?: ""
-                    com.maodouchat.util.GroupPlayPolicy.parseEmojiOnly(parsedBody) != null -> {
-                        "Emoji only: ${com.maodouchat.util.GroupPlayPolicy.parseEmojiOnly(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseBlindDraw(parsedBody) != null -> {
-                        "Blind draw"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseAlphabetRace(parsedBody) != null -> {
-                        "Alphabet: ${com.maodouchat.util.GroupPlayPolicy.parseAlphabetRace(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseSilentMovie(parsedBody) != null -> {
-                        "Silent movie: ${com.maodouchat.util.GroupPlayPolicy.parseSilentMovie(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseColorWord(parsedBody) != null -> {
-                        "Color word: ${com.maodouchat.util.GroupPlayPolicy.parseColorWord(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseDebateFlash(parsedBody) != null -> {
-                        "Debate: ${com.maodouchat.util.GroupPlayPolicy.parseDebateFlash(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseEmojiStory(parsedBody) != null -> {
-                        "Emoji story: ${com.maodouchat.util.GroupPlayPolicy.parseEmojiStory(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseQuickPoll(parsedBody) != null -> {
-                        "Quick poll: ${com.maodouchat.util.GroupPlayPolicy.parseQuickPoll(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseMirrorEcho(parsedBody) != null -> {
-                        "Mirror: ${com.maodouchat.util.GroupPlayPolicy.parseMirrorEcho(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseSyncClap(parsedBody) != null -> {
-                        "Sync clap x${com.maodouchat.util.GroupPlayPolicy.parseSyncClap(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseFactOrFiction(parsedBody) != null -> {
-                        "Fact?: ${com.maodouchat.util.GroupPlayPolicy.parseFactOrFiction(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseImpulseDraw(parsedBody) != null -> {
-                        "Impulse: ${com.maodouchat.util.GroupPlayPolicy.parseImpulseDraw(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseWordScramble(parsedBody) != null -> {
-                        "Scramble: ${com.maodouchat.util.GroupPlayPolicy.parseWordScramble(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseReactionDuel(parsedBody) != null -> {
-                        "React duel: ${com.maodouchat.util.GroupPlayPolicy.parseReactionDuel(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseCodeBreaker(parsedBody) != null -> {
-                        "Code breaker"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseSillyLaw(parsedBody) != null -> {
-                        "Law: ${com.maodouchat.util.GroupPlayPolicy.parseSillyLaw(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseEmojiMath(parsedBody) != null -> {
-                        "Emoji math: ${com.maodouchat.util.GroupPlayPolicy.parseEmojiMath(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parsePinTheMood(parsedBody) != null -> {
-                        "Mood pin: ${com.maodouchat.util.GroupPlayPolicy.parsePinTheMood(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseRevokeRush(parsedBody) != null -> {
-                        "Revoke rush ${com.maodouchat.util.GroupPlayPolicy.parseRevokeRush(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseSecretSignal(parsedBody) != null -> {
-                        "Signal: ${com.maodouchat.util.GroupPlayPolicy.parseSecretSignal(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseMoodMeter(parsedBody) != null -> {
-                        "Mood meter: ${com.maodouchat.util.GroupPlayPolicy.parseMoodMeter(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseFocusSprint(parsedBody) != null -> {
-                        "Focus sprint ${com.maodouchat.util.GroupPlayPolicy.parseFocusSprint(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseGratitudeRound(parsedBody) != null -> {
-                        "Gratitude: ${com.maodouchat.util.GroupPlayPolicy.parseGratitudeRound(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseIdeaRelay(parsedBody) != null -> {
-                        "Idea relay: ${com.maodouchat.util.GroupPlayPolicy.parseIdeaRelay(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseTempoTap(parsedBody) != null -> {
-                        "Tempo tap ${com.maodouchat.util.GroupPlayPolicy.parseTempoTap(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseTranslateRelay(parsedBody) != null -> {
-                        "Translate: ${com.maodouchat.util.GroupPlayPolicy.parseTranslateRelay(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseInviteRace(parsedBody) != null -> {
-                        "Invite race: ${com.maodouchat.util.GroupPlayPolicy.parseInviteRace(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseMentionMayhem(parsedBody) != null -> {
-                        "Mention mayhem: ${com.maodouchat.util.GroupPlayPolicy.parseMentionMayhem(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseLinkHunt(parsedBody) != null -> {
-                        "Link hunt: ${com.maodouchat.util.GroupPlayPolicy.parseLinkHunt(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseNudgeDash(parsedBody) != null -> {
-                        "Nudge dash: ${com.maodouchat.util.GroupPlayPolicy.parseNudgeDash(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseCodeCheck(parsedBody) != null -> {
-                        "Code check: ${com.maodouchat.util.GroupPlayPolicy.parseCodeCheck(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseTrustSprint(parsedBody) != null -> {
-                        "Trust sprint: ${com.maodouchat.util.GroupPlayPolicy.parseTrustSprint(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseQrQuest(parsedBody) != null -> {
-                        "QR quest: ${com.maodouchat.util.GroupPlayPolicy.parseQrQuest(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseContactSwap(parsedBody) != null -> {
-                        "Contact swap: ${com.maodouchat.util.GroupPlayPolicy.parseContactSwap(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseScanSprint(parsedBody) != null -> {
-                        "Scan sprint: ${com.maodouchat.util.GroupPlayPolicy.parseScanSprint(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseSpoilerRace(parsedBody) != null -> {
-                        "Spoiler race: ${com.maodouchat.util.GroupPlayPolicy.parseSpoilerRace(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseBlurBattle(parsedBody) != null -> {
-                        "Blur battle: ${com.maodouchat.util.GroupPlayPolicy.parseBlurBattle(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseDownloadDash(parsedBody) != null -> {
-                        "Download dash: ${com.maodouchat.util.GroupPlayPolicy.parseDownloadDash(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parsePinDrop(parsedBody) != null -> {
-                        "Pin drop: ${com.maodouchat.util.GroupPlayPolicy.parsePinDrop(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseFileRelay(parsedBody) != null -> {
-                        "File relay: ${com.maodouchat.util.GroupPlayPolicy.parseFileRelay(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseMapDash(parsedBody) != null -> {
-                        "Map dash: ${com.maodouchat.util.GroupPlayPolicy.parseMapDash(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseVaultLock(parsedBody) != null -> {
-                        "Vault lock: ${com.maodouchat.util.GroupPlayPolicy.parseVaultLock(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseWatermarkHunt(parsedBody) != null -> {
-                        "Watermark hunt: ${com.maodouchat.util.GroupPlayPolicy.parseWatermarkHunt(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseSecureSprint(parsedBody) != null -> {
-                        "Secure sprint: ${com.maodouchat.util.GroupPlayPolicy.parseSecureSprint(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parsePhotoRace(parsedBody) != null -> {
-                        "Photo race: ${com.maodouchat.util.GroupPlayPolicy.parsePhotoRace(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseClipDash(parsedBody) != null -> {
-                        "Clip dash: ${com.maodouchat.util.GroupPlayPolicy.parseClipDash(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseFrameHunt(parsedBody) != null -> {
-                        "Frame hunt: ${com.maodouchat.util.GroupPlayPolicy.parseFrameHunt(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseSummaryCircle(parsedBody) != null -> {
-                        "Summary circle: ${com.maodouchat.util.GroupPlayPolicy.parseSummaryCircle(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseRewriteRelay(parsedBody) != null -> {
-                        "Rewrite relay: ${com.maodouchat.util.GroupPlayPolicy.parseRewriteRelay(parsedBody)}"
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parsePromptSprint(parsedBody) != null -> {
-                        "Prompt sprint: ${com.maodouchat.util.GroupPlayPolicy.parsePromptSprint(parsedBody)}"
-                    }
-                                        com.maodouchat.util.GroupPlayPolicy.parseSuggestCircle(parsedBody) != null -> {
-                        "Suggest circle: " + (com.maodouchat.util.GroupPlayPolicy.parseSuggestCircle(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseVoiceRace(parsedBody) != null -> {
-                        "Voice race: " + (com.maodouchat.util.GroupPlayPolicy.parseVoiceRace(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseReplySprint(parsedBody) != null -> {
-                        "Reply sprint: " + (com.maodouchat.util.GroupPlayPolicy.parseReplySprint(parsedBody) ?: "")
-                    }
-                                        com.maodouchat.util.GroupPlayPolicy.parsePixelQuest(parsedBody) != null -> {
-                        "Pixel quest: " + (com.maodouchat.util.GroupPlayPolicy.parsePixelQuest(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseAssistCircle(parsedBody) != null -> {
-                        "Assist circle: " + (com.maodouchat.util.GroupPlayPolicy.parseAssistCircle(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseDecisionDash(parsedBody) != null -> {
-                        "Decision dash: " + (com.maodouchat.util.GroupPlayPolicy.parseDecisionDash(parsedBody) ?: "")
-                    }
-                                        com.maodouchat.util.GroupPlayPolicy.parseDocHunt(parsedBody) != null -> {
-                        "Doc hunt: " + (com.maodouchat.util.GroupPlayPolicy.parseDocHunt(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseMeaningRace(parsedBody) != null -> {
-                        "Meaning race: " + (com.maodouchat.util.GroupPlayPolicy.parseMeaningRace(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseInsightSprint(parsedBody) != null -> {
-                        "Insight sprint: " + (com.maodouchat.util.GroupPlayPolicy.parseInsightSprint(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseGifRelay(parsedBody) != null -> {
-                        "Gif relay: " + (com.maodouchat.util.GroupPlayPolicy.parseGifRelay(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseMarkHunt(parsedBody) != null -> {
-                        "Mark hunt: " + (com.maodouchat.util.GroupPlayPolicy.parseMarkHunt(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseLeakSprint(parsedBody) != null -> {
-                        "Leak sprint: " + (com.maodouchat.util.GroupPlayPolicy.parseLeakSprint(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseVoiceRing(parsedBody) != null -> {
-                        "Voice ring: " + (com.maodouchat.util.GroupPlayPolicy.parseVoiceRing(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseVideoStage(parsedBody) != null -> {
-                        "Video stage: " + (com.maodouchat.util.GroupPlayPolicy.parseVideoStage(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseRingDash(parsedBody) != null -> {
-                        "Ring dash: " + (com.maodouchat.util.GroupPlayPolicy.parseRingDash(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseWallPick(parsedBody) != null -> {
-                        "Wall pick: " + (com.maodouchat.util.GroupPlayPolicy.parseWallPick(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseFontRace(parsedBody) != null -> {
-                        "Font race: " + (com.maodouchat.util.GroupPlayPolicy.parseFontRace(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseThemeSprint(parsedBody) != null -> {
-                        "Theme sprint: " + (com.maodouchat.util.GroupPlayPolicy.parseThemeSprint(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseUnreadRush(parsedBody) != null -> {
-                        "Unread rush: " + (com.maodouchat.util.GroupPlayPolicy.parseUnreadRush(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseRingChoir(parsedBody) != null -> {
-                        "Ring choir: " + (com.maodouchat.util.GroupPlayPolicy.parseRingChoir(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseAlertSprint(parsedBody) != null -> {
-                        "Alert sprint: " + (com.maodouchat.util.GroupPlayPolicy.parseAlertSprint(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseSoundWave(parsedBody) != null -> {
-                        "Sound wave: " + (com.maodouchat.util.GroupPlayPolicy.parseSoundWave(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parsePreviewMask(parsedBody) != null -> {
-                        "Preview mask: " + (com.maodouchat.util.GroupPlayPolicy.parsePreviewMask(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseBeepDash(parsedBody) != null -> {
-                        "Beep dash: " + (com.maodouchat.util.GroupPlayPolicy.parseBeepDash(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parsePushRace(parsedBody) != null -> {
-                        "Push race: " + (com.maodouchat.util.GroupPlayPolicy.parsePushRace(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseRemindCircle(parsedBody) != null -> {
-                        "Remind circle: " + (com.maodouchat.util.GroupPlayPolicy.parseRemindCircle(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseWakeSprint(parsedBody) != null -> {
-                        "Wake sprint: " + (com.maodouchat.util.GroupPlayPolicy.parseWakeSprint(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseQuietHour(parsedBody) != null -> {
-                        "Quiet hour: " + (com.maodouchat.util.GroupPlayPolicy.parseQuietHour(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseOfflineHint(parsedBody) != null -> {
-                        "Offline hint: " + (com.maodouchat.util.GroupPlayPolicy.parseOfflineHint(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseFallbackDash(parsedBody) != null -> {
-                        "Fallback dash: " + (com.maodouchat.util.GroupPlayPolicy.parseFallbackDash(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseClickBeat(parsedBody) != null -> {
-                        "Click beat: " + (com.maodouchat.util.GroupPlayPolicy.parseClickBeat(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseBuzzRelay(parsedBody) != null -> {
-                        "Buzz relay: " + (com.maodouchat.util.GroupPlayPolicy.parseBuzzRelay(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseFeelSprint(parsedBody) != null -> {
-                        "Feel sprint: " + (com.maodouchat.util.GroupPlayPolicy.parseFeelSprint(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseSlideRace(parsedBody) != null -> {
-                        "Slide race: " + (com.maodouchat.util.GroupPlayPolicy.parseSlideRace(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseFadeCircle(parsedBody) != null -> {
-                        "Fade circle: " + (com.maodouchat.util.GroupPlayPolicy.parseFadeCircle(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseSpringDash(parsedBody) != null -> {
-                        "Spring dash: " + (com.maodouchat.util.GroupPlayPolicy.parseSpringDash(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseSnapGuard(parsedBody) != null -> {
-                        "Snap guard: " + (com.maodouchat.util.GroupPlayPolicy.parseSnapGuard(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseRecentsHide(parsedBody) != null -> {
-                        "Recents hide: " + (com.maodouchat.util.GroupPlayPolicy.parseRecentsHide(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseShieldSprint(parsedBody) != null -> {
-                        "Shield sprint: " + (com.maodouchat.util.GroupPlayPolicy.parseShieldSprint(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseCopyLock(parsedBody) != null -> {
-                        "Copy lock: " + (com.maodouchat.util.GroupPlayPolicy.parseCopyLock(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseExportSeal(parsedBody) != null -> {
-                        "Export seal: " + (com.maodouchat.util.GroupPlayPolicy.parseExportSeal(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseLeakWall(parsedBody) != null -> {
-                        "Leak wall: " + (com.maodouchat.util.GroupPlayPolicy.parseLeakWall(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseForwardSeal(parsedBody) != null -> {
-                        "Forward seal: " + (com.maodouchat.util.GroupPlayPolicy.parseForwardSeal(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseChatExportLock(parsedBody) != null -> {
-                        "Chat export lock: " + (com.maodouchat.util.GroupPlayPolicy.parseChatExportLock(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseVaultFence(parsedBody) != null -> {
-                        "Vault fence: " + (com.maodouchat.util.GroupPlayPolicy.parseVaultFence(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseSealSprint(parsedBody) != null -> {
-                        "Seal sprint: " + (com.maodouchat.util.GroupPlayPolicy.parseSealSprint(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parsePqxdhDash(parsedBody) != null -> {
-                        "PQXDH dash: " + (com.maodouchat.util.GroupPlayPolicy.parsePqxdhDash(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseCertRelay(parsedBody) != null -> {
-                        "Cert relay: " + (com.maodouchat.util.GroupPlayPolicy.parseCertRelay(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseMarkSprint(parsedBody) != null -> {
-                        "Mark sprint: " + (com.maodouchat.util.GroupPlayPolicy.parseMarkSprint(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseFadeTimer(parsedBody) != null -> {
-                        "Fade timer: " + (com.maodouchat.util.GroupPlayPolicy.parseFadeTimer(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseStampRelay(parsedBody) != null -> {
-                        "Stamp relay: " + (com.maodouchat.util.GroupPlayPolicy.parseStampRelay(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseLinkLock(parsedBody) != null -> {
-                        "Link lock: " + (com.maodouchat.util.GroupPlayPolicy.parseLinkLock(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parsePreviewMute(parsedBody) != null -> {
-                        "Preview mute: " + (com.maodouchat.util.GroupPlayPolicy.parsePreviewMute(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseUrlFence(parsedBody) != null -> {
-                        "URL fence: " + (com.maodouchat.util.GroupPlayPolicy.parseUrlFence(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseNotifMask(parsedBody) != null -> {
-                        "Notif mask: " + (com.maodouchat.util.GroupPlayPolicy.parseNotifMask(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseListBlur(parsedBody) != null -> {
-                        "List blur: " + (com.maodouchat.util.GroupPlayPolicy.parseListBlur(parsedBody) ?: "")
-                    }
-                    com.maodouchat.util.GroupPlayPolicy.parseTraySeal(parsedBody) != null -> {
-                        "Tray seal: " + (com.maodouchat.util.GroupPlayPolicy.parseTraySeal(parsedBody) ?: "")
-                    }
-                    else -> null
+                        return@run "Quiz: $q"
+                    }
+                    com.maodouchat.util.GroupPlayPolicy.parseCharades(parsedBody)?.let { return@run "Charades: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseNumberGuess(parsedBody)?.let { (_, max) -> return@run "Number guess 1..$max" }
+                    com.maodouchat.util.GroupPlayPolicy.parseRiddle(parsedBody)?.let { (q, _) -> return@run "Riddle: $q" }
+                    com.maodouchat.util.GroupPlayPolicy.parseImpostor(parsedBody)?.let { return@run "Impostor game started" }
+                    com.maodouchat.util.GroupPlayPolicy.parseEmojiStory(parsedBody)?.let { return@run "Emoji story: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseSimon(parsedBody)?.let { return@run "Simon: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseHotOrNot(parsedBody)?.let { return@run "Hot or not: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseAlphabet(parsedBody)?.let { return@run "Alphabet ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseTrivia(parsedBody)?.let { (q, _) -> return@run "Trivia: $q" }
+                    com.maodouchat.util.GroupPlayPolicy.parseSpeedChallenge(parsedBody)?.let { return@run "Speed ${it}s" }
+                    com.maodouchat.util.GroupPlayPolicy.parseFortune(parsedBody)?.let { return@run "Fortune: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseEmojiQuiz(parsedBody)?.let { (p, _) -> return@run "Emoji quiz: $p" }
+                    com.maodouchat.util.GroupPlayPolicy.parseChainReact(parsedBody)?.let { return@run "Chain: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseDebate(parsedBody)?.let { return@run "Debate: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseMirror(parsedBody)?.let { return@run "Mirror: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseHideSeek(parsedBody)?.let { return@run "Hide&Seek: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseToast(parsedBody)?.let { return@run "Roast: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseHotPotato(parsedBody)?.let { return@run "Hot potato ${it}s" }
+                    com.maodouchat.util.GroupPlayPolicy.parseWordHint(parsedBody)?.let { (h, _) -> return@run "Word hint: $h" }
+                    com.maodouchat.util.GroupPlayPolicy.parseSpyfall(parsedBody)?.let { return@run "Spyfall @ ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseAcrostic(parsedBody)?.let { return@run "Acrostic: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseEmojiTranslate(parsedBody)?.let { (p, _) -> return@run "Emoji TR: $p" }
+                    com.maodouchat.util.GroupPlayPolicy.parseTwentyQuestions(parsedBody)?.let { return@run "20Q: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseRhyme(parsedBody)?.let { return@run "Rhyme: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseOddOneOut(parsedBody)?.let { (o, _) -> return@run "Odd one: $o" }
+                    com.maodouchat.util.GroupPlayPolicy.parseCategories(parsedBody)?.let { return@run "Categories: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parsePasswordGame(parsedBody)?.let { return@run "Password game: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseTimeCapsule(parsedBody)?.let { return@run "Capsule: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseTaboo(parsedBody)?.let { return@run "Taboo: ${it?.substringBefore('|')}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseLightning(parsedBody)?.let { return@run "Lightning: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseTwoWords(parsedBody)?.let { return@run "Two words: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseWhisper(parsedBody)?.let { return@run "Whisper: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseEmojiDuel(parsedBody)?.let { return@run "Emoji duel: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseCountdownRace(parsedBody)?.let { return@run "Race ${it}s" }
+                    com.maodouchat.util.GroupPlayPolicy.parseRapidFire(parsedBody)?.let { return@run "Rapid: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseEmojiMemory(parsedBody)?.let { return@run "Memory: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseGeoGuess(parsedBody)?.let { return@run "Geo: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseOneWord(parsedBody)?.let { return@run "One word: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseSpeedMath(parsedBody)?.let { return@run "Math: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseStorySeed(parsedBody)?.let { return@run "Story: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseWould2(parsedBody)?.let { (a, b) -> return@run "Would you: $a OR $b" }
+                    com.maodouchat.util.GroupPlayPolicy.parseEmojiOnly(parsedBody)?.let { return@run "Emoji only: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseBlindDraw(parsedBody)?.let { return@run "Blind draw" }
+                    com.maodouchat.util.GroupPlayPolicy.parseAlphabetRace(parsedBody)?.let { return@run "Alphabet: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseSilentMovie(parsedBody)?.let { return@run "Silent movie: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseColorWord(parsedBody)?.let { return@run "Color word: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseDebateFlash(parsedBody)?.let { return@run "Debate: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseEmojiStory(parsedBody)?.let { return@run "Emoji story: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseQuickPoll(parsedBody)?.let { return@run "Quick poll: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseMirrorEcho(parsedBody)?.let { return@run "Mirror: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseSyncClap(parsedBody)?.let { return@run "Sync clap x${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseFactOrFiction(parsedBody)?.let { return@run "Fact?: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseImpulseDraw(parsedBody)?.let { return@run "Impulse: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseWordScramble(parsedBody)?.let { return@run "Scramble: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseReactionDuel(parsedBody)?.let { return@run "React duel: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseCodeBreaker(parsedBody)?.let { return@run "Code breaker" }
+                    com.maodouchat.util.GroupPlayPolicy.parseSillyLaw(parsedBody)?.let { return@run "Law: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseEmojiMath(parsedBody)?.let { return@run "Emoji math: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parsePinTheMood(parsedBody)?.let { return@run "Mood pin: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseRevokeRush(parsedBody)?.let { return@run "Revoke rush ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseSecretSignal(parsedBody)?.let { return@run "Signal: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseMoodMeter(parsedBody)?.let { return@run "Mood meter: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseFocusSprint(parsedBody)?.let { return@run "Focus sprint ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseGratitudeRound(parsedBody)?.let { return@run "Gratitude: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseIdeaRelay(parsedBody)?.let { return@run "Idea relay: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseTempoTap(parsedBody)?.let { return@run "Tempo tap ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseTranslateRelay(parsedBody)?.let { return@run "Translate: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseInviteRace(parsedBody)?.let { return@run "Invite race: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseMentionMayhem(parsedBody)?.let { return@run "Mention mayhem: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseLinkHunt(parsedBody)?.let { return@run "Link hunt: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseNudgeDash(parsedBody)?.let { return@run "Nudge dash: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseCodeCheck(parsedBody)?.let { return@run "Code check: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseTrustSprint(parsedBody)?.let { return@run "Trust sprint: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseQrQuest(parsedBody)?.let { return@run "QR quest: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseContactSwap(parsedBody)?.let { return@run "Contact swap: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseScanSprint(parsedBody)?.let { return@run "Scan sprint: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseSpoilerRace(parsedBody)?.let { return@run "Spoiler race: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseBlurBattle(parsedBody)?.let { return@run "Blur battle: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseDownloadDash(parsedBody)?.let { return@run "Download dash: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parsePinDrop(parsedBody)?.let { return@run "Pin drop: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseFileRelay(parsedBody)?.let { return@run "File relay: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseMapDash(parsedBody)?.let { return@run "Map dash: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseVaultLock(parsedBody)?.let { return@run "Vault lock: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseWatermarkHunt(parsedBody)?.let { return@run "Watermark hunt: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseSecureSprint(parsedBody)?.let { return@run "Secure sprint: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parsePhotoRace(parsedBody)?.let { return@run "Photo race: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseClipDash(parsedBody)?.let { return@run "Clip dash: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseFrameHunt(parsedBody)?.let { return@run "Frame hunt: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseSummaryCircle(parsedBody)?.let { return@run "Summary circle: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parseRewriteRelay(parsedBody)?.let { return@run "Rewrite relay: ${it}" }
+                    com.maodouchat.util.GroupPlayPolicy.parsePromptSprint(parsedBody)?.let { return@run "Prompt sprint: ${it}"
+                    }
+                    com.maodouchat.util.GroupPlayPolicy.parseSuggestCircle(parsedBody)?.let { return@run "Suggest circle: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseVoiceRace(parsedBody)?.let { return@run "Voice race: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseReplySprint(parsedBody)?.let { return@run "Reply sprint: " + (it ?: "")
+                    }
+                    com.maodouchat.util.GroupPlayPolicy.parsePixelQuest(parsedBody)?.let { return@run "Pixel quest: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseAssistCircle(parsedBody)?.let { return@run "Assist circle: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseDecisionDash(parsedBody)?.let { return@run "Decision dash: " + (it ?: "")
+                    }
+                    com.maodouchat.util.GroupPlayPolicy.parseDocHunt(parsedBody)?.let { return@run "Doc hunt: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseMeaningRace(parsedBody)?.let { return@run "Meaning race: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseInsightSprint(parsedBody)?.let { return@run "Insight sprint: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseGifRelay(parsedBody)?.let { return@run "Gif relay: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseMarkHunt(parsedBody)?.let { return@run "Mark hunt: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseLeakSprint(parsedBody)?.let { return@run "Leak sprint: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseVoiceRing(parsedBody)?.let { return@run "Voice ring: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseVideoStage(parsedBody)?.let { return@run "Video stage: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseRingDash(parsedBody)?.let { return@run "Ring dash: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseWallPick(parsedBody)?.let { return@run "Wall pick: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseFontRace(parsedBody)?.let { return@run "Font race: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseThemeSprint(parsedBody)?.let { return@run "Theme sprint: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseUnreadRush(parsedBody)?.let { return@run "Unread rush: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseRingChoir(parsedBody)?.let { return@run "Ring choir: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseAlertSprint(parsedBody)?.let { return@run "Alert sprint: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseSoundWave(parsedBody)?.let { return@run "Sound wave: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parsePreviewMask(parsedBody)?.let { return@run "Preview mask: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseBeepDash(parsedBody)?.let { return@run "Beep dash: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parsePushRace(parsedBody)?.let { return@run "Push race: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseRemindCircle(parsedBody)?.let { return@run "Remind circle: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseWakeSprint(parsedBody)?.let { return@run "Wake sprint: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseQuietHour(parsedBody)?.let { return@run "Quiet hour: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseOfflineHint(parsedBody)?.let { return@run "Offline hint: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseFallbackDash(parsedBody)?.let { return@run "Fallback dash: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseClickBeat(parsedBody)?.let { return@run "Click beat: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseBuzzRelay(parsedBody)?.let { return@run "Buzz relay: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseFeelSprint(parsedBody)?.let { return@run "Feel sprint: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseSlideRace(parsedBody)?.let { return@run "Slide race: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseFadeCircle(parsedBody)?.let { return@run "Fade circle: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseSpringDash(parsedBody)?.let { return@run "Spring dash: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseSnapGuard(parsedBody)?.let { return@run "Snap guard: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseRecentsHide(parsedBody)?.let { return@run "Recents hide: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseShieldSprint(parsedBody)?.let { return@run "Shield sprint: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseCopyLock(parsedBody)?.let { return@run "Copy lock: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseExportSeal(parsedBody)?.let { return@run "Export seal: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseLeakWall(parsedBody)?.let { return@run "Leak wall: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseForwardSeal(parsedBody)?.let { return@run "Forward seal: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseChatExportLock(parsedBody)?.let { return@run "Chat export lock: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseVaultFence(parsedBody)?.let { return@run "Vault fence: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseSealSprint(parsedBody)?.let { return@run "Seal sprint: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parsePqxdhDash(parsedBody)?.let { return@run "PQXDH dash: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseCertRelay(parsedBody)?.let { return@run "Cert relay: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseMarkSprint(parsedBody)?.let { return@run "Mark sprint: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseFadeTimer(parsedBody)?.let { return@run "Fade timer: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseStampRelay(parsedBody)?.let { return@run "Stamp relay: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseLinkLock(parsedBody)?.let { return@run "Link lock: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parsePreviewMute(parsedBody)?.let { return@run "Preview mute: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseUrlFence(parsedBody)?.let { return@run "URL fence: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseNotifMask(parsedBody)?.let { return@run "Notif mask: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseListBlur(parsedBody)?.let { return@run "List blur: " + (it ?: "") }
+                    com.maodouchat.util.GroupPlayPolicy.parseTraySeal(parsedBody)?.let { return@run "Tray seal: " + (it ?: "") }
+                    null
                 }
                 if (playLabel != null) {
                     Text(
@@ -2679,10 +2369,10 @@ private fun LinkPreviewCard(
 }
 
 /** 富文本消息：高亮正文中的 @token（displayName 或遗留 userId）。 */
-@Composable
 /** 1.17：从名片标记中提取目标用户 id（供点击打开资料）。 */
 private val CONTACT_CARD_USER_RE = Regex("\\[contactUser:([^\\]]+)")
 
+@Composable
 private fun RichTextContent(
     text: String,
     mentionedUserIds: List<String>,

@@ -49,6 +49,8 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Share
@@ -305,9 +307,13 @@ fun ExploreScreen(
                         if (directUri != null) {
                             viewModel.addImages(listOf(directUri))
                         } else if (item != null) {
-                            androidx.compose.runtime.rememberCoroutineScope().launch(kotlinx.coroutines.Dispatchers.IO) {
+                            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                 val pasted = runCatching {
-                                    val bmp = item.coerceToBitmap(context) ?: return@runCatching null
+                                    val bmp = item.uri?.let { uri ->
+                                        context.contentResolver.openInputStream(uri)?.use { stream ->
+                                            android.graphics.BitmapFactory.decodeStream(stream)
+                                        }
+                                    } ?: return@runCatching null
                                     val dir = java.io.File(context.cacheDir, "attachment-sources").apply { mkdirs() }
                                     val file = java.io.File(dir, "explore_paste_${System.currentTimeMillis()}.png")
                                     file.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 90, it) }
@@ -374,7 +380,7 @@ fun ExploreScreen(
                         type = EmptyStateType.MOMENTS,
                         // 1.131：空态直达发布框（composer 为列表第 2 项）
                         actionText = stringResource(R.string.explore_empty_action),
-                        onAction = { listState.animateScrollToItem(1) }
+                        onAction = { scope.launch { listState.animateScrollToItem(1) } }
                     )
                 }
                 filteredPosts.isEmpty() -> item(key = "search_empty", contentType = "empty") {
@@ -685,7 +691,7 @@ private fun ComposerCard(
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(Surface)
                                     // 1.207：点击预览大图
-                                    .then(if (!draft.isUploading) Modifier.clickable { previewDraftUri = draft.uri } else Modifier)
+                                    .then(if (!draft.isUploading) Modifier.clickable { previewDraftUri = draft.uri.toString() } else Modifier)
                             )
                             if (draft.isUploading || draft.errorMessage != null) {
                                 Box(
@@ -773,6 +779,7 @@ private fun PostCard(
     onOpenPost: () -> Unit = {},
     onOpenAuthor: () -> Unit = {}
 ) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(22.dp), modifier = modifier) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
@@ -871,14 +878,13 @@ private fun PostCard(
                 }
                 // 1.154：复制动态正文（评论可复制，正文此前不可）
                 IconButton(onClick = {
-                    val ctx = androidx.compose.ui.platform.LocalContext.current
                     val textToCopy = post.content.takeIf { it.isNotBlank() }
                         ?: if (post.imageUrls.isNotEmpty()) ctx.getString(R.string.explore_post_copied_image) else return@IconButton
                     val clipboard = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                     clipboard.setPrimaryClip(android.content.ClipData.newPlainText("post", textToCopy))
                     android.widget.Toast.makeText(ctx, ctx.getString(R.string.explore_post_copied), android.widget.Toast.LENGTH_SHORT).show()
                 }) {
-                    Icon(androidx.compose.material.icons.outlined.ContentCopy, contentDescription = stringResource(R.string.explore_copy_post), tint = TextSecondary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Outlined.ContentCopy, contentDescription = stringResource(R.string.explore_copy_post), tint = TextSecondary, modifier = Modifier.size(20.dp))
                 }
             }
         }
@@ -921,7 +927,6 @@ private fun AnimatedLikeButton(likedByMe: Boolean, onLike: () -> Unit) {
     }
 }
 
-@Composable
 // 1.94：动态图片网格（Explore 与 PostDetail 共用；点击全屏查看）
 @Composable
 internal fun ImageGrid(imageUrls: List<String>) {
@@ -1203,6 +1208,8 @@ private fun CommentsDialog(
                     if (filteredComments.isEmpty()) {
                         Text(stringResource(R.string.explore_comment_search_empty), color = TextSecondary)
                     } else {
+                        // 1.78：父评论作者索引（避免逐条 O(n²) 扫描）
+                        val commentAuthorById = remember(comments) { comments.associateBy { it.id } }
                         // 评论列表：最大高度 50% 屏幕，小屏自动收缩
                         LazyColumn(
                             state = commentListState,
@@ -1229,8 +1236,6 @@ private fun CommentsDialog(
                                     }
                                 }
                             }
-                            // 1.78：父评论作者索引（避免逐条 O(n²) 扫描）
-                            val commentAuthorById = remember(comments) { comments.associateBy { it.id } }
                             items(filteredComments, key = { it.id }, contentType = { "comment" }) { comment ->
                                 Row(verticalAlignment = Alignment.Top) {
                                     Avatar(

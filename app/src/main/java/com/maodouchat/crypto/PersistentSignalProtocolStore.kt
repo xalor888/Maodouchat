@@ -311,7 +311,7 @@ class PersistentSignalProtocolStore(
 
     private fun addressKey(address: SignalProtocolAddress): String = "${address.name}$ADDRESS_SEPARATOR${address.deviceId}"
 
-    private companion object {
+    companion object {
         const val ADDRESS_SEPARATOR = "|"
         const val KEY_IDENTITY_PREFIX = "identity:"
         const val KEY_PRE_KEY_PREFIX = "pre_key:"

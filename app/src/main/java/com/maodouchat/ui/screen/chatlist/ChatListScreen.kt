@@ -1,15 +1,5 @@
 package com.maodouchat.ui.screen.chatlist
 
-/** 1.54：底部导航「会话」未读角标总计数（ChatListViewModel 推送，BottomNavBar 订阅）。 */
-object UnreadBadgeStore {
-    val totalUnread = kotlinx.coroutines.flow.MutableStateFlow(0)
-}
-
-/** 1.112：底部导航「动态」未读互动角标（POST_INTERACTION 未读数，ChatListViewModel 推送）。 */
-object ExploreBadgeStore {
-    val count = kotlinx.coroutines.flow.MutableStateFlow(0)
-}
-
 
 import com.maodouchat.util.RuntimeFlags
 import androidx.compose.animation.AnimatedVisibility
@@ -18,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -130,6 +121,7 @@ import com.maodouchat.ui.navigation.MainTab
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
+import com.maodouchat.ui.theme.Secondary
 import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed
@@ -142,6 +134,16 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+
+/** 1.54：底部导航「会话」未读角标总计数（ChatListViewModel 推送，BottomNavBar 订阅）。 */
+object UnreadBadgeStore {
+    val totalUnread = kotlinx.coroutines.flow.MutableStateFlow(0)
+}
+
+/** 1.112：底部导航「动态」未读互动角标（POST_INTERACTION 未读数，ChatListViewModel 推送）。 */
+object ExploreBadgeStore {
+    val count = kotlinx.coroutines.flow.MutableStateFlow(0)
+}
 
 /** Chat list (recovered): NavGraph API + folders + secret gates + public/status runtime sync. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -1031,8 +1033,8 @@ fun ChatListScreen(
                 TextButton(onClick = {
                     showPostLoginGuide = false
                     com.maodouchat.util.PostLoginGuidePreferences.markSeen(context)
-                    // 跳转通讯录 tab（n.CONTACTS）
-                    onNavigateToTab(com.maodouchat.ui.navigation.n.CONTACTS)
+                    // 跳转通讯录 tab（MainTab.CONTACTS）
+                    onNavigateToTab(MainTab.CONTACTS)
                 }) { Text(stringResource(R.string.post_login_guide_add)) }
             },
             dismissButton = {
@@ -1589,13 +1591,15 @@ fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
         NavigationBarItem(
             selected = selectedTab == MainTab.CHATS,
             onClick = { onTabSelected(MainTab.CHATS) },
-            icon = { Icon(Icons.Outlined.ChatBubbleOutline, null) },
-            label = { Text(stringResource(R.string.nav_chats)) },
-            badge = {
-                if (unreadTotal > 0) {
-                    Badge { Text(if (unreadTotal > 99) "99+" else unreadTotal.toString()) }
+            icon = {
+                Box {
+                    Icon(Icons.Outlined.ChatBubbleOutline, null)
+                    if (unreadTotal > 0) {
+                        Badge(modifier = Modifier.align(Alignment.TopEnd)) { Text(if (unreadTotal > 99) "99+" else unreadTotal.toString()) }
+                    }
                 }
-            }
+            },
+            label = { Text(stringResource(R.string.nav_chats)) }
         )
         NavigationBarItem(selected = selectedTab == MainTab.CONTACTS, onClick = { onTabSelected(MainTab.CONTACTS) }, icon = { Icon(Icons.Outlined.Group, null) }, label = { Text(stringResource(R.string.nav_contacts)) })
         // 1.112：动态未读互动角标
@@ -1603,13 +1607,15 @@ fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
         NavigationBarItem(
             selected = selectedTab == MainTab.EXPLORE,
             onClick = { onTabSelected(MainTab.EXPLORE) },
-            icon = { Icon(Icons.Outlined.Explore, null) },
-            label = { Text(stringResource(R.string.nav_explore)) },
-            badge = {
-                if (exploreBadge > 0) {
-                    Badge { Text(if (exploreBadge > 99) "99+" else exploreBadge.toString()) }
+            icon = {
+                Box {
+                    Icon(Icons.Outlined.Explore, null)
+                    if (exploreBadge > 0) {
+                        Badge(modifier = Modifier.align(Alignment.TopEnd)) { Text(if (exploreBadge > 99) "99+" else exploreBadge.toString()) }
+                    }
                 }
-            }
+            },
+            label = { Text(stringResource(R.string.nav_explore)) }
         )
         NavigationBarItem(selected = selectedTab == MainTab.SETTINGS, onClick = { onTabSelected(MainTab.SETTINGS) }, icon = { Icon(Icons.Outlined.Settings, null) }, label = { Text(stringResource(R.string.nav_settings)) })
     }

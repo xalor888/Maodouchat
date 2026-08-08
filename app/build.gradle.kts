@@ -250,7 +250,10 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     // material-icons-extended 已替换为本地图标副本 (ExtendedIcons.kt)，减少 ~1-2MB debug APK
+    // 注：本地副本从未落地，缺失的扩展图标（EditNote/ContentCopy/ContactPage 等）导致编译失败；
+    // 恢复 material-icons-extended（release 构建 R8 会裁掉未用图标，体积影响仅在 debug APK）。
     implementation("androidx.compose.material:material-icons-core")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.animation:animation")
 
     // Navigation

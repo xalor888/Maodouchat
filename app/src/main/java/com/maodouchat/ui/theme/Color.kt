@@ -1,6 +1,7 @@
 package com.maodouchat.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 
 // ─── Primary ────────────────────────────────────────────────
 val Primary = Color(0xFF007AFF)          // 主色蓝 - DESIGN.md "Primary Blue (#007AFF)"

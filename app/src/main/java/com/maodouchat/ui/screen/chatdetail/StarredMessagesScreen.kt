@@ -34,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -148,7 +149,8 @@ class StarredMessagesViewModel(
                 it.copy(isLoading = false, error = text(R.string.error_session_expired))
             }
             return
-        }        viewModelScope.launch {
+        }
+        viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -558,6 +560,7 @@ fun StarredMessagesScreen(
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(filteredMessages, key = { it.id }, contentType = { "starred_${it.type.name}" }) { message ->
                             val scopeChat = state.chatsById[message.chatId] ?: state.chat
+                            val starredCopyPreview = message.starredPreview(context)
                             StarredMessageRow(
                                 message = message,
                                 senderName = senderName(scopeChat, message, state.currentUserId),
@@ -567,7 +570,7 @@ fun StarredMessagesScreen(
                                 // 1.243：长按复制内容
                                 onCopy = {
                                     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.settings_starred_messages), message.starredPreview()))
+                                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.settings_starred_messages), starredCopyPreview))
                                     Toast.makeText(context, context.getString(R.string.chat_copied), Toast.LENGTH_SHORT).show()
                                 },
                                 onClick = {
@@ -632,6 +635,7 @@ private fun StarredMessageRow(
     onUnstar: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -659,7 +663,7 @@ private fun StarredMessageRow(
                 Text(chatTitle, style = MaterialTheme.typography.labelSmall, color = TextHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             // 1.232：搜索时高亮匹配关键词
-            val previewText = message.starredPreview()
+            val previewText = message.starredPreview(context)
             Text(
                 if (searchQuery.isNotBlank()) highlightedText(previewText, searchQuery) else androidx.compose.ui.text.AnnotatedString(previewText),
                 style = MaterialTheme.typography.bodyMedium,
@@ -690,16 +694,16 @@ private fun chatTitle(chat: Chat?, currentUserId: String): String {
 }
 
 @Composable
-private fun Message.starredPreview(): String = when (type) {
+private fun Message.starredPreview(context: android.content.Context): String = when (type) {
     MessageType.TEXT, MessageType.MARKDOWN -> parsedContent()
-    MessageType.IMAGE -> stringResource(R.string.message_preview_image)
-    MessageType.GIF -> stringResource(R.string.message_preview_gif)
-    MessageType.STICKER -> stringResource(R.string.message_preview_sticker)
-    MessageType.LOCATION -> stringResource(R.string.message_preview_location)
-    MessageType.VIDEO -> stringResource(R.string.message_preview_video)
-    MessageType.VOICE -> stringResource(R.string.message_preview_voice)
-    MessageType.FILE -> stringResource(R.string.message_preview_file)
-    MessageType.REVOKED -> stringResource(R.string.chat_message_revoked_placeholder)
+    MessageType.IMAGE -> context.getString(R.string.message_preview_image)
+    MessageType.GIF -> context.getString(R.string.message_preview_gif)
+    MessageType.STICKER -> context.getString(R.string.message_preview_sticker)
+    MessageType.LOCATION -> context.getString(R.string.message_preview_location)
+    MessageType.VIDEO -> context.getString(R.string.message_preview_video)
+    MessageType.VOICE -> context.getString(R.string.message_preview_voice)
+    MessageType.FILE -> context.getString(R.string.message_preview_file)
+    MessageType.REVOKED -> context.getString(R.string.chat_message_revoked_placeholder)
     else -> content
 }
 

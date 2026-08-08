@@ -36,6 +36,8 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Article
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.ChatBubbleOutline

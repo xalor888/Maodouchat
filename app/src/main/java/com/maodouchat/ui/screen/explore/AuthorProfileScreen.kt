@@ -287,7 +287,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
         val target = _uiState.value.author ?: return
         if (_uiState.value.isBlocking) return
         val wantBlock = !_uiState.value.isBlocked
-        if (wantBlock && !com.maodouchat.security.RuntimeFlags.isEnabled(getApplication(), com.maodouchat.security.RuntimeFlags.BLOCK_REPORT)) {
+        if (wantBlock && !com.maodouchat.util.RuntimeFlags.isEnabled(getApplication(), com.maodouchat.util.RuntimeFlags.BLOCK_REPORT)) {
             _uiState.update { it.copy(infoMessage = text(R.string.feature_disabled_by_admin)) }
             return
         }

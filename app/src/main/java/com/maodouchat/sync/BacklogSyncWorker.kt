@@ -104,8 +104,7 @@ class BacklogSyncWorker(
                 messageRepo.insertMessages(messages)
                 // 8.48：空结果（游标已最新）不推进游标但仍标记尝试时刻
                 if (messages.isNotEmpty()) {
-                    val last = messages.maxWithOrNull(compareBy<Message> { it.timestamp }.thenBy { it.id })
-                        ?: return@try
+                    val last = messages.maxWith(compareBy<Message> { it.timestamp }.thenBy { it.id })
                     tokenManager.saveSyncCursor(chat.id, com.maodouchat.network.TokenManager.SyncCursor(timestampMs = last.timestamp, messageId = last.id))
                     synced += messages.size
                 }

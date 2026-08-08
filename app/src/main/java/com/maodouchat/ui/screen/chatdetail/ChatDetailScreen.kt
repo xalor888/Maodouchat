@@ -17,6 +17,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -74,6 +75,8 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ContactPage
 import androidx.compose.material.icons.outlined.Call
@@ -433,7 +436,6 @@ fun ChatDetailScreen(
     var showSetChatLock by rememberSaveable { mutableStateOf(false) }
     var showDisableChatLock by rememberSaveable { mutableStateOf(false) }
     var showForgotChatLockConfirm by rememberSaveable { mutableStateOf(false) }
-    var showClearHistoryConfirm by rememberSaveable { mutableStateOf(false) }
     var showAnnouncementBanner by rememberSaveable { mutableStateOf(true) }
     var showAnnouncementDialog by rememberSaveable { mutableStateOf(false) }
     var showSecretChatConfirm by rememberSaveable { mutableStateOf(false) }
@@ -499,7 +501,11 @@ fun ChatDetailScreen(
     val chatClipboardTranscriptLabel = stringResource(R.string.chat_clipboard_transcript)
     val chatTranscriptCopiedMsg = stringResource(R.string.chat_transcript_copied)
     val chatItems = remember(state.messages, state.unreadSeparatorId, configuration.locales) {
-        buildChatItems(state.messages, unreadSeparatorId = state.unreadSeparatorId) { timestamp -> formatDateLabel(context, timestamp) }
+        buildChatItems(
+            state.messages,
+            labelForTimestamp = { timestamp -> formatDateLabel(context, timestamp) },
+            unreadSeparatorId = state.unreadSeparatorId
+        )
     }
     val reversedChatItems = remember(chatItems) { chatItems.asReversed() }
     // 1.05：语音连续播放——一条语音自然播放结束后自动播下一条同会话语音
@@ -590,7 +596,8 @@ fun ChatDetailScreen(
     // 0.69：视频发送前预览确认（此前点即发，误选无法挽回）
     var pendingVideoConfirm by remember { mutableStateOf<PendingImageSend?>(null) }
     // 8.48：禁言提示到期重组触发器（到期时刻写入以驱动提示条消失）
-    var muteTick by remember { mutableStateOf(0L) }    val imagePickerLauncher = rememberLauncherForActivityResult(
+    var muteTick by remember { mutableStateOf(0L) }
+    val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let {
@@ -3899,8 +3906,6 @@ DropdownMenuItem(
                 }
                 // 读取 muteTick 建立重组依赖（到期写入后提示条随重组消失）
                 val recomposeOnExpiry = muteTick
-                @Suppress("UNUSED_VARIABLE")
-                val _ = recomposeOnExpiry
                 val remaining = state.myMutedUntil - System.currentTimeMillis()
                 if (remaining > 0L) {
                     Row(
@@ -3987,6 +3992,9 @@ DropdownMenuItem(
                 onEmotionReply = { emotionReplyRequested = true },
                 onOpenMessageClassify = { showMessageClassify = true },
                 isSecretChat = secretActive,
+                contactCardTargets = state.forwardTargets,
+                onLoadForwardTargets = { viewModel.loadForwardTargets() },
+                onSendContactCard = { userId, name -> viewModel.sendContactCard(userId, name) },
                 onSendImage = { pendingViewOnce = false; pendingSpoiler = false; imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 onSendViewOnceImage = {
                     if (state.chat?.isGroup == true) {
@@ -4011,6 +4019,7 @@ DropdownMenuItem(
                     val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                     val clip = cm.primaryClip
                     var pastedUri: Uri? = null
+                    var clipboardHandled = false
                     if (clip != null && clip.itemCount > 0) {
                         val item = clip.getItemAt(0)
                         val uri = item.uri
@@ -4020,7 +4029,11 @@ DropdownMenuItem(
                             // 8.48 修复：bitmap 解码移 IO 线程（coerceToBitmap 同步解码大图会卡主线程 ANR）
                             listScrollScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                 val resultUri = runCatching {
-                                    val bmp = item.coerceToBitmap(context) ?: return@runCatching null
+                                    val bmp = item.uri?.let { uri ->
+                                        context.contentResolver.openInputStream(uri)?.use { stream ->
+                                            android.graphics.BitmapFactory.decodeStream(stream)
+                                        }
+                                    } ?: return@runCatching null
                                     val dir = java.io.File(context.cacheDir, "attachment-sources").apply { mkdirs() }
                                     val file = java.io.File(dir, "paste_${System.currentTimeMillis()}.png")
                                     file.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 90, it) }
@@ -4036,13 +4049,15 @@ DropdownMenuItem(
                                     Toast.makeText(context, context.getString(R.string.chat_clipboard_no_image), Toast.LENGTH_SHORT).show()
                                 }
                             }
-                            return@onPasteFromClipboard
+                            clipboardHandled = true
                         }
                     }
-                    if (pastedUri != null) {
-                        pendingImageConfirm = PendingImageSend(pastedUri, false, false)
-                    } else {
-                        Toast.makeText(context, context.getString(R.string.chat_clipboard_no_image), Toast.LENGTH_SHORT).show()
+                    if (!clipboardHandled) {
+                        if (pastedUri != null) {
+                            pendingImageConfirm = PendingImageSend(pastedUri, false, false)
+                        } else {
+                            Toast.makeText(context, context.getString(R.string.chat_clipboard_no_image), Toast.LENGTH_SHORT).show()
+                        }
                     }
                 },
                 onSendVideo = { videoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
@@ -4272,6 +4287,12 @@ DropdownMenuItem(
                         ) { Text(stringResource(R.string.chat_copy_with_sender_time), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
                         // 1.169：分享消息到系统其他应用（密聊与复制同款门控，防外泄）
                         if (isMessageCopyable(msg.type, isSecretChat = state.isSecretChat == true, copyBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_COPY_BLOCK))) {
+                        val chatShareMessageTitle = stringResource(R.string.chat_share_message_title)
+                        val previewImageLabel = stringResource(R.string.message_preview_image)
+                        val previewGifLabel = stringResource(R.string.message_preview_gif)
+                        val previewStickerLabel = stringResource(R.string.message_preview_sticker)
+                        val previewLocationLabel = stringResource(R.string.message_preview_location)
+                        val previewFileLabel = stringResource(R.string.message_preview_file)
                         TextButton(
                             onClick = {
                                 // 1.197：图片/GIF 且本地可读时直接分享原图；1.198：扩展到视频/文件
@@ -4290,24 +4311,24 @@ DropdownMenuItem(
                                         putExtra(android.content.Intent.EXTRA_STREAM, android.net.Uri.parse(contentUri))
                                         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                     }
-                                    val fileChooser = android.content.Intent.createChooser(fileIntent, stringResource(R.string.chat_share_message_title))
+                                    val fileChooser = android.content.Intent.createChooser(fileIntent, chatShareMessageTitle)
                                     if (context !is android.app.Activity) fileChooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                     runCatching { context.startActivity(fileChooser) }
                                 } else {
                                     val shareText = com.maodouchat.ui.component.ChatMarkdown.toPlainText(contentUri).ifBlank {
                                         when (msg.type) {
-                                            MessageType.IMAGE -> stringResource(R.string.message_preview_image)
-                                            MessageType.GIF -> stringResource(R.string.message_preview_gif)
-                                            MessageType.STICKER -> stringResource(R.string.message_preview_sticker)
-                                            MessageType.LOCATION -> stringResource(R.string.message_preview_location)
-                                            else -> stringResource(R.string.message_preview_file)
+                                            MessageType.IMAGE -> previewImageLabel
+                                            MessageType.GIF -> previewGifLabel
+                                            MessageType.STICKER -> previewStickerLabel
+                                            MessageType.LOCATION -> previewLocationLabel
+                                            else -> previewFileLabel
                                         }
                                     }
                                     val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                                         type = "text/plain"
                                         putExtra(android.content.Intent.EXTRA_TEXT, shareText)
                                     }
-                                    val chooser = android.content.Intent.createChooser(shareIntent, stringResource(R.string.chat_share_message_title))
+                                    val chooser = android.content.Intent.createChooser(shareIntent, chatShareMessageTitle)
                                     if (context !is android.app.Activity) chooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                     context.startActivity(chooser)
                                 }
@@ -4685,7 +4706,7 @@ DropdownMenuItem(
                         modifier = Modifier.size(48.dp).padding(bottom = 8.dp)
                     )
                     val fileName = pending.uri.lastPathSegment?.substringAfterLast('/')
-                        ?: stringResource(R.string.chat_video)
+                        ?: stringResource(R.string.message_preview_video)
                     Text(
                         text = fileName,
                         style = MaterialTheme.typography.bodyMedium,
@@ -5869,6 +5890,7 @@ private fun requestVoiceCallPermission(
 }
 
 /** 单聊联系人资料卡：头像、ID、状态、最后在线、常用操作。 */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ContactProfileSheet(
     contact: com.maodouchat.data.model.User,
@@ -5960,16 +5982,16 @@ private fun ContactProfileSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ProfileAction(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.chat_send), onMessage)
-                ProfileAction(Icons.Outlined.Call, stringResource(R.string.chat_voice_call), onVoiceCall)
-                ProfileAction(Icons.Outlined.Videocam, stringResource(R.string.chat_video_call), onVideoCall)
+                ProfileAction(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.chat_send), onClick = onMessage)
+                ProfileAction(Icons.Outlined.Call, stringResource(R.string.chat_voice_call), onClick = onVoiceCall)
+                ProfileAction(Icons.Outlined.Videocam, stringResource(R.string.chat_video_call), onClick = onVideoCall)
                 ProfileAction(
                     if (isBlocked) Icons.Outlined.NotificationsOff else Icons.Outlined.Notifications,
                     stringResource(if (isBlocked) R.string.chat_unblock_user else R.string.chat_block_user),
                     enabled = !isBlocking,
                     onClick = onToggleBlock
                 )
-                ProfileAction(Icons.Outlined.Warning, stringResource(R.string.chat_report_user), onReport)
+                ProfileAction(Icons.Outlined.Warning, stringResource(R.string.chat_report_user), onClick = onReport)
             }
         }
     }
@@ -6197,6 +6219,7 @@ private fun ScheduledMessagesBanner(
     onReschedule: (String) -> Unit = {},
     onViewAll: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val preview = items.take(3)
     Column(
         modifier = Modifier
@@ -6280,6 +6303,7 @@ private fun ScheduledMessagesListSheet(
     onCancelAll: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     var searchQuery by rememberSaveable { mutableStateOf("") }
     // 1.174：全部取消确认
     var showCancelAllConfirm by rememberSaveable { mutableStateOf(false) }
@@ -8122,6 +8146,7 @@ private fun ConversationProfileDialog(
     // 1.317：复制会话画像
     onCopyProfile: (String) -> Unit = {}
 ) {
+    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -8183,7 +8208,7 @@ private fun ConversationProfileDialog(
         // 1.317：复制会话画像（转发/归档）
         dismissButton = {
             if (profile != null && !failed && !loading) {
-                TextButton(onClick = { onCopyProfile(profileText(profile)) }) {
+                TextButton(onClick = { onCopyProfile(profileText(context, profile)) }) {
                     Text(stringResource(R.string.chat_copy), color = Primary)
                 }
             }
@@ -8192,8 +8217,8 @@ private fun ConversationProfileDialog(
 }
 
 /** 1.317：将会话画像序列化为纯文本（复制用）。 */
-private fun profileText(profile: com.maodouchat.ai.AiConversationProfile.ConversationProfile): String = buildString {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
+private fun profileText(context: android.content.Context, profile: com.maodouchat.ai.AiConversationProfile.ConversationProfile): String = buildString {
+    val ctx = context
     append(
         ctx.getString(
             R.string.chat_ai_conversation_profile_stats,
@@ -8284,6 +8309,7 @@ private fun MessageClassifyDialog(
     // 1.349：复制分类结果
     onCopyClassify: (String) -> Unit = {}
 ) {
+    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -8330,7 +8356,7 @@ private fun MessageClassifyDialog(
                             )
                         }
                         androidx.compose.material3.LinearProgressIndicator(
-                            progress = { (row.count.toFloat() / categories.maxOfOrNull { it.count }.takeIf { it > 0 }?.toFloat() ?: 1f).coerceIn(0f, 1f) },
+                            progress = { (row.count.toFloat() / (categories.maxOfOrNull { it.count }?.takeIf { it > 0 } ?: 1).toFloat()).coerceIn(0f, 1f) },
                             modifier = Modifier.fillMaxWidth().height(6.dp),
                             color = Primary
                         )
@@ -8349,7 +8375,8 @@ private fun MessageClassifyDialog(
         // 1.349：复制分类结果（dismissButton 位，仅分类成功时显示）
         dismissButton = {
             if (categories.isNotEmpty() && !failed && !loading) {
-                TextButton(onClick = { onCopyClassify(classifyText(categories)) }) {
+                val classifyCopyText = classifyText(context, categories)
+                TextButton(onClick = { onCopyClassify(classifyCopyText) }) {
                     Text(stringResource(R.string.chat_copy), color = Primary)
                 }
             }
@@ -8359,8 +8386,8 @@ private fun MessageClassifyDialog(
 
 /** 1.349：将消息分类结果序列化为纯文本（复制用）。 */
 @Composable
-private fun classifyText(categories: List<com.maodouchat.data.repository.AiProfileRepository.CategoryCount>): String = buildString {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
+private fun classifyText(context: android.content.Context, categories: List<com.maodouchat.data.repository.AiProfileRepository.CategoryCount>): String = buildString {
+    val ctx = context
     categories.forEach { row ->
         val label = when (row.category) {
             "notice" -> ctx.getString(R.string.ai_enhance_classify_notice)
@@ -8747,7 +8774,11 @@ private fun ChatInputBar(
     readOnly: Boolean = false,
     readOnlyMessage: String? = null,
     /** 密聊会话：禁用会话画像/周报等本地 AI 聚合（结果不应落可搜索缓存）。 */
-    isSecretChat: Boolean = false
+    isSecretChat: Boolean = false,
+    /** 1.11：发送名片——转发目标列表与回调（ChatInputBar 无 viewModel 引用）。 */
+    contactCardTargets: List<com.maodouchat.data.model.Chat> = emptyList(),
+    onLoadForwardTargets: () -> Unit = {},
+    onSendContactCard: (userId: String, displayName: String) -> Unit = { _, _ -> }
 ) {
     // 设备旋转时保留附件菜单展开状态
     var showAttachMenu by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
@@ -8756,6 +8787,7 @@ private fun ChatInputBar(
     var showAiMenu by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var showDraftTranslationLanguages by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var showQuickPhrases by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    var showContactCardPicker by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val attachmentDisabledText = disabledAttachmentMessage ?: stringResource(R.string.chat_attachment_unsupported)
     val mentionQuery = remember(value, isGroupChat) {
@@ -9020,7 +9052,7 @@ private fun ChatInputBar(
                         enabled = true,
                         onClick = {
                             showAttachMenu = false
-                            viewModel.loadForwardTargets()
+                            onLoadForwardTargets()
                             showContactCardPicker = true
                         },
                         onDisabledClick = { Toast.makeText(context, context.getString(R.string.contact_card_disabled), Toast.LENGTH_SHORT).show() }
@@ -9044,11 +9076,11 @@ private fun ChatInputBar(
 
         // 1.11：发送名片——联系人选择对话框（单聊会话对端用户）
         if (showContactCardPicker) {
-            val pickerContacts = remember(state.forwardTargets, state.currentUserId) {
-                state.forwardTargets
+            val pickerContacts = remember(contactCardTargets, currentUserId) {
+                contactCardTargets
                     .filter { !it.isGroup }
                     .mapNotNull { chat ->
-                        val other = chat.participants.firstOrNull { it.id != state.currentUserId }
+                        val other = chat.participants.firstOrNull { it.id != currentUserId }
                         if (other == null) null else chat to other
                     }
                     .sortedBy { it.second.displayName.lowercase() }
@@ -9058,7 +9090,7 @@ private fun ChatInputBar(
                 onDismiss = { showContactCardPicker = false },
                 onPick = { _, user ->
                     showContactCardPicker = false
-                    viewModel.sendContactCard(user.id, user.displayName)
+                    onSendContactCard(user.id, user.displayName)
                 }
             )
         }

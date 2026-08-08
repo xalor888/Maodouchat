@@ -275,7 +275,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             val changed = remoteIds.filter { remoteId ->
                 runCatching {
                     app.database.identityTrustDao().getAllTrustForUser(ownerUserId, remoteId)
-                        .any { it.trustState == com.maodouchat.crypto.PersistentSignalProtocolStore.Companion.TRUST_CHANGED }
+                        .any { it.trustState == com.maodouchat.crypto.PersistentSignalProtocolStore.TRUST_CHANGED }
                 }.getOrDefault(false)
             }.toSet()
             if (changed != _uiState.value.identityChangedUserIds) {
@@ -1857,17 +1857,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         app.database.chatLockDao().remove(chatId)
         com.maodouchat.security.ChatLockSession.clear(chatId)
         app.database.secretChatDao().remove(chatId)
-
-    /** 1.142：会话列表长按菜单「清除草稿」（本地，不打开会话）。 */
-    fun clearChatDraft(chatId: String) {
-        if (chatId.isBlank()) return
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (ownerUserId.isBlank()) return
-        viewModelScope.launch {
-            runCatching { app.database.chatDraftDao().deleteForChat(ownerUserId, chatId) }
-        }
-    }
-
         com.maodouchat.security.SecretChatSession.markSurfaceInactive(chatId, getApplication())
         app.database.senderKeyRetryDao().delete(ownerUserId, chatId)
         app.signalProtocol.invalidateGroupSenderKey(chatId)
@@ -1905,6 +1894,16 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         }
         messageRepo.deleteMessagesByChatId(chatId)
         chatRepo.deleteChat(chatId)
+    }
+
+    /** 1.142：会话列表长按菜单「清除草稿」（本地，不打开会话）。 */
+    fun clearChatDraft(chatId: String) {
+        if (chatId.isBlank()) return
+        val ownerUserId = tokenManager.getUserId().orEmpty()
+        if (ownerUserId.isBlank()) return
+        viewModelScope.launch {
+            runCatching { app.database.chatDraftDao().deleteForChat(ownerUserId, chatId) }
+        }
     }
 
     /**
