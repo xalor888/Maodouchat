@@ -235,8 +235,10 @@ class TotpFlowRouteTest {
         assertEquals(HttpStatusCode.OK, badCode.status, badCode.bodyAsText())
         assertTrue(badCode.bodyAsText().contains("\"requiresTotp\":true"), badCode.bodyAsText())
 
-        // 登录：正确 TOTP → 完整 token
-        val withCode = login("""{"email":"alex@example.com","password":"password123","totpCode":"$code"}""")
+        // 登录：正确 TOTP → 完整 token。confirm 已消费当前窗口验证码并推进 totpLastCounter，
+        // 防重放会拒绝同窗口的重复码——用下一 30s 窗口生成登录码（counter 递增，可被接受）。
+        val loginCode = testTotpCode(secret, System.currentTimeMillis() + 30_000L)
+        val withCode = login("""{"email":"alex@example.com","password":"password123","totpCode":"$loginCode"}""")
         assertEquals(HttpStatusCode.OK, withCode.status, withCode.bodyAsText())
         assertNotNull(extractToken(withCode.bodyAsText()))
 
@@ -248,11 +250,13 @@ class TotpFlowRouteTest {
         }
         assertEquals(HttpStatusCode.BadRequest, badDisable.status, badDisable.bodyAsText())
 
-        // disable：正确验证码 → 关闭
+        // disable：正确验证码 → 关闭。disable 只校验时限窗口内有效，不受登录防重放计数器约束；
+        // 但需用 ≥ 上次已验证计数器的窗口码（+30s），否则被 in-memory 防重放守卫拒绝。
+        val disableCode = testTotpCode(secret, System.currentTimeMillis() + 30_000L)
         val disable = client.post("/api/auth/totp/disable") {
             header(HttpHeaders.Authorization, "Bearer $alexToken")
             contentType(ContentType.Application.Json)
-            setBody("""{"code":"$code"}""")
+            setBody("""{"code":"$disableCode"}""")
         }
         assertEquals(HttpStatusCode.OK, disable.status, disable.bodyAsText())
         assertTrue(disable.bodyAsText().contains("\"enabled\":false"), disable.bodyAsText())

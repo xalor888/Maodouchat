@@ -780,8 +780,10 @@ put("user", Json.parseToJsonElement(Json.encodeToString(user)))
                 return@post
             }
             // 8.40：锁定期满即清除失败计数——此前计数只随成功登录清空，期满后任意一次
-            // 失败会立即重新锁定 15 分钟，攻击者只需周期性错 1 次即可无限期锁死账号（可用性 DoS）
-            if (lock != null && lock.lockUntil <= System.currentTimeMillis()) {
+            // 失败会立即重新锁定 15 分钟，攻击者只需周期性错 1 次即可无限期锁死账号（可用性 DoS）。
+            // 仅清除「确实锁定过且已过期」的条目：lockUntil=0 表示从未锁定，不得移除，
+            // 否则每次失败后计数被清空、锁定永远不会触发。
+            if (lock != null && lock.lockUntil > 0L && lock.lockUntil <= System.currentTimeMillis()) {
                 loginLockouts.remove(accountLockKey)
             }
             val loginResult = userRepo.loginWithFactors(req.email, req.password, req.totpCode)

@@ -193,9 +193,11 @@ class UserRepository {
         val secret = row[Users.totpSecret]
         val enabled = row[Users.totpEnabled]
         if (enabled && !secret.isNullOrBlank()) {
-            if (!com.maodouchat.server.service.TotpService.verify(secret, code) { candidate ->
-                    acceptTotpCounter(row, candidate)
-                }
+            // 8.63 修复：关闭 TOTP 是「已认证（持有效 token）+ 验证码有时限（30s±1）」的双因子确认，
+            // 不应受登录防重放计数器（acceptTotpCounter）约束——否则刚登录后无法立即关闭 TOTP
+            //（登录已把 totpLastCounter 推进，当前窗口内任何新验证码都会被当作重放拒绝）。
+            // 仅校验验证码在当前时限窗口内有效即可。
+            if (!com.maodouchat.server.service.TotpService.verify(secret, code) { true }
             ) return@transaction false
         }
         Users.update({ Users.id eq userId }) {

@@ -101,32 +101,33 @@ class NotificationCenterReadPolicyTest {
 
     @Test
     fun referencesMessageByExtraAndIdSuffix() {
+        // 真实消息 ID 带 "m_" 前缀，itemId 形如 "msg_{chatId}_{messageId}"
         assertTrue(
             NotificationCenterReadPolicy.referencesMessage(
-                messageId = "m9",
-                itemId = "msg_c1_m9",
-                extraMessageId = "m9"
+                messageId = "m_9",
+                itemId = "msg_c1_m_9",
+                extraMessageId = "m_9"
             )
         )
         assertTrue(
             NotificationCenterReadPolicy.referencesMessage(
-                messageId = "m9",
-                itemId = "msg_c1_m9",
+                messageId = "m_9",
+                itemId = "msg_c1_m_9",
                 extraMessageId = null
             )
         )
         assertFalse(
             NotificationCenterReadPolicy.referencesMessage(
-                messageId = "m9",
-                itemId = "msg_c1_m8",
-                extraMessageId = "m8"
+                messageId = "m_9",
+                itemId = "msg_c1_m_8",
+                extraMessageId = "m_8"
             )
         )
         assertFalse(
             NotificationCenterReadPolicy.referencesMessage(
                 messageId = "",
-                itemId = "msg_c1_m9",
-                extraMessageId = "m9"
+                itemId = "msg_c1_m_9",
+                extraMessageId = "m_9"
             )
         )
     }

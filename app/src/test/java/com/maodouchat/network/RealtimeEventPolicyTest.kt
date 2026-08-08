@@ -1,8 +1,12 @@
 package com.maodouchat.network
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -12,14 +16,23 @@ import org.junit.Test
 class RealtimeEventPolicyTest {
     @Test
     fun `new subscriber does not receive an old business event`() = runTest {
-        val bus = NonReplayingEventBus<String>(capacity = 4, scope = this)
-        bus.post("old-delete")
+        // 独立作用域：bus 的消费协程是常驻 for 循环，跑完需显式 cancel 避免 UncompletedCoroutinesError
+        val busScope = CoroutineScope(coroutineContext + Job())
+        try {
+            val bus = NonReplayingEventBus<String>(capacity = 4, scope = busScope)
+            bus.post("old-delete")
+            // 让消费协程把已入队事件发射到底层 flow（replay=0，尚无订阅者时直接丢弃）
+            advanceUntilIdle()
 
-        val next = async(start = CoroutineStart.UNDISPATCHED) { bus.flow.first() }
-        bus.post("new-message")
+            val next = async(start = CoroutineStart.UNDISPATCHED) { bus.flow.first() }
+            bus.post("new-message")
+            advanceUntilIdle()
 
-        assertEquals("new-message", next.await())
-        assertTrue(bus.flow.replayCache.isEmpty())
+            assertEquals("new-message", next.await())
+            assertTrue(bus.flow.replayCache.isEmpty())
+        } finally {
+            busScope.cancel()
+        }
     }
 
     @Test

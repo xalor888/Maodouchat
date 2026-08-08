@@ -676,7 +676,7 @@ fun initDatabase() {
 
         SchemaUtils.createMissingTablesAndColumns(
             Users, Chats, ChatParticipants, ChatUserSettings, GroupAuditLogs, Messages, MessageMutations,
-            EncryptedAttachments, SignalKeys, SignalDevices, SignalingMessages, Posts, PostLikes, PostComments,
+            EncryptedAttachments, SignalKeys, SignalDevices, SignalingMessages, Posts, PostLikes, PostComments, CommentLikes,
             BlockedUsers, UserLocations, AuthSessions, RefreshTokens, RevokedAccessTokens, StarMessages, PinnedMessages,
             ReadReceipts, MessageReactions, SenderKeyDistributions, AiPreferences, NotificationPreferences,
             PushTokens, GroupPolls, GroupPollVotes, BotApps, BotCommandLogs, BotUpdateInbox, Reports, ModerationAuditLog, AiAuditLogs, AiSummarySyncEnvelopes, ModerationRules,

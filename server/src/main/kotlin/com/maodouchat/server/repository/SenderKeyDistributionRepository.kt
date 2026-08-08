@@ -9,8 +9,10 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.upsert
 import java.util.UUID
 
@@ -32,25 +34,64 @@ class SenderKeyDistributionRepository {
                 .forEach { target ->
                     val id = rowId(chatId, epoch, senderId, target.userId, target.deviceId)
                     val normalizedStatus = normalizeStatus(target.status)
-                    // upsert：并发 report 撞 PK 不得 abort 整批 targets。
-                    // 8.39：onUpdate 仅列 createdAt → 引用原行（冲突时保持不变）——
-                    // 反复 report 同一 target 若刷新 createdAt，purgeOldRecords 按 createdAt
-                    // 清理会因无限续期而失效，表随活跃目标无限增长；其余列自动用 insert 值更新。
-                    SenderKeyDistributions.upsert(
-                        SenderKeyDistributions.id,
-                        onUpdate = listOf(SenderKeyDistributions.createdAt to SenderKeyDistributions.createdAt)
-                    ) {
-                        it[SenderKeyDistributions.id] = id
-                        it[SenderKeyDistributions.chatId] = chatId
-                        it[SenderKeyDistributions.epoch] = epoch
-                        it[SenderKeyDistributions.senderId] = senderId
-                        it[SenderKeyDistributions.recipientUserId] = target.userId
-                        it[SenderKeyDistributions.recipientDeviceId] = target.deviceId
-                        it[SenderKeyDistributions.messageId] = messageId
-                        it[SenderKeyDistributions.status] = normalizedStatus
-                        it[SenderKeyDistributions.error] = target.error?.take(200)
-                        it[SenderKeyDistributions.createdAt] = now
-                        it[SenderKeyDistributions.updatedAt] = now
+                    val isH2 = org.jetbrains.exposed.sql.transactions.TransactionManager.current()
+                        .db.vendor.equals("H2", ignoreCase = true)
+                    if (isH2) {
+                        // H2 2.x 不支持 Exposed 单键 upsert 生成的 `MERGE INTO ... USING (VALUES ...)`
+                        // （报 `Database "COM" not found`）。生产用 PostgreSQL，走下方 upsert；
+                        // 测试/H2 用 select→update/insert，幂等语义一致。
+                        // 8.39：冲突时保留原 createdAt（purgeOldRecords 按 createdAt 清理依赖其不无限续期）。
+                        val existing = SenderKeyDistributions.selectAll()
+                            .where { SenderKeyDistributions.id eq id }
+                            .firstOrNull()
+                        if (existing == null) {
+                            SenderKeyDistributions.insert {
+                                it[SenderKeyDistributions.id] = id
+                                it[SenderKeyDistributions.chatId] = chatId
+                                it[SenderKeyDistributions.epoch] = epoch
+                                it[SenderKeyDistributions.senderId] = senderId
+                                it[SenderKeyDistributions.recipientUserId] = target.userId
+                                it[SenderKeyDistributions.recipientDeviceId] = target.deviceId
+                                it[SenderKeyDistributions.messageId] = messageId
+                                it[SenderKeyDistributions.status] = normalizedStatus
+                                it[SenderKeyDistributions.error] = target.error?.take(200)
+                                it[SenderKeyDistributions.createdAt] = now
+                                it[SenderKeyDistributions.updatedAt] = now
+                            }
+                        } else {
+                            SenderKeyDistributions.update({ SenderKeyDistributions.id eq id }) {
+                                it[SenderKeyDistributions.chatId] = chatId
+                                it[SenderKeyDistributions.epoch] = epoch
+                                it[SenderKeyDistributions.senderId] = senderId
+                                it[SenderKeyDistributions.recipientUserId] = target.userId
+                                it[SenderKeyDistributions.recipientDeviceId] = target.deviceId
+                                it[SenderKeyDistributions.messageId] = messageId
+                                it[SenderKeyDistributions.status] = normalizedStatus
+                                it[SenderKeyDistributions.error] = target.error?.take(200)
+                                it[SenderKeyDistributions.updatedAt] = now
+                            }
+                        }
+                    } else {
+                        // upsert：并发 report 撞 PK 不得 abort 整批 targets。
+                        // 8.39：onUpdate 仅列 createdAt → 引用原行（冲突时保持不变）——
+                        // 反复 report 同一 target 若刷新 createdAt，purgeOldRecords 按 createdAt
+                        // 清理会因无限续期而失效，表随活跃目标无限增长；其余列自动用 insert 值更新。
+                        SenderKeyDistributions.upsert(
+                            SenderKeyDistributions.id,
+                            onUpdate = listOf(SenderKeyDistributions.createdAt to SenderKeyDistributions.createdAt)
+                        ) {
+                            it[SenderKeyDistributions.id] = id
+                            it[SenderKeyDistributions.chatId] = chatId
+                            it[SenderKeyDistributions.epoch] = epoch
+                            it[SenderKeyDistributions.senderId] = senderId
+                            it[SenderKeyDistributions.recipientUserId] = target.userId
+                            it[SenderKeyDistributions.recipientDeviceId] = target.deviceId
+                            it[SenderKeyDistributions.messageId] = messageId
+                            it[SenderKeyDistributions.status] = normalizedStatus
+                            it[SenderKeyDistributions.error] = target.error?.take(200)
+                            it[SenderKeyDistributions.createdAt] = now
+                            it[SenderKeyDistributions.updatedAt] = now
+                        }
                     }
                 }
         }

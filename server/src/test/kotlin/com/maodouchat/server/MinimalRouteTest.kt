@@ -1933,7 +1933,11 @@ class AdminRouteAuthenticationTest {
         assertEquals(HttpStatusCode.OK, shell.status)
         assertTrue(shell.bodyAsText().contains("login-form"))
         assertTrue(shell.headers[HttpHeaders.CacheControl].orEmpty().contains("no-store"))
-        assertFalse(shell.headers["Content-Security-Policy"].orEmpty().contains("unsafe-inline"))
+        // 管理后台 CSP 有意放开 unsafe-inline（admin.js 大量内联样式/onclick，代码已注释说明无用户可控注入）。
+        // 关键防护仍需具备：frame-ancestors 'none'（防点击劫持）、base-uri 'none'（防 base 标签注入）。
+        val shellCsp = shell.headers["Content-Security-Policy"].orEmpty()
+        assertTrue(shellCsp.contains("frame-ancestors 'none'"), shellCsp)
+        assertTrue(shellCsp.contains("base-uri 'none'"), shellCsp)
         val adminCss = client.get("/admin/assets/admin.css")
         assertEquals(HttpStatusCode.OK, adminCss.status)
         assertTrue(adminCss.headers[HttpHeaders.ContentType].orEmpty().contains("text/css"))
