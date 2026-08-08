@@ -2517,11 +2517,11 @@ get("/polls-export") {
                     val pollIds = polls.map { it[GroupPolls.id] }
                     val votesByPoll = if (pollIds.isEmpty()) emptyMap() else
                         GroupPollVotes
-                            .slice(GroupPollVotes.pollId, GroupPollVotes.id.count())
+                            .slice(GroupPollVotes.pollId, GroupPollVotes.userId.count())
                             .selectAll()
                             .where { GroupPollVotes.pollId inList pollIds }
                             .groupBy(GroupPollVotes.pollId)
-                            .associate { it[GroupPollVotes.pollId] to it[GroupPollVotes.id.count()].toLong() }
+                            .associate { it[GroupPollVotes.pollId] to it[GroupPollVotes.userId.count()].toLong() }
                     polls.map { row ->
                             val id = row[GroupPolls.id]
                             val votes = votesByPoll[id] ?: 0L
@@ -4003,11 +4003,11 @@ put("count", updated.size)
                     val chatIds = chats.map { it[Chats.id] }
                     val membersByChat = if (chatIds.isEmpty()) emptyMap() else
                         ChatParticipants
-                            .slice(ChatParticipants.chatId, ChatParticipants.id.count())
+                            .slice(ChatParticipants.chatId, ChatParticipants.userId.count())
                             .selectAll()
                             .where { ChatParticipants.chatId inList chatIds }
                             .groupBy(ChatParticipants.chatId)
-                            .associate { it[ChatParticipants.chatId] to it[ChatParticipants.id.count()].toLong() }
+                            .associate { it[ChatParticipants.chatId] to it[ChatParticipants.userId.count()].toLong() }
                     chats.map { row ->
                             val id = row[Chats.id]
                             val isGroup = row[Chats.isGroup]

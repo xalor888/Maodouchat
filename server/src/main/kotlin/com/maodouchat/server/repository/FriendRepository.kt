@@ -98,7 +98,7 @@ class FriendRepository {
                 }.firstOrNull()
             }
             if (existing != null) {
-                return if (existing[FriendRequests.fromUserId] == fromUserId) {
+                return@transaction if (existing[FriendRequests.fromUserId] == fromUserId) {
                     Result.Failure("已发送过申请，请等待对方处理", "ALREADY_PENDING")
                 } else {
                     Result.Failure("对方已向你发起申请，请在收件箱处理", "INCOMING_PENDING")

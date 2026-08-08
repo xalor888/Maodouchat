@@ -772,7 +772,7 @@ put("user", Json.parseToJsonElement(Json.encodeToString(user)))
             }
             // 单账号失败锁定检查：锁定期间直接拒绝，不泄露密码正误（与失败提示一致）
             // 8.51 修复 M1：锁定按「账号|源 IP」隔离，远程失败不影响受害者自身 IP 登录
-            val ip = call.request.origin.remoteHost
+            val ip = call.remoteHost()
             val accountLockKey = "$emailKey|$ip"
             val lock = loginLockouts[accountLockKey]
             if (lock != null && lock.lockUntil > System.currentTimeMillis()) {
@@ -15621,9 +15621,9 @@ private fun validateAiImage(base64: String): ValidatedAiImage? = runCatching {
             // 8.52 修复 AI-3：超长边图片等比降采样到目标尺寸（视觉模型按像素/tile 计费，
             // 原图 4096² 成本是 1568² 的数倍，且游离在预算体系外）
             val maxEdge = maxOf(width, height)
-            if (maxEdge > com.maodouchat.server.plugins.RoutingHelpers.AI_IMAGE_TARGET_MAX_EDGE) {
+            if (maxEdge > AI_IMAGE_TARGET_MAX_EDGE) {
                 val sourceImage = reader.read(0) ?: return null
-                val targetEdge = com.maodouchat.server.plugins.RoutingHelpers.AI_IMAGE_TARGET_MAX_EDGE
+                val targetEdge = AI_IMAGE_TARGET_MAX_EDGE
                 val scale = targetEdge.toDouble() / maxEdge
                 val targetW = maxOf(1, (width * scale).toInt())
                 val targetH = maxOf(1, (height * scale).toInt())
@@ -15939,7 +15939,7 @@ private fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: Strin
                 <div class="badge $onlineClass">$onlineLabel</div>
                 <div class="name">$safeName</div>
                 <div class="username">$safeUsername</div>
-                ${if (safeStatus.isNotBlank()) """<div class="status">$safeStatus</div>""" else ""}
+                ${if (safeStatus?.isNotBlank() == true) """<div class="status">$safeStatus</div>""" else ""}
                 <div class="divider"></div>
                 <div class="actions">
                     <a href="${escapedBase}?start=$safeUsername" class="btn-primary">

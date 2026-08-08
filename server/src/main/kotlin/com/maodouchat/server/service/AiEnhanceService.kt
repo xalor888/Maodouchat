@@ -4,6 +4,8 @@ import com.maodouchat.server.model.AiContextMessage
 import com.maodouchat.server.model.AiGroupAssistantResult
 import com.maodouchat.server.model.AiSemanticSearchCandidate
 import com.maodouchat.server.model.AiSemanticSearchMatch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 
 /**
  * B4 · AI 增强能力服务端编排（复用 AiGateway）。
@@ -110,7 +112,7 @@ class AiEnhanceService(
         val perChatResults = kotlinx.coroutines.withTimeoutOrNull(CROSS_CHAT_TOTAL_TIMEOUT_MS) {
             kotlinx.coroutines.coroutineScope {
                 perChat.map { (_, group) ->
-                    kotlinx.coroutines.async {
+                    async {
                         gateway.semanticSearch(
                             safeQuery,
                             group.map { candidate ->

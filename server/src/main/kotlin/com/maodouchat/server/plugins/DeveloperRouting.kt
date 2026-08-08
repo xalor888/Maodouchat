@@ -38,6 +38,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNotNull
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
+import org.jetbrains.exposed.sql.countDistinct
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.Expression
 import org.jetbrains.exposed.sql.QueryBuilder
@@ -618,7 +619,7 @@ private fun buildBotAnalytics(botId: String, days: Int): BotAnalyticsResponse {
             .where { (BotCommandLogs.botId eq botId) and (BotCommandLogs.createdAt greater cutoff) }
             .count()
 
-        val dailyStats = buildList {
+        val dailyStats = buildList<DailyStat> {
             // 8.48 修复 M9：按天 GROUP BY 聚合（此前逐日 2 次 count → 30 天 = 60 次查询）
             val dayBucket = dayBucketExpression(BotCommandLogs.createdAt)
             val commandCounts = BotCommandLogs
@@ -629,8 +630,9 @@ private fun buildBotAnalytics(botId: String, days: Int): BotAnalyticsResponse {
                 .toList()
                 .associate { it[dayBucket] to it[BotCommandLogs.id.count()].toLong() }
             val uniqueBucket = dayBucketExpression(BotCommandLogs.createdAt)
+            val uniqueCountExpr = BotCommandLogs.userId.countDistinct()
             val uniqueCounts = BotCommandLogs
-                .slice(uniqueBucket, BotCommandLogs.userId.countDistinct())
+                .slice(uniqueBucket, uniqueCountExpr)
                 .selectAll()
                 .where {
                     (BotCommandLogs.botId eq botId) and
@@ -639,7 +641,7 @@ private fun buildBotAnalytics(botId: String, days: Int): BotAnalyticsResponse {
                 }
                 .groupBy(uniqueBucket)
                 .toList()
-                .associate { it[uniqueBucket] to it[BotCommandLogs.userId.countDistinct()].toLong() }
+                .associate { it[uniqueBucket] to it[uniqueCountExpr].toLong() }
             for (i in 0 until days) {
                 val dayStart = now - (days - 1 - i) * dayMs
                 val dayEnd = dayStart + dayMs

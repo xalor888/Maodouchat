@@ -121,6 +121,7 @@ object EmailService {
                 Transport.send(message)
                 withCacheKeyLock(cacheKey) { storeCode(cacheKey, code) }
                 logger.info("Verification code email ({}) sent to {}", purposeKey, email)
+                return code
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

@@ -233,7 +233,7 @@ class UserRepository {
         Users.update({ Users.id eq row[Users.id] }) {
             it[Users.totpLastCounter] = candidate
         }
-        true
+        return true
     }
 
     /** 0.75：校验并单次消费恢复码（匹配即删除该码）。调用方须持用户行锁在同一事务内。 */
@@ -250,7 +250,7 @@ class UserRepository {
         Users.update({ Users.id eq row[Users.id] }) {
             it[Users.totpBackupCodes] = if (remaining.isEmpty()) null else remaining.joinToString(",")
         }
-        true
+        return true
     }
 
     /** 0.75：生成 8 位数字恢复码（SecureRandom，杜绝可预测序列）。 */

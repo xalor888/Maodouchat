@@ -4,6 +4,7 @@ import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.db.AuthSessions
 import com.maodouchat.server.db.PushTokens
 import com.maodouchat.server.db.RefreshTokens
+import org.jetbrains.exposed.sql.count
 import com.maodouchat.server.db.RevokedAccessTokens
 import com.maodouchat.server.db.Users
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -331,7 +332,7 @@ class AuthTokenRepository {
         if (sessions.isEmpty()) return@transaction userIds.associateWith { 0 }
         val sessionIdToUser = sessions.toMap()
         val counts = RefreshTokens
-            .slice(RefreshTokens.userId, RefreshTokens.id.count())
+            .slice(RefreshTokens.userId, RefreshTokens.tokenHash.count())
             .selectAll()
             .where {
                 (RefreshTokens.userId inList userIds) and
@@ -340,7 +341,7 @@ class AuthTokenRepository {
                     (RefreshTokens.expiresAt greater now)
             }
             .groupBy(RefreshTokens.userId)
-            .associate { it[RefreshTokens.userId] to it[RefreshTokens.id.count()].toInt() }
+            .associate { it[RefreshTokens.userId] to it[RefreshTokens.tokenHash.count()].toInt() }
         userIds.associateWith { counts[it] ?: 0 }
     }
 

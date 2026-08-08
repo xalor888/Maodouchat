@@ -89,8 +89,8 @@ class UserTagRepository {
                 .selectAll()
                 .where { UserTagAssignments.tagId inList tagIds }
                 .groupBy(UserTagAssignments.tagId)
-                .associate { it[UserTagAssignments.tagId] to it[UserTagAssignments.userId.count()].toInt() }
-        rows.map { row -> row.toTagRow(countByTag[row[UserTags.id]] ?: 0) }
+                .associate { it[UserTagAssignments.tagId] to it[UserTagAssignments.userId.count()] }
+        rows.map { row -> row.toTagRow(countByTag[row[UserTags.id]] ?: 0L) }
     }
 
     fun updateTag(

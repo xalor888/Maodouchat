@@ -840,18 +840,6 @@ class AiGatewayService(
             OpenAiInputMessage("user", JsonPrimitive(userMessage))
         )
 
-        suspend fun runOnce(model: String): StreamOutcome {
-            // 8.52 修复 AI-4：流式调用同样受全局并发信号量约束（整个流生命周期持有令牌）
-            if (!llmSemaphore.tryAcquire(LLM_ACQUIRE_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
-                return StreamOutcome(AiGatewayResult.UpstreamError(429, "AI 并发已满，请稍后再试"), false)
-            }
-            return try {
-                runOnceThrottled(model)
-            } finally {
-                llmSemaphore.release()
-            }
-        }
-
         suspend fun runOnceThrottled(model: String): StreamOutcome {
             var firstDeltaEmitted = false
             val result: AiGatewayResult<String> = try {
@@ -932,6 +920,18 @@ class AiGatewayService(
                 AiGatewayResult.UpstreamError(0, error.message)
             }
             return StreamOutcome(result, firstDeltaEmitted)
+        }
+
+        suspend fun runOnce(model: String): StreamOutcome {
+            // 8.52 修复 AI-4：流式调用同样受全局并发信号量约束（整个流生命周期持有令牌）
+            if (!llmSemaphore.tryAcquire(LLM_ACQUIRE_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                return StreamOutcome(AiGatewayResult.UpstreamError(429, "AI 并发已满，请稍后再试"), false)
+            }
+            return try {
+                runOnceThrottled(model)
+            } finally {
+                llmSemaphore.release()
+            }
         }
 
         suspend fun runWithRetry(model: String, allowRetry: Boolean): StreamOutcome {
