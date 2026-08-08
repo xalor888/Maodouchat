@@ -969,7 +969,10 @@ data class DevMeResponse(
 private fun dayBucketExpression(column: Column<Long>): Expression<Long> =
     object : Expression<Long>() {
         override fun toQueryBuilder(queryBuilder: QueryBuilder) {
-            // 8.63 修复：CAST AS SIGNED 是 MySQL/SQLite 语法，H2 2.x/PostgreSQL 不支持 → 改用 BIGINT
-            queryBuilder.append("CAST(($column / 86400000) AS BIGINT)")
+            // 8.63 修复：`$column` 插值会输出 Kotlin 全限定路径（H2 把 com 当库名报
+            // "Database COM not found"），且 CAST 用跨库 BIGINT（非 MySQL 的 SIGNED）
+            queryBuilder.append("CAST(")
+            column.toQueryBuilder(queryBuilder)
+            queryBuilder.append(" / 86400000 AS BIGINT)")
         }
     }

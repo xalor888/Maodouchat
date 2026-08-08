@@ -4336,12 +4336,15 @@ data class OpsSnapshotResponse(
 /**
  * 8.48 修复 M1/M2：把时间列按「Unix 天编号」（timestamp / 86400000）分组的 Exposed 表达式，
  * 供趋势统计 SQL GROUP BY 聚合（管理仪表盘 /trends、/rich-trends）。
- * 8.63 修复：CAST(x AS SIGNED) 是 MySQL/SQLite 语法，H2 2.x 与 PostgreSQL 均不支持
- *（H2 会把 SIGNED 误解析成数据库名报 "Database COM not found"）→ 改用跨库 BIGINT。
+ * 8.63 修复：`$column` 字符串插值会输出 Kotlin 对象全限定路径（com.maodouchat.server.db.Users），
+ * H2 把 `com` 误当数据库名报 "Database COM not found"（PostgreSQL 同样报错）。
+ * 改用 column.toQueryBuilder 输出正确的「表名.列名」，且 CAST 用跨库 BIGINT（非 MySQL 的 SIGNED）。
  */
 private fun dayBucketExpression(column: Column<Long>): Expression<Long> =
     object : Expression<Long>() {
         override fun toQueryBuilder(queryBuilder: QueryBuilder) {
-            queryBuilder.append("CAST(($column / 86400000) AS BIGINT)")
+            queryBuilder.append("CAST(")
+            column.toQueryBuilder(queryBuilder)
+            queryBuilder.append(" / 86400000 AS BIGINT)")
         }
     }
