@@ -343,11 +343,14 @@ class ChatDetailViewModel(
             observeAiOperations()
             loadAiSettings()
             pullSyncedAiSummaries()
-            // 阅后即焚：本地每秒扫到期消息并删除密文缓存
+            // 阅后即焚：本地周期扫到期消息并删除密文缓存。
+            // 30s 粒度足够及时；原先 1s 无条件扫描即使未开启阅后即焚也会常驻唤醒主线程
+            // 做 Room 查询（退后台时 ViewModel 存活照跑），浪费电量。App 级 5 分钟清扫兜底。
             viewModelScope.launch {
                 while (isActive) {
-                    kotlinx.coroutines.delay(1_000L)
+                    kotlinx.coroutines.delay(30_000L)
                     if (tokenManager.getToken().isNullOrBlank()) continue
+                    if (_uiState.value.disappearingMessageSeconds <= 0) continue
                     purgeExpiredLocalMessages()
                 }
             }

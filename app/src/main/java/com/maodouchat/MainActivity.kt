@@ -94,10 +94,6 @@ class MainActivity : FragmentActivity() {
                 if (!showAppLock) AppLockManager.noteBackground(this@MainActivity)
                 // 假聊天模式启用即视为「离开」：回前台需重新走假界面拦截
                 FakeChatManager.noteBackground(this@MainActivity)
-                // 8.32 修复 F2：App 离开前台（锁屏/切后台）时清空 activeChatId——
-                // 否则停留在聊天页锁屏期间新消息既不弹通知也不计未读（零提醒）。
-                // ChatDetailViewModel 回到前台会重新设置。
-                com.maodouchat.MaodouchatApp.activeChatId = null
                 // 后台期间若开启 App 锁、假聊天、全局防截屏或密聊表面，保持窗口安全
                 if (
                     AppLockManager.isEnabled(this@MainActivity) ||
@@ -108,6 +104,14 @@ class MainActivity : FragmentActivity() {
                 ) {
                     updateWindowPrivacy(true)
                 }
+            }
+            override fun onStop(owner: LifecycleOwner) {
+                // 8.32 修复 F2：App 真正离开前台（onStop，非权限弹窗/指纹认证等瞬时遮挡）时清空
+                // activeChatId——否则停留在聊天页期间新消息既不弹通知也不计未读（零提醒）。
+                // onPause 会在系统认证/权限框/通知栏下拉时误触发，此时仍是前台，不应清空
+                //（否则聊天页被指纹弹窗遮挡时到的新消息会被误判为后台消息而弹托盘通知）。
+                // ChatDetailViewModel 回前台会重新设置。
+                com.maodouchat.MaodouchatApp.activeChatId = null
             }
             override fun onResume(owner: LifecycleOwner) {
                 if (!showFakeChat && FakeChatManager.shouldShowFake(this@MainActivity)) {

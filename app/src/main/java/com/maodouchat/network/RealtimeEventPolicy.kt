@@ -13,10 +13,10 @@ import java.util.concurrent.atomic.AtomicLong
  * Business events are live-only. A newly opened screen must reconcile from REST/Room instead of
  * receiving the last event again, which could repeat a delete, reaction, or group revision.
  *
- * 无界队列 + 单消费者桥接：生产者（WebSocket 回调线程）经 [post] 永不被阻塞、永不丢事件；
- * 消费者协程把事件顺序 emit 到底层 SharedFlow（SUSPEND 背压）——collector 慢时消费协程挂起，
- * 队列继续积累，事件在重连/重进页面前不丢失（原先 DROP_OLDEST 会在群聊突发时静默丢事件：
- * NEW_MESSAGE 靠游标补回，REACTION/STATUS/TYPING 纯实时事件永久丢失）。
+ * 有界队列 + 单消费者桥接：生产者（WebSocket 回调线程）经 [post] 永不阻塞；消费者协程把
+ * 事件顺序 emit 到底层 SharedFlow（SUSPEND 背压）——collector 慢时消费协程挂起。
+ * 队列有界（DROP_OLDEST）：极端积压时丢弃最旧事件而非无限堆积直至 OOM——
+ * NEW_MESSAGE 靠游标补回，REACTION/STATUS/TYPING 为纯实时事件，短暂丢失可接受。
  */
 internal class NonReplayingEventBus<T>(capacity: Int, scope: CoroutineScope) {
     private val events = MutableSharedFlow<T>(
@@ -24,7 +24,7 @@ internal class NonReplayingEventBus<T>(capacity: Int, scope: CoroutineScope) {
         extraBufferCapacity = capacity.coerceAtLeast(1),
         onBufferOverflow = BufferOverflow.SUSPEND
     )
-    private val queue = Channel<T>(Channel.UNLIMITED)
+    private val queue = Channel<T>(capacity.coerceAtLeast(1), BufferOverflow.DROP_OLDEST)
 
     init {
         scope.launch {
@@ -34,7 +34,7 @@ internal class NonReplayingEventBus<T>(capacity: Int, scope: CoroutineScope) {
 
     val flow: SharedFlow<T> = events.asSharedFlow()
 
-    /** 回调线程安全：无界队列 trySend 永不失败。 */
+    /** 回调线程安全：有界队列 trySend 快速返回，队列满时丢弃最旧事件（不阻塞回调线程）。 */
     fun post(event: T) {
         queue.trySend(event)
     }

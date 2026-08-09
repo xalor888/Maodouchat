@@ -418,15 +418,7 @@ object WebSocketClient {
                 // 8.52 接入 isRecoverableExpiryReason（此前为死代码）：服务端通常用 1013 表示
                 // 过期，但兼容旧实例仍发 1008 + 过期文案的情况。
                 if (code == 1008 && reason != null && isRecoverableExpiryReason(reason) && shouldReconnect) {
-                    val refreshed = kotlinx.coroutines.runBlocking {
-                        runCatching { com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession() }.getOrNull()
-                    }
-                    if (refreshed != null && refreshed.isNotBlank()) {
-                        authToken.set(refreshed)
-                        scheduleReconnect()
-                    } else {
-                        shouldReconnect = false
-                    }
+                    refreshTokenThenReconnect()
                     return
                 }
                 if (code == 1008 && isAuthDeathReason(reason)) {
@@ -440,15 +432,7 @@ object WebSocketClient {
                     return
                 }
                 if (code == 1008 && reason.isBlank() && shouldReconnect) {
-                    val refreshed = kotlinx.coroutines.runBlocking {
-                        runCatching { com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession() }.getOrNull()
-                    }
-                    if (refreshed != null && refreshed.isNotBlank()) {
-                        authToken.set(refreshed)
-                        scheduleReconnect()
-                    } else {
-                        shouldReconnect = false
-                    }
+                    refreshTokenThenReconnect()
                     return
                 }
                 // 8.52 契约审计收尾：单用户连接数超限（服务端 1008）时立即重连只会叠加
@@ -473,15 +457,7 @@ object WebSocketClient {
                     val code = response.code
                     if (code == 401 || code == 403) {
                         if (!shouldReconnect) return
-                        val refreshed = kotlinx.coroutines.runBlocking {
-                            runCatching { com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession() }.getOrNull()
-                        }
-                        if (refreshed != null && refreshed.isNotBlank()) {
-                            authToken.set(refreshed)
-                            scheduleReconnect()
-                        } else {
-                            shouldReconnect = false
-                        }
+                        refreshTokenThenReconnect()
                         return
                     }
                     // 429 限流：尊重服务端 Retry-After（封顶 60s），否则退避封顶 30s 亦可
@@ -523,6 +499,24 @@ object WebSocketClient {
         return t is javax.net.ssl.SSLException ||
             t is javax.net.ssl.SSLHandshakeException ||
             t is java.net.ConnectException
+    }
+
+    /**
+     * WS 回调线程（OkHttp 读线程）里需要「刷新 token 后决定是否重连」时使用：
+     * 把刷新放到 scope 协程执行，避免 runBlocking 阻塞 OkHttp 读线程（最多 30s 停摆）。
+     * 刷新失败则停止重连（REST 401 路径负责 purge）。
+     */
+    private fun refreshTokenThenReconnect() {
+        if (!shouldReconnect || reconnectJob?.isActive == true) return
+        scope.launch {
+            val refreshed = runCatching { com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession() }.getOrNull()
+            if (refreshed != null && refreshed.isNotBlank()) {
+                authToken.set(refreshed)
+                scheduleReconnect()
+            } else {
+                shouldReconnect = false
+            }
+        }
     }
 
     private fun scheduleReconnect() {
@@ -571,14 +565,19 @@ object WebSocketClient {
             }
             // 断线关闭原因是 access token 到期时：重连前主动刷新（复用 REST 同一套 refresh 机制），
             // 避免用过期 JWT 重连被服务端再次 1008/1013 关闭（修复 15 分钟过期被强制登出的 CRITICAL）。
+            // 本段已在协程内，直接挂起刷新（不再 runBlocking）。
             if (token != null && tokenManager != null) {
                 val expiresAt = tokenManager.getAccessTokenExpiresAt()
                 val stale = expiresAt > 0L && expiresAt <= System.currentTimeMillis() + 60_000L
                 if (stale) {
-                    val refreshed = kotlinx.coroutines.runBlocking {
-                        runCatching { com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession() }.getOrNull()
+                    val refreshed = runCatching { com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession() }.getOrNull()
+                    if (refreshed != null && refreshed.isNotBlank()) {
+                        token = refreshed
+                    } else {
+                        // 刷新失败：会话可能已失效，停止重连（避免用过期 JWT 反复 1008 空转）
+                        shouldReconnect = false
+                        return@launch
                     }
-                    if (refreshed != null && refreshed.isNotBlank()) token = refreshed
                 }
             }
             if (token == null) {

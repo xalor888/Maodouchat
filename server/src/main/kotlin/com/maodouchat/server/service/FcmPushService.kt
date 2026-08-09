@@ -295,7 +295,7 @@ class FcmPushService(
 
     private suspend fun send(record: PushTokenRecord, data: Map<String, String>) {
         val accessToken = getAccessToken() ?: return
-        val signed = signPayload(data)
+        val signed = signPayload(record.userId, data)
         val httpClient = synchronized(clientLock) {
             if (closed.get()) null else clientDelegate.value
         } ?: return
@@ -400,7 +400,7 @@ class FcmPushService(
             body.contains("registration-token-not-registered", ignoreCase = true)
     }
 
-    private companion object {
+    companion object {
         const val DELIVERY_QUEUE_CAPACITY = 1_024
         const val DELIVERY_WORKERS = 4
         /** 8.48 修复 H8：批量投递批次大小（每批共享一次批量查询）。 */
@@ -415,20 +415,35 @@ class FcmPushService(
          * 对推送 data 计算 HMAC-SHA256 签名，附加 sig + ts 字段。
          * 规范化：剔除 sig/ts 后按 key 字典序拼接 `k=v` 并以 `&` 连接，再追加 `&ts=<ts>`。
          * 客户端用同一规范化算法 + 同一密钥校验（见客户端 PushVerifyPrefs / MaodouFirebaseMessagingService）。
+         *
+         * 安全：密钥按接收者派生（HMAC(master, recipientId)），/api/push/verify-key 只对
+         * 每个用户下发其自身派生密钥——任一用户只能伪造发给**自己**的推送，无法伪造他人的。
          */
-        fun signPayload(data: Map<String, String>): Map<String, String> {
+        fun signPayload(recipientId: String, data: Map<String, String>): Map<String, String> {
             val ts = System.currentTimeMillis().toString()
             val base = data.filterKeys { it != "sig" && it != "ts" }
             val canonical = base.keys.sorted().joinToString("&") { "${it}=${base[it]}" }
             val payload = "$canonical&ts=$ts"
             val sig = try {
                 val mac = Mac.getInstance("HmacSHA256")
-                mac.init(SecretKeySpec(ServerConfig.pushHmacSecret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+                mac.init(SecretKeySpec(pushKeyForUser(recipientId).toByteArray(Charsets.UTF_8), "HmacSHA256"))
                 mac.doFinal(payload.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
             } catch (_: Exception) {
                 ""
             }
             return data + ("ts" to ts) + ("sig" to sig)
+        }
+
+        /**
+         * 按接收者派生推送校验密钥：HMAC-SHA256(masterSecret, recipientId)。
+         * 服务端对每个接收者用其派生密钥签名；客户端经 /api/push/verify-key 取回自己的派生密钥验签。
+         */
+        fun pushKeyForUser(recipientId: String): String = try {
+            val mac = Mac.getInstance("HmacSHA256")
+            mac.init(SecretKeySpec(ServerConfig.pushHmacSecret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+            mac.doFinal(recipientId.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+        } catch (_: Exception) {
+            ""
         }
     }
 

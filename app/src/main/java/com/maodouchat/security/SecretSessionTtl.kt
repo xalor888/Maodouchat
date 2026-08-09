@@ -42,7 +42,7 @@ object SecretSessionTtl {
         MediaCache.deleteSecretChatMedia(context, chatId)
         // 清理该会话的搜索索引（存量密聊消息可能在索引过滤启用前已写入）
         runCatching {
-            kotlinx.coroutines.runBlocking {
+            kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
                 com.maodouchat.MaodouchatApp.instance.database.messageSearchDao().deleteChatIndex(chatId)
             }
         }

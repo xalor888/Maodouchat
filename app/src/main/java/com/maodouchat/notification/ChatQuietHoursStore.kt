@@ -13,6 +13,10 @@ object ChatQuietHoursStore {
     private const val PREFS_NAME = "chat_quiet_hours"
     private const val KEY_QUIET_HOURS = "quiet_hours"
 
+    // 读-改-写整串 JSON 必须互斥：UI 设置时段与 FCM 推送路径并发时，
+    // 后写者整串覆盖会让先写者的修改静默丢失（竞态）。
+    private val lock = Any()
+
     data class QuietWindow(
         val enabled: Boolean,
         val startMinute: Int,
@@ -40,18 +44,20 @@ object ChatQuietHoursStore {
     fun set(context: Context, chatId: String, window: QuietWindow) {
         val userId = currentUserId(context) ?: return
         if (chatId.isBlank()) return
-        runCatching {
-            val raw = prefs(context).getString(key(userId), null)
-            val obj = if (raw.isNullOrBlank()) JSONObject() else JSONObject(raw)
-            val existing = obj.optJSONObject(chatId)
-            val entry = JSONObject()
-                .put("enabled", window.enabled)
-                .put("start", window.startMinute.coerceIn(0, 1439))
-                .put("end", window.endMinute.coerceIn(0, 1439))
-            // 1.40：保留同条目内已有的临时静音至字段（1.02 语义为「与时段共存」）
-            existing?.optLong("silent_until", 0L)?.takeIf { it > 0L }?.let { entry.put("silent_until", it) }
-            obj.put(chatId, entry)
-            prefs(context).edit().putString(key(userId), obj.toString()).apply()
+        synchronized(lock) {
+            runCatching {
+                val raw = prefs(context).getString(key(userId), null)
+                val obj = if (raw.isNullOrBlank()) JSONObject() else JSONObject(raw)
+                val existing = obj.optJSONObject(chatId)
+                val entry = JSONObject()
+                    .put("enabled", window.enabled)
+                    .put("start", window.startMinute.coerceIn(0, 1439))
+                    .put("end", window.endMinute.coerceIn(0, 1439))
+                // 1.40：保留同条目内已有的临时静音至字段（1.02 语义为「与时段共存」）
+                existing?.optLong("silent_until", 0L)?.takeIf { it > 0L }?.let { entry.put("silent_until", it) }
+                obj.put(chatId, entry)
+                prefs(context).edit().putString(key(userId), obj.toString()).apply()
+            }
         }
     }
 
@@ -59,12 +65,14 @@ object ChatQuietHoursStore {
     fun remove(context: Context, chatId: String) {
         val userId = currentUserId(context) ?: return
         if (chatId.isBlank()) return
-        runCatching {
-            val raw = prefs(context).getString(key(userId), null) ?: return
-            val obj = JSONObject(raw)
-            if (obj.has(chatId)) {
-                obj.remove(chatId)
-                prefs(context).edit().putString(key(userId), obj.toString()).apply()
+        synchronized(lock) {
+            runCatching {
+                val raw = prefs(context).getString(key(userId), null) ?: return@runCatching
+                val obj = JSONObject(raw)
+                if (obj.has(chatId)) {
+                    obj.remove(chatId)
+                    prefs(context).edit().putString(key(userId), obj.toString()).apply()
+                }
             }
         }
     }
@@ -73,14 +81,16 @@ object ChatQuietHoursStore {
     fun setSilentUntil(context: Context, chatId: String, untilMs: Long) {
         val userId = currentUserId(context) ?: return
         if (chatId.isBlank()) return
-        runCatching {
-            val raw = prefs(context).getString(key(userId), null)
-            val obj = if (raw.isNullOrBlank()) JSONObject() else JSONObject(raw)
-            val existing = obj.optJSONObject(chatId)
-            val entry = if (existing != null) existing else JSONObject()
-            if (untilMs <= 0) entry.remove("silent_until") else entry.put("silent_until", untilMs)
-            if (entry.length() == 0) obj.remove(chatId) else obj.put(chatId, entry)
-            prefs(context).edit().putString(key(userId), obj.toString()).apply()
+        synchronized(lock) {
+            runCatching {
+                val raw = prefs(context).getString(key(userId), null)
+                val obj = if (raw.isNullOrBlank()) JSONObject() else JSONObject(raw)
+                val existing = obj.optJSONObject(chatId)
+                val entry = if (existing != null) existing else JSONObject()
+                if (untilMs <= 0) entry.remove("silent_until") else entry.put("silent_until", untilMs)
+                if (entry.length() == 0) obj.remove(chatId) else obj.put(chatId, entry)
+                prefs(context).edit().putString(key(userId), obj.toString()).apply()
+            }
         }
     }
 

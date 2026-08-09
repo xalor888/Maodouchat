@@ -28,7 +28,7 @@ object SecretChatSession {
                 MediaCache.deleteSecretChatMedia(context, chatId)
                 // 清理该密聊会话的搜索索引（存量残留 + SIM 变更紧急清除）
                 runCatching {
-                    kotlinx.coroutines.runBlocking {
+                    kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
                         com.maodouchat.MaodouchatApp.instance.database.messageSearchDao().deleteChatIndex(chatId)
                     }
                 }

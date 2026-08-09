@@ -9605,24 +9605,36 @@ private fun ChatInputBar(
                                 com.maodouchat.util.HapticGate.perform(hapticContext, haptic, HapticFeedbackType.LongPress)
                                 onRecordStart()
                                 var cancelled = false
-                                while (true) {
-                                    val event = awaitPointerEvent()
-                                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                                    val dy = change.position.y - down.position.y
-                                    val arm = dy < -cancelThresholdPx
-                                    if (arm != holdCancelArmed) {
-                                        holdCancelArmed = arm
-                                        if (arm) com.maodouchat.util.HapticGate.perform(hapticContext, haptic, HapticFeedbackType.TextHandleMove)
-                                    }
-                                    if (!change.pressed) {
-                                        cancelled = holdCancelArmed
+                                var completed = false
+                                try {
+                                    while (true) {
+                                        val event = awaitPointerEvent()
+                                        val change = event.changes.firstOrNull { it.id == down.id }
+                                        if (change == null) { completed = true; break }
+                                        val dy = change.position.y - down.position.y
+                                        val arm = dy < -cancelThresholdPx
+                                        if (arm != holdCancelArmed) {
+                                            holdCancelArmed = arm
+                                            if (arm) com.maodouchat.util.HapticGate.perform(hapticContext, haptic, HapticFeedbackType.TextHandleMove)
+                                        }
+                                        if (!change.pressed) {
+                                            cancelled = holdCancelArmed
+                                            change.consume()
+                                            completed = true
+                                            break
+                                        }
                                         change.consume()
-                                        break
                                     }
-                                    change.consume()
+                                } finally {
+                                    // 协程被取消（旋转/退后台/pointerInput 重启）时也兜底释放麦克风，
+                                    // 否则 MediaRecorder 持续持有录音、50ms 电平循环后台空转
+                                    if (completed) {
+                                        if (cancelled) onRecordCancel() else onRecordStop()
+                                    } else {
+                                        onRecordCancel()
+                                    }
+                                    holdCancelArmed = false
                                 }
-                                if (cancelled) onRecordCancel() else onRecordStop()
-                                holdCancelArmed = false
                             }
                         }
                         .then(

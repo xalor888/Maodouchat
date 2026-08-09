@@ -111,15 +111,11 @@ class SignalProtocol(
                 Log.w(TAG, "Signal init: $droppedCorruptKeys corrupt key rows dropped during loadPersistedState")
             }
             restoreSignedPreKey()
-            // Prefer individual pre_key:* rows already loaded (consumes remove those).
-            // Only fall back to the KEY_PRE_KEYS blob when the store has none — otherwise
-            // reloading the blob resurrects already-consumed one-time prekeys.
-            val remainingFromStore = (protocolStore as? PersistentSignalProtocolStore)?.remainingPreKeys().orEmpty()
-            if (remainingFromStore.isNotEmpty()) {
-                preKeys = remainingFromStore
-            } else {
-                restorePreKeys()
-            }
+            // 只取 store 中**未被消费**的 pre_key:* 单行记录。不要回退到 KEY_PRE_KEYS blob——
+            // blob 含已消费的一次性预密钥，整体复活后 persistPreKeys() + 上传会把已用 OTPK
+            // 重新投放，破坏 X3DH 单次使用语义（两次会话共用同一 OTPK）。无剩余时交给
+            // ensurePreKeysAvailable() 铸造全新批次。
+            preKeys = (protocolStore as? PersistentSignalProtocolStore)?.remainingPreKeys().orEmpty()
 
             if (signedPreKey == null) {
                 generateAndStoreSignedPreKey()
@@ -190,19 +186,6 @@ class SignalProtocol(
         val key = runCatching { SignedPreKeyRecord(Base64.decode(entity.keyData, Base64.NO_WRAP)) }.getOrNull() ?: return
         signedPreKey = key
         (protocolStore as? PersistentSignalProtocolStore)?.putSignedPreKey(key) ?: protocolStore.storeSignedPreKey(key.id, key)
-    }
-
-    private suspend fun restorePreKeys() {
-        val entity = signalKeyDao.getKey(scopedKey(KEY_PRE_KEYS)) ?: return
-        preKeys = runCatching {
-            json.decodeFromString(ListSerializer(StoredPreKey.serializer()), entity.keyData)
-                .map { PreKeyRecord(Base64.decode(it.recordBase64, Base64.NO_WRAP)) }
-        }.getOrElse {
-            emptyList()
-        }
-        preKeys.forEach { key ->
-            (protocolStore as? PersistentSignalProtocolStore)?.putPreKey(key) ?: protocolStore.storePreKey(key.id, key)
-        }
     }
 
     private fun generateAndStoreSignedPreKey() {

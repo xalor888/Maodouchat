@@ -2186,7 +2186,7 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
         multi: Boolean = false,
         anonymous: Boolean = false,
         closesAt: Long? = null
-    ): Result<String> = runIoCatching {
+    ): Result<String> {
         val body = buildString {
             append("{")
             append("\"question\":"); append(org.json.JSONObject.quote(question)); append(',')
@@ -2203,41 +2203,29 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
             .header("Authorization", "Bearer $token")
             .post(body.toRequestBody("application/json".toMediaType()))
             .build()
-        client.newCall(req).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) error("poll_create_${resp.code}:$text")
-            text
-        }
+        return executeForText(req, "poll_create")
     }
 
-    suspend fun voteGroupPoll(token: String, pollId: String, optionIndexes: List<Int>): Result<String> = runIoCatching {
+    suspend fun voteGroupPoll(token: String, pollId: String, optionIndexes: List<Int>): Result<String> {
         val body = """{"optionIndexes":[${optionIndexes.joinToString(",")}]}"""
         val req = Request.Builder()
             .url("${ApiConfig.BASE_URL}/api/polls/$pollId/vote")
             .header("Authorization", "Bearer $token")
             .post(body.toRequestBody("application/json".toMediaType()))
             .build()
-        client.newCall(req).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) error("poll_vote_${resp.code}:$text")
-            text
-        }
+        return executeForText(req, "poll_vote")
     }
 
-    suspend fun listBots(token: String): Result<String> = runIoCatching {
+    suspend fun listBots(token: String): Result<String> {
         val req = Request.Builder()
             .url("${ApiConfig.BASE_URL}/api/bots")
             .header("Authorization", "Bearer $token")
             .get()
             .build()
-        client.newCall(req).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) error("bots_${resp.code}:$text")
-            text
-        }
+        return executeForText(req, "bots")
     }
 
-    suspend fun createBot(token: String, name: String, username: String, description: String? = null): Result<String> = runIoCatching {
+    suspend fun createBot(token: String, name: String, username: String, description: String? = null): Result<String> {
         val o = org.json.JSONObject()
         o.put("name", name)
         o.put("username", username)
@@ -2247,67 +2235,47 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
             .header("Authorization", "Bearer $token")
             .post(o.toString().toRequestBody("application/json".toMediaType()))
             .build()
-        client.newCall(req).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) error("bot_create_${resp.code}:$text")
-            text
-        }
+        return executeForText(req, "bot_create")
     }
 
 
-    suspend fun getGroupPoll(token: String, pollId: String): Result<String> = runIoCatching {
+    suspend fun getGroupPoll(token: String, pollId: String): Result<String> {
         val req = Request.Builder()
             .url("${ApiConfig.BASE_URL}/api/polls/$pollId")
             .header("Authorization", "Bearer $token")
             .get()
             .build()
-        client.newCall(req).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) error("poll_get_${resp.code}:$text")
-            text
-        }
+        return executeForText(req, "poll_get")
     }
 
-    suspend fun setBotWebhook(token: String, botId: String, url: String?): Result<String> = runIoCatching {
+    suspend fun setBotWebhook(token: String, botId: String, url: String?): Result<String> {
         val payload = if (url == null) """{"url":null}""" else org.json.JSONObject().put("url", url).toString()
         val req = Request.Builder()
             .url("${ApiConfig.BASE_URL}/api/bots/$botId/webhook")
             .header("Authorization", "Bearer $token")
             .put(payload.toRequestBody("application/json".toMediaType()))
             .build()
-        client.newCall(req).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) error("bot_webhook_${resp.code}:$text")
-            text
-        }
+        return executeForText(req, "bot_webhook")
     }
 
-    suspend fun regenerateBotToken(token: String, botId: String): Result<String> = runIoCatching {
+    suspend fun regenerateBotToken(token: String, botId: String): Result<String> {
         val req = Request.Builder()
             .url("${ApiConfig.BASE_URL}/api/bots/$botId/token")
             .header("Authorization", "Bearer $token")
             .post("{}".toRequestBody("application/json".toMediaType()))
             .build()
-        client.newCall(req).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) error("bot_token_${resp.code}:$text")
-            text
-        }
+        return executeForText(req, "bot_token")
     }
 
 
-    suspend fun inviteBotToChat(token: String, chatId: String, botId: String): Result<String> = runIoCatching {
+    suspend fun inviteBotToChat(token: String, chatId: String, botId: String): Result<String> {
         val payload = org.json.JSONObject().put("botId", botId).toString()
         val req = Request.Builder()
             .url("${ApiConfig.BASE_URL}/api/chats/$chatId/bots")
             .header("Authorization", "Bearer $token")
             .post(payload.toRequestBody("application/json".toMediaType()))
             .build()
-        client.newCall(req).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) error("bot_invite_${resp.code}:$text")
-            text
-        }
+        return executeForText(req, "bot_invite")
     }
 
     suspend fun postBotCallback(
@@ -2316,7 +2284,7 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
         messageId: String,
         botUserId: String,
         callbackData: String
-    ): Result<Boolean> = runIoCatching {
+    ): Result<Boolean> {
         val payload = org.json.JSONObject()
             .put("messageId", messageId)
             .put("botUserId", botUserId)
@@ -2327,10 +2295,7 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
             .header("Authorization", "Bearer $token")
             .post(payload.toRequestBody("application/json".toMediaType()))
             .build()
-        client.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) error("bot_callback_${resp.code}")
-            true
-        }
+        return executeForText(req, "bot_callback").map { true }
     }
 
     private suspend fun <T> runIoCatching(block: () -> T): Result<T> = withContext(Dispatchers.IO) {
@@ -2343,72 +2308,52 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
         }
     }
 
-    suspend fun deleteBot(token: String, botId: String): Result<String> = runIoCatching {
+    suspend fun deleteBot(token: String, botId: String): Result<String> {
         val req = Request.Builder()
             .url("${ApiConfig.BASE_URL}/api/bots/$botId")
             .header("Authorization", "Bearer $token")
             .delete()
             .build()
-        client.newCall(req).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) error("bot_delete_${resp.code}:$text")
-            text
-        }
+        return executeForText(req, "bot_delete")
     }
 
-    suspend fun setBotEnabled(token: String, botId: String, enabled: Boolean): Result<String> = runIoCatching {
+    suspend fun setBotEnabled(token: String, botId: String, enabled: Boolean): Result<String> {
         val payload = org.json.JSONObject().put("enabled", enabled).toString()
         val req = Request.Builder()
             .url("${ApiConfig.BASE_URL}/api/bots/$botId/enabled")
             .header("Authorization", "Bearer $token")
             .put(payload.toRequestBody("application/json".toMediaType()))
             .build()
-        client.newCall(req).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) error("bot_enabled_${resp.code}:$text")
-            text
-        }
+        return executeForText(req, "bot_enabled")
     }
 
     /** 活跃公告（含本用户 acked 状态），返回 JSON 字符串由调用方解析。 */
-    suspend fun getActiveAnnouncements(token: String): Result<String> = runIoCatching {
+    suspend fun getActiveAnnouncements(token: String): Result<String> {
         val req = Request.Builder()
             .url("${ApiConfig.BASE_URL}/api/announcements/active")
             .header("Authorization", "Bearer $token")
             .get()
             .build()
-        client.newCall(req).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) error("announcements_active_${resp.code}:$text")
-            text
-        }
+        return executeForText(req, "announcements_active")
     }
 
     /** 公告已读确认。 */
-    suspend fun ackAnnouncement(token: String, announcementId: String): Result<String> = runIoCatching {
+    suspend fun ackAnnouncement(token: String, announcementId: String): Result<String> {
         val req = Request.Builder()
             .url("${ApiConfig.BASE_URL}/api/announcements/$announcementId/ack")
             .header("Authorization", "Bearer $token")
             .post(ByteArray(0).toRequestBody(null))
             .build()
-        client.newCall(req).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) error("announcement_ack_${resp.code}:$text")
-            text
-        }
+        return executeForText(req, "announcement_ack")
     }
 
     /** 推送 HMAC 校验密钥（经认证通道下发；返回 JSON 字符串由调用方解析，key 为 null 表示未配置）。 */
-    suspend fun getPushVerifyKey(token: String): Result<String> = runIoCatching {
+    suspend fun getPushVerifyKey(token: String): Result<String> {
         val req = Request.Builder()
             .url("${ApiConfig.BASE_URL}/api/push/verify-key")
             .header("Authorization", "Bearer $token")
             .get()
             .build()
-        client.newCall(req).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) error("push_verify_key_${resp.code}:$text")
-            text
-        }
+        return executeForText(req, "push_verify_key")
     }
 }

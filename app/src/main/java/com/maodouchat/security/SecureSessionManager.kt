@@ -33,8 +33,10 @@ class SecureSessionManager(
         destroyEncryptedDatabase: Boolean = true,
         expectedOwnerUserId: String? = null
     ): Boolean {
-        // 退出/换号清理必须跑完：中途 cancel 会留下半清状态与串号风险
-        return kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+        // 退出/换号清理必须跑完：中途 cancel 会留下半清状态与串号风险；
+        // 清理含大量磁盘 IO（删除媒体缓存/密聊目录/清空 Coil 磁盘缓存/删库），必须在 IO 线程执行，
+        // 否则主线程同步阻塞直接 ANR。
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.NonCancellable) {
             purgeMutex.withLock {
                 if (expectedOwnerUserId != null && tokenManager.getUserId() != expectedOwnerUserId) {
                     return@withLock false

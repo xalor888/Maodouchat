@@ -1766,7 +1766,9 @@ class ChatCleanupRouteTest {
         assertEquals(HttpStatusCode.OK, client.delete("/api/chats/$chatId") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
         }.status)
-        assertEquals(HttpStatusCode.OK, client.delete("/api/chats/$chatId") {
+        // 1:1 一方删除后整会话清除（避免对方残留 1 人幽灵会话与重复私聊）：
+        // 另一方已非成员，再删返回 403
+        assertEquals(HttpStatusCode.Forbidden, client.delete("/api/chats/$chatId") {
             header(HttpHeaders.Authorization, "Bearer $participantToken")
         }.status)
         assertEquals(HttpStatusCode.NotFound, client.get("/api/chats/$chatId") {

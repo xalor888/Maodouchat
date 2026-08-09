@@ -206,7 +206,7 @@ class DataRetentionPurgeTest {
             assertEquals(1, groupAuditDeleted, "仅删超期群审计")
             assertEquals(1, botDeleted, "仅删超期 bot 命令日志")
             assertEquals(1, preKeyDeleted, "仅删超期 consumed prekey")
-            assertEquals(3, derivedDeleted, "超期消息的 reaction+回执+收藏共 3 行")
+            assertEquals(2, derivedDeleted, "超期消息的 reaction+收藏共 2 行（ReadReceipts 保留防未读振荡）")
             // 近期数据全部保留
             assertTrue(FriendRequests.selectAll().count() == 1L)
             assertTrue(GroupCheckins.selectAll().count() == 1L)
@@ -218,7 +218,8 @@ class DataRetentionPurgeTest {
             assertTrue(BotCommandLogs.selectAll().count() == 1L)
             assertTrue(SignalKeys.selectAll().count() == 1L)
             assertTrue(MessageReactions.selectAll().count() == 1L)
-            assertTrue(ReadReceipts.selectAll().count() == 1L)
+            // ReadReceipts 不参与清理（未读数按回执存在与否计算，清掉会让旧消息周期性"复活"为未读）
+            assertTrue(ReadReceipts.selectAll().count() == 2L)
             assertTrue(StarMessages.selectAll().count() == 1L)
         }
     }

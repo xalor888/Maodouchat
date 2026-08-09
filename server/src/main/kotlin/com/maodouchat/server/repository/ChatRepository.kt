@@ -374,13 +374,16 @@ class ChatRepository {
 
             // 修复 lastMessage/lastMessageType 不一致：当只有 SK_DIST 消息时，统一用空预览
             val effectiveLastMsg = visibleLastMsg ?: if (lastMsgType == HIDDEN_SENDER_KEY_TYPE) null else visibleLastMsg
+            // SK_DIST 时间仍参与排序，避免密钥分发后会话掉底
+            val isLastSkDist = lastMsgType == HIDDEN_SENDER_KEY_TYPE
+            val lastMsgTime = lastMsg?.get(Messages.timestamp) ?: 0
 
             ChatResponse(
                 id = chatId,
                 participants = participants,
                 lastMessage = effectiveLastMsg?.let { previewForType(it[Messages.type]) } ?: "",
                 lastMessageType = effectiveLastMsg?.get(Messages.type) ?: "TEXT",
-                lastMessageTime = effectiveLastMsg?.get(Messages.timestamp) ?: 0,
+                lastMessageTime = if (isLastSkDist) lastMsgTime else (effectiveLastMsg?.get(Messages.timestamp) ?: 0),
                 isGroup = chat[Chats.isGroup],
                 chatType = chat[Chats.chatType],
                 groupName = chat[Chats.groupName],
@@ -511,11 +514,11 @@ class ChatRepository {
                     // SK_DIST 是内部密钥分发消息，不作为预览显示
                     val lastMsgType = lastMsg?.get(Messages.type)
                     val lastMsgSender = lastMsg?.get(Messages.senderId)
-                    val effectiveLastMsg = if (
-                        lastMsgType == "SK_DIST" ||
-                        (lastMsgSender != null && lastMsgSender != userId && lastMsgSender in blockedEitherWay)
-                    ) {
-                        // 8.48：最后消息发送者被双向拉黑 → 不显示明文预览（与历史双向过滤一致）
+                    val lastMsgTime = lastMsg?.get(Messages.timestamp) ?: 0
+                    // 8.48：最后消息发送者被双向拉黑 → 不显示明文预览（与历史双向过滤一致）
+                    val previewBlocked = lastMsgSender != null && lastMsgSender != userId && lastMsgSender in blockedEitherWay
+                    val isLastSkDist = lastMsgType == "SK_DIST"
+                    val effectiveLastMsg = if (isLastSkDist || previewBlocked) {
                         null
                     } else {
                         lastMsg
@@ -526,7 +529,8 @@ class ChatRepository {
                         participants = participants,
                         lastMessage = effectiveLastMsg?.let { row -> previewForType(row[Messages.type]) } ?: "",
                         lastMessageType = effectiveLastMsg?.get(Messages.type) ?: "TEXT",
-                        lastMessageTime = effectiveLastMsg?.get(Messages.timestamp) ?: 0,
+                        // SK_DIST 时间仍参与排序，避免密钥分发后会话列表掉到底部
+                        lastMessageTime = if (isLastSkDist) lastMsgTime else (effectiveLastMsg?.get(Messages.timestamp) ?: 0),
                         unreadCount = unreadByChat[id] ?: 0,
                         isGroup = chatRow[Chats.isGroup],
                         chatType = chatRow[Chats.chatType],
@@ -713,6 +717,16 @@ class ChatRepository {
                     result = LeaveChatResult.LEFT,
                     deletedAttachmentIds = attachmentIds,
                     deletedGroupAvatarUrl = chat[Chats.groupAvatar]
+                )
+            } else if (!chat[Chats.isGroup] && remaining == 1L) {
+                // 1:1 一方删除后只剩对方一人：整会话清除（含对方侧的幽灵 1 人会话），
+                // 否则对方列表残留“只有自己”的旧会话，且 getOrCreateDirectChat 要求恰好 2 名成员
+                // 会新建一个私聊，同一对用户出现重复会话。
+                val attachmentIds = deleteChatRows(chatId)
+                LeaveChatOutcome(
+                    result = LeaveChatResult.LEFT,
+                    deletedAttachmentIds = attachmentIds,
+                    deletedGroupAvatarUrl = null
                 )
             } else {
                 // 1:1 任一方离开后 pair 映射失效：否则 getOrCreateDirectChat 会回落到半空 chat，重开私聊永远加不回自己

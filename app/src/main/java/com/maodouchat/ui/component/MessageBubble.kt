@@ -1364,14 +1364,10 @@ private fun VoiceBubble(
     )
     val earpiece = if (isThisActive) playerState.earpiece else false
 
-    // 组件销毁时如果自己正在播，停止
-    androidx.compose.runtime.DisposableEffect(message.id) {
-        onDispose {
-            if (com.maodouchat.util.VoicePlayer.state.value.messageId == message.id) {
-                com.maodouchat.util.VoicePlayer.stop()
-            }
-        }
-    }
+    // 注意：不再在气泡 onDispose 时停播——LazyColumn 回收滚出视口的气泡会触发 onDispose，
+    // 导致滚动阅读历史时正在播放的语音被骤然打断。播放归属聊天屏生命周期：
+    // ChatDetailViewModel.onCleared() 统一 VoicePlayer.stop()（返回/退出聊天即停）。
+    // 自然播完的连播逻辑走 VoicePlayer 的 onCompletion（见 ChatDetailScreen）。
 
     Row(
         modifier = modifier.fillMaxWidth(),

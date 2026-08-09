@@ -611,16 +611,19 @@ class MessageRepository {
     }
 
     /**
-     * 清理超过保留期消息的派生行（ReadReceipts / MessageReactions / StarMessages），
+     * 清理超过保留期消息的派生行（MessageReactions / StarMessages），
      * 防止这些表随历史消息长期累积。子查询按 Messages.createdAt 定位旧消息，
      * 不动近期消息的任何数据。由 Routing.kt 的周期清理循环调用。
+     *
+     * 注意：**不能**清理 ReadReceipts——未读数按“回执是否存在”计算
+     * （Messages.id notInSubQuery readByUser），清掉回执会让一年前的历史消息
+     * 周期性“复活”为未读，造成未读角标永久振荡。
      */
     fun purgeOldDerivedRows(retentionDays: Long = DERIVED_ROW_RETENTION_DAYS): Int {
         val cutoff = System.currentTimeMillis() - retentionDays * 24L * 60L * 60L * 1_000L
         return transaction {
             val oldMessageIds = Messages.slice(Messages.id).select { Messages.timestamp less cutoff }
             MessageReactions.deleteWhere { MessageReactions.messageId inSubQuery oldMessageIds } +
-                ReadReceipts.deleteWhere { ReadReceipts.messageId inSubQuery oldMessageIds } +
                 StarMessages.deleteWhere { StarMessages.messageId inSubQuery oldMessageIds }
         }
     }
@@ -1084,8 +1087,9 @@ class MessageRepository {
         val normalizedType = type.take(20).ifBlank { "TEXT" }
         if (normalizedType == "SK_DIST" || normalizedType == "REVOKED") return@transaction false
         // Bot messages are plaintext server-visible notices (not E2EE peer content).
-        // 剥离 content 中的伪造 <meta> 键盘块（防 callback-data 注入）。
-        val cleanContent = stripInlineMeta(content)
+        // 剥离 content 中伪造的 <meta> 键盘块（防 callback-data 注入），但保留
+        // sendMessage 端点追加在末尾的服务端键盘块（否则内联键盘不落库，重拉历史后消失）。
+        val cleanContent = stripInlineMetaPreservingTrailing(content)
         Messages.insert {
             it[Messages.id] = id
             it[Messages.chatId] = chatId
@@ -1218,4 +1222,20 @@ internal fun stripInlineMeta(content: String): String {
     var out = Regex("<meta>.*?</meta>", RegexOption.DOT_MATCHES_ALL).replace(content, "")
     out = out.replace("</meta>", "").replace("<meta>", "")
     return out.trim()
+}
+
+/**
+ * 同 [stripInlineMeta]，但保留**末尾**的 `<meta>...</meta>` 块。
+ * sendMessage 端点对含键盘的 bot 消息会在内容末尾追加服务端键盘块；
+ * 这里剥除用户在内容中部伪造的 meta 块，同时让服务端键盘落库，
+ * 保证断线重拉历史后内联键盘仍然可见。
+ */
+internal fun stripInlineMetaPreservingTrailing(content: String): String {
+    val metaPattern = Regex("<meta>.*?</meta>", RegexOption.DOT_MATCHES_ALL)
+    val trailingMeta = metaPattern.findAll(content).lastOrNull()?.value
+    var out = metaPattern.replace(content, "")
+    out = out.replace("</meta>", "").replace("<meta>", "")
+    out = out.trim()
+    if (trailingMeta != null && trailingMeta !in out) out = out + trailingMeta
+    return out
 }

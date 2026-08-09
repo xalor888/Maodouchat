@@ -928,7 +928,18 @@ private fun backfillModeratorEmails() {
 private fun backfillModerationRules() {
     val now = System.currentTimeMillis()
     DEFAULT_MODERATION_RULES.forEach { seed ->
-        if (ModerationRules.selectAll().where { ModerationRules.id eq seed.id }.firstOrNull() != null) return@forEach
+        if (ModerationRules.selectAll().where { ModerationRules.id eq seed.id }.firstOrNull() != null) {
+            // 修复旧数据：rule_spam_keywords / rule_short_link 早期以 KEYWORD/URL 类型存了
+            // 正则 pattern（字面量匹配永不命中，默认内容安全防线形同虚设），统一纠正为 REGEX。
+            if (seed.matchType == "REGEX") {
+                val existingType = ModerationRules.select(ModerationRules.matchType)
+                    .where { ModerationRules.id eq seed.id }.firstOrNull()?.get(ModerationRules.matchType)
+                if (existingType != "REGEX") {
+                    ModerationRules.update({ ModerationRules.id eq seed.id }) { it[ModerationRules.matchType] = "REGEX" }
+                }
+            }
+            return@forEach
+        }
         ModerationRules.insert {
             it[ModerationRules.id] = seed.id
             it[ModerationRules.name] = seed.name
@@ -968,7 +979,7 @@ private val DEFAULT_MODERATION_RULES = listOf(
         name = "常见营销引流关键词",
         description = "命中常见营销、博彩或引流词时进入人工复核",
         scope = "ALL",
-        matchType = "KEYWORD",
+        matchType = "REGEX",
         pattern = "兼职\\s*日结|免费\\s*约|加我\\s*v?x|代刷|网赚|博彩|网赌",
         action = "WARN_MOD",
         windowMs = 24L * 60L * 60L * 1000L,
@@ -981,7 +992,7 @@ private val DEFAULT_MODERATION_RULES = listOf(
         name = "可疑短链",
         description = "动态或评论中出现常见短链时进入人工复核",
         scope = "ALL",
-        matchType = "URL",
+        matchType = "REGEX",
         pattern = "(?:t\\.cn|bit\\.ly|tinyurl\\.com|goo\\.gl|is\\.gd|ow\\.ly|buff\\.ly|adf\\.ly)",
         action = "WARN_MOD",
         windowMs = 24L * 60L * 60L * 1000L,

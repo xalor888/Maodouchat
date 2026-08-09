@@ -1657,15 +1657,16 @@ put("status", "ok")
                 else call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
             }
 
-            // P0 修复后续：推送 HMAC 对称密钥经认证通道下发（此前匿名暴露在 /api/public/status，
-            // 任何客户端可拿密钥伪造 FCM 签名）。仅认证用户可取；客户端缓存到 PushVerifyPrefs。
+            // P0 修复后续：推送 HMAC 签名密钥经认证通道下发（此前匿名暴露在 /api/public/status，
+            // 任何客户端可拿密钥伪造 FCM 签名）。密钥按用户派生（HMAC(master, userId)），
+            // 仅认证用户可取**自己的**派生密钥——只能伪造发给自己的推送，无法伪造他人。
             get("/api/push/verify-key") {
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
                 val secret = com.maodouchat.server.config.ServerConfig.pushHmacSecret
                 if (secret.isBlank() || secret.startsWith("dev-only-")) {
                     call.respond(buildJsonObject { put("key", JsonNull) })
                 } else {
-                    call.respond(buildJsonObject { put("key", secret) })
+                    call.respond(buildJsonObject { put("key", com.maodouchat.server.service.FcmPushService.pushKeyForUser(userId)) })
                 }
             }
 
@@ -2002,7 +2003,7 @@ put("ok", true)
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
                 val user = userRepo.getPublicMe(userId)
                 if (user != null) {
-                    val publicProfileUrl = user.username?.let { "https://chat.mdou.me/u/${it}" }
+                    val publicProfileUrl = user.username?.let { "${ServerConfig.baseUrl.trimEnd('/')}/u/${it}" }
                     call.respond(
                 buildJsonObject {
 put("user", Json.parseToJsonElement(Json.encodeToString(user)))
@@ -13219,6 +13220,11 @@ put("mutedUntil", mutedUntil)
             post("/api/chats/{chatId}/mute-all") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject
                 val cid = call.parameters["chatId"]!!
+                if (call.rejectIfSuspended(userRepo, uid)) return@post
+                if (!chatRepo.isOwnerOrAdmin(cid, uid)) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("只有群主或管理员可以全员静音", code = "GROUP_PERMISSION_DENIED"))
+                    return@post
+                }
                 val req = call.receiveBoundedText()?.let { parseJson<UpdateMemberMuteRequest>(it) } ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效")); return@post
                 }
@@ -13232,7 +13238,9 @@ put("mutedUntil", mutedUntil)
                 }
                 val memberIds = chatRepo.getParticipantIds(cid)
                 val updated = chatRepo.muteGroupMembersAsAdmin(cid, uid, memberIds, mutedUntil)
-                notifyGroupRevisionChanged(chatRepo, json, cid, "MUTE_UPDATED", uid, null)
+                if (updated > 0) {
+                    notifyGroupRevisionChanged(chatRepo, json, cid, "MUTE_UPDATED", uid, null)
+                }
                 call.respond(
                 buildJsonObject {
 put("status", "ok")
@@ -14645,6 +14653,8 @@ put("status", "ok")
                                 // 8.48 修复 M5：getParticipantIds 提到消息循环外（此前每条已读消息查一次）
                                 val expireRecipients = try { chatRepo.getParticipantIds(chatId) } catch (_: Exception) { emptyList() }
                                 updated.forEach { (messageId, senderId, expiresAt) ->
+                                    // 双向拉黑不向对方推已读，避免泄露“仍在读”（与单聊 mark-read 口径一致）
+                                    if (userRepo.isBlockedEitherWay(uid, senderId)) return@forEach
                                     val statusJson = json.encodeToString(
                                         WsMessage.serializer(),
                                         WsMessage("MESSAGE_STATUS", json.encodeToString(

@@ -199,8 +199,10 @@ object ConversationWidgetData {
         val last = prefs.getLong(KEY_LAST_PUSH_MS, 0L)
         if (now - last < ConversationWidgetContract.PUSH_WINDOW_MS) return
         prefs.edit().putLong(KEY_LAST_PUSH_MS, now).apply()
-        val service = Intent(context, ConversationWidgetSyncService::class.java)
-        runCatching { context.startService(service) }
+        // Android 8+ 后台 startService 抛 IllegalStateException（被吞掉后小组件静默不更新）。
+        // refreshAll 在 applicationScope 协程内跑（本地 DB 读取 + RemoteViews 更新），
+        // 无需服务进程；进程被杀场景由 AlarmManager 周期同步兜底。
+        refreshAll(context)
     }
 
     // ---- 周期同步（AlarmManager） ----

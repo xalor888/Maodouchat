@@ -668,8 +668,13 @@ class PostRepository {
 
     /** 1.52：点赞评论（幂等；返回 (新点赞数, 是否新点赞)）。 */
     fun likeComment(commentId: String, userId: String): Pair<Int, Boolean> = transaction {
-        val commentExists = !PostComments.selectAll().where { PostComments.id eq commentId }.limit(1).empty()
-        if (!commentExists) return@transaction (-1 to false)
+        val comment = PostComments.selectAll().where { PostComments.id eq commentId }.limit(1).firstOrNull()
+            ?: return@transaction (-1 to false)
+        // 与 likePost 一致：评论所属动态对当前用户不可见（PRIVATE/CONTACTS/双向拉黑）时禁止点赞，
+        // 避免越权交互与“评论是否存在”的探测 oracle
+        if (!canViewInTransaction(comment[PostComments.postId], userId, lockPost = false)) {
+            return@transaction (-1 to false)
+        }
         val alreadyLiked = !CommentLikes.selectAll()
             .where { (CommentLikes.commentId eq commentId) and (CommentLikes.userId eq userId) }
             .limit(1)
@@ -690,6 +695,11 @@ class PostRepository {
 
     /** 1.52：取消点赞评论（幂等；返回新点赞数）。 */
     fun unlikeComment(commentId: String, userId: String): Int = transaction {
+        val comment = PostComments.selectAll().where { PostComments.id eq commentId }.limit(1).firstOrNull()
+            ?: return@transaction -1
+        if (!canViewInTransaction(comment[PostComments.postId], userId, lockPost = false)) {
+            return@transaction -1
+        }
         CommentLikes.deleteWhere {
             (CommentLikes.commentId eq commentId) and (CommentLikes.userId eq userId)
         }
