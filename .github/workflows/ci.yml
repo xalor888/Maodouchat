@@ -144,7 +144,15 @@ jobs:
 
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug --no-daemon --console=plain
-        continue-on-error: true
+
+      - name: Verify debug APK with aapt2 (manifest/resources parse + icon)
+        run: |
+          AAPT2=$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -1)
+          test -n "$AAPT2"
+          "$AAPT2" dump badging app/build/outputs/apk/debug/app-debug.apk > /tmp/badging.txt
+          grep -E "^package:|^application-label:|^application-icon-[0-9]+:" /tmp/badging.txt | head -8
+          grep -q "^package: name='com.maodouchat'" /tmp/badging.txt
+          grep -q "application-icon" /tmp/badging.txt
 
   docker-config:
     name: Docker Compose Config
