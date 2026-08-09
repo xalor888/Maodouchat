@@ -120,7 +120,7 @@ try {
   async function acceptConfirm() {
     await page.locator("#modal-overlay:not(.hidden)").waitFor();
     await page.locator("#modal-confirm").click();
-    await page.locator("#modal-overlay.hidden").waitFor();
+    await page.locator("#modal-overlay:not(.hidden)").waitFor({ state: "hidden" });
   }
 
   await page.locator("#rule-submit").click();
