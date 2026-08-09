@@ -117,7 +117,14 @@ try {
   await page.locator("#rule-type").selectOption("KEYWORD");
   await page.locator("#rule-pattern").fill("e2e-pattern");
   await page.locator("#rule-action").selectOption("WARN_MOD");
+  async function acceptConfirm() {
+    await page.locator("#modal-overlay:not(.hidden)").waitFor();
+    await page.locator("#modal-confirm").click();
+    await page.locator("#modal-overlay.hidden").waitFor();
+  }
+
   await page.locator("#rule-submit").click();
+  await acceptConfirm();
   let ruleRow = page.locator("tbody tr").filter({ hasText: ruleName });
   await ruleRow.waitFor();
 
@@ -125,11 +132,13 @@ try {
   await page.locator("#rule-name").fill(editedRuleName);
   await page.locator("#rule-pattern").fill("e2e-pattern-edited");
   await page.locator("#rule-submit").click();
+  await acceptConfirm();
   ruleRow = page.locator("tbody tr").filter({ hasText: editedRuleName });
   await ruleRow.waitFor();
   assert.match(await ruleRow.innerText(), /e2e-pattern-edited/);
 
   await ruleRow.locator("[data-rule-toggle]").click();
+  await acceptConfirm();
   ruleRow = page.locator("tbody tr").filter({ hasText: editedRuleName });
   await ruleRow.waitFor();
   assert.match(await ruleRow.innerText(), /停用/);
@@ -155,8 +164,8 @@ try {
   await page.locator('nav button[data-tab="rules"]').click();
   ruleRow = page.locator("tbody tr").filter({ hasText: editedRuleName });
   await ruleRow.waitFor();
-  page.once("dialog", dialog => dialog.accept());
   await ruleRow.locator("[data-rule-delete]").click();
+  await acceptConfirm();
   await page.locator("tbody tr").filter({ hasText: editedRuleName }).waitFor({ state: "detached" });
 
   await page.locator("#logout").click();
