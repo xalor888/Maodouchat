@@ -1,6 +1,7 @@
 package com.maodouchat.ui.component
 
 import com.maodouchat.util.RuntimeFlags
+import android.annotation.SuppressLint
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -515,6 +516,7 @@ private fun Modifier.captureBubbleBounds(onBoundsMeasured: ((IntOffset, IntSize)
 }
 
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 private fun TextBubble(
     message: Message,
     isOwnMessage: Boolean,
@@ -2242,6 +2244,7 @@ private fun DisappearCountdownLabel(
  * 仅在消息正文含 http(s) URL 时拉取；Repository 进程缓存命中时无 loading 闪烁。
  */
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 private fun LinkPreviewSlot(
     messageContent: String,
     isOwnMessage: Boolean,

@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.util.RuntimeFlags
+import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Intent
 import android.net.Uri
@@ -1832,6 +1833,8 @@ fun GroupDetailScreen(
 }
 
 @Composable
+// 资源字符串均在回调/协程内读取，非组合作用域
+@SuppressLint("LocalContextGetResourceValueCall")
 private fun GroupInviteDialog(
     payload: String,
     isLoading: Boolean,

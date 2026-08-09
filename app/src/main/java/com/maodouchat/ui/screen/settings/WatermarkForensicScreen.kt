@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.settings
 
+import android.annotation.SuppressLint
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -68,6 +69,7 @@ private fun computeInSampleSize(outWidth: Int, outHeight: Int, reqWidth: Int, re
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 fun WatermarkForensicScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

@@ -38,7 +38,7 @@ object AppLocaleManager {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_LANGUAGE, normalized)
-            .commit()
+            .apply()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val tags = languageTag(normalized)

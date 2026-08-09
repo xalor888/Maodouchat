@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
 
+import android.annotation.SuppressLint
 import com.maodouchat.util.RuntimeFlags
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -148,6 +149,8 @@ object ExploreBadgeStore {
 /** Chat list (recovered): NavGraph API + folders + secret gates + public/status runtime sync. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
+// 资源字符串均在回调/协程内读取，非组合作用域
+@SuppressLint("LocalContextGetResourceValueCall")
 fun ChatListScreen(
     onChatClick: (String) -> Unit,
     onOpenGroupDetail: (String) -> Unit,

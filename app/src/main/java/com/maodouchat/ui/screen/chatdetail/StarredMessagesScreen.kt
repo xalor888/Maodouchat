@@ -4,6 +4,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material.icons.outlined.DeleteSweep
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.util.RuntimeFlags
+import android.annotation.SuppressLint
 import android.app.Application
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -411,6 +412,7 @@ class StarredMessagesViewModel(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 fun StarredMessagesScreen(
     onBack: () -> Unit,
     onOpenMessage: (chatId: String, messageId: String) -> Unit = { _, _ -> },
@@ -696,14 +698,14 @@ private fun chatTitle(chat: Chat?, currentUserId: String): String {
 @Composable
 private fun Message.starredPreview(context: android.content.Context): String = when (type) {
     MessageType.TEXT, MessageType.MARKDOWN -> parsedContent()
-    MessageType.IMAGE -> context.getString(R.string.message_preview_image)
-    MessageType.GIF -> context.getString(R.string.message_preview_gif)
-    MessageType.STICKER -> context.getString(R.string.message_preview_sticker)
-    MessageType.LOCATION -> context.getString(R.string.message_preview_location)
-    MessageType.VIDEO -> context.getString(R.string.message_preview_video)
-    MessageType.VOICE -> context.getString(R.string.message_preview_voice)
-    MessageType.FILE -> context.getString(R.string.message_preview_file)
-    MessageType.REVOKED -> context.getString(R.string.chat_message_revoked_placeholder)
+    MessageType.IMAGE -> stringResource(R.string.message_preview_image)
+    MessageType.GIF -> stringResource(R.string.message_preview_gif)
+    MessageType.STICKER -> stringResource(R.string.message_preview_sticker)
+    MessageType.LOCATION -> stringResource(R.string.message_preview_location)
+    MessageType.VIDEO -> stringResource(R.string.message_preview_video)
+    MessageType.VOICE -> stringResource(R.string.message_preview_voice)
+    MessageType.FILE -> stringResource(R.string.message_preview_file)
+    MessageType.REVOKED -> stringResource(R.string.chat_message_revoked_placeholder)
     else -> content
 }
 

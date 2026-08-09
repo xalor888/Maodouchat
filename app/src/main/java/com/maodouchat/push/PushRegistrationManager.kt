@@ -208,6 +208,7 @@ object PushRegistrationManager {
         val generated = UUID.randomUUID().toString()
         // 8.40：首次生成必须 commit() 同步落盘——apply() 是异步的，生成后立即被杀会换新
         // deviceId 并注册，服务端保留旧 id 的 FCM 绑定（旧 token 持续推送但不再被 unregister）
+        @Suppress("ApplySharedPref")
         prefs.edit().putString(KEY_DEVICE_ID, generated).commit()
         return generated
     }

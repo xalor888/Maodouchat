@@ -3,6 +3,7 @@
 package com.maodouchat.ui.screen.contacts
 
 import com.maodouchat.util.RuntimeFlags
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
@@ -334,6 +335,8 @@ fun MyQrCodeScreen(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+// 资源字符串均在回调/协程内读取，非组合作用域
+@SuppressLint("LocalContextGetResourceValueCall")
 fun ScanScreen(
     onBack: () -> Unit = {},
     onAddContact: (User) -> Unit = {},
@@ -730,6 +733,8 @@ fun ScanScreen(
 }
 
 @Composable
+// 资源字符串均在回调/协程内读取，非组合作用域
+@SuppressLint("LocalContextGetResourceValueCall")
 private fun safetyScanMessage(result: SafetyScanResult): String = when (result.status) {
     SafetyScanStatus.SESSION_EXPIRED -> stringResource(R.string.error_session_expired)
     SafetyScanStatus.WRONG_ACCOUNT -> stringResource(R.string.contacts_safety_wrong_account)

@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.settings
 
+import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -123,6 +124,7 @@ import com.maodouchat.ui.theme.MotionTokens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 fun SettingsScreen(
     onLogout: () -> Unit = {},
     onBack: () -> Unit = {},

@@ -3,6 +3,7 @@
 package com.maodouchat.ui.screen.explore
 
 import com.maodouchat.util.RuntimeFlags
+import android.annotation.SuppressLint
 import android.Manifest
 import android.app.Application
 import android.widget.Toast
@@ -935,6 +936,8 @@ private fun relativeTime(ts: Long): String {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+// 资源字符串均在回调/协程内读取，非组合作用域
+@SuppressLint("LocalContextGetResourceValueCall")
 fun PostDetailScreen(
     postId: String,
     onBack: () -> Unit = {},

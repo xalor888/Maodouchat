@@ -4,6 +4,7 @@ package com.maodouchat.ui.screen.settings
 
 import com.maodouchat.util.RuntimeFlags
 import android.app.Activity
+import android.annotation.SuppressLint
 import android.content.ContextWrapper
 import android.os.Build
 import androidx.compose.foundation.background
@@ -132,6 +133,7 @@ import java.util.Locale
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调内读取，非组合作用域
 fun AccountSecurityScreen(
     onBack: () -> Unit = {},
     onOpenMyQrCode: () -> Unit = {},
@@ -2317,6 +2319,7 @@ private fun ReportReviewDialog(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 部分资源字符串在回调内读取，lint 无法区分；组合作用域内已用 stringResource
 fun NotificationSettingsScreen(
     onBack: () -> Unit = {},
     viewModel: NotificationSettingsViewModel = viewModel()
@@ -2324,6 +2327,7 @@ fun NotificationSettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showDndDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val ringtoneDefault = stringResource(R.string.notifications_ringtone_default)
     // 8.48：通知铃声选择（RingtoneManager picker；空 = 系统默认）
     var ringtoneUri by remember { mutableStateOf(com.maodouchat.notification.NotificationPreferences.ringtoneUri(context)) }
     val ringtoneTitle = remember(ringtoneUri) {
@@ -2331,7 +2335,7 @@ fun NotificationSettingsScreen(
             runCatching {
                 android.media.RingtoneManager.getRingtone(context, android.net.Uri.parse(uri))?.getTitle(context)
             }.getOrNull()
-        } ?: context.getString(R.string.notifications_ringtone_default)
+        } ?: ringtoneDefault
     }
     val ringtonePicker = rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
@@ -2349,7 +2353,7 @@ fun NotificationSettingsScreen(
             runCatching {
                 android.media.RingtoneManager.getRingtone(context, android.net.Uri.parse(uri))?.getTitle(context)
             }.getOrNull()
-        } ?: context.getString(R.string.notifications_ringtone_default)
+        } ?: ringtoneDefault
     }
     val groupRingtonePicker = rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
@@ -2649,6 +2653,7 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onCheck
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调内读取，非组合作用域
 fun GeneralSettingsScreen(
     onBack: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
@@ -3251,6 +3256,8 @@ fun ServerSettingsScreen(
     var input by remember { mutableStateOf(currentBase) }
     var result by remember { mutableStateOf<String?>(null) }
     var showResetConfirm by remember { mutableStateOf(false) }
+    val serverSavedText = stringResource(R.string.settings_server_saved)
+    val serverResetDoneText = stringResource(R.string.settings_server_reset_done)
 
     Column(modifier = Modifier.fillMaxSize().background(Background)) {
         TopAppBar(
@@ -3314,7 +3321,7 @@ fun ServerSettingsScreen(
                     if (error != null) {
                         result = error
                     } else {
-                        result = context.getString(R.string.settings_server_saved)
+                        result = serverSavedText
                         // 8.48 修复：切换服务器后重建 ImageLoader（apiHost/DNS/授权头按新服务器）
                         com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
                         // 8.48 修复：断开旧 WebSocket——否则 REST 已指向新服务器而 WS 仍连旧服务器
@@ -3329,7 +3336,7 @@ fun ServerSettingsScreen(
             Text(
                 text = result ?: stringResource(R.string.settings_server_ws_hint),
                 style = MaterialTheme.typography.bodySmall,
-                color = result?.let { if (it == context.getString(R.string.settings_server_saved)) Primary else Error } ?: TextSecondary,
+                color = result?.let { if (it == serverSavedText) Primary else Error } ?: TextSecondary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
@@ -3358,7 +3365,7 @@ fun ServerSettingsScreen(
                     com.maodouchat.network.ApiConfig.resetToDefault(context)
                     showResetConfirm = false
                     input = com.maodouchat.network.ApiConfig.BASE_URL
-                    result = context.getString(R.string.settings_server_reset_done)
+                    result = serverResetDoneText
                 }) {
                     Text(stringResource(R.string.common_confirm))
                 }
@@ -3567,13 +3574,14 @@ fun MyReportsScreen(onBack: () -> Unit = {}) {
     val reports = remember { mutableStateOf<List<com.maodouchat.network.ReportResponse>>(emptyList()) }
     val isLoading = remember { mutableStateOf(true) }
     val error = remember { mutableStateOf<String?>(null) }
+    val loadFailedText = stringResource(com.maodouchat.R.string.my_reports_load_failed)
 
     suspend fun load() {
         isLoading.value = true
         error.value = null
         com.maodouchat.network.ApiService.getMyReports(tokenManager.getToken().orEmpty())
             .onSuccess { reports.value = it }
-            .onFailure { error.value = context.getString(com.maodouchat.R.string.my_reports_load_failed) }
+            .onFailure { error.value = loadFailedText }
         isLoading.value = false
     }
     LaunchedEffect(Unit) { load() }
@@ -3614,16 +3622,15 @@ fun MyReportsScreen(onBack: () -> Unit = {}) {
 
 @Composable
 private fun MyReportCard(report: com.maodouchat.network.ReportResponse) {
-    val context = LocalContext.current
     val targetLabel = when (report.targetType) {
-        "MESSAGE" -> context.getString(com.maodouchat.R.string.my_reports_target_message)
-        "POST" -> context.getString(com.maodouchat.R.string.my_reports_target_post)
-        else -> context.getString(com.maodouchat.R.string.my_reports_target_user)
+        "MESSAGE" -> stringResource(com.maodouchat.R.string.my_reports_target_message)
+        "POST" -> stringResource(com.maodouchat.R.string.my_reports_target_post)
+        else -> stringResource(com.maodouchat.R.string.my_reports_target_user)
     }
     val statusLabel = if (report.status.equals("PENDING", ignoreCase = true)) {
-        context.getString(com.maodouchat.R.string.report_status_pending)
+        stringResource(com.maodouchat.R.string.report_status_pending)
     } else {
-        context.getString(com.maodouchat.R.string.report_status_resolved)
+        stringResource(com.maodouchat.R.string.report_status_resolved)
     }
     val timeText = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", androidx.compose.ui.platform.LocalConfiguration.current.locales[0])
         .format(java.util.Date(report.createdAt))
@@ -3659,7 +3666,7 @@ private fun MyReportCard(report: com.maodouchat.network.ReportResponse) {
         }
         report.resolutionNote?.takeIf { it.isNotBlank() }?.let { note ->
             Text(
-                text = context.getString(com.maodouchat.R.string.my_reports_resolution, note),
+                text = stringResource(com.maodouchat.R.string.my_reports_resolution, note),
                 style = MaterialTheme.typography.bodySmall,
                 color = TextHint,
                 modifier = Modifier.padding(top = 4.dp)
@@ -3680,6 +3687,8 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
     // 1.144：黑名单搜索
     var blockedSearch by rememberSaveable { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    val blockedLoadFailedText = stringResource(com.maodouchat.R.string.blocked_load_failed)
+    val unblockFailedText = stringResource(com.maodouchat.R.string.blocked_unblock_failed)
     val filteredBlocked = remember(blocked.value, blockedSearch) {
         val q = blockedSearch.trim()
         if (q.isBlank()) blocked.value
@@ -3691,7 +3700,7 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
         error.value = null
         com.maodouchat.network.ApiService.getBlockedUserDetails(tokenManager.getToken().orEmpty())
             .onSuccess { blocked.value = it }
-            .onFailure { error.value = context.getString(com.maodouchat.R.string.blocked_load_failed) }
+            .onFailure { error.value = blockedLoadFailedText }
         isLoading.value = false
     }
     LaunchedEffect(Unit) { load() }
@@ -3777,7 +3786,7 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
                                 scope.launch {
                                     com.maodouchat.network.ApiService.unblockUser(tokenManager.getToken().orEmpty(), user.id)
                                         .onSuccess { blocked.value = blocked.value.filter { it.id != user.id } }
-                                        .onFailure { error.value = context.getString(com.maodouchat.R.string.blocked_unblock_failed) }
+                                        .onFailure { error.value = unblockFailedText }
                                     unblockingIds.value = unblockingIds.value - user.id
                                 }
                             }

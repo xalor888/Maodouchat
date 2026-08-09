@@ -140,7 +140,6 @@ jobs:
 
       - name: Lint check (catch common bugs)
         run: ./gradlew :app:lintDebug --no-daemon --console=plain
-        continue-on-error: true
 
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug --no-daemon --console=plain

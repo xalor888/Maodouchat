@@ -3,6 +3,7 @@
 package com.maodouchat.ui.screen.explore
 
 import com.maodouchat.util.RuntimeFlags
+import android.annotation.SuppressLint
 import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -135,6 +136,8 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
+// 资源字符串均在回调/协程内读取，非组合作用域
+@SuppressLint("LocalContextGetResourceValueCall")
 fun ExploreScreen(
     onNavigateTo: (String) -> Unit = {},
     onOpenPost: (String) -> Unit = {},
@@ -765,6 +768,7 @@ private fun VisibilitySelector(
 }
 
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调内读取，非组合作用域
 private fun PostCard(
     post: PostDto,
     modifier: Modifier = Modifier,
@@ -929,6 +933,7 @@ private fun AnimatedLikeButton(likedByMe: Boolean, onLike: () -> Unit) {
 
 // 1.94：动态图片网格（Explore 与 PostDetail 共用；点击全屏查看）
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调内读取，非组合作用域
 internal fun ImageGrid(imageUrls: List<String>) {
     val columns = when (imageUrls.size) {
         1 -> 1

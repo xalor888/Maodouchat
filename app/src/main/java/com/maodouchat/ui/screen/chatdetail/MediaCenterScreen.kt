@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.util.RuntimeFlags
+import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
 import android.content.Intent
@@ -265,6 +266,7 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 fun MediaCenterScreen(
     onBack: () -> Unit,
     onOpenMessage: (String) -> Unit,
@@ -524,6 +526,7 @@ fun MediaCenterScreen(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 private fun MediaGrid(
     items: List<MediaCenterItem>,
     onOpenMessage: (String) -> Unit,
@@ -601,6 +604,7 @@ private fun MediaGrid(
 }
 
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 private fun MediaCenterImageViewer(
     message: Message,
     onDismiss: () -> Unit,
@@ -709,6 +713,7 @@ private fun MediaCenterImageViewer(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
  private fun FileList(
     items: List<MediaCenterItem>,
     onOpenMessage: (String) -> Unit,

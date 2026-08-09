@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.login
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -101,6 +102,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 
 @Composable
+// 资源字符串均在回调/协程内读取，非组合作用域
+@SuppressLint("LocalContextGetResourceValueCall")
 fun LoginScreen(
     onLoginSuccess: () -> Unit = {},
     viewModel: LoginViewModel = viewModel()
@@ -206,7 +209,7 @@ fun LoginScreen(
                     serverMaintMsg?.takeIf { it.isNotBlank() }?.let { append("：").append(it) }
                 }
                 serverRegistrationOpen == false && !serverInviteHint.isNullOrBlank() -> serverInviteHint
-                serverRegistrationOpen == false -> context.getString(R.string.login_register_closed)
+                serverRegistrationOpen == false -> stringResource(R.string.login_register_closed)
                 else -> serverInviteHint
             }
             if (serverBanner != null) {

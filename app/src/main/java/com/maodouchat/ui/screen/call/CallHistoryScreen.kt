@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.call
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
@@ -57,6 +58,8 @@ import kotlinx.coroutines.launch
 /** 1.29：通话记录页——展示本地 CallLogStore 全量历史，点击回拨，可清空。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+// 资源字符串均在回调/协程内读取，非组合作用域
+@SuppressLint("LocalContextGetResourceValueCall")
 fun CallHistoryScreen(
     onBack: () -> Unit,
     onCall: (peerId: String, peerName: String, callType: String) -> Unit,

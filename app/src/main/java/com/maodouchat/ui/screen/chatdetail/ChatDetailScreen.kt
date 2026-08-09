@@ -4,6 +4,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.util.RuntimeFlags
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -321,6 +322,7 @@ private fun AiFileAnalysisMode.localizedLabel(): String = stringResource(when (t
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域；lint 无法区分
 fun ChatDetailScreen(
     onBack: () -> Unit = {},
     onVoiceCall: (contactId: String, contactName: String) -> Unit = { _, _ -> },
@@ -6438,6 +6440,7 @@ private fun ScheduledMessagesListSheet(
 }
 
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 private fun ScheduleSendDialog(
     onPickDelay: (Long) -> Unit,
     onPickAt: (Long) -> Unit = {},
@@ -7329,6 +7332,7 @@ private fun UnreadSummaryBanner(
 }
 
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 private fun SafetyCodeDialog(
     contactName: String,
     contactId: String,
@@ -7491,6 +7495,7 @@ private fun SafetyCodeDialog(
 }
 
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调内读取，非组合作用域
 private fun DeviceSafetyRow(
     device: SignalProtocol.DeviceSafetyState,
     ownerUserId: String,
@@ -8721,6 +8726,7 @@ private fun VoicePreviewBar(
 }
 
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 private fun ChatInputBar(
     value: String,
     onValueChange: (String) -> Unit,
@@ -9801,6 +9807,7 @@ private fun ReportDialog(
 }
 
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 private fun QuickPhrasesDialog(
     onDismiss: () -> Unit,
     onPick: (String) -> Unit

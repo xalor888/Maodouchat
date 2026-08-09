@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatlist
 
+import android.annotation.SuppressLint
 import android.app.Application
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -199,6 +200,7 @@ class NotificationCenterViewModel(application: Application) : AndroidViewModel(a
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 fun NotificationCenterScreen(
     onBack: () -> Unit,
     onOpenItem: (NotificationCenterItem) -> Unit = {},
