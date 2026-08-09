@@ -330,7 +330,7 @@ fun GroupChainScreen(
                         }
                         if (detail.active && !detail.myJoined) {
                             OutlinedTextField(
-                                value = viewModel.uiState.value.entryInput,
+                                value = state.entryInput,
                                 onValueChange = viewModel::updateEntryInput,
                                 label = { Text(stringResource(R.string.group_play_chain_entry_hint)) },
                                 modifier = Modifier.fillMaxWidth()

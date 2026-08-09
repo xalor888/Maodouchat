@@ -32,6 +32,9 @@
     <!-- B5 悬浮球：需声明后 Settings.canDrawOverlays 才可授予/生效 -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
+    <!-- 密聊防截屏：API 34+ registerScreenCaptureCallback 需此 normal 权限 -->
+    <uses-permission android:name="android.permission.DETECT_SCREEN_CAPTURE" />
+
     <application
         android:name=".MaodouchatApp"
         android:allowBackup="false"

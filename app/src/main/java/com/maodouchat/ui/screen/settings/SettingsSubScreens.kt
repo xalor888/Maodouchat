@@ -3625,7 +3625,7 @@ private fun MyReportCard(report: com.maodouchat.network.ReportResponse) {
     } else {
         context.getString(com.maodouchat.R.string.report_status_resolved)
     }
-    val timeText = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
+    val timeText = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", androidx.compose.ui.platform.LocalConfiguration.current.locales[0])
         .format(java.util.Date(report.createdAt))
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {

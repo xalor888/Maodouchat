@@ -1,5 +1,6 @@
 package com.maodouchat.perf
 
+import android.os.Build
 import android.os.SystemClock
 import android.os.Trace
 import android.util.Log
@@ -121,16 +122,19 @@ object StartupTracer {
     private fun budgetStatus(elapsedMs: Long, budgetMs: Long): String =
         if (withinBudget(elapsedMs, budgetMs)) "PASS" else "OVERRUN(+${elapsedMs - budgetMs}ms)"
 
+    private fun traceEnabled(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && Trace.isEnabled()
+
     private fun traceBegin(name: String) {
-        if (Trace.isEnabled()) Trace.beginSection(TRACE_PREFIX + name)
+        if (traceEnabled()) Trace.beginSection(TRACE_PREFIX + name)
     }
 
     private fun traceEnd() {
-        if (Trace.isEnabled()) Trace.endSection()
+        if (traceEnabled()) Trace.endSection()
     }
 
     private inline fun traceSection(name: String, block: () -> Unit) {
-        val enabled = Trace.isEnabled()
+        val enabled = traceEnabled()
         if (enabled) Trace.beginSection(TRACE_PREFIX + name)
         try {
             block()

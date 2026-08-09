@@ -275,11 +275,12 @@ class MainActivity : FragmentActivity() {
         if (inCall && isInPictureInPictureMode) return
         if (inCall && packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
             runCatching {
-                val params = android.app.PictureInPictureParams.Builder()
+                val builder = android.app.PictureInPictureParams.Builder()
                     .setAspectRatio(android.util.Rational(16, 9))
-                    .setAutoEnterEnabled(false)
-                    .build()
-                enterPictureInPictureMode(params)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    builder.setAutoEnterEnabled(false)
+                }
+                enterPictureInPictureMode(builder.build())
             }
         }
     }
