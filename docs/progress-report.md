@@ -6286,3 +6286,11 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实并排除：`AiMessageResultStore.commit` 的「提交后返回 false 被重试」场景——`markSucceeded` 为条件更新（仅 RUNNING/QUEUED→SUCCEEDED），同 operationId 二次提交返回 0 不重复写，且消息合并以既有行合并，幂等安全；`requestGroupAiAssistant` 的同步上下文构建窗口极窄且下游 `runAiWithConsent` 有门禁，暂不动。
 
 **验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
+
+### 9.149 2026-08-13 无限调优：链接预览与正文 meta 边界口径统一
+
+1. **`LinkPreviewPolicy.firstHttpUrl` 取首个 `<meta>` 出现位置**：真实 meta 块恒追加在正文末尾（9.143 已将 `parsedContent/parsedMeta` 改为 lastIndexOf），此处仍用首个位置——正文含字面 `<meta>` 时链接预览只扫描前半段，后半段的 URL 被漏掉。统一为 `lastIndexOf`。
+
+另核实：`SenderKeyCoveragePolicy`/`IdentitySafetyPolicy`/`SafetyCodePolicy` 三个纯策略文件语义正确（worst-wins 信任聚合、空列表=COMPLETE 契约、安全码比对忽略非数字）；`NotificationCenterScreen` 使用稳定 key 与正确的按天分组结构。
+
+**验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。

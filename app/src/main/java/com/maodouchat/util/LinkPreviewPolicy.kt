@@ -22,7 +22,11 @@ object LinkPreviewPolicy {
 
     /** 取正文中第一个 http(s)/www URL，规范化 scheme。 */
     fun firstHttpUrl(text: String): String? {
-        val plain = text.substringBefore("<meta>").trim()
+        // 9.149：与 parsedContent 一致取最后一个 `<meta>`（真实 meta 块恒在末尾）——
+        // 正文含字面 `<meta>` 时此前按首个出现位置截断，后半段正文里的 URL 被漏掉
+        val plain = text.lastIndexOf("<meta>").let { idx ->
+            if (idx < 0) text else text.substring(0, idx)
+        }.trim()
         if (plain.isBlank()) return null
         val matcher = URL_PATTERN.matcher(plain)
         if (!matcher.find()) return null
