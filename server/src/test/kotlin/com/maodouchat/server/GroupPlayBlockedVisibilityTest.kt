@@ -19,7 +19,12 @@ import com.maodouchat.server.repository.GroupCheckinRepository
 import com.maodouchat.server.repository.GroupPlayRepository
 import com.maodouchat.server.repository.PollRepository
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicInteger
@@ -302,5 +307,51 @@ class GroupPlayBlockedVisibilityTest {
         ) { "join should succeed" }
         assertEquals("", inviteJoin.chat.lastMessage)
         assertEquals(setOf("u2", "u3"), inviteJoin.chat.participants.map { it.id }.toSet())
+
+        val seqChain = GroupCheckinRepository.createChain("g1", "u1", "Sequence", "", 3)!!
+        GroupCheckinRepository.joinChain(seqChain.id, "u2", "first")
+        GroupCheckinRepository.joinChain(seqChain.id, "u3", "middle")
+        GroupCheckinRepository.joinChain(seqChain.id, "u1", "last")
+        transaction {
+            GroupChainEntries.deleteWhere {
+                (GroupChainEntries.chainId eq seqChain.id) and (GroupChainEntries.userId eq "u3")
+            }
+            GroupChainEntries.deleteWhere {
+                (GroupChainEntries.chainId eq seqChain.id) and (GroupChainEntries.userId eq "u2")
+            }
+        }
+        GroupCheckinRepository.joinChain(seqChain.id, "u2", "again")
+        assertEquals(
+            listOf(3, 4),
+            GroupCheckinRepository.getChain(seqChain.id, "u3")!!.entries.map { it.sequence }
+        )
+
+        assertEquals(
+            ChatRepository.LeaveChatResult.LEFT,
+            ChatRepository().leaveChat("g1", "u2").result
+        )
+        transaction {
+            assertTrue(
+                GroupCheckins.selectAll().where {
+                    (GroupCheckins.chatId eq "g1") and (GroupCheckins.userId eq "u2")
+                }.empty()
+            )
+            assertTrue(
+                GroupChainEntries.selectAll().where {
+                    (GroupChainEntries.userId eq "u2") and
+                        (GroupChainEntries.chainId inList listOf("chain_1", "chain_2", seqChain.id))
+                }.empty()
+            )
+            assertTrue(
+                GroupPkVotes.selectAll().where {
+                    (GroupPkVotes.userId eq "u2") and (GroupPkVotes.pkId inList listOf("pk_1", "pk_2"))
+                }.empty()
+            )
+            assertTrue(
+                GroupPollVotes.selectAll().where {
+                    (GroupPollVotes.userId eq "u2") and (GroupPollVotes.pollId inList listOf("poll_1", "poll_2"))
+                }.empty()
+            )
+        }
     }
 }

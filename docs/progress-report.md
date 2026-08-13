@@ -6006,3 +6006,10 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 2. **投票同步快照逐 poll 查投票**：`listChatPollSnapshots` 30 条即 30 次查询，改为一次批量取全部 poll votes。
 
 **验证**：`:server:test` 全量通过（含 `GroupPlayBlockedVisibilityTest` 扩展）；`git diff --check` 无输出。
+
+### 9.118 2026-08-13 无限调优：退群/移出成员清理群玩法个人数据
+
+1. **非最后成员退群或被移出后个人群玩法数据残留**：签到、接龙明细、PK 投票、群投票记录仍留在群内，成员列表却已删除。`leaveChat` / `removeGroupMemberAs` 新增按 `(chatId, userId)` 清理四类参与数据。
+2. **接龙序号用“现有行数+1”生成**：明细被删除后（退群清理或账号注销）可能生成重复 sequence。改为最大 `sequence + 1`，满员判断仍按实际行数。
+
+**验证**：`:server:test` 全量通过（含 `GroupPlayBlockedVisibilityTest` 扩展）；`git diff --check` 无输出。

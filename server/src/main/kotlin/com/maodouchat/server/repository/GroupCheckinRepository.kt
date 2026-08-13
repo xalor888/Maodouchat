@@ -387,6 +387,12 @@ object GroupCheckinRepository {
             }.count() > 0
             if (already) return@transaction toChainDto(chain, userId)
             val currentCount = GroupChainEntries.selectAll().where { GroupChainEntries.chainId eq chainId }.count()
+            val currentMaxSequence = GroupChainEntries.select(GroupChainEntries.sequence)
+                .where { GroupChainEntries.chainId eq chainId }
+                .orderBy(GroupChainEntries.sequence to SortOrder.DESC)
+                .limit(1)
+                .firstOrNull()
+                ?.get(GroupChainEntries.sequence) ?: 0
             // 满员不是「成功但未加入」：返回 null，路由按「接龙已结束或人数已满」回 400，
             // 否则客户端会把失败响应当成功刷新成未加入状态。
             if (currentCount >= chain[GroupChains.maxEntries]) return@transaction null
@@ -396,7 +402,7 @@ object GroupCheckinRepository {
                 it[GroupChainEntries.id] = id
                 it[GroupChainEntries.chainId] = chainId
                 it[GroupChainEntries.userId] = userId
-                it[GroupChainEntries.sequence] = (currentCount + 1).toInt()
+                it[GroupChainEntries.sequence] = currentMaxSequence + 1
                 it[GroupChainEntries.content] = c
                 it[GroupChainEntries.createdAt] = System.currentTimeMillis()
             }

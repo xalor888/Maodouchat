@@ -731,6 +731,7 @@ class ChatRepository {
                 return@transaction LeaveChatOutcome(LeaveChatResult.OWNER_TRANSFER_REQUIRED)
             }
             ChatUserSettings.deleteWhere { (ChatUserSettings.chatId eq chatId) and (ChatUserSettings.userId eq userId) }
+            if (chat[Chats.isGroup]) deleteUserGroupPlayInChat(chatId, userId)
             val deleted = ChatParticipants.deleteWhere { (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq userId) }
             val remaining = ChatParticipants.selectAll().where { ChatParticipants.chatId eq chatId }.count()
             if (remaining == 0L) {
@@ -935,6 +936,7 @@ class ChatRepository {
         ChatUserSettings.deleteWhere {
             (ChatUserSettings.chatId eq chatId) and (ChatUserSettings.userId eq targetUserId)
         }
+        deleteUserGroupPlayInChat(chatId, targetUserId)
         val deleted = ChatParticipants.deleteWhere {
             (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq targetUserId)
         }
@@ -1142,6 +1144,33 @@ class ChatRepository {
         GroupPkRounds.select(GroupPkRounds.id)
             .where { GroupPkRounds.chatId eq chatId }
             .map { it[GroupPkRounds.id] }
+
+    /** Removes a leaving/removed member's personal group-play participation for this chat. */
+    private fun deleteUserGroupPlayInChat(chatId: String, userId: String) {
+        GroupCheckins.deleteWhere {
+            (GroupCheckins.chatId eq chatId) and (GroupCheckins.userId eq userId)
+        }
+        val chainIds = chainIds(chatId)
+        if (chainIds.isNotEmpty()) {
+            GroupChainEntries.deleteWhere {
+                (GroupChainEntries.chainId inList chainIds) and (GroupChainEntries.userId eq userId)
+            }
+        }
+        val pkIds = pkIds(chatId)
+        if (pkIds.isNotEmpty()) {
+            GroupPkVotes.deleteWhere {
+                (GroupPkVotes.pkId inList pkIds) and (GroupPkVotes.userId eq userId)
+            }
+        }
+        val pollIds = GroupPolls.select(GroupPolls.id)
+            .where { GroupPolls.chatId eq chatId }
+            .map { it[GroupPolls.id] }
+        if (pollIds.isNotEmpty()) {
+            GroupPollVotes.deleteWhere {
+                (GroupPollVotes.pollId inList pollIds) and (GroupPollVotes.userId eq userId)
+            }
+        }
+    }
 
     /**
      * 清理超过保留期的群操作审计日志（默认 365 天），防止活跃群无限增长。
