@@ -303,7 +303,8 @@ class UserRepository {
             val blocked = viewerId?.let { blockedUserIdsInTx(it) } ?: emptySet()
             val base = Users.selectAll().where { Users.searchable eq true }
             val query = if (blocked.isEmpty()) base else base.andWhere { Users.id notInList blocked }
-            query.limit(limit.coerceIn(1, 500), offset.coerceAtLeast(0).toLong())
+            query.orderBy(Users.id to SortOrder.ASC)
+                .limit(limit.coerceIn(1, 500), offset.coerceAtLeast(0).toLong())
                 .map { it.toPublicUser() }
         }
     }

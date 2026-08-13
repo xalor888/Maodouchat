@@ -5578,3 +5578,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **FutureEpoch 被当已处理 ACK 导致数据永久丢失**：AI 消息 meta/摘要同步对 `DecryptResult.FutureEpoch` 直接 ACK，服务端停止重投；本地收到更新的 SenderKey 分发后这条信封已不存在。改为与 `Failed/NoSession` 一致不 ACK，靠服务端 30 天保留期等 SK 追赶后重试成功。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.47 2026-08-13 无限调优：用户分页固定排序
+
+1. **`/api/users` offset 分页无确定排序**：`getAll` 直接 `LIMIT/OFFSET`，PostgreSQL 下同一页内容可能随执行计划变化，翻页出现重叠/漏行。固定按 `Users.id ASC` 排序后分页，与群加人候选全量拉取共用同一稳定顺序。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
