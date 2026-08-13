@@ -5566,3 +5566,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`listFriends` 不排除拉黑且 LIMIT 后过滤注销**：被拉黑联系人刷新后会“复活”回通讯录；已注销用户还会占掉分页容量。改为 SQL 层同时过滤 `deletedAt IS NOT NULL` 与双向拉黑后再生效 LIMIT，和联系人列表“拉黑即移除”的本地行为一致。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.45 2026-08-13 无限调优：贴纸清单解析上限
+
+1. **清单无条目上限**：`OnDemandStickerStore.parseManifest` 对包数/每包贴纸数无上限，`fetchManifestRaw` 也不限制响应体大小。新增 1MB 清单体上限、最多 64 个包、每包 300 张贴纸；超限直接拒用该清单，回退内置基础表情。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
