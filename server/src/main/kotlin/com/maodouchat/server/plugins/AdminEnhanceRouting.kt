@@ -576,7 +576,10 @@ fun Application.configureAdminEnhanceRouting(
                             status != null -> q.andWhere { DeviceEventConsistencyLog.status eq status }
                             else -> q
                         }
-                        filtered.orderBy(DeviceEventConsistencyLog.lastSeenAt to SortOrder.DESC)
+                        filtered.orderBy(
+                            DeviceEventConsistencyLog.lastSeenAt to SortOrder.DESC,
+                            DeviceEventConsistencyLog.id to SortOrder.DESC
+                        )
                             .limit(limit, offset)
                             .map { row ->
                                 DeviceAnomalyResponse(

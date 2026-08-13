@@ -5788,3 +5788,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **admin/开发端内联分页与若干仓库列表仍只按 createdAt 排序**：同毫秒多条记录时翻页/导出会跳行或重复。补全 AdminRouting、DeveloperRouting 及 RefreshTokens、AI 同步队列、群接龙/PK/投票、风控事件、好友申请、AI 审计等列表的 id/复合键 tie-break，服务端分页列表已全部具备稳定二级排序。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.82 2026-08-13 无限调优：非 createdAt 的 offset 分页补 tie-break
+
+1. **用户/群聊/推送 token/消息/设备日志按 lastSeen、memberRevision、updatedAt、timestamp 排序仍不稳定**：这些列表同样使用 OFFSET，同值多行会跳/重。统一补主键/复合键二级排序，服务端所有 offset 分页均有稳定顺序。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

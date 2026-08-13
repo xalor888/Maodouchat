@@ -522,7 +522,7 @@ fun Application.configureAdminRouting(
                         "online" -> base.andWhere { Users.isOnline eq true }
                         else -> base
                     }
-                    filtered.orderBy(Users.lastSeen to SortOrder.DESC).limit(limit, offset)
+                    filtered.orderBy(Users.lastSeen to SortOrder.DESC, Users.id to SortOrder.DESC).limit(limit, offset)
                         .map { it.toUserAdminResponse() }
                 }
                 call.respond(users)
@@ -941,7 +941,10 @@ put("status", "deleted")
                     if (groupOnly) query.andWhere { Chats.isGroup eq true }
                     val escapedSearch = search?.let { escapeLikePattern(it) }
                     if (escapedSearch != null) query.andWhere { Chats.groupName like "%$escapedSearch%" }
-                    val rows = query.orderBy(Chats.memberRevision to SortOrder.DESC).limit(limit, offset).toList()
+                    val rows = query
+                        .orderBy(Chats.memberRevision to SortOrder.DESC, Chats.id to SortOrder.DESC)
+                        .limit(limit, offset)
+                        .toList()
                     val chatIds = rows.map { it[Chats.id] }
                     val countExpr = ChatParticipants.userId.count()
                     val memberCounts: Map<String, Int> = if (chatIds.isEmpty()) emptyMap() else
@@ -1313,7 +1316,11 @@ put("status", "resolved")
                 val tokens = transaction {
                     val query = PushTokens.selectAll()
                     if (search != null) query.andWhere { PushTokens.userId eq search }
-                    query.orderBy(PushTokens.updatedAt to SortOrder.DESC)
+                    query.orderBy(
+                        PushTokens.updatedAt to SortOrder.DESC,
+                        PushTokens.userId to SortOrder.DESC,
+                        PushTokens.deviceId to SortOrder.DESC
+                    )
                         .limit(limit, offset)
                         .map {
                             PushTokenAdminResponse(
@@ -1707,7 +1714,7 @@ put("userId", id)
                                 )
                         }
                     }
-                    query.orderBy(Messages.timestamp to SortOrder.DESC)
+                    query.orderBy(Messages.timestamp to SortOrder.DESC, Messages.id to SortOrder.DESC)
                         .limit(limit, offset.toLong())
                         .map {
                             buildJsonObject {
