@@ -5872,3 +5872,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **接龙/PK/投票的创建者过滤发生在 LIMIT 之后**：被拉黑记录占满首批时可见结果仍会少返回。三处列表改为先在 SQL 层排除被拉黑创建者，再做排序和 LIMIT，与附近的人/点赞者分页同一修复口径。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.96 2026-08-13 无限调优：消息历史 reaction 过滤拉黑
+
+1. **reaction 列表不过滤被拉黑用户**：历史消息的 `attachReactions` 会返回全部用户的反应，被拉黑用户的互动会随消息泄露。三个历史查询（getMessages/getMessagesBefore/getMessagesSince）把 viewer 的双向拉黑集合传入，过滤 reaction 作者，新增 H2 测试覆盖。
+
+**验证**：`:server:test` 全量通过（含新增 `MessageReactionBlockedVisibilityTest`）；`git diff --check` 无输出。

@@ -280,7 +280,7 @@ class MessageRepository {
                 .orderBy(Messages.timestamp to SortOrder.DESC, Messages.id to SortOrder.DESC)
                 .limit(limit)
                 .map { it.toMessageResponse(viewerId) }
-                .let { attachReactions(it) }
+                .let { attachReactions(it, blockedSenders) }
                 .reversed()
         }
     }
@@ -317,7 +317,7 @@ class MessageRepository {
                 .orderBy(Messages.timestamp to SortOrder.DESC, Messages.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
                 .map { it.toMessageResponse(viewerId) }
-                .let { attachReactions(it) }
+                .let { attachReactions(it, blockedSenders) }
                 .reversed()
         }
     }
@@ -361,7 +361,7 @@ class MessageRepository {
                 .orderBy(Messages.timestamp to SortOrder.ASC, Messages.id to SortOrder.ASC)
                 .limit(limit.coerceIn(1, 500))
                 .map { it.toMessageResponse(viewerId) }
-                .let { attachReactions(it) }
+                .let { attachReactions(it, blockedSenders) }
         }
     }
 
@@ -1065,12 +1065,18 @@ class MessageRepository {
         }
     }
 
-    private fun attachReactions(messages: List<MessageResponse>): List<MessageResponse> {
+    private fun attachReactions(
+        messages: List<MessageResponse>,
+        blockedUserIds: Set<String> = emptySet()
+    ): List<MessageResponse> {
         if (messages.isEmpty()) return messages
         val ids = messages.map { it.id }
         val reactionsByMessage = MessageReactions.selectAll()
             .where { MessageReactions.messageId inList ids }
-            .map { it[MessageReactions.messageId] to it.toReactionResponse() }
+            .map { row ->
+                row[MessageReactions.messageId] to row.toReactionResponse()
+            }
+            .filter { (_, reaction) -> reaction.userId !in blockedUserIds }
             .groupBy({ it.first }, { it.second })
         return messages.map { message ->
             message.copy(reactions = reactionsByMessage[message.id].orEmpty().sortedBy { it.reactedAt })
