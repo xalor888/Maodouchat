@@ -547,6 +547,15 @@ object GroupCheckinRepository {
     fun closePk(pkId: String, userId: String): PkDto? {
         if (!isValidId(pkId) || !isValidId(userId)) return null
         return transaction {
+            // 8.50 H1 同序：先锁 chat 再锁 pk，并校验创建者仍是群成员，
+            // 否则退群/被移出后仍可关闭自己创建的 PK。
+            val chatId = GroupPkRounds.select(GroupPkRounds.chatId)
+                .where { GroupPkRounds.id eq pkId }
+                .firstOrNull()
+                ?.get(GroupPkRounds.chatId) ?: return@transaction null
+            val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
+                ?: return@transaction null
+            if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, userId)) return@transaction null
             val pk = GroupPkRounds.selectAll().where { GroupPkRounds.id eq pkId }.forUpdate().firstOrNull()
                 ?: return@transaction null
             if (pk[GroupPkRounds.creatorId] != userId) return@transaction null

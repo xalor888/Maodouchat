@@ -6019,3 +6019,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **用户端与 bot 端 reaction 广播逐收件人查询**：500 人群每次回应触发 500 次 DB 事务。新增 `getReactionsForViewers` 一次批量取 reactions 与双向拉黑集合，两条广播路径复用。
 
 **验证**：`:server:test` 全量通过（含 `MessageReactionBlockedVisibilityTest` 扩展）；`git diff --check` 无输出。
+
+### 9.120 2026-08-13 无限调优：PK 关闭校验当前成员身份
+
+1. **`closePk` 只校验创建者**：退群/被移出后仍可关闭自己创建的 PK，与投票/接龙/投票关闭的成员校验口径不一致。改为先锁 chat、校验仍为群成员，再锁 PK 更新。
+
+**验证**：`:server:test` 全量通过（含 `GroupPlayBlockedVisibilityTest` 扩展）；`git diff --check` 无输出。

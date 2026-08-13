@@ -353,5 +353,11 @@ class GroupPlayBlockedVisibilityTest {
                 }.empty()
             )
         }
+
+        assertEquals(
+            ChatRepository.LeaveChatResult.LEFT,
+            ChatRepository().leaveChat("g1", "u3").result
+        )
+        assertNull(GroupCheckinRepository.closePk("pk_1", "u3"))
     }
 }
