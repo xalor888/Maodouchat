@@ -11864,7 +11864,8 @@ put("surface", 60)
                 buildJsonObject {
 put("ok", true)
 put("botId", bot.id)
-put("surface", 59)
+// 9.133：与同面 getCaptureShieldFlags 对齐（此前 ping 59 / flags 60 漂移，客户端按 surface 取能力集会不一致）
+put("surface", 60)
 put("ping", "shield")
                 }
             )

@@ -6126,3 +6126,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实子代理低置信度项：bot `*z`/`get*Flags` 端点族间 `surface` 编号漂移（59/60、61/61、62/62…）为装饰性标签、无客户端行为证据，不冒改；`chatId` 仅 isBlank 校验（DB 内 forUpdate 复核成员身份）为输入卫生建议，不做改动。
 
 **验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.133 2026-08-13 无限调优：bot shieldz 能力面编号对齐
+
+1. **`/api/bot/shieldz` 返回 `surface=59`，同面 `getCaptureShieldFlags` 返回 60**：客户端按 surface 取能力集时两个端点给出不一致的版本标签（审计复核确认仅此一对漂移，vaultz/sealz/markz/linkz/privz 其余各对均对齐）。shieldz 对齐为 60。
+
+**验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
