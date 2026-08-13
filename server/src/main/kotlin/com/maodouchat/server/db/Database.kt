@@ -516,11 +516,13 @@ object Reports : Table("reports") {
     val targetId = varchar("target_id", 100)
     val chatId = varchar("chat_id", 50).nullable()
     val messageId = varchar("message_id", 100).nullable()
-    val reason = varchar("reason", 60)
-    val description = varchar("description", 500).nullable()
+    // 9.144：列宽与 ReportRepository 常量对齐（80/800）——此前 60/500 窄于仓库截断上限，
+    // PG 严格 VARCHAR(n) 下 61-80/501-800 字符直接 22001 → 500（H2 宽松模式不暴露）
+    val reason = varchar("reason", 80)
+    val description = varchar("description", 800).nullable()
     val status = varchar("status", 20).default("OPEN")
     val reviewerId = varchar("reviewer_id", 50).nullable()
-    val resolutionNote = varchar("resolution_note", 500).nullable()
+    val resolutionNote = varchar("resolution_note", 800).nullable()
     val actionTaken = varchar("action_taken", 40).nullable()
     val actionAt = long("action_at").nullable()
     val createdAt = long("created_at").default(System.currentTimeMillis())
@@ -614,7 +616,8 @@ object RiskEvents : Table("risk_events") {
     val sourceValue = varchar("source", 20)
     val ruleId = varchar("rule_id", 80).nullable()
     val action = varchar("action", 20)
-    val matched = varchar("matched", 200).nullable()
+    // 9.144：与 ModerationRuleRepository.MAX_MATCHED_LENGTH(280) 对齐，防 PG 22001
+    val matched = varchar("matched", 280).nullable()
     val referenceId = varchar("reference_id", 100).nullable()
     val needsReview = bool("needs_review").default(false)
     val createdAt = long("created_at").default(System.currentTimeMillis())
@@ -709,6 +712,9 @@ fun initDatabase() {
         )
         widenClientPrefsWritingStyleColumn()
         widenFriendRequestMessageColumn()
+        // 9.144：既有库加宽（新增实例由 Table 定义直接建宽列）
+        widenReportsColumns()
+        widenRiskEventsMatchedColumn()
         // 确保 init {} 中的索引被创建（createMissingTablesAndColumns 可能不会自动建）
         ensureIndexes()
         migrateAuthSessionState()
@@ -774,6 +780,38 @@ private fun widenFriendRequestMessageColumn() {
         "ALTER TABLE friend_requests ALTER COLUMN message TYPE VARCHAR(300)"
     } else {
         "ALTER TABLE friend_requests ALTER COLUMN message VARCHAR(300)"
+    }
+    TransactionManager.current().exec(sql)
+}
+
+/** 9.144：既有库加宽 reports 文本列（createMissingTablesAndColumns 只补列不扩列）。 */
+private fun widenReportsColumns() {
+    val isPostgres = org.jetbrains.exposed.sql.transactions.TransactionManager.current()
+        .db.vendor.contains("postgres", ignoreCase = true)
+    val alters = if (isPostgres) {
+        listOf(
+            "ALTER TABLE reports ALTER COLUMN reason TYPE VARCHAR(80)",
+            "ALTER TABLE reports ALTER COLUMN description TYPE VARCHAR(800)",
+            "ALTER TABLE reports ALTER COLUMN resolution_note TYPE VARCHAR(800)",
+        )
+    } else {
+        listOf(
+            "ALTER TABLE reports ALTER COLUMN reason VARCHAR(80)",
+            "ALTER TABLE reports ALTER COLUMN description VARCHAR(800)",
+            "ALTER TABLE reports ALTER COLUMN resolution_note VARCHAR(800)",
+        )
+    }
+    alters.forEach { TransactionManager.current().exec(it) }
+}
+
+/** 9.144：既有库加宽 risk_events.matched（同 reports）。 */
+private fun widenRiskEventsMatchedColumn() {
+    val isPostgres = org.jetbrains.exposed.sql.transactions.TransactionManager.current()
+        .db.vendor.contains("postgres", ignoreCase = true)
+    val sql = if (isPostgres) {
+        "ALTER TABLE risk_events ALTER COLUMN matched TYPE VARCHAR(280)"
+    } else {
+        "ALTER TABLE risk_events ALTER COLUMN matched VARCHAR(280)"
     }
     TransactionManager.current().exec(sql)
 }

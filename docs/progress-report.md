@@ -6238,3 +6238,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 2. **`JsonFormat` 编解码两侧均漏掉 `forwardedFrom`（自查发现）**：`MessageEntity` 不持久化 `meta` 列，meta 唯一持久化路径是 content 内的 `<meta>` JSON——`messageMetaMap` 不编码、`fromJsonString` 不解码 `forwardedFrom`，导致转发来源显示名（0.67 新功能「转发自 X」，MessageBubble 已渲染该字段）在 compose 编码时即被丢弃，收件方永不显示且再转发时 `parsedMeta().forwardedFrom` 恒 null。补齐两侧字段（旧客户端 ignoreUnknownKeys 兼容，新字段向后兼容）。
 
 **验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
+
+### 9.144 2026-08-13 无限调优：举报/风控列宽窄于仓库截断上限（PG 22001 → 500）
+
+1. **`reports` 三列窄于仓库常量（子代理 schema 审计发现）**：`reason` varchar(60) vs `MAX_REASON_LENGTH=80`、`description`/`resolution_note` varchar(500) vs `MAX_DESCRIPTION_LENGTH=800`——仓库 `.take()` 到 80/800 后写入，PostgreSQL 严格 VARCHAR(n) 下 61–80/501–800 字符直接抛 22001「value too long」→ `createReport`/`updateReportStatus`/`markActionTaken` 返回 500（H2 宽松模式不暴露）。列宽提至 80/800，并加 `widenReportsColumns()` 启动扩列（`createMissingTablesAndColumns` 只补列不扩列，既有库必须显式 ALTER，PG/H2 双语法分支与既有 widen 模式一致）。
+2. **`risk_events.matched` varchar(200) vs `MAX_MATCHED_LENGTH=280`**：规则命中文本 201–280 字符时 `evaluate()` 事务内插入抛 22001 → 整条消息的风控评估 500。列宽提至 280 + `widenRiskEventsMatchedColumn()`。
+
+另核实子代理其余候选并排除：`MessageReactions` PK 与「一人一反应」语义一致；`DirectChatPairs.pairKey` 长度充裕且 catch-outside 正确；`FriendRequests` PENDING 去重由 PG 部分唯一索引 + 行锁兜底；群玩法表无 FK 但手工级联均在行锁内执行；`SignalKeys` 无三元唯一索引但用户行锁 + 删插模式无重复风险；`post_likes` 缺 (post_id,created_at,user_id) 复合索引仅影响赞列表读性能（非热路径，暂不加）。
+
+**验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
