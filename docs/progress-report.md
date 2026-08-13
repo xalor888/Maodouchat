@@ -5806,3 +5806,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **关闭密聊后旧索引重新可见**：`MessageSearchDao.search` 按当前 `secret_chats` 过滤，关闭密聊会移除过滤条件，历史写入的索引文档可能重新出现在全局搜索；开启密聊时已有索引也不会立即清。`setSecretChatEnabled` 的启用/禁用分支都补 `deleteChatIndex`，保证密聊历史不会在开关切换时回流搜索。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.85 2026-08-13 无限调优：好友列表返回上限对齐好友上限
+
+1. **好友最多 2000 但列表只返回 200**：`listFriends` 的 limit 上限是 200，超过 200 好友的用户永远看不到完整好友列表，且没有 offset 可翻。默认值和上限改为 `MAX_FRIENDS_PER_USER`（2000），一次拉全所有好友。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

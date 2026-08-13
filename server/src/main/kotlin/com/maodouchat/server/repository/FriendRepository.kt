@@ -242,7 +242,7 @@ class FriendRepository {
         return rows.mapNotNull { mapRequest(it, userMap) }
     }
 
-    fun listFriends(userId: String, limit: Int = 200): List<UserResponse> = transaction {
+    fun listFriends(userId: String, limit: Int = MAX_FRIENDS_PER_USER): List<UserResponse> = transaction {
         val friendIds = Friendships.selectAll()
             .where { (Friendships.userLowId eq userId) or (Friendships.userHighId eq userId) }
             .map { row ->
@@ -262,7 +262,7 @@ class FriendRepository {
             .where { (Users.id inList friendIds) and Users.deletedAt.isNull() }
         val query = if (blockedIds.isEmpty()) base else base.andWhere { Users.id notInList blockedIds }
         query.orderBy(Users.id to SortOrder.ASC)
-            .limit(limit.coerceIn(1, 200))
+            .limit(limit.coerceIn(1, MAX_FRIENDS_PER_USER))
             .mapNotNull { row ->
                 UserResponse(
                     id = row[Users.id],
