@@ -91,17 +91,20 @@ private inline fun <reified T> parseJson(text: String): T? = try {
 }
 
 internal suspend fun ApplicationCall.receiveBoundedText(maxChars: Int = MAX_JSON_BODY_CHARS): String? {
+    // 9.135：字节预算 = 字符预算 × 4（UTF-8 单字符最多 4 字节）。此前按 maxChars 字节截断，
+    // 中文等多字节正文在接近字符上限时被提前拒绝（字节数天然大于字符数）；字符数检查才是语义上限。
+    val maxBytes = maxChars.toLong() * 4
     val declaredLength = request.header(HttpHeaders.ContentLength)?.toLongOrNull()
-    if (declaredLength != null && declaredLength > maxChars) return null
+    if (declaredLength != null && declaredLength > maxBytes) return null
     val channel = receiveChannel()
     val output = java.io.ByteArrayOutputStream(minOf(maxChars, DEFAULT_BUFFER_SIZE))
     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-    var total = 0
+    var total = 0L
     while (true) {
         val read = channel.readAvailable(buffer, 0, buffer.size)
         if (read < 0) break
         if (read == 0) continue
-        if (total + read > maxChars) return null
+        if (total + read > maxBytes) return null
         output.write(buffer, 0, read)
         total += read
     }
@@ -12649,7 +12652,8 @@ put("ping", "priv")
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Secret chats block reactions to reduce metadata leaks").take(120)
+                val hint = sanitizeBotHint(obj["hint"]?.jsonPrimitive?.content)
+                    .ifBlank { "Secret chats block reactions to reduce metadata leaks" }
                 if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
                 if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 val content = "META:REACT " + hint
@@ -12690,7 +12694,8 @@ put("type", "SYSTEM")
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Secret chats block starring to avoid cloud-side favorites metadata").take(120)
+                val hint = sanitizeBotHint(obj["hint"]?.jsonPrimitive?.content)
+                    .ifBlank { "Secret chats block starring to avoid cloud-side favorites metadata" }
                 if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
                 if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 val content = "META:STAR " + hint
@@ -12731,7 +12736,8 @@ put("type", "SYSTEM")
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Secret chats block typing indicators to avoid presence side-channel").take(120)
+                val hint = sanitizeBotHint(obj["hint"]?.jsonPrimitive?.content)
+                    .ifBlank { "Secret chats block typing indicators to avoid presence side-channel" }
                 if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
                 if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 val content = "META:TYPING " + hint
@@ -12772,7 +12778,8 @@ put("type", "SYSTEM")
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Secret chats block read receipts to avoid observation side-channel").take(120)
+                val hint = sanitizeBotHint(obj["hint"]?.jsonPrimitive?.content)
+                    .ifBlank { "Secret chats block read receipts to avoid observation side-channel" }
                 if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
                 if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 val content = "META:READ " + hint
@@ -12813,7 +12820,8 @@ put("type", "SYSTEM")
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Secret chats block presence/online to avoid online side-channel").take(120)
+                val hint = sanitizeBotHint(obj["hint"]?.jsonPrimitive?.content)
+                    .ifBlank { "Secret chats block presence/online to avoid online side-channel" }
                 if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
                 if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 val content = "META:PRESENCE " + hint
@@ -12854,7 +12862,8 @@ put("type", "SYSTEM")
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Secret chats block last seen to avoid observation side-channel").take(120)
+                val hint = sanitizeBotHint(obj["hint"]?.jsonPrimitive?.content)
+                    .ifBlank { "Secret chats block last seen to avoid observation side-channel" }
                 if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
                 if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 val content = "META:LASTSEEN " + hint
@@ -13755,11 +13764,22 @@ put("avatarUrl", avatarUrl)
             get("/api/chats/{chatId}/members") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject; val cid = call.parameters["chatId"]!!
                 if (!chatRepo.isParticipant(cid, uid)) { call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作")); return@get }
-                call.respond(chatRepo.getGroupMembers(cid, viewerId = uid))
+                val members = chatRepo.getGroupMembers(cid, viewerId = uid)
+                // 9.135：频道订阅者（非管理者）只能看到管理者列表——此前任意订阅者可枚举
+                // 全部订阅者的昵称/头像/在线状态（最多 5000 人）
+                if (chatRepo.getChatType(cid) == ChatType.CHANNEL && !chatRepo.isOwnerOrAdmin(cid, uid)) {
+                    call.respond(members.filter { it.role == "OWNER" || it.role == "ADMIN" })
+                } else {
+                    call.respond(members)
+                }
             }
             get("/api/chats/{chatId}/audit") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject; val cid = call.parameters["chatId"]!!
                 if (!chatRepo.isParticipant(cid, uid)) { call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权查看群操作记录")); return@get }
+                // 9.135：频道审计含订阅者进出记录，仅管理者可读，防止订阅者互相枚举
+                if (chatRepo.getChatType(cid) == ChatType.CHANNEL && !chatRepo.isOwnerOrAdmin(cid, uid)) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权查看群操作记录")); return@get
+                }
                 // 8.64：支持 offset 分页（历史审计翻页）
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
                 val offset = (call.request.queryParameters["offset"]?.toIntOrNull() ?: 0).coerceAtLeast(0)
@@ -13786,6 +13806,10 @@ put("avatarUrl", avatarUrl)
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject
                 val cid = call.parameters["chatId"]!!
                 if (!chatRepo.isParticipant(cid, uid)) { call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作")); return@get }
+                // 9.135：密钥分发状态含全部参与者（含订阅者）的设备清单，频道仅管理者可读
+                if (chatRepo.getChatType(cid) == ChatType.CHANNEL && !chatRepo.isOwnerOrAdmin(cid, uid)) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权查看密钥分发状态")); return@get
+                }
                 val epoch = call.request.queryParameters["epoch"]?.toLongOrNull()
                 val currentDeviceId = call.request.queryParameters["currentDeviceId"]?.toIntOrNull()
                 if (currentDeviceId != null && currentDeviceId !in 1..255) {
@@ -16721,6 +16745,16 @@ private fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: Strin
 }
 
 /** 9.131：bot 卡片/Hint 端点补齐实时 WS fanout（与 sendMessage/sendTable 等经典端点一致）。 */
+
+/** 9.135：提示文案清洗——hint 进入 SYSTEM 消息并经 WS/FCM 分发到全群，
+ * 控制字符/换行会污染客户端渲染与日志；压缩空白并截断到 120 字符。 */
+private fun sanitizeBotHint(raw: String?): String = (raw ?: "")
+    .map { if (it.isISOControl() || it == '\u007F') ' ' else it }
+    .joinToString("")
+    .replace(Regex("\\s+"), " ")
+    .trim()
+    .take(120)
+
 private suspend fun fanoutBotMessage(
     userRepo: UserRepository,
     chatRepo: ChatRepository,

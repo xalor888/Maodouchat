@@ -1528,41 +1528,24 @@ class ChatRepository {
         viewerId: String? = null
     ): List<GroupAuditLogResponse> = transaction {
         // 8.64：offset 分页——此前历史审计最多可见 100 条，活跃群的更早记录永远无法通过 API 获取
+        // 9.135：拉黑过滤下推 SQL。旧实现是"内存过滤 + 最多 20 次游标迭代"，
+        // 拉黑人数多时（如频道管理者批量拉黑）翻页会被 20 次上限静默截断且无 hasMore 信号。
         val safeOffset = offset.coerceAtLeast(0)
         val boundedLimit = limit.coerceIn(1, 100)
         val blocked = blockedUserIdsInTx(viewerId)
-        val visible = mutableListOf<ResultRow>()
-        var cursorTime: Long? = null
-        var cursorId: String? = null
-        var iterations = 0
-        while (visible.size < safeOffset + boundedLimit && iterations < 20) {
-            val batchSize = ((safeOffset + boundedLimit - visible.size) * 4).coerceAtLeast(boundedLimit)
-            val time = cursorTime
-            val id = cursorId
-            val cursorCondition = when {
-                time == null -> GroupAuditLogs.chatId eq chatId
-                id.isNullOrBlank() -> (GroupAuditLogs.chatId eq chatId) and (GroupAuditLogs.createdAt less time)
-                else -> (GroupAuditLogs.chatId eq chatId) and (
-                    (GroupAuditLogs.createdAt less time) or
-                        ((GroupAuditLogs.createdAt eq time) and (GroupAuditLogs.id less id))
+        val rows = GroupAuditLogs.selectAll().where {
+            val base = GroupAuditLogs.chatId eq chatId
+            if (blocked.isEmpty()) {
+                base
+            } else {
+                base and (GroupAuditLogs.actorId notInList blocked) and (
+                    (GroupAuditLogs.targetUserId.isNull()) or (GroupAuditLogs.targetUserId notInList blocked)
                     )
             }
-            val batch = GroupAuditLogs.selectAll().where { cursorCondition }
-                .orderBy(GroupAuditLogs.createdAt to SortOrder.DESC, GroupAuditLogs.id to SortOrder.DESC)
-                .limit(batchSize)
-                .toList()
-                .filter { row ->
-                    row[GroupAuditLogs.actorId] !in blocked &&
-                        (row[GroupAuditLogs.targetUserId] == null || row[GroupAuditLogs.targetUserId] !in blocked)
-                }
-            if (batch.isEmpty()) break
-            visible += batch
-            val last = batch.last()
-            cursorTime = last[GroupAuditLogs.createdAt]
-            cursorId = last[GroupAuditLogs.id]
-            iterations++
         }
-        val rows = visible.drop(safeOffset).take(boundedLimit)
+            .orderBy(GroupAuditLogs.createdAt to SortOrder.DESC, GroupAuditLogs.id to SortOrder.DESC)
+            .limit(boundedLimit, safeOffset.toLong())
+            .toList()
         val ids = rows.flatMap { listOfNotNull(it[GroupAuditLogs.actorId], it[GroupAuditLogs.targetUserId]) }.distinct()
         val names = if (ids.isEmpty()) emptyMap() else Users.selectAll().where { Users.id inList ids }.associate { it[Users.id] to it[Users.name] }
         rows.map {

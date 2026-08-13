@@ -654,33 +654,39 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 val liveToken = tokenManager.getToken() ?: token
                 ApiService.editPostComment(liveToken, comment.postId, comment.id, content).fold(
                     onSuccess = { updated ->
-                        if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            _uiState.update { state ->
+                        val allowed = com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                            expectedUserId = ownerUserId,
+                            liveToken = tokenManager.getToken(),
+                            liveUserId = tokenManager.getUserId(),
+                        )
+                        _uiState.update { state ->
+                            if (allowed) {
                                 state.copy(
                                     comments = state.comments.map { if (it.id == comment.id) updated else it },
                                     isSavingCommentEdit = false,
                                     infoMessage = text(R.string.explore_comment_edit_success)
                                 )
+                            } else {
+                                // 9.135：会话已切换——不写回评论/提示，但必须复位保存标记，否则按钮永久禁用
+                                state.copy(isSavingCommentEdit = false)
                             }
                         }
                     },
                     onFailure = {
-                        if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            _uiState.update {
-                                it.copy(
+                        val allowed = com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                            expectedUserId = ownerUserId,
+                            liveToken = tokenManager.getToken(),
+                            liveUserId = tokenManager.getUserId(),
+                        )
+                        _uiState.update { state ->
+                            if (allowed) {
+                                state.copy(
                                     isSavingCommentEdit = false,
                                     infoMessage = text(R.string.explore_comment_edit_failed)
                                 )
+                            } else {
+                                // 9.135：会话已切换——错误提示不跨账号展示，但复位保存标记
+                                state.copy(isSavingCommentEdit = false)
                             }
                         }
                     }
@@ -735,6 +741,15 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         liveUserId = tokenManager.getUserId(),
                     )
                 ) {
+                    // 9.135：与动态 toggleLike 一致——门禁失败必须回滚乐观更新，
+                    // 否则切换账号后残留错误点赞态与计数
+                    _uiState.update { state ->
+                        state.copy(
+                            comments = state.comments.map {
+                                if (it.id == comment.id) it.copy(likedByMe = comment.likedByMe, likeCount = comment.likeCount) else it
+                            }
+                        )
+                    }
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token

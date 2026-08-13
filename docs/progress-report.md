@@ -6141,3 +6141,17 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 4. **被移出群清理混用实时/快照账号 id**：`senderKeyRetryDao().delete` 与 `clearWireContentForChat` 用实时 `currentUserId`，周围会话守卫用快照 `revisionOwnerUserId`——清理中途换号会删错账号数据。统一改用快照值。
 
 **验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
+
+### 9.135 2026-08-13 无限调优：频道订阅者隐私枚举修复 + 客户端三处状态卡死 + 审计分页截断
+
+1. **频道订阅者可枚举全部订阅者（隐私，服务端）**：`GET /api/chats/{chatId}/members` 仅校验 `isParticipant`——任意频道订阅者即可拉取最多 5000 名订阅者的昵称/头像/在线状态（`isOnline` 实时）与群昵称；`GET /api/chats/{chatId}/audit` 的订阅者进出记录、`GET .../sender-key-distributions` 的全员设备清单同样是枚举向量（子代理审计发现）。改为：CHANNEL 且非 OWNER/ADMIN 时，members 仅返回管理者列表（客户端 `self==null → role=MEMBER` 已有兜底，不破坏频道详情页），audit 与 sender-key 状态直接 403（客户端均 `getOrDefault/getOrNull` 容错）。
+2. **`receiveBoundedText` 以字节数执行字符预算**：`maxChars` 语义是字符上限，但 Content-Length 预检与流式截断都按字节比对——中文等多字节正文在接近上限时被提前拒绝（UTF-8 字节数恒 ≥ 字符数），末行的字符数复核恒为死代码。改为字节预算 = 字符预算 × 4（UTF-8 上限），字符数检查仍为语义上限。
+3. **`getGroupAudit` 拉黑过滤用「内存过滤 + 最多 20 次游标迭代」**：拉黑人数多时（频道管理者批量拉黑）offset 翻页会被 20 次上限静默截断且无 hasMore 信号。改为把 `actorId/targetUserId notInList blocked` 下推 SQL，`LIMIT/OFFSET` 直接作用于过滤后流。
+4. **bot 六个 secret hint 端点接受任意控制字符/换行**：`hint` 仅 `.take(120)` 即拼入 `META:*` SYSTEM 消息并经 WS/FCM 分发全群，纯换行/控制字符可污染客户端渲染与日志。新增 `sanitizeBotHint`（控制字符→空格、空白压缩、trim、截 120）。
+5. **群投票成功路径不复位 `votingPollId`（客户端）**：仅失败分支清除——首次投票成功后 spinner 永久卡住，且 `vote()` 入口 guard 拦截后续所有投票（`GroupPkViewModel.vote` 对比证实应为无条件复位）。
+6. **评论点赞门禁失败不回滚乐观更新（客户端）**：`toggleCommentLike` 在会话切换后 `return@launch`，残留错误点赞态与计数；动态 `toggleLike` 同场景已有回滚。补齐回滚。
+7. **评论编辑保存标记可能永久卡 true（客户端）**：`saveCommentEdit` 的 `isSavingCommentEdit=false` 复位只在 `mayContinue` 通过的 onSuccess/onFailure 分支内——会话切换后标记永久 true，编辑对话框按钮永久禁用。改为无条件下复位，评论写回与提示仅门禁通过时执行。
+
+另核实并排除子代理其余发现：`updateStatus` 的拉黑短路在 status 校验之后（已正确）；`since=0` 全量历史在 limit≤500 与参与者校验下有界；`unblockUser` 幂等 200 无跨用户影响；`resolveClientAddress` 的 XFF 信任默认关闭（显式运维开关）；`BoundedRateLimiter.acquire` 的 `now` 仅内部默认值注入。均不做改动。
+
+**验证**：`:server:compileKotlin` 通过；`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。

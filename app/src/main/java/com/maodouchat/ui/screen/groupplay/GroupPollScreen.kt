@@ -174,8 +174,11 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
         _uiState.value = _uiState.value.copy(votingPollId = pollId)
         viewModelScope.launch {
             val result = ApiService.voteGroupPoll(token(), pollId, indexes)
+            // 9.135：成功路径也必须复位投票中标记（此前仅失败分支清除——
+            // 首次投票成功后 spinner 永久卡住且 guard 拦截后续所有投票）
+            _uiState.value = _uiState.value.copy(votingPollId = null)
             if (result.isSuccess) refresh() else {
-                _uiState.value = _uiState.value.copy(votingPollId = null, error = str(R.string.group_play_vote_failed))
+                _uiState.value = _uiState.value.copy(error = str(R.string.group_play_vote_failed))
             }
         }
     }
