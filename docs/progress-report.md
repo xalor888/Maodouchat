@@ -5584,3 +5584,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`/api/users` offset 分页无确定排序**：`getAll` 直接 `LIMIT/OFFSET`，PostgreSQL 下同一页内容可能随执行计划变化，翻页出现重叠/漏行。固定按 `Users.id ASC` 排序后分页，与群加人候选全量拉取共用同一稳定顺序。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.48 2026-08-13 无限调优：TURN 刷新应用到活跃 PeerConnection
+
+1. **刷新 ICE 只改字段**：`refreshIceServers` 此前只更新 `configuredIceServers`，已建直连/群 PeerConnection 仍用旧 TURN 凭据，1h 到期后网络切换/ICE 重启仍失败。现在刷新时同时对新旧连接调用 `setConfiguration`（保持 UNIFIED_PLAN / GATHER_CONTINUALLY），后续 `restartIce` 会使用新凭据。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。

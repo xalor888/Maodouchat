@@ -110,6 +110,16 @@ class WebRTCManager(
     /** 通话中替换 ICE 服务器列表（TURN 凭据刷新）。空列表回退公共 STUN。 */
     fun refreshIceServers(servers: List<CallIceServer>) {
         configuredIceServers = servers.ifEmpty { CallIceServer.defaultStun() }
+        val freshConfig = PeerConnection.RTCConfiguration(buildIceServers()).apply {
+            sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+            continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+        }
+        // 活跃直连/群 PeerConnection 立即换上新 TURN 凭据；之后触发 restartIce 时
+        // 新候选会使用刷新后的配置，不再等到通话重建才生效。
+        runCatching { peerConnection?.setConfiguration(freshConfig) }
+        peerConnections.values.forEach { connection ->
+            runCatching { connection.setConfiguration(freshConfig) }
+        }
     }
 
     /** 当前 ICE 服务器列表（UI 判断是否仅 STUN 时使用）。 */
