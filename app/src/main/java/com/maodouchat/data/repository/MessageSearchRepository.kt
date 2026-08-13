@@ -45,11 +45,10 @@ class MessageSearchRepository(private val database: AppDatabase) {
      * 采用「完整 id 集合 + 分批建索引」同时避免 OOM。
      */
     suspend fun refreshIndex(): Int {
-        // 完整可搜索 id 集合（仅 id，轻量），用于孤儿判定，不会被 LIMIT 截断。
-        val allIds = messageDao.getSearchableMessageIds().toSet()
         val fingerprints = searchDao.getFingerprints().associate { it.messageId to it.contentHash }
-        // 删除已不存在/不可搜索消息的孤儿索引（基于完整 id 集合，不会误删历史消息）。
-        fingerprints.keys.filterNot(allIds::contains).forEach { searchDao.deleteDocument(it) }
+        // 删除已不存在/不可搜索消息的孤儿索引：SQL 子查询批量清理，
+        // 不再把完整消息 ID 集合载入内存（大库 OOM 风险）。
+        searchDao.deleteDocumentsNotInSearchableTypes(SEARCHABLE_TYPES.map { it.name })
 
         // 分批建索引，避免一次性把全部实体载入内存（超大历史 OOM）。
         // 游标分页：以上一批最后一条的 (timestamp, id) 为游标，稳定且不受并发插入影响。

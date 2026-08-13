@@ -53,6 +53,13 @@ interface MessageSearchDao {
     @Query("DELETE FROM message_search_documents WHERE chatId = :chatId")
     suspend fun deleteDocumentsForChat(chatId: String)
 
+    /**
+     * 清理“消息已不存在或不再可搜索”的孤儿索引文档。
+     * 用 SQL 子查询替代全量载入消息 ID 集合，避免大库重建索引时 OOM。
+     */
+    @Query("DELETE FROM message_search_documents WHERE messageId NOT IN (SELECT id FROM messages WHERE type IN (:types))")
+    suspend fun deleteDocumentsNotInSearchableTypes(types: List<String>)
+
     @Query("DELETE FROM message_search_tokens")
     suspend fun deleteAllTokens()
 

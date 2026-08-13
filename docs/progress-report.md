@@ -5596,3 +5596,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **feed 可见性过滤批次上限过低**：`getFeed` 每批 SQL `LIMIT` 后再过滤拉黑/私密动态，最多 5 批就提前返回；大量不可见动态时可见帖子会被跳过。迭代上限提到 20，并把批次放大系数从 3 提到 5，与评论分页的 5→20 修复对齐。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.50 2026-08-13 无限调优：搜索索引重建去 OOM 风险
+
+1. **重建索引全量载入消息 ID**：`refreshIndex` 先用 `getSearchableMessageIds().toSet()` 载入全部可搜索消息 ID 再做孤儿判定，大库重建时内存峰值高。改为 `MessageSearchDao.deleteDocumentsNotInSearchableTypes` 用 SQL `NOT IN (SELECT ...)` 批量清理不存在/不可搜索消息的索引文档，token 由外键级联删除。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
