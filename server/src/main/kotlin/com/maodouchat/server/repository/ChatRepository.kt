@@ -333,19 +333,6 @@ class ChatRepository {
     fun getChatById(chatId: String, viewerId: String = ""): ChatResponse? {
         return transaction {
             val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull() ?: return@transaction null
-            val participants = (ChatParticipants innerJoin Users)
-                .selectAll()
-                .where { ChatParticipants.chatId eq chatId }
-                .map {
-                    UserResponse(
-                        id = it[Users.id],
-                        name = it[Users.name],
-                        email = "",
-                        avatar = it[Users.avatar],
-                        status = if (it[Users.showStatus]) it[Users.status] else "",
-                        isOnline = it[Users.showOnline] && it[Users.isOnline]
-                    )
-                }
             // 8.48 修复：viewer 提供时按双向拉黑过滤最后消息预览（H2 不变量——
             // 打开单个聊天也不泄露被拉黑方的明文预览，与 getChatsForUser 一致）。
             val blockedEitherWay = if (viewerId.isBlank()) emptySet() else {
@@ -357,6 +344,20 @@ class ChatRepository {
                         if (blocker == viewerId) blocked else blocker
                     }.toSet()
             }
+            val participants = (ChatParticipants innerJoin Users)
+                .selectAll()
+                .where { ChatParticipants.chatId eq chatId }
+                .filterNot { it[Users.id] in blockedEitherWay }
+                .map {
+                    UserResponse(
+                        id = it[Users.id],
+                        name = it[Users.name],
+                        email = "",
+                        avatar = it[Users.avatar],
+                        status = if (it[Users.showStatus]) it[Users.status] else "",
+                        isOnline = it[Users.showOnline] && it[Users.isOnline]
+                    )
+                }
             val lastMsg = Messages.selectAll().where { Messages.chatId eq chatId }
                 .orderBy(Messages.timestamp to SortOrder.DESC)
                 .limit(1)
@@ -509,7 +510,9 @@ class ChatRepository {
             chatIds.mapNotNull { id -> chats[id]?.let { chatRow -> id to chatRow } }
                 .map { (id, chatRow) ->
                     val participantIds = participantsByChat[id]?.split("|") ?: emptyList()
-                    val participants = participantIds.mapNotNull { pid -> userRow(pid) }
+                    val participants = participantIds
+                        .filterNot { it in blockedEitherWay }
+                        .mapNotNull { pid -> userRow(pid) }
                     val lastMsg = lastMsgMap[id]
                     // SK_DIST 是内部密钥分发消息，不作为预览显示
                     val lastMsgType = lastMsg?.get(Messages.type)

@@ -5884,3 +5884,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **已读回执不过滤被拉黑用户**：`getReadReceipts` 返回全部读者 userId，会泄露“被拉黑用户读了这个消息”。查询按 viewer 双向拉黑集合过滤读者，回归测试覆盖。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.98 2026-08-13 无限调优：会话参与者过滤拉黑
+
+1. **会话列表/详情仍返回被拉黑成员**：`getChatsForUser` 与 `getChatById` 的 `participants` 包含全部群成员及在线状态，拉黑关系不生效。两处改为按 viewer 双向拉黑过滤参与者，回归测试覆盖。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
