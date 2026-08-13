@@ -5818,3 +5818,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **升级前发布的动态没有图片占用行**：`post_image_claims` 只覆盖新发帖，存量旧动态的图片仍可能被重复引用（删一条会破坏另一条）。`createPost` 校验改为“占用表 + 旧 `Posts.imageUrls` LIKE 精确匹配”兜底，新增测试验证无占用行的旧动态同样阻止图片复用。
 
 **验证**：`:server:test` 全量通过（含新增 `PostImageLegacyClaimTest`）；`git diff --check` 无输出。
+
+### 9.87 2026-08-13 无限调优：AI 同步队列稳定顺序
+
+1. **pending 队列只按 createdAt ASC**：同毫秒写入多条 AI 同步信封时拉取顺序不稳定。补 `id` 二级排序，与其它分页/队列修复保持一致。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

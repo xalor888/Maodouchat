@@ -53,7 +53,7 @@ class AiSummarySyncRepository {
                 (AiSummarySyncEnvelopes.userId eq userId) and
                     (AiSummarySyncEnvelopes.targetDeviceId eq targetDeviceId)
             }
-            .orderBy(AiSummarySyncEnvelopes.createdAt to SortOrder.ASC)
+            .orderBy(AiSummarySyncEnvelopes.createdAt to SortOrder.ASC, AiSummarySyncEnvelopes.id to SortOrder.ASC)
             .limit(limit.coerceIn(1, MAX_FETCH))
             .map { row ->
                 AiSummarySyncEnvelopeResponse(
