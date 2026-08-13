@@ -6,6 +6,7 @@ import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.GroupChainEntries
 import com.maodouchat.server.db.GroupChains
 import com.maodouchat.server.db.GroupCheckins
+import com.maodouchat.server.db.GroupAuditLogs
 import com.maodouchat.server.db.GroupPkRounds
 import com.maodouchat.server.db.GroupPkVotes
 import com.maodouchat.server.db.GroupPollVotes
@@ -192,6 +193,20 @@ class GroupPlayBlockedVisibilityTest {
                 it[GroupCheckins.totalCount] = 3
                 it[GroupCheckins.checkedAt] = now
             }
+            GroupAuditLogs.insert {
+                it[GroupAuditLogs.id] = "gal_1"
+                it[GroupAuditLogs.chatId] = "g1"
+                it[GroupAuditLogs.actorId] = "u2"
+                it[GroupAuditLogs.action] = "MEMBER_ADDED"
+                it[GroupAuditLogs.createdAt] = now
+            }
+            GroupAuditLogs.insert {
+                it[GroupAuditLogs.id] = "gal_2"
+                it[GroupAuditLogs.chatId] = "g1"
+                it[GroupAuditLogs.actorId] = "u3"
+                it[GroupAuditLogs.action] = "MEMBER_ADDED"
+                it[GroupAuditLogs.createdAt] = now
+            }
         }
 
         val chains = GroupCheckinRepository.listChains("g1", "u1", 100)
@@ -226,5 +241,8 @@ class GroupPlayBlockedVisibilityTest {
 
         val members = ChatRepository().getGroupMembers("g1", viewerId = "u1")
         assertEquals(setOf("u1", "u3"), members.map { it.userId }.toSet())
+
+        val audit = ChatRepository().getGroupAudit("g1", 100, 0, viewerId = "u1")
+        assertEquals(listOf("gal_2"), audit.map { it.id })
     }
 }

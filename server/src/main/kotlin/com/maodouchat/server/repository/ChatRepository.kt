@@ -1463,13 +1463,23 @@ class ChatRepository {
         }
     }
 
-    fun getGroupAudit(chatId: String, limit: Int = 50, offset: Int = 0): List<GroupAuditLogResponse> = transaction {
+    fun getGroupAudit(
+        chatId: String,
+        limit: Int = 50,
+        offset: Int = 0,
+        viewerId: String? = null
+    ): List<GroupAuditLogResponse> = transaction {
         // 8.64：offset 分页——此前历史审计最多可见 100 条，活跃群的更早记录永远无法通过 API 获取
         val safeOffset = offset.coerceAtLeast(0)
+        val blocked = blockedUserIdsInTx(viewerId)
         val rows = GroupAuditLogs.selectAll().where { GroupAuditLogs.chatId eq chatId }
             .orderBy(GroupAuditLogs.createdAt to SortOrder.DESC, GroupAuditLogs.id to SortOrder.DESC)
             .limit(limit.coerceIn(1, 100), safeOffset.toLong())
             .toList()
+            .filter { row ->
+                row[GroupAuditLogs.actorId] !in blocked &&
+                    (row[GroupAuditLogs.targetUserId] == null || row[GroupAuditLogs.targetUserId] !in blocked)
+            }
         val ids = rows.flatMap { listOfNotNull(it[GroupAuditLogs.actorId], it[GroupAuditLogs.targetUserId]) }.distinct()
         val names = if (ids.isEmpty()) emptyMap() else Users.selectAll().where { Users.id inList ids }.associate { it[Users.id] to it[Users.name] }
         rows.map {

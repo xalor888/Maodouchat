@@ -5860,3 +5860,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **群成员列表仍展示被拉黑用户**：`getGroupMembers` 返回全部成员及在线状态，拉黑关系不生效。方法新增 `viewerId`，用户端 `/api/chats/{chatId}/members` 按双向拉黑过滤成员，bot 内部读取保持默认全量。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.94 2026-08-13 无限调优：群审计过滤拉黑操作者/目标
+
+1. **群审计把被拉黑用户的操作记录暴露给 viewer**：审计全员可见，操作者/目标用户名会泄露拉黑对象的群活动。`getGroupAudit` 新增 `viewerId`，用户端路由按双向拉黑过滤操作者与目标，bot/内部读取保持默认全量。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

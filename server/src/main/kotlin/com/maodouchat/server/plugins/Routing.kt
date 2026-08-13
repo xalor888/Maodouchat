@@ -13163,7 +13163,7 @@ put("avatarUrl", avatarUrl)
                 // 8.64：支持 offset 分页（历史审计翻页）
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
                 val offset = (call.request.queryParameters["offset"]?.toIntOrNull() ?: 0).coerceAtLeast(0)
-                call.respond(chatRepo.getGroupAudit(cid, limit, offset))
+                call.respond(chatRepo.getGroupAudit(cid, limit, offset, viewerId = uid))
             }
             post("/api/chats/{chatId}/sender-key-distributions") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject
