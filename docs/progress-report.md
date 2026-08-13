@@ -5614,3 +5614,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **likers LIMIT 后过滤拉黑**：`listPostLikers` 先 `LIMIT boundedLimit*2` 再过滤双向拉黑，前几行若多为拉黑用户会少返回。改为按 `(createdAt, userId)` 游标分批拉取，最多 20 批，直到凑够可见用户或到表尾。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.53 2026-08-13 无限调优：好友申请列表排除拉黑
+
+1. **待处理申请不排除拉黑关系**：`listIncoming/listOutgoing` 会返回与当前用户已互相拉黑者的申请，UI 显示后才在 accept 时报 BLOCKED。现在列表层按双向拉黑过滤申请方/接收方，与好友列表和接受语义一致。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

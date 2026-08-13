@@ -197,8 +197,11 @@ class FriendRepository {
     fun listIncoming(userId: String, status: String = "PENDING", limit: Int = 50): List<FriendRequestResponse> =
         transaction {
             val st = status.trim().uppercase().ifBlank { "PENDING" }
-            val rows = FriendRequests.selectAll()
+            val blockedIds = blockedPeerIds(userId)
+            val base = FriendRequests.selectAll()
                 .where { (FriendRequests.toUserId eq userId) and (FriendRequests.status eq st) }
+            val query = if (blockedIds.isEmpty()) base else base.andWhere { FriendRequests.fromUserId notInList blockedIds }
+            val rows = query
                 .orderBy(FriendRequests.createdAt to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
                 .toList()
@@ -208,13 +211,26 @@ class FriendRepository {
     fun listOutgoing(userId: String, status: String = "PENDING", limit: Int = 50): List<FriendRequestResponse> =
         transaction {
             val st = status.trim().uppercase().ifBlank { "PENDING" }
-            val rows = FriendRequests.selectAll()
+            val blockedIds = blockedPeerIds(userId)
+            val base = FriendRequests.selectAll()
                 .where { (FriendRequests.fromUserId eq userId) and (FriendRequests.status eq st) }
+            val query = if (blockedIds.isEmpty()) base else base.andWhere { FriendRequests.toUserId notInList blockedIds }
+            val rows = query
                 .orderBy(FriendRequests.createdAt to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
                 .toList()
             mapRequestList(rows)
         }
+
+    private fun blockedPeerIds(userId: String): Set<String> =
+        BlockedUsers.selectAll()
+            .where { (BlockedUsers.blockerId eq userId) or (BlockedUsers.blockedId eq userId) }
+            .map { row ->
+                val blocker = row[BlockedUsers.blockerId]
+                val blocked = row[BlockedUsers.blockedId]
+                if (blocker == userId) blocked else blocker
+            }
+            .toSet()
 
     // 8.48 修复 H1：批量映射——此前 mapRequest 逐行查 Users（limit 100 → 100 次查询）
     private fun mapRequestList(rows: List<ResultRow>): List<FriendRequestResponse> {
