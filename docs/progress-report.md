@@ -5980,3 +5980,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **MessageBubble/MediaCenter 每次重组都查磁盘**：`isReadableLocalUri` 在组合期反复做文件/ContentResolver I/O。下载完成后消息 content 会切成本地 URI，因此用 `remember(message.id, message.content)` 缓存判断即可，既不重复查盘也不会在下载后卡住旧状态。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.114 2026-08-13 无限调优：群审计分页按可见行补齐
+
+1. **群审计先 LIMIT 再过滤拉黑会少返回**：被拉黑操作者/目标占满首批时，可见行不足 limit。改为按 `(createdAt,id)` 游标分批拉取可见行，offset 应用于过滤后的可见行，直到凑满一页或到表尾。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
