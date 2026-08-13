@@ -462,6 +462,7 @@ class MessageRepository {
                 .where { ReadReceipts.userId eq readerId }
 
             val isGroup = chatRow[Chats.isGroup]
+            val blockedSenders = blockedSenderIdsForViewerInTx(readerId)
             val timerSeconds = if (!isGroup) {
                 com.maodouchat.server.service.DisappearingMessagePolicy.effectiveSeconds(
                     isGroup = false,
@@ -476,10 +477,16 @@ class MessageRepository {
             // 把全部未读消息拉进内存 + 逐行 upsert；1:1 全局状态 UPDATE 与阅后即焚
             // 到期 UPDATE 均按 inList 批量。
             while (true) {
+                val senderCondition = if (blockedSenders.isEmpty()) {
+                    org.jetbrains.exposed.sql.Op.TRUE
+                } else {
+                    Messages.senderId notInList blockedSenders.toList()
+                }
                 val batch = Messages.selectAll()
                     .where {
                         (Messages.chatId eq chatId) and
                             (Messages.senderId neq readerId) and
+                            senderCondition and
                             (Messages.type neq "SK_DIST") and (Messages.type neq "REVOKED") and
                             (Messages.id notInSubQuery readByUser)
                     }
@@ -492,6 +499,7 @@ class MessageRepository {
                     Messages.update({
                         (Messages.chatId eq chatId) and
                             (Messages.senderId neq readerId) and
+                            senderCondition and
                             (Messages.type neq "SK_DIST") and (Messages.type neq "REVOKED") and
                             (Messages.id inList ids)
                     }) {

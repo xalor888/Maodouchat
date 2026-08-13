@@ -10,11 +10,14 @@ import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.MessageRepository
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class MessageReactionBlockedVisibilityTest {
 
@@ -64,6 +67,24 @@ class MessageReactionBlockedVisibilityTest {
                 it[Messages.timestamp] = now
                 it[Messages.status] = "SENT"
             }
+            Messages.insert {
+                it[Messages.id] = "m2"
+                it[Messages.chatId] = "g1"
+                it[Messages.senderId] = "u2"
+                it[Messages.content] = "blocked"
+                it[Messages.type] = "TEXT"
+                it[Messages.timestamp] = now
+                it[Messages.status] = "SENT"
+            }
+            Messages.insert {
+                it[Messages.id] = "m3"
+                it[Messages.chatId] = "g1"
+                it[Messages.senderId] = "u3"
+                it[Messages.content] = "visible"
+                it[Messages.type] = "TEXT"
+                it[Messages.timestamp] = now
+                it[Messages.status] = "SENT"
+            }
             MessageReactions.insert {
                 it[MessageReactions.messageId] = "m1"
                 it[MessageReactions.userId] = "u2"
@@ -89,7 +110,19 @@ class MessageReactionBlockedVisibilityTest {
         }
 
         val messages = MessageRepository().getMessages("g1", limit = 50, viewerId = "u1")
-        assertEquals(listOf("u3"), messages.single().reactions.map { it.userId })
+        assertTrue(messages.none { it.id == "m2" })
+        assertEquals(listOf("u3"), messages.first { it.id == "m1" }.reactions.map { it.userId })
         assertEquals(listOf("u3"), MessageRepository().getReadReceipts("m1", "u1").map { it.userId })
+
+        MessageRepository().markAllAsRead("g1", "u1")
+        val u1Receipts = transaction {
+            com.maodouchat.server.db.ReadReceipts
+                .selectAll()
+                .where { com.maodouchat.server.db.ReadReceipts.userId eq "u1" }
+                .map { it[com.maodouchat.server.db.ReadReceipts.messageId] }
+                .toSet()
+        }
+        assertTrue("m2" !in u1Receipts)
+        assertTrue("m3" in u1Receipts)
     }
 }
