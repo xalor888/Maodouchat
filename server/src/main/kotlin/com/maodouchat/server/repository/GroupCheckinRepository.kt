@@ -320,7 +320,9 @@ object GroupCheckinRepository {
                     .orderBy(GroupChainEntries.sequence to SortOrder.ASC)
                     .toList()
                     .groupBy { it[GroupChainEntries.chainId] }
-            chains.mapNotNull { toChainDto(it, viewerId, entriesByChain[it[GroupChains.id]].orEmpty()) }
+            chains.mapNotNull {
+                toChainDto(it, viewerId, entriesByChain[it[GroupChains.id]].orEmpty(), blocked)
+            }
         }
     }
 
@@ -380,9 +382,14 @@ object GroupCheckinRepository {
         return toChainDto(chain, viewerId)
     }
 
-    private fun toChainDto(chain: ResultRow, viewerId: String, preloadedEntries: List<ResultRow> = emptyList()): ChainDto? {
+    private fun toChainDto(
+        chain: ResultRow,
+        viewerId: String,
+        preloadedEntries: List<ResultRow> = emptyList(),
+        blocked: Set<String>? = null
+    ): ChainDto? {
         val chainId = chain[GroupChains.id]
-        val blocked = blockedUserIdsInTx(viewerId)
+        val blocked = blocked ?: blockedUserIdsInTx(viewerId)
         // 8.48：列表路径由调用方批量预取；单条路径（空）此处回查
         val entryRows = if (preloadedEntries.isNotEmpty()) preloadedEntries else
             GroupChainEntries.selectAll().where { GroupChainEntries.chainId eq chainId }
@@ -459,7 +466,9 @@ object GroupCheckinRepository {
                     .where { GroupPkVotes.pkId inList pkIds }
                     .toList()
                     .groupBy { it[GroupPkVotes.pkId] }
-            pks.mapNotNull { toPkDto(it, viewerId, votesByPk[it[GroupPkRounds.id]].orEmpty()) }
+            pks.mapNotNull {
+                toPkDto(it, viewerId, votesByPk[it[GroupPkRounds.id]].orEmpty(), blocked)
+            }
         }
     }
 
@@ -521,9 +530,14 @@ object GroupCheckinRepository {
         return toPkDto(pk, viewerId)
     }
 
-    private fun toPkDto(pk: ResultRow, viewerId: String, preloadedVotes: List<ResultRow> = emptyList()): PkDto? {
+    private fun toPkDto(
+        pk: ResultRow,
+        viewerId: String,
+        preloadedVotes: List<ResultRow> = emptyList(),
+        blocked: Set<String>? = null
+    ): PkDto? {
         val pkId = pk[GroupPkRounds.id]
-        val blocked = blockedUserIdsInTx(viewerId)
+        val blocked = blocked ?: blockedUserIdsInTx(viewerId)
         // 8.48：列表路径由调用方批量预取；单条路径（空）此处回查
         val votes = (if (preloadedVotes.isNotEmpty()) preloadedVotes else
             GroupPkVotes.selectAll().where { GroupPkVotes.pkId eq pkId }.toList()

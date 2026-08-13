@@ -157,7 +157,9 @@ object GroupPlayRepository {
                     .where { GroupPollVotes.pollId inList pollIds }
                     .toList()
                     .groupBy { it[GroupPollVotes.pollId] }
-            polls.map { toPollDto(it, userId, preloadedVotes = votesByPoll[it[GroupPolls.id]].orEmpty()) }
+            polls.map {
+                toPollDto(it, userId, preloadedVotes = votesByPoll[it[GroupPolls.id]].orEmpty(), blocked = blocked)
+            }
         }
     }
 
@@ -172,10 +174,16 @@ object GroupPlayRepository {
         toPollDto(row, viewerId)
     }
 
-    private fun toPollDto(row: ResultRow, viewerId: String, forceClosed: Boolean = false, preloadedVotes: List<ResultRow> = emptyList()): PollDto {
+    private fun toPollDto(
+        row: ResultRow,
+        viewerId: String,
+        forceClosed: Boolean = false,
+        preloadedVotes: List<ResultRow> = emptyList(),
+        blocked: Set<String>? = null
+    ): PollDto {
         val pollId = row[GroupPolls.id]
         val options = decodeOptions(row)
-        val blocked = blockedUserIdsInTx(viewerId)
+        val blocked = blocked ?: blockedUserIdsInTx(viewerId)
         // 8.48：列表路径由调用方批量预取；单条路径（空）此处回查
         val votes = (if (preloadedVotes.isNotEmpty()) preloadedVotes else
             GroupPollVotes.selectAll().where { GroupPollVotes.pollId eq pollId }.toList()

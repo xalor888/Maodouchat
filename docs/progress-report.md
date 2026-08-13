@@ -5926,3 +5926,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **搜索索引、密聊状态读取、密封证书、归档建议等 suspend 调用仍被 `runCatching` 包住**：取消会被吞掉并继续后续逻辑。索引写入、通知中心清理、离开群定时清理、密聊状态读取、密封证书预取、归档建议刷新改为 `try/catch` 显式重抛 `CancellationException`。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.105 2026-08-13 无限调优：群玩法列表减少拉黑集合重复查询
+
+1. **每条接龙/PK/投票都会重查双向拉黑集合**：`toChainDto/toPkDto/toPollDto` 在列表路径各自查询 BlockedUsers，100 条列表就是 100 次查询。列表方法先取一次 blocked 集合并传入 DTO，单条路径仍按需查询。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
