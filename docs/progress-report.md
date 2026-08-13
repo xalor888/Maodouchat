@@ -5770,3 +5770,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **动态图片“只能被一条动态使用”只靠进程内缓存**：`PostRepository.createPost` 只查 `imageFilenameToPostId`，服务重启/缓存淘汰后同一张图片可被两条动态引用，删一条会把另一条动态的图片一并清掉。新增 `post_image_claims` 唯一占用表，发帖事务内先查再写占用，删除动态/注销时同步清理；`findPostIdByImageFilename` 优先走占用表，旧行保留 Posts LIKE 兜底。新增测试用全新 `PostRepository` 实例模拟缓存冷启动，确认 DB 仍拒绝重复引用。
 
 **验证**：`:server:test` 全量通过（含新增 `PostImageClaimTest`）；`git diff --check` 无输出。
+
+### 9.79 2026-08-13 无限调优：撤回消息清除反应元数据
+
+1. **撤回不清除旧 reaction**：`revokeMessage` 会删附件、置顶和已读回执，但保留 `MessageReactions`，其他成员仍能看到“撤回的消息曾被谁回应”的元数据。撤回事务补删该消息全部 reaction，新增 H2 集成测试验证撤回后 reaction 表为空且消息 type 为 `REVOKED`。
+
+**验证**：`:server:test` 全量通过（含新增 `MessageRevokeReactionCleanupTest`）；`git diff --check` 无输出。
