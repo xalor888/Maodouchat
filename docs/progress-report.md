@@ -6278,3 +6278,11 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实并排除：`updateMessageReactions` 的「消息不在窗口时静默 no-op」触发面不成立——反应入口（快捷回应/长按菜单）仅限已渲染气泡，必然在 `_uiState.messages` 内；`requestAiSummary` 的 DB 读取前有 isSecretChat/flag/isAiWorking 门 + 下游 mayContinue 兜底，暂不动。
 
 **验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
+
+### 9.148 2026-08-13 无限调优：AI 汇总会话快照收紧
+
+1. **`requestAiSummary` 的 DB 读取无账号/会话快照**：launch 内 `getMessagesByChatId(activeChatId).first()` 实时读 `activeChatId`，异常回退也取陈旧 `_uiState.messages`——换号后旧会话消息可被送进新会话的 AI 汇总流。补快照（owner + chatId）+ 读取后 `mayContinue` 门禁，与其余 AI 路径口径一致。
+
+另核实并排除：`AiMessageResultStore.commit` 的「提交后返回 false 被重试」场景——`markSucceeded` 为条件更新（仅 RUNNING/QUEUED→SUCCEEDED），同 operationId 二次提交返回 0 不重复写，且消息合并以既有行合并，幂等安全；`requestGroupAiAssistant` 的同步上下文构建窗口极窄且下游 `runAiWithConsent` 有门禁，暂不动。
+
+**验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。

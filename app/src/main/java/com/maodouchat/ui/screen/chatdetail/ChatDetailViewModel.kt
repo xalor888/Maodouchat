@@ -3232,14 +3232,27 @@ class ChatDetailViewModel(
             else -> "brief"
         }
         viewModelScope.launch {
+            // 9.148：快照账号与目标会话，DB 读取后过门禁——换号后不得把旧会话消息
+            // 送进新会话的 AI 汇总流（其余 AI 路径均已有快照+门禁）
+            val summaryOwnerUserId = currentUserId
+            val summaryChatId = activeChatId
+            if (summaryOwnerUserId.isBlank() || summaryChatId.isBlank()) return@launch
             val cachedMessages = try {
                 withContext(Dispatchers.IO) {
-                    messageRepo.getMessagesByChatId(activeChatId).first()
+                    messageRepo.getMessagesByChatId(summaryChatId).first()
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (_: Exception) {
                 _uiState.value.messages
+            }
+            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                    expectedUserId = summaryOwnerUserId,
+                    liveToken = tokenManager.getToken(),
+                    liveUserId = tokenManager.getUserId(),
+                )
+            ) {
+                return@launch
             }
             val allDecryptedMessages = (cachedMessages + _uiState.value.messages)
                 .associateBy(Message::id)
