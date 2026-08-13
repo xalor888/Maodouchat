@@ -2770,6 +2770,9 @@ put("status", "ok")
                     return@post
                 }
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                // 9.145：封禁用户不得参与群玩法写入（与 PollRouting 各写端点的 8.33 口径一致——
+                // 此前本文件的 polls 三写端点只查成员/禁言，封禁账号仍可创建投票广播到全群）
+                if (call.rejectIfSuspended(userRepo, userId)) return@post
                 val chatId = call.parameters["chatId"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
                 val body = call.receiveBoundedTextOrEmpty(32_768)
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
@@ -2817,6 +2820,8 @@ put("status", "ok")
                     return@post
                 }
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                // 9.145：封禁用户不得参与投票（同 polls 创建口径）
+                if (call.rejectIfSuspended(userRepo, userId)) return@post
                 val pollId = call.parameters["pollId"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pollId"))
                 val body = call.receiveBoundedTextOrEmpty(8_192)
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
@@ -2839,6 +2844,8 @@ put("status", "ok")
                     return@post
                 }
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                // 9.145：封禁用户不得关闭投票（同 polls 创建口径）
+                if (call.rejectIfSuspended(userRepo, userId)) return@post
                 val pollId = call.parameters["pollId"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pollId"))
                 val poll = com.maodouchat.server.repository.GroupPlayRepository.closePoll(pollId, userId)
                     ?: return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无法关闭投票"))

@@ -6247,3 +6247,11 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实子代理其余候选并排除：`MessageReactions` PK 与「一人一反应」语义一致；`DirectChatPairs.pairKey` 长度充裕且 catch-outside 正确；`FriendRequests` PENDING 去重由 PG 部分唯一索引 + 行锁兜底；群玩法表无 FK 但手工级联均在行锁内执行；`SignalKeys` 无三元唯一索引但用户行锁 + 删插模式无重复风险；`post_likes` 缺 (post_id,created_at,user_id) 复合索引仅影响赞列表读性能（非热路径，暂不加）。
 
 **验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.145 2026-08-13 无限调优：Routing.kt 投票三写端点缺失封禁校验
+
+1. **`post /api/chats/{chatId}/polls`、`post /api/polls/{pollId}/vote`、`post /api/polls/{pollId}/close` 缺 `rejectIfSuspended`（系统性扫描发现）**：PollRouting.kt 的签到/接龙/PK 写端点自 8.33 起均拦封禁账号，但 Routing.kt 内同家族的投票三写端点只查成员/禁言——被封禁账号仍可创建投票（内容对全群可见）、参与/关闭投票，与「封禁用户不得参与群玩法写入」口径不一致。三处补齐 `call.rejectIfSuspended(userRepo, userId)`。
+
+另对全量写端点做了封禁守卫覆盖扫描（80 处无守卫候选逐一甄别）：auth 系列（登录/注册/找回/refresh/登出/TOTP）必须对封禁账号可用；`/users/me` 删除、退群/删会话、改密、client-prefs、拉黑、星标、已读回执属自助/无害操作；群管理/动态写路径由仓库层角色校验或 postRestricted 覆盖。均无需改动。
+
+**验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
