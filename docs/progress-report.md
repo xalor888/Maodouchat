@@ -5920,3 +5920,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **导出历史、身份扫描、提醒清理、清空会话缓存仍用 `runCatching` 包 suspend 写库**：取消在这些路径会被吞掉并继续执行。四处改为 `try/catch` 显式重抛 `CancellationException`，普通失败语义不变。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.104 2026-08-13 无限调优：搜索索引/密聊状态/归档建议恢复取消传播
+
+1. **搜索索引、密聊状态读取、密封证书、归档建议等 suspend 调用仍被 `runCatching` 包住**：取消会被吞掉并继续后续逻辑。索引写入、通知中心清理、离开群定时清理、密聊状态读取、密封证书预取、归档建议刷新改为 `try/catch` 显式重抛 `CancellationException`。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。

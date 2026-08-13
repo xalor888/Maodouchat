@@ -419,9 +419,11 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         val session = ownerSession(ownerUserId)
         viewModelScope.launch {
             if (!isOwnerSessionCurrent(session)) return@launch
-            val suggestions = runCatching {
+            val suggestions = try {
                 com.maodouchat.ai.AiArchiveSuggestion.refresh(getApplication(), app.database)
-            }.getOrElse { error ->
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
                 android.util.Log.w("ChatListViewModel", "loadArchiveSuggestions failed", error)
                 emptyList()
             }

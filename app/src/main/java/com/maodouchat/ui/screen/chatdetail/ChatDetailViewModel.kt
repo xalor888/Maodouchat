@@ -233,7 +233,14 @@ class ChatDetailViewModel(
     private suspend fun indexSearchableMessage(message: Message) {
         // 密聊消息不落搜索索引（与 ImageOcrAutoIndexer 一致）：即使本地 SQLCipher 已加密，
         // 密聊明文不应进入可搜索缓存，避免密聊内容在全局搜索中可被检索。
-        if (runCatching { secretChatRepo.isSecret(message.chatId) }.getOrDefault(false)) return
+        val isSecretChat = try {
+            secretChatRepo.isSecret(message.chatId)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            false
+        }
+        if (isSecretChat) return
         try {
             com.maodouchat.data.repository.MessageSearchRepository(app.database)
                 .indexMessage(message)
@@ -2049,9 +2056,13 @@ class ChatDetailViewModel(
         }
         // 8.32 修复 F9（隐私）：自毁消息删除后同步清理 tray 预览与通知中心条目，
         // 否则密文已删但通知栏仍展示正文预览。
-        runCatching {
+        try {
             com.maodouchat.data.repository.NotificationCenterRepository(getApplication())
                 .deleteItemsForMessages(expiredIds)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            // 通知中心清理失败不阻塞自毁消息删除
         }
         runCatching {
             com.maodouchat.util.AppNotifier.cancelMessage(getApplication(), activeChatId)
@@ -2813,10 +2824,14 @@ class ChatDetailViewModel(
                     getApplication(),
                     event.chatId
                 )
-                runCatching {
+                try {
                     val appCtx = getApplication<Application>()
                     val removed = com.maodouchat.util.ScheduledMessageStore.clearForChat(appCtx, event.chatId)
                     removed.forEach { com.maodouchat.util.ScheduledMessageScheduler.cancel(appCtx, it) }
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    // 定时消息清理失败不阻塞会话删除
                 }
                 aiTaskRepo.deleteByChatId(event.chatId)
                 aiOperationRepo.deleteByChatId(event.chatId)
@@ -7389,8 +7404,14 @@ fun sendCurrentLocation() {
             throw kotlinx.coroutines.CancellationException("deliver_session_changed")
         }
         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-        val wantSealed = _uiState.value.isSecretChat == true ||
-            runCatching { secretChatRepo.isSecret(chatId) }.getOrDefault(false)
+        val secretChat = try {
+            secretChatRepo.isSecret(chatId)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            false
+        }
+        val wantSealed = _uiState.value.isSecretChat == true || secretChat
         val sealedOwnerDeviceId = signalProtocol.getDeviceId()
         val sealedCert = if (wantSealed && liveToken.isNotBlank()) {
             withContext(Dispatchers.IO) {
@@ -8378,7 +8399,13 @@ fun sendCurrentLocation() {
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
-            val secret = runCatching { secretChatRepo.isSecret(targetChatId) }.getOrDefault(false)
+            val secret = try {
+                secretChatRepo.isSecret(targetChatId)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                false
+            }
             if (secret) {
                 com.maodouchat.security.SecretChatSession.markSurfaceActive(targetChatId)
             } else {
@@ -8428,13 +8455,17 @@ fun sendCurrentLocation() {
                     liveToken.isNotBlank() && ownerUserId.isNotBlank() &&
                     RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SEALED_SENDER)
                 ) {
-                    sealedReady = runCatching {
+                    sealedReady = try {
                         com.maodouchat.crypto.SealedSenderSupport.fetchCertificate(
                             liveToken,
                             ownerUserId,
                             ownerDeviceId
                         ).getOrNull()?.certificate?.isNotBlank() == true
-                    }.getOrDefault(false)
+                    } catch (error: kotlinx.coroutines.CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        false
+                    }
                     if (sealedReady) {
                         sealedTtl = com.maodouchat.crypto.SealedSenderSupport.secondsUntilExpiry(
                             ownerUserId,
