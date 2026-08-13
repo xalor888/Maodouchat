@@ -165,7 +165,18 @@ fun Application.configureDeveloperRouting() {
                     if (sinceMs != null && sinceMs > 0) {
                         query.andWhere { BotCommandLogs.createdAt greater sinceMs }
                     }
-                    query.orderBy(
+                    // total 必须是「过滤后的总行数」而非本页条数——此前填 logs.size，
+                    // 客户端按 limit/offset 翻页时无法判断是否还有下一页
+                    val countQuery = BotCommandLogs.selectAll()
+                        .where { BotCommandLogs.botId eq targetBotId }
+                    if (commandFilter != null) {
+                        countQuery.andWhere { BotCommandLogs.command eq commandFilter }
+                    }
+                    if (sinceMs != null && sinceMs > 0) {
+                        countQuery.andWhere { BotCommandLogs.createdAt greater sinceMs }
+                    }
+                    val total = countQuery.count().coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                    val rows = query.orderBy(
                         BotCommandLogs.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
                         BotCommandLogs.id to org.jetbrains.exposed.sql.SortOrder.DESC
                     )
@@ -179,8 +190,9 @@ fun Application.configureDeveloperRouting() {
                                 createdAt = row[BotCommandLogs.createdAt]
                             )
                         }
+                    BotLogsResponse(logs = rows, total = total)
                 }
-                call.respond(BotLogsResponse(logs = logs, total = logs.size))
+                call.respond(logs)
             }
 
             // ─── Test webhook ─────────────────────

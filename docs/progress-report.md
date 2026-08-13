@@ -6064,3 +6064,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 10. **bot 各发消息端点 WS fanout 拉黑过滤不一致**：`sendMessage`/`forwardMessage`/`copyMessage` 已过滤拉黑 bot 的接收方，但 `sendPoll`/`sendDice`/`sendLocation`/`sendContact`/`sendVenue`/`sendSticker`/`sendVoice`/`sendDocument`/`sendPhoto`/`sendVideo`/`sendAnimation`/`editMessage`/`editMessageCaption` 等 20 处 fanout 未过滤——拉黑 bot 的用户仍实时收到 bot 的 WS 消息。统一补 `blockedEitherWayIdsInTx` 批量双向过滤（与用户发消息路径 8.30 同口径）。
 
 **验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.125 2026-08-13 无限调优：bot 日志分页总数与残余事件 fanout 过滤
+
+1. **`GET /api/developer/bots/{id}/logs` 的 `total` 填的是本页条数**：`total = logs.size` 使客户端按 limit/offset 翻页时无法判断是否还有下一页（dash 分页永远只显示一页）。改为同一过滤条件下的独立 COUNT 查询。
+2. **`editMessageCaption` 的 `MESSAGE_EDITED` fanout 漏过滤**：拉黑 bot 的用户仍实时收到 bot 的编辑广播（含新正文）。补齐 `blockedEitherWayIdsInTx` 双向过滤（与 editMessage 8.48 同口径）。
+3. **`sendChatAction`（USER_TYPING）侧信道漏过滤**：用户侧 WS TYPING 早已双向拉黑过滤，bot typing 却全量广播。补齐。
+4. **3 处 bot 置顶事件（PINNED_MESSAGES_UPDATED）fanout 漏过滤**：pinChatMessage / unpinChatMessage / unpinAllChatMessages 携带 bot 的 pinnedBy 与被置顶 messageId，全量广播给拉黑 bot 的用户。补齐。
+
+**验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。

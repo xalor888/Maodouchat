@@ -3454,7 +3454,11 @@ put("count", saved.size)
                     )
                 )
                 try {
-                    chatRepo.getParticipantIds(chatId).filter { it != bot.id }.forEach { pid ->
+                    // 9.124 补：typing 侧信道同样过滤拉黑 bot 的接收方（与用户 WS TYPING 双向拉黑过滤一致）
+                    val typingPids = chatRepo.getParticipantIds(chatId).filter { it != bot.id }
+                    val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, typingPids) } catch (_: Exception) { emptySet() }
+                    typingPids.forEach { pid ->
+                        if (pid in botBlockedIds) return@forEach
                         sendToUser(pid, payload)
                     }
                 } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -3522,7 +3526,12 @@ put("action", action)
                                 json.encodeToString(PinnedMessagesUpdatedPayload.serializer(), payload)
                             )
                         )
-                        chatRepo.getParticipantIds(chatId).forEach { sendToUser(it, pinJson) }
+                        val fanoutPids = chatRepo.getParticipantIds(chatId)
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
+                    sendToUser(pid, pinJson)
+                }
                         call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -4514,7 +4523,12 @@ put("role", role)
                         json.encodeToString(PinnedMessagesUpdatedPayload.serializer(), payload)
                     )
                 )
-                chatRepo.getParticipantIds(chatId).forEach { sendToUser(it, pinJson) }
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
+                    sendToUser(pid, pinJson)
+                }
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -5315,7 +5329,12 @@ put("alreadyUnpinned", true)
                                 json.encodeToString(PinnedMessagesUpdatedPayload.serializer(), payload)
                             )
                         )
-                        chatRepo.getParticipantIds(chatId).forEach { sendToUser(it, pinJson) }
+                        val fanoutPids = chatRepo.getParticipantIds(chatId)
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
+                    sendToUser(pid, pinJson)
+                }
                         call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -6587,7 +6606,13 @@ put("alias", "closePoll")
                     )
                 )
                 try {
-                    chatRepo.getParticipantIds(existing.chatId).forEach { pid -> sendToUser(pid, ej) }
+                    // 9.124 补：编辑事件同样过滤拉黑 bot 的接收方（与 NEW_MESSAGE fanout 同口径）
+                    val fanoutPids = chatRepo.getParticipantIds(existing.chatId)
+                    val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                    fanoutPids.forEach { pid ->
+                        if (pid in botBlockedIds) return@forEach
+                        sendToUser(pid, ej)
+                    }
                 } catch (e: CancellationException) { throw e } catch (_: Exception) { }
                 call.respond(
                 buildJsonObject {
