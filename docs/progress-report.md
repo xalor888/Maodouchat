@@ -6132,3 +6132,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`/api/bot/shieldz` 返回 `surface=59`，同面 `getCaptureShieldFlags` 返回 60**：客户端按 surface 取能力集时两个端点给出不一致的版本标签（审计复核确认仅此一对漂移，vaultz/sealz/markz/linkz/privz 其余各对均对齐）。shieldz 对齐为 60。
 
 **验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.134 2026-08-13 无限调优：聊天页草稿保存死代码与三处状态竞态
+
+1. **草稿防抖保存是死代码（HIGH）**：`scheduleDraftPersistence` 中 `return@launch` 与 `persistDraft(...)` 写在同一行——后者恒不可达，防抖保存从未执行，草稿仅在 `onCleared` 落盘，进程被杀/强杀即丢输入内容。拆行修复。
+2. **未读清零广播用错会话 id**：create-on-send 竞态下 `activeChatId` 已被改写成新会话 id，`emitChatRead(chatId)`（构造器旧值）清错会话角标——与上方 `markAllAsRead(effectiveChatId)` 不一致。改用快照 `effectiveChatId`。
+3. **未读分隔线边界错位**：`takeLast(unreadCount)` 在 `unreadCount ≥ 已加载窗口（100 条）` 时静默钳到窗口内最老一条，"以下为未读消息"分隔线画在错误位置。改为未读起点不在窗口内时不画分隔线。
+4. **被移出群清理混用实时/快照账号 id**：`senderKeyRetryDao().delete` 与 `clearWireContentForChat` 用实时 `currentUserId`，周围会话守卫用快照 `revisionOwnerUserId`——清理中途换号会删错账号数据。统一改用快照值。
+
+**验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。

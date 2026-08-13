@@ -1308,13 +1308,14 @@ class ChatDetailViewModel(
                             ) {
                                 return@onSuccess
                             }
-                            // 1.03：未读起点分隔线——未读窗口 totalCount>0 时，未读第一条 = 倒数第 totalCount 条
+                            // 1.03：未读起点分隔线——未读窗口 totalCount>0 时，未读第一条 = 倒数第 totalCount 条。
+                            // 9.134：totalCount 是服务端全量未读，可能超过已加载窗口（100 条）——
+                            // takeLast 会静默钳到窗口内最老一条，把分隔线画在错误的边界；
+                            // 未读起点不在窗口内时不画分隔线（继续上翻由分页自然衔接）
                             val unreadCount = unreadSummaryWindow?.totalCount ?: 0
-                            val unreadSepId = if (unreadCount > 0 && messages.isNotEmpty()) {
-                                messages.filter { it.type != MessageType.SK_DIST }
-                                    .takeLast(unreadCount)
-                                    .firstOrNull()
-                                    ?.id
+                            val nonSkMessages = messages.filter { it.type != MessageType.SK_DIST }
+                            val unreadSepId = if (unreadCount > 0 && unreadCount < nonSkMessages.size) {
+                                nonSkMessages.takeLast(unreadCount).firstOrNull()?.id
                             } else null
                             _uiState.update {
                                 it.copy(
@@ -1365,7 +1366,9 @@ class ChatDetailViewModel(
                                         }
                                     }
                                 }
-                                com.maodouchat.MaodouchatApp.emitChatRead(chatId)
+                                // 9.134：与上方 mark-read 一致使用快照 effectiveChatId——create-on-send 竞态下
+                                // activeChatId 已被改写成新会话 id，emitChatRead(chatId) 清错会话角标
+                                com.maodouchat.MaodouchatApp.emitChatRead(effectiveChatId)
                             }
                         }
                         .onFailure {
@@ -2845,11 +2848,11 @@ class ChatDetailViewModel(
                 com.maodouchat.security.ChatLockSession.clear(event.chatId)
                 app.database.secretChatDao().remove(event.chatId)
                 com.maodouchat.security.SecretChatSession.markSurfaceInactive(event.chatId, getApplication())
-                app.database.senderKeyRetryDao().delete(currentUserId, event.chatId)
+                app.database.senderKeyRetryDao().delete(revisionOwnerUserId, event.chatId)
                 try {
                     app.database.attachmentTransferDao().clearWireContentForChat(
                         event.chatId,
-                        ownerUserId = currentUserId
+                        ownerUserId = revisionOwnerUserId
                     )
                 } catch (error: kotlinx.coroutines.CancellationException) {
                     throw error
@@ -3091,7 +3094,10 @@ class ChatDetailViewModel(
         draftSaveJob = viewModelScope.launch(Dispatchers.IO) {
             delay(ChatDraftPolicy.SAVE_DELAY_MS)
             if (!ChatDraftPolicy.shouldPersistGeneration(generation, draftGeneration)) return@launch
-            if (!ChatDraftPolicy.shouldWrite(ownerUserId, tokenManager.getUserId())) return@launch            persistDraft(ownerUserId, targetChatId, text)
+            if (!ChatDraftPolicy.shouldWrite(ownerUserId, tokenManager.getUserId())) return@launch
+            // 9.134：persistDraft 此前与 return@launch 同行——恒不可达，防抖保存从未执行，
+            // 草稿只在 onCleared 时落盘（进程被杀即丢）
+            persistDraft(ownerUserId, targetChatId, text)
         }
     }
 
