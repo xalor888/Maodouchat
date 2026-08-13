@@ -5794,3 +5794,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **用户/群聊/推送 token/消息/设备日志按 lastSeen、memberRevision、updatedAt、timestamp 排序仍不稳定**：这些列表同样使用 OFFSET，同值多行会跳/重。统一补主键/复合键二级排序，服务端所有 offset 分页均有稳定顺序。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.83 2026-08-13 无限调优：附近的人游标分批补齐可见结果
+
+1. **附近的人只拉 `limit*8` 候选再过滤**：拉黑/已注销/停权用户占满前几批时，过滤后可能不足 limit，少返回附近用户。改为按 `userId` 游标分批拉取（最多 20 批），直到凑满可见结果或到表尾，并新增测试验证首行被拉黑用户占用时仍返回后续可见用户。
+
+**验证**：`:server:test` 全量通过（含新增 `NearbyVisibilityBatchTest`）；`git diff --check` 无输出。

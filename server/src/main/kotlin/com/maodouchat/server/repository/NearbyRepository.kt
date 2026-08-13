@@ -7,8 +7,11 @@ import com.maodouchat.server.model.NearbyLocationStatusResponse
 import com.maodouchat.server.model.NearbyUserResponse
 import com.maodouchat.server.model.UserResponse
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
 import org.jetbrains.exposed.sql.and
@@ -126,31 +129,54 @@ class NearbyRepository {
             if (row[BlockedUsers.blockerId] == userId) row[BlockedUsers.blockedId] else row[BlockedUsers.blockerId]
         }.toSet()
 
-        (UserLocations innerJoin Users).selectAll().where {
-            (UserLocations.visible eq true) and
-                (UserLocations.expiresAt greaterEq now) and
-                (UserLocations.userId neq userId) and
-                (UserLocations.latitude greaterEq originLat - latDelta) and
-                (UserLocations.latitude lessEq originLat + latDelta) and
-                longitudeBounds
-        }
-            // 8.38：SQL 层粗上限——此前无 limit，粗粒度边界盒可物化上万行做内存排序（CPU 放大）。
-            // 粗上限取 limit*8（haversine 过滤后仍大概率够）；配合 take(limit) 精确裁剪。
-            .limit(limit.coerceIn(1, 100) * 8)
-            .asSequence()
-            // 8.33 修复：封禁用户必须从「附近的人」消失（位置 = 实时行踪，封禁期间不可见）
-            .filter { row ->
-                row[Users.deletedAt] == null &&
+        val boundedLimit = limit.coerceIn(1, 100)
+        val visible = mutableListOf<Pair<ResultRow, Double>>()
+        var cursorUserId: String? = null
+        var iterations = 0
+        // 游标分批拉取：前几批若被拉黑/已注销/停权用户占满，继续拉下一批，
+        // 不能因粗上限过滤后不足而少返回（与点赞者分页同一修复模式）。
+        while (visible.size < boundedLimit && iterations < 20) {
+            val batchSize = ((boundedLimit - visible.size) * 4).coerceAtLeast(boundedLimit)
+            val cursorCondition = if (cursorUserId == null) {
+                (UserLocations.userId neq userId)
+            } else {
+                (UserLocations.userId greater cursorUserId)
+            }
+            val batch = (UserLocations innerJoin Users).selectAll().where {
+                (UserLocations.visible eq true) and
+                    (UserLocations.expiresAt greaterEq now) and
+                    cursorCondition and
+                    (UserLocations.latitude greaterEq originLat - latDelta) and
+                    (UserLocations.latitude lessEq originLat + latDelta) and
+                    longitudeBounds
+            }
+                .orderBy(UserLocations.userId to SortOrder.ASC)
+                .limit(batchSize)
+                .toList()
+            if (batch.isEmpty()) break
+            batch.forEach { row ->
+                // 8.33 修复：封禁用户必须从「附近的人」消失（位置 = 实时行踪，封禁期间不可见）
+                if (row[Users.deletedAt] == null &&
                     row[Users.suspendedUntil] <= now &&
                     row[Users.id] !in blockedIds
+                ) {
+                    val distance = haversineMeters(
+                        originLat,
+                        originLon,
+                        row[UserLocations.latitude],
+                        row[UserLocations.longitude]
+                    )
+                    if (distance <= radius * 1_000.0) {
+                        visible += row to distance
+                    }
+                }
             }
-            .map { row ->
-                val distance = haversineMeters(originLat, originLon, row[UserLocations.latitude], row[UserLocations.longitude])
-                row to distance
-            }
-            .filter { (_, distance) -> distance <= radius * 1_000.0 }
+            cursorUserId = batch.last()[UserLocations.userId]
+            iterations++
+        }
+        visible
             .sortedBy { (_, distance) -> distance }
-            .take(limit.coerceIn(1, 100))
+            .take(boundedLimit)
             .map { (row, distance) ->
                 NearbyUserResponse(
                     user = row.toPublicUser(),
@@ -158,7 +184,6 @@ class NearbyRepository {
                     locationUpdatedAt = row[UserLocations.updatedAt]
                 )
             }
-            .toList()
     }
 
     private fun isUniqueViolation(error: Throwable): Boolean {
