@@ -268,6 +268,21 @@ class MaodouchatApp : Application() {
             }
         }
 
+        // 媒体/附件缓存维护：MediaCache.cleanup 此前无调用方，只会在登出/重建时全清；
+        // 这里每 6 小时按年龄与总字节上限清理一次，避免长期运行只涨不清。
+        applicationScope.launch {
+            while (isActive) {
+                delay(6L * 60 * 60 * 1000)
+                try {
+                    com.maodouchat.util.MediaCache.cleanup(this@MaodouchatApp)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    android.util.Log.w("MaodouchatApp", "Media cache cleanup failed", e)
+                }
+            }
+        }
+
     }
 
     /**

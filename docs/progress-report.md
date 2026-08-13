@@ -5650,3 +5650,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **PIN 解锁主线程 runBlocking**：ChatDetail/Starred/AiTasks/MediaCenter 四处的 `unlockChatWithPin/unlockWithPin` 都在 UI 线程同步 `runBlocking(IO)` 等 Room 校验。`ChatLockGate` 改为 `(pin, onResult) -> Unit` 异步回调，四处 ViewModel 改为协程 `withContext(IO)` 后回调结果，消除 ANR 风险。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.59 2026-08-13 无限调优：媒体缓存周期维护
+
+1. **`MediaCache.cleanup` 无调用方**：媒体/附件缓存只会在登出或本地存储重建时全清，长期运行会只涨不清。新增 6 小时应用内维护循环调用 `MediaCache.cleanup`，按年龄与总字节上限清理，并保留过期消息清理互不冲突。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
