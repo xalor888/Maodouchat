@@ -5758,3 +5758,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`CommentLikes` 未随注销删除**：用户给他人动态评论点的赞在注销后仍计入评论点赞数，点赞者列表会显示已注销用户。注销事务补删 `CommentLikes.userId = 当前用户`，回归测试同时验证其他用户点赞保留。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.77 2026-08-13 无限调优：WebSocket 重连恢复取消传播
+
+1. **重连刷新 token 的 `runCatching` 吞掉取消**：`refreshTokenThenReconnect` 与 `scheduleReconnectAt` 在 `scope.launch` 里用 `runCatching` 包可挂起刷新，WebSocket scope 取消后协程仍继续执行调度分支。两处改为 `try/catch` 显式重抛 `CancellationException`，普通刷新失败仍按空结果处理。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。

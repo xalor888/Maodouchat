@@ -514,7 +514,13 @@ object WebSocketClient {
     private fun refreshTokenThenReconnect() {
         if (!shouldReconnect || reconnectJob?.isActive == true) return
         scope.launch {
-            val refreshed = runCatching { com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession() }.getOrNull()
+            val refreshed = try {
+                com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession()
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                null
+            }
             if (refreshed != null && refreshed.isNotBlank()) {
                 authToken.set(refreshed)
                 scheduleReconnect()
@@ -575,7 +581,13 @@ object WebSocketClient {
                 val expiresAt = tokenManager.getAccessTokenExpiresAt()
                 val stale = expiresAt > 0L && expiresAt <= System.currentTimeMillis() + 60_000L
                 if (stale) {
-                    val refreshed = runCatching { com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession() }.getOrNull()
+                    val refreshed = try {
+                        com.maodouchat.network.ApiService.refreshAccessTokenForCurrentSession()
+                    } catch (error: kotlinx.coroutines.CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        null
+                    }
                     if (refreshed != null && refreshed.isNotBlank()) {
                         token = refreshed
                     } else {
