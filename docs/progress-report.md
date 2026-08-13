@@ -5734,3 +5734,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **多条入口会把密聊明文写入全局搜索索引**：`ChatListViewModel` 的列表解密、`TextOutboxFlusher` 后台补发、AI 结果落库都会直接调 `MessageSearchRepository.indexMessage`，只有聊天页入口做了 `secretChatRepo.isSecret` 拦截；全量重建也未排除密聊会话。现在密聊排除下沉到搜索仓库与 DAO：`indexMessage` 一律删除并拒绝写入密聊会话文档，`search/searchByTypes` SQL 层排除 `secret_chats`，全量重建与新鲜度计数也不再把密聊算作可搜索消息。
 
 **验证**：`:app:testDebugUnitTest`（新增 3 个 MockK 用例）、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.73 2026-08-13 无限调优：后台 AI 读取排除密聊
+
+1. **AI 本地统计仍会扫描密聊明文**：`getSearchableMessages/getSearchableMessagesForChat` 被会话画像、周报、情绪回复、消息分类、归档建议共用，没有排除 `secret_chats`；即使聊天页按钮有门禁，归档建议这类全局后台任务仍会逐条读取密聊正文做关键词统计。两条 DAO 查询统一加 `chatId NOT IN (SELECT chatId FROM secret_chats)`，密聊不参与任何 AI 本地聚合。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。

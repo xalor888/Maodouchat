@@ -90,12 +90,27 @@ interface MessageDao {
     // 加 LIMIT 防止消息量大的数据库 OOM；DESC 排序保留最新消息，配合 MessageSearchRepository.refreshIndex
     // 的孤儿删除逻辑时，避免最新消息因不在截断集合内被误删索引。
     // 调用方按需分批加载或基于时间游标分页。
-    @Query("SELECT * FROM messages WHERE type IN ('TEXT', 'MARKDOWN', 'VOICE', 'LOCATION', 'NUDGE', 'IMAGE', 'GIF', 'STICKER', 'VIDEO', 'FILE') ORDER BY timestamp DESC LIMIT :limit")
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE type IN ('TEXT', 'MARKDOWN', 'VOICE', 'LOCATION', 'NUDGE', 'IMAGE', 'GIF', 'STICKER', 'VIDEO', 'FILE')
+          AND chatId NOT IN (SELECT chatId FROM secret_chats)
+        ORDER BY timestamp DESC LIMIT :limit
+        """
+    )
     suspend fun getSearchableMessages(limit: Int = 5000): List<MessageEntity>
 
     // 8.48 修复：按会话查询可搜索消息（分类/周报等按会话统计场景）——
     // 此前「全库 LIMIT 后按 chatId filter」在活跃大库下目标会话历史被静默丢弃，统计失真
-    @Query("SELECT * FROM messages WHERE chatId = :chatId AND type IN ('TEXT', 'MARKDOWN', 'VOICE', 'LOCATION', 'NUDGE', 'IMAGE', 'GIF', 'STICKER', 'VIDEO', 'FILE') ORDER BY timestamp DESC LIMIT :limit")
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE chatId = :chatId
+          AND type IN ('TEXT', 'MARKDOWN', 'VOICE', 'LOCATION', 'NUDGE', 'IMAGE', 'GIF', 'STICKER', 'VIDEO', 'FILE')
+          AND chatId NOT IN (SELECT chatId FROM secret_chats)
+        ORDER BY timestamp DESC LIMIT :limit
+        """
+    )
     suspend fun getSearchableMessagesForChat(chatId: String, limit: Int = 5000): List<MessageEntity>
 
     // 轻量全集：仅返回可搜索消息的 id（不含 content），供 refreshIndex 计算孤儿文档，
