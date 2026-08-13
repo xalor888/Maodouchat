@@ -103,18 +103,32 @@ class PostRepository {
      * 聚合后整个 feed 只需 3 条 SQL（IN + GROUP BY）。
      * 使用 Exposed 0.46 支持的 Query.select(columns).where{}.groupBy() 聚合写法。
      */
-    private fun batchAggregatePostMeta(postIds: List<String>, currentUserId: String): PostMeta {
+    private fun batchAggregatePostMeta(
+        postIds: List<String>,
+        currentUserId: String,
+        blockedUserIds: Set<String> = emptySet()
+    ): PostMeta {
         if (postIds.isEmpty()) return PostMeta(emptyMap(), emptyMap(), emptySet())
         val likeCountExpr = PostLikes.userId.count()
-        val likeCounts = PostLikes
-            .select(PostLikes.postId, likeCountExpr)
+        val likeBase = PostLikes.select(PostLikes.postId, likeCountExpr)
             .where { PostLikes.postId inList postIds }
+        val likeQuery = if (blockedUserIds.isEmpty()) {
+            likeBase
+        } else {
+            likeBase.andWhere { PostLikes.userId notInList blockedUserIds.toList() }
+        }
+        val likeCounts = likeQuery
             .groupBy(PostLikes.postId)
             .associate { it[PostLikes.postId] to it[likeCountExpr].toInt() }
         val commentCountExpr = PostComments.id.count()
-        val commentCounts = PostComments
-            .select(PostComments.postId, commentCountExpr)
+        val commentBase = PostComments.select(PostComments.postId, commentCountExpr)
             .where { PostComments.postId inList postIds }
+        val commentQuery = if (blockedUserIds.isEmpty()) {
+            commentBase
+        } else {
+            commentBase.andWhere { PostComments.authorId notInList blockedUserIds.toList() }
+        }
+        val commentCounts = commentQuery
             .groupBy(PostComments.postId)
             .associate { it[PostComments.postId] to it[commentCountExpr].toInt() }
         val likedByMe = PostLikes
@@ -224,7 +238,7 @@ class PostRepository {
                 // 先过滤可见，再批量聚合 meta（整个 batch 一次性 SQL 聚合）
                 val visibleRows = batch.filter { it.isPostVisibleTo(currentUserId, contactIds, blockedUserIds) }
                 val visibleIds = visibleRows.map { it[Posts.id] }
-                val meta = batchAggregatePostMeta(visibleIds, currentUserId)
+                val meta = batchAggregatePostMeta(visibleIds, currentUserId, blockedUserIds)
 
                 for (row in visibleRows) {
                     if (result.size >= boundedLimit) break
@@ -249,7 +263,7 @@ class PostRepository {
                 .firstOrNull()
                 ?.takeIf { it.isPostVisibleTo(currentUserId, contactIds, blockedUserIds) } ?: return@transaction null
             // 单条路径同样走聚合路径（1 条 IN 查询比 3 条 count()/empty() 快）
-            val meta = batchAggregatePostMeta(listOf(postId), currentUserId)
+            val meta = batchAggregatePostMeta(listOf(postId), currentUserId, blockedUserIds)
             row.toPostResponse(currentUserId, meta)
         }
     }
@@ -516,7 +530,7 @@ class PostRepository {
                 .toList()
             if (posts.isEmpty()) return@transaction emptyList()
             val visibleIds = posts.map { it[Posts.id] }
-            val meta = batchAggregatePostMeta(visibleIds, currentUserId)
+            val meta = batchAggregatePostMeta(visibleIds, currentUserId, blockedUserIds)
             posts.map { it.toPostResponse(currentUserId, meta) }
         }
     }

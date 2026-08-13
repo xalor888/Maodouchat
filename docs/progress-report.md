@@ -5956,3 +5956,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`getMessages` 仓库层未限制 limit**：路由已截断，但仓库层仍直接透传，未来新增调用方可能拉超大页。补 `limit.coerceIn(1, 100)`，与 `getMessagesBefore` 等路径一致。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.110 2026-08-13 无限调优：动态点赞/评论计数过滤拉黑
+
+1. **动态计数包含被拉黑用户的互动**：feed/详情/作者主页的 `likeCount/commentCount` 会算入被拉黑用户的点赞和评论，间接暴露其活动。`batchAggregatePostMeta` 新增双向拉黑集合，三个读取路径统一过滤计数，新增 H2 测试覆盖。
+
+**验证**：`:server:test` 全量通过（含新增 `PostMetaBlockedVisibilityTest`）；`git diff --check` 无输出。
