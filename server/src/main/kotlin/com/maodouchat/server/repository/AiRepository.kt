@@ -16,7 +16,6 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import org.jetbrains.exposed.sql.upsert
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
@@ -32,14 +31,31 @@ class AiRepository {
         getSettingsInTransaction(userId, chatId)
     }
 
-    fun setUserEnabled(userId: String, enabled: Boolean): AiSettingsResponse = transaction {
-        upsertPreference(userId, SCOPE_USER, "", enabled)
-        getSettingsInTransaction(userId, null)
+    fun setUserEnabled(userId: String, enabled: Boolean): AiSettingsResponse = try {
+        transaction {
+            upsertPreference(userId, SCOPE_USER, "", enabled)
+            getSettingsInTransaction(userId, null)
+        }
+    } catch (error: Exception) {
+        if (!isUniqueViolation(error)) throw error
+        // 并发首插撞 (userId, scope, chatId) PK：本事务已回滚，新事务重放 UPDATE
+        transaction {
+            upsertPreference(userId, SCOPE_USER, "", enabled)
+            getSettingsInTransaction(userId, null)
+        }
     }
 
-    fun setChatEnabled(userId: String, chatId: String, enabled: Boolean): AiSettingsResponse = transaction {
-        upsertPreference(userId, SCOPE_CHAT, chatId, enabled)
-        getSettingsInTransaction(userId, chatId)
+    fun setChatEnabled(userId: String, chatId: String, enabled: Boolean): AiSettingsResponse = try {
+        transaction {
+            upsertPreference(userId, SCOPE_CHAT, chatId, enabled)
+            getSettingsInTransaction(userId, chatId)
+        }
+    } catch (error: Exception) {
+        if (!isUniqueViolation(error)) throw error
+        transaction {
+            upsertPreference(userId, SCOPE_CHAT, chatId, enabled)
+            getSettingsInTransaction(userId, chatId)
+        }
     }
 
     fun isEnabled(userId: String, chatId: String? = null): Boolean {
@@ -188,17 +204,38 @@ class AiRepository {
     }
 
     private fun upsertPreference(userId: String, scope: String, chatId: String, enabled: Boolean) {
-        // PG：UPDATE 0 行后并发 INSERT 撞 (userId, scope, chatId) PK 会 abort 整事务，
-        // runCatching 吞掉异常后同事务继续 SELECT 必 500。改用原生 upsert
-        //（PG ON CONFLICT DO UPDATE / H2 MERGE），从根上消除并发窗口。
-        AiPreferences.upsert(
-            AiPreferences.userId,
-            AiPreferences.scope,
-            AiPreferences.chatId
-        ) {
+        // 先 UPDATE 再 INSERT：并发首插撞 (userId, scope, chatId) PK 时异常交给调用方
+        // 事务外 catch 重试（PG abort 语义安全）。不用 Exposed upsert()——H2 2.x 不支持
+        // 其生成的 MERGE ... USING (VALUES)（与 RateLimitStatsRepository.recordMinute
+        // 的 isH2Db 分支同结论），生产 PG / 测试 H2 双兼容。
+        val updated = AiPreferences.update({
+            (AiPreferences.userId eq userId) and
+                (AiPreferences.scope eq scope) and
+                (AiPreferences.chatId eq chatId)
+        }) {
             it[AiPreferences.enabled] = enabled
             it[updatedAt] = System.currentTimeMillis()
         }
+        if (updated == 0) {
+            AiPreferences.insert {
+                it[AiPreferences.userId] = userId
+                it[AiPreferences.scope] = scope
+                it[AiPreferences.chatId] = chatId
+                it[AiPreferences.enabled] = enabled
+                it[updatedAt] = System.currentTimeMillis()
+            }
+        }
+    }
+
+    private fun isUniqueViolation(error: Throwable): Boolean {
+        var current: Throwable? = error
+        while (current != null) {
+            val message = current.message.orEmpty().lowercase()
+            if (current is java.sql.SQLException && current.sqlState == "23505") return true
+            if (message.contains("unique") || message.contains("duplicate key")) return true
+            current = current.cause
+        }
+        return false
     }
 
     private companion object {

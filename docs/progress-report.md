@@ -6073,3 +6073,10 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 4. **3 处 bot 置顶事件（PINNED_MESSAGES_UPDATED）fanout 漏过滤**：pinChatMessage / unpinChatMessage / unpinAllChatMessages 携带 bot 的 pinnedBy 与被置顶 messageId，全量广播给拉黑 bot 的用户。补齐。
 
 **验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.126 2026-08-13 无限调优：AI 偏好写入改为方言无关的重试式 upsert
+
+1. **`AiRepository.upsertPreference` 依赖 Exposed `upsert()` 的方言 SQL**：0.46 的通用 upsert 生成 `MERGE INTO ... USING (VALUES ...) S(...)`（源码确认），与项目内 `RateLimitStatsRepository.recordMinute` 的 H2 分支结论存在冲突风险。实测 H2 2.2.224 可执行该语法（项目旧注释过时），但为彻底消除方言依赖，改回「先 UPDATE、0 行再 INSERT」，并把唯一冲突恢复放到 `setUserEnabled`/`setChatEnabled` 的事务外 catch 重试（PG aborted 事务安全 + H2 双兼容，与 PushTokenRepository 同模式），同时修复了第 9.124 轮改动在 H2 上的潜在 SQL 兼容风险。
+2. 本轮回读核查：`AiGatewayService`（流式重试不重发 delta、信号量、预算预留租约）、`AiEnhanceService`（跨会话问答白名单/并行超时）、`EmailService`、Webhook SSRF 防护（DNS 解析固定 + 地址段拦截）、`EncryptedAttachmentStorage`、`CacheService`/`LRUCache`、`TextOutboxFlusher`、`BacklogSyncWorker`、管理端导出/搜索/处置端点——未发现新问题。
+
+**验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出；H2 2.2.224 实测 Exposed MERGE 语法可执行（佐证注释过时）。
