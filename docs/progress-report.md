@@ -6269,3 +6269,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实并暂缓：`updateMessageReactions` 在消息不在当前窗口时静默 no-op——反应入口仅限可见气泡，触发面不成立；view-once 删除与下载锁的窄竞态、私聊媒体隔离目录未被 `deleteCachedMediaForMessage` 覆盖——记录在案待后续轮次；`requestAiSummary` 的 DB 读取前快照可进一步收紧（既有 isSecretChat/flag/isAiWorking 门 + 下层 mayContinue 兜底）。
 
 **验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
+
+### 9.147 2026-08-13 无限调优：阅后即焚擦除竞态与密聊媒体残留
+
+1. **`markViewOnceOpened` 的媒体擦除未与下载锁串行**：擦除在 `attachmentDownloadLocks` 之外执行——并发的自动下载（`ensureLocalAttachment`）会在擦除后把阅后即焚媒体重新写回缓存（隐私失效），或在下载中途删出残缺文件。改为经同一 per-message 锁串行删除。
+2. **到期消息的密聊明文媒体永不擦除**：密聊媒体写入 `SECRET_CACHE_DIR/<chatId>/` 隔离目录，而 `deleteCachedMediaForMessage` 只扫共享 `CACHE_DIR`——密聊中到期/阅后即焚消息的明文媒体在 purge 后仍长期留存（此前记录在案的 4.2 确认成立）。改为同时扫描全部密聊会话目录并按 messageId 精确删除。
+
+另核实并排除：`updateMessageReactions` 的「消息不在窗口时静默 no-op」触发面不成立——反应入口（快捷回应/长按菜单）仅限已渲染气泡，必然在 `_uiState.messages` 内；`requestAiSummary` 的 DB 读取前有 isSecretChat/flag/isAiWorking 门 + 下游 mayContinue 兜底，暂不动。
+
+**验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。

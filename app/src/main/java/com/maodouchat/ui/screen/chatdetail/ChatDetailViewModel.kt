@@ -6239,8 +6239,30 @@ fun inviteBot(botId: String) {
             if (!persisted) {
                 Log.w("ChatDetailViewModel", "Failed to persist view-once opened state for $messageId")
             }
-            runCatching {
-                com.maodouchat.util.MediaCache.deleteCachedMediaForMessage(getApplication(), messageId)
+            // 9.147：删除媒体须与 ensureLocalAttachment 同锁串行——并发自动下载会把
+            // 刚被擦除的阅后即焚媒体重新写回缓存（隐私失效），或在下载中途删出残缺文件
+            val deleteLock = attachmentDownloadLocks.compute(messageId) { _, existing ->
+                (existing ?: AttachmentDownloadLock()).also { it.users++ }
+            }!!
+            try {
+                deleteLock.mutex.withLock {
+                    runCatching {
+                        com.maodouchat.util.MediaCache.deleteCachedMediaForMessage(getApplication(), messageId)
+                    }
+                }
+            } finally {
+                attachmentDownloadLocks.computeIfPresent(messageId) { _, current ->
+                    if (current === deleteLock) {
+                        if (current.users > 1) {
+                            current.users--
+                            current
+                        } else {
+                            null
+                        }
+                    } else {
+                        current
+                    }
+                }
             }
         }
     }

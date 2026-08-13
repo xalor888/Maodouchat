@@ -293,12 +293,24 @@ object MediaCache {
     }.getOrNull()
 
     fun deleteCachedMediaForMessage(context: Context, messageId: String): Boolean = runCatching {
-        val dir = File(context.cacheDir, CACHE_DIR)
         val safeId = messageId.replace(Regex("[^A-Za-z0-9_-]"), "_")
-        val files = dir.listFiles()?.filter { file ->
-            file.isFile && file.name.substringBeforeLast('.', file.name) == safeId
-        }.orEmpty()
-        files.all { it.delete() || !it.exists() }
+        // 9.147：密聊明文媒体位于 SECRET_CACHE_DIR/<chatId>/ 隔离目录——此前只扫共享
+        // CACHE_DIR，密聊里到期/阅后即焚消息的明文媒体在 purge 后仍长期留存
+        val dirs = mutableListOf(File(context.cacheDir, CACHE_DIR))
+        val secretRoot = File(context.cacheDir, SECRET_CACHE_DIR)
+        if (secretRoot.isDirectory) {
+            secretRoot.listFiles().orEmpty().filter { it.isDirectory }.forEach { dirs += it }
+        }
+        var allDeleted = true
+        for (dir in dirs) {
+            val files = dir.listFiles()?.filter { file ->
+                file.isFile && file.name.substringBeforeLast('.', file.name) == safeId
+            }.orEmpty()
+            files.forEach { file ->
+                if (!file.delete() && file.exists()) allDeleted = false
+            }
+        }
+        allDeleted
     }.onFailure { Log.w(TAG, "deleteCachedMediaForMessage failed", it) }.getOrDefault(false)
 
     /**
