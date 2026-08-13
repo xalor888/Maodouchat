@@ -348,17 +348,38 @@ object MediaCache {
                 totalBytes += file.length()
                 if (totalBytes > MAX_CACHE_BYTES) file.delete()
             }
-            cleanupTransferDirectory(File(context.cacheDir, "attachment-downloads"), now)
+            cleanupTransferDirectory(context, File(context.cacheDir, "attachment-downloads"), now)
             // 上传源文件/密文暂存也做年龄兜底：reconcile 之外的孤儿（崩溃残留、未完成的
             // 多设备上传）不应长期占用空间，48h 后由这里清掉。
-            cleanupTransferDirectory(File(context.cacheDir, "attachment-uploads"), now)
-            cleanupTransferDirectory(File(context.cacheDir, "attachment-sources"), now)
+            cleanupTransferDirectory(context, File(context.cacheDir, "attachment-uploads"), now)
+            cleanupTransferDirectory(context, File(context.cacheDir, "attachment-sources"), now)
         }.onFailure { Log.w(TAG, "cleanup failed", it) }
     }
 
-    private fun cleanupTransferDirectory(directory: File, now: Long) {
+    private fun cleanupTransferDirectory(context: Context, directory: File, now: Long) {
+        val name = directory.name
+        val validPaths = if (name == "attachment-uploads" || name == "attachment-sources") {
+            val app = context.applicationContext as? com.maodouchat.MaodouchatApp
+            if (app == null) emptySet()
+            else kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                app.database.attachmentTransferDao().getAllAccounts().mapNotNull { transfer ->
+                    val file = if (name == "attachment-uploads") {
+                        File(transfer.encryptedPath)
+                    } else {
+                        preparedAttachmentSourceFile(context, transfer.sourceUri)
+                    } ?: return@mapNotNull null
+                    runCatching { file.canonicalPath }.getOrNull()
+                }.toSet()
+            }
+        } else {
+            emptySet()
+        }
         directory.listFiles()
-            ?.filter { it.isFile && now - it.lastModified() > MAX_TRANSFER_CACHE_AGE_MS }
+            ?.filter { file ->
+                file.isFile &&
+                    now - file.lastModified() > MAX_TRANSFER_CACHE_AGE_MS &&
+                    runCatching { file.canonicalPath }.getOrNull() !in validPaths
+            }
             ?.forEach { it.delete() }
     }
 

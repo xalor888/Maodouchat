@@ -5668,3 +5668,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **作者/版主删除动态不广播**：此前客户端只能靠 404/刷新收敛残留动态。服务端新增 WS `POST_DELETED`，用户自删、admin 删帖、moderator 处置举报删帖三条路径统一广播；客户端 `WebSocketEvent.PostDeleted` 即时从 feed/detail/comments 移除并提示“该动态已被删除”。
 
 **验证**：`:server:test`、`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.62 2026-08-13 无限调优：传输目录清理保护在途行
+
+1. **48h 清理不感知在途行**：`MediaCache.cleanupTransferDirectory` 只按文件时间删除，可能误删仍在上传/等待的密文与源文件。上传/源文件目录删除前先通过 `runBlocking(IO)` 取全账号 `attachment_transfers` 行引用白名单，只清理真正孤儿。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
