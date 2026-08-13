@@ -26,6 +26,9 @@ object JsonFormat {
     fun messageMetaMap(meta: MessageMeta): Map<String, Any?> = mapOf(
         "mentions" to meta.mentions,
         "replyToId" to meta.replyToId,
+        // 9.143：forwardedFrom 此前漏在编解码两侧——转发来源显示名在
+        // composeContentWithMeta 编码时被丢弃，收件方「转发自 X」永不显示
+        "forwardedFrom" to meta.forwardedFrom,
         "voiceTranscript" to meta.voiceTranscript,
         "voiceDurationMs" to meta.voiceDurationMs,
         "translations" to meta.translations,
@@ -79,6 +82,8 @@ object JsonFormat {
         val element = json.parseToJsonElement(text).jsonObject
         val mentions = element["mentions"]?.jsonArray?.mapNotNull { it.asStringOrNull() } ?: emptyList()
         val replyToId = element["replyToId"]?.asStringOrNull()
+        // 9.143：与 messageMetaMap 配对，恢复转发来源显示名
+        val forwardedFrom = element["forwardedFrom"]?.asStringOrNull()
         val voiceTranscript = element["voiceTranscript"]?.asStringOrNull()
         val voiceDurationMs = element["voiceDurationMs"]?.asStringOrNull()?.toLongOrNull()
         val translations = element["translations"]?.jsonObject
@@ -137,6 +142,7 @@ object JsonFormat {
         return MessageMeta(
             mentions = mentions,
             replyToId = replyToId,
+            forwardedFrom = forwardedFrom,
             voiceTranscript = voiceTranscript,
             voiceDurationMs = voiceDurationMs,
             translations = translations,

@@ -6231,3 +6231,10 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实并排除子代理其余发现：`ai_tasks`/`ai_summary_cache` 无 `ownerUserId` 列属 schema 级缺口（需迁移+回填，本轮不动表结构，记录在案）；`extractHead` 大小写下标（ASCII 标签大小写不改变长度，安全）；`cleanText` 实体覆盖不全仅显示瑕疵（Compose Text 无 HTML 解释）；`GroupCheckinRepository.checkIn` 重复签到竞态已被 chat 行锁 + existing 检查覆盖；`formatPollShare` 未转义 `|` 但 `parseVoteShortcut` 无调用方（潜在路径不触发）；`SignalKeyDao` LIKE 前缀无 ESCAPE 但 accountId 为服务端生成 UUID（不可能含通配符）。均不做改动。
 
 **验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
+
+### 9.143 2026-08-13 无限调优：正文含字面 `<meta>` 被截断、转发来源显示名编解码缺失
+
+1. **`Message.parsedContent/parsedMeta` 取首个 `<meta>` 出现位置（自查发现）**：正文可含用户输入的字面 `<meta>`（技术群聊常见），而真实 meta 块恒由 `composeContentWithMeta` 追加在末尾——`substringBefore`/`indexOf` 取首现导致此类消息显示时正文后段被截断。改用 `lastIndexOf`（无 meta 块时行为不变，有 meta 块时定位真实块）。
+2. **`JsonFormat` 编解码两侧均漏掉 `forwardedFrom`（自查发现）**：`MessageEntity` 不持久化 `meta` 列，meta 唯一持久化路径是 content 内的 `<meta>` JSON——`messageMetaMap` 不编码、`fromJsonString` 不解码 `forwardedFrom`，导致转发来源显示名（0.67 新功能「转发自 X」，MessageBubble 已渲染该字段）在 compose 编码时即被丢弃，收件方永不显示且再转发时 `parsedMeta().forwardedFrom` 恒 null。补齐两侧字段（旧客户端 ignoreUnknownKeys 兼容，新字段向后兼容）。
+
+**验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。

@@ -131,10 +131,16 @@ data class Message(
     val expiresAt: Long? = null,
     val sealedSender: Boolean = false
 ) {
-    /** 解包 content 里的 <meta>{"mentions":...}</meta> 标签 */
-    fun parsedContent(): String = content.substringBefore(META_TAG_PREFIX)
+    /** 解包 content 里的 <meta>{...}</meta> 标签。
+     * 9.143：用 lastIndexOf——正文可能含字面 "<meta>"（用户输入），真实 meta 块恒由
+     * composeContentWithMeta 追加在末尾；此前 substringBefore 取首个出现位置，
+     * 含该字面量的消息会被截断显示（正文后段丢失）。 */
+    fun parsedContent(): String = content.lastIndexOf(META_TAG_PREFIX).let { idx ->
+        if (idx < 0) content else content.substring(0, idx)
+    }
+
     fun parsedMeta(): MessageMeta {
-        val idx = content.indexOf(META_TAG_PREFIX)
+        val idx = content.lastIndexOf(META_TAG_PREFIX)
         if (idx < 0) return meta
         val json = content.substring(idx + META_TAG_PREFIX.length).substringBefore("</meta>")
         return runCatching {
