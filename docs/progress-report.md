@@ -6186,3 +6186,15 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实子代理其余发现：`trustProxyHeaders=true` 时 XFF 可伪造导致 IP 维度限流/锁定可绕过——该开关默认关闭（显式运维决策），登录路径另有不可伪造的按邮箱限流兜底，完整修复需部署侧可信代理网段配置，暂不做改动；refresh 轮换/OTPK 消费/附件鉴权/私聊建会话竞态均已被既有防护覆盖。
 
 **验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.139 2026-08-13 无限调优：星标 toggle 的 PG 事务中毒、OCR 跨账号串写、跨会话问答预算逃逸
+
+1. **`StarMessageRepository.toggleStar` 事务内 catch 唯一冲突（PG 25P02 死代码）**：并发星标竞态时 INSERT 撞 (userId,messageId) 唯一约束，事务内 catch 吞掉 SQL 错误后 COMMIT 在 PG 上抛 25P02 逃逸为 500（H2 测试不暴露）。改为捕获移到事务外，回滚后新事务幂等回读当前星标态（自查发现，与既有修复模式一致）。
+2. **`ImageOcrAutoIndexer` 全程无会话门禁（客户端隐私，子代理审计发现）**：自动 OCR 循环含图片下载/上传与 `AiMessageResultStore.commit` 落库，却从不检查 `BackgroundSessionGate`——登出/换号中途继续用旧账号 token 上传旧账号图片密文，并把 OCR 结果写进正在清库/切换中的共享 DB。补齐：入口门禁 + 每图循环前复查 + 网络往返后落库前复查。
+3. **`ConversationWidgetProvider` 发送者校验 fail-open（客户端安全）**：反射拿不到发送者 UID 时回退 `Process.myUid()` 使校验恒过——第三方伪造广播可在反射失败路径下绕过 uid 校验（ACTION_MARK_READ/REPLY_SENT 直接受控）。改为解析失败即拒收。
+4. **`EmailService` 并发发送验证码 last-write-wins**：`reserveCacheSlot` 的返回值被忽略，两个并发发送各自生成新码、各自发信、后写覆盖前写——先到邮件的验证码失效。改为：已有有效期内旧码时复用旧码重发（同一验证码多封邮件都有效）；仅预约无码（在途）时拒绝并发；过期旧码则清除后用新码。
+5. **`crossChatQa` 第一跳语义重排 token 完全不计量（预算逃逸 HIGH）**：单次请求并行最多 8 个 semanticSearch 上游调用（含内部重试+降级模型），但审计与每日预算只记第二跳 groupAssistant 的用量——~8× 成本逃逸。改为累加第一跳 `inputTokens/outputTokens` 与第二跳合计上报（审计/预算按此计数）。
+
+另核实并排除子代理其余发现：`AiTaskTimeChangeReceiver exported="false"` 不影响接收系统广播（Android 官方语义：exported=false 仍接收系统/同应用/同 UID 来源的广播，BOOT_COMPLETED 等系统广播正常送达）——不实；`selectContext` 允许末条消息超预算为文档化设计（软预算+上游 1200 字符上限）；`AiContextManager` 的 maxContextTokens/reservedOutputTokens 为死参数——仅维护性提示，不动签名。TOTP 重放/爆破防护（DB CAS + 账号/IP 锁定 + 密码先行）验证完好。
+
+**验证**：`:server:compileKotlin` 通过；`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。

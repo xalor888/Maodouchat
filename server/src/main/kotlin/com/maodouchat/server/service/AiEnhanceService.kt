@@ -130,10 +130,16 @@ class AiEnhanceService(
             }
         } ?: return AiEnhanceResult.Upstream(AiGatewayResult.UpstreamError(408, "AI 处理超时"))
         val matches = mutableListOf<AiSemanticSearchMatch>()
+        var firstHopInputTokens = 0L
+        var firstHopOutputTokens = 0L
         for (result in perChatResults) {
             when (result) {
                 is AiGatewayResult.Success -> {
                     matches += result.value
+                    // 9.139：第一跳语义重排的 token 消耗必须计入每日预算/审计——此前只计量
+                    // 第二跳 groupAssistant，单次跨会话问答可烧 ~8× 上游调用而预算只记 1×
+                    firstHopInputTokens += result.inputTokens ?: 0L
+                    firstHopOutputTokens += result.outputTokens ?: 0L
                 }
                 AiGatewayResult.NotConfigured -> return AiEnhanceResult.NotConfigured
                 is AiGatewayResult.UpstreamError -> return AiEnhanceResult.Upstream(result)
@@ -172,8 +178,9 @@ class AiEnhanceService(
                         sources = sources,
                         model = answerResult.model
                     ),
-                    answerResult.inputTokens,
-                    answerResult.outputTokens
+                    // 9.139：两跳 token 合计上报——审计与每日预算按此计数
+                    firstHopInputTokens + (answerResult.inputTokens ?: 0L),
+                    firstHopOutputTokens + (answerResult.outputTokens ?: 0L)
                 )
             }
             AiGatewayResult.NotConfigured -> AiEnhanceResult.NotConfigured

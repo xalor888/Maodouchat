@@ -56,8 +56,6 @@ class ConversationWidgetProvider : AppWidgetProvider() {
         super.onReceive(context, intent)
         // 发送者校验：小组件 PendingIntent 由系统投递（sendingUid == 本应用或 system），
         // 第三方应用伪造广播会被拒收（L1 安全加固）。
-        // 发送者校验：小组件 PendingIntent 由系统投递（sendingUid == 本应用或 system），
-        // 第三方应用伪造广播会被拒收（L1 安全加固）。
         // getSendingUid()（API 26-33）在 SDK 36 中已移除，改为 getSentFromUid()（API 34+）；
         // 反射依次尝试，保证两个区间都能拿到发送者 UID。
         val senderUid = runCatching {
@@ -67,8 +65,10 @@ class ConversationWidgetProvider : AppWidgetProvider() {
                 javaClass.getMethod("getSendingUid")
             }
             method.invoke(this) as? Int
-        }.getOrNull() ?: android.os.Process.myUid()
-        if (senderUid != android.os.Process.myUid() && senderUid != android.os.Process.SYSTEM_UID) {
+        }.getOrNull()
+        // 9.139：无法解析发送者 UID 时必须 fail-closed 拒收——此前回退 myUid()
+        // 会让校验恒过，第三方伪造广播在反射失败路径下可绕过发送者校验
+        if (senderUid == null || (senderUid != android.os.Process.myUid() && senderUid != android.os.Process.SYSTEM_UID)) {
             return
         }
         when (intent.action) {

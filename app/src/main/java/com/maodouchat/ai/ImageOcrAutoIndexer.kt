@@ -49,9 +49,20 @@ class ImageOcrAutoIndexer(
     /** 执行一轮自动 OCR；返回成功识别并写入索引的图片数量。 */
     suspend fun runOnce(): Int {
         if (!preconditionsMet()) return 0
-        val token = TokenManager.getInstance(context).getToken()?.takeIf(String::isNotBlank) ?: return 0
-        return mutex.withLock { scanOnce(token) }
+        val tokenManager = TokenManager.getInstance(context)
+        val token = tokenManager.getToken()?.takeIf(String::isNotBlank) ?: return 0
+        val ownerUserId = tokenManager.getUserId()?.takeIf(String::isNotBlank) ?: return 0
+        // 9.139：入口过门禁——与其它后台 worker 一致
+        if (!sessionGate(ownerUserId, tokenManager)) return 0
+        return mutex.withLock { scanOnce(token, ownerUserId) }
     }
+
+    private fun sessionGate(expectedUserId: String, tokenManager: TokenManager): Boolean =
+        com.maodouchat.security.BackgroundSessionGate.mayContinue(
+            expectedUserId = expectedUserId,
+            liveToken = tokenManager.getToken(),
+            liveUserId = tokenManager.getUserId(),
+        )
 
     private fun preconditionsMet(): Boolean {
         if (!RuntimeFlags.isEnabled(context, RuntimeFlags.AI_IMAGE_OCR)) return false
@@ -61,7 +72,8 @@ class ImageOcrAutoIndexer(
         return true
     }
 
-    private suspend fun scanOnce(token: String): Int {
+    private suspend fun scanOnce(token: String, ownerUserId: String): Int {
+        val tokenManager = TokenManager.getInstance(context)
         val candidates = withContext(Dispatchers.IO) {
             database.messageDao().getImageMessages(OCR_SCAN_WINDOW).map { it.toDomain() }
         }
@@ -70,12 +82,15 @@ class ImageOcrAutoIndexer(
         var succeeded = 0
         for (message in candidates) {
             currentCoroutineContext().ensureActive()
+            // 9.139：每张图含网络往返与落库，循环内复查会话——登出/换号立即中止，
+            // 防止旧账号图片密文继续上传、OCR 结果写进新账号/清库中的共享 DB
+            if (!sessionGate(ownerUserId, tokenManager)) return succeeded
             if (processed >= OCR_IMAGES_PER_RUN) break
             // 秘聊会话的图片不自动 OCR：识别文本不应进入可搜索索引
             if (message.chatId in secretChatIds) continue
             if (alreadyOcrIndexed(message)) continue
             processed++
-            if (ocrAndPersist(message, token)) succeeded++
+            if (ocrAndPersist(message, token, ownerUserId)) succeeded++
         }
         return succeeded
     }
@@ -93,7 +108,7 @@ class ImageOcrAutoIndexer(
     private fun alreadyOcrIndexed(message: Message): Boolean =
         message.parsedMeta().aiImageAnalyses.containsKey(OCR_MODE)
 
-    private suspend fun ocrAndPersist(message: Message, token: String): Boolean {
+    private suspend fun ocrAndPersist(message: Message, token: String, ownerUserId: String): Boolean {
         val ocrText = try {
             downloadAndOcr(message, token)
         } catch (error: kotlinx.coroutines.CancellationException) {
@@ -103,6 +118,8 @@ class ImageOcrAutoIndexer(
         }
             ?: return false
         if (ocrText.isBlank()) return false
+        // 9.139：网络往返后、落库前复查会话——OCR 结果不得写进新账号/清库中的共享 DB
+        if (!sessionGate(ownerUserId, TokenManager.getInstance(context))) return false
         // 与手动 AI 分析一致：结果写入 meta.aiImageAnalyses["ocr"]（本地缓存 + 可同步），
         // 且立即重算搜索索引（AiMessageResultStore.commit 内部完成）。
         val plainText = message.parsedContent()
@@ -116,6 +133,7 @@ class ImageOcrAutoIndexer(
             meta = updatedMeta
         )
         return withContext(Dispatchers.IO) {
+            if (!sessionGate(ownerUserId, TokenManager.getInstance(context))) return@withContext false
             try {
                 AiMessageResultStore(database).commit(operationId = null, message = updated)
             } catch (error: kotlinx.coroutines.CancellationException) {

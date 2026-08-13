@@ -28,8 +28,8 @@ class StarMessageRepository {
      * 切换星标状态：已星标则取消，未星标则添加。
      * @return true = 现在是星标；false = 现在不是星标；null = 消息类型不可星标
      */
-    fun toggleStar(userId: String, messageId: String): Boolean? {
-        return transaction {
+    fun toggleStar(userId: String, messageId: String): Boolean? = try {
+        transaction {
             // MessageRepository 的消息变更先锁 message 再锁 chat；星标保持同序。
             val message = Messages.selectAll().where { Messages.id eq messageId }.forUpdate().firstOrNull()
                 ?: return@transaction null
@@ -64,18 +64,23 @@ class StarMessageRepository {
                 false
             } else {
                 // 并发 toggle 竞态：两条 unpinned→star 同时进入，forUpdate 对不存在的行无效，
-                // 后到者会因 (userId, messageId) 唯一约束抛异常；捕获并视为已星标，避免 500。
-                try {
-                    StarMessages.insert {
-                        it[StarMessages.userId] = userId
-                        it[StarMessages.messageId] = messageId
-                        it[StarMessages.starredAt] = System.currentTimeMillis()
-                    }
-                    true
-                } catch (e: Exception) {
-                    if (isUniqueViolation(e)) true else throw e
+                // 后到者撞 (userId, messageId) 唯一约束——异常交给事务外 catch 处理（9.139）
+                StarMessages.insert {
+                    it[StarMessages.userId] = userId
+                    it[StarMessages.messageId] = messageId
+                    it[StarMessages.starredAt] = System.currentTimeMillis()
                 }
+                true
             }
+        }
+    } catch (error: Exception) {
+        // 9.139：PG 上唯一冲突会 abort 整事务——捕获必须在事务外（此前事务内 catch 后
+        // COMMIT 抛 25P02 逃逸为 500；H2 测试不暴露该问题）。回滚后新事务幂等回读当前状态。
+        if (!isUniqueViolation(error)) throw error
+        transaction {
+            StarMessages.selectAll()
+                .where { (StarMessages.userId eq userId) and (StarMessages.messageId eq messageId) }
+                .firstOrNull() != null
         }
     }
 
