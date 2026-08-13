@@ -6169,3 +6169,10 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实子代理其余发现：StatusPages 详情仅在非生产环境回显、WS 会话清理各退出路径均已覆盖、refresh-token 轮换已有行锁+CAS、CORS 凭据仅显式白名单开启——均为既有防护，不做改动。
 
 **验证**：`:server:compileKotlin` 通过；`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
+
+### 9.137 2026-08-13 无限调优：AI 审计运行时 ALTER 毒化 PG 事务 + 互动通知锁屏泄明文
+
+1. **`AiRepository` 运行时 ALTER TABLE 的 token 列毒化 PG 事务（HIGH，子代理审计发现）**：`input_tokens`/`output_tokens` 未声明在 Table 单例，靠每次审计事务内 `ALTER TABLE ... IF NOT EXISTS` + 裸 SQL UPDATE 写入。三个连锁缺陷：(a) `ensureTokenColumns` 在失败分支也把 `tokenColumnsEnsured` 置 true——一次 DDL 权限/锁冲突后 JVM 生命周期内永不重试；(b) `recordAudit` 事务内裸 UPDATE 被 `runCatching` 吞掉，PG 上失败语句已 abort 事务，COMMIT 时抛 25P02 逃逸出 recordAudit → AI 网关已成功消费预算后端点仍 500，且审计 INSERT 一并回滚（静默审计丢失）；(c) `sumTokensForUserToday` 裸 SQL 无兜底，上层 `runCatching.getOrDefault(0)` 使列缺失时每日预算=0 → 形同无限。修复：列正式进 `AiAuditLogs` Table 单例（启动期 `createMissingTablesAndColumns` 自动补列），token 随同一 INSERT 经 Exposed 写入，`recordAudit` 整体包在事务外 best-effort catch（兑现「审计失败不得影响主流程」契约），删除 `ensureTokenColumns`；AdminRouting 两处过期注释同步更新。
+2. **动态互动通知是唯一跳过脱敏的消息类通知路径（客户端隐私）**：`showPostInteraction` 把评论/回复明文直接拼进通知文案并写入通知中心 `preview`，完全未过 `shouldHideSensitiveDetails()`——用户开启「隐藏通知内容」或 App 锁时，锁屏与通知中心仍明文展示他人评论正文（`VISIBILITY_PRIVATE`+`setPublicVersion` 只保护系统锁屏，解锁后/中心内原样可见），违反 showMessage 系列确立的脱敏不变量。改为与 `showMessage` 同口径：脱敏时文案仅保留动作提示、中心 `preview=null`。
+
+**验证**：`:server:compileKotlin` 通过；`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。

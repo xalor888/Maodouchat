@@ -556,6 +556,10 @@ object AiAuditLogs : Table("ai_audit_logs") {
     val contextMessages = integer("context_messages").default(0)
     val durationMs = long("duration_ms").nullable()
     val error = varchar("error", 200).nullable()
+    // 9.137：token 列正式进 Table 单例（此前靠运行时 ALTER TABLE + 裸 SQL 写入，
+    // ALTER 失败会毒化 PG 事务并让 AI 主流程 500）。启动期 createMissingTablesAndColumns 自动补列。
+    val inputTokens = long("input_tokens").nullable()
+    val outputTokens = long("output_tokens").nullable()
     val createdAt = long("created_at").default(System.currentTimeMillis())
     override val primaryKey = PrimaryKey(id)
 

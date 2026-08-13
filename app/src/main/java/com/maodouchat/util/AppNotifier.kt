@@ -404,8 +404,12 @@ object AppNotifier {
             else -> R.string.notification_post_like
         }
         val baseText = context.getString(textRes)
+        // 9.137：互动通知预览与 showMessage 同口径脱敏——App 锁/隐藏通知内容开启时，
+        // 锁屏与通知中心不得明文展示评论/回复正文（此前是唯一漏掉该检查的消息类通知路径）
+        val hideDetails = shouldHideSensitiveDetails(context)
         // 1.130：有内容预览时追加到文案（通知栏一行）
-        val contentText = preview?.takeIf(String::isNotBlank)?.let { "$baseText：$it" } ?: baseText
+        val contentText = if (hideDetails) baseText
+        else preview?.takeIf(String::isNotBlank)?.let { "$baseText：$it" } ?: baseText
         val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.notification_post_interaction))
@@ -429,7 +433,8 @@ object AppNotifier {
                     mergeKey = "post_$postId",
                     title = context.getString(R.string.notification_post_interaction),
                     subtitle = context.getString(textRes),
-                    preview = preview?.takeIf(String::isNotBlank),
+                    // 9.137：脱敏时通知中心同样不存评论/回复明文
+                    preview = if (hideDetails) null else preview?.takeIf(String::isNotBlank),
                     // 1.132：评论 id 供详情页跳转
                     deeplink = if (commentId.isNullOrBlank()) "maodouchat:post:$postId" else "maodouchat:post:$postId?comment=${java.net.URLEncoder.encode(commentId, Charsets.UTF_8.name())}",
                     extra = mapOf(

@@ -1280,8 +1280,8 @@ put("status", "resolved")
                         .orderBy(AiAuditLogs.createdAt to SortOrder.DESC, AiAuditLogs.id to SortOrder.DESC)
                         .limit(limit, offset)
                         .toList()
-                    // input_tokens/output_tokens 通过 ALTER TABLE 添加，未在 Table 单例中声明，
-                    // 这里用参数化 SQL 单独读取后按 id 回填，避免修改 AiRepository。
+                    // 9.137：input_tokens/output_tokens 已进 Table 单例（启动迁移补列），
+                    // 这里仍用参数化 SQL 按 id 批量回填，避免逐行二次查询。
                     val tokenById: Map<String, Pair<Long?, Long?>> = if (rows.isEmpty()) emptyMap() else {
                         val ids = rows.map { it[AiAuditLogs.id] }
                         val placeholders = List(ids.size) { "?" }.joinToString(",")
@@ -2266,8 +2266,7 @@ get("/ai-usage-export") {
                         )
                         .limit(limit)
                         .toList()
-                    // input_tokens/output_tokens 通过 ALTER TABLE 添加，未在 Table 单例中声明，
-                    // 这里用参数化 SQL 单独读取后按 id 回填，避免修改 AiRepository。
+                    // 9.137：token 列已进 Table 单例（启动迁移补列），参数化 SQL 批量回填。
                     val tokenById: Map<String, Pair<Long?, Long?>> = if (resultRows.isEmpty()) emptyMap() else {
                         val ids = resultRows.map { it[AiAuditLogs.id] }
                         val placeholders = List(ids.size) { "?" }.joinToString(",")

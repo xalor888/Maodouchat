@@ -19,13 +19,11 @@ import org.jetbrains.exposed.sql.update
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicBoolean
 import org.slf4j.LoggerFactory
 
 class AiRepository {
 
     private val logger = LoggerFactory.getLogger(AiRepository::class.java)
-    private val tokenColumnsEnsured = AtomicBoolean(false)
 
     fun getSettings(userId: String, chatId: String? = null): AiSettingsResponse = transaction {
         getSettingsInTransaction(userId, chatId)
@@ -75,36 +73,30 @@ class AiRepository {
         inputTokens: Long? = null,
         outputTokens: Long? = null
     ) {
-        transaction {
-            ensureTokenColumns()
-            val auditId = "ai_${UUID.randomUUID()}"
-            AiAuditLogs.insert {
-                it[id] = auditId
-                it[AiAuditLogs.userId] = userId
-                it[AiAuditLogs.chatId] = chatId?.takeIf(String::isNotBlank)
-                it[AiAuditLogs.feature] = feature.take(40)
-                it[AiAuditLogs.model] = model?.take(80)
-                it[AiAuditLogs.status] = status.take(30)
-                it[AiAuditLogs.inputChars] = inputChars.coerceAtLeast(0)
-                it[AiAuditLogs.contextMessages] = contextMessages.coerceAtLeast(0)
-                it[AiAuditLogs.durationMs] = durationMs
-                it[AiAuditLogs.error] = error?.take(200)
-                it[AiAuditLogs.createdAt] = System.currentTimeMillis()
-            }
-            // Token 列通过 ALTER TABLE 安全添加（Database.kt 不在本任务可编辑范围），
-            // 这里用参数化 UPDATE 写入，避免修改 Table 单例。审计是尽力而为，不可让主流程失败。
-            if (inputTokens != null || outputTokens != null) {
-                runCatching {
-                    TransactionManager.current().exec(
-                        "UPDATE ai_audit_logs SET input_tokens = ?, output_tokens = ? WHERE id = ?",
-                        listOf(
-                            LongColumnType() to inputTokens,
-                            LongColumnType() to outputTokens,
-                            VarCharColumnType() to auditId
-                        )
-                    )
+        // 9.137：审计尽力而为——此前 token 列靠运行时 ALTER + 事务内裸 SQL UPDATE 写入，
+        // ALTER 失败（DDL 权限不足/锁冲突）后 PG 事务被毒化：runCatching 吞掉 SQL 错误，
+        // 提交时抛 25P02 逃逸出 recordAudit，导致 AI 网关已成功后端点 500 且审计行回滚丢失。
+        // 现列已在 Table 单例声明（启动迁移补列），走 Exposed 普通 INSERT，且失败不再影响主流程。
+        try {
+            transaction {
+                AiAuditLogs.insert {
+                    it[id] = "ai_${UUID.randomUUID()}"
+                    it[AiAuditLogs.userId] = userId
+                    it[AiAuditLogs.chatId] = chatId?.takeIf(String::isNotBlank)
+                    it[AiAuditLogs.feature] = feature.take(40)
+                    it[AiAuditLogs.model] = model?.take(80)
+                    it[AiAuditLogs.status] = status.take(30)
+                    it[AiAuditLogs.inputChars] = inputChars.coerceAtLeast(0)
+                    it[AiAuditLogs.contextMessages] = contextMessages.coerceAtLeast(0)
+                    it[AiAuditLogs.durationMs] = durationMs
+                    it[AiAuditLogs.error] = error?.take(200)
+                    it[AiAuditLogs.inputTokens] = inputTokens
+                    it[AiAuditLogs.outputTokens] = outputTokens
+                    it[AiAuditLogs.createdAt] = System.currentTimeMillis()
                 }
             }
+        } catch (auditError: Exception) {
+            logger.warn("recordAudit failed (best-effort): {}", auditError.message)
         }
     }
 
@@ -119,10 +111,11 @@ class AiRepository {
     /**
      * 汇总某用户今日（服务器时区）已消耗的 input + output token 总量。
      * 供 AiGatewayService 的每用户每日预算检查使用。
+     * 9.137：token 列已进 Table 单例（启动迁移补列），此前 ensureTokenColumns 失败
+     * 会导致此处裸 SQL 抛异常、上层 runCatching 回落 0 → 每日预算形同虚设。
      */
     fun sumTokensForUserToday(userId: String): Long {
         return transaction {
-            ensureTokenColumns()
             val startOfDay = startOfTodayMillis()
             TransactionManager.current().exec(
                 "SELECT COALESCE(SUM(COALESCE(input_tokens,0) + COALESCE(output_tokens,0)),0) " +
@@ -140,23 +133,6 @@ class AiRepository {
     fun startOfTodayMillis(zone: ZoneId = ZoneId.systemDefault()): Long {
         val today = LocalDate.now(zone)
         return today.atStartOfDay(zone).toInstant().toEpochMilli()
-    }
-
-    /**
-     * 幂等确保 token 列存在。H2 与 PostgreSQL 均支持 ADD COLUMN IF NOT EXISTS。
-     * 仅在事务内执行；用 AtomicBoolean 保证每 JVM 只尝试一次，避免每次审计的开销。
-     */
-    private fun ensureTokenColumns() {
-        if (tokenColumnsEnsured.get()) return
-        val tx = TransactionManager.current()
-        runCatching {
-            tx.exec("ALTER TABLE ai_audit_logs ADD COLUMN IF NOT EXISTS input_tokens BIGINT")
-            tx.exec("ALTER TABLE ai_audit_logs ADD COLUMN IF NOT EXISTS output_tokens BIGINT")
-        }.onSuccess { tokenColumnsEnsured.set(true) }
-            // Log failure and still flip the flag so we don't retry on every audit call;
-            // the missing columns are non-fatal (token accounting degrades gracefully).
-            .onFailure { e -> logger.warn("ensureTokenColumns failed: ${e.message}") }
-            .onFailure { tokenColumnsEnsured.set(true) }
     }
 
     fun getAuditLogs(userId: String, limit: Int = 50): List<AiAuditLogResponse> = transaction {
