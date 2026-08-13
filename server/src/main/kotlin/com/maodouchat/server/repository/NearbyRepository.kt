@@ -31,44 +31,24 @@ import kotlin.math.sqrt
 
 class NearbyRepository {
 
-    fun updateLocation(userId: String, latitude: Double, longitude: Double): NearbyLocationStatusResponse? = transaction {
+    fun updateLocation(userId: String, latitude: Double, longitude: Double): NearbyLocationStatusResponse? {
         if (!latitude.isFinite() || !longitude.isFinite() || latitude !in -90.0..90.0 || longitude !in -180.0..180.0) {
-            return@transaction null
+            return null
         }
-        val user = Users.selectAll().where { Users.id eq userId }.firstOrNull() ?: return@transaction null
-        if (user[Users.deletedAt] != null) return@transaction null
         val now = System.currentTimeMillis()
         val expiresAt = now + LOCATION_TTL_MS
         val coarseLatitude = round(latitude * 1_000.0) / 1_000.0
         val coarseLongitude = round(longitude * 1_000.0) / 1_000.0
-        val exists = UserLocations.selectAll().where { UserLocations.userId eq userId }.firstOrNull() != null
-        if (exists) {
-            UserLocations.update({ UserLocations.userId eq userId }) {
-                it[UserLocations.latitude] = coarseLatitude
-                it[UserLocations.longitude] = coarseLongitude
-                it[UserLocations.visible] = true
-                it[UserLocations.updatedAt] = now
-                it[UserLocations.expiresAt] = expiresAt
-            }
-        } else {
-            // 并发首次开启定位时两个请求都可能走 exists=false → 双 INSERT 撞 PK 500。
-            // 捕获唯一冲突后转 UPDATE，保证幂等（B8 并发加固）。
-            try {
-                UserLocations.insert {
-                    it[UserLocations.userId] = userId
-                    it[UserLocations.latitude] = coarseLatitude
-                    it[UserLocations.longitude] = coarseLongitude
-                    it[UserLocations.visible] = true
-                    it[UserLocations.updatedAt] = now
-                    it[UserLocations.expiresAt] = expiresAt
-                }
-            } catch (conflict: org.jetbrains.exposed.exceptions.ExposedSQLException) {
-                // 8.38：只对「唯一冲突」（并发首插撞 PK）转 UPDATE——死锁/连接中断/其他约束失败
-                // 不得静默转 UPDATE 假装成功（用户以为已开启分享实际未落库）
-                if (!isUniqueViolation(conflict)) throw conflict
-                // 8.48 修复：PG/H2 唯一约束冲突后当前事务已 abort，任何语句都报错——
-                // 必须在「新事务」转 UPDATE（此前同一事务内 UPDATE 是死代码，并发首次定位必 500）
-                org.jetbrains.exposed.sql.transactions.transaction {
+        // 并发首次开启定位时两个请求都可能走 exists=false → 双 INSERT 撞 PK。
+        // 8.38/8.48 的「同事务 catch 后转 UPDATE」在 PG 上仍会 500：唯一冲突使当前事务 abort，
+        // 嵌套 transaction{}（useNestedTransactions=false）复用同一连接，同样无法执行任何语句。
+        // 正确姿势：catch 必须在事务外——Exposed 已回滚并归还连接，在全新事务重试（B8 并发加固）。
+        return try {
+            transaction {
+                val user = Users.selectAll().where { Users.id eq userId }.firstOrNull() ?: return@transaction null
+                if (user[Users.deletedAt] != null) return@transaction null
+                val exists = UserLocations.selectAll().where { UserLocations.userId eq userId }.firstOrNull() != null
+                if (exists) {
                     UserLocations.update({ UserLocations.userId eq userId }) {
                         it[UserLocations.latitude] = coarseLatitude
                         it[UserLocations.longitude] = coarseLongitude
@@ -76,10 +56,46 @@ class NearbyRepository {
                         it[UserLocations.updatedAt] = now
                         it[UserLocations.expiresAt] = expiresAt
                     }
+                } else {
+                    UserLocations.insert {
+                        it[UserLocations.userId] = userId
+                        it[UserLocations.latitude] = coarseLatitude
+                        it[UserLocations.longitude] = coarseLongitude
+                        it[UserLocations.visible] = true
+                        it[UserLocations.updatedAt] = now
+                        it[UserLocations.expiresAt] = expiresAt
+                    }
                 }
+                NearbyLocationStatusResponse(true, expiresAt)
+            }
+        } catch (conflict: org.jetbrains.exposed.exceptions.ExposedSQLException) {
+            // 只对「唯一冲突」（并发首插撞 PK）转重试——死锁/连接中断/其他约束失败
+            // 不得静默转 UPDATE 假装成功（用户以为已开启分享实际未落库）
+            if (!isUniqueViolation(conflict)) throw conflict
+            transaction {
+                val exists = UserLocations.selectAll().where { UserLocations.userId eq userId }.firstOrNull() != null
+                if (exists) {
+                    UserLocations.update({ UserLocations.userId eq userId }) {
+                        it[UserLocations.latitude] = coarseLatitude
+                        it[UserLocations.longitude] = coarseLongitude
+                        it[UserLocations.visible] = true
+                        it[UserLocations.updatedAt] = now
+                        it[UserLocations.expiresAt] = expiresAt
+                    }
+                } else {
+                    // 胜者事务异常回滚的极端窗口：重试也兜底成 INSERT
+                    UserLocations.insert {
+                        it[UserLocations.userId] = userId
+                        it[UserLocations.latitude] = coarseLatitude
+                        it[UserLocations.longitude] = coarseLongitude
+                        it[UserLocations.visible] = true
+                        it[UserLocations.updatedAt] = now
+                        it[UserLocations.expiresAt] = expiresAt
+                    }
+                }
+                NearbyLocationStatusResponse(true, expiresAt)
             }
         }
-        NearbyLocationStatusResponse(true, expiresAt)
     }
 
     fun stopSharing(userId: String): Boolean = transaction {

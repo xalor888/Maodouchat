@@ -9,6 +9,7 @@ import com.maodouchat.server.db.ChatUserSettings
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.GroupAuditLogs
 import com.maodouchat.server.db.GroupPollVotes
+import com.maodouchat.server.db.GroupPolls
 import com.maodouchat.server.db.MessageReactions
 import com.maodouchat.server.db.Messages
 import com.maodouchat.server.db.ReadReceipts
@@ -31,6 +32,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.or
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -270,6 +272,18 @@ object BotRepository {
             ChatUserSettings.deleteWhere { ChatUserSettings.userId eq botId }
             ChatParticipants.deleteWhere { ChatParticipants.userId eq botId }
             MessageReactions.deleteWhere { MessageReactions.userId eq botId }
+            // 9.124：bot 可经 /api/bot/sendPoll 以自身身份创建群投票——删除 bot 时连投票
+            // 及其选项投票一并清掉（与 UserRepository.removeOwnedBots 的 deletePollsCreatedBy 对齐），
+            // 否则群内残留创建者已注销的孤儿投票。
+            val botPollIds = GroupPolls.select(GroupPolls.id)
+                .where { GroupPolls.creatorId eq botId }
+                .orderBy(GroupPolls.id to org.jetbrains.exposed.sql.SortOrder.ASC)
+                .forUpdate()
+                .map { it[GroupPolls.id] }
+            if (botPollIds.isNotEmpty()) {
+                GroupPollVotes.deleteWhere { GroupPollVotes.pollId inList botPollIds }
+                GroupPolls.deleteWhere { GroupPolls.id inList botPollIds }
+            }
             GroupPollVotes.deleteWhere { GroupPollVotes.userId eq botId }
             ReadReceipts.deleteWhere { ReadReceipts.userId eq botId }
             StarMessages.deleteWhere { StarMessages.userId eq botId }
@@ -283,7 +297,9 @@ object BotRepository {
                     it[Chats.memberRevision] = chat[Chats.memberRevision] + 1
                 }
             }
-            BotCommandLogs.deleteWhere { BotCommandLogs.botId eq botId }
+            BotCommandLogs.deleteWhere {
+                (BotCommandLogs.botId eq botId) or (BotCommandLogs.userId eq botId)
+            }
             BotUpdateInbox.deleteWhere { BotUpdateInbox.botId eq botId }
             if (BotApps.deleteWhere {
                     (BotApps.id eq botId) and (BotApps.ownerUserId eq ownerUserId)

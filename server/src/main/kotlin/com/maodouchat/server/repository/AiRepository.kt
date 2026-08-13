@@ -16,6 +16,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import org.jetbrains.exposed.sql.upsert
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
@@ -187,24 +188,16 @@ class AiRepository {
     }
 
     private fun upsertPreference(userId: String, scope: String, chatId: String, enabled: Boolean) {
-        val updated = AiPreferences.update({
-            (AiPreferences.userId eq userId) and
-                (AiPreferences.scope eq scope) and
-                (AiPreferences.chatId eq chatId)
-        }) {
+        // PG：UPDATE 0 行后并发 INSERT 撞 (userId, scope, chatId) PK 会 abort 整事务，
+        // runCatching 吞掉异常后同事务继续 SELECT 必 500。改用原生 upsert
+        //（PG ON CONFLICT DO UPDATE / H2 MERGE），从根上消除并发窗口。
+        AiPreferences.upsert(
+            AiPreferences.userId,
+            AiPreferences.scope,
+            AiPreferences.chatId
+        ) {
             it[AiPreferences.enabled] = enabled
             it[updatedAt] = System.currentTimeMillis()
-        }
-        if (updated == 0) {
-            runCatching {
-                AiPreferences.insert {
-                    it[AiPreferences.userId] = userId
-                    it[AiPreferences.scope] = scope
-                    it[AiPreferences.chatId] = chatId
-                    it[AiPreferences.enabled] = enabled
-                    it[updatedAt] = System.currentTimeMillis()
-                }
-            }
         }
     }
 

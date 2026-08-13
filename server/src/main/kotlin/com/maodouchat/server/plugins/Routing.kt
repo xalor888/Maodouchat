@@ -4602,7 +4602,10 @@ put("count", 0)
                 val participantIds = chatRepo.getParticipantIds(chatId)
                 if (participantIds.isNotEmpty()) {
                     val msgJson = json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage)))
+                    // 9.124：与 sendMessage 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                    val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, participantIds) } catch (_: Exception) { emptySet() }
                     for (pid in participantIds) {
+                        if (pid in botBlockedIds) continue
                         try { sendToUser(pid, msgJson) } catch (e: CancellationException) { throw e } catch (_: Exception) { }
                     }
                 }
@@ -4659,7 +4662,12 @@ put("messageId", msgId)
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "TEXT", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -4988,7 +4996,12 @@ put("cleared", true)
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "LOCATION", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -5364,7 +5377,12 @@ put("count", outcome.pins.size)
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "STICKER", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -5447,7 +5465,12 @@ put("type", "STICKER")
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "VOICE", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -5611,7 +5634,12 @@ put("role", "MEMBER")
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "FILE", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -5686,7 +5714,12 @@ put("size", bytes.size)
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "IMAGE", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -5847,7 +5880,12 @@ put("upToId", upTo)
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "VIDEO", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -5913,7 +5951,12 @@ put("type", "VIDEO")
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "GIF", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -6093,7 +6136,12 @@ put("event", event)
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "FILE", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -6243,7 +6291,12 @@ put("hasInvite", invite.isNotBlank())
                     type = msgType, timestamp = now, status = "SENT"
                 )
                 // silent: still deliver WS, but clients should suppress push (server push path checks silent if present)
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -6295,7 +6348,12 @@ put("type", msgType)
                     id = msgId, chatId = chatId, senderId = bot.id, content = text,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -6367,7 +6425,12 @@ put("commands", Json.parseToJsonElement(Json.encodeToString(commands)))
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "NUDGE", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -6741,7 +6804,12 @@ put("reactions", Json.parseToJsonElement(Json.encodeToString(botReactions)))
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -6881,7 +6949,12 @@ put("starred", starred)
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -6968,7 +7041,12 @@ put("enabled", bot.enabled)
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "TEXT", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -7019,7 +7097,12 @@ put("correctOptionIndex", safeIdx)
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "TEXT", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -7090,7 +7173,12 @@ put("ts", System.currentTimeMillis())
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -7139,7 +7227,12 @@ put("type", "MARKDOWN")
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }
@@ -7235,7 +7328,12 @@ put("webhookConfigured", !bot.webhookUrl.isNullOrBlank())
                     id = msgId, chatId = chatId, senderId = bot.id, content = content.take(4000),
                     type = "MARKDOWN", timestamp = now, status = "SENT"
                 )
-                chatRepo.getParticipantIds(chatId).forEach { pid ->
+                val fanoutPids = chatRepo.getParticipantIds(chatId)
+                // 9.124：与 sendMessage/forward/copy 一致——拉黑 bot 的用户不应收到 bot 的 WS 消息
+                //（批量双向过滤，避免逐成员 hasBlocked N+1 查询）
+                val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
+                fanoutPids.forEach { pid ->
+                    if (pid in botBlockedIds) return@forEach
                     try {
                         sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { }

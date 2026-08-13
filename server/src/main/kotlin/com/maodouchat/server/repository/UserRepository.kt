@@ -1006,7 +1006,10 @@ class UserRepository {
                 }
                 clean
             }
-        } catch (_: Exception) { null }
+        } catch (error: Exception) {
+            // 仅唯一冲突（并发抢注同名）映射「已占用」；DB 故障等不得伪装成冲突静默失败
+            if (isUniqueViolation(error)) null else throw error
+        }
     }
 
     /** 清除用户名（设为 null） */

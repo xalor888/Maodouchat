@@ -31,20 +31,39 @@ class PushTokenRepository {
         platform: String,
         timezoneOffsetMinutes: Int,
         authSessionId: String
-    ): Boolean = transaction {
+    ): Boolean {
         // 8.46 修复：FCM token 长度/格式校验——此前任意字符串直接入库（列宽 512），
         // 攻击者可灌大量垃圾 token 占存储，FCM 侧逐个 400 后才被清理。
         val safeToken = token.trim()
-        if (safeToken.isBlank() || safeToken.length > 255) return@transaction false
+        if (safeToken.isBlank() || safeToken.length > 255) return false
         if (!safeToken.all { it.isLetterOrDigit() || it == ':' || it == '_' || it == '-' || it == '.' }) {
-            return@transaction false
+            return false
         }
+        // 并发 token 迁移（不同账号抢同一 FCM token）时 delete+insert 交叉可能撞 token 唯一索引。
+        // 8.48 的两段式「事务内 catch 后 delete 重试」在 PG 上是死路：唯一冲突已 abort 整事务，
+        // 同事务 DELETE 必 25P02。正确姿势：catch 在事务外，Exposed 回滚后在全新事务重放。
+        return try {
+            transaction { registerInTransaction(userId, deviceId, safeToken, platform, timezoneOffsetMinutes, authSessionId) }
+        } catch (conflict: org.jetbrains.exposed.exceptions.ExposedSQLException) {
+            if (!isUniqueViolation(conflict)) throw conflict
+            transaction { registerInTransaction(userId, deviceId, safeToken, platform, timezoneOffsetMinutes, authSessionId) }
+        }
+    }
+
+    private fun registerInTransaction(
+        userId: String,
+        deviceId: String,
+        safeToken: String,
+        platform: String,
+        timezoneOffsetMinutes: Int,
+        authSessionId: String
+    ): Boolean {
         val activeSession = AuthSessions.selectAll().where {
             (AuthSessions.id eq authSessionId) and
                 (AuthSessions.userId eq userId) and
                 AuthSessions.revokedAt.isNull()
         }.forUpdate().firstOrNull()
-        if (activeSession == null) return@transaction false
+        if (activeSession == null) return false
         // A Firebase registration token belongs to one app installation. Moving it to
         // another account must remove the previous account mapping first.
         PushTokens.deleteWhere { PushTokens.token eq safeToken }
@@ -53,28 +72,15 @@ class PushTokenRepository {
         }.firstOrNull()
         val now = System.currentTimeMillis()
         if (existing == null) {
-            // 并发 token 迁移（不同账号抢同一 FCM token）时 delete+insert 交叉可能撞
-            // token 唯一索引：冲突后重试一次 delete+insert（B8 并发加固）。
-            var inserted = false
-            for (attempt in 1..2) {
-                try {
-                    PushTokens.insert {
-                        it[PushTokens.userId] = userId
-                        it[PushTokens.deviceId] = deviceId
-                        it[PushTokens.authSessionId] = authSessionId
-                        it[PushTokens.token] = safeToken
-                        it[PushTokens.platform] = platform
-                        it[PushTokens.timezoneOffsetMinutes] = timezoneOffsetMinutes
-                        it[PushTokens.updatedAt] = now
-                    }
-                    inserted = true
-                    break
-                } catch (conflict: org.jetbrains.exposed.exceptions.ExposedSQLException) {
-                    if (attempt == 2) throw conflict
-                    PushTokens.deleteWhere { PushTokens.token eq safeToken }
-                }
+            PushTokens.insert {
+                it[PushTokens.userId] = userId
+                it[PushTokens.deviceId] = deviceId
+                it[PushTokens.authSessionId] = authSessionId
+                it[PushTokens.token] = safeToken
+                it[PushTokens.platform] = platform
+                it[PushTokens.timezoneOffsetMinutes] = timezoneOffsetMinutes
+                it[PushTokens.updatedAt] = now
             }
-            if (!inserted) return@transaction false
         } else {
             PushTokens.update({ (PushTokens.userId eq userId) and (PushTokens.deviceId eq deviceId) }) {
                 it[PushTokens.token] = safeToken
@@ -84,7 +90,18 @@ class PushTokenRepository {
                 it[PushTokens.updatedAt] = now
             }
         }
-        true
+        return true
+    }
+
+    private fun isUniqueViolation(error: Throwable): Boolean {
+        var current: Throwable? = error
+        while (current != null) {
+            val message = current.message.orEmpty().lowercase()
+            if (current is java.sql.SQLException && current.sqlState == "23505") return true
+            if (message.contains("unique") || message.contains("duplicate key")) return true
+            current = current.cause
+        }
+        return false
     }
 
     fun getForUser(userId: String): List<PushTokenRecord> = transaction {

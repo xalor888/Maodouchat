@@ -30,86 +30,88 @@ class FriendRepository {
         data class Failure(val message: String, val code: String = "FRIEND_ERROR") : Result()
     }
 
-    fun sendRequest(fromUserId: String, toUserId: String, message: String = ""): Result = transaction {
-        if (fromUserId == toUserId) return@transaction Result.Failure("不能添加自己为好友", "SELF")
+    fun sendRequest(fromUserId: String, toUserId: String, message: String = ""): Result {
+        if (fromUserId == toUserId) return Result.Failure("不能添加自己为好友", "SELF")
         if (!isValidUserId(fromUserId) || !isValidUserId(toUserId)) {
-            return@transaction Result.Failure("用户不存在", "USER_NOT_FOUND")
+            return Result.Failure("用户不存在", "USER_NOT_FOUND")
         }
         if (message.trim().length > MAX_MESSAGE_LEN) {
-            return@transaction Result.Failure("申请消息过长", "MESSAGE_TOO_LONG")
+            return Result.Failure("申请消息过长", "MESSAGE_TOO_LONG")
         }
-        // 两个账号按固定顺序同时加锁，A→B 与 B→A 也会落到同一串行化锚点。
-        val lockedUsers = lockUserPair(fromUserId, toUserId)
-        val target = lockedUsers.firstOrNull { it[Users.id] == toUserId }
-            ?: return@transaction Result.Failure("用户不存在", "USER_NOT_FOUND")
-        val sender = lockedUsers.firstOrNull { it[Users.id] == fromUserId }
-            ?: return@transaction Result.Failure("用户不存在", "USER_NOT_FOUND")
-        if (sender[Users.deletedAt] != null) return@transaction Result.Failure("用户不存在", "USER_NOT_FOUND")
-        if (target[Users.deletedAt] != null) return@transaction Result.Failure("用户不存在", "USER_NOT_FOUND")
-        if (isBlockedEitherWay(fromUserId, toUserId)) {
-            return@transaction Result.Failure("无法发送好友申请", "BLOCKED")
-        }
-        if (areFriendsInTransaction(fromUserId, toUserId)) {
-            return@transaction Result.Failure("已经是好友", "ALREADY_FRIENDS")
-        }
-        // 接收方好友数上限保护：超限拒绝新申请，防止超大数据集的 fanout 资源耗尽。
-        // 上限对主动添加方不生效（自己少好友不影响），只保护「好友很多的人」。
-        if (Friendships.selectAll().where {
-                (Friendships.userLowId eq toUserId) or (Friendships.userHighId eq toUserId)
-            }.count() >= MAX_FRIENDS_PER_USER
-        ) {
-            return@transaction Result.Failure("对方好友数量已达上限", "FRIEND_LIMIT_EXCEEDED")
-        }
-        val pending = FriendRequests.selectAll().where {
-            (FriendRequests.status eq "PENDING") and (
-                ((FriendRequests.fromUserId eq fromUserId) and (FriendRequests.toUserId eq toUserId)) or
-                    ((FriendRequests.fromUserId eq toUserId) and (FriendRequests.toUserId eq fromUserId))
-                )
-        }.firstOrNull()
-        if (pending != null) {
-            return@transaction if (pending[FriendRequests.fromUserId] == fromUserId) {
-                Result.Failure("已发送过申请，请等待对方处理", "ALREADY_PENDING")
-            } else {
-                Result.Failure("对方已向你发起申请，请在收件箱处理", "INCOMING_PENDING")
-            }
-        }
-        val now = System.currentTimeMillis()
-        val id = "fr_${UUID.randomUUID()}"
-        val safeMessage = message.trim()
-        try {
-            FriendRequests.insert {
-                it[FriendRequests.id] = id
-                it[FriendRequests.fromUserId] = fromUserId
-                it[FriendRequests.toUserId] = toUserId
-                it[FriendRequests.message] = safeMessage
-                it[status] = "PENDING"
-                it[createdAt] = now
-                it[updatedAt] = now
-            }
-        } catch (conflict: org.jetbrains.exposed.exceptions.ExposedSQLException) {
-            // Postgres 部分唯一索引 uidx_friend_requests_pending 兜底：并发双向申请时
-            // 后提交者冲突 → 回读返回已有 PENDING（B8 并发加固）。
-            // 8.48 修复：PG/H2 唯一约束冲突后当前事务已 abort，任何后续语句（含 SELECT）都报
-            // "current transaction is aborted" → 此前在同一事务内回读是死代码，并发双向申请必 500。
-            // 必须在「新事务」回读（与 PostRepository.likePost 同模式）。
-            val existing = org.jetbrains.exposed.sql.transactions.transaction {
-                FriendRequests.selectAll().where {
+        // PG：唯一冲突后当前事务 abort，嵌套 transaction{}（useNestedTransactions=false）复用
+        // 同一连接救不回来——8.48 的「catch 内新事务回读」在 PG 上仍是死代码（并发双向申请必 500）。
+        // 正确姿势：catch 在事务外（Exposed 已回滚归还连接），在全新事务回读已有 PENDING。
+        return try {
+            transaction {
+                // 两个账号按固定顺序同时加锁，A→B 与 B→A 也会落到同一串行化锚点。
+                val lockedUsers = lockUserPair(fromUserId, toUserId)
+                val target = lockedUsers.firstOrNull { it[Users.id] == toUserId }
+                    ?: return@transaction Result.Failure("用户不存在", "USER_NOT_FOUND")
+                val sender = lockedUsers.firstOrNull { it[Users.id] == fromUserId }
+                    ?: return@transaction Result.Failure("用户不存在", "USER_NOT_FOUND")
+                if (sender[Users.deletedAt] != null) return@transaction Result.Failure("用户不存在", "USER_NOT_FOUND")
+                if (target[Users.deletedAt] != null) return@transaction Result.Failure("用户不存在", "USER_NOT_FOUND")
+                if (isBlockedEitherWay(fromUserId, toUserId)) {
+                    return@transaction Result.Failure("无法发送好友申请", "BLOCKED")
+                }
+                if (areFriendsInTransaction(fromUserId, toUserId)) {
+                    return@transaction Result.Failure("已经是好友", "ALREADY_FRIENDS")
+                }
+                // 接收方好友数上限保护：超限拒绝新申请，防止超大数据集的 fanout 资源耗尽。
+                // 上限对主动添加方不生效（自己少好友不影响），只保护「好友很多的人」。
+                if (Friendships.selectAll().where {
+                        (Friendships.userLowId eq toUserId) or (Friendships.userHighId eq toUserId)
+                    }.count() >= MAX_FRIENDS_PER_USER
+                ) {
+                    return@transaction Result.Failure("对方好友数量已达上限", "FRIEND_LIMIT_EXCEEDED")
+                }
+                val pending = FriendRequests.selectAll().where {
                     (FriendRequests.status eq "PENDING") and (
                         ((FriendRequests.fromUserId eq fromUserId) and (FriendRequests.toUserId eq toUserId)) or
                             ((FriendRequests.fromUserId eq toUserId) and (FriendRequests.toUserId eq fromUserId))
                         )
                 }.firstOrNull()
-            }
-            if (existing != null) {
-                return@transaction if (existing[FriendRequests.fromUserId] == fromUserId) {
-                    Result.Failure("已发送过申请，请等待对方处理", "ALREADY_PENDING")
-                } else {
-                    Result.Failure("对方已向你发起申请，请在收件箱处理", "INCOMING_PENDING")
+                if (pending != null) {
+                    return@transaction if (pending[FriendRequests.fromUserId] == fromUserId) {
+                        Result.Failure("已发送过申请，请等待对方处理", "ALREADY_PENDING")
+                    } else {
+                        Result.Failure("对方已向你发起申请，请在收件箱处理", "INCOMING_PENDING")
+                    }
                 }
+                val now = System.currentTimeMillis()
+                val id = "fr_${UUID.randomUUID()}"
+                val safeMessage = message.trim()
+                FriendRequests.insert {
+                    it[FriendRequests.id] = id
+                    it[FriendRequests.fromUserId] = fromUserId
+                    it[FriendRequests.toUserId] = toUserId
+                    it[FriendRequests.message] = safeMessage
+                    it[status] = "PENDING"
+                    it[createdAt] = now
+                    it[updatedAt] = now
+                }
+                Result.Success(loadRequest(id)!!)
             }
-            throw conflict
+        } catch (conflict: org.jetbrains.exposed.exceptions.ExposedSQLException) {
+            // Postgres 部分唯一索引 uidx_friend_requests_pending 兜底：并发双向申请时
+            // 后提交者冲突 → 回滚后在新事务回读返回已有 PENDING（B8 并发加固）。
+            if (!isUniqueViolation(conflict)) throw conflict
+            transaction {
+                val existing = FriendRequests.selectAll().where {
+                    (FriendRequests.status eq "PENDING") and (
+                        ((FriendRequests.fromUserId eq fromUserId) and (FriendRequests.toUserId eq toUserId)) or
+                            ((FriendRequests.fromUserId eq toUserId) and (FriendRequests.toUserId eq fromUserId))
+                        )
+                }.firstOrNull()
+                if (existing != null) {
+                    if (existing[FriendRequests.fromUserId] == fromUserId) {
+                        Result.Failure("已发送过申请，请等待对方处理", "ALREADY_PENDING")
+                    } else {
+                        Result.Failure("对方已向你发起申请，请在收件箱处理", "INCOMING_PENDING")
+                    }
+                } else throw conflict
+            }
         }
-        Result.Success(loadRequest(id)!!)
     }
 
     fun acceptRequest(userId: String, requestId: String): Result = transaction {
@@ -380,6 +382,17 @@ class FriendRepository {
                 (FriendRequests.status eq "PENDING") and (FriendRequests.createdAt less cutoff)
             }
         }
+    }
+
+    private fun isUniqueViolation(error: Throwable): Boolean {
+        var current: Throwable? = error
+        while (current != null) {
+            val message = current.message.orEmpty().lowercase()
+            if (current is java.sql.SQLException && current.sqlState == "23505") return true
+            if (message.contains("unique") || message.contains("duplicate key")) return true
+            current = current.cause
+        }
+        return false
     }
 
     companion object {

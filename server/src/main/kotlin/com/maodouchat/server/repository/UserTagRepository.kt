@@ -155,22 +155,21 @@ class UserTagRepository {
         val ids = tagIds.distinct().filter { tagId ->
             UserTags.selectAll().where { UserTags.id eq tagId }.firstOrNull() != null
         }
+        // 串行化同一用户的并发打标（两个管理员/风控同时打标同一用户）：
+        // PG 上事务内 catch 唯一冲突后再 SELECT 必 500，锁住用户行后 exists 检查即准确，
+        // (tagId, userId) PK 竞态从源头消除（与项目内 chat 行锁串行化模式一致）。
+        Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
         ids.forEach { tagId ->
             val existing = UserTagAssignments.selectAll().where {
                 (UserTagAssignments.tagId eq tagId) and (UserTagAssignments.userId eq userId)
             }.firstOrNull()
             if (existing == null) {
-                try {
-                    UserTagAssignments.insert {
-                        it[UserTagAssignments.tagId] = tagId
-                        it[UserTagAssignments.userId] = userId
-                        it[UserTagAssignments.assignmentSource] = source.uppercase().take(20).ifBlank { "MANUAL" }
-                        it[UserTagAssignments.assignedBy] = assignedBy
-                        it[UserTagAssignments.createdAt] = now
-                    }
-                } catch (conflict: org.jetbrains.exposed.exceptions.ExposedSQLException) {
-                    // 手动打标与风控自动打标并发时可能同时插入同一 (tagId,userId) → PK 冲突。
-                    // 已有行即目标状态，捕获后忽略（B8 并发加固）。
+                UserTagAssignments.insert {
+                    it[UserTagAssignments.tagId] = tagId
+                    it[UserTagAssignments.userId] = userId
+                    it[UserTagAssignments.assignmentSource] = source.uppercase().take(20).ifBlank { "MANUAL" }
+                    it[UserTagAssignments.assignedBy] = assignedBy
+                    it[UserTagAssignments.createdAt] = now
                 }
             }
         }

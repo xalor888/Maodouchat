@@ -6037,3 +6037,30 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **退群/被移出只清理了群玩法数据**：该用户在群消息上的 reaction、已读回执、星标、sender key 分发、会话级 AI 偏好仍残留，reaction/已读会对剩余成员继续可见。`leaveChat` / `removeGroupMemberAs` 的清理函数扩展为按 `(chatId, userId)` 一并删除。
 
 **验证**：`:server:test` 全量通过（含 `GroupPlayBlockedVisibilityTest` 扩展）；`git diff --check` 无输出。
+
+### 9.123 2026-08-13 无限调优：管理后台解散会话补齐群玩法级联
+
+1. **`DELETE /api/admin/chats/{id}` 与 `deleteChatRows` 清理集不一致**：管理后台解散会话时只删了群投票，群接龙明细、PK 投票、PK 回合、群签到仍残留孤儿行。补齐与用户删群一致的清理。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.124 2026-08-13 无限调优：PG 唯一冲突后 aborted 事务内继续查询必 500
+
+生产库是 PostgreSQL 16（测试跑 H2，覆盖不到 PG 语义）：语句失败后整事务进入 aborted 状态，同事务内任何后续语句都抛 25P02，且 Exposed 0.46 的嵌套 `transaction{}`（`useNestedTransactions=false`）复用外层连接救不回来。逐处修复"事务内 catch 唯一冲突后继续 DB 操作"模式：
+
+1. **`PinnedMessageRepository.toggle`**：并发置顶同一消息撞 `(chatId,messageId)` PK 后，catch 内同事务回读置顶列表 → PG 500。改为 catch 在事务外，Exposed 回滚后新事务回读。
+2. **`NearbyRepository.updateLocation`**：8.48 的"冲突后嵌套新事务转 UPDATE"在 PG 上仍是死路（嵌套事务复用同一已 abort 连接）。重写为事务外 catch + 全新事务重走 exists→UPDATE/INSERT。
+3. **`ReportRepository.createReport`**：并发提交同一目标 OPEN 举报撞部分唯一索引后，同事务回读已有举报 → PG 500。改为事务外 catch 回读。
+4. **`PostRepository.likeComment`**：并发点赞评论撞 `(commentId,userId)` PK 被 `runCatching` 吞掉后，同事务计数查询 → PG 500。改为事务外 catch（对齐 `likePost`）。
+5. **`AiRepository.upsertPreference`**：UPDATE 0 行后并发 INSERT 撞 PK 被 `runCatching` 吞掉，后续 `getSettingsInTransaction` 同事务 SELECT → PG 500。改用原生 `upsert`（PG ON CONFLICT / H2 MERGE）从源头消除竞态。
+6. **`UserTagRepository.assignTags`**：手动打标与风控并发插同一 `(tagId,userId)` 后同事务回读赋值列表 → PG 500。改为用户行 `FOR UPDATE` 串行化（与项目内 chat 行锁模式一致）。
+7. **`UserRepository.setUsername`**：`catch (_: Exception) { null }` 把 DB 故障伪装成"用户名已占用"（8.34 同款问题）。改为仅唯一冲突映射冲突，其余如实抛出。
+8. **`FriendRepository.sendRequest`**：8.48 的"冲突后在 catch 内开新事务回读"在 PG 上仍是死路——嵌套 `transaction{}` 复用同一已 abort 连接，并发双向好友申请仍必 500。重写为事务外 catch（Exposed 已回滚归还连接）+ 全新事务回读已有 PENDING。
+9. **`PushTokenRepository.register`**：并发 token 迁移撞唯一索引后的两段式重试（事务内 catch 后 delete 再 insert）在 PG 上同属死路——catch 内 DELETE 必 25P02。提取 `registerInTransaction`，catch 移到事务外并在全新事务重放 delete+insert/update。
+
+另外两处清理一致性补齐：
+
+9. **`BotRepository.delete`**：bot 可经 `/api/bot/sendPoll` 以自身身份创建群投票，删除 bot 后其创建的投票及选项投票残留孤儿行；`BotCommandLogs` 仅按 `botId` 删，补齐 `userId` 分支。与 `removeOwnedBots` 清理集对齐。
+10. **bot 各发消息端点 WS fanout 拉黑过滤不一致**：`sendMessage`/`forwardMessage`/`copyMessage` 已过滤拉黑 bot 的接收方，但 `sendPoll`/`sendDice`/`sendLocation`/`sendContact`/`sendVenue`/`sendSticker`/`sendVoice`/`sendDocument`/`sendPhoto`/`sendVideo`/`sendAnimation`/`editMessage`/`editMessageCaption` 等 20 处 fanout 未过滤——拉黑 bot 的用户仍实时收到 bot 的 WS 消息。统一补 `blockedEitherWayIdsInTx` 批量双向过滤（与用户发消息路径 8.30 同口径）。
+
+**验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。

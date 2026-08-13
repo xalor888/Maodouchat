@@ -814,30 +814,40 @@ class PostRepository {
     }
 
     /** 1.52：点赞评论（幂等；返回 (新点赞数, 是否新点赞)）。 */
-    fun likeComment(commentId: String, userId: String): Pair<Int, Boolean> = transaction {
-        val comment = PostComments.selectAll().where { PostComments.id eq commentId }.limit(1).firstOrNull()
-            ?: return@transaction (-1 to false)
-        // 与 likePost 一致：评论所属动态对当前用户不可见（PRIVATE/CONTACTS/双向拉黑）时禁止点赞，
-        // 避免越权交互与“评论是否存在”的探测 oracle
-        if (!canViewInTransaction(comment[PostComments.postId], userId, lockPost = false)) {
-            return@transaction (-1 to false)
-        }
-        val alreadyLiked = !CommentLikes.selectAll()
-            .where { (CommentLikes.commentId eq commentId) and (CommentLikes.userId eq userId) }
-            .limit(1)
-            .empty()
-        var newLike = false
-        if (!alreadyLiked) {
-            newLike = true
-            runCatching {
-                CommentLikes.insert {
-                    it[CommentLikes.commentId] = commentId
-                    it[CommentLikes.userId] = userId
-                    it[CommentLikes.createdAt] = System.currentTimeMillis()
+    fun likeComment(commentId: String, userId: String): Pair<Int, Boolean> {
+        // PG：并发点赞撞 (commentId, userId) 唯一约束会 abort 当前事务，同事务再查计数必 500；
+        // catch 必须在事务外（Exposed 已回滚归还连接），冲突即「已被并发请求点赞成功」。
+        return try {
+            transaction {
+                val comment = PostComments.selectAll().where { PostComments.id eq commentId }.limit(1).firstOrNull()
+                    ?: return@transaction (-1 to false)
+                // 与 likePost 一致：评论所属动态对当前用户不可见（PRIVATE/CONTACTS/双向拉黑）时禁止点赞，
+                // 避免越权交互与“评论是否存在”的探测 oracle
+                if (!canViewInTransaction(comment[PostComments.postId], userId, lockPost = false)) {
+                    return@transaction (-1 to false)
                 }
+                val alreadyLiked = !CommentLikes.selectAll()
+                    .where { (CommentLikes.commentId eq commentId) and (CommentLikes.userId eq userId) }
+                    .limit(1)
+                    .empty()
+                var newLike = false
+                if (!alreadyLiked) {
+                    newLike = true
+                    CommentLikes.insert {
+                        it[CommentLikes.commentId] = commentId
+                        it[CommentLikes.userId] = userId
+                        it[CommentLikes.createdAt] = System.currentTimeMillis()
+                    }
+                }
+                commentLikeCount(commentId) to newLike
+            }
+        } catch (e: Exception) {
+            if (!isUniqueViolation(e)) throw e
+            transaction {
+                // 胜者已提交点赞；本请求视为「已有赞」，返回最新计数
+                commentLikeCount(commentId) to false
             }
         }
-        commentLikeCount(commentId) to newLike
     }
 
     /** 1.52：取消点赞评论（幂等；返回新点赞数）。 */

@@ -1014,6 +1014,21 @@ put("status", "deleted")
                         GroupPollVotes.deleteWhere { GroupPollVotes.pollId inList pollIds }
                         GroupPolls.deleteWhere { GroupPolls.id inList pollIds }
                     }
+                    val chainIds = GroupChains.select(GroupChains.id)
+                        .where { GroupChains.chatId eq id }
+                        .map { it[GroupChains.id] }
+                    if (chainIds.isNotEmpty()) {
+                        GroupChainEntries.deleteWhere { GroupChainEntries.chainId inList chainIds }
+                        GroupChains.deleteWhere { GroupChains.chatId eq id }
+                    }
+                    val pkIds = GroupPkRounds.select(GroupPkRounds.id)
+                        .where { GroupPkRounds.chatId eq id }
+                        .map { it[GroupPkRounds.id] }
+                    if (pkIds.isNotEmpty()) {
+                        GroupPkVotes.deleteWhere { GroupPkVotes.pkId inList pkIds }
+                        GroupPkRounds.deleteWhere { GroupPkRounds.chatId eq id }
+                    }
+                    GroupCheckins.deleteWhere { GroupCheckins.chatId eq id }
                     BotCommandLogs.deleteWhere { BotCommandLogs.chatId eq id }
                     Messages.deleteWhere { Messages.chatId eq id }
                     ChatParticipants.deleteWhere { ChatParticipants.chatId eq id }
