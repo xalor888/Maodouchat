@@ -889,10 +889,13 @@ class PostRepository {
         }
         // 升级前的旧动态没有占用行，回退 Posts.imageUrls LIKE 精确匹配，防止存量图片被重复引用。
         val needle = "%$filename%"
-        return Posts.select(Posts.id)
+        return Posts.select(Posts.id, Posts.imageUrls)
             .where { Posts.imageUrls like needle }
-            .limit(1)
-            .any()
+            .firstOrNull { row ->
+                decodeImageUrls(row[Posts.imageUrls]).any { url ->
+                    url.substringAfterLast("/") == filename
+                }
+            } != null
     }
 
     private fun deletePostRow(postId: String): Boolean {

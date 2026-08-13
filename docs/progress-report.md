@@ -5890,3 +5890,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **会话列表/详情仍返回被拉黑成员**：`getChatsForUser` 与 `getChatById` 的 `participants` 包含全部群成员及在线状态，拉黑关系不生效。两处改为按 viewer 双向拉黑过滤参与者，回归测试覆盖。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.99 2026-08-13 无限调优：图片占用 LIKE 兜底精确匹配
+
+1. **旧图片占用回退只做 LIKE 命中判断**：`_` 在 SQL LIKE 中是单字符通配符，宽松模式可能把相似文件名误判为已占用。`isImageFilenameClaimedInTx` 改为 LIKE 收窄后逐条解析 `imageUrls` 精确比对文件名，避免误拒绝发帖。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
