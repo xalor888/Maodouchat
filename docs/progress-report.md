@@ -6025,3 +6025,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`closePk` 只校验创建者**：退群/被移出后仍可关闭自己创建的 PK，与投票/接龙/投票关闭的成员校验口径不一致。改为先锁 chat、校验仍为群成员，再锁 PK 更新。
 
 **验证**：`:server:test` 全量通过（含 `GroupPlayBlockedVisibilityTest` 扩展）；`git diff --check` 无输出。
+
+### 9.121 2026-08-13 无限调优：删除 bot 清理个人元数据
+
+1. **`BotRepository.delete` 只删成员关系与 bot 应用行**：bot 的 reaction、已读回执、星标、sender key 分发、AI 偏好仍残留。与账号注销/自有 bot 清理口径对齐，删除 bot 时一并清理。
+
+**验证**：`:server:test` 全量通过（含 `BotCreateOutcomeTest` 扩展）；`git diff --check` 无输出。

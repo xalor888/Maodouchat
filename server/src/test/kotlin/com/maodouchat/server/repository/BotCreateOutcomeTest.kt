@@ -1,14 +1,28 @@
 package com.maodouchat.server.repository
 
+import com.maodouchat.server.db.AiPreferences
+import com.maodouchat.server.db.ChatParticipants
+import com.maodouchat.server.db.Chats
+import com.maodouchat.server.db.GroupPollVotes
+import com.maodouchat.server.db.GroupPolls
+import com.maodouchat.server.db.MessageReactions
+import com.maodouchat.server.db.Messages
+import com.maodouchat.server.db.ReadReceipts
+import com.maodouchat.server.db.SenderKeyDistributions
+import com.maodouchat.server.db.StarMessages
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.or
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 /**
  * Bot 创建失败必须区分“用户名占用/非法/数量上限”，不能全部静默折叠成 null。
@@ -42,5 +56,97 @@ class BotCreateOutcomeTest {
 
         val invalid = BotRepository.create("u1", "Test Bot", "1bad", "description")
         assertEquals(BotRepository.BotCreateResult.InvalidInput, invalid)
+    }
+
+    @Test
+    fun `deleting bot clears its personal metadata`() {
+        setupDb()
+        val created = BotRepository.create("u1", "Cleanup Bot", "bot_cleanup", "description")
+        assertIs<BotRepository.BotCreateResult.Success>(created)
+        val botId = created.bot.id
+        val now = System.currentTimeMillis()
+        transaction {
+            Chats.insert {
+                it[Chats.id] = "c1"
+            }
+            ChatParticipants.insert {
+                it[ChatParticipants.chatId] = "c1"
+                it[ChatParticipants.userId] = botId
+                it[ChatParticipants.joinedAt] = now
+            }
+            Messages.insert {
+                it[Messages.id] = "m1"
+                it[Messages.chatId] = "c1"
+                it[Messages.senderId] = botId
+                it[Messages.content] = "x"
+                it[Messages.type] = "TEXT"
+                it[Messages.timestamp] = now
+            }
+            MessageReactions.insert {
+                it[MessageReactions.messageId] = "m1"
+                it[MessageReactions.userId] = botId
+                it[MessageReactions.emoji] = "x"
+                it[MessageReactions.reactedAt] = now
+            }
+            ReadReceipts.insert {
+                it[ReadReceipts.messageId] = "m1"
+                it[ReadReceipts.userId] = botId
+                it[ReadReceipts.readAt] = now
+            }
+            StarMessages.insert {
+                it[StarMessages.userId] = botId
+                it[StarMessages.messageId] = "m1"
+                it[StarMessages.starredAt] = now
+            }
+            SenderKeyDistributions.insert {
+                it[SenderKeyDistributions.id] = "skd_1"
+                it[SenderKeyDistributions.chatId] = "c1"
+                it[SenderKeyDistributions.epoch] = 1
+                it[SenderKeyDistributions.senderId] = botId
+                it[SenderKeyDistributions.recipientUserId] = "u1"
+                it[SenderKeyDistributions.recipientDeviceId] = 1
+                it[SenderKeyDistributions.createdAt] = now
+                it[SenderKeyDistributions.updatedAt] = now
+            }
+            AiPreferences.insert {
+                it[AiPreferences.userId] = botId
+                it[AiPreferences.scope] = "USER"
+                it[AiPreferences.chatId] = ""
+                it[AiPreferences.enabled] = true
+                it[AiPreferences.updatedAt] = now
+            }
+            GroupPolls.insert {
+                it[GroupPolls.id] = "poll_1"
+                it[GroupPolls.chatId] = "c1"
+                it[GroupPolls.creatorId] = "u1"
+                it[GroupPolls.question] = "Q"
+                it[GroupPolls.optionsJson] = """["A","B"]"""
+                it[GroupPolls.multi] = false
+                it[GroupPolls.anonymous] = false
+                it[GroupPolls.closed] = false
+                it[GroupPolls.createdAt] = now
+            }
+            GroupPollVotes.insert {
+                it[GroupPollVotes.pollId] = "poll_1"
+                it[GroupPollVotes.userId] = botId
+                it[GroupPollVotes.optionIndex] = 0
+                it[GroupPollVotes.votedAt] = now
+            }
+        }
+
+        assertTrue(BotRepository.delete(botId, "u1"))
+        transaction {
+            assertTrue(MessageReactions.selectAll().where { MessageReactions.userId eq botId }.empty())
+            assertTrue(ReadReceipts.selectAll().where { ReadReceipts.userId eq botId }.empty())
+            assertTrue(StarMessages.selectAll().where { StarMessages.userId eq botId }.empty())
+            assertTrue(
+                SenderKeyDistributions.selectAll().where {
+                    (SenderKeyDistributions.senderId eq botId) or
+                        (SenderKeyDistributions.recipientUserId eq botId)
+                }.empty()
+            )
+            assertTrue(AiPreferences.selectAll().where { AiPreferences.userId eq botId }.empty())
+            assertTrue(GroupPollVotes.selectAll().where { GroupPollVotes.userId eq botId }.empty())
+        }
     }
 }

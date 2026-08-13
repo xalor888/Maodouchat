@@ -3,11 +3,17 @@ package com.maodouchat.server.repository
 import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.BotCommandLogs
 import com.maodouchat.server.db.BotUpdateInbox
+import com.maodouchat.server.db.AiPreferences
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.ChatUserSettings
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.GroupAuditLogs
+import com.maodouchat.server.db.GroupPollVotes
+import com.maodouchat.server.db.MessageReactions
 import com.maodouchat.server.db.Messages
+import com.maodouchat.server.db.ReadReceipts
+import com.maodouchat.server.db.SenderKeyDistributions
+import com.maodouchat.server.db.StarMessages
 import com.maodouchat.server.db.Users
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
@@ -24,6 +30,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -262,6 +269,15 @@ object BotRepository {
             // Drop memberships first so history/fanout no longer targets the bot identity.
             ChatUserSettings.deleteWhere { ChatUserSettings.userId eq botId }
             ChatParticipants.deleteWhere { ChatParticipants.userId eq botId }
+            MessageReactions.deleteWhere { MessageReactions.userId eq botId }
+            GroupPollVotes.deleteWhere { GroupPollVotes.userId eq botId }
+            ReadReceipts.deleteWhere { ReadReceipts.userId eq botId }
+            StarMessages.deleteWhere { StarMessages.userId eq botId }
+            SenderKeyDistributions.deleteWhere {
+                (SenderKeyDistributions.senderId eq botId) or
+                    (SenderKeyDistributions.recipientUserId eq botId)
+            }
+            AiPreferences.deleteWhere { AiPreferences.userId eq botId }
             lockedChats.filter { it[Chats.isGroup] }.forEach { chat ->
                 Chats.update({ Chats.id eq chat[Chats.id] }) {
                     it[Chats.memberRevision] = chat[Chats.memberRevision] + 1
