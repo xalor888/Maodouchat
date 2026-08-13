@@ -5686,3 +5686,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **已注销用户仍出现在申请列表**：`FriendRepository.mapRequestList/mapRequest` 的 Users 回查不过滤 `deletedAt`，删除账号的申请/接收方仍显示。映射查询统一加 `deletedAt IS NULL`，列表和单条路径一致。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.65 2026-08-13 无限调优：POST_DELETED 账号隔离
+
+1. **Explore 实时删除事件未校验当前账号**：`POST_DELETED` collector 直接处理事件，切号后旧账号删除广播可能影响新账号页面。加 `BackgroundSessionGate` 当前账号校验，切号/登出期间丢弃旧事件。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。

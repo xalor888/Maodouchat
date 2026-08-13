@@ -224,6 +224,17 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         refresh()
         viewModelScope.launch {
             WebSocketClient.events.collect { event ->
+                val liveUserId = tokenManager.getUserId().orEmpty()
+                if (
+                    liveUserId.isBlank() ||
+                    !com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = liveUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = liveUserId,
+                    )
+                ) {
+                    return@collect
+                }
                 if (event is WebSocketEvent.PostDeleted) {
                     handlePostDeleted(event.postId)
                 }
