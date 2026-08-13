@@ -1407,7 +1407,13 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 val liveToken = tokenManager.getToken().orEmpty()
                 if (liveToken.isNotBlank()) {
                     // 失败静默：下次 getChats 服务端数据会收敛角标
-                    runCatching { ApiService.batchMarkRead(liveToken, chatIds) }
+                    try {
+                        ApiService.batchMarkRead(liveToken, chatIds)
+                    } catch (error: kotlinx.coroutines.CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        // 静默：下次同步会收敛角标
+                    }
                 }
             }
         }
@@ -1482,7 +1488,13 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             if (targetIds.isNotEmpty() && isOwnerSessionCurrent(session)) {
                 val liveToken = tokenManager.getToken().orEmpty()
                 if (liveToken.isNotBlank()) {
-                    runCatching { ApiService.batchMarkRead(liveToken, targetIds) }
+                    try {
+                        ApiService.batchMarkRead(liveToken, targetIds)
+                    } catch (error: kotlinx.coroutines.CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        // 静默：下次同步会收敛角标
+                    }
                 }
             }
         }

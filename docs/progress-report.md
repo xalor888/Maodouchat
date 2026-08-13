@@ -5824,3 +5824,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **pending 队列只按 createdAt ASC**：同毫秒写入多条 AI 同步信封时拉取顺序不稳定。补 `id` 二级排序，与其它分页/队列修复保持一致。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.88 2026-08-13 无限调优：批量已读恢复取消传播
+
+1. **`ChatListViewModel` 批量已读用 `runCatching` 包 suspend 请求**：会话列表关闭/切号时取消被吞掉，协程继续执行。两处 `batchMarkRead` 改为 `try/catch` 显式重抛 `CancellationException`，普通失败仍静默留给下次同步收敛。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
