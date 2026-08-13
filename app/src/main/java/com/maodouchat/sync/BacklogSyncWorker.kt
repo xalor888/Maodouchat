@@ -64,6 +64,11 @@ class BacklogSyncWorker(
         //（语义安全），但无退避节流且日志缺失。改为标记失败 → Result.retry()（指数退避）。
         var syncFailed = false
         for (chat in chats) {
+            // 9.136：每轮迭代重新过门禁——循环内含网络/落库 suspend 点，
+            // 中途登出/换号/清库时旧会话不得继续写共享 Room
+            if (!BackgroundSessionGate.mayContinue(ownerId, tokenManager.getToken(), tokenManager.getUserId())) {
+                return Result.success()
+            }
             // 节流依据是「上次同步尝试的墙钟时刻」（成功/失败都更新），而非游标时间戳——
             // 活跃会话的消息时间戳始终贴近 now，若用游标做门控会被无限跳过（8.35 CRITICAL 修复）
             if (now - tokenManager.getLastBacklogSyncAtMs(chat.id) < MIN_SYNC_INTERVAL_MS) continue
@@ -81,6 +86,10 @@ class BacklogSyncWorker(
                     perChatFailed = true
                     syncFailed = true
                     continue
+                }
+                // 9.136：网络往返后再过门禁——旧会话的响应不得写进新账号/清库中的 Room
+                if (!BackgroundSessionGate.mayContinue(ownerId, tokenManager.getToken(), tokenManager.getUserId())) {
+                    return Result.success()
                 }
                 val dtos = result.getOrThrow()
                 // 与 ChatDetailViewModel 相同字段映射（E2EE 密文原样落库，预览由 AppNotifier 统一脱敏）
@@ -101,6 +110,8 @@ class BacklogSyncWorker(
                             sealedSender = dto.sealedSender
                         )
                     }
+                // 9.136：activeChatId 是进程级全局值（无账号归属），按迭代快照一次，
+                // 供未读抑制与通知抑制两处共用，避免跨账号会话状态污染本批决策
                 val activeChatId = MaodouchatApp.activeChatId
                 val newMessageIds = messages.mapNotNull { msg ->
                     if (messageRepo.getMessageById(msg.id) == null) msg.id else null

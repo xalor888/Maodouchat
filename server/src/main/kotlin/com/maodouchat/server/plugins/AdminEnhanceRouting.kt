@@ -207,6 +207,12 @@ fun Application.configureAdminEnhanceRouting(
                     val startsAt = req.startsAt ?: current.startsAt
                     val expiresAt = req.expiresAt ?: current.expiresAt
                     if (startsAt > expiresAt) return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("生效时间不能晚于失效时间"))
+                    // 9.136：显式传入的失效时间不得早于当前（与创建口径一致）——
+                    // 此前可把 expiresAt 改成过去值，公告状态仍为 ACTIVE 但对用户立即隐形（幽灵公告）。
+                    // 仅校验显式传入值：未传时沿用旧窗口，允许对已过期公告仅改标题/内容。
+                    if (req.expiresAt != null && req.expiresAt < System.currentTimeMillis()) {
+                        return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("失效时间不能早于当前时间"))
+                    }
                     val audience = req.audience?.uppercase()?.take(20) ?: current.targetAudience
                     if (audience !in setOf("ALL", "TAGGED")) {
                         return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("公告受众非法"))

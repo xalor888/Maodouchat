@@ -95,6 +95,10 @@ private fun userStatusLock(userId: String): Mutex =
  */
 private val presenceBroadcastRateLimiter = BoundedRateLimiter()
 
+/** 9.136：动态删除广播频控——POST_DELETED 面向全体在线用户 fanout，
+ * 普通用户可反复建/删动态触发 O(N) 放大；限每作者 30 次/分钟（管理/审核路径不限额）。
+ * 丢弃超额广播不影响最终状态——客户端以 feed 刷新兜底收敛。 */
+private val postDeleteBroadcastLimiter = BoundedRateLimiter()
 fun Application.configureSockets(
     userRepo: UserRepository,
     messageRepo: MessageRepository,
@@ -573,6 +577,15 @@ private suspend fun WebSocketSession.handleWsMessage(
         }
 
         "NUDGE" -> {
+            // 9.136：维护模式禁写与 SEND_MESSAGE 一致——NUDGE 同样落库消息并触发 FCM 推送
+            if (RuntimeConfigService.isMaintenanceMode()) {
+                sendError(
+                    RuntimeConfigService.get(RuntimeConfigService.KEY_MAINTENANCE_MESSAGE)
+                        .ifBlank { "System under maintenance" },
+                    json
+                )
+                return
+            }
             // 频率限制：每用户每分钟最多 20 次拍一拍，防止刷量通知洪泛（廉价 DoS）
             if (!wsNudgeRateLimiter.acquire(senderId, maxPerMinute = 20)) return
             val payload = json.decodeFromString<NudgePayload>(wsMsg.payload)
@@ -654,6 +667,15 @@ private suspend fun WebSocketSession.handleWsMessage(
             }
 
             "SIGNALING" -> {
+            // 9.136：维护模式禁写与 SEND_MESSAGE 一致——SIGNALING 持久化信令行并可触发来电推送
+            if (RuntimeConfigService.isMaintenanceMode()) {
+                sendError(
+                    RuntimeConfigService.get(RuntimeConfigService.KEY_MAINTENANCE_MESSAGE)
+                        .ifBlank { "System under maintenance" },
+                    json
+                )
+                return
+            }
             // WebRTC 信令：只允许转发给真实用户，避免无效目标和自发自收
             val payload = json.decodeFromString<OutgoingSignalingPayload>(wsMsg.payload)
             if (!isValidSignalPayload(payload.type, payload.payload) || !isValidCallId(payload.callId)) {
@@ -767,8 +789,12 @@ private suspend fun broadcastUserStatus(userId: String, isOnline: Boolean, json:
 private data class PostDeletedPayload(val postId: String)
 
 /** 动态被作者/版主删除后向所有在线客户端广播，前端即时移除，避免残留。 */
-internal suspend fun broadcastPostDeleted(postId: String) {
+internal suspend fun broadcastPostDeleted(postId: String, actorId: String? = null) {
     if (postId.isBlank()) return
+    // 9.136：与 presence 广播同构的防护——频控（普通用户路径）+ 在线规模上限，
+    // 防反复建/删动态把单事件放大为 O(N) 全量 fanout
+    if (actorId != null && !postDeleteBroadcastLimiter.acquire(actorId, maxPerMinute = 30)) return
+    if (onlineUsers.size > PRESENCE_FANOUT_CAP) return
     val json = Json { ignoreUnknownKeys = true }
     val message = json.encodeToString(
         WsMessage.serializer(),

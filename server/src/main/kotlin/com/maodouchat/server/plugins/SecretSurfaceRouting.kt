@@ -1,9 +1,12 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.model.MessageResponse
+import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.ChatRepository
 import com.maodouchat.server.repository.MessageRepository
+import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -24,6 +27,9 @@ import kotlinx.serialization.json.jsonPrimitive
 /** 8.46：hint 写端点按 bot 限流（防 bot 反复刷 SYSTEM 消息）。 */
 private val hintRateLimiter = BoundedRateLimiter()
 
+/** 9.136：hint 消息 WS fanout 的 JSON 实例（与 Routing.kt 的 routingJson 同配置）。 */
+private val hintJson = Json { ignoreUnknownKeys = true }
+
 /**
  * B2 密聊防泄漏扩展路由（Surface #71–#78）。
  *
@@ -38,10 +44,11 @@ private val hintRateLimiter = BoundedRateLimiter()
  */
 fun Application.configureSecretSurfaceRouting(
     chatRepo: ChatRepository,
-    messageRepo: MessageRepository
+    messageRepo: MessageRepository,
+    userRepo: UserRepository
 ) {
     routing {
-        configureSecretSurfaceRoutes(chatRepo, messageRepo)
+        configureSecretSurfaceRoutes(chatRepo, messageRepo, userRepo)
     }
 }
 
@@ -74,7 +81,8 @@ private fun secretSurfaceBotFlags(): Map<String, Boolean> = mapOf(
 
 private fun Routing.configureSecretSurfaceRoutes(
     chatRepo: ChatRepository,
-    messageRepo: MessageRepository
+    messageRepo: MessageRepository,
+    userRepo: UserRepository
 ) {
     // ── 8 个新 surface 的 healthz（burnz/ttlz/fwlz/simz/2faz/ndz/dvz/sntz）──
     get("/api/bot/burnz") { surfaceHealth(call, "burnz", 71) }
@@ -101,14 +109,14 @@ private fun Routing.configureSecretSurfaceRoutes(
     }
 
     // ── 8 个新 surface 的 hint 路由（SYSTEM 消息，引导文案，无密聊明文）──
-    post("/api/bot/sendSecretScreenshotBurnHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, RuntimeConfigService.KEY_SECRET_SCREENSHOT_BURN_ENABLED, "BURN:SCREEN", "Secret chats burn local media cache when a screenshot attempt is detected") }
-    post("/api/bot/sendSecretAutoDestroyHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, RuntimeConfigService.KEY_SECRET_AUTO_DESTROY_ENABLED, "TTL:AUTODESTROY", "Secret chats auto-destroy after a session inactivity TTL") }
-    post("/api/bot/sendSecretForwardWhitelistHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, RuntimeConfigService.KEY_SECRET_FORWARD_WHITELIST_ENABLED, "FWL:WHITELIST", "Secret chat forwards are limited to the whitelist") }
-    post("/api/bot/sendSecretSimChangeHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, RuntimeConfigService.KEY_SECRET_SIM_CHANGE_PROTECTION_ENABLED, "SIM:LOCK", "Secret chats lock when the SIM changes or is removed") }
-    post("/api/bot/sendSecret2faGateHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, RuntimeConfigService.KEY_SECRET_2FA_GATE_ENABLED, "2FA:GATE", "Secret chats require a second factor before opening") }
-    post("/api/bot/sendSecretNewDeviceRiskHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, RuntimeConfigService.KEY_SECRET_NEW_DEVICE_RISK_ENABLED, "NDV:RISK", "Secret chats lock on untrusted new devices") }
-    post("/api/bot/sendSecretDeviceVerifyHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, RuntimeConfigService.KEY_SECRET_DEVICE_VERIFY_ENABLED, "DVZ:VERIFY", "Verify the peer device fingerprint before secret chats") }
-    post("/api/bot/sendSecretSessionNoticeHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, RuntimeConfigService.KEY_SECRET_SESSION_NOTICE_ENABLED, "SNT:NOTICE", "Secret chat notices show when both sides enable secret mode") }
+    post("/api/bot/sendSecretScreenshotBurnHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, userRepo, RuntimeConfigService.KEY_SECRET_SCREENSHOT_BURN_ENABLED, "BURN:SCREEN", "Secret chats burn local media cache when a screenshot attempt is detected") }
+    post("/api/bot/sendSecretAutoDestroyHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, userRepo, RuntimeConfigService.KEY_SECRET_AUTO_DESTROY_ENABLED, "TTL:AUTODESTROY", "Secret chats auto-destroy after a session inactivity TTL") }
+    post("/api/bot/sendSecretForwardWhitelistHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, userRepo, RuntimeConfigService.KEY_SECRET_FORWARD_WHITELIST_ENABLED, "FWL:WHITELIST", "Secret chat forwards are limited to the whitelist") }
+    post("/api/bot/sendSecretSimChangeHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, userRepo, RuntimeConfigService.KEY_SECRET_SIM_CHANGE_PROTECTION_ENABLED, "SIM:LOCK", "Secret chats lock when the SIM changes or is removed") }
+    post("/api/bot/sendSecret2faGateHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, userRepo, RuntimeConfigService.KEY_SECRET_2FA_GATE_ENABLED, "2FA:GATE", "Secret chats require a second factor before opening") }
+    post("/api/bot/sendSecretNewDeviceRiskHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, userRepo, RuntimeConfigService.KEY_SECRET_NEW_DEVICE_RISK_ENABLED, "NDV:RISK", "Secret chats lock on untrusted new devices") }
+    post("/api/bot/sendSecretDeviceVerifyHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, userRepo, RuntimeConfigService.KEY_SECRET_DEVICE_VERIFY_ENABLED, "DVZ:VERIFY", "Verify the peer device fingerprint before secret chats") }
+    post("/api/bot/sendSecretSessionNoticeHint") { sendSecretSurfaceHint(call, chatRepo, messageRepo, userRepo, RuntimeConfigService.KEY_SECRET_SESSION_NOTICE_ENABLED, "SNT:NOTICE", "Secret chat notices show when both sides enable secret mode") }
 }
 
 // ── 私有辅助 ──────────────────────────────
@@ -148,6 +156,7 @@ private suspend fun sendSecretSurfaceHint(
     call: io.ktor.server.application.ApplicationCall,
     chatRepo: ChatRepository,
     messageRepo: MessageRepository,
+    userRepo: UserRepository,
     gateKey: String,
     prefix: String,
     defaultHint: String
@@ -165,7 +174,8 @@ private suspend fun sendSecretSurfaceHint(
     val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
         ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
     val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-    val hint = (obj["hint"]?.jsonPrimitive?.content ?: defaultHint).take(120)
+    // 9.136：hint 与 Routing.kt 家族一致走 sanitizeBotHint——控制字符/换行不得进入 SYSTEM 消息
+    val hint = sanitizeBotHint(obj["hint"]?.jsonPrimitive?.content).ifBlank { defaultHint }
     if (chatId.isBlank()) return call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
     if (!chatRepo.isParticipant(chatId, bot.id)) return call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
     val content = "$prefix " + hint
@@ -174,6 +184,13 @@ private suspend fun sendSecretSurfaceHint(
     val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
     BotRepository.logCommand(bot.id, chatId, null, "sendSecretSurfaceHint:$prefix")
     if (!ok) return call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+    // 9.136：与 Routing.kt 经典 bot 端点一致补实时 WS fanout（9.131 遗漏本文件 8 个端点——
+    // 此前仅落库，在线成员需重新拉历史才可见）
+    val botMessage = MessageResponse(
+        id = msgId, chatId = chatId, senderId = bot.id, content = content,
+        type = "SYSTEM", timestamp = now, status = "SENT"
+    )
+    fanoutBotMessage(userRepo, chatRepo, hintJson, bot.id, chatId, botMessage)
     call.respond(
                 buildJsonObject {
 put("ok", true)

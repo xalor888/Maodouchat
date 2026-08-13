@@ -15643,7 +15643,7 @@ put("status", "ok")
                     return@delete
                 }
                 postRepo.deletePost(postId, userId)
-                broadcastPostDeleted(postId)
+                broadcastPostDeleted(postId, actorId = userId)
                 call.respond(
                 buildJsonObject {
 put("status", "ok")
@@ -16747,15 +16747,17 @@ private fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: Strin
 /** 9.131：bot 卡片/Hint 端点补齐实时 WS fanout（与 sendMessage/sendTable 等经典端点一致）。 */
 
 /** 9.135：提示文案清洗——hint 进入 SYSTEM 消息并经 WS/FCM 分发到全群，
- * 控制字符/换行会污染客户端渲染与日志；压缩空白并截断到 120 字符。 */
-private fun sanitizeBotHint(raw: String?): String = (raw ?: "")
+ * 控制字符/换行会污染客户端渲染与日志；压缩空白并截断到 120 字符。
+ * 9.136：改为 internal 供 SecretSurfaceRouting 的 8 个 hint 端点复用。 */
+internal fun sanitizeBotHint(raw: String?): String = (raw ?: "")
     .map { if (it.isISOControl() || it == '\u007F') ' ' else it }
     .joinToString("")
     .replace(Regex("\\s+"), " ")
     .trim()
     .take(120)
 
-private suspend fun fanoutBotMessage(
+/** 9.136：改为 internal 供 SecretSurfaceRouting 的 8 个 hint 端点复用（9.131 仅覆盖 Routing.kt 内部家族）。 */
+internal suspend fun fanoutBotMessage(
     userRepo: UserRepository,
     chatRepo: ChatRepository,
     json: Json,

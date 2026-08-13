@@ -135,6 +135,11 @@ fun Routing.configurePollRoutes() {
             if (call.rejectIfSuspendedForPolls(userId)) return@post
             val chatId = call.parameters["chatId"]
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
+            // 9.136：成员校验先于限流（与 checkin/pk 的 8.47 口径一致）——
+            // 此前接龙创建限流先行，非成员可反复探测耗尽自己对该 chat 的配额
+            if (!PollRepository.isMember(chatId, userId)) {
+                return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
+            }
             if (!pollRateLimiter.acquire("$userId:$chatId:chain_create", maxPerMinute = 10)) {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建接龙过于频繁"))
             }
@@ -146,10 +151,6 @@ fun Routing.configurePollRoutes() {
             val maxEntries = obj["maxEntries"]?.jsonPrimitive?.intOrNull ?: 200
             if (title.isBlank() || title.length > MAX_CHAIN_TITLE_LENGTH) {
                 return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("接龙标题无效"))
-            }
-            // 8.32 一致性：非成员 403（与群管理端点一致），其余失败保持 400
-            if (!PollRepository.isMember(chatId, userId)) {
-                return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
             if (call.rejectIfMutedForPolls(chatId, userId)) return@post
             val chain = GroupCheckinRepository.createChain(chatId, userId, title, topic, maxEntries)

@@ -6155,3 +6155,17 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实并排除子代理其余发现：`updateStatus` 的拉黑短路在 status 校验之后（已正确）；`since=0` 全量历史在 limit≤500 与参与者校验下有界；`unblockUser` 幂等 200 无跨用户影响；`resolveClientAddress` 的 XFF 信任默认关闭（显式运维开关）；`BoundedRateLimiter.acquire` 的 `now` 仅内部默认值注入。均不做改动。
 
 **验证**：`:server:compileKotlin` 通过；`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
+
+### 9.136 2026-08-13 无限调优：POST_DELETED 全量广播放大、维护模式绕过、密聊 hint 端点补 fanout
+
+1. **`broadcastPostDeleted` 无频控无上限的全员 fanout（服务端 DoS 放大）**：普通用户 `DELETE /api/posts/{id}` 即可触发向全体在线用户 O(N) 广播——presence 广播早有 `presenceBroadcastRateLimiter`+`PRESENCE_FANOUT_CAP` 双重防护，动态删除广播两条都没有（子代理审计发现）。补：普通用户路径按作者 30 次/分钟频控 + 在线规模超 5000 时跳过（管理/审核路径不限频仍受限规模上限，客户端以 feed 刷新兜底收敛）。
+2. **维护模式可被 WS `NUDGE`/`SIGNALING` 绕过**：`SEND_MESSAGE` 已拦 `isMaintenanceMode()`，但 NUDGE（落库消息 + FCM 推送）与 SIGNALING（持久化信令行 + 来电推送）无任何维护检查——停服窗口内仍可制造消息与呼叫流量。补上与 SEND_MESSAGE 同构的维护门（TYPING/STATUS_UPDATE 为无持久化/仅回执路径，不冻结）。
+3. **`SecretSurfaceRouting` 8 个 hint 端点仅落库不 fanout**：9.131 的 bot hint 家族 WS fanout 修复只覆盖了 Routing.kt，漏掉 B2 密聊防泄漏扩展的 8 个 `sendSecret*Hint`——在线成员要重拉历史才能看到 SYSTEM 引导消息。`fanoutBotMessage`/`sanitizeBotHint` 提为 internal 复用，8 端点补 fanout（含拉黑 bot 接收方过滤）。
+4. **同文件 8 个 hint 沿用未清洗 `.take(120)`**：控制字符/换行可进入 `BURN:SCREEN` 等前缀 SYSTEM 消息。统一改走 `sanitizeBotHint`。
+5. **`BacklogSyncWorker` 门禁只在循环前查一次（客户端）**：循环内含网络请求与多处 Room 写（insertMessages/incrementUnread/saveSyncCursor），中途登出/换号会把旧会话数据写进正在清库/切号中的共享 DB；且 `MaodouchatApp.activeChatId`（无账号归属的进程级全局值）被循环内两次实时读用做未读/通知抑制决策。改为每轮迭代前与网络往返后各过门禁、activeChatId 按迭代快照一次。
+6. **接龙创建限流先于成员校验**：非成员可反复探测耗尽自己对该 chat 的配额——与 checkin/pk 的 8.47「成员校验先于限流」口径不一致。对齐。
+7. **公告更新可把 `expiresAt` 改到过去**：公告状态仍 ACTIVE 但对用户立即隐形（幽灵公告），且与创建路径「失效时间不能早于当前时间」口径不一致。更新路径对显式传入的过期值返回 400（未传时沿用旧窗口，允许对已过期公告仅改标题/内容）。
+
+另核实子代理其余发现：StatusPages 详情仅在非生产环境回显、WS 会话清理各退出路径均已覆盖、refresh-token 轮换已有行锁+CAS、CORS 凭据仅显式白名单开启——均为既有防护，不做改动。
+
+**验证**：`:server:compileKotlin` 通过；`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
