@@ -1,6 +1,7 @@
 package com.maodouchat.server
 
 import com.maodouchat.server.db.BlockedUsers
+import com.maodouchat.server.db.CommentLikes
 import com.maodouchat.server.db.PostComments
 import com.maodouchat.server.db.PostLikes
 import com.maodouchat.server.db.Posts
@@ -77,6 +78,16 @@ class PostMetaBlockedVisibilityTest {
                 it[PostComments.content] = "visible"
                 it[PostComments.createdAt] = now
             }
+            CommentLikes.insert {
+                it[CommentLikes.commentId] = "comment_2"
+                it[CommentLikes.userId] = "u2"
+                it[CommentLikes.createdAt] = now
+            }
+            CommentLikes.insert {
+                it[CommentLikes.commentId] = "comment_2"
+                it[CommentLikes.userId] = "u3"
+                it[CommentLikes.createdAt] = now
+            }
         }
 
         val post = PostRepository().getPostById("post_1", "u1")!!
@@ -87,5 +98,10 @@ class PostMetaBlockedVisibilityTest {
         assertEquals(listOf("post_1"), feed.map { it.id })
         assertEquals(1, feed.single().likeCount)
         assertEquals(1, feed.single().commentCount)
+
+        val comments = PostRepository().getComments("post_1", "u1", limit = 50)!!
+        assertEquals(listOf("comment_2"), comments.map { it.id })
+        assertEquals(1, comments.single().likeCount)
+        assertEquals(1, PostRepository().getComment("comment_2", "u1")?.likeCount)
     }
 }

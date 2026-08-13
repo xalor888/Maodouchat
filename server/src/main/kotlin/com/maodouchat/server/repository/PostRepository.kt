@@ -677,7 +677,7 @@ class PostRepository {
                 iterations++
             }
             // 1.75：批量填充点赞数据（消除逐条 N+1）
-            enrichCommentLikes(result.asReversed(), currentUserId)
+            enrichCommentLikes(result.asReversed(), currentUserId, blockedUserIds)
         }
     }
 
@@ -725,17 +725,31 @@ class PostRepository {
         }
     }
 
-    private fun getCommentById(commentId: String, currentUserId: String): PostCommentResponse? {
+    private fun getCommentById(
+        commentId: String,
+        currentUserId: String,
+        blockedUserIds: Set<String> = emptySet()
+    ): PostCommentResponse? {
         return (PostComments innerJoin Users)
             .selectAll()
             .where { PostComments.id eq commentId }
             .firstOrNull()
-            ?.let { enrichCommentLikes(listOf(it.toCommentResponse(currentUserId)), currentUserId).firstOrNull() }
+            ?.let {
+                enrichCommentLikes(
+                    listOf(it.toCommentResponse(currentUserId)),
+                    currentUserId,
+                    blockedUserIds
+                ).firstOrNull()
+            }
     }
 
     /** 1.130：公开读取单条评论（路由通知预览用）。 */
-    fun getComment(commentId: String, currentUserId: String): PostCommentResponse? =
-        getCommentById(commentId, currentUserId)
+    fun getComment(commentId: String, currentUserId: String): PostCommentResponse? {
+        return transaction {
+            val blockedUserIds = getBlockedEitherWayUserIds(currentUserId)
+            getCommentById(commentId, currentUserId, blockedUserIds)
+        }
+    }
 
     private fun ResultRow.toCommentResponse(currentUserId: String): PostCommentResponse {
         val commentId = this[PostComments.id]
@@ -754,14 +768,24 @@ class PostRepository {
     }
 
     /** 1.75：批量填充评论点赞数 + 当前用户已赞（两次 SQL 替代逐条 N+1）。 */
-    private fun enrichCommentLikes(comments: List<PostCommentResponse>, userId: String): List<PostCommentResponse> {
+    private fun enrichCommentLikes(
+        comments: List<PostCommentResponse>,
+        userId: String,
+        blockedUserIds: Set<String> = emptySet()
+    ): List<PostCommentResponse> {
         if (comments.isEmpty()) return comments
         val ids = comments.map { it.id }
-        val likeCounts = CommentLikes
-            .select(CommentLikes.commentId, CommentLikes.commentId.count())
+        val countExpr = CommentLikes.commentId.count()
+        val base = CommentLikes.select(CommentLikes.commentId, countExpr)
             .where { CommentLikes.commentId inList ids }
+        val query = if (blockedUserIds.isEmpty()) {
+            base
+        } else {
+            base.andWhere { CommentLikes.userId notInList blockedUserIds.toList() }
+        }
+        val likeCounts = query
             .groupBy(CommentLikes.commentId)
-            .associate { it[CommentLikes.commentId] to it[CommentLikes.commentId.count()].toInt() }
+            .associate { it[CommentLikes.commentId] to it[countExpr].toInt() }
         val likedByMe = CommentLikes
             .select(CommentLikes.commentId)
             .where { (CommentLikes.commentId inList ids) and (CommentLikes.userId eq userId) }
