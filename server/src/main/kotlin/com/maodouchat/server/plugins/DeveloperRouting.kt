@@ -116,6 +116,8 @@ private fun devSessionOwnedBot(botId: String, userId: String): BotRepository.Bot
  */
 fun Application.configureDeveloperRouting() {
     val developerLoginRateLimiter = BoundedRateLimiter()
+    /** 8.131：开发者登录按账号限流（防轮换源 IP 爆破，与主登录 loginEmailRateLimiter 同策略）。 */
+    val developerLoginEmailRateLimiter = BoundedRateLimiter()
 
     routing {
         route("/api/developer") {
@@ -261,7 +263,9 @@ fun Application.configureDeveloperRouting() {
 
             // ─── Capability manifest ──────────────
             get("/capabilities") {
-                val bot = authenticateDeveloperBot(call) ?: return@get
+                // 8.131：manifest 与具体 bot 无关——dev_session 无需 bot id（此前一个 bot
+                // 都没有的开发者取不到这份 bot 无关的能力清单）；bot token 仍可用
+                if (!authenticateDeveloperIdentity(call)) return@get
                 call.respond(buildCapabilityManifest())
             }
 
@@ -298,6 +302,12 @@ fun Application.configureDeveloperRouting() {
                 val totpCode = obj["totpCode"]?.jsonPrimitive?.content
                 if (email.isBlank() || password.isBlank()) {
                     return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("邮箱或密码不能为空"))
+                }
+                // 8.131：与主登录一致补按账号限流——此前仅按 IP 限流，攻击者轮换源 IP
+                // 即可对同一开发者账号无限爆破（主登录早有 loginEmailRateLimiter 堵这个洞）
+                val emailKey = runCatching { email.normalizedEmail() }.getOrDefault(email)
+                if (!developerLoginEmailRateLimiter.acquire(emailKey, maxPerMinute = ServerConfig.authRateLimitPerMinute)) {
+                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("该账号尝试过于频繁，请稍后再试"))
                 }
                 val loginResult = userRepo.loginWithFactors(email, password, totpCode)
                 when {
@@ -565,6 +575,26 @@ private suspend fun authenticateDeveloperBot(call: ApplicationCall): BotReposito
     return authenticateBot(call)
 }
 
+/** 8.131：仅校验开发者身份（dev_session 或 bot token），不解析具体 bot——供 capabilities 等 bot 无关端点。 */
+private suspend fun authenticateDeveloperIdentity(call: ApplicationCall): Boolean {
+    val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
+    if (bearer.isNotBlank()) {
+        val decoded = JwtConfig.verifyToken(bearer)
+        if (decoded != null && decoded.getClaim("token_use").asString() == TOKEN_USE_DEV_SESSION) {
+            val userId = decoded.subject
+            if (userId.isNullOrBlank() ||
+                (ServerConfig.developerUserIds.isNotEmpty() && userId !in ServerConfig.developerUserIds) ||
+                !devAuthTokenRepo.isAccessTokenAllowed(userId, JwtConfig.tokenVersion(decoded), decoded.id)
+            ) {
+                call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
+                return false
+            }
+            return true
+        }
+    }
+    return authenticateBot(call) != null
+}
+
 // 聚合查询内存上限：开发者看板/分析对 BotCommandLogs 做进程内 group-by，
 // 不限流会物化全表行导致 OOM。加行上限防止自残式 OOM（极繁忙 bot 退化为近似值）。
 private const val MAX_AGG_ROWS = 50_000
@@ -577,7 +607,6 @@ private fun buildDashboard(botId: String, ownerUserId: String): DeveloperDashboa
         val totalCommands = BotCommandLogs.selectAll()
             .where { BotCommandLogs.botId eq botId }
             .count()
-        val pendingUpdates = BotRepository.countPendingUpdates(botId)
         val activeWebhook = !bot?.webhookUrl.isNullOrBlank()
 
         // Command frequency (last 24h)

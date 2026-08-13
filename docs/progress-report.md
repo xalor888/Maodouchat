@@ -6116,3 +6116,13 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实：`/settings` 的任意键写入已被 `RuntimeConfigService.set` 的 master-admin + knownKeys 校验覆盖（子代理发现 B 已由既有纵深防御处理，未改动）。
 
 **验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.132 2026-08-13 无限调优：开发者控制台登录防爆破与能力清单鉴权修复
+
+1. **开发者登录（`/api/developer-account/login`）仅按 IP 限流**：攻击者轮换源 IP 即可对同一开发者账号无限爆破——主登录早有 `loginEmailRateLimiter`（按账号）堵同一类洞，开发者登录漏补。新增 `developerLoginEmailRateLimiter`，按规范化邮箱限流（与主登录同策略同频率）。
+2. **`GET /api/developer/capabilities` 错误要求 bot id**：dev_session 认证下该端点强制解析 `{id}`/`?bot_id=`，一个 bot 都没有的合法开发者取不到这份 bot 无关的能力清单（400）。新增 `authenticateDeveloperIdentity`（仅校验开发者身份，不绑定 bot），capabilities 改用它。
+3. **`buildDashboard` 冗余 `countPendingUpdates` 查询**：`pendingUpdates` 计算后从未使用（下方 `pendingCount` 才是实际使用值），每次面板加载多一次 DB 往返。删除死代码。
+
+另核实子代理低置信度项：bot `*z`/`get*Flags` 端点族间 `surface` 编号漂移（59/60、61/61、62/62…）为装饰性标签、无客户端行为证据，不冒改；`chatId` 仅 isBlank 校验（DB 内 forUpdate 复核成员身份）为输入卫生建议，不做改动。
+
+**验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
