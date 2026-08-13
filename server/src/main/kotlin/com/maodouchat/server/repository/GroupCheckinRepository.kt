@@ -186,6 +186,28 @@ object GroupCheckinRepository {
         }
     }
 
+    /** Actor's check-in DTO as seen by [viewerId]; null when the viewer is blocked from the actor. */
+    fun checkinForViewer(chatId: String, userId: String, viewerId: String): CheckinDto? {
+        if (!isValidId(chatId) || !isValidId(userId) || !isValidId(viewerId)) return null
+        val today = LocalDate.now().toString()
+        return transaction {
+            val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
+                ?: return@transaction null
+            if (
+                !chat[Chats.isGroup] ||
+                !isMemberInTransaction(chatId, userId) ||
+                !isMemberInTransaction(chatId, viewerId)
+            ) return@transaction null
+            if (userId in blockedUserIdsInTx(viewerId)) return@transaction null
+            val row = GroupCheckins.selectAll().where {
+                (GroupCheckins.chatId eq chatId) and
+                    (GroupCheckins.userId eq userId) and
+                    (GroupCheckins.checkinDate eq today)
+            }.firstOrNull() ?: return@transaction null
+            toCheckinDto(chatId, userId, row, System.currentTimeMillis(), viewerId)
+        }
+    }
+
     fun checkinRanking(chatId: String, limit: Int = 20, viewerId: String? = null): List<CheckinRankEntry> {
         if (chatId.isBlank()) return emptyList()
         return transaction {
@@ -234,9 +256,15 @@ object GroupCheckinRepository {
         }
     }
 
-    private fun toCheckinDto(chatId: String, userId: String, row: ResultRow, now: Long): CheckinDto {
+    private fun toCheckinDto(
+        chatId: String,
+        userId: String,
+        row: ResultRow,
+        now: Long,
+        viewerId: String = userId
+    ): CheckinDto {
         val date = row[GroupCheckins.checkinDate]
-        val blocked = blockedUserIdsInTx(userId)
+        val blocked = blockedUserIdsInTx(viewerId)
         // 8.48 修复 M14：rank/count 用 COUNT 聚合——此前全量载入当日签到行（活跃大群上万行）
         val myCheckedAt = row[GroupCheckins.checkedAt]
         val visibleBase = if (blocked.isEmpty()) {

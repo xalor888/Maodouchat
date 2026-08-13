@@ -7,6 +7,7 @@ import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.GroupPolls
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
@@ -57,17 +58,20 @@ object PollRepository {
             val pollBase = GroupPolls.selectAll().where { GroupPolls.chatId eq chatId }
             val pollQuery = if (blocked.isEmpty()) pollBase
             else pollBase.andWhere { GroupPolls.creatorId notInList blocked.toList() }
-            pollQuery
+            val polls = pollQuery
                 .orderBy(GroupPolls.createdAt to SortOrder.DESC, GroupPolls.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
-                .map { row ->
+                .toList()
+            val pollIds = polls.map { it[GroupPolls.id] }
+            val votesByPoll = if (pollIds.isEmpty()) emptyMap() else
+                GroupPollVotes.selectAll()
+                    .where { GroupPollVotes.pollId inList pollIds }
+                    .toList()
+                    .groupBy { it[GroupPollVotes.pollId] }
+            polls.map { row ->
                     val pollId = row[GroupPolls.id]
                     val options = decodeOptions(row)
-                    val votes = GroupPollVotes
-                        .selectAll()
-                        .where { GroupPollVotes.pollId eq pollId }
-                        .toList()
-                        .filter { it[GroupPollVotes.userId] !in blocked }
+                    val votes = votesByPoll[pollId].orEmpty().filter { it[GroupPollVotes.userId] !in blocked }
                     val counts = IntArray(options.size)
                     val voters = mutableSetOf<String>()
                     for (v in votes) {

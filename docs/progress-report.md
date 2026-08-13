@@ -5992,3 +5992,17 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`deleteCommentForModeration` 只删评论行**：子回复的 `parentId` 会悬挂，评论点赞还会触发外键残留。与用户自删对齐：先置空子回复 parentId，再删除评论点赞，最后删评论行。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.116 2026-08-13 无限调优：群成员与内部会话回读补拉黑/注销过滤
+
+1. **`getGroupMembers` 未排除已注销用户**：注销竞态下成员列表可能短暂带出 `deletedAt` 非空用户，成员接口先过滤注销行。
+2. **`getChatByIdInTx` 只过滤参与者、未过滤最后消息预览**：建群/入群/直聊回读等内部路径在双向拉黑后仍可能带回被拉黑方的明文预览；SK_DIST 回退取可见消息时也未按拉黑过滤。两处统一按 viewer 过滤。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.117 2026-08-13 无限调优：群玩法广播按收件人过滤
+
+1. **`GROUP_PLAY_UPDATE` 复用操作者视角 DTO**：接龙/PK/签到广播对所有成员发送同一 payload，收件人拉黑的操作者/接龙人/投票人仍会出现在广播中。改为批量取成员双向拉黑集合，收件人与操作者拉黑集合一致时复用基础 payload，否则按收件人重新生成；签到新增 `checkinForViewer`。
+2. **投票同步快照逐 poll 查投票**：`listChatPollSnapshots` 30 条即 30 次查询，改为一次批量取全部 poll votes。
+
+**验证**：`:server:test` 全量通过（含 `GroupPlayBlockedVisibilityTest` 扩展）；`git diff --check` 无输出。

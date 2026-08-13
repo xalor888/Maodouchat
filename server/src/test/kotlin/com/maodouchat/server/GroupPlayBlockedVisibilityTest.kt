@@ -11,6 +11,7 @@ import com.maodouchat.server.db.GroupPkRounds
 import com.maodouchat.server.db.GroupPkVotes
 import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.GroupPolls
+import com.maodouchat.server.db.Messages
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.ChatRepository
@@ -53,6 +54,9 @@ class GroupPlayBlockedVisibilityTest {
                 it[Chats.groupName] = "Group"
                 it[Chats.lastMessageType] = "TEXT"
                 it[Chats.lastMessageTime] = now
+                it[Chats.groupInviteToken] = "invite-token-00000000000000000000000000"
+                it[Chats.groupInviteExpiresAt] = now + 60_000L
+                it[Chats.groupInviteMaxUses] = 1
             }
             listOf("u1", "u2", "u3").forEach { id ->
                 ChatParticipants.insert {
@@ -213,6 +217,10 @@ class GroupPlayBlockedVisibilityTest {
         assertEquals(listOf("chain_1"), chains.map { it.id })
         assertEquals(listOf("u3"), chains.single().entries.map { it.userId })
         assertNull(GroupCheckinRepository.getChain("chain_2", "u1"))
+        assertEquals(
+            listOf("u2", "u3"),
+            GroupCheckinRepository.getChain("chain_1", "u3")!!.entries.map { it.userId }
+        )
 
         val pks = GroupCheckinRepository.listChatPks("g1", "u1", 100)
         assertEquals(listOf("pk_1"), pks.map { it.id })
@@ -220,6 +228,14 @@ class GroupPlayBlockedVisibilityTest {
         assertEquals(1, pks.single().rightCount)
         assertEquals(1, pks.single().totalVoters)
         assertNull(GroupCheckinRepository.getPk("pk_2", "u1"))
+        val pkForU3 = GroupCheckinRepository.getPk("pk_1", "u3")!!
+        assertEquals(1, pkForU3.leftCount)
+        assertEquals(1, pkForU3.rightCount)
+        assertEquals(2, pkForU3.totalVoters)
+        val pkForU1 = GroupCheckinRepository.getPk("pk_1", "u1")!!
+        assertEquals(0, pkForU1.leftCount)
+        assertEquals(1, pkForU1.rightCount)
+        assertEquals(1, pkForU1.totalVoters)
 
         val polls = GroupPlayRepository.listChatPolls("g1", "u1", 100)
         assertEquals(listOf("poll_1"), polls.map { it.id })
@@ -238,6 +254,9 @@ class GroupPlayBlockedVisibilityTest {
         val mine = GroupCheckinRepository.myCheckin("g1", "u1")!!
         assertEquals(2, mine.todayCount)
         assertEquals(1, mine.todayRank)
+        val u2ForU3 = GroupCheckinRepository.checkinForViewer("g1", "u2", "u3")!!
+        assertEquals(3, u2ForU3.todayCount)
+        assertNull(GroupCheckinRepository.checkinForViewer("g1", "u2", "u1"))
 
         val members = ChatRepository().getGroupMembers("g1", viewerId = "u1")
         assertEquals(setOf("u1", "u3"), members.map { it.userId }.toSet())
@@ -259,5 +278,29 @@ class GroupPlayBlockedVisibilityTest {
             creatorId = "u1"
         )
         assertEquals(setOf("u1", "u3"), created.participants.map { it.id }.toSet())
+
+        transaction {
+            Messages.insert {
+                it[Messages.id] = "m_blocked"
+                it[Messages.chatId] = "g1"
+                it[Messages.senderId] = "u1"
+                it[Messages.content] = "blocked preview"
+                it[Messages.type] = "TEXT"
+                it[Messages.timestamp] = now + 100L
+            }
+            Messages.insert {
+                it[Messages.id] = "m_sk"
+                it[Messages.chatId] = "g1"
+                it[Messages.senderId] = "u3"
+                it[Messages.content] = "sk"
+                it[Messages.type] = "SK_DIST"
+                it[Messages.timestamp] = now + 200L
+            }
+        }
+        val inviteJoin = requireNotNull(
+            ChatRepository().consumeGroupInvite("invite-token-00000000000000000000000000", "u2", maxMembers = 100)
+        ) { "join should succeed" }
+        assertEquals("", inviteJoin.chat.lastMessage)
+        assertEquals(setOf("u2", "u3"), inviteJoin.chat.participants.map { it.id }.toSet())
     }
 }

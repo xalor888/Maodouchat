@@ -307,12 +307,14 @@ class ChatRepository {
             .orderBy(Messages.timestamp to SortOrder.DESC)
             .limit(1)
             .firstOrNull()
-        val visibleLastMsg = if (lastMsg?.get(Messages.type) == HIDDEN_SENDER_KEY_TYPE) {
-            lastVisibleMessage(chatId)
-        } else {
-            lastMsg
-        }
-        val effectiveLastMsg = visibleLastMsg ?: if (lastMsg?.get(Messages.type) == HIDDEN_SENDER_KEY_TYPE) null else lastMsg
+        val lastMsgType = lastMsg?.get(Messages.type)
+        val lastMsgSender = lastMsg?.get(Messages.senderId)
+        val blockedPreview = viewerId?.isNotBlank() == true &&
+            lastMsgSender?.let { it != viewerId && it in blocked } == true
+        val visibleLastMsg = if (blockedPreview) null
+        else if (lastMsgType == HIDDEN_SENDER_KEY_TYPE) lastVisibleMessage(chatId, viewerId, blocked)
+        else lastMsg
+        val effectiveLastMsg = visibleLastMsg ?: if (lastMsgType == HIDDEN_SENDER_KEY_TYPE) null else visibleLastMsg
         return ChatResponse(
             id = chatId,
             participants = participants,
@@ -1548,12 +1550,19 @@ class ChatRepository {
         else -> "[端到端加密消息]"
     }
 
-    private fun lastVisibleMessage(chatId: String): ResultRow? = Messages
-        .selectAll()
-        .where { (Messages.chatId eq chatId) and (Messages.type neq HIDDEN_SENDER_KEY_TYPE) }
-        .orderBy(Messages.timestamp to SortOrder.DESC)
-        .limit(1)
-        .firstOrNull()
+    private fun lastVisibleMessage(
+        chatId: String,
+        viewerId: String? = null,
+        blocked: Set<String> = emptySet()
+    ): ResultRow? {
+        val base = (Messages.chatId eq chatId) and (Messages.type neq HIDDEN_SENDER_KEY_TYPE)
+        val condition = if (viewerId.isNullOrBlank() || blocked.isEmpty()) base
+        else base and (Messages.senderId notInList blocked.toList())
+        return Messages.selectAll().where { condition }
+            .orderBy(Messages.timestamp to SortOrder.DESC)
+            .limit(1)
+            .firstOrNull()
+    }
 
     private fun bumpMemberRevisionIfGroup(chatId: String) {
         val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull() ?: return
@@ -1621,6 +1630,7 @@ class ChatRepository {
             (ChatParticipants innerJoin Users)
                 .selectAll()
                 .where { ChatParticipants.chatId eq chatId }
+                .filter { it[Users.deletedAt] == null }
                 .filterNot { it[Users.id] in blocked }
                 .map {
                     GroupMemberResponse(
