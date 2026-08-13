@@ -5638,3 +5638,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **FutureEpoch 卡住 backlog 游标**：FutureEpoch 占位被当作普通解密失败阻塞游标，排在后面的 SKDM 永远处理不到，形成死锁。现在 FutureEpoch 分支保留原始密文并推进游标；SKDM 安装后重开/重载即可重新解密，且不落占位文本。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.57 2026-08-13 无限调优：群通话记录
+
+1. **通话历史跳过群通话**：`writeCallLog` 对 `isGroupCall` 直接 return，群呼出/呼入/未接都不进历史。`CallLogEntry` 新增 `isGroup`，群通话按会话/发起者入历史；历史页对群记录不回拨。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。

@@ -656,6 +656,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                             fromUserId = st.contactId.ifBlank { contactId },
                             callerName = st.contactName,
                             isVideo = st.callType == CallType.VIDEO,
+                            isGroup = st.isGroupCall,
                         )
                     } catch (error: kotlinx.coroutines.CancellationException) {
                         throw error
@@ -1171,6 +1172,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                                         fromUserId = currentState.contactId.ifBlank { fromUserId },
                                         callerName = currentState.contactName,
                                         isVideo = currentState.callType == CallType.VIDEO,
+                                        isGroup = currentState.isGroupCall,
                                     )
                                 } catch (error: kotlinx.coroutines.CancellationException) {
                                     throw error
@@ -1293,7 +1295,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         val st = _uiState.value
         val callId = activeCallId
         val peerId = st.contactId
-        if (callId.isBlank() || peerId.isBlank() || st.isGroupCall) return
+        if (callId.isBlank() || peerId.isBlank()) return
         val existing = com.maodouchat.call.CallLogStore.list(app, peerId).firstOrNull { it.id == callId }
         // 呼出占位(MISSED)在接通瞬间被重写为 ANSWERED：startedAt 重置为接通时刻，
         // 使 duration = 纯通话时长（不含响铃）；呼入无占位，首次写入即 now，行为一致
@@ -1318,7 +1320,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 direction = if (st.isIncoming) com.maodouchat.call.CallLogStore.Direction.INCOMING else com.maodouchat.call.CallLogStore.Direction.OUTGOING,
                 state = state,
                 startedAt = startedAt,
-                durationMs = durationMs
+                durationMs = durationMs,
+                isGroup = st.isGroupCall
             ),
             // 8.53：expectedUserId 守卫——8.55 改用通话开始时快照的 callLogOwnerUserId，
             // 通话中异地登出换号后旧通话不会写进新账号 key

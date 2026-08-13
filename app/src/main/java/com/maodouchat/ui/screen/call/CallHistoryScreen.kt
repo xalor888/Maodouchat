@@ -165,7 +165,11 @@ fun CallHistoryScreen(
                         .fillMaxWidth()
                         // 1.282：长按单条弹出删除确认（点击仍回拨）
                         .combinedClickable(
-                            onClick = { onCall(entry.peerId, entry.peerName.ifBlank { entry.peerId }, if (entry.isVideo) "VIDEO" else "AUDIO") },
+                            onClick = {
+                                if (!entry.isGroup) {
+                                    onCall(entry.peerId, entry.peerName.ifBlank { entry.peerId }, if (entry.isVideo) "VIDEO" else "AUDIO")
+                                }
+                            },
                             // 1.366：长按弹出操作菜单（删除该条 / 查看对方资料）
                             onLongClick = { entryMenuId = entry.id }
                         )

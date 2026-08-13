@@ -870,6 +870,7 @@ private fun IncomingCallObserver(navController: NavHostController) {
                                     fromUserId = pending.contactId.ifBlank { terminal.fromUserId },
                                     callerName = pending.contactName,
                                     isVideo = pending.callType == CallType.VIDEO,
+                                    isGroup = pending.groupId.isNotBlank(),
                                 )
                             } catch (error: kotlinx.coroutines.CancellationException) {
                                 throw error
@@ -1021,6 +1022,7 @@ private fun IncomingCallObserver(navController: NavHostController) {
                                             fromUserId = ring.contactId.ifBlank { event.fromUserId },
                                             callerName = ring.contactName,
                                             isVideo = ring.callType == CallType.VIDEO,
+                                            isGroup = ring.groupId.isNotBlank(),
                                         )
                                     } catch (error: kotlinx.coroutines.CancellationException) {
                                         throw error
@@ -1149,6 +1151,7 @@ private fun IncomingCallObserver(navController: NavHostController) {
                             fromUserId = event.fromUserId,
                             callerName = displayName,
                             isVideo = isVideo,
+                            isGroup = event.groupId.isNotBlank(),
                         )
                     } catch (error: kotlinx.coroutines.CancellationException) {
                         throw error

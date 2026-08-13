@@ -23,6 +23,7 @@ object MissedCallRecorder {
         callerName: String,
         isVideo: Boolean,
         nowMs: Long = System.currentTimeMillis(),
+        isGroup: Boolean = false,
     ) {
         val appCtx = context.applicationContext
         // Logout / account switch race: do not write missed rows or tray for a dead session.
@@ -78,7 +79,8 @@ object MissedCallRecorder {
                 isVideo = isVideo,
                 direction = CallLogStore.Direction.INCOMING,
                 state = CallLogStore.State.MISSED,
-                startedAt = nowMs
+                startedAt = nowMs,
+                isGroup = isGroup
             ),
             expectedUserId = userId
         )

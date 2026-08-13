@@ -28,7 +28,8 @@ object CallLogStore {
         val direction: Direction,
         val state: State,
         val startedAt: Long,
-        val durationMs: Long = 0L
+        val durationMs: Long = 0L,
+        val isGroup: Boolean = false
     )
 
     fun list(context: Context, peerId: String? = null): List<CallLogEntry> {
@@ -49,7 +50,8 @@ object CallLogStore {
                             direction = if (obj.optString("dir") == "out") Direction.OUTGOING else Direction.INCOMING,
                             state = if (obj.optString("state") == "missed") State.MISSED else State.ANSWERED,
                             startedAt = obj.optLong("at", 0L),
-                            durationMs = obj.optLong("dur", 0L)
+                            durationMs = obj.optLong("dur", 0L),
+                            isGroup = obj.optBoolean("group", false)
                         )
                     )
                 }
@@ -140,6 +142,7 @@ object CallLogStore {
             .put("state", if (entry.state == State.MISSED) "missed" else "answered")
             .put("at", entry.startedAt)
             .put("dur", entry.durationMs)
+            .put("group", entry.isGroup)
 
     private fun currentUserId(context: Context): String? =
         TokenManager.getInstance(context.applicationContext).getUserId()?.takeIf { it.isNotBlank() }
