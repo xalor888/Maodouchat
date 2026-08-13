@@ -582,7 +582,9 @@ private fun MediaGrid(
     ) {
         items(items, key = { it.message.id }, contentType = { "media_${it.message.type.name}" }) { item ->
             val message = item.message
-            val localAvailable = remember(message.content) { MediaCache.isReadableLocalUri(context, message.parsedContent()) }
+            val localAvailable = remember(message.id, message.content) {
+                MediaCache.isReadableLocalUri(context, message.parsedContent())
+            }
             Box(
                 modifier = Modifier
                     .aspectRatio(1f)
@@ -814,7 +816,7 @@ private fun VoiceList(
         items(items, key = { it.message.id }, contentType = { "voice" }) { item ->
             val message = item.message
             val meta = message.parsedMeta()
-            val localAvailable = remember(message.content) {
+            val localAvailable = remember(message.id, message.content) {
                 MediaCache.isReadableLocalUri(context, message.parsedContent())
             }
             val durationSec = meta.voiceDurationMs?.takeIf { it > 0 }?.let { (it + 999) / 1000 }

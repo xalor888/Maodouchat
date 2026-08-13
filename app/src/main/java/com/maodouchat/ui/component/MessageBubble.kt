@@ -1157,7 +1157,9 @@ private fun ImageBubble(
     val spoilerMeta = message.parsedMeta()
     val spoilerHidden = spoilerMeta.spoilerMedia && !spoilerMeta.spoilerRevealed && !isOwnMessage
     val mediaContent = message.parsedContent()
-    val needsDownload = !viewOnceLocked && message.parsedMeta().attachmentId != null && !MediaCache.isReadableLocalUri(context, mediaContent)
+    val needsDownload = remember(message.id, message.content) {
+        !viewOnceLocked && message.parsedMeta().attachmentId != null && !MediaCache.isReadableLocalUri(context, mediaContent)
+    }
     LaunchedEffect(message.id, message.content, needsDownload) {
         if (needsDownload) onRequestAttachment?.invoke(message.id)
     }
@@ -1343,7 +1345,9 @@ private fun VoiceBubble(
     val palette = LocalChatPalette.current
     val context = LocalContext.current
     val mediaContent = message.parsedContent()
-    val needsDownload = message.parsedMeta().attachmentId != null && !MediaCache.isReadableLocalUri(context, mediaContent)
+    val needsDownload = remember(message.id, message.content) {
+        message.parsedMeta().attachmentId != null && !MediaCache.isReadableLocalUri(context, mediaContent)
+    }
     LaunchedEffect(message.id, message.content, needsDownload) {
         if (needsDownload) onRequestAttachment?.invoke(message.id)
     }
@@ -1733,7 +1737,9 @@ private fun VideoBubble(
     val palette = LocalChatPalette.current
     val context = LocalContext.current
     val mediaContent = message.parsedContent()
-    val needsDownload = message.parsedMeta().attachmentId != null && !MediaCache.isReadableLocalUri(context, mediaContent)
+    val needsDownload = remember(message.id, message.content) {
+        message.parsedMeta().attachmentId != null && !MediaCache.isReadableLocalUri(context, mediaContent)
+    }
     LaunchedEffect(message.id, message.content, needsDownload) {
         if (needsDownload) onRequestAttachment?.invoke(message.id)
     }

@@ -5974,3 +5974,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`getChatByIdInTx` 无 viewer 维度**：建群、私聊、群邀请入群等内部响应会返回全部参与者，可能带出被拉黑成员。方法新增可选 `viewerId`，建群、私聊、群邀请路径统一传入当前用户并按双向拉黑过滤参与者。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.113 2026-08-13 无限调优：媒体本地可读性按内容缓存
+
+1. **MessageBubble/MediaCenter 每次重组都查磁盘**：`isReadableLocalUri` 在组合期反复做文件/ContentResolver I/O。下载完成后消息 content 会切成本地 URI，因此用 `remember(message.id, message.content)` 缓存判断即可，既不重复查盘也不会在下载后卡住旧状态。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
