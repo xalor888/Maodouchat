@@ -5802,10 +5802,14 @@ class ChatDetailViewModel(
                 return@launch
             }
             // 8.55：用带 LIMIT 的 getRecentMessages 从源头限量，避免全量加载后再 takeLast 的 OOM
-            val recent = runCatching {
+            val recent = try {
                 messageRepo.getRecentMessages(chat.id, com.maodouchat.util.ChatExport.MAX_MESSAGES)
                     .asReversed()
-            }.getOrDefault(emptyList())
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                emptyList()
+            }
             if (recent.isEmpty()) {
                 _uiState.update { it.copy(infoMessage = text(R.string.chat_export_empty)) }
                 return@launch
@@ -8604,7 +8608,7 @@ fun sendCurrentLocation() {
             }
             clearLocalChatContent(lockChatId, removePin = true)
             tokenManager.clearChatCursors(lockChatId)
-            runCatching {
+            try {
                 val local = chatRepo.getChatById(lockChatId)
                 if (local != null) {
                     chatRepo.cacheChats(
@@ -8618,6 +8622,10 @@ fun sendCurrentLocation() {
                         )
                     )
                 }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                // 本地缓存失败不阻塞清空会话
             }
             _uiState.update {
                 it.copy(
@@ -8660,7 +8668,7 @@ fun sendCurrentLocation() {
             }
             clearLocalChatContent(targetChatId, removePin = false)
             tokenManager.clearChatCursors(targetChatId)
-            runCatching {
+            try {
                 val local = chatRepo.getChatById(targetChatId)
                 if (local != null) {
                     chatRepo.cacheChats(
@@ -8674,6 +8682,10 @@ fun sendCurrentLocation() {
                         )
                     )
                 }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                // 本地缓存失败不阻塞清空会话
             }
             _uiState.update {
                 it.copy(

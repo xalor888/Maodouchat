@@ -281,10 +281,14 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         if (remoteIds.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
             val changed = remoteIds.filter { remoteId ->
-                runCatching {
+                try {
                     app.database.identityTrustDao().getAllTrustForUser(ownerUserId, remoteId)
                         .any { it.trustState == com.maodouchat.crypto.PersistentSignalProtocolStore.TRUST_CHANGED }
-                }.getOrDefault(false)
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    false
+                }
             }.toSet()
             if (changed != _uiState.value.identityChangedUserIds) {
                 _uiState.update { it.copy(identityChangedUserIds = changed) }
@@ -1819,13 +1823,17 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 deletedChatIds.add(chatId)
                 // 8.53：删除会话后清理该会话全部待触发「稍后提醒」——否则到点通知 deeplink 落空
                 withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    runCatching {
+                    try {
                         val uid = tokenManager.getUserId()?.takeIf { it.isNotBlank() } ?: return@withContext
                         val reminders = com.maodouchat.util.MessageReminderStore.list(getApplication(), uid)
                         reminders.filter { it.chatId == chatId }.forEach { r ->
                             com.maodouchat.util.MessageReminderScheduler.cancel(getApplication(), r.id)
                             com.maodouchat.util.MessageReminderStore.remove(getApplication(), r.id, uid)
                         }
+                    } catch (error: kotlinx.coroutines.CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        // 提醒清理失败不阻塞会话删除主流程
                     }
                 }
                 withContext(kotlinx.coroutines.NonCancellable) {

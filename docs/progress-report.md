@@ -5914,3 +5914,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`withOwnerRoomWrite` 被 `runCatching` 包住**：会话列表未读归零循环里，取消会吞掉并继续写库。两处改为 `try/catch` 显式重抛 `CancellationException`，普通本地写失败仍静默。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.103 2026-08-13 无限调优：导出/清空会话等路径恢复取消传播
+
+1. **导出历史、身份扫描、提醒清理、清空会话缓存仍用 `runCatching` 包 suspend 写库**：取消在这些路径会被吞掉并继续执行。四处改为 `try/catch` 显式重抛 `CancellationException`，普通失败语义不变。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
