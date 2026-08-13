@@ -1433,6 +1433,19 @@ class ChatRepository {
         }.empty()
     }
 
+    private fun blockedUserIdsInTx(viewerId: String?): Set<String> {
+        if (viewerId.isNullOrBlank()) return emptySet()
+        return BlockedUsers.selectAll()
+            .where {
+                (BlockedUsers.blockerId eq viewerId) or (BlockedUsers.blockedId eq viewerId)
+            }
+            .map { row ->
+                if (row[BlockedUsers.blockerId] == viewerId) row[BlockedUsers.blockedId]
+                else row[BlockedUsers.blockerId]
+            }
+            .toSet()
+    }
+
     fun recordGroupAudit(chatId: String, actorId: String, action: String, targetUserId: String? = null) {
         transaction {
             insertGroupAudit(chatId, actorId, action, targetUserId)
@@ -1562,11 +1575,13 @@ class ChatRepository {
         return getMemberRole(chatId, userId) in ADMIN_ROLES
     }
 
-    fun getGroupMembers(chatId: String): List<GroupMemberResponse> {
+    fun getGroupMembers(chatId: String, viewerId: String? = null): List<GroupMemberResponse> {
         return transaction {
+            val blocked = blockedUserIdsInTx(viewerId)
             (ChatParticipants innerJoin Users)
                 .selectAll()
                 .where { ChatParticipants.chatId eq chatId }
+                .filterNot { it[Users.id] in blocked }
                 .map {
                     GroupMemberResponse(
                         userId = it[Users.id],

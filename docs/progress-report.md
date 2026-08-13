@@ -5854,3 +5854,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`myCheckin` 的 todayCount/rank 仍包含被拉黑用户**：排行已排除拉黑，但个人签到快照的“今日人数”和“我的排名”仍把它们算进去，数字与排行榜对不上。`toCheckinDto` 按 viewer 双向拉黑过滤统计，回归测试覆盖。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.93 2026-08-13 无限调优：群成员列表过滤拉黑
+
+1. **群成员列表仍展示被拉黑用户**：`getGroupMembers` 返回全部成员及在线状态，拉黑关系不生效。方法新增 `viewerId`，用户端 `/api/chats/{chatId}/members` 按双向拉黑过滤成员，bot 内部读取保持默认全量。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

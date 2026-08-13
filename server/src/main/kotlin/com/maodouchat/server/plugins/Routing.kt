@@ -13155,7 +13155,7 @@ put("avatarUrl", avatarUrl)
             get("/api/chats/{chatId}/members") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject; val cid = call.parameters["chatId"]!!
                 if (!chatRepo.isParticipant(cid, uid)) { call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作")); return@get }
-                call.respond(chatRepo.getGroupMembers(cid))
+                call.respond(chatRepo.getGroupMembers(cid, viewerId = uid))
             }
             get("/api/chats/{chatId}/audit") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject; val cid = call.parameters["chatId"]!!

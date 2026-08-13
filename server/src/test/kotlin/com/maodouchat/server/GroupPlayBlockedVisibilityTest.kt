@@ -12,6 +12,7 @@ import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.GroupPolls
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
+import com.maodouchat.server.repository.ChatRepository
 import com.maodouchat.server.repository.GroupCheckinRepository
 import com.maodouchat.server.repository.GroupPlayRepository
 import com.maodouchat.server.repository.PollRepository
@@ -222,5 +223,8 @@ class GroupPlayBlockedVisibilityTest {
         val mine = GroupCheckinRepository.myCheckin("g1", "u1")!!
         assertEquals(2, mine.todayCount)
         assertEquals(1, mine.todayRank)
+
+        val members = ChatRepository().getGroupMembers("g1", viewerId = "u1")
+        assertEquals(setOf("u1", "u3"), members.map { it.userId }.toSet())
     }
 }
