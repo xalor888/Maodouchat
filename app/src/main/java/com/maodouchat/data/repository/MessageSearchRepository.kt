@@ -45,7 +45,6 @@ class MessageSearchRepository(private val database: AppDatabase) {
      * 采用「完整 id 集合 + 分批建索引」同时避免 OOM。
      */
     suspend fun refreshIndex(): Int {
-        val fingerprints = searchDao.getFingerprints().associate { it.messageId to it.contentHash }
         // 删除已不存在/不可搜索消息的孤儿索引：SQL 子查询批量清理，
         // 不再把完整消息 ID 集合载入内存（大库 OOM 风险）。
         searchDao.deleteDocumentsNotInSearchableTypes(SEARCHABLE_TYPES.map { it.name })
@@ -59,8 +58,10 @@ class MessageSearchRepository(private val database: AppDatabase) {
         while (true) {
             val batch = messageDao.getSearchableMessagesAfterCursor(lastTs, lastId, pageSize)
             if (batch.isEmpty()) break
+            val batchFingerprints = searchDao.getFingerprintsForIds(batch.map { it.id })
+                .associate { it.messageId to it.contentHash }
             batch.forEach { entity ->
-                if (indexMessage(entity.toDomain(), knownHash = fingerprints[entity.id])) changed++
+                if (indexMessage(entity.toDomain(), knownHash = batchFingerprints[entity.id])) changed++
             }
             val last = batch.last()
             lastTs = last.timestamp

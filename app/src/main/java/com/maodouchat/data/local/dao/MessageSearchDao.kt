@@ -16,6 +16,9 @@ interface MessageSearchDao {
     @Query("SELECT messageId, contentHash FROM message_search_documents")
     suspend fun getFingerprints(): List<MessageSearchFingerprint>
 
+    @Query("SELECT messageId, contentHash FROM message_search_documents WHERE messageId IN (:ids)")
+    suspend fun getFingerprintsForIds(ids: List<String>): List<MessageSearchFingerprint>
+
     /** 索引文档总数（全量刷新新鲜度判断用）。 */
     @Query("SELECT COUNT(*) FROM message_search_documents")
     suspend fun countDocuments(): Int

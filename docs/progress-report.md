@@ -5602,3 +5602,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **重建索引全量载入消息 ID**：`refreshIndex` 先用 `getSearchableMessageIds().toSet()` 载入全部可搜索消息 ID 再做孤儿判定，大库重建时内存峰值高。改为 `MessageSearchDao.deleteDocumentsNotInSearchableTypes` 用 SQL `NOT IN (SELECT ...)` 批量清理不存在/不可搜索消息的索引文档，token 由外键级联删除。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.51 2026-08-13 无限调优：搜索索引指纹分批查询
+
+1. **指纹表仍全量载入**：`refreshIndex` 在清理孤儿后仍调用 `getFingerprints()` 一次性载入全部 `(messageId, contentHash)`。新增 `getFingerprintsForIds`，随 500 条消息批次只查询本批指纹，重建索引的内存峰值不再随文档总数线性增长。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
