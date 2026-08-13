@@ -370,25 +370,35 @@ class PostRepository {
             imageFilenameToPostId.remove(filename, cachedPostId)
         }
         return transaction {
-            PostImageClaims.select(PostImageClaims.postId)
+            val claimedPostId = PostImageClaims.select(PostImageClaims.postId)
                 .where { PostImageClaims.filename eq filename }
                 .limit(1)
                 .firstOrNull()
                 ?.get(PostImageClaims.postId)
-                ?.also { postId -> cacheImageClaim(filename, postId) }
-                ?: run {
-                    // 文件名是 URL 尾段；imageUrls 为 JSON 数组字符串，用 LIKE 收窄后再精确匹配
-                    val needle = "%$filename%"
-                    Posts.select(Posts.id, Posts.imageUrls)
-                        .where { Posts.imageUrls like needle }
-                        .firstOrNull { row ->
-                            decodeImageUrls(row[Posts.imageUrls]).any { url ->
-                                url.substringAfterLast("/") == filename
-                            }
-                        }
-                        ?.get(Posts.id)
-                        ?.also { postId -> cacheImageClaim(filename, postId) }
+            if (claimedPostId != null) {
+                val stillHas = Posts.select(Posts.imageUrls)
+                    .where { Posts.id eq claimedPostId }
+                    .firstOrNull()
+                    ?.let { row -> decodeImageUrls(row[Posts.imageUrls]).any { it.substringAfterLast('/') == filename } }
+                    ?: false
+                if (stillHas) {
+                    cacheImageClaim(filename, claimedPostId)
+                    return@transaction claimedPostId
                 }
+                // 清理异常残留的占用条目，避免永久命中已删动态。
+                PostImageClaims.deleteWhere { PostImageClaims.filename eq filename }
+            }
+            // 文件名是 URL 尾段；imageUrls 为 JSON 数组字符串，用 LIKE 收窄后再精确匹配
+            val needle = "%$filename%"
+            Posts.select(Posts.id, Posts.imageUrls)
+                .where { Posts.imageUrls like needle }
+                .firstOrNull { row ->
+                    decodeImageUrls(row[Posts.imageUrls]).any { url ->
+                        url.substringAfterLast("/") == filename
+                    }
+                }
+                ?.get(Posts.id)
+                ?.also { postId -> cacheImageClaim(filename, postId) }
         }
     }
 

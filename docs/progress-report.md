@@ -5896,3 +5896,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **旧图片占用回退只做 LIKE 命中判断**：`_` 在 SQL LIKE 中是单字符通配符，宽松模式可能把相似文件名误判为已占用。`isImageFilenameClaimedInTx` 改为 LIKE 收窄后逐条解析 `imageUrls` 精确比对文件名，避免误拒绝发帖。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.100 2026-08-13 无限调优：清理残留图片占用条目
+
+1. **异常残留的 `post_image_claims` 会永久命中已删动态**：若清理流程漏删占用行，图片访问会一直返回不存在的 postId。`findPostIdByImageFilename` 在校验到 post 不再引用该文件时删除残留占用条目，再回退旧数据 LIKE 查找。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
