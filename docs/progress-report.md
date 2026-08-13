@@ -5626,3 +5626,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **WS 与 REST 双计同一群消息**：群消息通过 WS 投递与 REST ack 两条路径都会调 `markGroupSenderKeyMessageSent`，同一条消息被计两次，1000 条轮换阈值提前触达。现在按 `groupId + epoch + messageId` 去重，传入 messageId 的路径只计一次；去重集合有界（2000 条）。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.55 2026-08-13 无限调优：朋友圈可见性下沉 SQL
+
+1. **feed 可见性仍在内存过滤**：上一轮只提高了批次上限，`getFeed` 每批仍把拉黑/私密动态拉进内存后再过滤。现在在 SQL 层直接排除已注销作者、双向拉黑和不可见 visibility，内存过滤仅作纵深防御，批次扫描显著减少。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

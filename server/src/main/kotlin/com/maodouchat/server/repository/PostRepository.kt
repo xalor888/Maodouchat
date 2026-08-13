@@ -21,9 +21,11 @@ import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.count
@@ -164,27 +166,41 @@ class PostRepository {
             val contactIds = getContactIds(currentUserId)
             val blockedUserIds = getBlockedEitherWayUserIds(currentUserId)
             // 分批拉取：每次拉 boundedLimit*3 条候选，过滤可见后取 boundedLimit 条；
-            // 若不足则继续拉取下一批，最多 5 次（避免极端分布下拉太多）
+            // 若不足则继续拉取下一批，最多 20 次（避免极端分布下拉太多）
             val result = mutableListOf<PostResponse>()
             var batchBefore: Long? = before
             var batchBeforeId: String? = beforeId
             var iterations = 0
             while (result.size < boundedLimit && iterations < 20) {
                 val batchSize = ((boundedLimit - result.size) * 5).coerceAtLeast(boundedLimit)
-                val batchQuery = (Posts innerJoin Users)
+                val cursorQuery = (Posts innerJoin Users)
                     .selectAll()
                     .let { base ->
                         val cursor = batchBefore
                         val cursorId = batchBeforeId
                         when {
-                            cursor == null -> base
-                            cursorId.isNullOrBlank() -> base.where { Posts.createdAt less cursor }
+                            cursor == null -> base.where { Users.deletedAt.isNull() }
+                            cursorId.isNullOrBlank() -> base.where {
+                                (Posts.createdAt less cursor) and Users.deletedAt.isNull()
+                            }
                             else -> base.where {
                                 (Posts.createdAt less cursor) or
                                     ((Posts.createdAt eq cursor) and (Posts.id less cursorId))
-                            }
+                            }.andWhere { Users.deletedAt.isNull() }
                         }
                     }
+                val visibleAuthors = contactIds + currentUserId
+                val visibilityQuery = cursorQuery.andWhere {
+                    (Posts.authorId eq currentUserId) or
+                        (Posts.visibility eq "PUBLIC") or
+                        ((Posts.visibility eq "CONTACTS") and (Posts.authorId inList visibleAuthors))
+                }
+                val finalQuery = if (blockedUserIds.isEmpty()) {
+                    visibilityQuery
+                } else {
+                    visibilityQuery.andWhere { Posts.authorId notInList blockedUserIds }
+                }
+                val batchQuery = finalQuery
                     .orderBy(Posts.createdAt to SortOrder.DESC, Posts.id to SortOrder.DESC)
                     .limit(batchSize)
 
