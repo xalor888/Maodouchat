@@ -530,6 +530,10 @@ class UserRepository {
             NotificationPreferences.deleteWhere { NotificationPreferences.userId eq userId }
             ClientPrefs.deleteWhere { ClientPrefs.userId eq userId }
             ChatFolders.deleteWhere { ChatFolders.userId eq userId }
+            AnnouncementAcks.deleteWhere { AnnouncementAcks.userId eq userId }
+            UserTagAssignments.deleteWhere { UserTagAssignments.userId eq userId }
+            DeviceEventSequences.deleteWhere { DeviceEventSequences.userId eq userId }
+            DeviceEventConsistencyLog.deleteWhere { DeviceEventConsistencyLog.userId eq userId }
             FriendRequests.deleteWhere {
                 (FriendRequests.fromUserId eq userId) or (FriendRequests.toUserId eq userId)
             }
@@ -552,6 +556,9 @@ class UserRepository {
             Posts.deleteWhere { Posts.authorId eq userId }
             deletePollsCreatedBy(listOf(userId))
             GroupPollVotes.deleteWhere { GroupPollVotes.userId eq userId }
+            GroupCheckins.deleteWhere { GroupCheckins.userId eq userId }
+            GroupChainEntries.deleteWhere { GroupChainEntries.userId eq userId }
+            GroupPkVotes.deleteWhere { GroupPkVotes.userId eq userId }
             // 用户自己调用过的机器人命令日志也清除
             BotCommandLogs.deleteWhere { BotCommandLogs.userId eq userId }
 
