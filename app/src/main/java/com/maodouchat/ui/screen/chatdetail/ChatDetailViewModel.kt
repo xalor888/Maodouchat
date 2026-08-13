@@ -336,8 +336,12 @@ class ChatDetailViewModel(
             runCatching {
                 com.maodouchat.util.AppNotifier.cancelMessage(getApplication(), chatId)
             }
-            runCatching {
+            try {
                 app.notificationCenter.markChatMessagesRead(chatId)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                // 通知中心已读失败不阻塞进入会话
             }
             restoreDraft()
             refreshChatLockState()
@@ -9245,7 +9249,13 @@ fun sendCurrentLocation() {
     /** 合并本地备注名（服务端 UserDto 不含 nickname） */
     internal suspend fun withLocalNickname(user: User): User {
         if (!user.nickname.isNullOrBlank()) return user
-        val nick = runCatching { userRepo.getUserById(user.id)?.nickname }.getOrNull()
+        val nick = try {
+            userRepo.getUserById(user.id)?.nickname
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            null
+        }
         return if (nick.isNullOrBlank()) user else user.copy(nickname = nick)
     }
 }

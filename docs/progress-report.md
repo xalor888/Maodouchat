@@ -5944,3 +5944,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **媒体中心初始化、会话名解析、锁状态轮询、任务页提醒清理仍用 `runCatching` 包 suspend 读取**：取消会被吞掉并继续后续逻辑。四处改为 `try/catch` 显式重抛 `CancellationException`。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.108 2026-08-13 无限调优：进入会话/本地备注名恢复取消传播
+
+1. **进入会话的通知中心已读、本地备注名查询仍用 `runCatching` 包 suspend 读取**：取消会被吞掉并继续执行。两处改为 `try/catch` 显式重抛 `CancellationException`。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
