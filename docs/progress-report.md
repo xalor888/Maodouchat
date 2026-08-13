@@ -5680,3 +5680,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **429 被当永久失败**：`AttachmentTransferWorker.isRetryableTransferError` 只认网络/超时/5xx，服务端限流 429 会直接标 FAILED。现在 `retryAfterSeconds != null`、HTTP 429 都走退避重试，与其他限流路径一致。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.64 2026-08-13 无限调优：好友申请隐藏已注销用户
+
+1. **已注销用户仍出现在申请列表**：`FriendRepository.mapRequestList/mapRequest` 的 Users 回查不过滤 `deletedAt`，删除账号的申请/接收方仍显示。映射查询统一加 `deletedAt IS NULL`，列表和单条路径一致。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

@@ -237,7 +237,7 @@ class FriendRepository {
         if (rows.isEmpty()) return emptyList()
         val userIds = rows.flatMap { listOf(it[FriendRequests.fromUserId], it[FriendRequests.toUserId]) }.distinct()
         val userMap = Users.selectAll()
-            .where { Users.id inList userIds }
+            .where { (Users.id inList userIds) and Users.deletedAt.isNull() }
             .associateBy { it[Users.id] }
         return rows.mapNotNull { mapRequest(it, userMap) }
     }
@@ -320,7 +320,7 @@ class FriendRepository {
         // 列表路径已由 mapRequestList 批量取回；单条路径（userMap 空）在此回查
         val userRows = if (userMap.isNotEmpty()) userMap else {
             Users.selectAll()
-                .where { Users.id inList listOf(fromId, toId) }
+                .where { (Users.id inList listOf(fromId, toId)) and Users.deletedAt.isNull() }
                 .associateBy { it[Users.id] }
         }
         val fromUser = userRows[fromId] ?: return null
