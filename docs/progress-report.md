@@ -5950,3 +5950,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **进入会话的通知中心已读、本地备注名查询仍用 `runCatching` 包 suspend 读取**：取消会被吞掉并继续执行。两处改为 `try/catch` 显式重抛 `CancellationException`。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.109 2026-08-13 无限调优：消息历史仓库层 limit 兜底
+
+1. **`getMessages` 仓库层未限制 limit**：路由已截断，但仓库层仍直接透传，未来新增调用方可能拉超大页。补 `limit.coerceIn(1, 100)`，与 `getMessagesBefore` 等路径一致。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

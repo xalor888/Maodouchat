@@ -278,7 +278,7 @@ class MessageRepository {
             Messages.selectAll()
                 .where { condition }
                 .orderBy(Messages.timestamp to SortOrder.DESC, Messages.id to SortOrder.DESC)
-                .limit(limit)
+                .limit(limit.coerceIn(1, 100))
                 .map { it.toMessageResponse(viewerId) }
                 .let { attachReactions(it, blockedSenders) }
                 .reversed()
