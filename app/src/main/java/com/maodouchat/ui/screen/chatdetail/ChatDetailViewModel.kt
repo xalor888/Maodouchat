@@ -801,6 +801,14 @@ class ChatDetailViewModel(
                         if (decryptedMessage != null) {
                             // Decrypt-failure placeholders must not advance cursor past recoverable ciphertext
                             if (isSyncDecryptFailurePlaceholder(decryptedMessage)) {
+                                // FutureEpoch 是“本地 epoch 落后”的特殊情况：卡住游标会让后面的
+                                // SKDM 永远处理不到，形成死锁。保留原始密文并推进游标，
+                                // SKDM 安装后重开/重载即能重新解密，不落占位文本。
+                                if (decryptedMessage.content == text(R.string.chat_decrypt_group_newer)) {
+                                    decrypted += wireMessage
+                                    advanced = TokenManager.SyncCursor(dto.timestamp, dto.id)
+                                    continue
+                                }
                                 decrypted += decryptedMessage
                                 blocked = true
                                 prefixOk = false

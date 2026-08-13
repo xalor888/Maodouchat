@@ -5632,3 +5632,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **feed 可见性仍在内存过滤**：上一轮只提高了批次上限，`getFeed` 每批仍把拉黑/私密动态拉进内存后再过滤。现在在 SQL 层直接排除已注销作者、双向拉黑和不可见 visibility，内存过滤仅作纵深防御，批次扫描显著减少。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.56 2026-08-13 无限调优：FutureEpoch 同步死锁
+
+1. **FutureEpoch 卡住 backlog 游标**：FutureEpoch 占位被当作普通解密失败阻塞游标，排在后面的 SKDM 永远处理不到，形成死锁。现在 FutureEpoch 分支保留原始密文并推进游标；SKDM 安装后重开/重载即可重新解密，且不落占位文本。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
