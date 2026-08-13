@@ -258,7 +258,8 @@ class ChatDetailViewModel(
     internal val semanticSearchGate = AiRequestGenerationGate()
     internal var unreadSummaryWindow: UnreadWindowDto? = null
     private val attachmentPreparationJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
-    private val attachmentDownloadMutexes = java.util.concurrent.ConcurrentHashMap<String, Mutex>()
+    private class AttachmentDownloadLock(val mutex: Mutex = Mutex(), var users: Int = 0)
+    private val attachmentDownloadLocks = java.util.concurrent.ConcurrentHashMap<String, AttachmentDownloadLock>()
     internal val aiOperationJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
     internal val aiAutoRetryJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
     internal val aiAutoRetryAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
@@ -8059,8 +8060,25 @@ fun sendCurrentLocation() {
     }
 
     internal suspend fun ensureLocalAttachment(message: Message): Result<Message> {
-        val mutex = attachmentDownloadMutexes.computeIfAbsent(message.id) { Mutex() }
-        return mutex.withLock { ensureLocalAttachmentLocked(message) }
+        val lock = attachmentDownloadLocks.compute(message.id) { _, existing ->
+            (existing ?: AttachmentDownloadLock()).also { it.users++ }
+        }!!
+        try {
+            return lock.mutex.withLock { ensureLocalAttachmentLocked(message) }
+        } finally {
+            attachmentDownloadLocks.computeIfPresent(message.id) { _, current ->
+                if (current === lock) {
+                    if (current.users > 1) {
+                        current.users--
+                        current
+                    } else {
+                        null
+                    }
+                } else {
+                    current
+                }
+            }
+        }
     }
 
     private suspend fun ensureLocalAttachmentLocked(message: Message): Result<Message> {

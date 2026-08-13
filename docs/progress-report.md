@@ -5692,3 +5692,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **Explore 实时删除事件未校验当前账号**：`POST_DELETED` collector 直接处理事件，切号后旧账号删除广播可能影响新账号页面。加 `BackgroundSessionGate` 当前账号校验，切号/登出期间丢弃旧事件。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.66 2026-08-13 无限调优：附件下载锁清理
+
+1. **`attachmentDownloadMutexes` 只增不减**：每个查看过的附件消息都永久保留一个 Mutex，长期浏览会无界增长。改为带引用计数的 `AttachmentDownloadLock`，无使用者时移除，与 Signal/贴纸锁同一模式。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
