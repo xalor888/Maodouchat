@@ -5,6 +5,7 @@ import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.GroupChainEntries
 import com.maodouchat.server.db.GroupChains
+import com.maodouchat.server.db.GroupCheckins
 import com.maodouchat.server.db.GroupPkRounds
 import com.maodouchat.server.db.GroupPkVotes
 import com.maodouchat.server.db.GroupPollVotes
@@ -165,6 +166,22 @@ class GroupPlayBlockedVisibilityTest {
                 it[GroupPollVotes.optionIndex] = 1
                 it[GroupPollVotes.votedAt] = now
             }
+            GroupCheckins.insert {
+                it[GroupCheckins.chatId] = "g1"
+                it[GroupCheckins.userId] = "u2"
+                it[GroupCheckins.checkinDate] = "2026-08-12"
+                it[GroupCheckins.streak] = 5
+                it[GroupCheckins.totalCount] = 10
+                it[GroupCheckins.checkedAt] = now
+            }
+            GroupCheckins.insert {
+                it[GroupCheckins.chatId] = "g1"
+                it[GroupCheckins.userId] = "u3"
+                it[GroupCheckins.checkinDate] = "2026-08-12"
+                it[GroupCheckins.streak] = 2
+                it[GroupCheckins.totalCount] = 3
+                it[GroupCheckins.checkedAt] = now
+            }
         }
 
         val chains = GroupCheckinRepository.listChains("g1", "u1", 100)
@@ -189,5 +206,8 @@ class GroupPlayBlockedVisibilityTest {
         assertEquals(listOf("poll_1"), snapshots.map { it.id })
         assertEquals(listOf(0, 1), snapshots.single().counts)
         assertEquals(1, snapshots.single().totalVoters)
+
+        val ranking = GroupCheckinRepository.checkinRanking("g1", 100, viewerId = "u1")
+        assertEquals(listOf("u3"), ranking.map { it.userId })
     }
 }

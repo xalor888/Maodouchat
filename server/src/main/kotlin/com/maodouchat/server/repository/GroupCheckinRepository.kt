@@ -184,12 +184,16 @@ object GroupCheckinRepository {
         }
     }
 
-    fun checkinRanking(chatId: String, limit: Int = 20): List<CheckinRankEntry> {
+    fun checkinRanking(chatId: String, limit: Int = 20, viewerId: String? = null): List<CheckinRankEntry> {
         if (chatId.isBlank()) return emptyList()
         return transaction {
+            val blocked = blockedUserIdsInTx(viewerId)
             // 8.46 修复：原先把全群签到历史载入内存（500 人×365 天≈18 万行）+ groupBy；
             // 改为一条 ROW_NUMBER 窗口函数 SQL 只取每个用户「最新一行」的 streak/totalCount/checkedAt。
             val safeLimit = limit.coerceIn(1, 100)
+            val blockedFilter = if (blocked.isEmpty()) "" else {
+                " AND user_id NOT IN (" + List(blocked.size) { "?" }.joinToString(",") + ")"
+            }
             val sql = """
                 SELECT user_id, streak, total_count, checked_at FROM (
                     SELECT user_id, streak, total_count, checked_at,
@@ -197,15 +201,20 @@ object GroupCheckinRepository {
                     FROM group_checkins
                     WHERE chat_id = ?
                 ) t WHERE rn = 1
+                $blockedFilter
                 ORDER BY total_count DESC, streak DESC, checked_at DESC
                 LIMIT ?
             """.trimIndent()
+            val params = mutableListOf<Pair<org.jetbrains.exposed.sql.IColumnType, Any>>(
+                org.jetbrains.exposed.sql.VarCharColumnType() to chatId
+            )
+            blocked.forEach { id ->
+                params += org.jetbrains.exposed.sql.VarCharColumnType() to id
+            }
+            params += org.jetbrains.exposed.sql.IntegerColumnType() to safeLimit
             org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(
                 sql,
-                listOf(
-                    org.jetbrains.exposed.sql.VarCharColumnType() to chatId,
-                    org.jetbrains.exposed.sql.IntegerColumnType() to safeLimit
-                )
+                params
             ) { rs ->
                 buildList {
                     while (rs.next()) {
@@ -560,8 +569,8 @@ object GroupCheckinRepository {
         }
     }
 
-    private fun blockedUserIdsInTx(viewerId: String): Set<String> {
-        if (viewerId.isBlank()) return emptySet()
+    private fun blockedUserIdsInTx(viewerId: String?): Set<String> {
+        if (viewerId.isNullOrBlank()) return emptySet()
         return BlockedUsers.selectAll()
             .where {
                 (BlockedUsers.blockerId eq viewerId) or (BlockedUsers.blockedId eq viewerId)

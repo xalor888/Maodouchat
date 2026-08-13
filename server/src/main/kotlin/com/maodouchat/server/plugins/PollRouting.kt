@@ -121,7 +121,7 @@ fun Routing.configurePollRoutes() {
                 return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
             val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
-            call.respond(GroupCheckinRepository.checkinRanking(chatId, limit))
+            call.respond(GroupCheckinRepository.checkinRanking(chatId, limit, viewerId = userId))
         }
 
         // ── 群接龙 ─────────────────────────────────────
