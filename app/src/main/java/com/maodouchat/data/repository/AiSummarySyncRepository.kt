@@ -168,7 +168,7 @@ class AiSummarySyncRepository(
                         // 与 NoSession 一样重试。服务端 envelope 有 30 天保留期，不会无限堆积。
                         SignalProtocol.DecryptResult.UnsupportedEnvelope,
                         SignalProtocol.DecryptResult.NotForThisDevice,
-                        SignalProtocol.DecryptResult.FutureEpoch -> acknowledgedIds += remote.id
+                        SignalProtocol.DecryptResult.FutureEpoch,
                         SignalProtocol.DecryptResult.Failed -> Unit
                     }
                 }

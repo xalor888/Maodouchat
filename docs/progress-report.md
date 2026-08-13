@@ -5572,3 +5572,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **清单无条目上限**：`OnDemandStickerStore.parseManifest` 对包数/每包贴纸数无上限，`fetchManifestRaw` 也不限制响应体大小。新增 1MB 清单体上限、最多 64 个包、每包 300 张贴纸；超限直接拒用该清单，回退内置基础表情。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.46 2026-08-13 无限调优：AI 跨设备 FutureEpoch 不再 ACK
+
+1. **FutureEpoch 被当已处理 ACK 导致数据永久丢失**：AI 消息 meta/摘要同步对 `DecryptResult.FutureEpoch` 直接 ACK，服务端停止重投；本地收到更新的 SenderKey 分发后这条信封已不存在。改为与 `Failed/NoSession` 一致不 ACK，靠服务端 30 天保留期等 SK 追赶后重试成功。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。

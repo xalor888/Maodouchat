@@ -184,7 +184,7 @@ class AiMessageMetaSyncRepository(
                         // 8.41：Failed 不 ACK（瞬时解密失败不得永久丢失跨设备数据），与 NoSession 一致重试
                         SignalProtocol.DecryptResult.UnsupportedEnvelope,
                         SignalProtocol.DecryptResult.NotForThisDevice,
-                        SignalProtocol.DecryptResult.FutureEpoch -> acknowledgedIds += remote.id
+                        SignalProtocol.DecryptResult.FutureEpoch,
                         SignalProtocol.DecryptResult.Failed -> Unit
                     }
                 }
