@@ -765,8 +765,26 @@ class SignalProtocol(
         return ageMs >= GROUP_SENDER_KEY_MAX_AGE_MS || metadata.messageCount >= GROUP_SENDER_KEY_MAX_MESSAGES
     }
 
-    fun markGroupSenderKeyMessageSent(groupId: String, epoch: Long = 0) {
+    private val countedGroupMessageIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val countedGroupMessageOrder = java.util.ArrayDeque<String>()
+
+    /**
+     * 记录一次群 SenderKey 消息发送计数。
+     * [messageId] 传入时按群/epoch/消息 ID 去重：WS 投递与 REST ack 对同一消息双计
+     * 会让 messageCount 提前触达 1000 轮换阈值。
+     */
+    fun markGroupSenderKeyMessageSent(groupId: String, epoch: Long = 0, messageId: String? = null) {
         if (groupId.isBlank()) return
+        if (!messageId.isNullOrBlank()) {
+            val dedupeKey = "$groupId:$epoch:$messageId"
+            synchronized(countedGroupMessageIds) {
+                if (!countedGroupMessageIds.add(dedupeKey)) return
+                countedGroupMessageOrder.addLast(dedupeKey)
+                while (countedGroupMessageOrder.size > MAX_COUNTED_GROUP_MESSAGE_IDS) {
+                    countedGroupMessageIds.remove(countedGroupMessageOrder.removeFirst())
+                }
+            }
+        }
         cryptoLock.withLock {
             val metadata = loadGroupDistributionMetadata(groupId)
             saveGroupDistributionMetadata(groupId, metadata.copy(epoch = epoch, messageCount = metadata.messageCount + 1))
@@ -1260,6 +1278,7 @@ class SignalProtocol(
         const val PAYLOAD_TEXT = "TEXT"
         const val KEY_GROUP_DISTRIBUTION_EPOCH_PREFIX = "group_distribution_epoch:"
         const val KEY_GROUP_DISTRIBUTION_METADATA_PREFIX = "group_distribution_meta:"
+        const val MAX_COUNTED_GROUP_MESSAGE_IDS = 2_000
         const val GROUP_SENDER_KEY_MAX_AGE_MS = 7L * 24 * 60 * 60 * 1000
         const val GROUP_SENDER_KEY_MAX_MESSAGES = 1000
         const val DEFAULT_DEVICE_ID = 1

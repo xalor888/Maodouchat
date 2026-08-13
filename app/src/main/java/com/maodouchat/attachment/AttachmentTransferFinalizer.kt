@@ -292,7 +292,7 @@ object AttachmentTransferFinalizer {
                 // 只 mark 实际发送 envelope 的 epoch，禁止用 live revision 误标
                 val epoch = groupEpochUsed
                     ?: throw IllegalStateException("group_epoch_unknown_after_send")
-                app.signalProtocol.markGroupSenderKeyMessageSent(chat.id, epoch)
+                app.signalProtocol.markGroupSenderKeyMessageSent(chat.id, epoch, messageId)
             }
 
             AttachmentTransferCoordinator.complete(app, messageId, expectedOwnerUserId)

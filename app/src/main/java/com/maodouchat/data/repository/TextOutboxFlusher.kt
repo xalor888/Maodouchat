@@ -145,7 +145,7 @@ object TextOutboxFlusher {
                     return@withLock
                 }
                 if (groupEpoch != null) {
-                    app.signalProtocol.markGroupSenderKeyMessageSent(chatId, groupEpoch)
+                    app.signalProtocol.markGroupSenderKeyMessageSent(chatId, groupEpoch, msg.id)
                 }
                 val sent = msg.copy(status = MessageStatus.SENT)
                 messageRepo.insertMessage(sent)

@@ -3934,7 +3934,7 @@ class ChatDetailViewModel(
                                 messageId = messageId,
                                 chatId = effectiveChatId
                             )
-                            if (groupEpoch != null) markGroupSenderKeyMessageSent(effectiveChatId, groupEpoch)
+                            if (groupEpoch != null) markGroupSenderKeyMessageSent(effectiveChatId, groupEpoch, messageId)
                             effectiveChatId to textViaRest
                         }
                         MessageType.STICKER, MessageType.LOCATION -> {
@@ -3953,7 +3953,7 @@ class ChatDetailViewModel(
                                 messageId = messageId,
                                 chatId = effectiveChatId
                             )
-                            if (groupEpoch != null) markGroupSenderKeyMessageSent(effectiveChatId, groupEpoch)
+                            if (groupEpoch != null) markGroupSenderKeyMessageSent(effectiveChatId, groupEpoch, messageId)
                             effectiveChatId to inlineViaRest
                         }
                         MessageType.IMAGE, MessageType.GIF, MessageType.VIDEO, MessageType.VOICE, MessageType.FILE ->
@@ -5317,7 +5317,7 @@ class ChatDetailViewModel(
                                     chatId = targetChat.id
                                 )
                                 if (encryptEpoch != null) {
-                                    markGroupSenderKeyMessageSent(targetChat.id, encryptEpoch)
+                                    markGroupSenderKeyMessageSent(targetChat.id, encryptEpoch, msgId)
                                 }
                                 val converged = local.copy(
                                     status = if (viaRest) MessageStatus.SENT else MessageStatus.SENDING
@@ -5436,7 +5436,7 @@ class ChatDetailViewModel(
                     chatId = targetChat.id
                 )
                 if (epoch != null) {
-                    markGroupSenderKeyMessageSent(targetChat.id, epoch)
+                    markGroupSenderKeyMessageSent(targetChat.id, epoch, msgId)
                 }
                 val converged = local.copy(status = if (viaRest) MessageStatus.SENT else MessageStatus.SENDING)
                 withContext(Dispatchers.IO) { messageRepo.insertMessage(converged) }
@@ -6666,7 +6666,7 @@ fun sendCurrentLocation() {
                         messageId = msgId,
                         chatId = effectiveChatId
                     )
-                    if (groupEpoch != null) markGroupSenderKeyMessageSent(effectiveChatId, groupEpoch)
+                    if (groupEpoch != null) markGroupSenderKeyMessageSent(effectiveChatId, groupEpoch, msgId)
                     effectiveChatId to delivered
                 }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -7589,7 +7589,7 @@ fun sendCurrentLocation() {
                         chatId = effectiveChatId,
                         silent = wantSilent
                     )
-                    if (groupEpoch != null) markGroupSenderKeyMessageSent(effectiveChatId, groupEpoch)
+                    if (groupEpoch != null) markGroupSenderKeyMessageSent(effectiveChatId, groupEpoch, msgId)
                     effectiveChatId to delivered
                 }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -7708,7 +7708,7 @@ fun sendCurrentLocation() {
                         messageId = msgId,
                         chatId = chatId
                     )
-                    markGroupSenderKeyMessageSent(chatId, epoch)
+                    markGroupSenderKeyMessageSent(chatId, epoch, msgId)
                     delivered
                 }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -7817,8 +7817,8 @@ fun sendCurrentLocation() {
         )
     }
 
-    private suspend fun markGroupSenderKeyMessageSent(groupId: String, epoch: Long? = null) {
-        signalProtocol.markGroupSenderKeyMessageSent(groupId, epoch ?: requireGroupEpoch(groupId))
+    private suspend fun markGroupSenderKeyMessageSent(groupId: String, epoch: Long? = null, messageId: String? = null) {
+        signalProtocol.markGroupSenderKeyMessageSent(groupId, epoch ?: requireGroupEpoch(groupId), messageId)
     }
 
     /**

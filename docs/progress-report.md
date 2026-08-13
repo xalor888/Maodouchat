@@ -5620,3 +5620,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **待处理申请不排除拉黑关系**：`listIncoming/listOutgoing` 会返回与当前用户已互相拉黑者的申请，UI 显示后才在 accept 时报 BLOCKED。现在列表层按双向拉黑过滤申请方/接收方，与好友列表和接受语义一致。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.54 2026-08-13 无限调优：群 SenderKey messageCount 去重
+
+1. **WS 与 REST 双计同一群消息**：群消息通过 WS 投递与 REST ack 两条路径都会调 `markGroupSenderKeyMessageSent`，同一条消息被计两次，1000 条轮换阈值提前触达。现在按 `groupId + epoch + messageId` 去重，传入 messageId 的路径只计一次；去重集合有界（2000 条）。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
