@@ -59,6 +59,8 @@ object OnDemandStickerStore {
     private const val MAX_MANIFEST_BYTES = 1_048_576
     private const val MAX_MANIFEST_PACKS = 64
     private const val MAX_STICKERS_PER_PACK = 300
+    /** 单个贴纸文件最大字节数（2MB）：防异常贴纸源磁盘耗尽。 */
+    private const val MAX_STICKER_FILE_BYTES = 2L * 1024L * 1024L
 
     /** 内置最小集合：1 包「基础表情」（纯 emoji，无需下载）。 */
     const val BUILT_IN_PACK_ID = "basic"
@@ -350,7 +352,19 @@ object OnDemandStickerStore {
             //（包级互斥已覆盖同包并发，跨包同名文件路径不存在，此处再兜底一层）
             val tmp = File(target.parentFile, target.name + ".part." + UUID.randomUUID().toString().take(8))
             try {
-                body.byteStream().use { input -> tmp.outputStream().buffered().use { output -> input.copyTo(output) } }
+                // 9.131：单文件下载字节上限——LRU 只在下载完成后淘汰，无上限的流式落盘
+                // 可被异常/被攻破的贴纸源打满私有存储（磁盘耗尽）
+                body.byteStream().use { input -> tmp.outputStream().buffered().use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        total += read
+                        if (total > MAX_STICKER_FILE_BYTES) throw IllegalStateException("sticker file too large")
+                        output.write(buffer, 0, read)
+                    }
+                } }
                 if (tmp.length() <= 0L) throw IllegalStateException("empty file")
                 if (expectedSha256 != null && sha256(tmp) != expectedSha256) {
                     throw IllegalStateException("SHA-256 mismatch")

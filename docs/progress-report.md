@@ -6104,3 +6104,15 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`myCheckin` 未签到时恒返回 `streak=0`**：客户端把该字段直接渲染为「连续签到 N 天」——昨天刚签过、连续天数尚未断的用户今天打开签到页会看到「连续签到 0 天」，误以为断签。改为：最近一次记录是昨天时沿用其 streak（≥1），更早才为 0（确已断签）。
 
 **验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.131 2026-08-13 无限调优：bot 卡片/Hint 端点补实时 fanout + 管理端三处校验收紧
+
+1. **76 处 bot 卡片/Hint 端点（sendBadge/sendProgress/sendCountdown/sendAlert/sendDivider/sendToast/sendKeyValue/sendNotice/sendQuoteCard/sendBanner/sendJsonCard/sendTimeline/sendMetric/sendSteps/sendCompare/sendMentionCard/sendNudgeCard/sendContactCard 及 send*Hint 全家族）落库后无 WS fanout**：消息已写入并更新会话 lastMessage，但在线成员收不到 NEW_MESSAGE——只有重新拉历史才可见，与 sendMessage/sendTable/sendDice 等经典端点行为不一致（子代理对抗性审计发现）。统一提取 `fanoutBotMessage` helper（含拉黑 bot 接收方过滤），按各端点实际消息类型（MARKDOWN/SYSTEM）补齐 fanout。
+2. **`bulk-set-show-status`/`bulk-set-show-online`/`bulk-set-searchable` 对缺失/拼写错误的值静默默认 true**：管理员本意批量关闭隐私开关（如 searchable=false）却打错字段名时，会反向把用户批量设为可被搜索/在线可见。改为仅接受显式布尔值集合，其余 400。
+3. **`bulk-message-restrict-days` 硬编码 3650 天上限**：绕过 `AdminDispositionPolicy.MAX_MESSAGE_RESTRICT_DAYS`(90) 的策略上限。改用策略常量。
+4. **`/messages/search` 的 `contentPreview` 对全部消息类型投影 content 前 120 字符**：用户消息的 content 是 E2EE 密文载荷，违反"Metadata search only"原则。改为仅对平台明文类型（SYSTEM/NUDGE）投影，其余置空。
+5. **客户端 `OnDemandStickerStore` 贴纸下载无单文件字节上限**：LRU 只在下载完成后淘汰，异常/被攻破的贴纸源可回传超大文件耗尽私有存储。补 2MB/文件流式计数上限。
+
+另核实：`/settings` 的任意键写入已被 `RuntimeConfigService.set` 的 master-admin + knownKeys 校验覆盖（子代理发现 B 已由既有纵深防御处理，未改动）。
+
+**验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。

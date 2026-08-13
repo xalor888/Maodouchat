@@ -1732,6 +1732,10 @@ put("userId", id)
                     query.orderBy(Messages.timestamp to SortOrder.DESC, Messages.id to SortOrder.DESC)
                         .limit(limit, offset.toLong())
                         .map {
+                            // 9.131：contentPreview 仅投影平台明文类型（SYSTEM/NUDGE 等 bot/系统文案）。
+                            // 用户消息的 content 是 E2EE 密文载荷——「Metadata search only」原则下
+                            // 不得把密文字节投进管理端响应（此前对所有类型 take(120) 原样输出）
+                            val platformPlaintext = it[Messages.type] in setOf("SYSTEM", "NUDGE")
                             buildJsonObject {
                                 put("id", it[Messages.id])
                                 put("chatId", it[Messages.chatId])
@@ -1740,7 +1744,7 @@ put("userId", id)
                                 put("timestamp", it[Messages.timestamp])
                                 put("status", it[Messages.status])
                                 put("sealedSender", runCatching { it[Messages.sealedSender] }.getOrDefault(false))
-                                put("contentPreview", it[Messages.content].take(120))
+                                put("contentPreview", if (platformPlaintext) it[Messages.content].take(120) else "")
                                 put("e2eeLikely", it[Messages.content].length > 40 && !it[Messages.content].startsWith("{") && it[Messages.type] !in setOf("SYSTEM", "NUDGE"))
                             }
                         }
@@ -3449,7 +3453,9 @@ put("count", updated.size)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val showStatus = when (val raw = obj["showStatus"]?.jsonPrimitive?.content?.lowercase()) {
                     "false", "0", "no", "off" -> false
-                    else -> true
+                    "true", "1", "yes", "on" -> true
+                    // 9.131：缺字段/拼写错误不得静默默认 true（隐私开关被反向打开）
+                    else -> return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("showStatus must be a boolean"))
                 }
                 val rawIds = obj["userIds"]
                 val ids = when {
@@ -3493,7 +3499,9 @@ put("showStatus", showStatus)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val showOnline = when (val raw = obj["showOnline"]?.jsonPrimitive?.content?.lowercase()) {
                     "false", "0", "no", "off" -> false
-                    else -> true
+                    "true", "1", "yes", "on" -> true
+                    // 9.131：缺字段/拼写错误不得静默默认 true
+                    else -> return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("showOnline must be a boolean"))
                 }
                 val rawIds = obj["userIds"]
                 val ids = when {
@@ -3539,7 +3547,9 @@ put("showOnline", showOnline)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val searchable = when (val raw = obj["searchable"]?.jsonPrimitive?.content?.lowercase()) {
                     "false", "0", "no", "off" -> false
-                    else -> true
+                    "true", "1", "yes", "on" -> true
+                    // 9.131：缺字段/拼写错误不得静默默认 true（把用户批量设成可被搜索）
+                    else -> return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("searchable must be a boolean"))
                 }
                 val rawIds = obj["userIds"]
                 val ids = when {
@@ -3982,7 +3992,10 @@ post("/users/bulk-message-restrict-days") {
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val rawIds = obj["userIds"]
-                val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1).coerceIn(1, 3650)
+                // 9.131：上限改用策略常量——此前硬编码 3650 天（10 年）绕过
+                // AdminDispositionPolicy.MAX_MESSAGE_RESTRICT_DAYS(90) 的处置上限
+                val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1)
+                    .coerceIn(1, AdminDispositionPolicy.MAX_MESSAGE_RESTRICT_DAYS)
                 val ids = when {
                     rawIds == null -> emptyList()
                     rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {

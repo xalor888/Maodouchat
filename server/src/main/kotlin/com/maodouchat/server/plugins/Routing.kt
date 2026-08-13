@@ -7412,6 +7412,12 @@ put("rows", rows.size)
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendBadge")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -7546,6 +7552,12 @@ put("serverTime", System.currentTimeMillis())
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendProgress")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -7606,6 +7618,12 @@ put("serverTime", System.currentTimeMillis())
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendCountdown")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -7645,6 +7663,12 @@ put("seconds", seconds)
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAlert")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -7798,6 +7822,12 @@ put("enabled", bot.enabled)
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendRemind")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -7837,6 +7867,12 @@ put("type", "SYSTEM")
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDivider")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -7992,6 +8028,12 @@ put("serverTime", System.currentTimeMillis())
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendToast")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -8032,6 +8074,12 @@ put("type", "SYSTEM")
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendKeyValue")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -8179,6 +8227,12 @@ put("serverTime", System.currentTimeMillis())
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendNotice")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -8222,6 +8276,12 @@ put("type", "SYSTEM")
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendQuoteCard")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -8371,6 +8431,12 @@ put("serverTime", System.currentTimeMillis())
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendBanner")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -8412,6 +8478,12 @@ put("type", "MARKDOWN")
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendJsonCard")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -8561,6 +8633,12 @@ put("surface", 39)
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendTimeline")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -8604,6 +8682,12 @@ put("type", "MARKDOWN")
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMetric")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -8729,6 +8813,12 @@ put("serverTime", System.currentTimeMillis())
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSteps")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -8771,6 +8861,12 @@ put("type", "MARKDOWN")
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendCompare")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -8915,6 +9011,12 @@ put("surface", 39)
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMentionCard")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -8956,6 +9058,12 @@ put("type", "MARKDOWN")
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendInviteHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -9098,6 +9206,12 @@ put("serverTime", System.currentTimeMillis())
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendNudgeCard")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -9139,6 +9253,12 @@ put("type", "MARKDOWN")
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSafetyHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -9277,6 +9397,12 @@ put("serverTime", System.currentTimeMillis())
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendQrHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -9321,6 +9447,12 @@ put("type", "SYSTEM")
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendContactCard")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "MARKDOWN", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -9456,6 +9588,12 @@ put("serverTime", System.currentTimeMillis())
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSpoilerHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -9497,6 +9635,12 @@ put("type", "SYSTEM")
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDownloadHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -9624,6 +9768,12 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendLocationHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -9659,6 +9809,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendFileHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -9694,6 +9850,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -9729,6 +9891,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecureHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -9833,6 +10001,12 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPhotoHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -9868,6 +10042,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVideoHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -9903,6 +10083,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAiHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -9938,6 +10124,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSummaryHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10044,6 +10236,12 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSuggestHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10079,6 +10277,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendTranscribeHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10162,6 +10366,12 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAnalyzeHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10197,6 +10407,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendGroupAssistHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10279,6 +10495,12 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendFileAnalyzeHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10314,6 +10536,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSemanticHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10396,6 +10624,12 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendGifHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10431,6 +10665,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendWatermarkHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10513,6 +10753,12 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVoiceCallHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10548,6 +10794,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVideoCallHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10628,6 +10880,12 @@ put("ping", "buzz")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendWallpaperHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10663,6 +10921,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendFontScaleHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10743,6 +11007,12 @@ put("ping", "chime")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendUnreadHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10778,6 +11048,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendRingtoneHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10858,6 +11134,12 @@ put("ping", "ring")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSoundHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10893,6 +11175,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPreviewHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -10973,6 +11261,12 @@ put("ping", "beep")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPushHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11008,6 +11302,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendTaskReminderHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11088,6 +11388,12 @@ put("ping", "push")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDndHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11123,6 +11429,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendOfflineAiHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11203,6 +11515,12 @@ put("ping", "quiet")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSoundscapeHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11238,6 +11556,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendHapticsHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11318,6 +11642,12 @@ put("ping", "feel")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMotionHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11353,6 +11683,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendNavHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11433,6 +11769,12 @@ put("ping", "slide")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendCaptureDetectHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11468,6 +11810,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendRecentsHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11548,6 +11896,12 @@ put("ping", "shield")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretCopyHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11583,6 +11937,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretExportHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11663,6 +12023,12 @@ put("ping", "leak")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretForwardHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11698,6 +12064,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretChatExportHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11778,6 +12150,12 @@ put("ping", "vault")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSealedSenderHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11813,6 +12191,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPqxdhHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11892,6 +12276,12 @@ put("ping", "seal")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVisibleWatermarkHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -11927,6 +12317,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretAutoDisappearHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -12006,6 +12402,12 @@ put("ping", "mark")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretLinkPreviewHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -12041,6 +12443,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretExternalLinkHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -12120,6 +12528,12 @@ put("ping", "link")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretNotifPreviewHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -12155,6 +12569,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretListPreviewHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -12237,6 +12657,12 @@ put("ping", "priv")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretReactionHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -12272,6 +12698,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretStarHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -12307,6 +12739,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretTypingHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -12342,6 +12780,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretReadReceiptHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -12377,6 +12821,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretPresenceHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -12412,6 +12862,12 @@ put("type", "SYSTEM")
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretLastSeenHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                val botMessage = com.maodouchat.server.model.MessageResponse(
+                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
+                    type = "SYSTEM", timestamp = now, status = "SENT"
+                )
+                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
+                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -16261,4 +16717,30 @@ private fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: Strin
     </div>
 </body>
 </html>"""
+}
+
+/** 9.131：bot 卡片/Hint 端点补齐实时 WS fanout（与 sendMessage/sendTable 等经典端点一致）。 */
+private suspend fun fanoutBotMessage(
+    userRepo: UserRepository,
+    chatRepo: ChatRepository,
+    json: Json,
+    botId: String,
+    chatId: String,
+    botMessage: MessageResponse
+) {
+    val fanoutPids = chatRepo.getParticipantIds(chatId)
+    val botBlockedIds = try {
+        userRepo.blockedEitherWayIdsInTx(botId, fanoutPids)
+    } catch (_: Exception) {
+        emptySet()
+    }
+    fanoutPids.forEach { pid ->
+        if (pid in botBlockedIds) return@forEach
+        try {
+            sendToUser(pid, json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(botMessage))))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+        }
+    }
 }
