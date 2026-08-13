@@ -226,6 +226,10 @@ object PostImageClaims : Table("post_image_claims") {
     val postId = varchar("post_id", 100) references Posts.id
     val claimedAt = long("claimed_at")
     override val primaryKey = PrimaryKey(filename)
+
+    init {
+        index("idx_post_image_claims_post", false, postId)
+    }
 }
 
 object PostLikes : Table("post_likes") {

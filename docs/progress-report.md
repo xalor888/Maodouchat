@@ -5776,3 +5776,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **撤回不清除旧 reaction**：`revokeMessage` 会删附件、置顶和已读回执，但保留 `MessageReactions`，其他成员仍能看到“撤回的消息曾被谁回应”的元数据。撤回事务补删该消息全部 reaction，新增 H2 集成测试验证撤回后 reaction 表为空且消息 type 为 `REVOKED`。
 
 **验证**：`:server:test` 全量通过（含新增 `MessageRevokeReactionCleanupTest`）；`git diff --check` 无输出。
+
+### 9.80 2026-08-13 无限调优：动态图片占用表补 postId 索引
+
+1. **注销/删帖按 postId 清理占用行没有索引**：`post_image_claims` 只有 filename 主键，按 `postId` 删除会全表扫。补 `idx_post_image_claims_post`，注销/删帖路径不再随占用表增长退化。
+
+**验证**：`:server:test`（PostImageClaimTest）通过；`git diff --check` 无输出。
