@@ -271,21 +271,26 @@ class StarredMessagesViewModel(
         }
     }
 
-    fun unlockChatWithPin(pin: String): Boolean {
-        if (chatId.isBlank()) return true
-        val ok = try {
-            kotlinx.coroutines.runBlocking(Dispatchers.IO) { chatLockRepo.verify(chatId, pin) }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            false
+    fun unlockChatWithPin(pin: String, onResult: (Boolean) -> Unit) {
+        if (chatId.isBlank()) {
+            onResult(true)
+            return
         }
-        if (ok) {
-            com.maodouchat.security.ChatLockSession.markUnlocked(chatId)
-            _uiState.update { it.copy(isChatUnlocked = true) }
-            load()
+        viewModelScope.launch {
+            val ok = try {
+                withContext(Dispatchers.IO) { chatLockRepo.verify(chatId, pin) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false
+            }
+            if (ok) {
+                com.maodouchat.security.ChatLockSession.markUnlocked(chatId)
+                _uiState.update { it.copy(isChatUnlocked = true) }
+                load()
+            }
+            onResult(ok)
         }
-        return ok
     }
 
     // 1.91：收藏列表直接取消收藏（乐观移除该行；服务端仍收藏或失败时恢复）
@@ -480,7 +485,7 @@ fun StarredMessagesScreen(
             chatName = state.chat?.groupName?.takeIf { it.isNotBlank() }
                 ?: state.chat?.participants?.firstOrNull { it.id != state.currentUserId }?.displayName
                 ?: stringResource(R.string.chat_this_chat),
-            onUnlock = { pin -> viewModel.unlockChatWithPin(pin) },
+            onUnlock = { pin, onResult -> viewModel.unlockChatWithPin(pin, onResult) },
             onForgotPin = onBack
         )
     } else {

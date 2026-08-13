@@ -172,24 +172,29 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
         }
     }
 
-    fun unlockWithPin(pin: String): Boolean {
-        val ok = try {
-            kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
-                chatLockRepo.verify(chatId, pin)
-            }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            false
+    fun unlockWithPin(pin: String, onResult: (Boolean) -> Unit) {
+        if (chatId.isBlank()) {
+            onResult(true)
+            return
         }
-        if (!ok) return false
-        com.maodouchat.security.ChatLockSession.markUnlocked(chatId)
         viewModelScope.launch {
-            val displayName = _uiState.value.chatName.ifBlank { resolveChatName() }
-            _uiState.update { it.copy(isChatLocked = false, isLoading = true, chatName = displayName) }
-            observeMedia(displayName)
+            val ok = try {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    chatLockRepo.verify(chatId, pin)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false
+            }
+            if (ok) {
+                com.maodouchat.security.ChatLockSession.markUnlocked(chatId)
+                val displayName = _uiState.value.chatName.ifBlank { resolveChatName() }
+                _uiState.update { it.copy(isChatLocked = false, isLoading = true, chatName = displayName) }
+                observeMedia(displayName)
+            }
+            onResult(ok)
         }
-        return true
     }
 
     // 8.48 修复 M6：订阅 Job——解锁/重进时先取消旧 collector，
@@ -304,7 +309,7 @@ fun MediaCenterScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             ChatLockGate(
                 chatName = state.chatName.ifBlank { stringResource(R.string.chat_this_chat) },
-                onUnlock = { pin -> viewModel.unlockWithPin(pin) },
+                onUnlock = { pin, onResult -> viewModel.unlockWithPin(pin, onResult) },
                 onForgotPin = onBack
             )
             IconButton(

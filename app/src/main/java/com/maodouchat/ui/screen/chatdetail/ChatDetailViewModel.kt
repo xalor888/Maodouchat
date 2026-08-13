@@ -8461,23 +8461,28 @@ fun sendCurrentLocation() {
      * 当前仅单行 SELECT + SHA-256，阻塞窗口极小，保守保留同步实现。
      * 若后续 Room 查询变复杂或出现卡顿，应考虑重构为异步回调。
      */
-    fun unlockChatWithPin(pin: String): Boolean {
+    fun unlockChatWithPin(pin: String, onResult: (Boolean) -> Unit) {
         val lockChatId = activeChatId.ifBlank { chatId }
-        if (lockChatId.isBlank()) return true
-        val ok = try {
-            kotlinx.coroutines.runBlocking(Dispatchers.IO) {
-                chatLockRepo.verify(lockChatId, pin)
+        if (lockChatId.isBlank()) {
+            onResult(true)
+            return
+        }
+        viewModelScope.launch {
+            val ok = try {
+                withContext(Dispatchers.IO) {
+                    chatLockRepo.verify(lockChatId, pin)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false
             }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            false
+            if (ok) {
+                com.maodouchat.security.ChatLockSession.markUnlocked(lockChatId)
+                _uiState.update { it.copy(isChatUnlocked = true) }
+            }
+            onResult(ok)
         }
-        if (ok) {
-            com.maodouchat.security.ChatLockSession.markUnlocked(lockChatId)
-            _uiState.update { it.copy(isChatUnlocked = true) }
-        }
-        return ok
     }
 
     fun setChatLockPin(pin: String) {

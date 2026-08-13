@@ -2099,7 +2099,7 @@ if (showGroupCallTypeDialog) {
             chatName = state.contact.displayName.ifBlank {
                 state.chat?.groupName.orEmpty().ifBlank { stringResource(R.string.chat_this_chat) }
             },
-            onUnlock = { pin -> viewModel.unlockChatWithPin(pin) },
+            onUnlock = { pin, onResult -> viewModel.unlockChatWithPin(pin, onResult) },
             onForgotPin = { showForgotChatLockConfirm = true }
         )
         if (showForgotChatLockConfirm) {

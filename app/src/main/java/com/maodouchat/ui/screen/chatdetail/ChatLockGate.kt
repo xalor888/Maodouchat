@@ -51,11 +51,12 @@ import com.maodouchat.ui.theme.TextSecondary
 @Composable
 fun ChatLockGate(
     chatName: String,
-    onUnlock: (pin: String) -> Boolean,
+    onUnlock: (pin: String, onResult: (Boolean) -> Unit) -> Unit,
     onForgotPin: () -> Unit = {}
 ) {
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    var verifying by remember { mutableStateOf(false) }
     val wrongPinText = stringResource(R.string.chat_lock_wrong_pin)
     val pinLengthText = stringResource(R.string.chat_lock_pin_length)
 
@@ -105,10 +106,19 @@ fun ChatLockGate(
                 },
                 onBackspace = { if (pin.isNotEmpty()) pin = pin.dropLast(1) },
                 onSubmit = {
-                    if (pin.length in 4..8) {
-                        if (!onUnlock(pin)) {
-                            error = wrongPinText
-                            pin = ""
+                    if (verifying) {
+                        // 等待异步 PIN 校验结果，防连点重复提交
+                    } else if (pin.length in 4..8) {
+                        verifying = true
+                        onUnlock(pin) { ok ->
+                            verifying = false
+                            if (ok) {
+                                pin = ""
+                                error = null
+                            } else {
+                                error = wrongPinText
+                                pin = ""
+                            }
                         }
                     } else {
                         error = pinLengthText

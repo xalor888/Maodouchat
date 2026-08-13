@@ -5644,3 +5644,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **通话历史跳过群通话**：`writeCallLog` 对 `isGroupCall` 直接 return，群呼出/呼入/未接都不进历史。`CallLogEntry` 新增 `isGroup`，群通话按会话/发起者入历史；历史页对群记录不回拨。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.58 2026-08-13 无限调优：PIN 解锁改异步
+
+1. **PIN 解锁主线程 runBlocking**：ChatDetail/Starred/AiTasks/MediaCenter 四处的 `unlockChatWithPin/unlockWithPin` 都在 UI 线程同步 `runBlocking(IO)` 等 Room 校验。`ChatLockGate` 改为 `(pin, onResult) -> Unit` 异步回调，四处 ViewModel 改为协程 `withContext(IO)` 后回调结果，消除 ANR 风险。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。

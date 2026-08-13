@@ -218,23 +218,28 @@ class AiTasksViewModel(
         observeTasks()
     }
 
-    fun unlockWithPin(pin: String): Boolean {
-        val ok = try {
-            kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
-                chatLockRepo.verify(chatId, pin)
-            }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            false
+    fun unlockWithPin(pin: String, onResult: (Boolean) -> Unit) {
+        if (chatId.isBlank()) {
+            onResult(true)
+            return
         }
-        if (!ok) return false
-        com.maodouchat.security.ChatLockSession.markUnlocked(chatId)
         viewModelScope.launch {
-            _uiState.update { it.copy(isChatLocked = false, isLoading = true) }
-            observeTasks()
+            val ok = try {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    chatLockRepo.verify(chatId, pin)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false
+            }
+            if (ok) {
+                com.maodouchat.security.ChatLockSession.markUnlocked(chatId)
+                _uiState.update { it.copy(isChatLocked = false, isLoading = true) }
+                observeTasks()
+            }
+            onResult(ok)
         }
-        return true
     }
 
     private fun observeTasks() {
@@ -413,7 +418,7 @@ fun AiTasksScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             ChatLockGate(
                 chatName = state.chatName.ifBlank { stringResource(R.string.chat_this_chat) },
-                onUnlock = { pin -> viewModel.unlockWithPin(pin) },
+                onUnlock = { pin, onResult -> viewModel.unlockWithPin(pin, onResult) },
                 onForgotPin = onBack
             )
             IconButton(
