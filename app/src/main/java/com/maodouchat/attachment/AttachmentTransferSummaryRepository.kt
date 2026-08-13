@@ -92,9 +92,13 @@ object AttachmentTransferSummaryRepository {
         if (TokenManager.getInstance(app).getUserId().orEmpty() != ownerUserId) return 0
         var cancelled = 0
         items.forEach { transfer ->
-            if (transfer.state == AttachmentTransferState.FAILED || transfer.state == AttachmentTransferState.PAUSED ||
-                transfer.state == AttachmentTransferState.UPLOADING || transfer.state == AttachmentTransferState.SENDING ||
-                transfer.state == AttachmentTransferState.QUEUED || transfer.state == AttachmentTransferState.PREPARING) {
+            if (transfer.state == AttachmentTransferState.SENDING) {
+                // finalize 在途：不中断，但批量取消语义视为已处理，由 complete() 幂等收尾。
+                cancelled++
+            } else if (transfer.state == AttachmentTransferState.FAILED || transfer.state == AttachmentTransferState.PAUSED ||
+                transfer.state == AttachmentTransferState.UPLOADING ||
+                transfer.state == AttachmentTransferState.QUEUED || transfer.state == AttachmentTransferState.PREPARING
+            ) {
                 if (AttachmentTransferCoordinator.cancel(context, transfer.messageId, ownerUserId)) cancelled++
             }
         }

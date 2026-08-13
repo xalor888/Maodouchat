@@ -5704,3 +5704,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`reactionMutexes` 只增不减**：每个点过赞/反应的 messageId 都永久保留一个 Mutex。改为带引用计数的 `ReactionLock`，反应协程结束时移除。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.68 2026-08-13 无限调优：批量取消 SENDING 计数
+
+1. **cancelAll 跳过 SENDING 计数**：批量取消把 SENDING（finalize 在途）排除在计数外，即使任务已交收尾，UI 仍可能显示取消 0 个。现在 SENDING 计为已处理，不再中断 finalize，`complete()` 仍幂等收尾。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
