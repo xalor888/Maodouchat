@@ -6080,3 +6080,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 2. 本轮回读核查：`AiGatewayService`（流式重试不重发 delta、信号量、预算预留租约）、`AiEnhanceService`（跨会话问答白名单/并行超时）、`EmailService`、Webhook SSRF 防护（DNS 解析固定 + 地址段拦截）、`EncryptedAttachmentStorage`、`CacheService`/`LRUCache`、`TextOutboxFlusher`、`BacklogSyncWorker`、管理端导出/搜索/处置端点——未发现新问题。
 
 **验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出；H2 2.2.224 实测 Exposed MERGE 语法可执行（佐证注释过时）。
+
+### 9.127 2026-08-13 无限调优：管理端 CSV 导出公式注入按去空白首字符防护
+
+1. **`csvCell` 仅检查原始首字符**：`" =CMD()"` 这类以前导空格/制表符开头的单元格，Excel 求值时忽略前导空白仍会当作公式执行。管理端 CSV 导出（users/reports/risk-events/push-tokens/message-stats/时间范围导出）中的 `RiskEvents.matched`、公告内容、审核 detail 等字段含用户/外部可控内容，存在 CSV 公式注入残余面。两处 `csvCell`（AdminRouting / AdminEnhanceRouting）改为按 `trimStart()` 后的首字符判定 `= + - @` 并加 `'` 前缀转义。
+
+**验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。

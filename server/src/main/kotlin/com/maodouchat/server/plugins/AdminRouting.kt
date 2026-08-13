@@ -4337,7 +4337,9 @@ private fun escapeLikePattern(input: String): String =
 
 private fun csvCell(value: Any?): String {
     val raw = value?.toString() ?: ""
-    val formulaSafe = if (raw.firstOrNull() in setOf('=', '+', '-', '@')) "'$raw" else raw
+    // 公式注入防护须按「去除前导空白后的首字符」判定：Excel 会忽略前导空白/制表符
+    // 求值单元格，此前仅查原始首字符，`" =CMD()"` 这类以空格开头的载荷仍会执行。
+    val formulaSafe = if (raw.trimStart().firstOrNull() in setOf('=', '+', '-', '@')) "'$raw" else raw
     return "\"${formulaSafe.replace("\"", "\"\"")}\""
 }
 

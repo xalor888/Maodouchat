@@ -949,7 +949,8 @@ private suspend inline fun <reified T> ApplicationCall.receiveEnhanceJson(): T? 
 
 private fun csvCell(value: Any?): String {
     val raw = value?.toString() ?: ""
-    val formulaSafe = if (raw.firstOrNull() in setOf('=', '+', '-', '@')) "'$raw" else raw
+    // 公式注入防护须按「去除前导空白后的首字符」判定（Excel 忽略前导空白/制表符求值）
+    val formulaSafe = if (raw.trimStart().firstOrNull() in setOf('=', '+', '-', '@')) "'$raw" else raw
     return "\"${formulaSafe.replace("\"", "\"\"")}\""
 }
 
