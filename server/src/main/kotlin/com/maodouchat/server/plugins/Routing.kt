@@ -2136,7 +2136,13 @@ put("results", Json.parseToJsonElement(Json.encodeToString(results)))
                 )
                 val envelope = json.encodeToString(WsMessage.serializer(), WsMessage("FRIEND_REQUEST", payload))
                 val peers = setOf(request.fromUser.id, request.toUser.id)
-                peers.forEach { pid -> sendToUser(pid, envelope) }
+                peers.forEach { pid ->
+                    // 9.129：WS 实时事件与 push 同口径——申请创建后若双方已互相拉黑，
+                    // 不再向对方实时推送好友申请事件（push 路径早已过滤，WS 漏网）
+                    val other = if (pid == request.fromUser.id) request.toUser.id else request.fromUser.id
+                    if (userRepo.isBlockedEitherWay(pid, other)) return@forEach
+                    sendToUser(pid, envelope)
+                }
                 // FCM wake for offline peer (CREATED → recipient; ACCEPTED → original sender)
                 when (action) {
                     "CREATED" -> if (!userRepo.isBlockedEitherWay(request.toUser.id, request.fromUser.id)) {

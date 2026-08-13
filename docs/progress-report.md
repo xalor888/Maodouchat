@@ -6092,3 +6092,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **5 个批量处置端点直接覆盖处罚截止时间**：`bulk-ban`、`bulk-suspend-days`（suspendedUntil）、`bulk-message-restrict`、`bulk-message-restrict-days`（messageRestrictedUntil）、`bulk-post-restrict`（postRestrictedUntil）都写 `= until`——对一个已有 30 天封禁/禁发/禁发动态的用户执行"追加 1 天"批量操作会把处罚**缩短**成 1 天（与单用户 `applyModerationRestriction` 的 maxOf 保长语义不一致，且副作用已执行：轮换 token 版本 + 强制下线）。统一改为读行后 `maxOf(既有, until)`；`days<=0`（解除语义）仍保留置 0。显式绝对时间的 `bulk-set-*-until` 端点保持原语义（与单用户 PUT 一致）。
 
 **验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.129 2026-08-13 无限调优：好友申请 WS 实时事件补齐拉黑过滤
+
+1. **`notifyFriendRequest` 的 WS fanout 不过滤拉黑**：FRIEND_REQUEST 实时事件发给双方时未检查双向拉黑——push 路径（`enqueueFriendRequest`）早已过滤，WS 漏网；申请创建后双方互相拉黑时，拒绝/取消等事件仍会实时推送给已拉黑对方的一方（对方不该再收到对方的任何动态）。补齐 per-peer 双向拉黑过滤（与 reaction/typing/群玩法广播同口径）。
+
+**验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
