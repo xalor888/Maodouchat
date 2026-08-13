@@ -706,7 +706,7 @@ object ApiService {
     /** 阻塞 OkHttp 调用统一切到 IO 线程，避免从 Main 调度器调用时 NetworkOnMainThreadException。 */
     private suspend fun executeForText(req: Request, errorPrefix: String): Result<String> =
         withContext(Dispatchers.IO) {
-            runCatching {
+            try {
                 // 8.61：带 Authorization 的请求走 executeWithRefresh——401 自动刷新 + 触发 tokenExpired，
                 // 避免 TOTP/密封发件人证书等端点绕过刷新（会话 15min 过期后停留页面呈假登录态且错误原文透出）
                 val result = if (req.header("Authorization").isNullOrBlank()) {
@@ -715,7 +715,11 @@ object ApiService {
                     executeWithRefresh(req)
                 }
                 if (!result.isSuccessful) error("${errorPrefix}_${result.code}:${result.body}")
-                result.body
+                Result.success(result.body)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Result.failure(error)
             }
         }
 
@@ -755,7 +759,7 @@ object ApiService {
     )
 
     /** 0.77：查询 2FA 是否已启用。 */
-    suspend fun totpStatus(token: String): Result<Boolean> = runCatching {
+    suspend fun totpStatus(token: String): Result<Boolean> = try {
         val body = executeForText(
             Request.Builder()
                 .url("${ApiConfig.BASE_URL}/api/auth/totp/status")
@@ -764,11 +768,15 @@ object ApiService {
                 .build(),
             "totp_status"
         ).getOrThrow()
-        runCatching { org.json.JSONObject(body).optBoolean("enabled", false) }.getOrDefault(false)
+        Result.success(runCatching { org.json.JSONObject(body).optBoolean("enabled", false) }.getOrDefault(false))
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        Result.failure(error)
     }
 
     /** 0.77：验证当前 TOTP 后重新生成恢复码（返回新恢复码）。 */
-    suspend fun regenerateTotpCodes(token: String, code: String): Result<List<String>> = runCatching {
+    suspend fun regenerateTotpCodes(token: String, code: String): Result<List<String>> = try {
         val body = executeForText(
             Request.Builder()
                 .url("${ApiConfig.BASE_URL}/api/auth/totp/recover-codes")
@@ -779,14 +787,19 @@ object ApiService {
         ).getOrThrow()
         val obj = runCatching { org.json.JSONObject(body) }.getOrNull()
         val codes = obj?.optJSONArray("backupCodes")
-        if (codes != null) {
+        val result = if (codes != null) {
             (0 until codes.length()).map { codes.optString(it) }.filter { it.isNotBlank() }
         } else {
             emptyList()
         }
+        Result.success(result)
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        Result.failure(error)
     }
 
-    suspend fun confirmTotp(token: String, code: String): Result<List<String>> = runCatching {
+    suspend fun confirmTotp(token: String, code: String): Result<List<String>> = try {
         val body = executeForText(
             Request.Builder()
                 .url("${ApiConfig.BASE_URL}/api/auth/totp/confirm")
@@ -798,11 +811,16 @@ object ApiService {
         // 0.75：解析恢复码（启用成功后一次性返回）
         val obj = runCatching { org.json.JSONObject(body) }.getOrNull()
         val codes = obj?.optJSONArray("backupCodes")
-        if (codes != null) {
+        val result = if (codes != null) {
             (0 until codes.length()).map { codes.optString(it) }.filter { it.isNotBlank() }
         } else {
             emptyList()
         }
+        Result.success(result)
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        Result.failure(error)
     }
 
     suspend fun disableTotp(token: String, code: String): Result<String> = executeForText(

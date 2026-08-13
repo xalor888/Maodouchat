@@ -5722,3 +5722,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`cleanup(protectInFlight=false)` 仍会误删在途上传**：9.69 让写入路径跳过 DB 白名单，但同一函数仍会对 `attachment-uploads/sources` 做 48h 年龄清理；若存在暂停/慢速传输超过 48h，用户发一条新媒体就可能把在途源文件删掉。现在媒体写入/恢复路径只调 `cleanupMediaCache`（媒体年龄/字节上限），传输目录只由周期维护清理，周期维护仍带在途白名单。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.71 2026-08-13 无限调优：TOTP 请求恢复协程取消语义
+
+1. **`executeForText` 与 TOTP 三个接口吞掉 CancellationException**：`executeForText` 用 `runCatching` 包住可挂起的请求，取消被当成 `Result.failure` 返回；`totpStatus/regenerateTotpCodes/confirmTotp` 外层又包一层 `runCatching`，协程取消无法传播，页面退出/切号时请求不会及时中止。现在两处都改为 `try/catch` 显式重抛 `CancellationException`，普通网络/解析失败仍走 `Result.failure`。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
