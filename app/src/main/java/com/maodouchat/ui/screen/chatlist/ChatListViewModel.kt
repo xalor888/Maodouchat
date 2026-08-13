@@ -1389,7 +1389,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 if (!isOwnerSessionCurrent(session)) return@launch
                 val liveToken = tokenManager.getToken().orEmpty()
                 if (liveToken.isBlank()) return@launch
-                runCatching {
+                try {
                     withOwnerRoomWrite(session) {
                         val cached = chatRepo.getChatById(chat.id)
                         val zeroed = cached?.copy(unreadCount = 0, markedUnread = false)
@@ -1398,6 +1398,10 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                             chatRepo.cacheChats(listOf(zeroed))
                         }
                     }
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    // 本地已读缓存失败不阻塞后续清理
                 }
                 // 已读后清理该会话的 tray 通知（与聊天页进入后的行为一致）
                 runCatching { com.maodouchat.util.AppNotifier.cancelMessage(getApplication(), chat.id) }
@@ -1473,7 +1477,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 if (!isOwnerSessionCurrent(session)) return@launch
                 val liveToken = tokenManager.getToken().orEmpty()
                 if (liveToken.isBlank()) return@launch
-                runCatching {
+                try {
                     withOwnerRoomWrite(session) {
                         val cached = chatRepo.getChatById(chat.id)
                         val zeroed = cached?.copy(unreadCount = 0, markedUnread = false)
@@ -1482,6 +1486,10 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                             chatRepo.cacheChats(listOf(zeroed))
                         }
                     }
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    // 本地已读缓存失败不阻塞后续清理
                 }
                 runCatching { com.maodouchat.util.AppNotifier.cancelMessage(getApplication(), chat.id) }
             }

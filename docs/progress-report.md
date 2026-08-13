@@ -5908,3 +5908,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`markAllAsRead` 绕过单条状态更新的拉黑拦截**：批量已读会给被拉黑发送者的消息写回执/标已读，泄露“我在读你消息”的侧信道。批量查询与 1:1 全局状态更新都按 viewer 双向拉黑排除发送者，回归测试覆盖。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.102 2026-08-13 无限调优：会话列表已读缓存恢复取消传播
+
+1. **`withOwnerRoomWrite` 被 `runCatching` 包住**：会话列表未读归零循环里，取消会吞掉并继续写库。两处改为 `try/catch` 显式重抛 `CancellationException`，普通本地写失败仍静默。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
