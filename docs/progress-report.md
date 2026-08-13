@@ -5830,3 +5830,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`ChatListViewModel` 批量已读用 `runCatching` 包 suspend 请求**：会话列表关闭/切号时取消被吞掉，协程继续执行。两处 `batchMarkRead` 改为 `try/catch` 显式重抛 `CancellationException`，普通失败仍静默留给下次同步收敛。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.89 2026-08-13 无限调优：AI 限流会话表有界化
+
+1. **`perChatLastCall` 只增不减**：每个 chatId × 分类的最近调用时间在登出前永久保留，长期使用无界增长。超过 2048 个键时按全局窗口淘汰过期条目，限流语义不变。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。

@@ -57,6 +57,10 @@ object AiRetryPolicy {
     @Synchronized
     fun recordCall(chatId: String, category: Category) {
         val now = nowMs()
+        if (perChatLastCall.size > MAX_TRACKED_CHAT_KEYS) {
+            val cutoff = now - GLOBAL_WINDOW_MS
+            perChatLastCall.entries.removeIf { it.value < cutoff }
+        }
         val key = "$category:$chatId"
         perChatLastCall[key] = now
         globalWindow.addLast(now)
@@ -118,6 +122,7 @@ object AiRetryPolicy {
     private const val HEAVY_MIN_INTERVAL_MS = 60_000L
     private const val GLOBAL_WINDOW_MS = 60L * 60_000L
     private const val GLOBAL_WINDOW_SIZE = 240
+    private const val MAX_TRACKED_CHAT_KEYS = 2_048
     private const val SAFE_CONNECTION_FAILURE = "CONNECTION_NOT_ESTABLISHED"
     private const val MAX_TOTAL_ATTEMPTS = 3
     private const val AUTO_RETRY_BASE_MS = 800L
