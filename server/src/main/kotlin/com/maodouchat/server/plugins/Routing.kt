@@ -6671,24 +6671,26 @@ put("type", "MARKDOWN")
                 // 双向拉黑过滤，与 sendMessage 口径一致
                 val botChatParticipants = chatRepo.getParticipantIds(msg.chatId)
                 val botBlockedIds = userRepo.blockedEitherWayIdsInTx(bot.id, botChatParticipants)
-                botChatParticipants.forEach { pid ->
-                    if (pid in botBlockedIds) return@forEach
-                    val viewerReactions = messageRepo.getReactionsForViewer(messageId, pid)
-                    val viewerPayload = MessageReactionUpdatedPayload(msg.chatId, messageId, bot.id, viewerReactions)
-                    try {
-                        sendToUser(
-                            pid,
-                            json.encodeToString(
-                                WsMessage.serializer(),
-                                WsMessage(
-                                    "MESSAGE_REACTION_UPDATED",
-                                    json.encodeToString(MessageReactionUpdatedPayload.serializer(), viewerPayload)
+                val botReactionViewers = botChatParticipants.filter { it !in botBlockedIds }
+                val botReactionsByViewer = messageRepo.getReactionsForViewers(messageId, botReactionViewers)
+                botReactionViewers.forEach { pid ->
+                    botReactionsByViewer[pid]?.let { viewerReactions ->
+                        val viewerPayload = MessageReactionUpdatedPayload(msg.chatId, messageId, bot.id, viewerReactions)
+                        try {
+                            sendToUser(
+                                pid,
+                                json.encodeToString(
+                                    WsMessage.serializer(),
+                                    WsMessage(
+                                        "MESSAGE_REACTION_UPDATED",
+                                        json.encodeToString(MessageReactionUpdatedPayload.serializer(), viewerPayload)
+                                    )
                                 )
                             )
-                        )
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (_: Exception) {
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                        }
                     }
                 }
                 call.respond(
@@ -14704,9 +14706,10 @@ put("status", "ok")
                 // 双向拉黑过滤，与 NEW_MESSAGE fanout 口径一致
                 val participants = chatRepo.getParticipantIds(msg.chatId)
                 val blockedIds = userRepo.blockedEitherWayIdsInTx(uid, participants)
-                participants.forEach { participantId ->
-                    if (participantId != uid && participantId !in blockedIds) {
-                        val viewerReactions = messageRepo.getReactionsForViewer(mid, participantId)
+                val reactionViewers = participants.filter { it != uid && it !in blockedIds }
+                val reactionsByViewer = messageRepo.getReactionsForViewers(mid, reactionViewers)
+                reactionViewers.forEach { participantId ->
+                    reactionsByViewer[participantId]?.let { viewerReactions ->
                         val viewerPayload = MessageReactionUpdatedPayload(msg.chatId, mid, uid, viewerReactions)
                         sendToUser(
                             participantId,

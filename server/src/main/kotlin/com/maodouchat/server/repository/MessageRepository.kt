@@ -833,6 +833,31 @@ class MessageRepository {
             .sortedBy { it.reactedAt }
     }
 
+    /** 批量按 viewer 过滤 reactions（广播用，替代逐收件人事务查询）。 */
+    fun getReactionsForViewers(
+        messageId: String,
+        viewerIds: Collection<String>
+    ): Map<String, List<MessageReactionResponse>> = transaction {
+        val uniqueViewers = viewerIds.distinct()
+        if (uniqueViewers.isEmpty()) return@transaction emptyMap()
+        val reactions = MessageReactions.selectAll()
+            .where { MessageReactions.messageId eq messageId }
+            .map { it.toReactionResponse() }
+        val blockedByViewer = mutableMapOf<String, MutableSet<String>>()
+        BlockedUsers.selectAll().where {
+            (BlockedUsers.blockerId inList uniqueViewers) or (BlockedUsers.blockedId inList uniqueViewers)
+        }.forEach { row ->
+            val blocker = row[BlockedUsers.blockerId]
+            val blocked = row[BlockedUsers.blockedId]
+            blockedByViewer.getOrPut(blocker) { mutableSetOf() }.add(blocked)
+            blockedByViewer.getOrPut(blocked) { mutableSetOf() }.add(blocker)
+        }
+        uniqueViewers.associateWith { viewerId ->
+            val blocked = blockedByViewer[viewerId].orEmpty()
+            reactions.filter { it.userId !in blocked }.sortedBy { it.reactedAt }
+        }
+    }
+
     data class DeleteMessageResult(
         /** true 删除成功；false 无权；null 消息已不存在（幂等） */
         val ok: Boolean?,

@@ -6013,3 +6013,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 2. **接龙序号用“现有行数+1”生成**：明细被删除后（退群清理或账号注销）可能生成重复 sequence。改为最大 `sequence + 1`，满员判断仍按实际行数。
 
 **验证**：`:server:test` 全量通过（含 `GroupPlayBlockedVisibilityTest` 扩展）；`git diff --check` 无输出。
+
+### 9.119 2026-08-13 无限调优：reaction 广播批量过滤
+
+1. **用户端与 bot 端 reaction 广播逐收件人查询**：500 人群每次回应触发 500 次 DB 事务。新增 `getReactionsForViewers` 一次批量取 reactions 与双向拉黑集合，两条广播路径复用。
+
+**验证**：`:server:test` 全量通过（含 `MessageReactionBlockedVisibilityTest` 扩展）；`git diff --check` 无输出。
