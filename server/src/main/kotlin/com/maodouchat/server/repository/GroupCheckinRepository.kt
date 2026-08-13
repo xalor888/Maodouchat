@@ -170,11 +170,17 @@ object GroupCheckinRepository {
                     .orderBy(GroupCheckins.checkinDate to SortOrder.DESC)
                     .limit(1)
                     .firstOrNull()
+                // 9.130：最近一次是昨天 → 连续天数尚未断，快照沿用昨日 streak（客户端直接渲染
+                // streak 文案，此前恒 0 会让昨天刚签过的用户误以为断签）；更早则确已断签为 0
+                val yesterday = LocalDate.now().minusDays(1).toString()
+                val liveStreak = if (previous != null && previous[GroupCheckins.checkinDate] == yesterday) {
+                    previous[GroupCheckins.streak].coerceAtLeast(1)
+                } else 0
                 return@transaction CheckinDto(
                     chatId = chatId,
                     userId = userId,
                     date = today,
-                    streak = 0,
+                    streak = liveStreak,
                     totalCount = previous?.get(GroupCheckins.totalCount) ?: 0,
                     todayRank = 0,
                     todayCount = 0,

@@ -6098,3 +6098,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`notifyFriendRequest` 的 WS fanout 不过滤拉黑**：FRIEND_REQUEST 实时事件发给双方时未检查双向拉黑——push 路径（`enqueueFriendRequest`）早已过滤，WS 漏网；申请创建后双方互相拉黑时，拒绝/取消等事件仍会实时推送给已拉黑对方的一方（对方不该再收到对方的任何动态）。补齐 per-peer 双向拉黑过滤（与 reaction/typing/群玩法广播同口径）。
 
 **验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.130 2026-08-13 无限调优：群签到快照保留未断签的连续天数
+
+1. **`myCheckin` 未签到时恒返回 `streak=0`**：客户端把该字段直接渲染为「连续签到 N 天」——昨天刚签过、连续天数尚未断的用户今天打开签到页会看到「连续签到 0 天」，误以为断签。改为：最近一次记录是昨天时沿用其 streak（≥1），更早才为 0（确已断签）。
+
+**验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
