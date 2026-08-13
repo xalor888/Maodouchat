@@ -11,6 +11,7 @@ import com.maodouchat.server.db.GroupPkVotes
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
@@ -303,10 +304,13 @@ object GroupCheckinRepository {
             val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
                 ?: return@transaction emptyList()
             if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, viewerId)) return@transaction emptyList()
-            val chains = GroupChains.selectAll().where { GroupChains.chatId eq chatId }
+            val blocked = blockedUserIdsInTx(viewerId)
+            val chainBase = GroupChains.selectAll().where { GroupChains.chatId eq chatId }
+            val chainQuery = if (blocked.isEmpty()) chainBase
+            else chainBase.andWhere { GroupChains.creatorId notInList blocked.toList() }
+            val chains = chainQuery
                 .orderBy(GroupChains.createdAt to SortOrder.DESC, GroupChains.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
-                .filterNot { it[GroupChains.creatorId] in blockedUserIdsInTx(viewerId) }
                 .toList()
             // 8.48 修复 H2：批量取全部条目（此前 toChainDto 逐条查 → N+1）
             val chainIds = chains.map { it[GroupChains.id] }
@@ -440,10 +444,13 @@ object GroupCheckinRepository {
             val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
                 ?: return@transaction emptyList()
             if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, viewerId)) return@transaction emptyList()
-            val pks = GroupPkRounds.selectAll().where { GroupPkRounds.chatId eq chatId }
+            val blocked = blockedUserIdsInTx(viewerId)
+            val pkBase = GroupPkRounds.selectAll().where { GroupPkRounds.chatId eq chatId }
+            val pkQuery = if (blocked.isEmpty()) pkBase
+            else pkBase.andWhere { GroupPkRounds.creatorId notInList blocked.toList() }
+            val pks = pkQuery
                 .orderBy(GroupPkRounds.createdAt to SortOrder.DESC, GroupPkRounds.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
-                .filterNot { it[GroupPkRounds.creatorId] in blockedUserIdsInTx(viewerId) }
                 .toList()
             // 8.48 修复 H3：批量取投票（此前 toPkDto 逐个 PK 全量载入 → N+1）
             val pkIds = pks.map { it[GroupPkRounds.id] }

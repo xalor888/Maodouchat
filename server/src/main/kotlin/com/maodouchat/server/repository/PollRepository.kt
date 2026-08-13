@@ -8,6 +8,8 @@ import com.maodouchat.server.db.GroupPolls
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.andWhere
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -52,10 +54,12 @@ object PollRepository {
         if (chatId.isBlank()) return emptyList()
         return transaction {
             val blocked = blockedUserIdsInTx(viewerId)
-            GroupPolls.selectAll().where { GroupPolls.chatId eq chatId }
+            val pollBase = GroupPolls.selectAll().where { GroupPolls.chatId eq chatId }
+            val pollQuery = if (blocked.isEmpty()) pollBase
+            else pollBase.andWhere { GroupPolls.creatorId notInList blocked.toList() }
+            pollQuery
                 .orderBy(GroupPolls.createdAt to SortOrder.DESC, GroupPolls.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
-                .filterNot { it[GroupPolls.creatorId] in blocked }
                 .map { row ->
                     val pollId = row[GroupPolls.id]
                     val options = decodeOptions(row)

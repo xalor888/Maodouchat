@@ -10,9 +10,11 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
@@ -140,10 +142,13 @@ object GroupPlayRepository {
             val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
                 ?: return@transaction emptyList()
             if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, userId)) return@transaction emptyList()
-            val polls = GroupPolls.selectAll().where { GroupPolls.chatId eq chatId }
+            val blocked = blockedUserIdsInTx(userId)
+            val pollBase = GroupPolls.selectAll().where { GroupPolls.chatId eq chatId }
+            val pollQuery = if (blocked.isEmpty()) pollBase
+            else pollBase.andWhere { GroupPolls.creatorId notInList blocked.toList() }
+            val polls = pollQuery
                 .orderBy(GroupPolls.createdAt to SortOrder.DESC, GroupPolls.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
-                .filterNot { it[GroupPolls.creatorId] in blockedUserIdsInTx(userId) }
                 .toList()
             // 8.48 修复 H4：批量取投票（此前 toPollDto 逐个 poll 全量载入 → N+1）
             val pollIds = polls.map { it[GroupPolls.id] }
