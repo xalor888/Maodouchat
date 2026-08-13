@@ -269,7 +269,13 @@ class SignalProtocol(
                 cryptoLock.withLock {
                     preKeys.forEach { protocolStore.removePreKey(it.id) }
                 }
-                preKeys = emptyList()
+                // 9.141：回滚后从 store 重建存活旧密钥列表并重写 blob——此前直接置空，
+                // getPreKeys() 与 preKeyCount() 长期不一致，且 blob 残留已删除的新密钥；
+                // 后续 SPK 轮换的 uploadKeysToServer 会拿着空列表上传被服务端拒收
+                preKeys = cryptoLock.withLock {
+                    (protocolStore as? PersistentSignalProtocolStore)?.remainingPreKeys()?.sortedBy { it.id }.orEmpty()
+                }
+                persistPreKeys()
             }
             uploaded
         }
@@ -355,8 +361,14 @@ class SignalProtocol(
                             // 「另一台设备」的默认 bundle 会话建到 recipientId 上，调用方随后仍按
                             // 入参 deviceId 加密抛 NoSessionException，且留下永不会用到的半建会话。
                             if (deviceId == DEFAULT_DEVICE_ID) {
-                                SignalKeyExchange.fetchPreKeyBundle(token, recipientId).getOrElse { throw primaryError }
+                                val fallback = SignalKeyExchange.fetchPreKeyBundle(token, recipientId)
+                                    .getOrElse { throw primaryError }
                                     .toDeviceBundle(recipientId)
+                                // 9.141：单设备回退端点解析到「编号最小的已确认设备」，未必是 1 号
+                                // （如 1 号 PENDING、2 号 CONFIRMED）——设备不符按失败处理，否则
+                                // 会话建到错误设备、调用方按入参 deviceId 加密仍 NoSessionException
+                                if (fallback.deviceId != deviceId) throw primaryError
+                                fallback
                             } else {
                                 throw primaryError
                             }

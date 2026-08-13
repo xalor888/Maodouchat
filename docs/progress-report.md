@@ -6211,3 +6211,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实并排除子代理其余发现：通知设置 `sync()` 的「快速双击混写/回滚」已由 `syncGeneration` 世代守卫覆盖（被取代请求的响应直接丢弃，最后请求携带最新 UI 值）；客户端偏好云端 blob 落设备全局存储属产品设计（设备级安全开关跨账号同步，且拉取路径已有双门禁）；公告 `publish()` 覆盖未来 `startsAt` 为文档化的「手动发布立即生效」语义。均不做改动。
 
 **验证**：`:server:compileKotlin` 通过；`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
+
+### 9.141 2026-08-13 无限调优：PreKey 补库回滚状态撕裂、单设备回退会话建错设备
+
+1. **`replenishPreKeysIfNeeded` 失败回滚撕裂密钥状态（客户端，子代理审计发现）**：上传失败路径把新生成密钥从 store 删除后直接 `preKeys = emptyList()`——存活旧密钥既不在列表也不在 blob（blob 在删除前已写入、残留已删的新密钥）。此后 `getPreKeys()` 恒空而 `preKeyCount()` 仍计数存活旧钥，列表/store 长期不一致；期间 `rotateSignedPreKeyIfNeeded` 的 `uploadKeysToServer` 会拿着空列表上传被服务端 10..100 契约拒收，SPK 轮换被连带卡死至下次重启重初始化。修复：回滚后从 store 重建存活旧密钥列表并重写 blob。
+2. **`ensureSession` 单设备回退可能把会话建到错误设备**：8.46 的守卫只校验「入参 deviceId == 默认设备」，但单设备回退端点（`/prekey-bundle`）解析到「编号最小的已确认设备」——当 1 号设备 PENDING、2 号 CONFIRMED 时，回退拿到 2 号 bundle、会话建到 2 号并返回成功，调用方随后按入参 1 号加密仍抛 NoSessionException，且留下永不适用的半建会话。修复：回退后校验 `fallback.deviceId == 入参 deviceId`，不符按失败处理（保留原 primaryError）。
+
+另核实子代理其余发现：多设备/多收件人加密路径的自设备排除（521 行）与 `decryptMultiDeviceEnvelope` 的默认设备双条件匹配（648-655）均正确；`processSenderKeyDistributionEnvelope`/`decryptGroupContentEnvelope` 的 epoch 方向校验一致且有 `>0` 守卫；`encryptGroupContentEnvelope` 用 `requireExistingGroupDistributionId` 从不静默铸新分发；信任变更 → 删会话逻辑位于 store（已审 clean）。均不做改动。
+
+**验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
