@@ -5608,3 +5608,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **指纹表仍全量载入**：`refreshIndex` 在清理孤儿后仍调用 `getFingerprints()` 一次性载入全部 `(messageId, contentHash)`。新增 `getFingerprintsForIds`，随 500 条消息批次只查询本批指纹，重建索引的内存峰值不再随文档总数线性增长。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.52 2026-08-13 无限调优：点赞者列表可见性分页
+
+1. **likers LIMIT 后过滤拉黑**：`listPostLikers` 先 `LIMIT boundedLimit*2` 再过滤双向拉黑，前几行若多为拉黑用户会少返回。改为按 `(createdAt, userId)` 游标分批拉取，最多 20 批，直到凑够可见用户或到表尾。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

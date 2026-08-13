@@ -625,16 +625,41 @@ class PostRepository {
         return transaction {
             if (!canViewInTransaction(postId, currentUserId, lockPost = false)) return@transaction null
             val blockedUserIds = getBlockedEitherWayUserIds(currentUserId)
-            (PostLikes innerJoin Users)
-                .selectAll()
-                .where { PostLikes.postId eq postId }
-                .orderBy(PostLikes.createdAt to SortOrder.DESC)
-                .limit(boundedLimit * 2)
-                .asSequence()
-                .map { it.toPublicUser() }
-                .filter { it.id !in blockedUserIds }
-                .take(boundedLimit)
-                .toList()
+            val result = mutableListOf<UserResponse>()
+            var cursorTime: Long? = null
+            var cursorUserId: String? = null
+            var iterations = 0
+            while (result.size < boundedLimit && iterations < MAX_COMMENT_PAGINATION_ITERATIONS) {
+                val batchSize = ((boundedLimit - result.size) * 3).coerceAtLeast(boundedLimit)
+                val base = (PostLikes innerJoin Users)
+                    .selectAll()
+                    .where { PostLikes.postId eq postId }
+                val time = cursorTime
+                val uid = cursorUserId
+                val batch = if (time == null || uid == null) {
+                    base.orderBy(PostLikes.createdAt to SortOrder.DESC, PostLikes.userId to SortOrder.DESC)
+                        .limit(batchSize)
+                        .toList()
+                } else {
+                    base.andWhere {
+                        (PostLikes.createdAt less time) or
+                            ((PostLikes.createdAt eq time) and (PostLikes.userId less uid))
+                    }
+                        .orderBy(PostLikes.createdAt to SortOrder.DESC, PostLikes.userId to SortOrder.DESC)
+                        .limit(batchSize)
+                        .toList()
+                }
+                if (batch.isEmpty()) break
+                result += batch.asSequence()
+                    .map { it.toPublicUser() }
+                    .filter { it.id !in blockedUserIds }
+                    .take(boundedLimit - result.size)
+                val last = batch.last()
+                cursorTime = last[PostLikes.createdAt]
+                cursorUserId = last[PostLikes.userId]
+                iterations++
+            }
+            result
         }
     }
 
