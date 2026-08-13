@@ -149,7 +149,7 @@ class ReportRepository {
     fun getMyReports(reporterId: String, limit: Int = 50): List<ReportResponse> = transaction {
         Reports.selectAll()
             .where { Reports.reporterId eq reporterId }
-            .orderBy(Reports.createdAt to SortOrder.DESC)
+            .orderBy(Reports.createdAt to SortOrder.DESC, Reports.id to SortOrder.DESC)
             .limit(limit.coerceIn(1, 100))
             .map { it.toResponse() }
     }
@@ -165,7 +165,7 @@ class ReportRepository {
         val normalizedStatus = status?.trim()?.uppercase()?.takeIf { it.isNotBlank() && it != "ALL" }
         val query = Reports.selectAll()
         if (normalizedStatus != null) query.andWhere { Reports.status eq normalizedStatus }
-        query.orderBy(Reports.createdAt to SortOrder.DESC)
+        query.orderBy(Reports.createdAt to SortOrder.DESC, Reports.id to SortOrder.DESC)
             .limit(limit.coerceIn(1, 200), offset.coerceAtLeast(0))
             .map { it.toResponse() }
     }

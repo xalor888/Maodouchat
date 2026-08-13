@@ -136,7 +136,11 @@ class UserTagRepository {
             if (matchingUserIds != null && matchingUserIds.isNotEmpty()) {
                 q.andWhere { UserTagAssignments.userId inList matchingUserIds }
             } else q
-        }.orderBy(UserTagAssignments.createdAt to SortOrder.DESC)
+        }.orderBy(
+            UserTagAssignments.createdAt to SortOrder.DESC,
+            UserTagAssignments.tagId to SortOrder.DESC,
+            UserTagAssignments.userId to SortOrder.DESC
+        )
             .limit(limit, offset)
             .map { it.toAssignmentRow() }
     }
@@ -181,7 +185,11 @@ class UserTagRepository {
 
     fun userAssignments(userId: String): List<AssignmentRow> = transaction {
         UserTagAssignments.selectAll().where { UserTagAssignments.userId eq userId }
-            .orderBy(UserTagAssignments.createdAt to SortOrder.DESC)
+            .orderBy(
+                UserTagAssignments.createdAt to SortOrder.DESC,
+                UserTagAssignments.tagId to SortOrder.DESC,
+                UserTagAssignments.userId to SortOrder.DESC
+            )
             .map { it.toAssignmentRow() }
     }
 

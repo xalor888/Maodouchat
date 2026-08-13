@@ -70,7 +70,10 @@ object BotRepository {
 
     fun listByOwner(ownerUserId: String): List<BotDto> = transaction {
         BotApps.selectAll().where { BotApps.ownerUserId eq ownerUserId }
-            .orderBy(BotApps.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+            .orderBy(
+                BotApps.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
+                BotApps.id to org.jetbrains.exposed.sql.SortOrder.DESC
+            )
             .map { it.toDto() }
     }
 
@@ -441,7 +444,10 @@ object BotRepository {
     fun listCommandLogs(botId: String, limit: Int = 50, offset: Int = 0): List<CommandLogDto> = transaction {
         BotCommandLogs.selectAll()
             .where { BotCommandLogs.botId eq botId }
-            .orderBy(BotCommandLogs.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+            .orderBy(
+                BotCommandLogs.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
+                BotCommandLogs.id to org.jetbrains.exposed.sql.SortOrder.DESC
+            )
             .limit(limit.coerceIn(1, 200), offset.toLong().coerceAtLeast(0))
             .map {
                 CommandLogDto(
@@ -462,7 +468,10 @@ object BotRepository {
 
     fun adminList(limit: Int = 50, offset: Int = 0): List<BotDto> = transaction {
         BotApps.selectAll()
-            .orderBy(BotApps.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+            .orderBy(
+                BotApps.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
+                BotApps.id to org.jetbrains.exposed.sql.SortOrder.DESC
+            )
             .limit(limit.coerceIn(1, 200), offset.toLong().coerceAtLeast(0))
             .map { it.toDto() }
     }

@@ -5740,3 +5740,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **AI 本地统计仍会扫描密聊明文**：`getSearchableMessages/getSearchableMessagesForChat` 被会话画像、周报、情绪回复、消息分类、归档建议共用，没有排除 `secret_chats`；即使聊天页按钮有门禁，归档建议这类全局后台任务仍会逐条读取密聊正文做关键词统计。两条 DAO 查询统一加 `chatId NOT IN (SELECT chatId FROM secret_chats)`，密聊不参与任何 AI 本地聚合。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.74 2026-08-13 无限调优：offset 分页固定二级排序
+
+1. **多张列表只按 createdAt DESC + OFFSET 分页**：同一毫秒内插入多条记录时，翻页会跳过或重复行。群审计、举报、公告、用户标签、Bot 日志/列表统一补主键（复合键取全列）作为稳定 tie-break，保证每行恰好出现一次。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

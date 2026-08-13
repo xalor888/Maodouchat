@@ -101,7 +101,7 @@ class AnnouncementRepository {
                 (SystemAnnouncements.title like "%$escaped%") or (SystemAnnouncements.content like "%$escaped%")
             }
         }
-        base.orderBy(SystemAnnouncements.createdAt to SortOrder.DESC)
+        base.orderBy(SystemAnnouncements.createdAt to SortOrder.DESC, SystemAnnouncements.id to SortOrder.DESC)
             .limit(limit, offset)
             .map { it.toAnnouncementRow() }
     }
