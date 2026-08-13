@@ -38,7 +38,7 @@ class AiOperationRepository(private val dao: AiOperationDao) {
 
     suspend fun dismiss(operationId: String) = dao.delete(operationId)
 
-    suspend fun deleteByChatId(chatId: String) = dao.deleteByChatId(chatId)
+    suspend fun deleteByChatId(ownerUserId: String, chatId: String) = dao.deleteByChatId(ownerUserId, chatId)
 
     suspend fun pruneTerminal(retentionMs: Long = 7L * 24L * 60L * 60L * 1_000L): Int =
         dao.pruneTerminal(System.currentTimeMillis() - retentionMs)

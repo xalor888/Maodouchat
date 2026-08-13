@@ -327,15 +327,34 @@ object VoicePlayer {
                 when (change) {
                     android.media.AudioManager.AUDIOFOCUS_LOSS,
                     android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                        // 9.142：焦点回调异步到达，期间用户可能已切换到其它语音——仅当快照与
+                        // 当前播放一致时才暂停；绝不走 togglePlayPause 的 else=play 分支把旧语音切回
                         resumeAfterFocusLoss = _state.value.isPlaying
-                        if (_state.value.isPlaying && playingId != null) {
-                            runCatching { togglePlayPause(playingId, currentSource) }
+                        val mp = player
+                        if (_state.value.isPlaying && playingId != null && playingId == currentId && mp != null) {
+                            runCatching {
+                                if (mp.isPlaying) {
+                                    mp.pause()
+                                    _state.value = _state.value.copy(isPlaying = false)
+                                    progressJob?.cancel()
+                                }
+                            }
                         }
                     }
                     android.media.AudioManager.AUDIOFOCUS_GAIN -> {
-                        if (resumeAfterFocusLoss && !_state.value.isPlaying && playingId != null) {
+                        // 9.142：恢复同样校验快照一致——用户已切走时不得把旧语音拉起
+                        val mp = player
+                        if (resumeAfterFocusLoss && !_state.value.isPlaying && playingId != null &&
+                            playingId == currentId && mp != null
+                        ) {
                             resumeAfterFocusLoss = false
-                            runCatching { togglePlayPause(playingId, currentSource) }
+                            runCatching {
+                                if (!mp.isPlaying) {
+                                    mp.start()
+                                    _state.value = _state.value.copy(isPlaying = true)
+                                    startProgressLoop(mp, _state.value.durationMs)
+                                }
+                            }
                         }
                     }
                 }

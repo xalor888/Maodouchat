@@ -1889,7 +1889,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         } catch (_: Exception) {
         }
         aiTaskRepo.deleteByChatId(chatId)
-        aiOperationRepo.deleteByChatId(chatId)
+        aiOperationRepo.deleteByChatId(ownerUserId, chatId)
         aiSummaryRepo.deleteByChatId(chatId)
         app.database.chatDraftDao().deleteForChat(ownerUserId, chatId)
         app.database.chatLockDao().remove(chatId)

@@ -6220,3 +6220,14 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实子代理其余发现：多设备/多收件人加密路径的自设备排除（521 行）与 `decryptMultiDeviceEnvelope` 的默认设备双条件匹配（648-655）均正确；`processSenderKeyDistributionEnvelope`/`decryptGroupContentEnvelope` 的 epoch 方向校验一致且有 `>0` 守卫；`encryptGroupContentEnvelope` 用 `requireExistingGroupDistributionId` 从不静默铸新分发；信任变更 → 删会话逻辑位于 store（已审 clean）。均不做改动。
 
 **验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
+
+### 9.142 2026-08-13 无限调优：AI 操作跨账号误删、语音焦点回调错播、链接预览重定向/裁剪竞态
+
+1. **`AiOperationDao.deleteByChatId` 跨账号误删（子代理审计发现）**：`ai_operations` 表有 `ownerUserId` 列且全部查询都按它限定，唯独删除仅按 `chatId`——同一群聊里另一账号的 QUEUED/RUNNING AI 操作在本人退群/删会话时被连带删除。改为 `WHERE ownerUserId = :ownerUserId AND chatId = :chatId`，并贯通 `AiOperationRepository` 与两处调用（ChatListViewModel/ChatDetailViewModel 清理路径，owner 快照均在作用域内）。
+2. **`VoicePlayer` 焦点丢失回调错播旧语音（子代理审计发现）**：`setOnAudioFocusChangeListener` 捕获快照后调 `togglePlayPause(playingId, ...)`，其 `else` 分支语义是「重新 play」——回调异步到达期间用户已切换语音时，旧语音被强行切回。改为内联 pause/resume 并校验「快照 id == currentId」一致，绝不落入 play 分支（恢复同理）。
+3. **`LinkPreviewRepository` 重定向后用旧 URL 解析 og:image（子代理审计发现）**：SSRF 校验针对重定向后最终 URL，但 `parseHtmlPreview` 仍拿到重定向前 URL——相对路径资源指错 host。改为传入规范化后的最终 URL。
+4. **`LinkPreviewRepository.trimCacheIfNeeded` 跨 URL 并发裁剪竞态**：各 fetch 持 per-URL 锁，共享 cache/negativeCache 的 size 快照 + 批量删除非原子，两并发请求可各自算出 remaining 超额清空缓存。加全局 `trimMonitor` 串行化。
+
+另核实并排除子代理其余发现：`ai_tasks`/`ai_summary_cache` 无 `ownerUserId` 列属 schema 级缺口（需迁移+回填，本轮不动表结构，记录在案）；`extractHead` 大小写下标（ASCII 标签大小写不改变长度，安全）；`cleanText` 实体覆盖不全仅显示瑕疵（Compose Text 无 HTML 解释）；`GroupCheckinRepository.checkIn` 重复签到竞态已被 chat 行锁 + existing 检查覆盖；`formatPollShare` 未转义 `|` 但 `parseVoteShortcut` 无调用方（潜在路径不触发）；`SignalKeyDao` LIKE 前缀无 ESCAPE 但 accountId 为服务端生成 UUID（不可能含通配符）。均不做改动。
+
+**验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。

@@ -2841,7 +2841,7 @@ class ChatDetailViewModel(
                     // 定时消息清理失败不阻塞会话删除
                 }
                 aiTaskRepo.deleteByChatId(event.chatId)
-                aiOperationRepo.deleteByChatId(event.chatId)
+                aiOperationRepo.deleteByChatId(revisionOwnerUserId, event.chatId)
                 aiSummaryRepo.deleteByChatId(event.chatId)
                 app.database.chatDraftDao().deleteForChat(revisionOwnerUserId, event.chatId)
                 app.database.chatLockDao().remove(event.chatId)

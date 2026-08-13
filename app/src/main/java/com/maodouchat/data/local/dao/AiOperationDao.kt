@@ -120,8 +120,10 @@ interface AiOperationDao {
     @Query("DELETE FROM ai_operations WHERE id = :operationId")
     suspend fun delete(operationId: String)
 
-    @Query("DELETE FROM ai_operations WHERE chatId = :chatId")
-    suspend fun deleteByChatId(chatId: String)
+    // 9.142：按 ownerUserId 限定——此前仅按 chatId 删除，同一群聊的另一账号的
+    // QUEUED/RUNNING AI 操作会被连带删除（跨账号数据丢失）
+    @Query("DELETE FROM ai_operations WHERE ownerUserId = :ownerUserId AND chatId = :chatId")
+    suspend fun deleteByChatId(ownerUserId: String, chatId: String)
 
     @Query("DELETE FROM ai_operations")
     suspend fun deleteAll()

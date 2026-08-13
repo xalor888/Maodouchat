@@ -32,6 +32,9 @@ object LinkPreviewRepository {
     private class InFlightLock(val mutex: Mutex = Mutex(), var users: Int = 0)
     private val inFlight = ConcurrentHashMap<String, InFlightLock>()
     private val generation = AtomicLong(0L)
+    // 9.142：跨 URL 并发 fetch 各自持 per-URL 锁，共享缓存的裁剪需要独立全局监视器——
+    // 此前两个并发 fetch 同时算 remaining 并批量删除，会超额清空缓存
+    private val trimMonitor = Any()
 
     fun cached(url: String): LinkPreviewPolicy.Preview? = cache[url]
 
@@ -100,7 +103,8 @@ object LinkPreviewRepository {
             .build()
         client.newCall(request).execute().use { response ->
             // 验证重定向后的最终 URL（防止通过重定向绕过 SSRF 检查）
-            if (LinkPreviewPolicy.sanitizeUrl(response.request.url.toString()) == null) return null
+            val finalUrl = response.request.url.toString()
+            if (LinkPreviewPolicy.sanitizeUrl(finalUrl) == null) return null
             if (!response.isSuccessful) return null
             val body = response.body ?: return null
             val contentType = body.contentType()?.toString().orEmpty().lowercase()
@@ -120,13 +124,15 @@ object LinkPreviewRepository {
             }
             val html = buffer.readUtf8()
             if (html.isBlank()) return null
-            return LinkPreviewPolicy.parseHtmlPreview(url, html)
+            // 9.142：og:image 等相对路径须按「重定向后的最终 URL」解析——
+            // 此前传入重定向前 URL，相对资源会指错 host
+            return LinkPreviewPolicy.parseHtmlPreview(finalUrl, html)
         }
     }
 
-    private fun trimCacheIfNeeded() {
+    private fun trimCacheIfNeeded() = synchronized(trimMonitor) {
         val size = cache.size + negativeCache.size
-        if (size <= CACHE_LIMIT) return
+        if (size <= CACHE_LIMIT) return@synchronized
         var remaining = size - CACHE_LIMIT + 8
         negativeCache.toList().take(remaining).forEach {
             if (negativeCache.remove(it)) remaining--
