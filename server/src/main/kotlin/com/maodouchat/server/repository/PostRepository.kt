@@ -5,6 +5,7 @@ import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.CommentLikes
 import com.maodouchat.server.db.PostComments
+import com.maodouchat.server.db.PostImageClaims
 import com.maodouchat.server.db.PostLikes
 import com.maodouchat.server.db.Posts
 import com.maodouchat.server.db.Users
@@ -36,6 +37,7 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import org.jetbrains.exposed.exceptions.ExposedSQLException
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -58,11 +60,15 @@ class PostRepository {
                 require(imageUrls.all { FileStorageService.isOwnedPostImageUrl(it, authorId) }) {
                     "动态图片不存在或不属于当前账号"
                 }
-                // 8.48 修复 M13：刚上传的 owned 图片（文件名 UUID 唯一）不可能已被其他动态
-                // 使用——只查进程内占用缓存（imageClaimLock 已原子），跳过 DB LIKE 全表扫
-                //（此前每张新图缓存 miss 后逐张 LIKE 全表扫，posts 越大越慢）。
-                // 多实例并发的 DB 级唯一约束见 L2 记录（单实例由 imageClaimLock 保证）。
-                require(filenames.none { imageFilenameToPostId[it] != null }) { "动态图片已被其他动态使用" }
+                // 8.48 修复 M13：热路径查进程内占用缓存，冷启动/多实例以 DB 唯一占用表为准；
+                // 避免服务重启后同一张图片被重复发布（删一条会破坏另一条动态的图片）。
+                require(filenames.none { filename ->
+                    imageFilenameToPostId[filename] != null ||
+                        PostImageClaims.select(PostImageClaims.postId)
+                            .where { PostImageClaims.filename eq filename }
+                            .limit(1)
+                            .any()
+                }) { "动态图片已被其他动态使用" }
                 val postId = "p_${UUID.randomUUID()}"
                 val now = System.currentTimeMillis()
                 Posts.insert {
@@ -72,6 +78,20 @@ class PostRepository {
                     it[Posts.imageUrls] = json.encodeToString(imageUrlListSerializer, imageUrls)
                     it[Posts.visibility] = normalizeVisibility(visibility)
                     it[createdAt] = now
+                }
+                filenames.forEach { filename ->
+                    try {
+                        PostImageClaims.insert {
+                            it[PostImageClaims.filename] = filename
+                            it[PostImageClaims.postId] = postId
+                            it[PostImageClaims.claimedAt] = now
+                        }
+                    } catch (conflict: ExposedSQLException) {
+                        if (isUniqueViolation(conflict)) {
+                            throw IllegalArgumentException("动态图片已被其他动态使用")
+                        }
+                        throw conflict
+                    }
                 }
                 getPostById(postId, authorId)!!
             }
@@ -356,17 +376,25 @@ class PostRepository {
             imageFilenameToPostId.remove(filename, cachedPostId)
         }
         return transaction {
-            // 文件名是 URL 尾段；imageUrls 为 JSON 数组字符串，用 LIKE 收窄后再精确匹配
-            val needle = "%$filename%"
-            Posts.select(Posts.id, Posts.imageUrls)
-                .where { Posts.imageUrls like needle }
-                .firstOrNull { row ->
-                    decodeImageUrls(row[Posts.imageUrls]).any { url ->
-                        url.substringAfterLast("/") == filename
-                    }
-                }
-                ?.get(Posts.id)
+            PostImageClaims.select(PostImageClaims.postId)
+                .where { PostImageClaims.filename eq filename }
+                .limit(1)
+                .firstOrNull()
+                ?.get(PostImageClaims.postId)
                 ?.also { postId -> cacheImageClaim(filename, postId) }
+                ?: run {
+                    // 文件名是 URL 尾段；imageUrls 为 JSON 数组字符串，用 LIKE 收窄后再精确匹配
+                    val needle = "%$filename%"
+                    Posts.select(Posts.id, Posts.imageUrls)
+                        .where { Posts.imageUrls like needle }
+                        .firstOrNull { row ->
+                            decodeImageUrls(row[Posts.imageUrls]).any { url ->
+                                url.substringAfterLast("/") == filename
+                            }
+                        }
+                        ?.get(Posts.id)
+                        ?.also { postId -> cacheImageClaim(filename, postId) }
+                }
         }
     }
 
@@ -858,12 +886,20 @@ class PostRepository {
 
     private fun deletePostRow(postId: String): Boolean {
         // 1.126：删除动态时一并清理其全部评论的点赞（孤儿行不再等 6h 兜底）
+        val claimedFilenames = Posts.select(Posts.imageUrls)
+            .where { Posts.id eq postId }
+            .firstOrNull()
+            ?.let { decodeImageUrls(it[Posts.imageUrls]).map { url -> url.substringAfterLast('/') } }
+            .orEmpty()
         val commentIds = PostComments.select(PostComments.id).where { PostComments.postId eq postId }.map { it[PostComments.id] }
         if (commentIds.isNotEmpty()) {
             CommentLikes.deleteWhere { CommentLikes.commentId inList commentIds }
         }
         PostComments.deleteWhere { PostComments.postId eq postId }
         PostLikes.deleteWhere { PostLikes.postId eq postId }
+        if (claimedFilenames.isNotEmpty()) {
+            PostImageClaims.deleteWhere { PostImageClaims.filename inList claimedFilenames }
+        }
         return Posts.deleteWhere { Posts.id eq postId } > 0
     }
 

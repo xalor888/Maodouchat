@@ -11,6 +11,7 @@ import com.maodouchat.server.db.GroupCheckins
 import com.maodouchat.server.db.GroupPkRounds
 import com.maodouchat.server.db.GroupPkVotes
 import com.maodouchat.server.db.PostComments
+import com.maodouchat.server.db.PostImageClaims
 import com.maodouchat.server.db.Posts
 import com.maodouchat.server.db.SystemAnnouncements
 import com.maodouchat.server.db.UserTagAssignments
@@ -69,10 +70,29 @@ class AccountDeactivationCleanupTest {
                 it[GroupChains.active] = true
                 it[GroupChains.createdAt] = now
             }
+            GroupChains.insert {
+                it[GroupChains.id] = "chain_2"
+                it[GroupChains.chatId] = "g_1"
+                it[GroupChains.creatorId] = "u_del"
+                it[GroupChains.title] = "Deleted Chain"
+                it[GroupChains.topic] = "Topic"
+                it[GroupChains.maxEntries] = 200
+                it[GroupChains.active] = true
+                it[GroupChains.createdAt] = now
+            }
             GroupPkRounds.insert {
                 it[GroupPkRounds.id] = "pk_1"
                 it[GroupPkRounds.chatId] = "g_1"
                 it[GroupPkRounds.creatorId] = "u_other"
+                it[GroupPkRounds.leftTitle] = "Left"
+                it[GroupPkRounds.rightTitle] = "Right"
+                it[GroupPkRounds.active] = true
+                it[GroupPkRounds.createdAt] = now
+            }
+            GroupPkRounds.insert {
+                it[GroupPkRounds.id] = "pk_2"
+                it[GroupPkRounds.chatId] = "g_1"
+                it[GroupPkRounds.creatorId] = "u_del"
                 it[GroupPkRounds.leftTitle] = "Left"
                 it[GroupPkRounds.rightTitle] = "Right"
                 it[GroupPkRounds.active] = true
@@ -164,6 +184,12 @@ class AccountDeactivationCleanupTest {
                 it[GroupPkVotes.choice] = "right"
                 it[GroupPkVotes.votedAt] = now
             }
+            GroupPkVotes.insert {
+                it[GroupPkVotes.pkId] = "pk_2"
+                it[GroupPkVotes.userId] = "u_other"
+                it[GroupPkVotes.choice] = "left"
+                it[GroupPkVotes.votedAt] = now
+            }
             Posts.insert {
                 it[Posts.id] = "post_1"
                 it[Posts.authorId] = "u_other"
@@ -171,6 +197,19 @@ class AccountDeactivationCleanupTest {
                 it[Posts.imageUrls] = "[]"
                 it[Posts.visibility] = "PUBLIC"
                 it[Posts.createdAt] = now
+            }
+            Posts.insert {
+                it[Posts.id] = "post_2"
+                it[Posts.authorId] = "u_del"
+                it[Posts.content] = "Deleted Post"
+                it[Posts.imageUrls] = """["http://localhost:8080/api/files/post-image/post_u_del_12345678.jpg"]"""
+                it[Posts.visibility] = "PUBLIC"
+                it[Posts.createdAt] = now
+            }
+            PostImageClaims.insert {
+                it[PostImageClaims.filename] = "post_u_del_12345678.jpg"
+                it[PostImageClaims.postId] = "post_2"
+                it[PostImageClaims.claimedAt] = now
             }
             PostComments.insert {
                 it[PostComments.id] = "comment_1"
@@ -203,6 +242,11 @@ class AccountDeactivationCleanupTest {
             assertTrue(GroupChainEntries.selectAll().where { GroupChainEntries.userId eq "u_del" }.empty())
             assertTrue(GroupPkVotes.selectAll().where { GroupPkVotes.userId eq "u_del" }.empty())
             assertTrue(CommentLikes.selectAll().where { CommentLikes.userId eq "u_del" }.empty())
+            assertTrue(PostImageClaims.selectAll().where { PostImageClaims.postId eq "post_2" }.empty())
+            assertTrue(GroupChains.selectAll().where { GroupChains.id eq "chain_2" }.empty())
+            assertTrue(GroupChainEntries.selectAll().where { GroupChainEntries.chainId eq "chain_2" }.empty())
+            assertTrue(GroupPkRounds.selectAll().where { GroupPkRounds.id eq "pk_2" }.empty())
+            assertTrue(GroupPkVotes.selectAll().where { GroupPkVotes.pkId eq "pk_2" }.empty())
 
             assertTrue(AnnouncementAcks.selectAll().where { AnnouncementAcks.userId eq "u_other" }.count() == 1L)
             assertTrue(UserTagAssignments.selectAll().where { UserTagAssignments.userId eq "u_other" }.count() == 1L)
@@ -210,6 +254,8 @@ class AccountDeactivationCleanupTest {
             assertTrue(GroupChainEntries.selectAll().where { GroupChainEntries.userId eq "u_other" }.count() == 1L)
             assertTrue(GroupPkVotes.selectAll().where { GroupPkVotes.userId eq "u_other" }.count() == 1L)
             assertTrue(CommentLikes.selectAll().where { CommentLikes.userId eq "u_other" }.count() == 1L)
+            assertTrue(GroupChains.selectAll().where { GroupChains.id eq "chain_1" }.count() == 1L)
+            assertTrue(GroupPkRounds.selectAll().where { GroupPkRounds.id eq "pk_1" }.count() == 1L)
         }
     }
 

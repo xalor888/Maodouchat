@@ -220,6 +220,14 @@ object Posts : Table("posts") {
     }
 }
 
+/** 动态图片唯一占用：一张上传图片只能被一条动态使用（DB 级防重复，跨进程/重启仍生效）。 */
+object PostImageClaims : Table("post_image_claims") {
+    val filename = varchar("filename", 200)
+    val postId = varchar("post_id", 100) references Posts.id
+    val claimedAt = long("claimed_at")
+    override val primaryKey = PrimaryKey(filename)
+}
+
 object PostLikes : Table("post_likes") {
     val postId = varchar("post_id", 100) references Posts.id
     val userId = varchar("user_id", 50) references Users.id
@@ -680,7 +688,7 @@ fun initDatabase() {
 
         SchemaUtils.createMissingTablesAndColumns(
             Users, Chats, ChatParticipants, ChatUserSettings, GroupAuditLogs, Messages, MessageMutations,
-            EncryptedAttachments, SignalKeys, SignalDevices, SignalingMessages, Posts, PostLikes, PostComments, CommentLikes,
+            EncryptedAttachments, SignalKeys, SignalDevices, SignalingMessages, Posts, PostImageClaims, PostLikes, PostComments, CommentLikes,
             BlockedUsers, UserLocations, AuthSessions, RefreshTokens, RevokedAccessTokens, StarMessages, PinnedMessages,
             ReadReceipts, MessageReactions, SenderKeyDistributions, AiPreferences, NotificationPreferences,
             PushTokens, GroupPolls, GroupPollVotes, BotApps, BotCommandLogs, BotUpdateInbox, Reports, ModerationAuditLog, AiAuditLogs, AiSummarySyncEnvelopes, ModerationRules,

@@ -5764,3 +5764,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **重连刷新 token 的 `runCatching` 吞掉取消**：`refreshTokenThenReconnect` 与 `scheduleReconnectAt` 在 `scope.launch` 里用 `runCatching` 包可挂起刷新，WebSocket scope 取消后协程仍继续执行调度分支。两处改为 `try/catch` 显式重抛 `CancellationException`，普通刷新失败仍按空结果处理。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.78 2026-08-13 无限调优：动态图片占用下沉 DB 唯一表
+
+1. **动态图片“只能被一条动态使用”只靠进程内缓存**：`PostRepository.createPost` 只查 `imageFilenameToPostId`，服务重启/缓存淘汰后同一张图片可被两条动态引用，删一条会把另一条动态的图片一并清掉。新增 `post_image_claims` 唯一占用表，发帖事务内先查再写占用，删除动态/注销时同步清理；`findPostIdByImageFilename` 优先走占用表，旧行保留 Posts LIKE 兜底。新增测试用全新 `PostRepository` 实例模拟缓存冷启动，确认 DB 仍拒绝重复引用。
+
+**验证**：`:server:test` 全量通过（含新增 `PostImageClaimTest`）；`git diff --check` 无输出。

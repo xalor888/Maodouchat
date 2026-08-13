@@ -553,9 +553,11 @@ class UserRepository {
             if (authoredPostIds.isNotEmpty()) {
                 PostLikes.deleteWhere { PostLikes.postId inList authoredPostIds }
                 PostComments.deleteWhere { PostComments.postId inList authoredPostIds }
+                PostImageClaims.deleteWhere { PostImageClaims.postId inList authoredPostIds }
             }
             Posts.deleteWhere { Posts.authorId eq userId }
             deletePollsCreatedBy(listOf(userId))
+            deleteGroupPlayCreatedBy(listOf(userId))
             GroupPollVotes.deleteWhere { GroupPollVotes.userId eq userId }
             GroupCheckins.deleteWhere { GroupCheckins.userId eq userId }
             GroupChainEntries.deleteWhere { GroupChainEntries.userId eq userId }
@@ -712,6 +714,24 @@ class UserRepository {
         if (pollIds.isEmpty()) return
         GroupPollVotes.deleteWhere { GroupPollVotes.pollId inList pollIds }
         GroupPolls.deleteWhere { GroupPolls.id inList pollIds }
+    }
+
+    private fun deleteGroupPlayCreatedBy(creatorIds: List<String>) {
+        if (creatorIds.isEmpty()) return
+        val chainIds = GroupChains.select(GroupChains.id)
+            .where { GroupChains.creatorId inList creatorIds }
+            .map { it[GroupChains.id] }
+        if (chainIds.isNotEmpty()) {
+            GroupChainEntries.deleteWhere { GroupChainEntries.chainId inList chainIds }
+            GroupChains.deleteWhere { GroupChains.id inList chainIds }
+        }
+        val pkIds = GroupPkRounds.select(GroupPkRounds.id)
+            .where { GroupPkRounds.creatorId inList creatorIds }
+            .map { it[GroupPkRounds.id] }
+        if (pkIds.isNotEmpty()) {
+            GroupPkVotes.deleteWhere { GroupPkVotes.pkId inList pkIds }
+            GroupPkRounds.deleteWhere { GroupPkRounds.id inList pkIds }
+        }
     }
 
     /**
