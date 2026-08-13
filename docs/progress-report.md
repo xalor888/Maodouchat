@@ -5986,3 +5986,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **群审计先 LIMIT 再过滤拉黑会少返回**：被拉黑操作者/目标占满首批时，可见行不足 limit。改为按 `(createdAt,id)` 游标分批拉取可见行，offset 应用于过滤后的可见行，直到凑满一页或到表尾。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.115 2026-08-13 无限调优：版主删评论补全清理
+
+1. **`deleteCommentForModeration` 只删评论行**：子回复的 `parentId` 会悬挂，评论点赞还会触发外键残留。与用户自删对齐：先置空子回复 parentId，再删除评论点赞，最后删评论行。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

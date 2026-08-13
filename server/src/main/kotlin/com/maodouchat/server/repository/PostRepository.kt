@@ -326,6 +326,9 @@ class PostRepository {
 
     fun deleteCommentForModeration(commentId: String): Boolean {
         return transaction {
+            // 与用户自删一致：先置空子回复的 parentId，避免悬挂引用。
+            PostComments.update({ PostComments.parentId eq commentId }) { it[parentId] = null }
+            CommentLikes.deleteWhere { CommentLikes.commentId eq commentId }
             PostComments.deleteWhere { PostComments.id eq commentId } > 0
         }
     }
