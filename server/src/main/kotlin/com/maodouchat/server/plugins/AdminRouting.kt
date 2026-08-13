@@ -1637,10 +1637,10 @@ put("pushTokens", JsonArray(push))
                         ErrorResponse("tokenHashPrefix and all=true are mutually exclusive")
                     )
                 }
-                if (!revokeAll && !prefix.matches(Regex("^[0-9a-fA-F]{8,64}$"))) {
+                if (!revokeAll && !prefix.matches(Regex("^[0-9a-fA-F]{12,64}$"))) {
                     return@post call.respond(
                         HttpStatusCode.BadRequest,
-                        ErrorResponse("tokenHashPrefix must be 8-64 hexadecimal characters")
+                        ErrorResponse("tokenHashPrefix must be 12-64 hexadecimal characters")
                     )
                 }
                 val (revoked, revokedSessionIds) = if (revokeAll) {

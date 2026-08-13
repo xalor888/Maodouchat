@@ -5656,3 +5656,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`MediaCache.cleanup` 无调用方**：媒体/附件缓存只会在登出或本地存储重建时全清，长期运行会只涨不清。新增 6 小时应用内维护循环调用 `MediaCache.cleanup`，按年龄与总字节上限清理，并保留过期消息清理互不冲突。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.60 2026-08-13 无限调优：Admin 吊销前缀下限对齐
+
+1. **路由允许 8 位前缀但仓库要求 12 位**：`POST /api/admin/users/{id}/sessions/revoke` 的 8-11 位 hash 前缀会通过校验后静默返回 `count=0`。路由校验改为 12-64 位，与 `revokeByHashPrefixWithSessions` 的碰撞保护下限一致。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
