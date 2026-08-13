@@ -5674,3 +5674,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **48h 清理不感知在途行**：`MediaCache.cleanupTransferDirectory` 只按文件时间删除，可能误删仍在上传/等待的密文与源文件。上传/源文件目录删除前先通过 `runBlocking(IO)` 取全账号 `attachment_transfers` 行引用白名单，只清理真正孤儿。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.63 2026-08-13 无限调优：附件上传 429 可重试
+
+1. **429 被当永久失败**：`AttachmentTransferWorker.isRetryableTransferError` 只认网络/超时/5xx，服务端限流 429 会直接标 FAILED。现在 `retryAfterSeconds != null`、HTTP 429 都走退避重试，与其他限流路径一致。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。

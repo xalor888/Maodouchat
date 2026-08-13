@@ -205,7 +205,10 @@ class AttachmentTransferWorker(
     }
 
     private fun Throwable.isRetryableTransferError(): Boolean = when (this) {
-        is ApiException -> kind in setOf(ApiFailureKind.NETWORK, ApiFailureKind.TIMEOUT) || (statusCode ?: 0) >= 500
+        is ApiException -> retryAfterSeconds != null ||
+            kind in setOf(ApiFailureKind.NETWORK, ApiFailureKind.TIMEOUT) ||
+            statusCode == 429 ||
+            (statusCode ?: 0) >= 500
         else -> this is java.io.IOException
     }
 
