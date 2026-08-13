@@ -1989,7 +1989,16 @@ put("count", okIds.size)
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.suspendedUntil] = until }
+                        // 9.128：已有更长封禁时保长——批量封禁按「追加 N 天」语义取 maxOf，
+                        // 直接覆盖会把 30 天封禁缩成 1 天（此前与单用户 applyModerationRestriction 的
+                        // maxOf 语义不一致）
+                        val row = Users.selectAll().where { Users.id eq id }.firstOrNull()
+                        if (row == null) {
+                            skipped += id
+                            return@forEach
+                        }
+                        val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.suspendedUntil], until)
+                        Users.update({ Users.id eq id }) { it[Users.suspendedUntil] = effectiveUntil }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_BAN"
@@ -2096,11 +2105,18 @@ put("count", updated.size)
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.suspendedUntil] = until }
+                        // 9.128：保长语义——不缩短既有更长封禁
+                        val row = Users.selectAll().where { Users.id eq id }.firstOrNull()
+                        if (row == null) {
+                            skipped += id
+                            return@forEach
+                        }
+                        val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.suspendedUntil], until)
+                        Users.update({ Users.id eq id }) { it[Users.suspendedUntil] = effectiveUntil }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_SUSPEND_DAYS"
-                            it[ModerationAuditLog.detail] = "days=$days;until=$until".take(200)
+                            it[ModerationAuditLog.detail] = "days=$days;until=$effectiveUntil".take(200)
                             it[ModerationAuditLog.actorId] = actorId
                             it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
                         }
@@ -2154,11 +2170,18 @@ post("/users/bulk-message-restrict") {
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.messageRestrictedUntil] = until }
+                        // 9.128：保长语义——不缩短既有更长限制（days<=0 仍为解除）
+                        val row = Users.selectAll().where { Users.id eq id }.firstOrNull()
+                        if (row == null) {
+                            skipped += id
+                            return@forEach
+                        }
+                        val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.messageRestrictedUntil], until)
+                        Users.update({ Users.id eq id }) { it[Users.messageRestrictedUntil] = effectiveUntil }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_MESSAGE_RESTRICT"
-                            it[ModerationAuditLog.detail] = "days=$days;until=$until".take(200)
+                            it[ModerationAuditLog.detail] = "days=$days;until=$effectiveUntil".take(200)
                             it[ModerationAuditLog.actorId] = actorId
                             it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
                         }
@@ -2691,11 +2714,18 @@ get("/polls-export") {
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.postRestrictedUntil] = until }
+                        // 9.128：保长语义——不缩短既有更长限制（days<=0 仍为解除）
+                        val row = Users.selectAll().where { Users.id eq id }.firstOrNull()
+                        if (row == null) {
+                            skipped += id
+                            return@forEach
+                        }
+                        val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.postRestrictedUntil], until)
+                        Users.update({ Users.id eq id }) { it[Users.postRestrictedUntil] = effectiveUntil }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_POST_RESTRICT"
-                            it[ModerationAuditLog.detail] = "days=$days;until=$until".take(200)
+                            it[ModerationAuditLog.detail] = "days=$days;until=$effectiveUntil".take(200)
                             it[ModerationAuditLog.actorId] = actorId
                             it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
                         }
@@ -3973,11 +4003,18 @@ post("/users/bulk-message-restrict-days") {
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.messageRestrictedUntil] = until }
+                        // 9.128：保长语义——不缩短既有更长限制
+                        val row = Users.selectAll().where { Users.id eq id }.firstOrNull()
+                        if (row == null) {
+                            skipped += id
+                            return@forEach
+                        }
+                        val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.messageRestrictedUntil], until)
+                        Users.update({ Users.id eq id }) { it[Users.messageRestrictedUntil] = effectiveUntil }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_MSG_RESTRICT_DAYS"
-                            it[ModerationAuditLog.detail] = "days=$days until=$until".take(200)
+                            it[ModerationAuditLog.detail] = "days=$days until=$effectiveUntil".take(200)
                             it[ModerationAuditLog.actorId] = actorId
                             it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
                         }

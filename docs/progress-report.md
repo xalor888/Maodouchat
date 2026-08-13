@@ -6086,3 +6086,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`csvCell` 仅检查原始首字符**：`" =CMD()"` 这类以前导空格/制表符开头的单元格，Excel 求值时忽略前导空白仍会当作公式执行。管理端 CSV 导出（users/reports/risk-events/push-tokens/message-stats/时间范围导出）中的 `RiskEvents.matched`、公告内容、审核 detail 等字段含用户/外部可控内容，存在 CSV 公式注入残余面。两处 `csvCell`（AdminRouting / AdminEnhanceRouting）改为按 `trimStart()` 后的首字符判定 `= + - @` 并加 `'` 前缀转义。
 
 **验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.128 2026-08-13 无限调优：批量处置端点保长语义（防缩短既有处罚）
+
+1. **5 个批量处置端点直接覆盖处罚截止时间**：`bulk-ban`、`bulk-suspend-days`（suspendedUntil）、`bulk-message-restrict`、`bulk-message-restrict-days`（messageRestrictedUntil）、`bulk-post-restrict`（postRestrictedUntil）都写 `= until`——对一个已有 30 天封禁/禁发/禁发动态的用户执行"追加 1 天"批量操作会把处罚**缩短**成 1 天（与单用户 `applyModerationRestriction` 的 maxOf 保长语义不一致，且副作用已执行：轮换 token 版本 + 强制下线）。统一改为读行后 `maxOf(既有, until)`；`days<=0`（解除语义）仍保留置 0。显式绝对时间的 `bulk-set-*-until` 端点保持原语义（与单用户 PUT 一致）。
+
+**验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
