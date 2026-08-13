@@ -1,5 +1,6 @@
 package com.maodouchat.server.repository
 
+import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.GroupPollVotes
@@ -13,6 +14,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -141,6 +143,7 @@ object GroupPlayRepository {
             val polls = GroupPolls.selectAll().where { GroupPolls.chatId eq chatId }
                 .orderBy(GroupPolls.createdAt to SortOrder.DESC, GroupPolls.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
+                .filterNot { it[GroupPolls.creatorId] in blockedUserIdsInTx(userId) }
                 .toList()
             // 8.48 修复 H4：批量取投票（此前 toPollDto 逐个 poll 全量载入 → N+1）
             val pollIds = polls.map { it[GroupPolls.id] }
@@ -160,15 +163,18 @@ object GroupPlayRepository {
         val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
             ?: return@transaction null
         if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, viewerId)) return@transaction null
+        if (row[GroupPolls.creatorId] in blockedUserIdsInTx(viewerId)) return@transaction null
         toPollDto(row, viewerId)
     }
 
     private fun toPollDto(row: ResultRow, viewerId: String, forceClosed: Boolean = false, preloadedVotes: List<ResultRow> = emptyList()): PollDto {
         val pollId = row[GroupPolls.id]
         val options = decodeOptions(row)
+        val blocked = blockedUserIdsInTx(viewerId)
         // 8.48：列表路径由调用方批量预取；单条路径（空）此处回查
-        val votes = if (preloadedVotes.isNotEmpty()) preloadedVotes else
+        val votes = (if (preloadedVotes.isNotEmpty()) preloadedVotes else
             GroupPollVotes.selectAll().where { GroupPollVotes.pollId eq pollId }.toList()
+            ).filter { it[GroupPollVotes.userId] !in blocked }
         val counts = IntArray(options.size)
         val voters = mutableSetOf<String>()
         val my = mutableListOf<Int>()
@@ -199,6 +205,19 @@ object GroupPlayRepository {
     private fun decodeOptions(row: ResultRow): List<String> = runCatching {
         json.decodeFromString<List<String>>(row[GroupPolls.optionsJson])
     }.getOrDefault(emptyList())
+
+    private fun blockedUserIdsInTx(viewerId: String): Set<String> {
+        if (viewerId.isBlank()) return emptySet()
+        return BlockedUsers.selectAll()
+            .where {
+                (BlockedUsers.blockerId eq viewerId) or (BlockedUsers.blockedId eq viewerId)
+            }
+            .map { row ->
+                if (row[BlockedUsers.blockerId] == viewerId) row[BlockedUsers.blockedId]
+                else row[BlockedUsers.blockerId]
+            }
+            .toSet()
+    }
 
     private fun isMemberInTransaction(chatId: String, userId: String): Boolean =
         ChatParticipants.selectAll().where {

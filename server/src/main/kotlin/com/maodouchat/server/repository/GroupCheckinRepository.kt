@@ -1,5 +1,6 @@
 package com.maodouchat.server.repository
 
+import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.GroupChainEntries
@@ -287,6 +288,7 @@ object GroupCheckinRepository {
             val chains = GroupChains.selectAll().where { GroupChains.chatId eq chatId }
                 .orderBy(GroupChains.createdAt to SortOrder.DESC, GroupChains.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
+                .filterNot { it[GroupChains.creatorId] in blockedUserIdsInTx(viewerId) }
                 .toList()
             // 8.48 修复 H2：批量取全部条目（此前 toChainDto 逐条查 → N+1）
             val chainIds = chains.map { it[GroupChains.id] }
@@ -306,6 +308,7 @@ object GroupCheckinRepository {
             val chain = GroupChains.selectAll().where { GroupChains.id eq chainId }.firstOrNull()
                 ?: return@transaction null
             if (!isMemberInTransaction(chain[GroupChains.chatId], viewerId)) return@transaction null
+            if (chain[GroupChains.creatorId] in blockedUserIdsInTx(viewerId)) return@transaction null
             toChainDto(chain, viewerId)
         }
     }
@@ -357,12 +360,13 @@ object GroupCheckinRepository {
 
     private fun toChainDto(chain: ResultRow, viewerId: String, preloadedEntries: List<ResultRow> = emptyList()): ChainDto? {
         val chainId = chain[GroupChains.id]
+        val blocked = blockedUserIdsInTx(viewerId)
         // 8.48：列表路径由调用方批量预取；单条路径（空）此处回查
         val entryRows = if (preloadedEntries.isNotEmpty()) preloadedEntries else
             GroupChainEntries.selectAll().where { GroupChainEntries.chainId eq chainId }
                 .orderBy(GroupChainEntries.sequence to SortOrder.ASC)
                 .toList()
-        val entries = entryRows.map {
+        val entries = entryRows.filter { it[GroupChainEntries.userId] !in blocked }.map {
             ChainEntryDto(
                 id = it[GroupChainEntries.id],
                 userId = it[GroupChainEntries.userId],
@@ -421,6 +425,7 @@ object GroupCheckinRepository {
             val pks = GroupPkRounds.selectAll().where { GroupPkRounds.chatId eq chatId }
                 .orderBy(GroupPkRounds.createdAt to SortOrder.DESC, GroupPkRounds.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
+                .filterNot { it[GroupPkRounds.creatorId] in blockedUserIdsInTx(viewerId) }
                 .toList()
             // 8.48 修复 H3：批量取投票（此前 toPkDto 逐个 PK 全量载入 → N+1）
             val pkIds = pks.map { it[GroupPkRounds.id] }
@@ -439,6 +444,7 @@ object GroupCheckinRepository {
             val pk = GroupPkRounds.selectAll().where { GroupPkRounds.id eq pkId }.firstOrNull()
                 ?: return@transaction null
             if (!isMemberInTransaction(pk[GroupPkRounds.chatId], viewerId)) return@transaction null
+            if (pk[GroupPkRounds.creatorId] in blockedUserIdsInTx(viewerId)) return@transaction null
             toPkDto(pk, viewerId)
         }
     }
@@ -492,9 +498,11 @@ object GroupCheckinRepository {
 
     private fun toPkDto(pk: ResultRow, viewerId: String, preloadedVotes: List<ResultRow> = emptyList()): PkDto? {
         val pkId = pk[GroupPkRounds.id]
+        val blocked = blockedUserIdsInTx(viewerId)
         // 8.48：列表路径由调用方批量预取；单条路径（空）此处回查
-        val votes = if (preloadedVotes.isNotEmpty()) preloadedVotes else
+        val votes = (if (preloadedVotes.isNotEmpty()) preloadedVotes else
             GroupPkVotes.selectAll().where { GroupPkVotes.pkId eq pkId }.toList()
+            ).filter { it[GroupPkVotes.userId] !in blocked }
         var left = 0
         var right = 0
         var myChoice: String? = null
@@ -550,6 +558,19 @@ object GroupCheckinRepository {
                 "pkVotes" to (voteDeletedByPk + GroupPkVotes.deleteWhere { GroupPkVotes.votedAt less cutoff })
             )
         }
+    }
+
+    private fun blockedUserIdsInTx(viewerId: String): Set<String> {
+        if (viewerId.isBlank()) return emptySet()
+        return BlockedUsers.selectAll()
+            .where {
+                (BlockedUsers.blockerId eq viewerId) or (BlockedUsers.blockedId eq viewerId)
+            }
+            .map { row ->
+                if (row[BlockedUsers.blockerId] == viewerId) row[BlockedUsers.blockedId]
+                else row[BlockedUsers.blockerId]
+            }
+            .toSet()
     }
 
     private fun isMemberInTransaction(chatId: String, userId: String): Boolean =

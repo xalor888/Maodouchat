@@ -295,7 +295,7 @@ val pk = GroupCheckinRepository.createPk(chatId, userId, leftTitle, rightTitle)
                 return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
             val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 30
-            call.respond(PollRepository.listChatPollSnapshots(chatId, limit))
+            call.respond(PollRepository.listChatPollSnapshots(chatId, limit, viewerId = userId))
         }
     }
 }

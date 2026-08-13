@@ -1,5 +1,6 @@
 package com.maodouchat.server.repository
 
+import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.GroupPollVotes
@@ -7,6 +8,7 @@ import com.maodouchat.server.db.GroupPolls
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import kotlinx.serialization.Serializable
@@ -46,12 +48,14 @@ object PollRepository {
      * 拉取某群最新 N 个投票的公开快照（不含个人 myVotes，匿名安全）。
      * 用于客户端轮询同步与 WS 广播后的刷新。
      */
-    fun listChatPollSnapshots(chatId: String, limit: Int = 30): List<PollSnapshot> {
+    fun listChatPollSnapshots(chatId: String, limit: Int = 30, viewerId: String? = null): List<PollSnapshot> {
         if (chatId.isBlank()) return emptyList()
         return transaction {
+            val blocked = blockedUserIdsInTx(viewerId)
             GroupPolls.selectAll().where { GroupPolls.chatId eq chatId }
                 .orderBy(GroupPolls.createdAt to SortOrder.DESC, GroupPolls.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
+                .filterNot { it[GroupPolls.creatorId] in blocked }
                 .map { row ->
                     val pollId = row[GroupPolls.id]
                     val options = decodeOptions(row)
@@ -59,6 +63,7 @@ object PollRepository {
                         .selectAll()
                         .where { GroupPollVotes.pollId eq pollId }
                         .toList()
+                        .filter { it[GroupPollVotes.userId] !in blocked }
                     val counts = IntArray(options.size)
                     val voters = mutableSetOf<String>()
                     for (v in votes) {
@@ -81,6 +86,19 @@ object PollRepository {
                     )
                 }
         }
+    }
+
+    private fun blockedUserIdsInTx(viewerId: String?): Set<String> {
+        if (viewerId.isNullOrBlank()) return emptySet()
+        return BlockedUsers.selectAll()
+            .where {
+                (BlockedUsers.blockerId eq viewerId) or (BlockedUsers.blockedId eq viewerId)
+            }
+            .map { row ->
+                if (row[BlockedUsers.blockerId] == viewerId) row[BlockedUsers.blockedId]
+                else row[BlockedUsers.blockerId]
+            }
+            .toSet()
     }
 
     /**

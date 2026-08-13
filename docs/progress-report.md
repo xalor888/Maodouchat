@@ -5836,3 +5836,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`perChatLastCall` 只增不减**：每个 chatId × 分类的最近调用时间在登出前永久保留，长期使用无界增长。超过 2048 个键时按全局窗口淘汰过期条目，限流语义不变。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.90 2026-08-13 无限调优：群玩法按双向拉黑过滤
+
+1. **接龙/PK/投票不感知拉黑**：被拉黑成员创建的接龙、PK、投票，以及其条目和投票仍会展示/计数给 viewer，违背“拉黑 = 双方从对方视线消失”的统一口径。群接龙、群 PK、群投票的列表/详情/快照现在都按双向拉黑过滤创建者和条目/投票，新增 H2 集成测试覆盖。
+
+**验证**：`:server:test` 全量通过（含新增 `GroupPlayBlockedVisibilityTest`）；`git diff --check` 无输出。
