@@ -763,6 +763,20 @@ private suspend fun broadcastUserStatus(userId: String, isOnline: Boolean, json:
     }
 }
 
+@kotlinx.serialization.Serializable
+private data class PostDeletedPayload(val postId: String)
+
+/** 动态被作者/版主删除后向所有在线客户端广播，前端即时移除，避免残留。 */
+internal suspend fun broadcastPostDeleted(postId: String) {
+    if (postId.isBlank()) return
+    val json = Json { ignoreUnknownKeys = true }
+    val message = json.encodeToString(
+        WsMessage.serializer(),
+        WsMessage("POST_DELETED", json.encodeToString(PostDeletedPayload.serializer(), PostDeletedPayload(postId)))
+    )
+    onlineUserIds().forEach { sendToUser(it, message) }
+}
+
 internal suspend fun broadcastUserVisibilityRevoked(
     userId: String,
     onlineRevoked: Boolean,

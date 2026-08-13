@@ -875,6 +875,7 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
                 val ok = postRepo.deletePostForModeration(id)
                 if (!ok) return@delete call.respond(HttpStatusCode.NotFound, ErrorResponse("动态不存在"))
                 recordAdminAudit(actorId, "ADMIN_POST_DELETED", "postId=$id")
+                broadcastPostDeleted(id)
                 call.respond(
                 buildJsonObject {
 put("status", "deleted")

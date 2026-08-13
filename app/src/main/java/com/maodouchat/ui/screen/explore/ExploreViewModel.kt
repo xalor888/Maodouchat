@@ -10,6 +10,8 @@ import com.maodouchat.network.PostDto
 import com.maodouchat.network.PostCommentDto
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.UserDto
+import com.maodouchat.network.WebSocketClient
+import com.maodouchat.network.WebSocketEvent
 import com.maodouchat.util.ImagePicker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -220,6 +222,27 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         refresh()
+        viewModelScope.launch {
+            WebSocketClient.events.collect { event ->
+                if (event is WebSocketEvent.PostDeleted) {
+                    handlePostDeleted(event.postId)
+                }
+            }
+        }
+    }
+
+    private fun handlePostDeleted(postId: String) {
+        if (postId.isBlank()) return
+        _uiState.update { state ->
+            val detailWasDeleted = state.detailPost?.id == postId
+            state.copy(
+                posts = state.posts.filterNot { it.id == postId },
+                detailPost = state.detailPost?.takeIf { it.id != postId },
+                comments = if (detailWasDeleted) emptyList() else state.comments,
+                isPostDetailLoading = if (detailWasDeleted) false else state.isPostDetailLoading,
+                postDetailError = if (detailWasDeleted) text(R.string.explore_post_deleted) else state.postDetailError
+            )
+        }
     }
 
     private fun loadPrivacyDefaults() {

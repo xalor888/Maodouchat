@@ -13521,7 +13521,10 @@ put("status", "ok")
                                             }
                                         }
                                     }
-                                    "POST" -> postRepo.deletePostForModeration(report.targetId)
+                                    "POST" -> {
+                                        postRepo.deletePostForModeration(report.targetId)
+                                        broadcastPostDeleted(report.targetId)
+                                    }
                                     "COMMENT" -> postRepo.deleteCommentForModeration(report.targetId)
                                     else -> Unit
                                 }
@@ -15006,6 +15009,7 @@ put("status", "ok")
                     return@delete
                 }
                 postRepo.deletePost(postId, userId)
+                broadcastPostDeleted(postId)
                 call.respond(
                 buildJsonObject {
 put("status", "ok")

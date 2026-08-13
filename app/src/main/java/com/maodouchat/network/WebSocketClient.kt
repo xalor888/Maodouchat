@@ -28,6 +28,7 @@ sealed class WebSocketEvent {
     /** 跨设备已读同步：同账号其他设备标记了该会话已读。 */
     data class ChatMarkedRead(val chatId: String) : WebSocketEvent()
     data class MessageDeleted(val messageId: String, val chatId: String) : WebSocketEvent()
+    data class PostDeleted(val postId: String) : WebSocketEvent()
     data class MessageRevoked(val messageId: String, val chatId: String) : WebSocketEvent()
     data class MessageEdited(val messageId: String, val chatId: String, val content: String, val editedAt: Long? = null) : WebSocketEvent()
     data class MessageReactionUpdated(val chatId: String, val messageId: String, val userId: String, val reactions: List<MessageReaction>) : WebSocketEvent()
@@ -122,6 +123,7 @@ enum class WebSocketErrorKind {
     MESSAGE_PARSE,
     STATUS_PARSE,
     DELETE_PARSE,
+    POST_DELETE_PARSE,
     EDIT_PARSE,
     REACTION_PARSE,
     PIN_PARSE,
@@ -209,6 +211,9 @@ private data class IncomingServerError(
 
 @Serializable
 private data class IncomingMessageDeleted(val messageId: String, val chatId: String)
+
+@Serializable
+private data class IncomingPostDeleted(val postId: String)
 
 @Serializable
 private data class IncomingMessageEdited(
@@ -739,6 +744,14 @@ object WebSocketClient {
                     eventBus.post(WebSocketEvent.MessageRevoked(data.messageId, data.chatId))
                 } catch (e: Exception) {
                     emitError(WebSocketErrorKind.DELETE_PARSE, e)
+                }
+            }
+            "POST_DELETED" -> {
+                try {
+                    val data = json.decodeFromString<IncomingPostDeleted>(wsMsg.payload)
+                    eventBus.post(WebSocketEvent.PostDeleted(data.postId))
+                } catch (e: Exception) {
+                    emitError(WebSocketErrorKind.POST_DELETE_PARSE, e)
                 }
             }
             "MESSAGE_EDITED" -> {

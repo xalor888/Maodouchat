@@ -5662,3 +5662,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **路由允许 8 位前缀但仓库要求 12 位**：`POST /api/admin/users/{id}/sessions/revoke` 的 8-11 位 hash 前缀会通过校验后静默返回 `count=0`。路由校验改为 12-64 位，与 `revokeByHashPrefixWithSessions` 的碰撞保护下限一致。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.61 2026-08-13 无限调优：动态删除实时广播
+
+1. **作者/版主删除动态不广播**：此前客户端只能靠 404/刷新收敛残留动态。服务端新增 WS `POST_DELETED`，用户自删、admin 删帖、moderator 处置举报删帖三条路径统一广播；客户端 `WebSocketEvent.PostDeleted` 即时从 feed/detail/comments 移除并提示“该动态已被删除”。
+
+**验证**：`:server:test`、`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
