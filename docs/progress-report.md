@@ -5710,3 +5710,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **cancelAll 跳过 SENDING 计数**：批量取消把 SENDING（finalize 在途）排除在计数外，即使任务已交收尾，UI 仍可能显示取消 0 个。现在 SENDING 计为已处理，不再中断 finalize，`complete()` 仍幂等收尾。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.69 2026-08-13 无限调优：缓存写入路径不带 DB 白名单
+
+1. **`cleanup` 的 DB 在途白名单会拖慢缓存写入**：媒体写入/恢复路径也调 `cleanup`，每次都可能 `runBlocking(IO)` 查全账号附件行。现在 `cleanup(protectInFlight=false)` 用于写入路径（只按年龄/字节清理），周期维护仍默认带在途白名单。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。

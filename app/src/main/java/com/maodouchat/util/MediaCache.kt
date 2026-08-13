@@ -200,11 +200,11 @@ object MediaCache {
             } else {
                 File(context.cacheDir, CACHE_DIR).apply { mkdirs() }
             }
-            cleanup(context)
+            cleanup(context, protectInFlight = false)
             val safeId = messageId.replace(Regex("[^A-Za-z0-9_-]"), "_")
             val file = File(dir, "$safeId${type.extension(originalFileName)}")
             file.writeBytes(bytes)
-            cleanup(context)
+            cleanup(context, protectInFlight = false)
             file.toUri().toString()
         }.onFailure { Log.w(TAG, "writeBase64ToCache failed", it) }.getOrNull()
     }
@@ -241,7 +241,7 @@ object MediaCache {
             }
         } ?: return null
         require(copied == metadata.sizeBytes)
-        cleanup(context)
+        cleanup(context, protectInFlight = false)
         target.toUri().toString()
     }.onFailure { Log.w(TAG, "copyFileToCache failed", it) }.getOrNull()
 
@@ -335,7 +335,7 @@ object MediaCache {
         return dir.takeIf { it.path.startsWith(root.path + File.separator) }
     }
 
-    fun cleanup(context: Context) {
+    fun cleanup(context: Context, protectInFlight: Boolean = true) {
         runCatching {
             val dir = File(context.cacheDir, CACHE_DIR)
             val files = dir.listFiles()?.filter { it.isFile }.orEmpty()
@@ -348,17 +348,17 @@ object MediaCache {
                 totalBytes += file.length()
                 if (totalBytes > MAX_CACHE_BYTES) file.delete()
             }
-            cleanupTransferDirectory(context, File(context.cacheDir, "attachment-downloads"), now)
+            cleanupTransferDirectory(context, File(context.cacheDir, "attachment-downloads"), now, protectInFlight)
             // 上传源文件/密文暂存也做年龄兜底：reconcile 之外的孤儿（崩溃残留、未完成的
             // 多设备上传）不应长期占用空间，48h 后由这里清掉。
-            cleanupTransferDirectory(context, File(context.cacheDir, "attachment-uploads"), now)
-            cleanupTransferDirectory(context, File(context.cacheDir, "attachment-sources"), now)
+            cleanupTransferDirectory(context, File(context.cacheDir, "attachment-uploads"), now, protectInFlight)
+            cleanupTransferDirectory(context, File(context.cacheDir, "attachment-sources"), now, protectInFlight)
         }.onFailure { Log.w(TAG, "cleanup failed", it) }
     }
 
-    private fun cleanupTransferDirectory(context: Context, directory: File, now: Long) {
+    private fun cleanupTransferDirectory(context: Context, directory: File, now: Long, protectInFlight: Boolean) {
         val name = directory.name
-        val validPaths = if (name == "attachment-uploads" || name == "attachment-sources") {
+        val validPaths = if (protectInFlight && (name == "attachment-uploads" || name == "attachment-sources")) {
             val app = context.applicationContext as? com.maodouchat.MaodouchatApp
             if (app == null) emptySet()
             else kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
