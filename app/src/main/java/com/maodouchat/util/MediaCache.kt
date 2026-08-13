@@ -200,11 +200,11 @@ object MediaCache {
             } else {
                 File(context.cacheDir, CACHE_DIR).apply { mkdirs() }
             }
-            cleanup(context, protectInFlight = false)
+            cleanupMediaCache(context)
             val safeId = messageId.replace(Regex("[^A-Za-z0-9_-]"), "_")
             val file = File(dir, "$safeId${type.extension(originalFileName)}")
             file.writeBytes(bytes)
-            cleanup(context, protectInFlight = false)
+            cleanupMediaCache(context)
             file.toUri().toString()
         }.onFailure { Log.w(TAG, "writeBase64ToCache failed", it) }.getOrNull()
     }
@@ -241,7 +241,7 @@ object MediaCache {
             }
         } ?: return null
         require(copied == metadata.sizeBytes)
-        cleanup(context, protectInFlight = false)
+        cleanupMediaCache(context)
         target.toUri().toString()
     }.onFailure { Log.w(TAG, "copyFileToCache failed", it) }.getOrNull()
 
@@ -337,23 +337,29 @@ object MediaCache {
 
     fun cleanup(context: Context, protectInFlight: Boolean = true) {
         runCatching {
-            val dir = File(context.cacheDir, CACHE_DIR)
-            val files = dir.listFiles()?.filter { it.isFile }.orEmpty()
             val now = System.currentTimeMillis()
-            files.filter { now - it.lastModified() > MAX_CACHE_AGE_MS }.forEach { it.delete() }
-
-            val remaining = dir.listFiles()?.filter { it.isFile }?.sortedByDescending { it.lastModified() }.orEmpty()
-            var totalBytes = 0L
-            remaining.forEach { file ->
-                totalBytes += file.length()
-                if (totalBytes > MAX_CACHE_BYTES) file.delete()
-            }
+            cleanupMediaCache(context)
             cleanupTransferDirectory(context, File(context.cacheDir, "attachment-downloads"), now, protectInFlight)
             // 上传源文件/密文暂存也做年龄兜底：reconcile 之外的孤儿（崩溃残留、未完成的
             // 多设备上传）不应长期占用空间，48h 后由这里清掉。
             cleanupTransferDirectory(context, File(context.cacheDir, "attachment-uploads"), now, protectInFlight)
             cleanupTransferDirectory(context, File(context.cacheDir, "attachment-sources"), now, protectInFlight)
         }.onFailure { Log.w(TAG, "cleanup failed", it) }
+    }
+
+    /** 媒体写入/恢复路径只清理媒体缓存，不碰传输目录（避免误删在途上传文件）。 */
+    private fun cleanupMediaCache(context: Context) {
+        val dir = File(context.cacheDir, CACHE_DIR)
+        val files = dir.listFiles()?.filter { it.isFile }.orEmpty()
+        val now = System.currentTimeMillis()
+        files.filter { now - it.lastModified() > MAX_CACHE_AGE_MS }.forEach { it.delete() }
+
+        val remaining = dir.listFiles()?.filter { it.isFile }?.sortedByDescending { it.lastModified() }.orEmpty()
+        var totalBytes = 0L
+        remaining.forEach { file ->
+            totalBytes += file.length()
+            if (totalBytes > MAX_CACHE_BYTES) file.delete()
+        }
     }
 
     private fun cleanupTransferDirectory(context: Context, directory: File, now: Long, protectInFlight: Boolean) {

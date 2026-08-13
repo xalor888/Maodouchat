@@ -5716,3 +5716,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`cleanup` 的 DB 在途白名单会拖慢缓存写入**：媒体写入/恢复路径也调 `cleanup`，每次都可能 `runBlocking(IO)` 查全账号附件行。现在 `cleanup(protectInFlight=false)` 用于写入路径（只按年龄/字节清理），周期维护仍默认带在途白名单。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.70 2026-08-13 无限调优：写入路径不再清理传输目录
+
+1. **`cleanup(protectInFlight=false)` 仍会误删在途上传**：9.69 让写入路径跳过 DB 白名单，但同一函数仍会对 `attachment-uploads/sources` 做 48h 年龄清理；若存在暂停/慢速传输超过 48h，用户发一条新媒体就可能把在途源文件删掉。现在媒体写入/恢复路径只调 `cleanupMediaCache`（媒体年龄/字节上限），传输目录只由周期维护清理，周期维护仍带在途白名单。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
