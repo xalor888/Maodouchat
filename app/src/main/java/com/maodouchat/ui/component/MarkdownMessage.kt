@@ -696,12 +696,7 @@ private fun inlineMarkdown(text: String, baseColor: Color, onLinkClick: (String)
                 withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = Color(0xFFE65100))) { append(body) }
                 i = if (end < s.length && s[end] == '~') end + 1 else end
             }
-            s.startsWith("~wm:", i) -> {
-                val end = s.indexOf('~', i + 4).let { if (it < 0) s.length else it }
-                val body = s.substring(i + 4, end)
-                withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = Color(0xFF455A64))) { append(body) }
-                i = if (end < s.length && s[end] == '~') end + 1 else end
-            }
+            // 9.146：删除不可达的重复 ~wm: 分支（649 行首分支恒命中，此分支为死代码）
             s.startsWith("~vc:", i) -> {
                 val end = s.indexOf('~', i + 4).let { if (it < 0) s.length else it }
                 val body = s.substring(i + 4, end)

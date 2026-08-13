@@ -6255,3 +6255,17 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另对全量写端点做了封禁守卫覆盖扫描（80 处无守卫候选逐一甄别）：auth 系列（登录/注册/找回/refresh/登出/TOTP）必须对封禁账号可用；`/users/me` 删除、退群/删会话、改密、client-prefs、拉黑、星标、已读回执属自助/无害操作；群管理/动态写路径由仓库层角色校验或 postRestricted 覆盖。均无需改动。
 
 **验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.146 2026-08-13 无限调优：视频缺阅后即焚守卫、群主徽章死代码、空白正文泄漏 meta JSON
+
+1. **VIDEO 消息完全缺失阅后即焚/防剧透守卫（客户端隐私，子代理审计发现）**：`ViewOncePolicy.supports` 包含 VIDEO，但 `VideoBubble` 无任何 view-once/spoiler 逻辑——阅后即焚视频缩略图永久可见、永不标记已查看、防剧透视频无遮罩。按 `ImageBubble` 同构补齐：锁定占位、点击揭示、打开时标记已查看，并把两个回调贯通 VIDEO 分发分支。
+2. **群主/管理员徽章是死代码**：`MessageBubble.memberRole` 参数从未转发进 `TextBubble`（TEXT/MARKDOWN 分发分支漏传），0.65 功能的徽章对最常用的文本消息永不渲染。补上转发。
+3. **空白正文消息把整个 `<meta>` JSON 显示在气泡上（泄漏）**：`RichTextContent(text = parsedContent().ifBlank { message.content })`——正文为空但带 meta 块时回退渲染原始 content，附件解密密钥/转写文本等字段整块可见。删除回退。
+4. **`~wm:` 内联样式重复分支（死代码）**：when 首分支恒命中，第二分支不可达且颜色冲突；删除。
+5. **30s 阅后即焚清理循环无会话门禁**：仅查 token 非空与陈旧 uiState，换号后循环会清理新账号的到期消息与媒体。改为每轮快照 owner + `mayContinue`。
+6. **`sendGroupTextMessage` 缺 `isSending` 重入守卫**：与 sendMessage 同帧触发（如分享 AI 回答+常规发送）可产生双气泡；且成功/取消/失败路径不复位 isSending。补齐守卫与三处复位。
+7. **WS 路径与同步路径口径不一**：解密失败占位消息在 WS 实时路径被写入搜索索引（同步路径 8.41 已排除）；REVOKED 占位仍回报 DELIVERED。两处对齐。
+
+另核实并暂缓：`updateMessageReactions` 在消息不在当前窗口时静默 no-op——反应入口仅限可见气泡，触发面不成立；view-once 删除与下载锁的窄竞态、私聊媒体隔离目录未被 `deleteCachedMediaForMessage` 覆盖——记录在案待后续轮次；`requestAiSummary` 的 DB 读取前快照可进一步收紧（既有 isSecretChat/flag/isAiWorking 门 + 下层 mayContinue 兜底）。
+
+**验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。

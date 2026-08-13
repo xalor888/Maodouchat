@@ -361,6 +361,16 @@ class ChatDetailViewModel(
             viewModelScope.launch {
                 while (isActive) {
                     kotlinx.coroutines.delay(30_000L)
+                    // 9.146：每轮快照账号并过门禁——此前仅查 token 非空与陈旧 uiState，
+                    // 换号后本循环会清理新账号的到期消息与媒体
+                    val purgeOwnerUserId = currentUserId
+                    if (purgeOwnerUserId.isBlank() ||
+                        !com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                            expectedUserId = purgeOwnerUserId,
+                            liveToken = tokenManager.getToken(),
+                            liveUserId = tokenManager.getUserId(),
+                        )
+                    ) continue
                     if (tokenManager.getToken().isNullOrBlank()) continue
                     if (_uiState.value.disappearingMessageSeconds <= 0) continue
                     purgeExpiredLocalMessages()
@@ -2168,7 +2178,10 @@ class ChatDetailViewModel(
                                 cleanupAttachmentForMessage(withPendingReactions.id)
                             } else {
                                 messageRepo.insertMessage(withPendingReactions)
-                                indexSearchableMessage(withPendingReactions)
+                                // 9.146：解密失败占位不写搜索索引（与同步路径 8.41 口径一致）
+                                if (!isSyncDecryptFailurePlaceholder(withPendingReactions)) {
+                                    indexSearchableMessage(withPendingReactions)
+                                }
                             }
                         }
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -2184,8 +2197,12 @@ class ChatDetailViewModel(
                         if (withPendingReactions.type != MessageType.SK_DIST) {
                             emitListPreviewForDecrypted(withPendingReactions)
                         }
-                        // 只对他人会话消息发送 DELIVERED；自己的消息 / SK_DIST 控制流量不需要回执
-                        if (withPendingReactions.senderId != currentUserId && withPendingReactions.type != MessageType.SK_DIST) {
+                        // 只对他人会话消息发送 DELIVERED；自己的消息 / SK_DIST 控制流量不需要回执，
+                        // 9.146：REVOKED 占位也不回报（回执只对可投递内容有意义）
+                        if (withPendingReactions.senderId != currentUserId &&
+                            withPendingReactions.type != MessageType.SK_DIST &&
+                            withPendingReactions.type != MessageType.REVOKED
+                        ) {
                             WebSocketClient.sendStatusUpdate(withPendingReactions.id, MessageStatus.DELIVERED)
                         }
                         // 服务端 AUTO_DOWNLOAD 开关：实时到达的媒体消息在非计量网络下自动下载
@@ -7725,6 +7742,9 @@ fun sendCurrentLocation() {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
             return
         }
+        // 9.146：与 sendMessage 一致的重入守卫——分享 AI 回答与常规发送同帧触发时不产生双气泡
+        if (_uiState.value.isSending) return
+        _uiState.update { it.copy(isSending = true, groupEncryptionWarning = null) }
         // 与其他路径一致：activeChatId 为空时回退构造期 chatId，避免发出 chatId="" 的孤儿消息
         val chatId = activeChatId.ifBlank { chatId }.takeIf { it.isNotBlank() } ?: run {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
@@ -7812,8 +7832,19 @@ fun sendCurrentLocation() {
                         text.take(200),
                         MessageType.TEXT.name
                     )
+                    // 9.146：成功路径复位 isSending
+                    _uiState.update { it.copy(isSending = false) }
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
+                // 9.146：取消路径同样复位（会话仍一致时），避免发送按钮永久禁用
+                if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = sendOwnerUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = tokenManager.getUserId(),
+                    )
+                ) {
+                    _uiState.update { it.copy(isSending = false) }
+                }
                 // Keep SENDING so outbox can finish after leave; never treat cancel as encrypt failure.
                 throw error
             } catch (error: Exception) {
@@ -7857,6 +7888,15 @@ fun sendCurrentLocation() {
                             st.copy(groupEncryptionWarning = text(R.string.chat_group_e2ee_send_failed))
                         }
                     }
+                }
+                // 9.146：失败/瞬时路径复位 isSending
+                if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = sendOwnerUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = tokenManager.getUserId(),
+                    )
+                ) {
+                    _uiState.update { it.copy(isSending = false) }
                 }
             }
         }

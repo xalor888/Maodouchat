@@ -202,7 +202,8 @@ fun MessageBubble(
         MessageType.MARKDOWN, MessageType.TEXT -> TextBubble(
             message, isOwnMessage, modifier, showAvatar, senderName, mentionedUserIds, replyToPreview, onReply,
             onReplyPreviewClick, onBoundsMeasured, translationText, isTranslating, isAiAssisted, currentUserId, safetyWarning, onDismissSafety,
-            onReactionClick, onPollVote, secretChatId, onInlineKeyboardClick, onContactCardClick, onSenderClick, onStatusClick
+            onReactionClick, onPollVote, secretChatId, onInlineKeyboardClick, onContactCardClick, onSenderClick, onStatusClick,
+            memberRole = memberRole
         )
         MessageType.IMAGE -> ImageBubble(
             message, isOwnMessage, modifier, showAvatar, senderName, onImageClick, onBoundsMeasured,
@@ -234,7 +235,7 @@ fun MessageBubble(
             message, isOwnMessage, modifier, showAvatar, senderName, onVideoClick, onBoundsMeasured,
             fileTransferProgress, fileTransferState, fileTransferError,
             onPauseFileTransfer, onResumeFileTransfer, onCancelFileTransfer, onRequestMediaAttachment, mediaDownloadFailed,
-            currentUserId, onReactionClick, secretChatId
+            currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler
         )
         MessageType.FILE -> FileBubble(
             message,
@@ -918,7 +919,9 @@ private fun TextBubble(
                     )
                 } else {
                     RichTextContent(
-                        text = message.parsedContent().ifBlank { message.content },
+                        // 9.146：正文为空白时不得回退渲染原始 content——其中含 <meta> JSON
+                        //（附件解密密钥/转写文本等），曾整块显示在气泡上
+                        text = message.parsedContent(),
                         mentionedUserIds = mentionedUserIds,
                         isOwnMessage = isOwnMessage,
                         onContactCardClick = onContactCardClick,
@@ -1732,7 +1735,10 @@ private fun VideoBubble(
     downloadFailed: Boolean = false,
     currentUserId: String? = null,
     onReactionClick: ((String) -> Unit)? = null,
-    secretChatId: String? = null
+    secretChatId: String? = null,
+    // 9.146：视频补齐阅后即焚/防剧透守卫（此前 VIDEO 完全缺失，ViewOncePolicy.supports 却包含 VIDEO）
+    onViewOnceOpened: ((String) -> Unit)? = null,
+    onRevealSpoiler: ((String) -> Unit)? = null
 ) {
     val palette = LocalChatPalette.current
     val context = LocalContext.current
@@ -1740,6 +1746,9 @@ private fun VideoBubble(
     val needsDownload = remember(message.id, message.content) {
         message.parsedMeta().attachmentId != null && !MediaCache.isReadableLocalUri(context, mediaContent)
     }
+    val viewOnceLocked = com.maodouchat.util.ViewOncePolicy.isLockedForViewer(message, isOwnMessage)
+    val viewOnce = message.parsedMeta().viewOnce
+    val spoilerHidden = message.parsedMeta().spoilerMedia && !message.parsedMeta().spoilerRevealed && !isOwnMessage
     LaunchedEffect(message.id, message.content, needsDownload) {
         if (needsDownload) onRequestAttachment?.invoke(message.id)
     }
@@ -1776,9 +1785,35 @@ private fun VideoBubble(
                     .background(if (isOwnMessage) LocalChatBubbleColor.current else palette.chatBubbleReceived)
                     .then(if (!isOwnMessage) Modifier.border(1.dp, palette.chatBubbleReceivedBorder, ReceivedBubbleShape) else Modifier)
                     .padding(4.dp)
-                    .then(if (onVideoClick != null && !needsDownload && transferState == null) Modifier.clickable { onVideoClick(message) } else Modifier)
+                    .then(
+                        // 9.146：与 ImageBubble 同构——阅后即焚锁定不可点；防剧透点击揭示；
+                        // 正常点击打开视频并标记 view-once 已查看
+                        if (viewOnceLocked) Modifier
+                        else if (spoilerHidden) Modifier.clickable { onRevealSpoiler?.invoke(message.id) }
+                        else if (onVideoClick != null && !needsDownload && transferState == null) Modifier.clickable {
+                            onVideoClick(message)
+                            if (viewOnce && !isOwnMessage) onViewOnceOpened?.invoke(message.id)
+                        } else Modifier
+                    )
             ) {
                 Box(contentAlignment = Alignment.Center) {
+                    if (viewOnceLocked) {
+                        // 9.146：已查看的阅后即焚视频显示占位（与图片一致），不再渲染缩略图
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color.Black.copy(alpha = 0.72f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.view_once_viewed),
+                                color = TextWhite,
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    } else {
                     // 视频缩略图（用 AsyncImage 加载）
                     AsyncImage(
                         model = OwnerScopedImageKeys.request(
@@ -1792,6 +1827,21 @@ private fun VideoBubble(
                         contentScale = ContentScale.FillWidth,
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).height(160.dp)
                     )
+                    // 9.146：防剧透视频叠遮罩（与图片一致）
+                    if (spoilerHidden) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .background(Color.Black.copy(alpha = 0.55f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.spoiler_tap_to_reveal),
+                                color = TextWhite,
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
                     // 播放按钮叠加
                     Box(
                         contentAlignment = Alignment.Center,
@@ -1804,6 +1854,7 @@ private fun VideoBubble(
                             modifier = Modifier.size(32.dp)
                         )
                     }
+                    } // end not viewOnceLocked
                     if (transferState != null) {
                         AttachmentTransferOverlay(
                             messageId = message.id,
