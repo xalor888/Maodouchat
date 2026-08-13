@@ -5728,3 +5728,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`executeForText` 与 TOTP 三个接口吞掉 CancellationException**：`executeForText` 用 `runCatching` 包住可挂起的请求，取消被当成 `Result.failure` 返回；`totpStatus/regenerateTotpCodes/confirmTotp` 外层又包一层 `runCatching`，协程取消无法传播，页面退出/切号时请求不会及时中止。现在两处都改为 `try/catch` 显式重抛 `CancellationException`，普通网络/解析失败仍走 `Result.failure`。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.72 2026-08-13 无限调优：密聊明文不进全局搜索
+
+1. **多条入口会把密聊明文写入全局搜索索引**：`ChatListViewModel` 的列表解密、`TextOutboxFlusher` 后台补发、AI 结果落库都会直接调 `MessageSearchRepository.indexMessage`，只有聊天页入口做了 `secretChatRepo.isSecret` 拦截；全量重建也未排除密聊会话。现在密聊排除下沉到搜索仓库与 DAO：`indexMessage` 一律删除并拒绝写入密聊会话文档，`search/searchByTypes` SQL 层排除 `secret_chats`，全量重建与新鲜度计数也不再把密聊算作可搜索消息。
+
+**验证**：`:app:testDebugUnitTest`（新增 3 个 MockK 用例）、`:app:lintDebug` 通过；`git diff --check` 无输出。

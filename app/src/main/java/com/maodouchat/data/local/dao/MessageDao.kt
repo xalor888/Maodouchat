@@ -106,7 +106,14 @@ interface MessageDao {
     // 8.48 修复：可搜索且正文非空的消息数——用于搜索索引漂移判定；
     // 空白/密文消息 indexMessage 时 deleteDocument 不产生文档，若用 getSearchableMessageIds
     // 计数则 msgCount 恒 > docCount，每次打开全局搜索都误判需全量重建
-    @Query("SELECT COUNT(*) FROM messages WHERE type IN ('TEXT', 'MARKDOWN', 'VOICE', 'LOCATION', 'NUDGE', 'IMAGE', 'GIF', 'STICKER', 'VIDEO', 'FILE') AND content != ''")
+    @Query(
+        """
+        SELECT COUNT(*) FROM messages
+        WHERE type IN ('TEXT', 'MARKDOWN', 'VOICE', 'LOCATION', 'NUDGE', 'IMAGE', 'GIF', 'STICKER', 'VIDEO', 'FILE')
+          AND content != ''
+          AND chatId NOT IN (SELECT chatId FROM secret_chats)
+        """
+    )
     suspend fun countSearchableWithContent(): Int
 
     // 分批加载，用于 refreshIndex 增量建索引；游标分页（按 timestamp,id 稳定排序）替代 OFFSET，
@@ -114,6 +121,7 @@ interface MessageDao {
     @Query("""
         SELECT * FROM messages
         WHERE type IN ('TEXT', 'MARKDOWN', 'VOICE', 'LOCATION', 'NUDGE', 'IMAGE', 'GIF', 'STICKER', 'VIDEO', 'FILE')
+          AND chatId NOT IN (SELECT chatId FROM secret_chats)
           AND (timestamp > :lastTimestamp OR (timestamp = :lastTimestamp AND id > :lastId))
         ORDER BY timestamp ASC, id ASC
         LIMIT :limit

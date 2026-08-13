@@ -16,6 +16,7 @@ import java.util.Locale
 class MessageSearchRepository(private val database: AppDatabase) {
     private val messageDao = database.messageDao()
     private val searchDao = database.messageSearchDao()
+    private val secretChatDao = database.secretChatDao()
 
     /**
      * 全量重建搜索索引（8.31 性能优化 F18 的快速路径）：
@@ -54,6 +55,7 @@ class MessageSearchRepository(private val database: AppDatabase) {
         var changed = 0
         var lastTs = -1L
         var lastId = ""
+        val secretChatIds = secretChatDao.listSecretChatIds().toSet()
         val pageSize = 500
         while (true) {
             val batch = messageDao.getSearchableMessagesAfterCursor(lastTs, lastId, pageSize)
@@ -61,7 +63,12 @@ class MessageSearchRepository(private val database: AppDatabase) {
             val batchFingerprints = searchDao.getFingerprintsForIds(batch.map { it.id })
                 .associate { it.messageId to it.contentHash }
             batch.forEach { entity ->
-                if (indexMessage(entity.toDomain(), knownHash = batchFingerprints[entity.id])) changed++
+                if (indexMessage(
+                        entity.toDomain(),
+                        knownHash = batchFingerprints[entity.id],
+                        secretChatIds = secretChatIds
+                    )
+                ) changed++
             }
             val last = batch.last()
             lastTs = last.timestamp
@@ -75,7 +82,18 @@ class MessageSearchRepository(private val database: AppDatabase) {
      * does not wait for the next full [refreshIndex] (open global search).
      * Skips wire envelopes and non-searchable types; blank body deletes stale docs.
      */
-    suspend fun indexMessage(message: Message, knownHash: String? = null): Boolean {
+    suspend fun indexMessage(
+        message: Message,
+        knownHash: String? = null,
+        secretChatIds: Set<String>? = null
+    ): Boolean {
+        // 密聊明文永不进全局搜索：任何入口都先删除该会话已有索引，再拒绝写入。
+        val isSecretChat = secretChatIds?.contains(message.chatId)
+            ?: (message.chatId.isNotBlank() && secretChatDao.isSecret(message.chatId))
+        if (isSecretChat) {
+            searchDao.deleteDocument(message.id)
+            return knownHash != null
+        }
         // REVOKED/SK_DIST must drop any prior index even if the caller only re-indexes.
         if (message.type !in SEARCHABLE_TYPES) {
             if (message.type == MessageType.REVOKED || message.type == MessageType.SK_DIST) {
