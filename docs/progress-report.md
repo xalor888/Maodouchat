@@ -5938,3 +5938,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **reaction WS 广播所有收件人共用同一份列表**：即使收件人已拉黑某个 reactor，payload 里仍会带出该用户的 reaction。新增 `getReactionsForViewer`，用户端与 bot 端广播改为逐收件人生成过滤后的 payload；REST 响应同样按操作者过滤。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.107 2026-08-13 无限调优：媒体中心/任务页恢复取消传播
+
+1. **媒体中心初始化、会话名解析、锁状态轮询、任务页提醒清理仍用 `runCatching` 包 suspend 读取**：取消会被吞掉并继续后续逻辑。四处改为 `try/catch` 显式重抛 `CancellationException`。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。

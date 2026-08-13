@@ -388,10 +388,14 @@ fun AiTasksScreen(
             // 8.48 修复：连同 WorkManager 提醒作业一并取消——此前只清托盘，到点仍会弹新通知
             val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return@LaunchedEffect
             com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
-                runCatching {
+                try {
                     app.database.aiTaskDao().getIdsByChatId(chatId).forEach { taskId ->
                         com.maodouchat.ai.AiTaskReminderScheduler.cancelTask(app, taskId)
                     }
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    // 提醒取消失败不阻塞任务页打开
                 }
             }
         }

@@ -146,8 +146,20 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
                 _uiState.update { MediaCenterUiState(items = emptyList(), isLoading = false, isChatLocked = false) }
                 return@launch
             }
-            val locked = runCatching { chatLockRepo.get(chatId) != null }.getOrDefault(false)
-            val secret = runCatching { secretChatRepo.isSecret(chatId) }.getOrDefault(false)
+            val locked = try {
+                chatLockRepo.get(chatId) != null
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                false
+            }
+            val secret = try {
+                secretChatRepo.isSecret(chatId)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                false
+            }
             if (secret) {
                 com.maodouchat.security.SecretChatSession.markSurfaceActive(chatId)
             } else {
@@ -225,7 +237,14 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
                     _uiState.update { MediaCenterUiState(items = emptyList(), isLoading = false, isChatLocked = false) }
                     return@collect
                 }
-                if (runCatching { chatLockRepo.get(chatId) != null }.getOrDefault(false) &&
+                val lockedNow = try {
+                    chatLockRepo.get(chatId) != null
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    false
+                }
+                if (lockedNow &&
                     !com.maodouchat.security.ChatLockSession.isUnlocked(chatId)
                 ) {
                     _uiState.update {
@@ -251,8 +270,8 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
     }
 
     private suspend fun resolveChatName(): String {
-        return runCatching {
-            val entity = app.database.chatDao().getChatById(chatId) ?: return@runCatching ""
+        return try {
+            val entity = app.database.chatDao().getChatById(chatId) ?: return ""
             entity.groupName?.takeIf { it.isNotBlank() }
                 ?: entity.participantIds
                     .split(",")
@@ -265,7 +284,11 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
                         }
                     }
                 ?: ""
-        }.getOrDefault("")
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            ""
+        }
     }
 }
 
