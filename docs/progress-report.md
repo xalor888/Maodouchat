@@ -5800,3 +5800,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **附近的人只拉 `limit*8` 候选再过滤**：拉黑/已注销/停权用户占满前几批时，过滤后可能不足 limit，少返回附近用户。改为按 `userId` 游标分批拉取（最多 20 批），直到凑满可见结果或到表尾，并新增测试验证首行被拉黑用户占用时仍返回后续可见用户。
 
 **验证**：`:server:test` 全量通过（含新增 `NearbyVisibilityBatchTest`）；`git diff --check` 无输出。
+
+### 9.84 2026-08-13 无限调优：密聊开关同步清理搜索索引
+
+1. **关闭密聊后旧索引重新可见**：`MessageSearchDao.search` 按当前 `secret_chats` 过滤，关闭密聊会移除过滤条件，历史写入的索引文档可能重新出现在全局搜索；开启密聊时已有索引也不会立即清。`setSecretChatEnabled` 的启用/禁用分支都补 `deleteChatIndex`，保证密聊历史不会在开关切换时回流搜索。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。

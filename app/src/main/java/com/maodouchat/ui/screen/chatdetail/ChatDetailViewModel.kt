@@ -8394,6 +8394,13 @@ fun sendCurrentLocation() {
         viewModelScope.launch(Dispatchers.IO) {
             if (enabled) {
                 secretChatRepo.enable(targetChatId)
+                try {
+                    app.database.messageSearchDao().deleteChatIndex(targetChatId)
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    // 索引清理失败不阻塞密聊开启；SQL 过滤仍会隐藏该会话搜索结果。
+                }
                 com.maodouchat.security.SecretChatSession.markSurfaceActive(targetChatId)
                 // Privacy default: if disappearing is off, turn on 24h timer for secret 1:1.
                 val chat = _uiState.value.chat
@@ -8445,6 +8452,13 @@ fun sendCurrentLocation() {
                 return@launch
             } else {
                 secretChatRepo.disable(targetChatId)
+                try {
+                    app.database.messageSearchDao().deleteChatIndex(targetChatId)
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    // 索引清理失败不阻塞密聊关闭；下次重建/维护会按新状态处理。
+                }
                 com.maodouchat.security.SecretChatSession.markSurfaceInactive(targetChatId, getApplication())
                 val ownerUserId = tokenManager.getUserId().orEmpty()
                 if (ownerUserId.isNotBlank()) {
