@@ -169,8 +169,8 @@ class PostRepository {
             var batchBefore: Long? = before
             var batchBeforeId: String? = beforeId
             var iterations = 0
-            while (result.size < boundedLimit && iterations < 5) {
-                val batchSize = ((boundedLimit - result.size) * 3).coerceAtLeast(boundedLimit)
+            while (result.size < boundedLimit && iterations < 20) {
+                val batchSize = ((boundedLimit - result.size) * 5).coerceAtLeast(boundedLimit)
                 val batchQuery = (Posts innerJoin Users)
                     .selectAll()
                     .let { base ->

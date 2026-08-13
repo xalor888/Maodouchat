@@ -5590,3 +5590,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **刷新 ICE 只改字段**：`refreshIceServers` 此前只更新 `configuredIceServers`，已建直连/群 PeerConnection 仍用旧 TURN 凭据，1h 到期后网络切换/ICE 重启仍失败。现在刷新时同时对新旧连接调用 `setConfiguration`（保持 UNIFIED_PLAN / GATHER_CONTINUALLY），后续 `restartIce` 会使用新凭据。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.49 2026-08-13 无限调优：朋友圈可见性过滤批次上限
+
+1. **feed 可见性过滤批次上限过低**：`getFeed` 每批 SQL `LIMIT` 后再过滤拉黑/私密动态，最多 5 批就提前返回；大量不可见动态时可见帖子会被跳过。迭代上限提到 20，并把批次放大系数从 3 提到 5，与评论分页的 5→20 修复对齐。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
