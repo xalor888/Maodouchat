@@ -18,6 +18,7 @@ import com.maodouchat.server.repository.PollRepository
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -168,16 +169,24 @@ class GroupPlayBlockedVisibilityTest {
             }
             GroupCheckins.insert {
                 it[GroupCheckins.chatId] = "g1"
+                it[GroupCheckins.userId] = "u1"
+                it[GroupCheckins.checkinDate] = LocalDate.now().toString()
+                it[GroupCheckins.streak] = 1
+                it[GroupCheckins.totalCount] = 1
+                it[GroupCheckins.checkedAt] = now - 2_000L
+            }
+            GroupCheckins.insert {
+                it[GroupCheckins.chatId] = "g1"
                 it[GroupCheckins.userId] = "u2"
-                it[GroupCheckins.checkinDate] = "2026-08-12"
+                it[GroupCheckins.checkinDate] = LocalDate.now().toString()
                 it[GroupCheckins.streak] = 5
                 it[GroupCheckins.totalCount] = 10
-                it[GroupCheckins.checkedAt] = now
+                it[GroupCheckins.checkedAt] = now - 1_000L
             }
             GroupCheckins.insert {
                 it[GroupCheckins.chatId] = "g1"
                 it[GroupCheckins.userId] = "u3"
-                it[GroupCheckins.checkinDate] = "2026-08-12"
+                it[GroupCheckins.checkinDate] = LocalDate.now().toString()
                 it[GroupCheckins.streak] = 2
                 it[GroupCheckins.totalCount] = 3
                 it[GroupCheckins.checkedAt] = now
@@ -208,6 +217,10 @@ class GroupPlayBlockedVisibilityTest {
         assertEquals(1, snapshots.single().totalVoters)
 
         val ranking = GroupCheckinRepository.checkinRanking("g1", 100, viewerId = "u1")
-        assertEquals(listOf("u3"), ranking.map { it.userId })
+        assertEquals(listOf("u3", "u1"), ranking.map { it.userId })
+
+        val mine = GroupCheckinRepository.myCheckin("g1", "u1")!!
+        assertEquals(2, mine.todayCount)
+        assertEquals(1, mine.todayRank)
     }
 }

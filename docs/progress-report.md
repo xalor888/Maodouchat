@@ -5848,3 +5848,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`checkinRanking` 没有 viewer 维度**：被拉黑成员的签到 streak/总次数仍会出现在排行里，且可能挤占可见名额。排行接口新增 `viewerId`，SQL 窗口查询前用双向拉黑集合排除目标用户，路由同步传入当前用户。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.92 2026-08-13 无限调优：我的签到排名与今日人数一致过滤
+
+1. **`myCheckin` 的 todayCount/rank 仍包含被拉黑用户**：排行已排除拉黑，但个人签到快照的“今日人数”和“我的排名”仍把它们算进去，数字与排行榜对不上。`toCheckinDto` 按 viewer 双向拉黑过滤统计，回归测试覆盖。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
