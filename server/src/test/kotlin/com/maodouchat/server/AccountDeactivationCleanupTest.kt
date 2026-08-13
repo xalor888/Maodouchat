@@ -2,6 +2,7 @@ package com.maodouchat.server
 
 import at.favre.lib.crypto.bcrypt.BCrypt
 import com.maodouchat.server.db.AnnouncementAcks
+import com.maodouchat.server.db.CommentLikes
 import com.maodouchat.server.db.DeviceEventConsistencyLog
 import com.maodouchat.server.db.DeviceEventSequences
 import com.maodouchat.server.db.GroupChainEntries
@@ -9,6 +10,8 @@ import com.maodouchat.server.db.GroupChains
 import com.maodouchat.server.db.GroupCheckins
 import com.maodouchat.server.db.GroupPkRounds
 import com.maodouchat.server.db.GroupPkVotes
+import com.maodouchat.server.db.PostComments
+import com.maodouchat.server.db.Posts
 import com.maodouchat.server.db.SystemAnnouncements
 import com.maodouchat.server.db.UserTagAssignments
 import com.maodouchat.server.db.UserTags
@@ -161,6 +164,31 @@ class AccountDeactivationCleanupTest {
                 it[GroupPkVotes.choice] = "right"
                 it[GroupPkVotes.votedAt] = now
             }
+            Posts.insert {
+                it[Posts.id] = "post_1"
+                it[Posts.authorId] = "u_other"
+                it[Posts.content] = "Post"
+                it[Posts.imageUrls] = "[]"
+                it[Posts.visibility] = "PUBLIC"
+                it[Posts.createdAt] = now
+            }
+            PostComments.insert {
+                it[PostComments.id] = "comment_1"
+                it[PostComments.postId] = "post_1"
+                it[PostComments.authorId] = "u_other"
+                it[PostComments.content] = "Comment"
+                it[PostComments.createdAt] = now
+            }
+            CommentLikes.insert {
+                it[CommentLikes.commentId] = "comment_1"
+                it[CommentLikes.userId] = "u_del"
+                it[CommentLikes.createdAt] = now
+            }
+            CommentLikes.insert {
+                it[CommentLikes.commentId] = "comment_1"
+                it[CommentLikes.userId] = "u_other"
+                it[CommentLikes.createdAt] = now
+            }
         }
 
         val result = UserRepository().deleteAccount("u_del", password)
@@ -174,12 +202,14 @@ class AccountDeactivationCleanupTest {
             assertTrue(GroupCheckins.selectAll().where { GroupCheckins.userId eq "u_del" }.empty())
             assertTrue(GroupChainEntries.selectAll().where { GroupChainEntries.userId eq "u_del" }.empty())
             assertTrue(GroupPkVotes.selectAll().where { GroupPkVotes.userId eq "u_del" }.empty())
+            assertTrue(CommentLikes.selectAll().where { CommentLikes.userId eq "u_del" }.empty())
 
             assertTrue(AnnouncementAcks.selectAll().where { AnnouncementAcks.userId eq "u_other" }.count() == 1L)
             assertTrue(UserTagAssignments.selectAll().where { UserTagAssignments.userId eq "u_other" }.count() == 1L)
             assertTrue(GroupCheckins.selectAll().where { GroupCheckins.userId eq "u_other" }.count() == 1L)
             assertTrue(GroupChainEntries.selectAll().where { GroupChainEntries.userId eq "u_other" }.count() == 1L)
             assertTrue(GroupPkVotes.selectAll().where { GroupPkVotes.userId eq "u_other" }.count() == 1L)
+            assertTrue(CommentLikes.selectAll().where { CommentLikes.userId eq "u_other" }.count() == 1L)
         }
     }
 

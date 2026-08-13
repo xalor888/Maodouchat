@@ -548,6 +548,7 @@ class UserRepository {
             SignalingMessages.deleteWhere { (SignalingMessages.fromUserId eq userId) or (SignalingMessages.toUserId eq userId) }
             PostLikes.deleteWhere { PostLikes.userId eq userId }
             PostComments.deleteWhere { PostComments.authorId eq userId }
+            CommentLikes.deleteWhere { CommentLikes.userId eq userId }
             val authoredPostIds = Posts.selectAll().where { Posts.authorId eq userId }.map { it[Posts.id] }
             if (authoredPostIds.isNotEmpty()) {
                 PostLikes.deleteWhere { PostLikes.postId inList authoredPostIds }
