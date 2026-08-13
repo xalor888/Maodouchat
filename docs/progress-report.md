@@ -5812,3 +5812,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **好友最多 2000 但列表只返回 200**：`listFriends` 的 limit 上限是 200，超过 200 好友的用户永远看不到完整好友列表，且没有 offset 可翻。默认值和上限改为 `MAX_FRIENDS_PER_USER`（2000），一次拉全所有好友。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.86 2026-08-13 无限调优：旧动态图片复用兜底
+
+1. **升级前发布的动态没有图片占用行**：`post_image_claims` 只覆盖新发帖，存量旧动态的图片仍可能被重复引用（删一条会破坏另一条）。`createPost` 校验改为“占用表 + 旧 `Posts.imageUrls` LIKE 精确匹配”兜底，新增测试验证无占用行的旧动态同样阻止图片复用。
+
+**验证**：`:server:test` 全量通过（含新增 `PostImageLegacyClaimTest`）；`git diff --check` 无输出。

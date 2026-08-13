@@ -62,13 +62,7 @@ class PostRepository {
                 }
                 // 8.48 修复 M13：热路径查进程内占用缓存，冷启动/多实例以 DB 唯一占用表为准；
                 // 避免服务重启后同一张图片被重复发布（删一条会破坏另一条动态的图片）。
-                require(filenames.none { filename ->
-                    imageFilenameToPostId[filename] != null ||
-                        PostImageClaims.select(PostImageClaims.postId)
-                            .where { PostImageClaims.filename eq filename }
-                            .limit(1)
-                            .any()
-                }) { "动态图片已被其他动态使用" }
+                require(filenames.none(::isImageFilenameClaimedInTx)) { "动态图片已被其他动态使用" }
                 val postId = "p_${UUID.randomUUID()}"
                 val now = System.currentTimeMillis()
                 Posts.insert {
@@ -882,6 +876,23 @@ class PostRepository {
     private fun normalizeVisibility(value: String): String {
         val normalized = value.trim().uppercase()
         return if (normalized in ALLOWED_VISIBILITIES) normalized else "PRIVATE"
+    }
+
+    private fun isImageFilenameClaimedInTx(filename: String): Boolean {
+        if (imageFilenameToPostId[filename] != null) return true
+        if (PostImageClaims.select(PostImageClaims.postId)
+                .where { PostImageClaims.filename eq filename }
+                .limit(1)
+                .any()
+        ) {
+            return true
+        }
+        // 升级前的旧动态没有占用行，回退 Posts.imageUrls LIKE 精确匹配，防止存量图片被重复引用。
+        val needle = "%$filename%"
+        return Posts.select(Posts.id)
+            .where { Posts.imageUrls like needle }
+            .limit(1)
+            .any()
     }
 
     private fun deletePostRow(postId: String): Boolean {
