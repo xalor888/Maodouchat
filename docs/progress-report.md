@@ -6176,3 +6176,13 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 2. **动态互动通知是唯一跳过脱敏的消息类通知路径（客户端隐私）**：`showPostInteraction` 把评论/回复明文直接拼进通知文案并写入通知中心 `preview`，完全未过 `shouldHideSensitiveDetails()`——用户开启「隐藏通知内容」或 App 锁时，锁屏与通知中心仍明文展示他人评论正文（`VISIBILITY_PRIVATE`+`setPublicVersion` 只保护系统锁屏，解锁后/中心内原样可见），违反 showMessage 系列确立的脱敏不变量。改为与 `showMessage` 同口径：脱敏时文案仅保留动作提示、中心 `preview=null`。
 
 **验证**：`:server:compileKotlin` 通过；`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
+
+### 9.138 2026-08-13 无限调优：bot 空媒体广播、sendMessage 双重限流、registrationId 越界
+
+1. **`sendVoice`/`sendVideo`/`sendAnimation`/`sendAudio` 接受空媒体并照常广播**：`b64` 缺省为空串时 size=0，仍 `insertBotMessage` + 全群 fanout 一条无内容的媒体消息（bot 或失窃 bot token 可据此刷屏，且媒体静默丢失）；`sendPhoto`/`sendDocument` 早已拒绝空 `b64`，四端点漏掉同款校验（子代理审计发现）。补齐 `b64.isBlank()` → 400。
+2. **`POST /api/bot/sendMessage` 同一 limiter 连扣两次**：60/min 与 30/min 两次 `acquire` 打在同一 bot.id bucket——每次调用烧 2 个 token，60 档恒被 30 档遮蔽，实际上限 30/min 且语义混乱。删除冗余的 60/min 档，保留 30/min 单一门（有效行为不变）。
+3. **`UploadKeysRequest` 接受 `registrationId` 直到 Int.MAX_VALUE**：客户端 `generateRegistrationId(false)` 只生成 1..16380，越界值会让对端 libsignal 构造 PreKeyBundle 失败（自伤性 DoS）。收紧到 1..16_380（测试用例均用 12345，不冲突）。
+
+另核实子代理其余发现：`trustProxyHeaders=true` 时 XFF 可伪造导致 IP 维度限流/锁定可绕过——该开关默认关闭（显式运维决策），登录路径另有不可伪造的按邮箱限流兜底，完整修复需部署侧可信代理网段配置，暂不做改动；refresh 轮换/OTPK 消费/附件鉴权/私聊建会话竞态均已被既有防护覆盖。
+
+**验证**：`:server:compileKotlin` 通过；`git diff --check` 无输出。

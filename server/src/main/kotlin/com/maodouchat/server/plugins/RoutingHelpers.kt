@@ -592,7 +592,8 @@ internal fun String.isValidBase64Field(maxLength: Int): Boolean {
 }
 
 internal fun UploadKeysRequest.isValid(): Boolean {
-    return registrationId in 1..Int.MAX_VALUE &&
+    // 9.138：registrationId 收紧到 libsignal 非扩展区间（客户端 generateRegistrationId(false) 生成 1..16380）
+    return registrationId in 1..16_380 &&
         deviceId in 1..255 &&
         signedPreKeyId > 0 &&
         identityKey.isValidBase64Field(maxLength = 4096) &&

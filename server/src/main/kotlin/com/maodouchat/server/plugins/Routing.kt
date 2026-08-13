@@ -3233,11 +3233,9 @@ put("count", chats.size)
                 val token = headerToken.ifBlank { bearer }
                 val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
                     ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
                 // 每 bot 限流：防单 bot 向 200 人群高频广播（WS fanout + FCM push 风暴）
+                // 9.138：此前 60/min 与 30/min 两次 acquire 打在同一 limiter/bucket 上——
+                // 每次调用烧 2 个 token，60 档完全被 30 档遮蔽且语义混乱；只保留 30/min 档
                 if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 30)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("发送太频繁，请稍后再试"))
                 }
@@ -5448,8 +5446,9 @@ put("type", "STICKER")
                 val duration = (obj["duration"] ?: obj["durationSec"])?.jsonPrimitive?.content?.toIntOrNull() ?: 0
                 val caption = obj["caption"]?.jsonPrimitive?.content.orEmpty().take(200)
                 val b64 = (obj["fileBase64"] ?: obj["voice"] ?: obj["data"])?.jsonPrimitive?.content.orEmpty()
-                if (chatId.isBlank()) {
-                    return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+                // 9.138：与 sendPhoto/sendDocument 一致拒绝空媒体——此前可广播无内容的 voice 消息
+                if (chatId.isBlank() || b64.isBlank()) {
+                    return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/voice required"))
                 }
                 if (!chatRepo.isParticipant(chatId, bot.id)) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
@@ -5876,8 +5875,9 @@ put("upToId", upTo)
                 val caption = obj["caption"]?.jsonPrimitive?.content.orEmpty().take(500)
                 val duration = (obj["duration"] ?: obj["durationSec"])?.jsonPrimitive?.content?.toIntOrNull() ?: 0
                 val b64 = (obj["videoBase64"] ?: obj["fileBase64"] ?: obj["data"])?.jsonPrimitive?.content.orEmpty()
-                if (chatId.isBlank()) {
-                    return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+                // 9.138：与 sendPhoto/sendDocument 一致拒绝空媒体
+                if (chatId.isBlank() || b64.isBlank()) {
+                    return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/videoBase64 required"))
                 }
                 if (!chatRepo.isParticipant(chatId, bot.id)) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
@@ -5948,8 +5948,9 @@ put("type", "VIDEO")
                 val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
                 val caption = obj["caption"]?.jsonPrimitive?.content.orEmpty().take(500)
                 val b64 = (obj["animationBase64"] ?: obj["gifBase64"] ?: obj["fileBase64"] ?: obj["data"])?.jsonPrimitive?.content.orEmpty()
-                if (chatId.isBlank()) {
-                    return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+                // 9.138：与 sendPhoto/sendDocument 一致拒绝空媒体
+                if (chatId.isBlank() || b64.isBlank()) {
+                    return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/animationBase64 required"))
                 }
                 if (!chatRepo.isParticipant(chatId, bot.id)) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
@@ -6131,8 +6132,9 @@ put("event", event)
                 val duration = (obj["duration"] ?: obj["durationSec"])?.jsonPrimitive?.content?.toIntOrNull() ?: 0
                 val caption = obj["caption"]?.jsonPrimitive?.content.orEmpty().take(500)
                 val b64 = (obj["audioBase64"] ?: obj["fileBase64"] ?: obj["data"])?.jsonPrimitive?.content.orEmpty()
-                if (chatId.isBlank()) {
-                    return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+                // 9.138：与 sendPhoto/sendDocument 一致拒绝空媒体
+                if (chatId.isBlank() || b64.isBlank()) {
+                    return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/audioBase64 required"))
                 }
                 if (!chatRepo.isParticipant(chatId, bot.id)) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
