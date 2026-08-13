@@ -5932,3 +5932,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **每条接龙/PK/投票都会重查双向拉黑集合**：`toChainDto/toPkDto/toPollDto` 在列表路径各自查询 BlockedUsers，100 条列表就是 100 次查询。列表方法先取一次 blocked 集合并传入 DTO，单条路径仍按需查询。
 
 **验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.106 2026-08-13 无限调优：reaction 广播按收件人过滤
+
+1. **reaction WS 广播所有收件人共用同一份列表**：即使收件人已拉黑某个 reactor，payload 里仍会带出该用户的 reaction。新增 `getReactionsForViewer`，用户端与 bot 端广播改为逐收件人生成过滤后的 payload；REST 响应同样按操作者过滤。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

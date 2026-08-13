@@ -112,6 +112,7 @@ class MessageReactionBlockedVisibilityTest {
         val messages = MessageRepository().getMessages("g1", limit = 50, viewerId = "u1")
         assertTrue(messages.none { it.id == "m2" })
         assertEquals(listOf("u3"), messages.first { it.id == "m1" }.reactions.map { it.userId })
+        assertEquals(listOf("u3"), MessageRepository().getReactionsForViewer("m1", "u1").map { it.userId })
         assertEquals(listOf("u3"), MessageRepository().getReadReceipts("m1", "u1").map { it.userId })
 
         MessageRepository().markAllAsRead("g1", "u1")

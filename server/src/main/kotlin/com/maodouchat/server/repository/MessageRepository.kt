@@ -823,6 +823,16 @@ class MessageRepository {
         }
     }
 
+    /** 按 viewer 双向拉黑过滤后的 reaction 列表（广播/详情用，避免泄露被拉黑用户互动）。 */
+    fun getReactionsForViewer(messageId: String, viewerId: String): List<MessageReactionResponse> = transaction {
+        val blocked = blockedSenderIdsForViewerInTx(viewerId)
+        MessageReactions.selectAll()
+            .where { MessageReactions.messageId eq messageId }
+            .map { it.toReactionResponse() }
+            .filter { it.userId !in blocked }
+            .sortedBy { it.reactedAt }
+    }
+
     data class DeleteMessageResult(
         /** true 删除成功；false 无权；null 消息已不存在（幂等） */
         val ok: Boolean?,

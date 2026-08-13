@@ -6664,27 +6664,39 @@ put("type", "MARKDOWN")
                 if (!chatRepo.isParticipant(msg.chatId, bot.id)) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 }
-                val reactions = messageRepo.setReaction(messageId, bot.id, emoji)
+                messageRepo.setReaction(messageId, bot.id, emoji)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("cannot react"))
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, msg.chatId, messageId, "setMessageReaction")
-                val payload = MessageReactionUpdatedPayload(msg.chatId, messageId, bot.id, reactions)
-                val reactionJson = json.encodeToString(
-                    WsMessage.serializer(),
-                    WsMessage("MESSAGE_REACTION_UPDATED", json.encodeToString(MessageReactionUpdatedPayload.serializer(), payload))
-                )
+                val botReactions = messageRepo.getReactionsForViewer(messageId, bot.id)
                 // 双向拉黑过滤，与 sendMessage 口径一致
                 val botChatParticipants = chatRepo.getParticipantIds(msg.chatId)
                 val botBlockedIds = userRepo.blockedEitherWayIdsInTx(bot.id, botChatParticipants)
                 botChatParticipants.forEach { pid ->
                     if (pid in botBlockedIds) return@forEach
-                    try { sendToUser(pid, reactionJson) } catch (e: CancellationException) { throw e } catch (_: Exception) { }
+                    val viewerReactions = messageRepo.getReactionsForViewer(messageId, pid)
+                    val viewerPayload = MessageReactionUpdatedPayload(msg.chatId, messageId, bot.id, viewerReactions)
+                    try {
+                        sendToUser(
+                            pid,
+                            json.encodeToString(
+                                WsMessage.serializer(),
+                                WsMessage(
+                                    "MESSAGE_REACTION_UPDATED",
+                                    json.encodeToString(MessageReactionUpdatedPayload.serializer(), viewerPayload)
+                                )
+                            )
+                        )
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                    }
                 }
                 call.respond(
                 buildJsonObject {
 put("ok", true)
 put("messageId", messageId)
 put("emoji", emoji)
-put("reactions", Json.parseToJsonElement(Json.encodeToString(reactions)))
+put("reactions", Json.parseToJsonElement(Json.encodeToString(botReactions)))
                 }
             )
             }
@@ -14684,22 +14696,31 @@ put("status", "ok")
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("reactions_disabled"))
                     return@put
                 }
-                val reactions = messageRepo.setReaction(mid, uid, emoji)
-                if (reactions == null) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("该消息不能回应")); return@put }
-                val payload = MessageReactionUpdatedPayload(msg.chatId, mid, uid, reactions)
-                val reactionJson = json.encodeToString(
-                    WsMessage.serializer(),
-                    WsMessage("MESSAGE_REACTION_UPDATED", json.encodeToString(MessageReactionUpdatedPayload.serializer(), payload))
-                )
+                if (messageRepo.setReaction(mid, uid, emoji) == null) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("该消息不能回应"))
+                    return@put
+                }
+                val actorReactions = messageRepo.getReactionsForViewer(mid, uid)
                 // 双向拉黑过滤，与 NEW_MESSAGE fanout 口径一致
                 val participants = chatRepo.getParticipantIds(msg.chatId)
                 val blockedIds = userRepo.blockedEitherWayIdsInTx(uid, participants)
                 participants.forEach { participantId ->
                     if (participantId != uid && participantId !in blockedIds) {
-                        sendToUser(participantId, reactionJson)
+                        val viewerReactions = messageRepo.getReactionsForViewer(mid, participantId)
+                        val viewerPayload = MessageReactionUpdatedPayload(msg.chatId, mid, uid, viewerReactions)
+                        sendToUser(
+                            participantId,
+                            json.encodeToString(
+                                WsMessage.serializer(),
+                                WsMessage(
+                                    "MESSAGE_REACTION_UPDATED",
+                                    json.encodeToString(MessageReactionUpdatedPayload.serializer(), viewerPayload)
+                                )
+                            )
+                        )
                     }
                 }
-                call.respond(payload)
+                call.respond(MessageReactionUpdatedPayload(msg.chatId, mid, uid, actorReactions))
             }
             get("/api/messages/starred") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject
