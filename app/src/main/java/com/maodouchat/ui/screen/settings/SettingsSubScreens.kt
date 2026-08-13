@@ -969,24 +969,33 @@ fun AccountSecurityScreen(
                                     return@Button
                                 }
                                 val code = totpCodeInput
-                                totpBusy = true
-                                totpScope.launch {
-                                    try {
-                                        val disable = ApiService.disableTotp(token, code)
-                                        if (!isCurrentTotpOwner(ownerUserId)) return@launch
-                                        disable.onSuccess {
-                                            totpEnabled = false
-                                            totpSecret = null
-                                            totpUri = null
-                                            totpCodeInput = ""
-                                            totpMessage = totpDisabledMessage
-                                        }.onFailure {
-                                            totpMessage = it.message ?: totpDisableFailedMessage
+                                // 9.140：关闭 2FA 属破坏性安全操作——与注销/删号/关闭 App 锁一致，
+                                // 先过 SensitiveActionGate step-up（App 锁 + 敏感操作验证开启时）
+                                com.maodouchat.security.SensitiveActionGate.confirm(
+                                    context = context,
+                                    action = com.maodouchat.security.SensitiveAction.DISABLE_TOTP,
+                                    title = context.getString(R.string.settings_totp_disable),
+                                    onSuccess = {
+                                        totpBusy = true
+                                        totpScope.launch {
+                                            try {
+                                                val disable = ApiService.disableTotp(token, code)
+                                                if (!isCurrentTotpOwner(ownerUserId)) return@launch
+                                                disable.onSuccess {
+                                                    totpEnabled = false
+                                                    totpSecret = null
+                                                    totpUri = null
+                                                    totpCodeInput = ""
+                                                    totpMessage = totpDisabledMessage
+                                                }.onFailure {
+                                                    totpMessage = it.message ?: totpDisableFailedMessage
+                                                }
+                                            } finally {
+                                                if (isCurrentTotpOwner(ownerUserId)) totpBusy = false
+                                            }
                                         }
-                                    } finally {
-                                        if (isCurrentTotpOwner(ownerUserId)) totpBusy = false
-                                    }
-                                }
+                                    },
+                                )
                             },
                             enabled = !totpBusy && totpEnabled,
                             modifier = Modifier.fillMaxWidth(),

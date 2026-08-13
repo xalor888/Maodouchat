@@ -31,7 +31,9 @@ object AdminAiAuditPolicy {
     ): Int {
         val chars = inputChars.coerceAtLeast(0)
         return if (inputTokens != null || outputTokens != null) {
-            ((inputTokens ?: 0L) + (outputTokens ?: 0L)).toInt().coerceAtLeast(0)
+            // 9.140：Long 和超 Int.MAX_VALUE 时先钳位再转 Int——此前 .toInt() 回绕为负、
+            // .coerceAtLeast(0) 静默报 0，掩盖溢出而非处理溢出
+            ((inputTokens ?: 0L) + (outputTokens ?: 0L)).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
         } else {
             estimatedTokensFromInputChars(chars)
         }

@@ -416,7 +416,9 @@ fun Application.configureAdminEnhanceRouting(
                         return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("单次打标数量超限"))
                     }
                     val tags = userTagRepo.listTags()
+                    // 9.140：目标用户不存在时 404（此前 assignTags 撞悬空 FK 抛约束异常 → 500）
                     val assigned = userTagRepo.assignTags(userId, req.tagIds, "MANUAL", actorId)
+                        ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
                     // 风控联动：打上 HIGH/CRITICAL 风险标签时写入风险事件队列，进入人工复核
                     val risky = tags.filter { it.id in req.tagIds && it.riskLevel in setOf("HIGH", "CRITICAL") }
                     risky.forEach { tag ->
@@ -472,7 +474,7 @@ fun Application.configureAdminEnhanceRouting(
                         return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("导出时间范围不得超过 90 天"))
                     }
                     val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5_000).coerceIn(1, 10_000)
-                    val csv = buildAuditExportCsv(scope, fromMs, toMs, limit)
+                    val (csv, exportedRows) = buildAuditExportCsv(scope, fromMs, toMs, limit)
                     val fileName = "maodouchat-${scope.lowercase()}-${fromMs}-${toMs}.csv"
                     transaction {
                         AuditExportRecords.insert {
@@ -481,7 +483,9 @@ fun Application.configureAdminEnhanceRouting(
                             it[AuditExportRecords.scope] = scope
                             it[AuditExportRecords.fromMs] = fromMs
                             it[AuditExportRecords.toMs] = toMs
-                            it[AuditExportRecords.rowCount] = 0
+                            // 9.140：此前恒记 0——审计追溯记录行数与实际导出内容不符
+                            it[AuditExportRecords.rowCount] = exportedRows.toLong()
+                            // fileRef 记下载文件名（CSV 流式返回不落盘，保留作为导出标识）
                             it[AuditExportRecords.fileRef] = fileName
                             it[AuditExportRecords.requestedAt] = System.currentTimeMillis()
                         }
@@ -960,8 +964,8 @@ private fun csvCell(value: Any?): String {
     return "\"${formulaSafe.replace("\"", "\"\"")}\""
 }
 
-/** 时间范围导出：仅导出元数据/平台明文公告，绝不导出 E2EE 消息密文。 */
-private fun buildAuditExportCsv(scope: String, fromMs: Long, toMs: Long, limit: Int): String {
+/** 时间范围导出：仅导出元数据/平台明文公告，绝不导出 E2EE 消息密文。返回 CSV 与实际行数。 */
+private fun buildAuditExportCsv(scope: String, fromMs: Long, toMs: Long, limit: Int): Pair<String, Int> {
     val rows = when (scope) {
         "ADMIN_AUDIT" -> transaction {
             ModerationAuditLog.selectAll().where {
@@ -1051,7 +1055,8 @@ private fun buildAuditExportCsv(scope: String, fromMs: Long, toMs: Long, limit: 
         else -> ""
     }
     val body = rows.joinToString("\r\n") { row -> row.joinToString(",") { cell -> csvCell(cell) } }
-    return "\uFEFF$header\r\n$body\r\n"
+    // 9.140：连同实际行数返回，供审计导出记录写入真实 rowCount
+    return "\uFEFF$header\r\n$body\r\n" to rows.size
 }
 
 private fun AnnouncementRepository.AnnouncementRow.toDto(acked: Boolean): AnnouncementDto = AnnouncementDto(

@@ -150,7 +150,7 @@ class UserTagRepository {
         tagIds: List<String>,
         source: String,
         assignedBy: String?
-    ): List<AssignmentRow> = transaction {
+    ): List<AssignmentRow>? = transaction {
         val now = System.currentTimeMillis()
         val ids = tagIds.distinct().filter { tagId ->
             UserTags.selectAll().where { UserTags.id eq tagId }.firstOrNull() != null
@@ -158,7 +158,10 @@ class UserTagRepository {
         // 串行化同一用户的并发打标（两个管理员/风控同时打标同一用户）：
         // PG 上事务内 catch 唯一冲突后再 SELECT 必 500，锁住用户行后 exists 检查即准确，
         // (tagId, userId) PK 竞态从源头消除（与项目内 chat 行锁串行化模式一致）。
+        // 9.140：用户不存在时返回 null 由路由映射 404——此前忽略 null 继续 INSERT，
+        // 悬空 FK 触发约束异常返回 500
         Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
+            ?: return@transaction null
         ids.forEach { tagId ->
             val existing = UserTagAssignments.selectAll().where {
                 (UserTagAssignments.tagId eq tagId) and (UserTagAssignments.userId eq userId)

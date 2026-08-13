@@ -854,7 +854,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val approverDeviceId = app.signalProtocol.getDeviceId()
             val currentDevice = _uiState.value.devices.firstOrNull { it.deviceId == approverDeviceId }
             val targetDevice = _uiState.value.devices.firstOrNull { it.deviceId == deviceId }
-            if (deviceId == approverDeviceId || currentDevice?.status != "CONFIRMED") {
+            // 9.140：仅当本地列表已加载且明确显示本机未确认时才拦——列表未加载/过期时
+            // 不得本地误拦（服务端 APPROVER_NOT_TRUSTED 是权威校验）
+            if (deviceId == approverDeviceId || (currentDevice != null && currentDevice.status != "CONFIRMED")) {
                 _uiState.update { it.copy(errorMessage = text(R.string.settings_approve_from_confirmed_device)) }
                 return@launch
             }
@@ -1056,10 +1058,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun logout() {
         if (accountMutationJob?.isActive == true) return
+        // 9.140：快照当前账号并带归属校验 purge——此前无 expectedOwnerUserId，
+        // 按钮点击到协程体执行之间换号会把新账号会话一并清掉
+        val ownerUserId = tokenManager.getUserId().orEmpty()
         accountMutationJob = viewModelScope.launch {
             withContext(NonCancellable) {
                 com.maodouchat.network.WebSocketClient.disconnect()
-                app.secureSessionManager.purgeLocalSession()
+                app.secureSessionManager.purgeLocalSession(expectedOwnerUserId = ownerUserId.takeIf { it.isNotBlank() })
                 // 1.103：登出清空「正在输入」presence，避免残留对端状态。
                 // 放在 NonCancellable 内，避免 purge 后协程取消导致清理被跳过。
                 com.maodouchat.util.TypingPresenceStore.clear()

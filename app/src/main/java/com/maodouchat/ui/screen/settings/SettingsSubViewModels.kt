@@ -1764,8 +1764,10 @@ fun SettingsViewModel.changePassword(old: String, new: String, confirm: String, 
                             return@withContext false
                         }
                         com.maodouchat.network.WebSocketClient.disconnect()
-                        (getApplication() as com.maodouchat.MaodouchatApp).secureSessionManager.purgeLocalSession()
-                        true
+                        // 9.140：带账号归属校验 purge——此前无 expectedOwnerUserId，
+                        // 断连窗口内换号会把新账号的会话一并清掉
+                        (getApplication() as com.maodouchat.MaodouchatApp).secureSessionManager
+                            .purgeLocalSession(expectedOwnerUserId = ownerUserId)
                     }
                     if (!purged) {
                         _uiState.update { it.copy(isSaving = false) }

@@ -6198,3 +6198,16 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实并排除子代理其余发现：`AiTaskTimeChangeReceiver exported="false"` 不影响接收系统广播（Android 官方语义：exported=false 仍接收系统/同应用/同 UID 来源的广播，BOOT_COMPLETED 等系统广播正常送达）——不实；`selectContext` 允许末条消息超预算为文档化设计（软预算+上游 1200 字符上限）；`AiContextManager` 的 maxContextTokens/reservedOutputTokens 为死参数——仅维护性提示，不动签名。TOTP 重放/爆破防护（DB CAS + 账号/IP 锁定 + 密码先行）验证完好。
 
 **验证**：`:server:compileKotlin` 通过；`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
+
+### 9.140 2026-08-13 无限调优：设置页 purge 归属校验、关闭 2FA 缺 step-up、管理端审计行数失真
+
+1. **改密码成功后的 purge 无账号归属校验（客户端）**：`changePassword` 的 `purgeLocalSession()` 未传 `expectedOwnerUserId`——门禁检查与 purge 之间（含 `WebSocketClient.disconnect()` 窗口）换号会把新账号会话一并清掉；`logout()` 同样裸调 purge。统一改为快照 owner 并传 `expectedOwnerUserId`（与 logoutAllDevices/deleteAccount 口径一致）。
+2. **关闭 2FA 绕过 SensitiveActionGate**：禁用 TOTP 是破坏性安全操作（移除强认证因子），但按钮仅要求 6 位码即可关闭——注销/删号/关闭 App 锁均需 step-up。新增 `SensitiveAction.DISABLE_TOTP` 入策略清单，按钮动作包进 `SensitiveActionGate.confirm`。
+3. **`confirmMyDevice` 设备列表未加载时本地误拦批准**：`currentDevice?.status != "CONFIRMED"` 在 `currentDevice == null`（列表未加载/过期）时恒 true，用户被本地错误提示挡住、永远到不了服务端的权威 `APPROVER_NOT_TRUSTED` 校验。改为仅当列表明确显示本机未确认时才拦。
+4. **`AdminAiAuditPolicy.resolveEstimatedTokens` Long→Int 回绕**：token 和超 Int.MAX_VALUE 时 `.toInt()` 回绕为负、`.coerceAtLeast(0)` 静默报 0。改为先 `coerceIn(0, Int.MAX_VALUE)` 再转。
+5. **审计导出记录 `rowCount` 恒 0**：`buildAuditExportCsv` 返回的 CSV 含 limit 行数据，但审计表记录写死 0——「谁导出了多少行」追溯失真。改为返回 `(csv, rows.size)` 并写入真实行数（fileRef 保留下载文件名作为导出标识）。
+6. **`assignTags` 对不存在用户返回 500**：用户行锁查询结果被忽略，悬空 FK 触发约束异常。改为返回 null、路由映射 404。
+
+另核实并排除子代理其余发现：通知设置 `sync()` 的「快速双击混写/回滚」已由 `syncGeneration` 世代守卫覆盖（被取代请求的响应直接丢弃，最后请求携带最新 UI 值）；客户端偏好云端 blob 落设备全局存储属产品设计（设备级安全开关跨账号同步，且拉取路径已有双门禁）；公告 `publish()` 覆盖未来 `startsAt` 为文档化的「手动发布立即生效」语义。均不做改动。
+
+**验证**：`:server:compileKotlin` 通过；`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
