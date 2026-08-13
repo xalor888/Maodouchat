@@ -731,7 +731,7 @@ class ChatRepository {
                 return@transaction LeaveChatOutcome(LeaveChatResult.OWNER_TRANSFER_REQUIRED)
             }
             ChatUserSettings.deleteWhere { (ChatUserSettings.chatId eq chatId) and (ChatUserSettings.userId eq userId) }
-            if (chat[Chats.isGroup]) deleteUserGroupPlayInChat(chatId, userId)
+            if (chat[Chats.isGroup]) deleteUserChatLocalData(chatId, userId)
             val deleted = ChatParticipants.deleteWhere { (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq userId) }
             val remaining = ChatParticipants.selectAll().where { ChatParticipants.chatId eq chatId }.count()
             if (remaining == 0L) {
@@ -936,7 +936,7 @@ class ChatRepository {
         ChatUserSettings.deleteWhere {
             (ChatUserSettings.chatId eq chatId) and (ChatUserSettings.userId eq targetUserId)
         }
-        deleteUserGroupPlayInChat(chatId, targetUserId)
+        deleteUserChatLocalData(chatId, targetUserId)
         val deleted = ChatParticipants.deleteWhere {
             (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq targetUserId)
         }
@@ -1145,8 +1145,30 @@ class ChatRepository {
             .where { GroupPkRounds.chatId eq chatId }
             .map { it[GroupPkRounds.id] }
 
-    /** Removes a leaving/removed member's personal group-play participation for this chat. */
-    private fun deleteUserGroupPlayInChat(chatId: String, userId: String) {
+    /** Removes a leaving/removed member's personal data scoped to this chat. */
+    private fun deleteUserChatLocalData(chatId: String, userId: String) {
+        val messageIds = Messages.select(Messages.id)
+            .where { Messages.chatId eq chatId }
+            .map { it[Messages.id] }
+        if (messageIds.isNotEmpty()) {
+            MessageReactions.deleteWhere {
+                (MessageReactions.messageId inList messageIds) and (MessageReactions.userId eq userId)
+            }
+            ReadReceipts.deleteWhere {
+                (ReadReceipts.messageId inList messageIds) and (ReadReceipts.userId eq userId)
+            }
+            StarMessages.deleteWhere {
+                (StarMessages.messageId inList messageIds) and (StarMessages.userId eq userId)
+            }
+        }
+        SenderKeyDistributions.deleteWhere {
+            (SenderKeyDistributions.chatId eq chatId) and
+                ((SenderKeyDistributions.senderId eq userId) or
+                    (SenderKeyDistributions.recipientUserId eq userId))
+        }
+        AiPreferences.deleteWhere {
+            (AiPreferences.chatId eq chatId) and (AiPreferences.userId eq userId)
+        }
         GroupCheckins.deleteWhere {
             (GroupCheckins.chatId eq chatId) and (GroupCheckins.userId eq userId)
         }

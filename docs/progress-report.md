@@ -6031,3 +6031,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`BotRepository.delete` 只删成员关系与 bot 应用行**：bot 的 reaction、已读回执、星标、sender key 分发、AI 偏好仍残留。与账号注销/自有 bot 清理口径对齐，删除 bot 时一并清理。
 
 **验证**：`:server:test` 全量通过（含 `BotCreateOutcomeTest` 扩展）；`git diff --check` 无输出。
+
+### 9.122 2026-08-13 无限调优：退群/移出成员清理会话内个人元数据
+
+1. **退群/被移出只清理了群玩法数据**：该用户在群消息上的 reaction、已读回执、星标、sender key 分发、会话级 AI 偏好仍残留，reaction/已读会对剩余成员继续可见。`leaveChat` / `removeGroupMemberAs` 的清理函数扩展为按 `(chatId, userId)` 一并删除。
+
+**验证**：`:server:test` 全量通过（含 `GroupPlayBlockedVisibilityTest` 扩展）；`git diff --check` 无输出。

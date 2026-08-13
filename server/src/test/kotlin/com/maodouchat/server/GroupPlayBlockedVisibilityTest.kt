@@ -11,7 +11,12 @@ import com.maodouchat.server.db.GroupPkRounds
 import com.maodouchat.server.db.GroupPkVotes
 import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.GroupPolls
+import com.maodouchat.server.db.AiPreferences
+import com.maodouchat.server.db.MessageReactions
 import com.maodouchat.server.db.Messages
+import com.maodouchat.server.db.ReadReceipts
+import com.maodouchat.server.db.SenderKeyDistributions
+import com.maodouchat.server.db.StarMessages
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.ChatRepository
@@ -24,6 +29,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.LocalDate
@@ -301,6 +307,39 @@ class GroupPlayBlockedVisibilityTest {
                 it[Messages.type] = "SK_DIST"
                 it[Messages.timestamp] = now + 200L
             }
+            MessageReactions.insert {
+                it[MessageReactions.messageId] = "m_blocked"
+                it[MessageReactions.userId] = "u2"
+                it[MessageReactions.emoji] = "x"
+                it[MessageReactions.reactedAt] = now + 100L
+            }
+            ReadReceipts.insert {
+                it[ReadReceipts.messageId] = "m_blocked"
+                it[ReadReceipts.userId] = "u2"
+                it[ReadReceipts.readAt] = now + 100L
+            }
+            StarMessages.insert {
+                it[StarMessages.userId] = "u2"
+                it[StarMessages.messageId] = "m_blocked"
+                it[StarMessages.starredAt] = now + 100L
+            }
+            SenderKeyDistributions.insert {
+                it[SenderKeyDistributions.id] = "skd_u2"
+                it[SenderKeyDistributions.chatId] = "g1"
+                it[SenderKeyDistributions.epoch] = 1
+                it[SenderKeyDistributions.senderId] = "u2"
+                it[SenderKeyDistributions.recipientUserId] = "u1"
+                it[SenderKeyDistributions.recipientDeviceId] = 1
+                it[SenderKeyDistributions.createdAt] = now
+                it[SenderKeyDistributions.updatedAt] = now
+            }
+            AiPreferences.insert {
+                it[AiPreferences.userId] = "u2"
+                it[AiPreferences.scope] = "CHAT"
+                it[AiPreferences.chatId] = "g1"
+                it[AiPreferences.enabled] = true
+                it[AiPreferences.updatedAt] = now
+            }
         }
         val inviteJoin = requireNotNull(
             ChatRepository().consumeGroupInvite("invite-token-00000000000000000000000000", "u2", maxMembers = 100)
@@ -350,6 +389,33 @@ class GroupPlayBlockedVisibilityTest {
             assertTrue(
                 GroupPollVotes.selectAll().where {
                     (GroupPollVotes.userId eq "u2") and (GroupPollVotes.pollId inList listOf("poll_1", "poll_2"))
+                }.empty()
+            )
+            assertTrue(
+                MessageReactions.selectAll().where {
+                    (MessageReactions.messageId eq "m_blocked") and (MessageReactions.userId eq "u2")
+                }.empty()
+            )
+            assertTrue(
+                ReadReceipts.selectAll().where {
+                    (ReadReceipts.messageId eq "m_blocked") and (ReadReceipts.userId eq "u2")
+                }.empty()
+            )
+            assertTrue(
+                StarMessages.selectAll().where {
+                    (StarMessages.messageId eq "m_blocked") and (StarMessages.userId eq "u2")
+                }.empty()
+            )
+            assertTrue(
+                SenderKeyDistributions.selectAll().where {
+                    (SenderKeyDistributions.chatId eq "g1") and
+                        ((SenderKeyDistributions.senderId eq "u2") or
+                            (SenderKeyDistributions.recipientUserId eq "u2"))
+                }.empty()
+            )
+            assertTrue(
+                AiPreferences.selectAll().where {
+                    (AiPreferences.chatId eq "g1") and (AiPreferences.userId eq "u2")
                 }.empty()
             )
         }
