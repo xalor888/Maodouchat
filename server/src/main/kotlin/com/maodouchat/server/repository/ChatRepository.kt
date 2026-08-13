@@ -145,7 +145,7 @@ class ChatRepository {
                     it[ChatParticipants.role] = if (isGroup && userId == (creatorId ?: uniqueParticipantIds.first())) "OWNER" else "MEMBER"
                 }
             }
-            getChatByIdInTx(chatId)!!
+            getChatByIdInTx(chatId, creatorId ?: uniqueParticipantIds.first())!!
         }
     }
 
@@ -195,7 +195,7 @@ class ChatRepository {
                     it[DirectChatPairs.chatId] = chatId
                     it[DirectChatPairs.createdAt] = now
                 }
-                getChatByIdInTx(chatId)!!
+                getChatByIdInTx(chatId, userId1)!!
             }
         } catch (e: Exception) {
             if (!isUniqueViolation(e)) throw e
@@ -226,13 +226,13 @@ class ChatRepository {
         if (mapped != null) {
             // 半空/脏 pair：双方都必须仍是成员，否则不能当有效 1:1
             if (isIntactDirectChatInTx(mapped, userId1, userId2)) {
-                getChatByIdInTx(mapped)?.let { return it }
+                getChatByIdInTx(mapped, userId1)?.let { return it }
             } else {
                 DirectChatPairs.deleteWhere { DirectChatPairs.pairKey eq pairKey }
             }
         }
         val existing = findDirectChatIdInTx(userId1, userId2) ?: return null
-        return getChatByIdInTx(existing)
+        return getChatByIdInTx(existing, userId1)
     }
 
     private fun isIntactDirectChatInTx(chatId: String, userId1: String, userId2: String): Boolean {
@@ -286,11 +286,13 @@ class ChatRepository {
     }
 
     /** 已在 transaction 内调用 */
-    private fun getChatByIdInTx(chatId: String): ChatResponse? {
+    private fun getChatByIdInTx(chatId: String, viewerId: String? = null): ChatResponse? {
         val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull() ?: return null
+        val blocked = blockedUserIdsInTx(viewerId)
         val participants = (ChatParticipants innerJoin Users)
             .selectAll()
             .where { ChatParticipants.chatId eq chatId }
+            .filterNot { it[Users.id] in blocked }
             .map {
                 UserResponse(
                     id = it[Users.id],
@@ -1378,7 +1380,7 @@ class ChatRepository {
             // 8.63：广播频道不开放邀请加入——在写入成员前就拒绝（此前路由侧 403 在 consume 之后，
             // 造成「先入群后 403」的状态副作用；Bot 生成的频道邀请同样被拦）
             if (chat[Chats.chatType] == ChatType.CHANNEL) {
-                val channelResponse = getChatByIdInTx(chatId) ?: return@transaction null
+                val channelResponse = getChatByIdInTx(chatId, userId) ?: return@transaction null
                 return@transaction JoinInviteResult(channelResponse, newlyJoined = false, channelRejected = true)
             }
             val alreadyMember = ChatParticipants.selectAll()
@@ -1405,11 +1407,11 @@ class ChatRepository {
                     }
                 }
                 if (blockedWithMember) {
-                    val response = getChatByIdInTx(chatId) ?: return@transaction null
+                    val response = getChatByIdInTx(chatId, userId) ?: return@transaction null
                     return@transaction JoinInviteResult(response, newlyJoined = false, blocked = true)
                 }
                 if (memberIds.size >= maxMembers) {
-                    val response = getChatByIdInTx(chatId) ?: return@transaction null
+                    val response = getChatByIdInTx(chatId, userId) ?: return@transaction null
                     return@transaction JoinInviteResult(response, newlyJoined = false, limitExceeded = true)
                 }
                 ChatParticipants.insert {
@@ -1423,7 +1425,7 @@ class ChatRepository {
                     it[Chats.memberRevision] = chat[Chats.memberRevision] + 1
                 }
             }
-            val response = getChatByIdInTx(chatId) ?: return@transaction null
+            val response = getChatByIdInTx(chatId, userId) ?: return@transaction null
             JoinInviteResult(response, newlyJoined = !alreadyMember)
         }
     }

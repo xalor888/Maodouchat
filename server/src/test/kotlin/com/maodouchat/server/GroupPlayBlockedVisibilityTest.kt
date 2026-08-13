@@ -249,5 +249,13 @@ class GroupPlayBlockedVisibilityTest {
         assertEquals(setOf("u1", "u3"), chat.participants.map { it.id }.toSet())
         val chatList = ChatRepository().getChatsForUser("u1")
         assertEquals(setOf("u1", "u3"), chatList.single().participants.map { it.id }.toSet())
+
+        val created = ChatRepository().createChat(
+            participantIds = listOf("u1", "u2", "u3"),
+            isGroup = true,
+            groupName = "Created",
+            creatorId = "u1"
+        )
+        assertEquals(setOf("u1", "u3"), created.participants.map { it.id }.toSet())
     }
 }
