@@ -1059,8 +1059,15 @@ class MessageRepository {
                 (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq viewerId)
             }.firstOrNull() != null
             if (!isParticipant) return@transaction emptyList()
+            val blockedSenders = blockedSenderIdsForViewerInTx(viewerId)
+            val receiptCondition = if (blockedSenders.isEmpty()) {
+                ReadReceipts.messageId eq messageId
+            } else {
+                (ReadReceipts.messageId eq messageId) and
+                    (ReadReceipts.userId notInList blockedSenders.toList())
+            }
             ReadReceipts.selectAll()
-                .where { ReadReceipts.messageId eq messageId }
+                .where { receiptCondition }
                 .map { ReadReceiptResponse(it[ReadReceipts.userId], it[ReadReceipts.readAt]) }
         }
     }

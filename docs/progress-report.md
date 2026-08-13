@@ -5878,3 +5878,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **reaction 列表不过滤被拉黑用户**：历史消息的 `attachReactions` 会返回全部用户的反应，被拉黑用户的互动会随消息泄露。三个历史查询（getMessages/getMessagesBefore/getMessagesSince）把 viewer 的双向拉黑集合传入，过滤 reaction 作者，新增 H2 测试覆盖。
 
 **验证**：`:server:test` 全量通过（含新增 `MessageReactionBlockedVisibilityTest`）；`git diff --check` 无输出。
+
+### 9.97 2026-08-13 无限调优：已读回执过滤拉黑
+
+1. **已读回执不过滤被拉黑用户**：`getReadReceipts` 返回全部读者 userId，会泄露“被拉黑用户读了这个消息”。查询按 viewer 双向拉黑集合过滤读者，回归测试覆盖。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

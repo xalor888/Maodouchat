@@ -5,6 +5,7 @@ import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.MessageReactions
 import com.maodouchat.server.db.Messages
+import com.maodouchat.server.db.ReadReceipts
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.MessageRepository
@@ -75,9 +76,20 @@ class MessageReactionBlockedVisibilityTest {
                 it[MessageReactions.emoji] = "❤️"
                 it[MessageReactions.reactedAt] = now
             }
+            ReadReceipts.insert {
+                it[ReadReceipts.messageId] = "m1"
+                it[ReadReceipts.userId] = "u2"
+                it[ReadReceipts.readAt] = now
+            }
+            ReadReceipts.insert {
+                it[ReadReceipts.messageId] = "m1"
+                it[ReadReceipts.userId] = "u3"
+                it[ReadReceipts.readAt] = now
+            }
         }
 
         val messages = MessageRepository().getMessages("g1", limit = 50, viewerId = "u1")
         assertEquals(listOf("u3"), messages.single().reactions.map { it.userId })
+        assertEquals(listOf("u3"), MessageRepository().getReadReceipts("m1", "u1").map { it.userId })
     }
 }
