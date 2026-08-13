@@ -364,7 +364,9 @@ class AuthTokenRepository {
                 ?: return@transaction RevokeByPrefixResult(0, emptySet())
             val candidates = RefreshTokens.selectAll()
                 .where {
-                    (RefreshTokens.userId eq userId) and RefreshTokens.revokedAt.isNull()
+                    (RefreshTokens.userId eq userId) and
+                        RefreshTokens.revokedAt.isNull() and
+                        (RefreshTokens.expiresAt greater now)
                 }
                 .mapNotNull { row ->
                     val hash = row[RefreshTokens.tokenHash]
@@ -382,7 +384,8 @@ class AuthTokenRepository {
                 RefreshTokens.selectAll().where {
                     (RefreshTokens.tokenHash eq tokenHash) and
                         (RefreshTokens.userId eq userId) and
-                        RefreshTokens.revokedAt.isNull()
+                        RefreshTokens.revokedAt.isNull() and
+                        (RefreshTokens.expiresAt greater now)
                 }.forUpdate().firstOrNull()?.let { tokenHash to sessionId }
             }
             val activeMatchedSessionIds = lockedMatches.mapNotNull { (_, sessionId) ->

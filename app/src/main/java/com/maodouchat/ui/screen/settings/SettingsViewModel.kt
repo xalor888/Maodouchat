@@ -1060,9 +1060,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             withContext(NonCancellable) {
                 com.maodouchat.network.WebSocketClient.disconnect()
                 app.secureSessionManager.purgeLocalSession()
+                // 1.103：登出清空「正在输入」presence，避免残留对端状态。
+                // 放在 NonCancellable 内，避免 purge 后协程取消导致清理被跳过。
+                com.maodouchat.util.TypingPresenceStore.clear()
             }
-            // 1.103：登出清空「正在输入」presence，避免残留对端状态
-            com.maodouchat.util.TypingPresenceStore.clear()
             _uiState.update { it.copy(isLoggedOut = true) }
         }
     }
@@ -1098,6 +1099,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         withContext(NonCancellable) {
                             com.maodouchat.network.WebSocketClient.disconnect()
                             app.secureSessionManager.purgeLocalSession(expectedOwnerUserId = ownerUserId)
+                            com.maodouchat.util.TypingPresenceStore.clear()
                         }
                         _uiState.update { it.copy(isLoggingOutAll = false, isLoggedOut = true) }
                     },
@@ -1146,9 +1148,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 ApiService.deleteAccount(liveToken, password).fold(
                     onSuccess = {
                         if (!isCurrentOwner(deleteOwnerUserId)) return@fold
-                        val purged = app.secureSessionManager.purgeLocalSession(
-                            expectedOwnerUserId = deleteOwnerUserId
-                        )
+                        val purged = withContext(kotlinx.coroutines.NonCancellable) {
+                            val result = app.secureSessionManager.purgeLocalSession(
+                                expectedOwnerUserId = deleteOwnerUserId
+                            )
+                            com.maodouchat.util.TypingPresenceStore.clear()
+                            result
+                        }
                         // 8.33 修复：服务端账号已删除，即使本地 purge 失败也不能卡死在 loading——
                         // 提示用户手动登出（重试会因服务端已删而报错）。
                         _uiState.update {

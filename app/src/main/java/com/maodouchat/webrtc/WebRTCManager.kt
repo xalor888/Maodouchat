@@ -911,11 +911,13 @@ class WebRTCManager(
 
     private fun handleGroupRemoteTrack(peerUserId: String, track: org.webrtc.MediaStreamTrack) {
         if (track !is VideoTrack) return
-        val previous = groupRemoteVideoTracks.put(peerUserId, track)
-        if (previous !== track) {
-            groupRemoteRenderers[peerUserId]?.let { renderer ->
-                previous?.let { old -> runCatching { old.removeSink(renderer) } }
-                runCatching { track.addSink(renderer) }
+        synchronized(this) {
+            val previous = groupRemoteVideoTracks.put(peerUserId, track)
+            if (previous !== track) {
+                groupRemoteRenderers[peerUserId]?.let { renderer ->
+                    previous?.let { old -> runCatching { old.removeSink(renderer) } }
+                    runCatching { track.addSink(renderer) }
+                }
             }
         }
         invokeSafely { onGroupPeerVideoChanged?.invoke(peerUserId, true) }
@@ -969,9 +971,14 @@ class WebRTCManager(
                 transceiver?.receiver?.track()?.let { track ->
                     if (track is VideoTrack) {
                         // 缓存远端视频轨道，解决 onTrack 先于 attachRemoteRenderer 的竞态
-                        remoteVideoTrack = track
-                        // 如果 renderer 已就绪，立即添加 sink；否则等 attachRemoteRenderer 时补上
-                        remoteRenderer?.let { runCatching { track.addSink(it) } }
+                        // attach/detachRemoteRenderer 都持 this 锁；onTrack 必须同一把锁，
+                        // 避免信令线程与 UI 线程的可见性/复合读写竞态。
+                        synchronized(this) {
+                            if (released) return@let
+                            remoteVideoTrack = track
+                            // 如果 renderer 已就绪，立即添加 sink；否则等 attachRemoteRenderer 时补上
+                            remoteRenderer?.let { runCatching { track.addSink(it) } }
+                        }
                         val listener = onRemoteStream
                         if (listener != null) {
                             peerConnectionFactory?.createLocalMediaStream("remoteStream")?.let { stream ->

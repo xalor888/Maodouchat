@@ -95,6 +95,7 @@ jobs:
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
           npm run test:admin-e2e
+          npm run test:website
 
       - name: Upload admin E2E artifacts
         if: always()

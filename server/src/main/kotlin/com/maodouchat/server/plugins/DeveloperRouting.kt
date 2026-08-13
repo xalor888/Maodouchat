@@ -303,7 +303,7 @@ fun Application.configureDeveloperRouting() {
                         )
                     }
                     loginResult.user != null -> {
-                        val user = loginResult.user!!
+                        val user = checkNotNull(loginResult.user)
                         // 失败闭合：未配置开发者白名单时拒绝所有人，避免任意已登录账号绕过权限获取开发者会话（权限提升）。
                         // 必须通过 DEVELOPER_USER_IDS 显式授权才允许创建/管理机器人。
                         if (user.id !in ServerConfig.developerUserIds) {
@@ -353,9 +353,16 @@ fun Application.configureDeveloperRouting() {
                 val name = obj["name"]?.jsonPrimitive?.content.orEmpty()
                 val username = obj["username"]?.jsonPrimitive?.content.orEmpty()
                 val description = obj["description"]?.jsonPrimitive?.content
-                val bot = BotRepository.create(userId, name, username, description)
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("创建机器人失败（用户名非法或已占用）"))
-                call.respond(bot)
+                when (val result = BotRepository.create(userId, name, username, description)) {
+                    is BotRepository.BotCreateResult.Success -> call.respond(result.bot)
+                    BotRepository.BotCreateResult.UsernameTaken ->
+                        call.respond(HttpStatusCode.Conflict, ErrorResponse("机器人用户名已被占用"))
+                    BotRepository.BotCreateResult.MaxBotsReached ->
+                        call.respond(HttpStatusCode.Conflict, ErrorResponse("机器人数量已达上限"))
+                    BotRepository.BotCreateResult.InvalidInput,
+                    BotRepository.BotCreateResult.OwnerInvalid ->
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("创建机器人失败（用户名非法）"))
+                }
             }
 
             // ─── Rotate token ────────────────────

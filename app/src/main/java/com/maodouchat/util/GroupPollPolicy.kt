@@ -86,7 +86,7 @@ object GroupPollPolicy {
 
     /** 构建 PK 快捷符：~pk:pkId|left（或 right） */
     fun buildPkShortcut(pkId: String, choice: String): String =
-        PK_PREFIX + pkId + "|" + choice.lowercase().takeIf { it == "left" || it == "right" } ?: "left"
+        PK_PREFIX + pkId + "|" + (choice.lowercase().takeIf { it == "left" || it == "right" } ?: "left")
 
     /** 解析 PK 快捷符，返回 (pkId, choice)，choice ∈ {left, right}。 */
     fun parsePkShortcut(text: String): Pair<String, String>? {

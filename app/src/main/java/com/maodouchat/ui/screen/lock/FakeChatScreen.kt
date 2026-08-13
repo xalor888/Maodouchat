@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Send
@@ -305,7 +306,7 @@ private fun FakeChatInputBar() {
             enabled = draft.isNotBlank()
         ) {
             Icon(
-                Icons.Outlined.Send,
+                Icons.AutoMirrored.Outlined.Send,
                 contentDescription = stringResource(R.string.fake_chat_send),
                 tint = if (draft.isNotBlank()) Primary else TextSecondary,
                 modifier = Modifier.size(24.dp)

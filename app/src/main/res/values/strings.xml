@@ -284,6 +284,9 @@
     <string name="error_invalid_email">请输入有效的邮箱地址</string>
     <string name="error_enter_password">请输入密码</string>
     <string name="error_password_min_length">密码至少需要 6 位</string>
+    <string name="login_confirm_password">确认密码</string>
+    <string name="login_password_confirm_mismatch">两次输入的密码不一致</string>
+    <string name="login_require_code_first">请先获取并填写验证码</string>
     <string name="error_enter_username">请输入用户名</string>
     <string name="error_enter_verification_code">请输入验证码</string>
     <string name="error_send_code_failed">发送失败</string>
@@ -1534,6 +1537,11 @@
     <string name="group_detail_mute_all_set">已全员静音</string>
     <string name="group_detail_mute_all_cleared">已解除全员静音</string>
     <string name="explore_delete_comment">删除评论</string>
+    <string name="explore_edit_comment">编辑评论</string>
+    <string name="explore_comment_edit_hint">输入评论新内容</string>
+    <string name="explore_comment_edit_invalid">评论内容不能为空且不能超过 1000 字</string>
+    <string name="explore_comment_edit_success">评论已更新</string>
+    <string name="explore_comment_edit_failed">评论更新失败</string>
     <string name="explore_comment_like">赞</string>
     <string name="explore_comment_reply">回复</string>
     <string name="explore_comment_copy">复制</string>

@@ -83,9 +83,15 @@ object CallLogStore {
                 }
             }
             if (!replaced) next.put(encode(entry))
-            // 截断到最近 MAX_ENTRIES（数组头部为最旧项，remove(0) 裁剪保留最新）
-            while (next.length() > MAX_ENTRIES) next.remove(0)
-            prefs(context).edit().putString(key(liveUserId), next.toString()).apply()
+            // 截断到最近 MAX_ENTRIES：按 startedAt 降序裁剪，避免乱序写入（晚写旧记录）
+            // 导致按插入序 remove(0) 裁掉较新记录。
+            val trimmed = JSONArray()
+            (0 until next.length())
+                .map { next.getJSONObject(it) }
+                .sortedByDescending { it.optLong("at", 0L) }
+                .take(MAX_ENTRIES)
+                .forEach { trimmed.put(it) }
+            prefs(context).edit().putString(key(liveUserId), trimmed.toString()).apply()
         }
     }
 

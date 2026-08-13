@@ -10,8 +10,11 @@ import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.or
@@ -231,13 +234,21 @@ class FriendRepository {
                 else row[Friendships.userLowId]
             }
         if (friendIds.isEmpty()) return@transaction emptyList()
-        Users.selectAll()
-            .where { Users.id inList friendIds }
-            .orderBy(Users.id to SortOrder.ASC)
+        val blockedIds = BlockedUsers.selectAll()
+            .where { (BlockedUsers.blockerId eq userId) or (BlockedUsers.blockedId eq userId) }
+            .map { row ->
+                val blocker = row[BlockedUsers.blockerId]
+                val blocked = row[BlockedUsers.blockedId]
+                if (blocker == userId) blocked else blocker
+            }
+            .toSet()
+        val base = Users.selectAll()
+            .where { (Users.id inList friendIds) and Users.deletedAt.isNull() }
+        val query = if (blockedIds.isEmpty()) base else base.andWhere { Users.id notInList blockedIds }
+        query.orderBy(Users.id to SortOrder.ASC)
             .limit(limit.coerceIn(1, 200))
             .mapNotNull { row ->
-                if (row[Users.deletedAt] != null) null
-                else UserResponse(
+                UserResponse(
                     id = row[Users.id],
                     name = row[Users.name],
                     email = "",

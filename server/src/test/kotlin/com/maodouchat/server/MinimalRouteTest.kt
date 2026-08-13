@@ -229,8 +229,10 @@ class RoutingSecurityHelperTest {
     }
 }
 
+private val testJson = Json { ignoreUnknownKeys = true }
+
 private fun extractToken(body: String): String =
-    (Json { ignoreUnknownKeys = true }.parseToJsonElement(body) as JsonObject)["token"]!!.jsonPrimitive.content
+    (testJson.parseToJsonElement(body) as JsonObject)["token"]!!.jsonPrimitive.content
 
 private class FakeAiGateway : AiGateway {
     override val model: String = "test-model"
@@ -326,6 +328,61 @@ class HealthCheckRouteTest {
         assertTrue(ready.bodyAsText().contains("\"database\":\"ok\""), ready.bodyAsText())
         assertTrue(ready.bodyAsText().contains("\"storage\":\"ok\""), ready.bodyAsText())
         assertEquals(HttpStatusCode.OK, client.get("/api/health").status)
+    }
+}
+
+class PublicWebsiteRouteTest {
+    @Test
+    fun `website serves clean urls and redirects legacy html links`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+
+        val cleanPages = listOf("/", "/faq", "/privacy", "/terms", "/security", "/help", "/developer")
+        cleanPages.forEach { path ->
+            val response = client.get(path)
+            assertEquals(HttpStatusCode.OK, response.status, "$path -> ${response.status}")
+            assertTrue(response.bodyAsText().isNotBlank(), "$path body should not be blank")
+        }
+
+        val legacyPages = mapOf(
+            "/faq.html" to "/faq",
+            "/privacy.html" to "/privacy",
+            "/terms.html" to "/terms",
+            "/security.html" to "/security",
+            "/help.html" to "/help",
+            "/developer.html" to "/developer"
+        )
+        val noRedirectClient = createClient { followRedirects = false }
+        legacyPages.forEach { (legacy, clean) ->
+            val response = noRedirectClient.get(legacy)
+            assertEquals(HttpStatusCode.MovedPermanently, response.status, "$legacy should redirect")
+            assertTrue(
+                response.headers[HttpHeaders.Location].orEmpty().endsWith(clean),
+                "$legacy should point to $clean, got ${response.headers[HttpHeaders.Location]}"
+            )
+        }
+        val home = client.get("/").bodyAsText()
+        assertFalse(home.contains(".html\""), "Homepage should not contain visible .html links")
+        assertTrue(home.contains("毛豆聊天"), "Homepage should render brand copy")
+
+        val sitemap = client.get("/sitemap.xml")
+        assertEquals(HttpStatusCode.OK, sitemap.status, sitemap.bodyAsText())
+        assertTrue(sitemap.bodyAsText().contains("/faq</loc>"), sitemap.bodyAsText())
+        assertFalse(sitemap.bodyAsText().contains(".html"), "Sitemap should only use clean URLs")
+
+        val robots = client.get("/robots.txt")
+        assertEquals(HttpStatusCode.OK, robots.status, robots.bodyAsText())
+        assertTrue(robots.bodyAsText().contains("Sitemap: "), robots.bodyAsText())
+        assertFalse(robots.bodyAsText().contains("/faq.html"), robots.bodyAsText())
+
+        val securityTxt = client.get("/.well-known/security.txt")
+        assertEquals(HttpStatusCode.OK, securityTxt.status, securityTxt.bodyAsText())
+        assertTrue(securityTxt.bodyAsText().contains("mailto:security@maodouchat.com"), securityTxt.bodyAsText())
+        assertTrue(securityTxt.bodyAsText().contains("Policy: "), securityTxt.bodyAsText())
+
+        val legacySecurityTxt = noRedirectClient.get("/security.txt")
+        assertEquals(HttpStatusCode.MovedPermanently, legacySecurityTxt.status, legacySecurityTxt.bodyAsText())
+        assertTrue(legacySecurityTxt.headers[HttpHeaders.Location].orEmpty().endsWith("/.well-known/security.txt"))
+        noRedirectClient.close()
     }
 }
 
@@ -538,6 +595,63 @@ class UsersRouteTest {
         }
         assertEquals(HttpStatusCode.OK, users.status)
         assertTrue(!users.bodyAsText().contains("@"), "email leaked")
+    }
+
+    @Test
+    fun `GET users supports offset pagination without overlap`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+        val login = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"alex@example.com","password":"password123"}""")
+        }
+        assertEquals(HttpStatusCode.OK, login.status)
+        val token = extractToken(login.bodyAsText())
+
+        val first = client.get("/api/users?limit=5&offset=0") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        val second = client.get("/api/users?limit=5&offset=5") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, first.status)
+        assertEquals(HttpStatusCode.OK, second.status)
+
+        fun ids(body: String): Set<String> = Json.parseToJsonElement(body).jsonArray
+            .map { element -> (element as JsonObject)["id"]?.jsonPrimitive?.content.orEmpty() }
+            .filter(String::isNotBlank)
+            .toSet()
+
+        val firstIds = ids(first.bodyAsText())
+        val secondIds = ids(second.bodyAsText())
+        assertEquals(5, firstIds.size)
+        assertEquals(5, secondIds.size)
+        assertTrue(firstIds.intersect(secondIds).isEmpty(), "offset pages must not overlap")
+    }
+
+    @Test
+    fun `GET users pagination does not let blocked users consume page capacity`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+        val login = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"alex@example.com","password":"password123"}""")
+        }
+        assertEquals(HttpStatusCode.OK, login.status)
+        val token = extractToken(login.bodyAsText())
+
+        val block = client.post("/api/users/block/u2") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, block.status)
+
+        val users = client.get("/api/users?limit=5&offset=0") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, users.status)
+        val ids = Json.parseToJsonElement(users.bodyAsText()).jsonArray
+            .map { element -> (element as JsonObject)["id"]?.jsonPrimitive?.content.orEmpty() }
+            .filter(String::isNotBlank)
+        assertEquals(5, ids.size)
+        assertTrue("u2" !in ids, "blocked user must not consume page capacity")
     }
 
     @Test
@@ -2307,7 +2421,7 @@ class GroupPlayRoutesTest {
         val chat = client.post("/api/chats") {
             header(HttpHeaders.Authorization, "Bearer $alexToken")
             contentType(ContentType.Application.Json)
-            setBody("""{"participantIds":["u3"],"isGroup":true,"name":"play test group"}""")
+            setBody("""{"participantIds":["u2","u3"],"isGroup":true,"name":"play test group"}""")
         }
         assertEquals(HttpStatusCode.Created, chat.status, chat.bodyAsText())
         val chatId = Json.parseToJsonElement(chat.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
@@ -2337,6 +2451,45 @@ class GroupPlayRoutesTest {
         }
         assertEquals(HttpStatusCode.OK, entry.status, entry.bodyAsText())
 
+        // 满员接龙：第二人加入应失败，而不是返回 200 + myJoined=false
+        val fullChain = client.post("/api/chats/$chatId/chains") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"title":"full chain","topic":"topic","maxEntries":2}""")
+        }
+        assertEquals(HttpStatusCode.OK, fullChain.status, fullChain.bodyAsText())
+        val fullChainId = Json.parseToJsonElement(fullChain.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        val fullChainFirst = client.post("/api/chains/$fullChainId/entries") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"content":"only slot"}""")
+        }
+        assertEquals(HttpStatusCode.OK, fullChainFirst.status, fullChainFirst.bodyAsText())
+        val loginAlice = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"alice@example.com","password":"password123"}""")
+        }
+        assertEquals(HttpStatusCode.OK, loginAlice.status, loginAlice.bodyAsText())
+        val aliceToken = extractToken(loginAlice.bodyAsText())
+        val fullChainSecond = client.post("/api/chains/$fullChainId/entries") {
+            header(HttpHeaders.Authorization, "Bearer $aliceToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"content":"second slot"}""")
+        }
+        assertEquals(HttpStatusCode.OK, fullChainSecond.status, fullChainSecond.bodyAsText())
+        val loginB = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"bob@example.com","password":"password123"}""")
+        }
+        assertEquals(HttpStatusCode.OK, loginB.status, loginB.bodyAsText())
+        val bobToken = extractToken(loginB.bodyAsText())
+        val fullChainThird = client.post("/api/chains/$fullChainId/entries") {
+            header(HttpHeaders.Authorization, "Bearer $bobToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"content":"late entry"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, fullChainThird.status, fullChainThird.bodyAsText())
+
         // 群 PK
         val pk = client.post("/api/chats/$chatId/pk") {
             header(HttpHeaders.Authorization, "Bearer $alexToken")
@@ -2351,6 +2504,68 @@ class GroupPlayRoutesTest {
             setBody("""{"choice":"LEFT"}""")
         }
         assertEquals(HttpStatusCode.OK, vote.status, vote.bodyAsText())
+
+        // 常规投票也属于群玩法写路径
+        val poll = client.post("/api/chats/$chatId/polls") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"question":"poll question","options":["A","B"]}""")
+        }
+        assertEquals(HttpStatusCode.OK, poll.status, poll.bodyAsText())
+        val pollId = Json.parseToJsonElement(poll.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+
+        // 已关闭的投票/PK 再投票必须 400，不能返回 200 + 旧状态
+        val closePoll = client.post("/api/polls/$pollId/close") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+        }
+        assertEquals(HttpStatusCode.OK, closePoll.status, closePoll.bodyAsText())
+        val closedPollVote = client.post("/api/polls/$pollId/vote") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"optionIndexes":[0]}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, closedPollVote.status, closedPollVote.bodyAsText())
+
+        val closePk = client.post("/api/pk/$pkId/close") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+        }
+        assertEquals(HttpStatusCode.OK, closePk.status, closePk.bodyAsText())
+        val closedPkVote = client.post("/api/pk/$pkId/vote") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"choice":"LEFT"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, closedPkVote.status, closedPkVote.bodyAsText())
+
+        // 禁言成员不得参与群玩法写入
+        val mute = client.put("/api/chats/$chatId/members/u3/mute") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"mutedUntil":${System.currentTimeMillis() + 60_000L}}""")
+        }
+        assertEquals(HttpStatusCode.OK, mute.status, mute.bodyAsText())
+        val mutedCheckin = client.post("/api/chats/$chatId/checkins") {
+            header(HttpHeaders.Authorization, "Bearer $bobToken")
+        }
+        assertEquals(HttpStatusCode.Forbidden, mutedCheckin.status, mutedCheckin.bodyAsText())
+        val mutedChainEntry = client.post("/api/chains/$chainId/entries") {
+            header(HttpHeaders.Authorization, "Bearer $bobToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"content":"muted entry"}""")
+        }
+        assertEquals(HttpStatusCode.Forbidden, mutedChainEntry.status, mutedChainEntry.bodyAsText())
+        val mutedPollCreate = client.post("/api/chats/$chatId/polls") {
+            header(HttpHeaders.Authorization, "Bearer $bobToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"question":"muted poll","options":["A","B"]}""")
+        }
+        assertEquals(HttpStatusCode.Forbidden, mutedPollCreate.status, mutedPollCreate.bodyAsText())
+        val mutedPollVote = client.post("/api/polls/$pollId/vote") {
+            header(HttpHeaders.Authorization, "Bearer $bobToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"optionIndexes":[0]}""")
+        }
+        assertEquals(HttpStatusCode.Forbidden, mutedPollVote.status, mutedPollVote.bodyAsText())
     }
 }
 
@@ -2423,5 +2638,43 @@ class AiEnhanceRoutesTest {
         }
         assertEquals(HttpStatusCode.OK, emotion.status, emotion.bodyAsText())
         assertTrue(emotion.bodyAsText().contains("reply"), emotion.bodyAsText())
+    }
+}
+
+class CommentEditRouteTest {
+    @Test
+    fun `author can edit own comment`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+        val login = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"alex@example.com","password":"password123"}""")
+        }
+        assertEquals(HttpStatusCode.OK, login.status)
+        val token = extractToken(login.bodyAsText())
+
+        val createPost = client.post("/api/posts") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody("""{"content":"hello world"}""")
+        }
+        assertEquals(HttpStatusCode.Created, createPost.status, createPost.bodyAsText())
+        val postId = Json.parseToJsonElement(createPost.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+
+        val createComment = client.post("/api/posts/$postId/comments") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody("""{"content":"first version"}""")
+        }
+        assertEquals(HttpStatusCode.Created, createComment.status, createComment.bodyAsText())
+        val commentId = Json.parseToJsonElement(createComment.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+
+        val editComment = client.put("/api/posts/$postId/comments/$commentId") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody("""{"content":"edited version"}""")
+        }
+        assertEquals(HttpStatusCode.OK, editComment.status, editComment.bodyAsText())
+        assertTrue(editComment.bodyAsText().contains("edited version"))
+        assertTrue(!editComment.bodyAsText().contains("first version"))
     }
 }

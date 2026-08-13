@@ -49,6 +49,9 @@ org.gradle.java.home=C:/Program Files/Android/Android Studio1/jbr
 
 # Server（独立工程）
 cd server && ../gradlew.bat compileKotlin test
+
+# 官网端到端（需本地 Ktor 已启动；可用 BASE_URL/CHROME_PATH 覆盖）
+npm run test:website
 ```
 
 > `gradle.properties` 已通过 `android.suppressUnsupportedCompileSdk=36` 静默 `compileSdk = 36` 的兼容性警告。构建时若看到 `SDK processing ... SDK XML versions up to 3 ... version 4 was encountered` 提示，这是 AGP/sdklib 读取 SDK `package.xml` 的无害警告，不影响构建。

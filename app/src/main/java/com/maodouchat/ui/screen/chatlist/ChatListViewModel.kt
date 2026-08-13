@@ -216,36 +216,44 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
     private val tokenManager = TokenManager.getInstance(application)
     private fun text(id: Int): String = getApplication<Application>().getString(id)
 
+    private suspend fun <T> bestEffort(block: suspend () -> T): T? = try {
+        block()
+    } catch (error: kotlinx.coroutines.CancellationException) {
+        throw error
+    } catch (_: Exception) {
+        null
+    }
+
     /** 1.171：清空指定会话的本地聊天记录（保留会话/PIN/草稿；服务端密文仍在，重开会再同步）。 */
     fun clearLocalChatHistory(chatId: String) {
         if (chatId.isBlank()) return
         val ownerUserId = tokenManager.getUserId().orEmpty()
         if (ownerUserId.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {
-            val cachedMessageIds = runCatching { messageRepo.getMessageIdsByChatId(chatId) }.getOrDefault(emptyList())
-            runCatching { com.maodouchat.attachment.AttachmentTransferCoordinator.cancelForChat(app, chatId) }
-            runCatching {
+            val cachedMessageIds = bestEffort { messageRepo.getMessageIdsByChatId(chatId) }.orEmpty()
+            bestEffort { com.maodouchat.attachment.AttachmentTransferCoordinator.cancelForChat(app, chatId) }
+            bestEffort {
                 val removed = com.maodouchat.util.ScheduledMessageStore.clearForChat(app, chatId)
                 removed.forEach { com.maodouchat.util.ScheduledMessageScheduler.cancel(app, it) }
             }
-            runCatching { messageRepo.deleteMessagesByChatId(chatId) }
-            runCatching { app.database.messageSearchDao().deleteChatIndex(chatId) }
+            bestEffort { messageRepo.deleteMessagesByChatId(chatId) }
+            bestEffort { app.database.messageSearchDao().deleteChatIndex(chatId) }
             if (ownerUserId.isNotBlank()) {
-                runCatching {
+                bestEffort {
                     app.database.attachmentTransferDao().clearWireContentForChat(chatId, ownerUserId = ownerUserId)
                 }
             }
             cachedMessageIds.forEach { messageId ->
-                runCatching { com.maodouchat.util.MediaCache.deleteCachedMediaForMessage(app, messageId) }
+                bestEffort { com.maodouchat.util.MediaCache.deleteCachedMediaForMessage(app, messageId) }
             }
-            runCatching {
+            bestEffort {
                 app.notificationCenter.removeChatItems(chatId)
                 com.maodouchat.util.AppNotifier.cancelMessage(app, chatId)
             }
-            runCatching { tokenManager.clearChatCursors(chatId) }
+            bestEffort { tokenManager.clearChatCursors(chatId) }
             val local = chatRepo.getChatById(chatId)
             if (local != null) {
-                runCatching {
+                bestEffort {
                     chatRepo.cacheChats(
                         listOf(
                             local.copy(
@@ -1902,7 +1910,12 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         val ownerUserId = tokenManager.getUserId().orEmpty()
         if (ownerUserId.isBlank()) return
         viewModelScope.launch {
-            runCatching { app.database.chatDraftDao().deleteForChat(ownerUserId, chatId) }
+            try {
+                app.database.chatDraftDao().deleteForChat(ownerUserId, chatId)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+            }
         }
     }
 

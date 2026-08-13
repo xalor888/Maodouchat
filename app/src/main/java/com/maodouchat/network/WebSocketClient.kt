@@ -417,7 +417,7 @@ object WebSocketClient {
                 // 1008 + 「过期/token」reason：可恢复（刷新 token 后重连），不得视为登出。
                 // 8.52 接入 isRecoverableExpiryReason（此前为死代码）：服务端通常用 1013 表示
                 // 过期，但兼容旧实例仍发 1008 + 过期文案的情况。
-                if (code == 1008 && reason != null && isRecoverableExpiryReason(reason) && shouldReconnect) {
+                if (code == 1008 && isRecoverableExpiryReason(reason) && shouldReconnect) {
                     refreshTokenThenReconnect()
                     return
                 }
@@ -437,7 +437,7 @@ object WebSocketClient {
                 }
                 // 8.52 契约审计收尾：单用户连接数超限（服务端 1008）时立即重连只会叠加
                 // 连接数——用固定长退避等待其他连接释放，而非默认指数退避的立即重连
-                if (code == 1008 && reason != null && reason.contains("连接数超限") && shouldReconnect) {
+                if (code == 1008 && reason.orEmpty().contains("连接数超限") && shouldReconnect) {
                     scheduleReconnectWithBaseDelay(8_000L)
                     return
                 }
@@ -588,8 +588,8 @@ object WebSocketClient {
         }
     }
 
-    private fun isAuthDeathReason(reason: String): Boolean {
-        val r = reason.lowercase()
+    private fun isAuthDeathReason(reason: String?): Boolean {
+        val r = reason.orEmpty().lowercase()
         // "expired" / "会话已过期" 是可恢复的（token 刷新后重连即可），不视为永久 auth death
         return r.contains("会话已失效") ||
             r.contains("已退出") ||
@@ -603,8 +603,8 @@ object WebSocketClient {
     }
 
     /** 1008/认证类关闭原因中可恢复的「访问令牌到期」子集：刷新 token 后重连即可，不得 purge。 */
-    private fun isRecoverableExpiryReason(reason: String): Boolean {
-        val r = reason.lowercase()
+    private fun isRecoverableExpiryReason(reason: String?): Boolean {
+        val r = reason.orEmpty().lowercase()
         return r.contains("过期") ||
             r.contains("expired") ||
             r.contains("expires") ||

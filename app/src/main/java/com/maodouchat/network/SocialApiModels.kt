@@ -59,6 +59,9 @@ data class CreatePostRequest(
 @Serializable
 data class CreateCommentRequest(val content: String, /** 1.76：回复目标评论 id（可选）。 */ val replyToId: String? = null)
 
+@Serializable
+data class UpdateCommentRequest(val content: String)
+
 /** 1.52：评论点赞/取消点赞响应。 */
 @Serializable
 data class CommentLikeResponse(

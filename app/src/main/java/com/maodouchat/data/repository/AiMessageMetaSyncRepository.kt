@@ -177,8 +177,10 @@ class AiMessageMetaSyncRepository(
                             acknowledgedIds += remote.id
                         }
                         SignalProtocol.DecryptResult.NoSession,
-                        SignalProtocol.DecryptResult.UntrustedIdentity,
-                        SignalProtocol.DecryptResult.Duplicate -> Unit
+                        SignalProtocol.DecryptResult.UntrustedIdentity -> Unit
+                        // Duplicate = libsignal 已消费过该信封（重复/乱序投递），直接 ACK，
+                        // 否则服务端会无限重投同一 payload。
+                        SignalProtocol.DecryptResult.Duplicate -> acknowledgedIds += remote.id
                         // 8.41：Failed 不 ACK（瞬时解密失败不得永久丢失跨设备数据），与 NoSession 一致重试
                         SignalProtocol.DecryptResult.UnsupportedEnvelope,
                         SignalProtocol.DecryptResult.NotForThisDevice,

@@ -29,7 +29,8 @@ object LinkPreviewRepository {
 
     private val cache = ConcurrentHashMap<String, LinkPreviewPolicy.Preview>()
     private val negativeCache = ConcurrentHashMap.newKeySet<String>()
-    private val inFlight = ConcurrentHashMap<String, Mutex>()
+    private class InFlightLock(val mutex: Mutex = Mutex(), var users: Int = 0)
+    private val inFlight = ConcurrentHashMap<String, InFlightLock>()
     private val generation = AtomicLong(0L)
 
     fun cached(url: String): LinkPreviewPolicy.Preview? = cache[url]
@@ -51,9 +52,13 @@ object LinkPreviewRepository {
         val safe = LinkPreviewPolicy.sanitizeUrl(url) ?: return null
         cache[safe]?.let { return it }
         if (safe in negativeCache) return null
-        val mutex = inFlight.getOrPut(safe) { Mutex() }
+        val lock = inFlight.compute(safe) { _, existing ->
+            val current = existing ?: InFlightLock()
+            current.users++
+            current
+        }!!
         return try {
-            mutex.withLock {
+            lock.mutex.withLock {
                 if (generation.get() != fetchGeneration) return@withLock null
                 cache[safe]?.let { return@withLock it }
                 if (safe in negativeCache) return@withLock null
@@ -71,7 +76,18 @@ object LinkPreviewRepository {
                 useful
             }
         } finally {
-            inFlight.remove(safe, mutex)
+            inFlight.computeIfPresent(safe) { _, current ->
+                if (current === lock) {
+                    if (current.users > 1) {
+                        current.users--
+                        current
+                    } else {
+                        null
+                    }
+                } else {
+                    current
+                }
+            }
         }
     }
 

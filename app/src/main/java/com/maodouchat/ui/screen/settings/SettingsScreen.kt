@@ -35,6 +35,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.Flag
@@ -230,7 +231,7 @@ fun SettingsScreen(
                         SettingsItem(icon = Icons.Outlined.Flag, title = stringResource(R.string.settings_my_reports), onClick = onOpenMyReports)
                         SettingsItem(icon = Icons.Outlined.Block, title = stringResource(R.string.settings_blocked_users), onClick = onOpenBlockedUsers)
                         // 1.116：我的动态（作者主页视角）
-                        SettingsItem(icon = Icons.Outlined.Article, title = stringResource(R.string.settings_my_posts), onClick = onOpenMyPosts)
+                        SettingsItem(icon = Icons.AutoMirrored.Outlined.Article, title = stringResource(R.string.settings_my_posts), onClick = onOpenMyPosts)
                     }
                 }
 

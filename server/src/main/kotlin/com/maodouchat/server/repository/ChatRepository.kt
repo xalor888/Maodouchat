@@ -566,6 +566,21 @@ class ChatRepository {
         }
     }
 
+    /** 批量取群 memberRevision 与参与者（Bot 删除广播等场景，避免逐群 2 次查询）。 */
+    fun getGroupRevisionAndParticipantIds(chatIds: List<String>): Map<String, Pair<Long, List<String>>> = transaction {
+        if (chatIds.isEmpty()) return@transaction emptyMap()
+        val revisions = Chats.selectAll()
+            .where { (Chats.id inList chatIds) and (Chats.isGroup eq true) }
+            .map { it[Chats.id] to it[Chats.memberRevision] }
+            .toMap()
+        if (revisions.isEmpty()) return@transaction emptyMap()
+        val participants = ChatParticipants.selectAll()
+            .where { ChatParticipants.chatId inList revisions.keys }
+            .groupBy { it[ChatParticipants.chatId] }
+            .mapValues { (_, rows) -> rows.map { it[ChatParticipants.userId] } }
+        revisions.mapValues { (chatId, revision) -> revision to participants[chatId].orEmpty() }
+    }
+
     fun isParticipant(chatId: String, userId: String): Boolean {
         return transaction {
             ChatParticipants

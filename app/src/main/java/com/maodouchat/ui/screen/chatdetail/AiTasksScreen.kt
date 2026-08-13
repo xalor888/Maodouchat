@@ -248,6 +248,8 @@ class AiTasksViewModel(
             }
             return
         }
+        // 真正开始展示任务时，把通知中心里该会话的 AI_TASK 行标为已读。
+        app.notificationCenter.markAiTasksRead(chatId)
         // 8.38：先取消旧订阅——解锁/加锁切换会再次调用 observeTasks，
         // 此前每个 collector 都 launchIn(viewModelScope) 永不清除，导致重复 Room 订阅与
         // 并发状态写入（删除任务时 mutatingTaskIds 竞态窗口变大）

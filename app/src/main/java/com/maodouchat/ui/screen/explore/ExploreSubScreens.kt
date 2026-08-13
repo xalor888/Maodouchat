@@ -966,6 +966,9 @@ fun PostDetailScreen(
     var highlightedCommentId by androidx.compose.runtime.remember(initialCommentId) { mutableStateOf<String?>(null) }
     // 1.247：评论长按操作菜单（回复/复制/举报/删除）
     var commentMenuFor by androidx.compose.runtime.remember { mutableStateOf<com.maodouchat.network.PostCommentDto?>(null) }
+    // 评论编辑弹窗（1.xx：编辑自己的评论）
+    var editingCommentFor by androidx.compose.runtime.remember { mutableStateOf<com.maodouchat.network.PostCommentDto?>(null) }
+    var editingCommentText by androidx.compose.runtime.remember { mutableStateOf("") }
     androidx.compose.runtime.LaunchedEffect(state.comments.map { it.id }, commentTargetHandled.value) {
         if (!commentTargetHandled.value && !initialCommentId.isNullOrBlank()) {
             val targetIndex = state.comments.indexOfFirst { it.id == initialCommentId }
@@ -1447,6 +1450,13 @@ fun PostDetailScreen(
                         Text(stringResource(R.string.chat_copy), modifier = Modifier.fillMaxWidth())
                     }
                     if (isOwn) {
+                        TextButton(onClick = {
+                            editingCommentFor = target
+                            editingCommentText = target.content
+                            commentMenuFor = null
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.explore_edit_comment), modifier = Modifier.fillMaxWidth())
+                        }
                         TextButton(onClick = { viewModel.deleteComment(target); commentMenuFor = null }, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.explore_delete_comment), modifier = Modifier.fillMaxWidth(), color = UnreadRed)
                         }
@@ -1459,6 +1469,45 @@ fun PostDetailScreen(
             },
             confirmButton = {},
             dismissButton = { TextButton(onClick = { commentMenuFor = null }) { Text(stringResource(R.string.explore_close)) } }
+        )
+    }
+
+    editingCommentFor?.let { target ->
+        AlertDialog(
+            onDismissRequest = { editingCommentFor = null },
+            title = { Text(stringResource(R.string.explore_edit_comment), style = MaterialTheme.typography.titleMedium) },
+            text = {
+                OutlinedTextField(
+                    value = editingCommentText,
+                    onValueChange = { editingCommentText = it.take(1_000) },
+                    label = { Text(stringResource(R.string.explore_comment_edit_hint)) },
+                    minLines = 3,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !state.isSavingCommentEdit,
+                    onClick = {
+                        viewModel.saveCommentEdit(target, editingCommentText)
+                        editingCommentFor = null
+                    }
+                ) {
+                    if (state.isSavingCommentEdit) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text(stringResource(R.string.common_save))
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !state.isSavingCommentEdit,
+                    onClick = { editingCommentFor = null }
+                ) {
+                    Text(stringResource(R.string.explore_close))
+                }
+            }
         )
     }
 }

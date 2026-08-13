@@ -17,6 +17,7 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
 import org.jetbrains.exposed.sql.lowerCase
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -197,7 +198,7 @@ class UserRepository {
             // 不应受登录防重放计数器（acceptTotpCounter）约束——否则刚登录后无法立即关闭 TOTP
             //（登录已把 totpLastCounter 推进，当前窗口内任何新验证码都会被当作重放拒绝）。
             // 仅校验验证码在当前时限窗口内有效即可。
-            if (!com.maodouchat.server.service.TotpService.verify(secret, code) { true }
+            if (!com.maodouchat.server.service.TotpService.verify(secret, code, trackReplay = false) { true }
             ) return@transaction false
         }
         Users.update({ Users.id eq userId }) {
@@ -297,13 +298,12 @@ class UserRepository {
     }
 
     /** 可搜索用户目录（过滤双向拉黑，8.30 隐私修复）。 */
-    fun getAll(limit: Int = 100, viewerId: String? = null): List<UserResponse> {
+    fun getAll(limit: Int = 100, offset: Int = 0, viewerId: String? = null): List<UserResponse> {
         return transaction {
             val blocked = viewerId?.let { blockedUserIdsInTx(it) } ?: emptySet()
-            Users.selectAll()
-                .where { Users.searchable eq true }
-                .limit(limit.coerceIn(1, 500))
-                .filter { it[Users.id] !in blocked }
+            val base = Users.selectAll().where { Users.searchable eq true }
+            val query = if (blocked.isEmpty()) base else base.andWhere { Users.id notInList blocked }
+            query.limit(limit.coerceIn(1, 500), offset.coerceAtLeast(0).toLong())
                 .map { it.toPublicUser() }
         }
     }
@@ -324,9 +324,9 @@ class UserRepository {
             }
             val finalQuery = if (excludeUserId != null) baseQuery.andWhere { Users.id neq excludeUserId } else baseQuery
             val blocked = viewerId?.let { blockedUserIdsInTx(it) } ?: emptySet()
-            finalQuery.orderBy(Users.name to SortOrder.ASC)
+            val query = if (blocked.isEmpty()) finalQuery else finalQuery.andWhere { Users.id notInList blocked }
+            query.orderBy(Users.name to SortOrder.ASC)
                 .limit(limit.coerceIn(1, 100))
-                .filter { it[Users.id] !in blocked }
                 .map { it.toPublicUser() }
         }
     }

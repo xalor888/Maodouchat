@@ -184,7 +184,13 @@ class AttachmentTransferWorker(
             // 永久性故障（服务端持续 5xx）会让消息永远停在 SENDING、transfer 永远 READY，
             // 进程被反复唤醒。达上限后标 FAILED + Result.failure()。
             if (runAttemptCount >= MAX_RETRIES) {
-                runCatching { dao.markFailed(messageId, "finalize_retry_exhausted", ownerUserId = ownerUserId) }
+                try {
+                    dao.markFailed(messageId, "finalize_retry_exhausted", ownerUserId = ownerUserId)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    // 标记失败为尽力而为；Result.failure() 仍会终止本轮重试
+                }
                 Result.failure()
             } else {
                 Result.retry()

@@ -158,7 +158,7 @@
 | 155 | LOW | CallViewModel onCleared 已有挂断在途时前台服务不停止 → 无条件 stopForegroundService |
 | 156 | LOW | AttachmentTransferWorker 软退避 `resume` 覆盖用户暂停态 → 新增 `requeueForRetry` DAO（不含 PAUSED）原子回置 |
 | 157 | LOW | `OnDemandStickerStore.getSticker` 跨包同名贴纸误取 → 按所属包目录限定 + sha256 校验 |
-| — | 记录 | WebRTCManager onTrack 渲染器无锁挂接（信令线程 vs 主线程竞态）：改动有死锁风险，LOW 记录待审 |
+| — | 已修 | WebRTCManager 直接通话 onTrack 渲染器挂接加同一把 `this` 锁（9.12），消除信令线程 vs UI 线程竞态 |
 
 **验证方式**：全部为静态核验（全文件括号平衡 delta=0（除历史遗留 AdminRouting/AdminEnhanceRouting -1）；引用存在性核对（stopForegroundService/BoundedRateLimiter/Pair 协变/exec 参数绑定同 AiRepository 模式））。按用户要求未跑编译/测试。
 
@@ -4750,7 +4750,7 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 - **F1（中）** 跨设备已读（CHAT_MARKED_READ）只清未读角标不清 tray/中心 → 补 `cancelMessage` + `markChatMessagesRead`
 - **F7（中）** FCM 迟到推送对已读消息重复提醒 → NEW_MESSAGE 分支加 Room 已存在检查（与 WS existingSameMessage 去重对齐）
 - **F2（中）** 停留在聊天页锁屏/切后台期间新消息零通知零未读（activeChatId 进程级不清）→ MainActivity.onPause 清空 activeChatId + ChatDetailScreen ON_RESUME 恢复（Compose LifecycleEventObserver）
-- 记录不修：F4（widget mark-read 不调服务端）、F5（Backlog 不递增未读）、F6（AI 任务中心行已读）、F8（FCM messageId 兜底）
+- 记录不修：F5（Backlog 不递增未读）、F8（FCM messageId 兜底）；F4（widget mark-read 不调服务端）已于 9.7 修复，F6（AI 任务中心行已读）已于 9.8 修复
 
 **服务端 API 端点一致性（1 高 + 2 中 + 1 中修复）**：
 - **非成员错误统一 403**：PollRouting 签到/接龙/群 PK/投票 + createPoll + polls 列表（此前 400 或静默 200 []）→ 前置 `PollRepository.isMember` 检查，非成员 403、其余失败保持 400（createPoll 拆开参数/权限语义）
@@ -5259,3 +5259,310 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 ---
 
 *本报告于 2026-07-20 按代码树现状重写，取代此前按 push #1…#66 无限追加的进度日志。*
+
+### 9.1 2026-08-13 无限调优：官网重构 / clean URL / 构建与安全加固
+
+**官网 UI 重构**：
+1. 首页整体重做为「毛豆绿 + 暖纸色 + 墨色」双主题，移除旧深紫渐变、光斑和 emoji 卡片。
+2. Hero 改为沉浸式聊天产品场景，支持聊天 / 密聊 / AI 三态交互预览；桌面与移动端均无横向溢出。
+3. FAQ / 隐私 / 条款 / 安全 / 帮助 / 开发者中心统一新视觉、logo、SVG 主题切换和 favicon。
+4. 首页新增 `/api/public/status` 实时服务状态指示，维护 / 在线 / 未知三态，异常与超时优雅降级。
+5. 新增 PWA 支持：`/manifest.webmanifest`、512×512 图标、首页 manifest 声明与 Service Worker 离线壳层，可安装为桌面/手机应用。
+
+**clean URL 与 SEO**：
+1. 新增 `/faq`、`/privacy`、`/terms`、`/security`、`/help`、`/developer` 无后缀路由。
+2. 旧 `/xxx.html` 全部 301 到新地址；canonical、站内链接、`robots.txt` 已同步。
+3. 新增 `/sitemap.xml`（仅收录 clean URL）与 `/.well-known/security.txt`。
+4. 全站补齐 `theme-color`，新增官网端到端脚本 `npm run test:website`。
+
+**Bug 修复与加固**：
+1. 服务端复用 JSON 实例、清理 deprecated 群成员上限委托、删除重复 `/` 路由。
+2. 修复群 PK 快捷符 `?:` 优先级、群接龙 null 崩溃、WebSocket 恒真条件、TOTP/AI 预算内存表无界增长、登录锁定表无界增长。
+3. App 清理 57 处无效 `it ?: ""`、冗余 `!!`、弃用 AutoMirrored 图标与 Coil opt-in。
+4. 审计路径穿越、SQL 注入、命令执行、Android 清单暴露面，未发现可复现高危问题。
+5. 落地待定项：群玩法禁言校验——签到、接龙创建/参与、PK 创建/投票对被禁言成员统一返回 403，与发消息/附件/回应路径一致。
+
+**构建与验证**：
+1. `:server:test` 全量通过；`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过。
+2. `:app:assembleDebug` 通过；`:app:assembleRelease` 通过（unsigned，12.21MB，`verifyReleaseSize` 通过）。
+3. `npm run test:website`（14 页面/视口检查 + 3 静态路由）与 `Admin browser E2E` 通过。
+4. `git diff --check`、`node --check`、中英 string parity 全部通过。
+
+### 9.2 2026-08-13 无限调优：TOTP 重放与群玩法禁言收口
+
+1. **TOTP 同窗口重复码放行**：`TotpService` 原用 `merge + maxOf` 判断，旧值等于新 counter 时仍返回 true，同一 30s 窗口的 code 可被重复接受；改为 `compute` 显式标记是否插入/推进，并新增回归测试。
+2. **TOTP 内存清理单位错误**：原 sweep 把 TOTP counter（30s 步进）与毫秒时间戳比较，达到阈值会误删全部记录；记录改为 `ReplayRecord(counter, acceptedAtMs)` 后按实际接受时间清理。
+3. **关闭 TOTP 被内存重放守卫误拦**：`disableTotp` 本意只做时限校验，现通过 `trackReplay = false` 显式跳过进程内重放守卫（DB 权威层仍不受影响）。
+4. **群玩法禁言补漏**：常规投票创建/投票端点同样对被禁言成员返回 403；接龙参与改为非成员/接龙不存在统一 403，并在限流前拦截，避免消耗群玩法配额。
+5. **登录锁定表清理时机**：sweep 从「仅失败时」扩展到每次登录尝试前执行，成功登录后仍无法触发新请求的陈旧条目也不会长期滞留。
+
+**验证**：`:server:test` 74 个测试全绿（新增 TOTP 同窗口重放、禁言投票/接龙断言）；`:app:testDebugUnitTest`、`:app:lintDebug`、`npm run test:website`、`Admin browser E2E` 全部通过；`git diff --check` 与中英 string parity 通过。
+
+### 9.3 2026-08-13 无限调优：并发锁清理竞态与取消语义
+
+1. **SignalProtocol.ensureSession 锁清理竞态**：原实现持锁结束时直接 `sessionSetupLocks.remove(lockKey)`，正在等待同一把锁的协程仍会继续，后续调用会新建 Mutex 并发建立会话，可能双消耗一次性预密钥；改为带引用计数的 `SessionSetupLock`，条目只在最后一个使用者退出时移除。
+2. **LinkPreviewRepository 同类竞态**：`inFlight` 也在持锁结束直接移除，并发同 URL 拉取可能重复请求；同样改为引用计数清理。
+3. **SenderKeyRetryManager.adoptOrphans 吞取消**：`runCatching` 包裹 suspend DAO 调用，Worker 取消时 CancellationException 被吞；改为 try/catch 并重抛取消，与 BacklogSyncWorker 口径一致。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；服务端全量测试维持上一轮全绿状态。
+
+### 9.4 2026-08-13 无限调优：Worker 取消语义收口
+
+1. **SecretSurfaceWatchdogWorker TTL 清扫吞取消**：`listActivity`/`sweepExpired` 整体包在 `runCatching` 内，WorkManager 停止时 CancellationException 被吞；改为 try/catch 重抛，并同步修正“暂不接入 TTL”的过时注释。
+2. **SecretSessionTtl.destroySession 吞取消**：搜索索引清理的 `runBlocking` 由 `runCatching` 包裹，同样改为重抛取消。
+3. **ScheduledMessageWorker 重复定时重排吞取消**：重排下一次定时消息的 `runCatching` 不再吞 CancellationException；失败仍保留原有“跳过重排、继续移除当前条目”语义。
+4. **ScheduledMessageWorker.abandonScheduledMessage 吞取消**：达重试上限后的放弃路径整体包在 `runCatching` 内，取消时仍会弹失败通知并返回 success；改为重抛取消。
+5. **AttachmentTransferWorker.finalize 标记失败吞取消**：重试耗尽后标记 FAILED 的 `runCatching` 不再吞 CancellationException。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.28 2026-08-13 无限调优：ChatDetail 草稿删除取消语义
+
+1. **clearDraftPersistence 吞取消**：Room 草稿删除用 `runCatching` 包裹，取消会被吞；改为 try/catch 重抛 `CancellationException`。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.27 2026-08-13 无限调优：ChatDetail 清空聊天取消语义
+
+1. **clearLocalChatContent 吞取消**：ChatDetail 的“清空本地聊天”清理路径用多个 `runCatching` 包裹挂起调用；改为 `bestEffort` 辅助，统一重抛 `CancellationException`。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.26 2026-08-13 无限调优：AI 本地清理取消语义
+
+1. **ChatDetail AI 缓存/任务清理吞取消**：`pruneOlderThan` 两处 `runCatching` 会吞取消；改为 try/catch 重抛 `CancellationException`。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.25 2026-08-13 无限调优：删号本地清理进 NonCancellable
+
+1. **deleteAccount purge 可被取消打断**：服务端删号成功后本地 `purgeLocalSession` 与 presence 清理原先不在 `NonCancellable`，协程取消会留下半清理状态；改为 `NonCancellable` 内执行。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.24 2026-08-13 无限调优：退出所有设备/删号清理 presence
+
+1. **logoutAllDevices/deleteAccount 未清 presence**：普通登出会清 `TypingPresenceStore`，但退出所有设备和删号路径漏掉；补上，并在 logoutAll 中放入 `NonCancellable`。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.23 2026-08-13 无限调优：登出 presence 清理进 NonCancellable
+
+1. **logout presence 清理可能被取消跳过**：`SettingsViewModel.logout` 原先在 `NonCancellable` 外清 `TypingPresenceStore`，purge 后协程取消会残留对端“正在输入”状态；移入 `NonCancellable` 内。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.21 2026-08-13 无限调优：运行时配置刷新失败保留旧缓存
+
+1. **RuntimeConfigService DB 瞬时故障清空配置**：`refreshIfStale` 原先 `runCatching(...).getOrDefault(emptyMap())` 后无条件 clear + 推进 loadedAt，DB 抖动会让运行配置短暂失效；改为失败时直接返回，保留旧缓存且不推进 loadedAt。
+
+**验证**：`:server:test` 74 个测试全绿；`git diff --check` 无输出。
+
+### 9.22 2026-08-13 无限调优：清除草稿取消语义
+
+1. **clearChatDraft 吞取消**：`ChatListViewModel.clearChatDraft` 用 `runCatching` 包裹 Room 删除；改为 try/catch 重抛 `CancellationException`。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.20 2026-08-13 无限调优：小组件快捷回复账号归属校验
+
+1. **handleReplySent 缺账号归属校验**：旧账号残留 widget 的快捷回复会拿当前账号 token 尝试发送；补 `NotificationIntentPolicy.belongsToCurrentAccount`，与打开会话/mark-read 路径一致。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.18 2026-08-13 无限调优：WS session 发送锁清理竞态
+
+1. **sessionSendLocks 直接删除导致并发写帧**：`sendSafe` 取得锁后，关闭路径直接 `remove` 锁条目；等待中的发送者仍会继续，后续发送会新建锁并发写同一 session。改为 `SessionSendLock(lock, users)` 引用计数，仅无使用者时删除。
+
+**验证**：`:server:test` 74 个测试全绿；`git diff --check` 无输出。
+
+### 9.19 2026-08-13 无限调优：群通话远端轨道挂接竞态
+
+1. **handleGroupRemoteTrack 未与 renderer 共用锁**：群通话信令线程写 `groupRemoteVideoTracks`/读 `groupRemoteRenderers`，而 attach/remove/release 都在 UI 线程持 `this` 锁；改为同一把 `this` 锁，避免对端移除后仍挂 sink。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.17 2026-08-13 无限调优：清空本地聊天记录取消语义
+
+1. **clearLocalChatHistory 吞取消**：整段清理用多个 `runCatching` 包裹挂起调用，取消后仍会继续清索引/角标并 reload；改为 `bestEffort` 辅助函数，统一重抛 `CancellationException`，非取消异常仍按尽力而为吞掉。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.16 2026-08-13 无限调优：AI 画像/OCR 索引取消语义
+
+1. **AiConversationProfile.build 吞取消**：拉取服务端叙事摘要的 `runCatching` 会吞掉取消；改为 try/catch 重抛。
+2. **ImageOcrAutoIndexer 吞取消**：密聊 ID 读取、OCR 下载、结果落库三处 `runCatching` 均可能吞取消；改为 try/catch 重抛。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.15 2026-08-13 无限调优：AI 任务清理提醒调度取消语义
+
+1. **deleteCompletedByChatId 吞取消**：清理已完成任务时逐条取消提醒调度的 `runCatching` 会吞 `CancellationException`；改为 try/catch 重抛取消，与其余 Worker/仓库清理路径一致。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.14 2026-08-13 无限调优：密聊媒体缓存目录路径隔离
+
+1. **chatId 直接拼密聊缓存目录**：写入/创建/删除密聊媒体时曾直接用 chatId 作为子目录名；异常 chatId（`.`、`..`、含路径分隔符/空白）可能越界写或误删整个密聊缓存根目录。新增 `secretChatDir` 统一解析：拒绝非法字符并做 canonical 越界校验，三个入口（写入、创建、删除）全部改用它。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.13 2026-08-13 无限调优：Backlog 同步后前台列表预览刷新
+
+1. **Backlog 同步不刷新列表预览**：后台增量同步插入新消息后，前台聊天列表的尾部预览/排序要等下一次 `getChats` 才更新；现同步成功且有新消息时补发 `emitChatListPreviewRefresh(chatId)`，从 Room 重算尾部。未读计数仍以服务端会话列表为准，避免本地误增造成跨设备角标残留。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.12 2026-08-13 无限调优：WebRTC onTrack 渲染器竞态
+
+1. **onTrack 无锁访问渲染器字段**：直接通话 `onTrack` 在信令线程写 `remoteVideoTrack`/读 `remoteRenderer`，而 `attach/detachRemoteRenderer` 在 UI 线程持 `this` 锁，可能看到旧值或复合读写交错；改为同一把 `this` 锁，避免黑屏/释放后挂 sink，且不引入死锁（回调移出锁外）。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.11 2026-08-13 无限调优：WebSocket 空 reason 空指针
+
+1. **onClosing reason 可空被当非空**：OkHttp `onClosing` 的 `reason` 实际可为 null；此前清理 `reason != null` 判断后，1008 + 空 reason 会先撞进 `isRecoverableExpiryReason(reason: String)` 触发 NPE。两个 reason 判定函数改为可空参数，并保护“连接数超限”分支。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.9 2026-08-13 无限调优：AI 预算并发锁清理竞态
+
+1. **budgetMonitors 提前删除导致预算并发守卫失效**：`AiGatewayService.checkBudget` 在“已取 monitor 但尚未写入预留”的窗口内，sweep 看到 `budgetReservations` 为空会删除该 monitor，后续请求新建锁即可与进行中的请求并发通过预算检查；改为 `BudgetMonitor(lock, users)` 引用计数，取锁 +1、释放 -1，仅无使用者和无预留时删除。
+
+**验证**：`:server:test` 74 个测试全绿；`git diff --check` 无输出。
+
+### 9.10 2026-08-13 无限调优：通话记录截断按时间裁剪
+
+1. **CallLogStore 截断可能裁掉较新记录**：`upsert` 原先按 JSON 数组插入序 `remove(0)` 截断到 200 条；乱序写入（晚写旧记录）时可能裁掉较新条目。改为按 `startedAt` 降序排序后只保留最近 200 条。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.8 2026-08-13 无限调优：AI 任务中心通知已读
+
+1. **AI 任务中心行已读**：打开 AI 任务页只清系统托盘与 WorkManager 提醒作业，通知中心 `AI_TASK` 行仍是未读；新增 `NotificationCenterRepository.markAiTasksRead(chatId)`，在任务真正开始展示时调用（含解锁后路径），未读角标/过滤同步收敛。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.6 2026-08-13 无限调优：群玩法“满员/已关闭”错误语义
+
+1. **群接龙满员误报成功**：`joinChain` 满员时原返回 DTO（200 + myJoined=false），客户端会以为加入成功；改为返回 null，路由回 400「接龙已结束或人数已满」。
+2. **已关闭投票再投票误报成功**：`GroupPlayRepository.vote` 对已关闭 poll 返回 null，路由回 400「投票失败」，不再返回旧状态 200。
+3. **已关闭 PK 再投票误报成功**：`GroupCheckinRepository.votePk` 对已关闭 PK 返回 null，路由回 400「PK 投票失败」。
+
+**验证**：`:server:test` 74 个测试全绿（新增满员接龙、关闭投票/PK 再投票断言）；`git diff --check` 无输出。
+
+### 9.7 2026-08-13 无限调优：小组件标记已读同步服务端
+
+1. **Widget mark-read 只清本地角标**：`ConversationWidgetProvider.handleMarkRead` 此前只调 `ChatRepository.markChatRead`，服务端未读计数与已读回执不更新，换设备/重同步后未读会复活；现先校验会话并调用 `ApiService.markAllAsRead`，成功/失败均保留本地清理兜底。
+2. **Widget mark-read 缺账号归属校验**：旧账号残留 widget 点击会拿当前账号 token 标记任意 chatId；补 `NotificationIntentPolicy.belongsToCurrentAccount`，与打开会话路径一致。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.5 2026-08-13 无限调优：跨设备 AI 同步重复投递
+
+1. **AiMessageMetaSyncRepository Duplicate 不 ACK**：`DecryptResult.Duplicate` 表示 libsignal 已消费该信封（重复/乱序投递），原实现与 NoSession 一样跳过 ACK，服务端会持续重投同一 payload；现改为 ACK。
+2. **AiSummarySyncRepository 同问题**：摘要同步对 Duplicate 信封同样改为 ACK，避免每次周期拉取都重复解密同一信封。
+
+**验证**：`:app:testDebugUnitTest` 与 `:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.29 2026-08-13 无限调优：群加人候选全量分页
+
+1. **群“添加成员”候选只显示前 30 人**：`ChatDetailViewModel.loadGroupCandidates` 与 `GroupDetailScreen.load` 都调用不带参数的 `getUsers()`，服务端 `/api/users` 默认 `limit=30` 且无 `offset`，用户量大时大部分可加联系人永远不出现。现服务端 `GET /api/users` 支持 `offset` 分页；App 新增 `ApiService.getAllSearchableUsers`（每页 100 人循环拉取，上限 1000，避免撞用户搜索限流），两处群加人 UI 统一改用它。
+2. **拉黑用户占掉分页容量**：`getAll`/`searchUsers` 原先 SQL `LIMIT` 后才内存过滤拉黑用户，分页首 100 行若多为拉黑用户，候选页会缩水甚至清空；改为 `notInList` 把拉黑过滤下沉到 SQL 条件后再分页。
+
+**验证**：`:server:test` 76 个测试全绿（新增 offset 分页无重叠、拉黑不占页容量断言）；`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.30 2026-08-13 无限调优：Room v27→v30 迁移测试补全
+
+1. **迁移测试只到 v26，v27→v30 零验证**：新增 `AppDatabaseMigrationTest.migrate25To30RunsFullChainAndPreservesChatUsersAndSecretChats`，从 v25 一路迁移到 v30，覆盖群聊 `chatType` 推导、密聊 `lastActivityAt` 默认值、用户 `lastSeen` 默认值、B7 新增索引与消息/聊天数据保留。
+
+**验证**：`:app:compileDebugAndroidTestKotlin` 通过（迁移测试为 androidTest，需真机/模拟器执行，未在本机跑 `connectedAndroidTest`）；`:server:test` 75 个测试全绿；`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.31 2026-08-13 无限调优：过期 refresh token 前缀不再误吊销活跃会话
+
+1. **管理端按 tokenHash 前缀吊销会把过期 token 当候选**：`AuthTokenRepository.revokeByHashPrefixWithSessions` 的候选查询只过滤 `revokedAt IS NULL`，未过滤 `expiresAt <= now`；若管理员用旧导出/旧审计里的过期前缀操作，会把该过期 token 所属的整个活跃会话（含新轮换 token）一起吊销。候选与加锁重读两处均补 `expiresAt > now`，仅活跃 token 可触发会话吊销。
+2. **新增回归测试**：`AuthTokenPrefixRevocationTest` 构造“同会话过期 token + 新活跃 token”，断言过期前缀返回 `count=0`、不吊销 session、不吊销活跃 token。
+
+**验证**：`:server:test` 77 个测试全绿；`git diff --check` 无输出。
+
+### 9.32 2026-08-13 无限调优：来电页 800ms 窗口误清新来电
+
+1. **旧来电结束后的延迟清理会吞掉新来电**：`IncomingCallRoute` 在 `DISCONNECTED` 后固定延迟 800ms 再 `IncomingCallCoordinator.clear()` + `popBackStack`；若这 800ms 内新 offer 已写入 pending，旧协程会把新来电一起清掉并退出页面。延迟清理与手动挂断路径都改为先校验当前 pending 属于已结束来电（同 callId；空 callId 用联系人兜底）或为空，才清理/退出。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.33 2026-08-13 无限调优：群发起者振铃期取消不记 MISSED
+
+1. **群通话 hang-up 分支只移除对端**：收到群发起者的取消信号时，若本机仍处于 RINGING，原逻辑仅 `removeGroupPeer` + 标记终端，未落未接记录也不退出来电页。现当 `fromUserId == 群发起者 contactId` 且为呼入 RINGING 时，与 1:1 挂断一致地写 `MissedCallRecorder`（稳定 callId 幂等）、清 pending 并结束来电；普通成员退出仍按对端离开处理，不影响其余群成员通话。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.34 2026-08-13 无限调优：AI 日预算预检补输出 token 预留
+
+1. **预算预检只估输入**：全部 `checkBudget` 调用都用 `estimateTokens(输入文本)`，输出 token 要等请求结束落账后才计入，连续大输出请求可在实际记账前反复通过预检、突破每日预算。`checkBudget` 现在在输入估算上固定追加 1024 token 保守输出预留，软预算更贴近真实计费。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.35 2026-08-13 无限调优：Bot 创建失败错误分类
+
+1. **创建 bot 失败一律折叠成 null**：`BotRepository.create` 对用户名占用、用户名非法、数量上限、账号异常全部返回 null，两个路由只能回 400“用户名非法或已占用”。改为 `BotCreateResult` 区分 `Success/InvalidInput/UsernameTaken/MaxBotsReached/OwnerInvalid`；用户名占用和数量上限回 409，非法输入回 400，成功照常返回 DTO。
+2. **新增回归测试**：`BotCreateOutcomeTest` 断言重复用户名与非法用户名返回不同结果。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.36 2026-08-13 无限调优：贴纸包下载锁清理
+
+1. **`packLocks` 只增不减**：`OnDemandStickerStore` 用 `computeIfAbsent` 为每个包永久保留 Mutex，长期运行/频繁换包时锁表无界增长。改为带引用计数的 `PackLock`，使用完且无等待者时移除条目，与 Signal/WS/AI 预算锁同一清理模式。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.37 2026-08-13 无限调优：评论编辑闭环
+
+1. **评论编辑此前无服务端 API**：新增 `PUT /api/posts/{id}/comments/{cid}`，仅作者本人可编辑，路由层走与发评论一致的 `isValidCommentPayload` + 内容审核 + 限流；`PostRepository.updateCommentForUser` 校验评论归属和所属动态后原子更新并返回最新评论。
+2. **客户端入口**：详情页评论长按菜单新增“编辑评论”，弹窗输入新内容后调用 `ApiService.editPostComment`，成功后替换本地评论列表；中英文案成对。
+3. **新增端到端测试**：`CommentEditRouteTest` 覆盖“发帖 → 发评论 → 编辑 → 断言新内容返回且旧内容不残留”。
+
+**验证**：`:server:test` 79 个测试全绿；`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.38 2026-08-13 无限调优：注册前置校验补全
+
+1. **注册无 codeSent 前置/确认密码**：`LoginViewModel.submit` 对注册和找回密码补“未先获取验证码”拦截，注册 tab 新增确认密码输入框；两次密码不一致或未先发码时在本地返回明确错误，不再盲目打服务端。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.39 2026-08-13 无限调优：Post 图片元数据锁热点
+
+1. **容量裁剪持全局锁回查 DB**：`createPost` 原先在 `imageClaimLock` 内调用 `trimImageMetaIfNeeded`，超过 10k 映射时会全表回查动态 ID，阻塞所有发帖/删帖。裁剪移到锁外执行（只影响进程内映射缓存，不改变 DB 正确性）。
+2. **旧图清理持全局锁做全量引用扫描**：`deleteStaleUnreferencedImages` 原先锁内 `allReferencedImageFilenames()` 全表扫；改为先列过期候选文件，再逐文件在锁内做“引用检查 + 删除”，锁持有时间从全表扫描降为单文件检查。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.40 2026-08-13 无限调优：强制断连补离线广播
+
+1. **强制踢线/登出不广播离线**：`disconnectUserSessions`/`ByAuthSessionIds`/`ByAccessJti` 之前只删在线会话并落库 offline，不向其他在线用户广播 `USER_STATUS`，对方会一直看到旧在线状态。三条路径统一走 `markOfflineAndBroadcastIfNoSessions`：状态锁内落库，锁外二次确认无新会话后广播离线。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.41 2026-08-13 无限调优：Bot 删除广播批量取群快照
+
+1. **删除 bot 逐群 2 次查询广播**：`DELETE /api/bots/{botId}` 原先对每个受影响群先 `getChatById` 再 `getParticipantIds`（各一次事务）。新增 `ChatRepository.getGroupRevisionAndParticipantIds` 一次事务批量取群 `memberRevision` 与参与者；路由改用 `notifyGroupRevisionChangedWithData` 直接广播，删除 bot 的 fanout 从 2N 次查询降为 1 次。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。
+
+### 9.42 2026-08-13 无限调优：群 SenderKey 计数并发安全
+
+1. **`markGroupSenderKeyMessageSent` 读改写未加锁**：并发群消息发送时多次读改写 metadata 可能丢计数，导致 `GROUP_SENDER_KEY_MAX_MESSAGES` 轮换偏晚。改为在 `cryptoLock` 内完成读改写，与其它 Signal 状态操作同一把锁。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.43 2026-08-13 无限调优：Backlog 断线窗口递增本地未读
+
+1. **Backlog 同步不递增未读**：断线/Doze 期间后台同步插入新消息只刷新列表预览，本地角标不涨，直到下次服务端会话快照才纠正。现在对“非活跃会话 + 非本人 + 非控制消息 + 本地确为新消息”的行增量未读；服务端会话快照仍会覆盖校准，避免跨设备残留。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.44 2026-08-13 无限调优：好友列表排除拉黑/注销用户
+
+1. **`listFriends` 不排除拉黑且 LIMIT 后过滤注销**：被拉黑联系人刷新后会“复活”回通讯录；已注销用户还会占掉分页容量。改为 SQL 层同时过滤 `deletedAt IS NOT NULL` 与双向拉黑后再生效 LIMIT，和联系人列表“拉黑即移除”的本地行为一致。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

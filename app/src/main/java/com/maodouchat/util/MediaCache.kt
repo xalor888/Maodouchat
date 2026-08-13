@@ -196,7 +196,7 @@ object MediaCache {
                 return null
             }
             val dir = if (!secretChatId.isNullOrBlank()) {
-                File(File(context.cacheDir, SECRET_CACHE_DIR), secretChatId).apply { mkdirs() }
+                secretChatDir(context, secretChatId)?.apply { mkdirs() } ?: return@runCatching null
             } else {
                 File(context.cacheDir, CACHE_DIR).apply { mkdirs() }
             }
@@ -247,7 +247,8 @@ object MediaCache {
 
     fun createAttachmentCacheFile(context: Context, messageId: String, fileName: String, secretChatId: String? = null): File {
         val dir = if (!secretChatId.isNullOrBlank()) {
-            File(File(context.cacheDir, SECRET_CACHE_DIR), secretChatId).apply { mkdirs() }
+            secretChatDir(context, secretChatId)?.apply { mkdirs() }
+                ?: throw IllegalArgumentException("invalid secret chat id")
         } else {
             File(context.cacheDir, CACHE_DIR).apply { mkdirs() }
         }
@@ -306,11 +307,8 @@ object MediaCache {
      * [CACHE_DIR] 中长期留存（F5 修复）。
      */
     fun deleteSecretChatMedia(context: Context, chatId: String): Boolean = runCatching {
-        if (chatId.isBlank()) return@runCatching true
-        val root = File(context.cacheDir, SECRET_CACHE_DIR).canonicalPath + File.separator
-        val dir = File(File(context.cacheDir, SECRET_CACHE_DIR), chatId)
+        val dir = secretChatDir(context, chatId) ?: return@runCatching true
         if (!dir.exists()) return@runCatching true
-        require(dir.canonicalPath.startsWith(root)) { "refusing to delete outside secret cache dir" }
         dir.deleteRecursively()
     }.onFailure { Log.w(TAG, "deleteSecretChatMedia failed", it) }.getOrDefault(false)
 
@@ -324,6 +322,18 @@ object MediaCache {
         if (root.exists()) root.deleteRecursively()
         true
     }.onFailure { Log.w(TAG, "deleteAllSecretChatMedia failed", it) }.getOrDefault(false)
+
+    /** 解析密聊缓存会话目录，拒绝路径分隔符 / 空白 / . / ..，并做 canonical 越界校验。 */
+    private fun secretChatDir(context: Context, chatId: String): File? {
+        if (chatId.isBlank() || chatId == "." || chatId == ".." ||
+            chatId.any { it.isWhitespace() || it.isISOControl() || it == '/' || it == '\\' }
+        ) {
+            return null
+        }
+        val root = File(context.cacheDir, SECRET_CACHE_DIR).canonicalFile
+        val dir = File(root, chatId).canonicalFile
+        return dir.takeIf { it.path.startsWith(root.path + File.separator) }
+    }
 
     fun cleanup(context: Context) {
         runCatching {

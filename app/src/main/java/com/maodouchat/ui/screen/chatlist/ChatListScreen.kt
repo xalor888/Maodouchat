@@ -1455,7 +1455,7 @@ private fun ChatListItem(
                             .clip(RoundedCornerShape(10.dp))
                             .background(Primary)
                             .padding(horizontal = 7.dp, vertical = 2.dp)
-                            .then(if (onBadgeClick != null) Modifier.clickable(onClick = onBadgeClick!!) else Modifier)
+                            .then(if (onBadgeClick != null) Modifier.clickable(onClick = onBadgeClick) else Modifier)
                     ) {
                         Text(unreadLabel, color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelSmall)
                     }
@@ -1464,7 +1464,7 @@ private fun ChatListItem(
             // 1.22：群公告预览（微信式群信息提示行）
             if (chat.isGroup && !chat.groupAnnouncement.isNullOrBlank()) {
                 Text(
-                    text = stringResource(R.string.chat_list_group_announcement_prefix) + chat.groupAnnouncement!!.trim(),
+                    text = stringResource(R.string.chat_list_group_announcement_prefix) + chat.groupAnnouncement.orEmpty().trim(),
                     style = MaterialTheme.typography.labelSmall,
                     color = TextHint,
                     maxLines = 1,
@@ -1746,4 +1746,3 @@ private fun highlightedText(text: String, query: String) = buildAnnotatedString 
     }
     if (cursor < snippet.text.length) append(snippet.text.substring(cursor))
 }
-

@@ -101,16 +101,31 @@ class BacklogSyncWorker(
                             sealedSender = dto.sealedSender
                         )
                     }
+                val activeChatId = MaodouchatApp.activeChatId
+                val newMessageIds = messages.mapNotNull { msg ->
+                    if (messageRepo.getMessageById(msg.id) == null) msg.id else null
+                }.toSet()
                 messageRepo.insertMessages(messages)
+                val incomingUnread = messages.count { msg ->
+                    msg.id in newMessageIds &&
+                        msg.senderId != ownerId &&
+                        msg.type !in setOf(MessageType.SK_DIST, MessageType.REVOKED) &&
+                        activeChatId != chat.id
+                }
+                if (incomingUnread > 0) {
+                    app.database.chatDao().incrementUnread(chat.id, incomingUnread)
+                }
                 // 8.48：空结果（游标已最新）不推进游标但仍标记尝试时刻
                 if (messages.isNotEmpty()) {
                     val last = messages.maxWith(compareBy<Message> { it.timestamp }.thenBy { it.id })
                     tokenManager.saveSyncCursor(chat.id, com.maodouchat.network.TokenManager.SyncCursor(timestampMs = last.timestamp, messageId = last.id))
                     synced += messages.size
+                // 前台聊天列表若正在展示，立即从 Room 重算尾部预览/排序；
+                // 本地未读增量只作断线窗口兜底，服务端会话快照会覆盖校准。
+                    com.maodouchat.MaodouchatApp.emitChatListPreviewRefresh(chat.id)
                 }
 
                 // 补发通知：非活跃会话 + 未静音 + DND 不抑制（跳过 SK_DIST/REVOKED 控制消息）
-                val activeChatId = MaodouchatApp.activeChatId
                 val muted = chat.notificationsMuted
                 val suppress = LocalSuppressPolicy.applies(app)
                 // 8.46：会话级免打扰时段——per-chat 静音窗内不弹通知

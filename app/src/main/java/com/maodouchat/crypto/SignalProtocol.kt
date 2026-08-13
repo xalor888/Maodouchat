@@ -52,7 +52,8 @@ class SignalProtocol(
      */
     private val cryptoLock = java.util.concurrent.locks.ReentrantLock()
     /** Per peer-device: serialize "check session → fetch OTPK → establish" to avoid double-consume. */
-    private val sessionSetupLocks = java.util.concurrent.ConcurrentHashMap<String, Mutex>()
+    private class SessionSetupLock(val mutex: Mutex = Mutex(), var users: Int = 0)
+    private val sessionSetupLocks = java.util.concurrent.ConcurrentHashMap<String, SessionSetupLock>()
 
     private lateinit var protocolStore: SignalProtocolStore
 
@@ -338,39 +339,57 @@ class SignalProtocol(
     suspend fun ensureSession(token: String, recipientId: String, deviceId: Int = DEFAULT_DEVICE_ID): Result<Unit> {
         if (hasSession(recipientId, deviceId)) return Result.success(Unit)
         val lockKey = "$recipientId:$deviceId"
-        val setupLock = sessionSetupLocks.getOrPut(lockKey) { Mutex() }
-        return setupLock.withLock {
-            if (hasSession(recipientId, deviceId)) return@withLock Result.success(Unit)
-            try {
-                val response = SignalKeyExchange.fetchDevicePreKeyBundle(token, recipientId, deviceId)
-                    .getOrElse { primaryError ->
-                        // Fallback only for definitive fetch failures — never swallow cancellation.
-                        // 8.46 修复：回退仅允许目标设备 = 默认设备（单设备用户）——否则会把
-                        // 「另一台设备」的默认 bundle 会话建到 recipientId 上，调用方随后仍按
-                        // 入参 deviceId 加密抛 NoSessionException，且留下永不会用到的半建会话。
-                        if (deviceId == DEFAULT_DEVICE_ID) {
-                            SignalKeyExchange.fetchPreKeyBundle(token, recipientId).getOrElse { throw primaryError }
-                                .toDeviceBundle(recipientId)
-                        } else {
-                            throw primaryError
+        val setupLock = sessionSetupLocks.compute(lockKey) { _, existing ->
+            val lock = existing ?: SessionSetupLock()
+            lock.users++
+            lock
+        }!!
+        try {
+            return setupLock.mutex.withLock {
+                if (hasSession(recipientId, deviceId)) return@withLock Result.success(Unit)
+                try {
+                    val response = SignalKeyExchange.fetchDevicePreKeyBundle(token, recipientId, deviceId)
+                        .getOrElse { primaryError ->
+                            // Fallback only for definitive fetch failures — never swallow cancellation.
+                            // 8.46 修复：回退仅允许目标设备 = 默认设备（单设备用户）——否则会把
+                            // 「另一台设备」的默认 bundle 会话建到 recipientId 上，调用方随后仍按
+                            // 入参 deviceId 加密抛 NoSessionException，且留下永不会用到的半建会话。
+                            if (deviceId == DEFAULT_DEVICE_ID) {
+                                SignalKeyExchange.fetchPreKeyBundle(token, recipientId).getOrElse { throw primaryError }
+                                    .toDeviceBundle(recipientId)
+                            } else {
+                                throw primaryError
+                            }
                         }
+                    // Re-check under setup lock: concurrent waiter may have established already.
+                    if (!hasSession(recipientId, response.deviceId)) {
+                        establishSession(
+                            recipientId,
+                            response.deviceId,
+                            SignalKeyExchange.run { response.toSignalPreKeyBundle() }
+                        )
                     }
-                // Re-check under setup lock: concurrent waiter may have established already.
-                if (!hasSession(recipientId, response.deviceId)) {
-                    establishSession(
-                        recipientId,
-                        response.deviceId,
-                        SignalKeyExchange.run { response.toSignalPreKeyBundle() }
-                    )
+                    Result.success(Unit)
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    Result.failure(error)
                 }
-                Result.success(Unit)
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                Result.failure(error)
-            } finally {
-                // 成功或失败都清理 lockKey，避免失败路径下 Mutex 永久残留导致内存泄漏
-                sessionSetupLocks.remove(lockKey)
+            }
+        } finally {
+            // 带引用计数清理：等待中的协程已先 +1，条目只在最后一个使用者退出时移除，
+            // 避免「移除锁后新调用新建 Mutex」与仍在等待旧锁的协程并发建立会话。
+            sessionSetupLocks.computeIfPresent(lockKey) { _, current ->
+                if (current === setupLock) {
+                    if (current.users > 1) {
+                        current.users--
+                        current
+                    } else {
+                        null
+                    }
+                } else {
+                    current
+                }
             }
         }
     }
@@ -748,8 +767,10 @@ class SignalProtocol(
 
     fun markGroupSenderKeyMessageSent(groupId: String, epoch: Long = 0) {
         if (groupId.isBlank()) return
-        val metadata = loadGroupDistributionMetadata(groupId)
-        saveGroupDistributionMetadata(groupId, metadata.copy(epoch = epoch, messageCount = metadata.messageCount + 1))
+        cryptoLock.withLock {
+            val metadata = loadGroupDistributionMetadata(groupId)
+            saveGroupDistributionMetadata(groupId, metadata.copy(epoch = epoch, messageCount = metadata.messageCount + 1))
+        }
     }
 
     fun invalidateGroupSenderKey(groupId: String): Boolean {

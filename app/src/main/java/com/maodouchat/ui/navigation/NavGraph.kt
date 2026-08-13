@@ -1298,7 +1298,14 @@ private fun IncomingCallRoute(navController: NavHostController) {
     // 通话结束（对方挂断/网络中断/超时）后自动返回，延迟 800ms 让用户看到"通话已结束"
     LaunchedEffect(callState.callState) {
         if (callState.callState == CallState.DISCONNECTED) {
+            val endedCallId = incomingCall.callId.orEmpty()
+            val endedContactId = incomingCall.contactId.orEmpty()
             kotlinx.coroutines.delay(800)
+            val currentPending = IncomingCallCoordinator.peekPending()
+            val sameEndedCall = currentPending == null ||
+                (endedCallId.isNotBlank() && currentPending.callId == endedCallId) ||
+                (endedCallId.isBlank() && currentPending.contactId == endedContactId)
+            if (!sameEndedCall) return@LaunchedEffect
             IncomingCallCoordinator.clear()
             navController.popBackStack()
         }
@@ -1333,8 +1340,14 @@ private fun IncomingCallRoute(navController: NavHostController) {
             } else {
                 callViewModel.hangUp()
             }
-            IncomingCallCoordinator.clear()
-            navController.popBackStack()
+            val pendingBeforeHangUp = IncomingCallCoordinator.peekPending()
+            val sameEndedCall = pendingBeforeHangUp == null ||
+                (incomingCall.callId.isNotBlank() && pendingBeforeHangUp.callId == incomingCall.callId) ||
+                (incomingCall.callId.isBlank() && pendingBeforeHangUp.contactId == incomingCall.contactId)
+            if (sameEndedCall) {
+                IncomingCallCoordinator.clear()
+                navController.popBackStack()
+            }
         },
         onToggleMute = { callViewModel.toggleMute(it) },
         onToggleVideo = { callViewModel.toggleVideo(it) },

@@ -186,6 +186,28 @@ class NotificationCenterRepository(context: Context) {
     }
 
     /**
+     * 打开 AI 任务中心时，把该会话的 AI_TASK 通知中心行标记已读。
+     */
+    fun markAiTasksRead(chatId: String) {
+        if (chatId.isBlank()) return
+        withCurrentAccount { ownerUserId ->
+            val current = _items.value
+            val now = System.currentTimeMillis()
+            val updated = current.map { item ->
+                val matches = item.type == "AI_TASK" &&
+                    (item.mergeKey == "ai_tasks_$chatId" ||
+                        item.deeplink == "maodouchat:ai_tasks:$chatId" ||
+                        item.extra["chatId"] == chatId)
+                if (matches && !item.read) item.copy(read = true, updatedAt = now) else item
+            }
+            if (updated != current) {
+                _items.value = updated
+                saveToDisk(ownerUserId, updated)
+            }
+        }
+    }
+
+    /**
      * 1.121：打开某条动态时，将该动态的全部互动通知（点赞/评论/回复/评论赞）标记已读。
      * mergeKey `post_{postId}` 或 extra.postId 匹配。
      */

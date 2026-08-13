@@ -925,6 +925,9 @@ data class BatchReadRequest(val chatIds: List<String> = emptyList())
 data class CreateCommentRequest(val content: String, /** 1.76：回复目标评论 id（可选）。 */ val replyToId: String? = null)
 
 @Serializable
+data class UpdateCommentRequest(val content: String)
+
+@Serializable
 data class PostCommentResponse(
     val id: String,
     val postId: String,

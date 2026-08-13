@@ -22,6 +22,7 @@ import kotlinx.coroutines.withContext
 data class LoginUiState(
     val email: String = "",
     val password: String = "",
+    val passwordConfirm: String = "",
     val name: String = "",
     val code: String = "",
     val totpCode: String = "",
@@ -80,7 +81,17 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun onPasswordChange(password: String) {
         _uiState.update {
-            it.copy(password = password.take(MAX_PASSWORD_LEN), errorMessage = null, infoMessage = null)
+            it.copy(
+                password = password.take(MAX_PASSWORD_LEN),
+                passwordConfirm = "",
+                errorMessage = null,
+                infoMessage = null
+            )
+        }
+    }
+    fun onPasswordConfirmChange(passwordConfirm: String) {
+        _uiState.update {
+            it.copy(passwordConfirm = passwordConfirm.take(MAX_PASSWORD_LEN), errorMessage = null, infoMessage = null)
         }
     }
     fun onNameChange(name: String) {
@@ -105,6 +116,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 infoMessage = null,
                 codeSent = false,
                 code = if (tab == 0) "" else it.code,
+                passwordConfirm = if (tab == 1) it.passwordConfirm else "",
                 // 8.61：切回登录 tab 清残留 TOTP 码（服务端未启用 TOTP 时忽略，但避免串带到下次登录）
                 totpCode = if (tab == 0) "" else it.totpCode,
                 // 8.47：切 tab 清 requiresTotp 标志——否则 TOTP 提示后切到注册/找回再切回，
@@ -179,10 +191,16 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
         when (state.selectedTab) {
             1 -> {
+                if (!state.codeSent) { _uiState.update { it.copy(errorMessage = text(R.string.login_require_code_first)) }; return }
                 if (state.name.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_enter_username)) }; return }
+                if (state.passwordConfirm.isBlank() || state.passwordConfirm != state.password) {
+                    _uiState.update { it.copy(errorMessage = text(R.string.login_password_confirm_mismatch)) }
+                    return
+                }
                 if (state.code.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_enter_verification_code)) }; return }
             }
             2 -> {
+                if (!state.codeSent) { _uiState.update { it.copy(errorMessage = text(R.string.login_require_code_first)) }; return }
                 if (state.code.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_enter_verification_code)) }; return }
             }
         }

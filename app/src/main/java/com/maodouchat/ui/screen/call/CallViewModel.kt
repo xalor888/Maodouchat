@@ -1156,8 +1156,38 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 "hang-up" -> {
                     if (currentState.isGroupCall) {
-                        webRTCManager?.removeGroupPeer(fromUserId)
-                        markGroupPeerTerminal(fromUserId, GroupPeerConnectionState.DISCONNECTED)
+                        if (
+                            fromUserId == currentState.contactId &&
+                            currentState.isIncoming &&
+                            currentState.callState == CallState.RINGING
+                        ) {
+                            // Group initiator cancelled while this device was still ringing:
+                            // same missed-call semantics as the 1:1 caller-gave-up path.
+                            viewModelScope.launch {
+                                try {
+                                    MissedCallRecorder.recordRingTimeout(
+                                        context = app,
+                                        signalingCallId = activeCallId.ifBlank { callId },
+                                        fromUserId = currentState.contactId.ifBlank { fromUserId },
+                                        callerName = currentState.contactName,
+                                        isVideo = currentState.callType == CallType.VIDEO,
+                                    )
+                                } catch (error: kotlinx.coroutines.CancellationException) {
+                                    throw error
+                                } catch (error: Exception) {
+                                    android.util.Log.w(
+                                        "CallViewModel",
+                                        "missed-call record on group initiator hang-up failed",
+                                        error
+                                    )
+                                }
+                            }
+                            IncomingCallCoordinator.clear()
+                            endCall(notifyPeer = false)
+                        } else {
+                            webRTCManager?.removeGroupPeer(fromUserId)
+                            markGroupPeerTerminal(fromUserId, GroupPeerConnectionState.DISCONNECTED)
+                        }
                     } else {
                         // Caller hung up while we were still ringing → missed call
                         // (NavGraph may also record via pending; stable callId REPLACE).

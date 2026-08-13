@@ -103,6 +103,15 @@ class TotpServiceLogicTest {
     }
 
     @Test
+    fun `verify rejects replay of the same window code`() {
+        val secret = TotpService.generateSecret()
+        val now = System.currentTimeMillis()
+        val code = testTotpCode(secret, now)
+        assertTrue(TotpService.verify(secret, code, nowMs = now))
+        assertFalse(TotpService.verify(secret, code, nowMs = now), "same counter must not be accepted twice")
+    }
+
+    @Test
     fun `provisioning uri embeds secret and standard params`() {
         val secret = TotpService.generateSecret()
         val uri = TotpService.provisioningUri(secret, "alex@example.com")

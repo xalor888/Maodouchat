@@ -2,7 +2,8 @@
   "name": "maodouchat-workspace-tools",
   "private": true,
   "scripts": {
-    "test:admin-e2e": "node scripts/admin-e2e.mjs"
+    "test:admin-e2e": "node scripts/admin-e2e.mjs",
+    "test:website": "node scripts/website-e2e.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.61.1"

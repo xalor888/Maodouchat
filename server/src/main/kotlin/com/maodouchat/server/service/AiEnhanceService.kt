@@ -130,12 +130,10 @@ class AiEnhanceService(
             }
         } ?: return AiEnhanceResult.Upstream(AiGatewayResult.UpstreamError(408, "AI 处理超时"))
         val matches = mutableListOf<AiSemanticSearchMatch>()
-        var lastModel: String? = null
         for (result in perChatResults) {
             when (result) {
                 is AiGatewayResult.Success -> {
                     matches += result.value
-                    lastModel = result.model
                 }
                 AiGatewayResult.NotConfigured -> return AiEnhanceResult.NotConfigured
                 is AiGatewayResult.UpstreamError -> return AiEnhanceResult.Upstream(result)
@@ -172,7 +170,7 @@ class AiEnhanceService(
                     CrossChatQaOutput(
                         answer = answerResult.value.answer.trim().take(MAX_ANSWER_CHARS),
                         sources = sources,
-                        model = answerResult.model ?: lastModel
+                        model = answerResult.model
                     ),
                     answerResult.inputTokens,
                     answerResult.outputTokens

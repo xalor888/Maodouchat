@@ -362,7 +362,7 @@ class GroupDetailViewModel(
                         // UI「展开更多」阈值 80 永不触发，审计历史被静默截断
                         val auditLogs = ApiService.getGroupAudit(liveToken, chatId, limit = 100).getOrDefault(emptyList())
                         val memberIds = members.map { it.userId }.toSet()
-                        val candidates = ApiService.getUsers(liveToken).getOrDefault(emptyList())
+                        val candidates = ApiService.getAllSearchableUsers(liveToken).getOrDefault(emptyList())
                             .filter { it.id !in memberIds && it.id != loadOwnerUserId }
                             .map { User(it.id, it.name, it.avatar, it.email, it.isOnline, it.status) }
                         val self = members.firstOrNull { it.userId == loadOwnerUserId }
@@ -2652,5 +2652,4 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
         if (cursor < snippet.text.length) append(snippet.text.substring(cursor))
     }
 }
-
 

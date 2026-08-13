@@ -17,8 +17,7 @@ import java.util.concurrent.TimeUnit
  * 周期任务（15 分钟，与 SenderKeyRetryWorker 同模式，进程重启自动恢复）：
  * - SIM 变更防护：首次运行登记 SIM 基线，之后比对；变更时回调触发
  *   [SecretChatSession.clearAllSurfaces] 清除全部密聊本地数据（防换卡盗用）。
- * - 密聊 TTL 清扫：依赖会话活动时间数据源，当前 SecretChatEntity 无活动时间
- *   字段，暂不接入（见 SecretSessionTtl KDoc）。
+ * - 密聊 TTL 清扫：按 secret_chats.lastActivityAt 清扫无活动超时会话的本地解密缓存。
  *
  * 接线：MainActivity.onCreate 调用 [schedule]（幂等）。
  */
@@ -39,7 +38,7 @@ class SecretSurfaceWatchdogWorker(
         }
 
         // 密聊无活动 TTL 清扫（ttlz）：活动时间数据源来自 secret_chats.lastActivityAt（迁移 29）
-        runCatching {
+        try {
             val activity = app.database.secretChatDao().listActivity()
             if (activity.isNotEmpty()) {
                 val byChat = activity.associate { it.chatId to it.lastActivityAt }
@@ -48,6 +47,10 @@ class SecretSurfaceWatchdogWorker(
                     Log.i(TAG, "Secret session TTL sweep: destroyed ${swept.size} chats")
                 }
             }
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Log.w(TAG, "Secret session TTL sweep failed", error)
         }
         return Result.success()
     }

@@ -1737,8 +1737,44 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
         return send(Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/audit?limit=$safeLimit").addHeader("Authorization", "Bearer $token").get().build(), ListSerializer(AiAuditLogResponse.serializer()))
     }
 
-    suspend fun getUsers(token: String): Result<List<UserDto>> =
-        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/users").addHeader("Authorization", "Bearer $token").get().build(), ListSerializer(UserDto.serializer()))
+    suspend fun getUsers(token: String, limit: Int = 30, offset: Int = 0): Result<List<UserDto>> =
+        send(
+            Request.Builder()
+                .url(
+                    "${ApiConfig.BASE_URL}/api/users" +
+                        "?limit=${limit.coerceIn(1, 100)}" +
+                        "&offset=${offset.coerceAtLeast(0)}"
+                )
+                .addHeader("Authorization", "Bearer $token")
+                .get()
+                .build(),
+            ListSerializer(UserDto.serializer())
+        )
+
+    /**
+     * 翻页拉取全部可搜索用户（群加人候选等场景）。服务端每页最多 100 人，
+     * 客户端按页循环直到返回空或达到 [maxUsers] 上限，避免群成员列表只显示前 30 人。
+     */
+    suspend fun getAllSearchableUsers(
+        token: String,
+        pageSize: Int = 100,
+        maxUsers: Int = 1000
+    ): Result<List<UserDto>> {
+        if (token.isBlank()) return Result.failure(IllegalArgumentException("token_missing"))
+        val safePageSize = pageSize.coerceIn(1, 100)
+        val safeMax = maxUsers.coerceAtLeast(1)
+        val collected = mutableListOf<UserDto>()
+        var offset = 0
+        while (offset < safeMax) {
+            val page = getUsers(token, limit = safePageSize, offset = offset)
+                .getOrElse { return Result.failure(it) }
+            if (page.isEmpty()) break
+            collected += page
+            if (collected.size >= safeMax) break
+            offset += safePageSize
+        }
+        return Result.success(collected.take(safeMax))
+    }
 
     suspend fun getUser(token: String, userId: String): Result<UserDto> =
         send(
@@ -2003,6 +2039,19 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
     suspend fun createPostComment(token: String, postId: String, content: String, replyToId: String? = null): Result<PostCommentDto> =
         // 8.58：postId 统一 URL 编码（与 getPost 一致，防保留字符路由错乱）
         send(Request.Builder().url("${ApiConfig.BASE_URL}/api/posts/${java.net.URLEncoder.encode(postId, Charsets.UTF_8.name())}/comments").addHeader("Authorization", "Bearer $token").post(jsonBody(json.encodeToString(CreateCommentRequest.serializer(), CreateCommentRequest(content, replyToId)))).build(), PostCommentDto.serializer())
+
+    suspend fun editPostComment(token: String, postId: String, commentId: String, content: String): Result<PostCommentDto> =
+        send(
+            Request.Builder()
+                .url(
+                    "${ApiConfig.BASE_URL}/api/posts/${java.net.URLEncoder.encode(postId, Charsets.UTF_8.name())}" +
+                        "/comments/${java.net.URLEncoder.encode(commentId, Charsets.UTF_8.name())}"
+                )
+                .addHeader("Authorization", "Bearer $token")
+                .put(jsonBody(json.encodeToString(UpdateCommentRequest.serializer(), UpdateCommentRequest(content))))
+                .build(),
+            PostCommentDto.serializer()
+        )
 
     /** 1.93：动态点赞者列表。 */
     suspend fun getPostLikers(token: String, postId: String, limit: Int = 50): Result<PostLikersResponse> =

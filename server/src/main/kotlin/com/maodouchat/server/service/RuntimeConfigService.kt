@@ -877,13 +877,16 @@ object RuntimeConfigService {
         if (now - loadedAt.get() < CACHE_TTL_MS && cache.isNotEmpty()) return
         synchronized(this) {
             if (now - loadedAt.get() < CACHE_TTL_MS && cache.isNotEmpty()) return
-            val rows = runCatching {
+            val rows = try {
                 transaction {
                     SystemSettings.selectAll().associate {
                         it[SystemSettings.key] to it[SystemSettings.value]
                     }
                 }
-            }.getOrDefault(emptyMap())
+            } catch (e: Exception) {
+                // DB 瞬时故障不推进 loadedAt、不清旧缓存，下一轮 TTL 仍会重试。
+                return
+            }
             cache.clear()
             cache.putAll(rows)
             loadedAt.set(System.currentTimeMillis())

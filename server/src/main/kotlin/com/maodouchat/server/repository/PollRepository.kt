@@ -24,6 +24,8 @@ import java.util.UUID
  */
 object PollRepository {
 
+    private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+
     /** 投票公开快照（广播给群成员时使用，字段与 GroupPlayRepository.PollDto 兼容的轻量版）。 */
     @Serializable
     data class PollSnapshot(
@@ -105,8 +107,19 @@ object PollRepository {
         }.count() > 0
     }
 
+    /** 校验 userId 在 chatId 中是否处于禁言期。 */
+    fun isMuted(chatId: String, userId: String, now: Long = System.currentTimeMillis()): Boolean = transaction {
+        val mutedUntil = ChatParticipants.selectAll()
+            .where {
+                (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq userId)
+            }
+            .firstOrNull()
+            ?.get(ChatParticipants.mutedUntil)
+            ?: 0L
+        mutedUntil > now
+    }
+
     private fun decodeOptions(row: org.jetbrains.exposed.sql.ResultRow): List<String> = runCatching {
-        kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-            .decodeFromString<List<String>>(row[GroupPolls.optionsJson])
+        json.decodeFromString<List<String>>(row[GroupPolls.optionsJson])
     }.getOrDefault(emptyList())
 }

@@ -52,9 +52,6 @@ internal fun maxGroupMembers(): Int =
         .getInt(com.maodouchat.server.service.RuntimeConfigService.KEY_MAX_GROUP_SIZE, 200)
         .coerceIn(2, MAX_GROUP_MEMBERS_HARD_CAP)
 
-@Deprecated("Use maxGroupMembers()", ReplaceWith("maxGroupMembers()"))
-internal val MAX_GROUP_MEMBERS: Int
-    get() = maxGroupMembers()
 internal const val MAX_AI_IMAGE_BYTES = 1_200_000
 internal const val MAX_AI_IMAGE_DIMENSION = 4_096
 internal const val MAX_AI_IMAGE_PIXELS = 16_000_000L

@@ -73,7 +73,13 @@ object AiConversationProfile {
             computeStats(messages)
         }
         val narrative = if (isAllowed(context) && stats.messageCount > 0) {
-            runCatching { fetchNarrative(context, database, chatId, stats) }.getOrNull()
+            try {
+                fetchNarrative(context, database, chatId, stats)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                null
+            }
         } else {
             null
         }

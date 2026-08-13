@@ -332,7 +332,9 @@ object GroupCheckinRepository {
             }.count() > 0
             if (already) return@transaction toChainDto(chain, userId)
             val currentCount = GroupChainEntries.selectAll().where { GroupChainEntries.chainId eq chainId }.count()
-            if (currentCount >= chain[GroupChains.maxEntries]) return@transaction toChainDto(chain, userId)
+            // 满员不是「成功但未加入」：返回 null，路由按「接龙已结束或人数已满」回 400，
+            // 否则客户端会把失败响应当成功刷新成未加入状态。
+            if (currentCount >= chain[GroupChains.maxEntries]) return@transaction null
 
             val id = "ce_" + UUID.randomUUID().toString().replace("-", "").take(16)
             GroupChainEntries.insert {
@@ -455,7 +457,7 @@ object GroupCheckinRepository {
             val pk = GroupPkRounds.selectAll().where { GroupPkRounds.id eq pkId }.forUpdate().firstOrNull()
                 ?: return@transaction null
             if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, userId)) return@transaction null
-            if (!pk[GroupPkRounds.active] || pk[GroupPkRounds.closedAt] != null) return@transaction toPkDto(pk, userId)
+            if (!pk[GroupPkRounds.active] || pk[GroupPkRounds.closedAt] != null) return@transaction null
             val now = System.currentTimeMillis()
             GroupPkVotes.deleteWhere { (GroupPkVotes.pkId eq pkId) and (GroupPkVotes.userId eq userId) }
             GroupPkVotes.insert {

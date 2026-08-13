@@ -41,10 +41,14 @@ object SecretSessionTtl {
         if (!SecretAutoDestroyPrefs.isEnabled(context)) return false
         MediaCache.deleteSecretChatMedia(context, chatId)
         // 清理该会话的搜索索引（存量密聊消息可能在索引过滤启用前已写入）
-        runCatching {
+        try {
             kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
                 com.maodouchat.MaodouchatApp.instance.database.messageSearchDao().deleteChatIndex(chatId)
             }
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            // 索引清理失败不影响媒体缓存销毁
         }
         return true
     }

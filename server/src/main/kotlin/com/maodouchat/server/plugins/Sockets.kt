@@ -69,7 +69,15 @@ private val sessionAuthSessionIds = ConcurrentHashMap<WebSocketSession, String>(
  * 同一收件人的多条 fanout / 状态回执 / 打字指示可能来自不同发送者协程并发调用，
  * 若不加锁会导致帧交错损坏（半截帧、协议失配）。按 session 串行化发送。
  */
-private val sessionSendLocks = ConcurrentHashMap<WebSocketSession, Mutex>()
+private class SessionSendLock(val mutex: Mutex = Mutex(), var users: Int = 0)
+private val sessionSendLocks = ConcurrentHashMap<WebSocketSession, SessionSendLock>()
+
+/** 仅在无发送者使用时删除锁，避免等待中的发送者与新建锁并发写同一 session。 */
+private fun removeSessionSendLock(session: WebSocketSession) {
+    sessionSendLocks.computeIfPresent(session) { _, current ->
+        if (current.users == 0) null else current
+    }
+}
 
 /**
  * 每用户在线状态迁移锁（分片）：把「containsKey 检查 + setOnline + 广播」串行化。
@@ -332,7 +340,7 @@ fun Application.configureSockets(
                 val currentSession = this
                 sessionAccessJtis.remove(currentSession)
                 sessionAuthSessionIds.remove(currentSession)
-                sessionSendLocks.remove(currentSession)
+                removeSessionSendLock(currentSession)
                 onlineUsers.compute(userId) { _, existing ->
                     val list = if (existing != null) existing else CopyOnWriteArrayList<WebSocketSession>()
                     list.remove(currentSession)
@@ -785,9 +793,28 @@ internal suspend fun broadcastUserVisibilityRevoked(
  * 用 [sessionSendLocks] 中按 session 的互斥锁串行化，避免同收件人的多路 fanout 帧交错。
  */
 private suspend fun sendSafe(session: WebSocketSession, text: String) {
-    val lock = sessionSendLocks.computeIfAbsent(session) { Mutex() }
-    lock.withLock {
-        session.send(Frame.Text(text))
+    val lock = sessionSendLocks.compute(session) { _, existing ->
+        val current = existing ?: SessionSendLock()
+        current.users++
+        current
+    }!!
+    try {
+        lock.mutex.withLock {
+            session.send(Frame.Text(text))
+        }
+    } finally {
+        sessionSendLocks.computeIfPresent(session) { _, current ->
+            if (current === lock) {
+                if (current.users > 1) {
+                    current.users--
+                    current
+                } else {
+                    null
+                }
+            } else {
+                current
+            }
+        }
     }
 }
 
@@ -812,7 +839,7 @@ internal suspend fun sendToUser(userId: String, message: String) {
         }
         sessionAccessJtis.remove(session)
         sessionAuthSessionIds.remove(session)
-        sessionSendLocks.remove(session)
+        removeSessionSendLock(session)
         sessions.remove(session)
     }
     // 用 compute 原子地检查并移除空列表，避免 check-then-remove 竞态：
@@ -833,7 +860,7 @@ internal suspend fun disconnectUserSessions(userId: String, reason: String = "�
     sessions.forEach { session ->
         sessionAccessJtis.remove(session)
         sessionAuthSessionIds.remove(session)
-        sessionSendLocks.remove(session)
+        removeSessionSendLock(session)
         try {
             session.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, reason.take(120)))
         } catch (e: CancellationException) {
@@ -841,15 +868,7 @@ internal suspend fun disconnectUserSessions(userId: String, reason: String = "�
         } catch (_: Exception) {
         }
     }
-    // Best-effort offline mark; if a newer session re-registered, leave it alone.
-    // 状态锁串行化，防止与新连接的上线标记交错（同 finally 清理路径）。
-    userStatusLock(userId).withLock {
-        if (!onlineUsers.containsKey(userId)) {
-            runCatching {
-                UserRepository().setOnline(userId, false)
-            }
-        }
-    }
+    markOfflineAndBroadcastIfNoSessions(userId)
 }
 
 internal suspend fun disconnectUserSessionsByAuthSessionIds(
@@ -863,7 +882,7 @@ internal suspend fun disconnectUserSessionsByAuthSessionIds(
     toClose.forEach { session ->
         sessionAccessJtis.remove(session)
         sessionAuthSessionIds.remove(session)
-        sessionSendLocks.remove(session)
+        removeSessionSendLock(session)
         try {
             session.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, reason.take(120)))
         } catch (e: CancellationException) {
@@ -875,13 +894,7 @@ internal suspend fun disconnectUserSessionsByAuthSessionIds(
     onlineUsers.compute(userId) { _, existing ->
         if (existing === sessions && sessions.isEmpty()) null else existing
     }
-    userStatusLock(userId).withLock {
-        if (!onlineUsers.containsKey(userId)) {
-            runCatching {
-                UserRepository().setOnline(userId, false)
-            }
-        }
-    }
+    markOfflineAndBroadcastIfNoSessions(userId)
 }
 
 /**
@@ -904,7 +917,7 @@ internal suspend fun disconnectUserSessionsByAccessJti(
     toClose.forEach { session ->
         sessionAccessJtis.remove(session)
         sessionAuthSessionIds.remove(session)
-        sessionSendLocks.remove(session)
+        removeSessionSendLock(session)
         try {
             session.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, reason.take(120)))
         } catch (e: CancellationException) {
@@ -916,12 +929,23 @@ internal suspend fun disconnectUserSessionsByAccessJti(
     onlineUsers.compute(userId) { _, existing ->
         if (existing === sessions && sessions.isEmpty()) null else existing
     }
+    markOfflineAndBroadcastIfNoSessions(userId)
+}
+
+/**
+ * 强制断连后若该用户已无任何在线会话，落库离线并向其他在线用户广播。
+ * 状态锁 + 锁外二次确认避免新连接注册后被旧清理路径误标离线。
+ */
+private suspend fun markOfflineAndBroadcastIfNoSessions(userId: String) {
     userStatusLock(userId).withLock {
         if (!onlineUsers.containsKey(userId)) {
             runCatching {
                 UserRepository().setOnline(userId, false)
             }
         }
+    }
+    if (!onlineUsers.containsKey(userId)) {
+        broadcastUserStatus(userId, false, Json { ignoreUnknownKeys = true }, UserRepository())
     }
 }
 

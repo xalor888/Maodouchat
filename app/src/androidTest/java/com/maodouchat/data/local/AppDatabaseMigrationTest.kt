@@ -311,6 +311,87 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migrate25To30RunsFullChainAndPreservesChatUsersAndSecretChats() {
+        helper.createDatabase(FULL_CHAIN_25_TO_30_TEST_DB, 25).apply {
+            execSQL(
+                """
+                INSERT INTO users (
+                    id, name, email, isOnline, status, lastUpdated
+                ) VALUES ('u_migration_30', '迁移用户', 'migration30@example.com', 0, '', 123)
+                """.trimIndent()
+            )
+            execSQL(
+                """
+                INSERT INTO chats (
+                    id, lastMessage, lastMessageType, lastMessageTime, unreadCount,
+                    isGroup, groupName, groupAnnouncement, memberRevision, participantIds
+                ) VALUES ('c_migration_30', 'encrypted-preview', 'IMAGE', 7788, 4, 1, '迁移群', '公告', 9, 'u1,u2')
+                """.trimIndent()
+            )
+            execSQL(
+                """
+                INSERT INTO messages (
+                    id, chatId, senderId, content, type, timestamp, status,
+                    editedAt, starred, reactionsJson
+                ) VALUES ('m_migration_30', 'c_migration_30', 'u1', 'cipher-envelope', 'IMAGE', 7788, 'DELIVERED', NULL, 1, '[]')
+                """.trimIndent()
+            )
+            execSQL(
+                """
+                INSERT INTO secret_chats (chatId, enabledAt)
+                VALUES ('c_migration_30', 123)
+                """.trimIndent()
+            )
+            close()
+        }
+
+        val database = helper.runMigrationsAndValidate(
+            FULL_CHAIN_25_TO_30_TEST_DB,
+            30,
+            true,
+            AppDatabase.MIGRATION_25_26,
+            AppDatabase.MIGRATION_26_27,
+            AppDatabase.MIGRATION_27_28,
+            AppDatabase.MIGRATION_28_29,
+            AppDatabase.MIGRATION_29_30
+        )
+        try {
+            database.query("SELECT chatType FROM chats WHERE id = 'c_migration_30'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("GROUP", cursor.getString(0))
+            }
+            database.query("SELECT lastActivityAt FROM secret_chats WHERE chatId = 'c_migration_30'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0L, cursor.getLong(0))
+            }
+            database.query("SELECT lastSeen FROM users WHERE id = 'u_migration_30'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0L, cursor.getLong(0))
+            }
+            database.query("PRAGMA index_list(messages)").use { cursor ->
+                val names = buildSet {
+                    while (cursor.moveToNext()) add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+                }
+                assertTrue("index_messages_chatId_timestamp" in names)
+                assertTrue("index_messages_expiresAt" in names)
+            }
+            database.query("PRAGMA index_list(chats)").use { cursor ->
+                val names = buildSet {
+                    while (cursor.moveToNext()) add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+                }
+                assertTrue("index_chats_archived_pinnedAt_lastMessageTime" in names)
+            }
+            database.query("SELECT content, starred FROM messages WHERE id = 'm_migration_30'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("cipher-envelope", cursor.getString(0))
+                assertEquals(1, cursor.getInt(1))
+            }
+        } finally {
+            database.close()
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-16-17"
         const val SETTINGS_TEST_DB = "migration-17-18"
@@ -318,5 +399,6 @@ class AppDatabaseMigrationTest {
         const val GROUP_AVATAR_TEST_DB = "migration-19-20"
         const val SEARCH_TYPE_TEST_DB = "migration-25-26-search-type"
         const val FULL_CHAIN_TEST_DB = "migration-16-20-full-chain"
+        const val FULL_CHAIN_25_TO_30_TEST_DB = "migration-25-30-full-chain"
     }
 }

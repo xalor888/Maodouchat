@@ -66,4 +66,8 @@ interface ChatDao {
     /** 跨设备已读同步：清零该会话未读数（服务端 CHAT_MARKED_READ 广播）。 */
     @Query("UPDATE chats SET unreadCount = 0, settingsUpdatedAt = :now WHERE id = :chatId")
     suspend fun markAllRead(chatId: String, now: Long = System.currentTimeMillis())
+
+    /** Backlog 同步本地增量未读（服务端会话快照会覆盖校准，仅用于断线窗口兜底）。 */
+    @Query("UPDATE chats SET unreadCount = unreadCount + :delta, settingsUpdatedAt = :now WHERE id = :chatId")
+    suspend fun incrementUnread(chatId: String, delta: Int, now: Long = System.currentTimeMillis())
 }

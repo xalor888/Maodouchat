@@ -128,8 +128,6 @@ object EmailService {
                 logger.warn("Failed to send verification code: {}", e.message)
                 throw IllegalStateException("验证码邮件发送失败", e)
             }
-
-            code
         } finally {
             // releaseCacheReservation 幂等（未预留时 remove 不存在的 key 无副作用）
             withCacheKeyLock(cacheKey) { releaseCacheReservation(cacheKey) }

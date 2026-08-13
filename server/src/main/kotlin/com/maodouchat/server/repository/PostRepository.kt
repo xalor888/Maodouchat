@@ -48,7 +48,7 @@ class PostRepository {
     private val MAX_IMAGE_META_SIZE = 10_000
 
     fun createPost(authorId: String, content: String, imageUrls: List<String>, visibility: String): PostResponse {
-        return synchronized(imageClaimLock) {
+        val created = synchronized(imageClaimLock) {
             val filenames = imageUrls.map { it.substringAfterLast('/') }
             val created = transaction {
                 val author = Users.selectAll().where { Users.id eq authorId }.forUpdate().limit(1).firstOrNull()
@@ -74,9 +74,11 @@ class PostRepository {
                 getPostById(postId, authorId)!!
             }
             filenames.forEach { filename -> cacheImageClaim(filename, created.id) }
-            trimImageMetaIfNeeded()
             created
         }
+        // 锁外执行容量裁剪：trim 需要全量回查 DB，不得持全局图片锁阻塞发帖/删帖。
+        trimImageMetaIfNeeded()
+        return created
     }
 
     /**
@@ -302,6 +304,28 @@ class PostRepository {
     }
 
     /**
+     * 用户自助编辑本人评论。路由层已做内容校验与审核；此处校验作者和所属动态后更新。
+     */
+    fun updateCommentForUser(
+        commentId: String,
+        postId: String,
+        userId: String,
+        content: String
+    ): PostCommentResponse? {
+        return transaction {
+            val comment = PostComments.selectAll().where { PostComments.id eq commentId }.forUpdate().firstOrNull()
+                ?: return@transaction null
+            if (comment[PostComments.authorId] != userId || comment[PostComments.postId] != postId) {
+                return@transaction null
+            }
+            PostComments.update({ PostComments.id eq commentId }) {
+                it[PostComments.content] = content
+            }
+            getCommentById(commentId, userId)
+        }
+    }
+
+    /**
      * 根据图片文件名查找所属动态 ID。
      * 内存映射为热路径缓存；miss 时回查 DB（进程重启 / 多实例后仍可用）。
      */
@@ -352,10 +376,19 @@ class PostRepository {
     // 8.50 修复 M2：锁内仅取引用快照（保证与 claim 一致），磁盘 list+删除移到锁外——
     // 此前持全局 imageClaimLock 做全表扫描 + 物理删文件，大表/大文件时阻塞所有发帖删帖
     fun deleteStaleUnreferencedImages(olderThan: Long): Int {
-        val referenced: Set<String> = synchronized(imageClaimLock) {
-            allReferencedImageFilenames()
+        val candidates = FileStorageService.listStalePostImageFiles(olderThan)
+        var deleted = 0
+        candidates.forEach { filename ->
+            val removed = synchronized(imageClaimLock) {
+                if (findPostIdByImageFilename(filename) == null) {
+                    FileStorageService.deletePostImage(filename)
+                } else {
+                    false
+                }
+            }
+            if (removed) deleted++
         }
-        return FileStorageService.deleteStalePostImages(referenced, olderThan)
+        return deleted
     }
 
     fun deleteAllPostsForAuthor(authorId: String): Int = synchronized(imageClaimLock) {

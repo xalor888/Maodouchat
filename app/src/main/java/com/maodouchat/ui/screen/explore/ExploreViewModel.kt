@@ -64,6 +64,7 @@ data class ExploreUiState(
     val isCommentsLoading: Boolean = false,
     val isLoadingOlderComments: Boolean = false,
     val isSendingComment: Boolean = false,
+    val isSavingCommentEdit: Boolean = false,
     val hasMoreComments: Boolean = true,
     val hasMore: Boolean = true,
     val errorMessage: String? = null,
@@ -589,6 +590,71 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 throw e
             } catch (_: Exception) {
                 // 失败静默：下次重新加载会收敛
+            }
+        }
+    }
+
+    /** 编辑自己的评论。 */
+    fun saveCommentEdit(comment: com.maodouchat.network.PostCommentDto, newText: String) {
+        val token = tokenManager.getToken()
+        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val content = newText.trim()
+        if (token.isNullOrBlank() || ownerUserId.isBlank()) return
+        if (content.isBlank() || content.length > 1_000) {
+            _uiState.update { it.copy(infoMessage = text(R.string.explore_comment_edit_invalid)) }
+            return
+        }
+        if (_uiState.value.isSavingCommentEdit) return
+        _uiState.update { it.copy(isSavingCommentEdit = true, infoMessage = null) }
+        viewModelScope.launch {
+            try {
+                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = ownerUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = tokenManager.getUserId(),
+                    )
+                ) {
+                    _uiState.update { it.copy(isSavingCommentEdit = false) }
+                    return@launch
+                }
+                val liveToken = tokenManager.getToken() ?: token
+                ApiService.editPostComment(liveToken, comment.postId, comment.id, content).fold(
+                    onSuccess = { updated ->
+                        if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                                expectedUserId = ownerUserId,
+                                liveToken = tokenManager.getToken(),
+                                liveUserId = tokenManager.getUserId(),
+                            )
+                        ) {
+                            _uiState.update { state ->
+                                state.copy(
+                                    comments = state.comments.map { if (it.id == comment.id) updated else it },
+                                    isSavingCommentEdit = false,
+                                    infoMessage = text(R.string.explore_comment_edit_success)
+                                )
+                            }
+                        }
+                    },
+                    onFailure = {
+                        if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                                expectedUserId = ownerUserId,
+                                liveToken = tokenManager.getToken(),
+                                liveUserId = tokenManager.getUserId(),
+                            )
+                        ) {
+                            _uiState.update {
+                                it.copy(
+                                    isSavingCommentEdit = false,
+                                    infoMessage = text(R.string.explore_comment_edit_failed)
+                                )
+                            }
+                        }
+                    }
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isSavingCommentEdit = false, infoMessage = text(R.string.explore_comment_edit_failed)) }
             }
         }
     }

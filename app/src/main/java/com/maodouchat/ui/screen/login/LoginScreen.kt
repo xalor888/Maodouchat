@@ -379,6 +379,30 @@ fun LoginScreen(
                         ), modifier = Modifier.fillMaxWidth()
                     )
 
+                    // 注册：确认密码
+                    if (state.selectedTab == 1) {
+                        OutlinedTextField(
+                            value = state.passwordConfirm,
+                            onValueChange = { viewModel.onPasswordConfirmChange(it) },
+                            placeholder = { Text(stringResource(R.string.login_confirm_password), color = TextHint) },
+                            leadingIcon = { Icon(Icons.Outlined.Lock, null, tint = Outline) },
+                            singleLine = true,
+                            visualTransformation = if (state.passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            shape = RoundedCornerShape(MaodouDimens.ControlRadius),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = LocalChatPalette.current.chatInputBackground,
+                                unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
+                                focusedBorderColor = Primary,
+                                unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
+                                cursorColor = Primary,
+                                focusedTextColor = OnSurface,
+                                unfocusedTextColor = OnSurface
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
                     // 注册 / 找回：密码强度提示
                     if ((state.selectedTab == 1 || state.selectedTab == 2) && state.password.isNotEmpty()) {
                         val strength = remember(state.password) {

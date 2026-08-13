@@ -81,14 +81,26 @@ class ImageOcrAutoIndexer(
     }
 
     private suspend fun secretChatIds(): Set<String> = withContext(Dispatchers.IO) {
-        runCatching { database.secretChatDao().listSecretChatIds() }.getOrDefault(emptyList()).toSet()
+        try {
+            database.secretChatDao().listSecretChatIds()
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            emptyList()
+        }.toSet()
     }
 
     private fun alreadyOcrIndexed(message: Message): Boolean =
         message.parsedMeta().aiImageAnalyses.containsKey(OCR_MODE)
 
     private suspend fun ocrAndPersist(message: Message, token: String): Boolean {
-        val ocrText = runCatching { downloadAndOcr(message, token) }.getOrNull()
+        val ocrText = try {
+            downloadAndOcr(message, token)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            null
+        }
             ?: return false
         if (ocrText.isBlank()) return false
         // 与手动 AI 分析一致：结果写入 meta.aiImageAnalyses["ocr"]（本地缓存 + 可同步），
@@ -104,8 +116,13 @@ class ImageOcrAutoIndexer(
             meta = updatedMeta
         )
         return withContext(Dispatchers.IO) {
-            runCatching { AiMessageResultStore(database).commit(operationId = null, message = updated) }
-                .getOrDefault(false)
+            try {
+                AiMessageResultStore(database).commit(operationId = null, message = updated)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                false
+            }
         }
     }
 

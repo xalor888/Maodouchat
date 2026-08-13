@@ -351,10 +351,11 @@ private const val MAX_ENHANCE_CHAT_ID_LENGTH = 100
 private const val MAX_WEEK_SPAN_MS = 90L * 24L * 60L * 60L * 1000L
 
 private val ALLOWED_EMOTIONS = setOf("happy", "sad", "angry", "anxious", "neutral")
+private val enhanceJson = Json { ignoreUnknownKeys = true }
 
 private inline fun <reified T> parseEnhance(text: String): T? = try {
     if (text.isBlank()) null
-    else Json { ignoreUnknownKeys = true }.decodeFromString<T>(text)
+    else enhanceJson.decodeFromString<T>(text)
 } catch (_: Exception) {
     null
 }

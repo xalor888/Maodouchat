@@ -69,13 +69,23 @@ import kotlinx.serialization.json.putJsonObject
 private const val MEDIA_ORPHAN_GRACE_MS = 7L * 24L * 60L * 60L * 1_000L
 private val RoutingInstalledKey = AttributeKey<Unit>("MaodouchatRoutingInstalled")
 private val RoutingPushServiceKey = AttributeKey<FcmPushService>("MaodouchatRoutingPushService")
+private val routingJson = Json { ignoreUnknownKeys = true }
+
+private fun loadPublicHtml(page: String): String? =
+    Thread.currentThread().contextClassLoader?.getResource("public/$page.html")?.readText()
+        ?: object {}.javaClass.classLoader.getResource("public/$page.html")?.readText()
+
+private suspend fun ApplicationCall.respondPublicHtml(page: String, fallback: String = "<h1>毛豆聊天</h1>") {
+    response.header(HttpHeaders.CacheControl, "no-cache, must-revalidate")
+    respondText(loadPublicHtml(page) ?: fallback, ContentType.Text.Html)
+}
 
 // 手动 JSON 解析 —— 绕过 Ktor ContentNegotiation 对 receiveNullable / ContentConversion 的歧义。
 // 在 Ktor 2.3 + in-memory testApplication 同进程多次 mount 时行为最稳定。
 // 用法：val req = call.receiveBoundedText()?.let { parseJson<SomeRequest>(it) }
 private inline fun <reified T> parseJson(text: String): T? = try {
     if (text.isBlank()) null
-    else Json { ignoreUnknownKeys = true }.decodeFromString<T>(text)
+    else routingJson.decodeFromString<T>(text)
 } catch (_: Exception) {
     null
 }
@@ -155,9 +165,30 @@ private suspend fun notifyGroupRevisionChanged(
 ) {
     val chat = chatRepo.getChatById(chatId) ?: return
     if (!chat.isGroup) return
+    notifyGroupRevisionChangedWithData(
+        json = json,
+        chatId = chatId,
+        reason = reason,
+        actorId = actorId,
+        targetUserId = targetUserId,
+        memberRevision = chat.memberRevision,
+        recipientIds = recipientIds ?: chatRepo.getParticipantIds(chatId)
+    )
+}
+
+/** 批量快照已就绪时的广播入口（避免逐群 getChatById + getParticipantIds）。 */
+private suspend fun notifyGroupRevisionChangedWithData(
+    json: Json,
+    chatId: String,
+    reason: String,
+    actorId: String,
+    targetUserId: String? = null,
+    memberRevision: Long,
+    recipientIds: List<String>
+) {
     val payload = GroupRevisionChangedPayload(
         chatId = chatId,
-        memberRevision = chat.memberRevision,
+        memberRevision = memberRevision,
         reason = reason,
         actorId = actorId,
         targetUserId = targetUserId
@@ -166,7 +197,7 @@ private suspend fun notifyGroupRevisionChanged(
         WsMessage.serializer(),
         WsMessage("GROUP_REVISION_CHANGED", json.encodeToString(GroupRevisionChangedPayload.serializer(), payload))
     )
-    val recipients = (recipientIds ?: chatRepo.getParticipantIds(chatId)).distinct()
+    val recipients = recipientIds.distinct()
     recipients.forEach { sendToUser(it, message) }
 }
 
@@ -373,18 +404,30 @@ fun Application.configureRouting(
     // 登录/注册/重置 按账号(email)限制：关闭「多源 IP 分布式爆破同一账号」的绕过路径
     val loginEmailRateLimiter = BoundedRateLimiter()
     // 单账号连续登录失败锁定：5 次失败后锁定 15 分钟（防暴破；内存态，单实例有效）
-    data class LoginLockout(var fails: Int, var lockUntil: Long)
+    data class LoginLockout(var fails: Int, var lockUntil: Long, var lastFailureAt: Long = 0L)
     val loginLockouts = ConcurrentHashMap<String, LoginLockout>()
+    val loginLockoutSweepAt = java.util.concurrent.atomic.AtomicLong(0L)
     val LOGIN_MAX_FAILS = 5
     val LOGIN_LOCK_MS = 15L * 60L * 1000L
+
+    /** 周期清理过期锁定条目，避免内存无界增长。 */
+    fun sweepLoginLockouts(now: Long = System.currentTimeMillis()) {
+        val lastSweep = loginLockoutSweepAt.get()
+        if (now - lastSweep > 60_000L && loginLockoutSweepAt.compareAndSet(lastSweep, now)) {
+            val staleCutoff = now - LOGIN_LOCK_MS - 60_000L
+            loginLockouts.entries.removeIf { it.value.lastFailureAt <= staleCutoff }
+        }
+    }
 
     /** 记录一次登录失败；达到阈值则锁定「该账号 + 该源 IP」15 分钟。成功登录后由调用方 remove。
      *  8.51 修复 M1：锁定 key 加入源 IP——攻击者源 IP 的失败只锁该 IP 与账号的组合，
      *  受害者从自己 IP 登录不受远程锁定影响（可用性 DoS 缓解）。 */
     fun recordLoginFailure(emailKey: String, ip: String) {
         val now = System.currentTimeMillis()
+        sweepLoginLockouts(now)
         loginLockouts.compute("$emailKey|$ip") { _, existing ->
-            val lock = existing ?: LoginLockout(0, 0L)
+            val lock = existing ?: LoginLockout(0, 0L, now)
+            lock.lastFailureAt = now
             lock.fails += 1
             if (lock.fails >= LOGIN_MAX_FAILS) {
                 lock.lockUntil = now + LOGIN_LOCK_MS
@@ -692,16 +735,6 @@ put("user", Json.parseToJsonElement(Json.encodeToString(user)))
                 call.respondText(buildProfilePage(user, baseUrl, null), ContentType.Text.Html)
             }
 
-            /**
-             * Web 页面 OG 预览回退（默认首页）
-             */
-            get("/") {
-                val html = this::class.java.classLoader.getResource("public/index.html")?.readText()
-                    ?: "<h1>毛豆聊天</h1>"
-                call.response.header(HttpHeaders.CacheControl, "no-cache, must-revalidate")
-                call.respondText(html, io.ktor.http.ContentType.Text.Html)
-            }
-
  post("/api/auth/register") {
             if (ServerConfig.isProduction) {
                 call.respond(HttpStatusCode.Gone, ErrorResponse("请使用验证码注册"))
@@ -773,6 +806,7 @@ put("user", Json.parseToJsonElement(Json.encodeToString(user)))
             // 单账号失败锁定检查：锁定期间直接拒绝，不泄露密码正误（与失败提示一致）
             // 8.51 修复 M1：锁定按「账号|源 IP」隔离，远程失败不影响受害者自身 IP 登录
             val ip = call.remoteHost()
+            sweepLoginLockouts()
             val accountLockKey = "$emailKey|$ip"
             val lock = loginLockouts[accountLockKey]
             if (lock != null && lock.lockUntil > System.currentTimeMillis()) {
@@ -806,7 +840,7 @@ put("user", Json.parseToJsonElement(Json.encodeToString(user)))
                     // 登录成功：清除失败计数（按 IP 隔离），避免历史失败触发误锁
                     loginLockouts.remove(accountLockKey)
                     authTokenRepo.deleteExpired()
-                    call.respond(issueAuthResponse(loginResult.user!!, authTokenRepo).copy(totpEnabled = loginResult.totpEnabled))
+                    call.respond(issueAuthResponse(checkNotNull(loginResult.user), authTokenRepo).copy(totpEnabled = loginResult.totpEnabled))
                 }
                 else -> {
                     call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid credentials", code = "AUTH_INVALID"))
@@ -1085,13 +1119,10 @@ put("status", "ok")
             )
         }
 
-        // ─── 需要认证的 API ──────────────────
-        
+        // ─── 官网静态页面（无需认证） ─────────────
+
         get("/") {
-            val html = this::class.java.classLoader.getResource("public/index.html")?.readText()
-                ?: "<h1>毛豆聊天</h1>"
-            call.response.header(HttpHeaders.CacheControl, "no-cache, must-revalidate")
-            call.respondText(html, io.ktor.http.ContentType.Text.Html)
+            call.respondPublicHtml("index")
         }
         get("/assets/site.css") {
             val css = this::class.java.classLoader.getResource("public/assets/site.css")?.readText()
@@ -1108,42 +1139,42 @@ put("status", "ok")
                 ?: ""
             call.respondText(js, io.ktor.http.ContentType.Application.JavaScript)
         }
+        get("/developer") {
+            call.respondPublicHtml("developer", "<h1>Developer Console</h1>")
+        }
         get("/developer.html") {
-            val html = this::class.java.classLoader.getResource("public/developer.html")?.readText()
-                ?: "<h1>Developer Console</h1>"
-            call.response.header(HttpHeaders.CacheControl, "no-cache, must-revalidate")
-            call.respondText(html, io.ktor.http.ContentType.Text.Html)
+            call.respondRedirect("/developer", permanent = true)
         }
         // ─── 官网静态页面（FAQ / 隐私 / 条款 / 安全 / 帮助） ───
+        get("/faq") {
+            call.respondPublicHtml("faq", "<h1>FAQ</h1>")
+        }
         get("/faq.html") {
-            val html = this::class.java.classLoader.getResource("public/faq.html")?.readText()
-                ?: "<h1>FAQ</h1>"
-            call.response.header(HttpHeaders.CacheControl, "no-cache, must-revalidate")
-            call.respondText(html, io.ktor.http.ContentType.Text.Html)
+            call.respondRedirect("/faq", permanent = true)
+        }
+        get("/privacy") {
+            call.respondPublicHtml("privacy", "<h1>Privacy Policy</h1>")
         }
         get("/privacy.html") {
-            val html = this::class.java.classLoader.getResource("public/privacy.html")?.readText()
-                ?: "<h1>Privacy Policy</h1>"
-            call.response.header(HttpHeaders.CacheControl, "no-cache, must-revalidate")
-            call.respondText(html, io.ktor.http.ContentType.Text.Html)
+            call.respondRedirect("/privacy", permanent = true)
+        }
+        get("/terms") {
+            call.respondPublicHtml("terms", "<h1>Terms of Service</h1>")
         }
         get("/terms.html") {
-            val html = this::class.java.classLoader.getResource("public/terms.html")?.readText()
-                ?: "<h1>Terms of Service</h1>"
-            call.response.header(HttpHeaders.CacheControl, "no-cache, must-revalidate")
-            call.respondText(html, io.ktor.http.ContentType.Text.Html)
+            call.respondRedirect("/terms", permanent = true)
+        }
+        get("/security") {
+            call.respondPublicHtml("security", "<h1>Security</h1>")
         }
         get("/security.html") {
-            val html = this::class.java.classLoader.getResource("public/security.html")?.readText()
-                ?: "<h1>Security</h1>"
-            call.response.header(HttpHeaders.CacheControl, "no-cache, must-revalidate")
-            call.respondText(html, io.ktor.http.ContentType.Text.Html)
+            call.respondRedirect("/security", permanent = true)
+        }
+        get("/help") {
+            call.respondPublicHtml("help", "<h1>Help</h1>")
         }
         get("/help.html") {
-            val html = this::class.java.classLoader.getResource("public/help.html")?.readText()
-                ?: "<h1>Help</h1>"
-            call.response.header(HttpHeaders.CacheControl, "no-cache, must-revalidate")
-            call.respondText(html, io.ktor.http.ContentType.Text.Html)
+            call.respondRedirect("/help", permanent = true)
         }
         get("/assets/logo.png") {
             val bytes = this::class.java.classLoader.getResourceAsStream("public/assets/logo.png")?.use { it.readBytes() }
@@ -1153,8 +1184,53 @@ put("status", "ok")
                 call.respond(HttpStatusCode.NotFound)
             }
         }
+        get("/sitemap.xml") {
+            val base = ServerConfig.baseUrl.trimEnd('/')
+            val pages = listOf("", "faq", "privacy", "terms", "security", "help")
+            val urls = pages.joinToString("") { page ->
+                val loc = if (page.isBlank()) "$base/" else "$base/$page"
+                "<url><loc>$loc</loc><changefreq>weekly</changefreq></url>"
+            }
+            call.response.header(HttpHeaders.CacheControl, "public, max-age=3600")
+            call.respondText(
+                """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">$urls</urlset>""",
+                io.ktor.http.ContentType.Text.Xml
+            )
+        }
+        get("/.well-known/security.txt") {
+            val base = ServerConfig.baseUrl.trimEnd('/')
+            call.response.header(HttpHeaders.CacheControl, "public, max-age=3600")
+            call.respondText(
+                "Contact: mailto:security@maodouchat.com\nPreferred-Languages: zh, en\nCanonical: $base/.well-known/security.txt\nPolicy: $base/security#disclosure\nExpires: 2027-08-13T00:00:00.000Z\n",
+                io.ktor.http.ContentType.Text.Plain
+            )
+        }
+        get("/security.txt") {
+            call.respondRedirect("/.well-known/security.txt", permanent = true)
+        }
+        get("/manifest.webmanifest") {
+            val manifest = Thread.currentThread().contextClassLoader
+                ?.getResource("public/manifest.webmanifest")?.readText()
+                ?: object {}.javaClass.classLoader.getResource("public/manifest.webmanifest")?.readText()
+                ?: "{}"
+            call.response.header(HttpHeaders.CacheControl, "public, max-age=3600")
+            call.respondText(manifest, io.ktor.http.ContentType.Application.Json)
+        }
+        get("/sw.js") {
+            val sw = Thread.currentThread().contextClassLoader
+                ?.getResource("public/sw.js")?.readText()
+                ?: object {}.javaClass.classLoader.getResource("public/sw.js")?.readText()
+                ?: ""
+            call.response.header(HttpHeaders.CacheControl, "no-cache")
+            call.respondText(sw, io.ktor.http.ContentType.Application.JavaScript)
+        }
         get("/robots.txt") {
-            call.respondText("User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /developer.html\nDisallow: /api/\n", io.ktor.http.ContentType.Text.Plain)
+            val base = ServerConfig.baseUrl.trimEnd('/')
+            call.respondText(
+                "User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /developer\nDisallow: /developer.html\nDisallow: /api/\nSitemap: $base/sitemap.xml\n",
+                io.ktor.http.ContentType.Text.Plain
+            )
         }
 authenticate("auth-jwt") {
             post("/api/attachment-uploads") {
@@ -1679,8 +1755,9 @@ put("status", "ok")
                 // 8.38：与 /api/users/search 一致截断 q 到 100（底层 LIKE 四列全表扫描）
                 val q = call.request.queryParameters["q"]?.trim().orEmpty().take(100)
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 30).coerceIn(1, 100)
+                val offset = (call.request.queryParameters["offset"]?.toIntOrNull() ?: 0).coerceAtLeast(0)
                 if (q.isBlank()) {
-                    call.respond(userRepo.getAll(limit, viewerId = userId))
+                    call.respond(userRepo.getAll(limit, offset = offset, viewerId = userId))
                 } else {
                     if (q.length < 2) {
                         call.respond(HttpStatusCode.BadRequest, ErrorResponse("搜索关键字至少 2 个字符"))
@@ -2424,7 +2501,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("群聊至少需要 2 名成员"))
                     return@post
                 }
-                val memberLimit = if (isChannel) MAX_CHANNEL_SUBSCRIBERS else MAX_GROUP_MEMBERS
+                val memberLimit = if (isChannel) MAX_CHANNEL_SUBSCRIBERS else maxGroupMembers()
                 if (isChannel || req.isGroup) {
                     if (allParticipants.size > memberLimit) {
                         call.respond(HttpStatusCode.BadRequest, ErrorResponse("成员不能超过 $memberLimit 人"))
@@ -2501,7 +2578,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("邀请二维码无效"))
                     return@post
                 }
-                val consumed = chatRepo.consumeGroupInvite(token, userId, MAX_GROUP_MEMBERS)
+                val consumed = chatRepo.consumeGroupInvite(token, userId, maxGroupMembers())
                 if (consumed == null) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("群邀请不存在或已失效"))
                     return@post
@@ -2701,6 +2778,9 @@ put("status", "ok")
                 if (!com.maodouchat.server.repository.PollRepository.isMember(chatId, userId)) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
                 }
+                if (com.maodouchat.server.repository.PollRepository.isMuted(chatId, userId)) {
+                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("你已被禁言，暂时无法参与群玩法"))
+                }
                 val poll = com.maodouchat.server.repository.GroupPlayRepository.createPoll(
                     chatId, userId, question, options, multi, anonymous, closesAt
                 ) ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法创建投票"))
@@ -2735,6 +2815,11 @@ put("status", "ok")
                 val indexes = obj["optionIndexes"]?.jsonArray?.mapNotNull { runCatching { it.jsonPrimitive.int }.getOrNull() ?: runCatching { it.jsonPrimitive.content.toInt() }.getOrNull() }
                     ?: (obj["optionIndex"]?.jsonPrimitive?.intOrNull ?: obj["optionIndex"]?.jsonPrimitive?.content?.toIntOrNull())?.let { listOf(it) }
                     ?: emptyList()
+                com.maodouchat.server.repository.GroupPlayRepository.getPoll(pollId, userId)?.let { existing ->
+                    if (com.maodouchat.server.repository.PollRepository.isMuted(existing.chatId, userId)) {
+                        return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("你已被禁言，暂时无法参与群玩法"))
+                    }
+                }
                 val poll = com.maodouchat.server.repository.GroupPlayRepository.vote(pollId, userId, indexes)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("投票失败"))
                 call.respond(poll)
@@ -2830,7 +2915,7 @@ post("/api/chats/{chatId}/bots") {
                 if (botId.isBlank() || botId.length > 80) {
                     return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("botId required"))
                 }
-                val addResult = chatRepo.addOwnedBotAsAdmin(chatId, userId, botId, MAX_GROUP_MEMBERS)
+                val addResult = chatRepo.addOwnedBotAsAdmin(chatId, userId, botId, maxGroupMembers())
                 when (addResult) {
                     ChatRepository.AddOwnedBotResult.ADDED ->
                         notifyGroupRevisionChanged(chatRepo, json, chatId, "BOT_ADDED", userId, botId)
@@ -2889,9 +2974,17 @@ get("/api/bots") {
                 val name = obj["name"]?.jsonPrimitive?.content.orEmpty()
                 val username = obj["username"]?.jsonPrimitive?.content.orEmpty()
                 val description = obj["description"]?.jsonPrimitive?.content
-                val bot = com.maodouchat.server.repository.BotRepository.create(userId, name, username, description)
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("创建机器人失败（用户名非法或已占用）"))
-                call.respond(bot)
+                when (val result = com.maodouchat.server.repository.BotRepository.create(userId, name, username, description)) {
+                    is com.maodouchat.server.repository.BotRepository.BotCreateResult.Success ->
+                        call.respond(result.bot)
+                    com.maodouchat.server.repository.BotRepository.BotCreateResult.UsernameTaken ->
+                        call.respond(HttpStatusCode.Conflict, ErrorResponse("机器人用户名已被占用"))
+                    com.maodouchat.server.repository.BotRepository.BotCreateResult.MaxBotsReached ->
+                        call.respond(HttpStatusCode.Conflict, ErrorResponse("机器人数量已达上限"))
+                    com.maodouchat.server.repository.BotRepository.BotCreateResult.InvalidInput,
+                    com.maodouchat.server.repository.BotRepository.BotCreateResult.OwnerInvalid ->
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("创建机器人失败（用户名非法）"))
+                }
             }
             post("/api/bots/{botId}/token") {
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
@@ -2920,18 +3013,17 @@ get("/api/bots") {
                 val affectedGroupIds = com.maodouchat.server.repository.BotRepository.groupChatIdsFor(botId)
                 val ok = com.maodouchat.server.repository.BotRepository.delete(botId, userId)
                 if (!ok) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
-                affectedGroupIds.forEach { chatId ->
-                    if (chatRepo.getChatById(chatId)?.isGroup == true) {
-                        notifyGroupRevisionChanged(
-                            chatRepo = chatRepo,
-                            json = json,
-                            chatId = chatId,
-                            reason = "BOT_REMOVED",
-                            actorId = userId,
-                            targetUserId = botId,
-                            recipientIds = chatRepo.getParticipantIds(chatId)
-                        )
-                    }
+                val groupSnapshots = chatRepo.getGroupRevisionAndParticipantIds(affectedGroupIds)
+                groupSnapshots.forEach { (chatId, snapshot) ->
+                    notifyGroupRevisionChangedWithData(
+                        json = json,
+                        chatId = chatId,
+                        reason = "BOT_REMOVED",
+                        actorId = userId,
+                        targetUserId = botId,
+                        memberRevision = snapshot.first,
+                        recipientIds = snapshot.second
+                    )
                 }
                 call.respond(
                 buildJsonObject {
@@ -3203,7 +3295,7 @@ put("count", chats.size)
                                 kotlinx.serialization.json.JsonArray(
                                     keyboardRows.map { row ->
                                         kotlinx.serialization.json.JsonArray(
-                                            row!!.map { btn ->
+                                            row.map { btn ->
                                                 kotlinx.serialization.json.buildJsonObject {
                                                     put("text", kotlinx.serialization.json.JsonPrimitive(btn["text"].orEmpty()))
                                                     put("callbackData", kotlinx.serialization.json.JsonPrimitive(btn["callbackData"].orEmpty()))
@@ -3781,7 +3873,7 @@ put("nextOffset", nextOffset)
                                 kotlinx.serialization.json.JsonArray(
                                     keyboardRows.map { row ->
                                         kotlinx.serialization.json.JsonArray(
-                                            row!!.map { btn ->
+                                            row.map { btn ->
                                                 kotlinx.serialization.json.buildJsonObject {
                                                     put("text", kotlinx.serialization.json.JsonPrimitive(btn["text"].orEmpty()))
                                                     put("callbackData", kotlinx.serialization.json.JsonPrimitive(btn["callbackData"].orEmpty()))
@@ -12579,7 +12671,7 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
                 } else if (before != null) {
                     val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 100).coerceIn(1, 100)
                     val beforeId = call.request.queryParameters["beforeId"]
-                        ?.takeIf { before != null && it.isNotBlank() && it.length <= 100 }
+                        ?.takeIf { it.isNotBlank() && it.length <= 100 }
                     call.respond(messageRepo.getMessagesBefore(chatId, before, beforeId, limit, viewerId = userId))
                 } else {
                     val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
@@ -12889,14 +12981,14 @@ put("status", "ok")
                 }
                 // 路由层预检成员数上限：防止超大 IN 列表打爆 PostgreSQL 参数上限（65535）
                 val chatType = chatRepo.getChatType(cid)
-                val memberCap = if (chatType == ChatType.CHANNEL) MAX_CHANNEL_SUBSCRIBERS else MAX_GROUP_MEMBERS
+                val memberCap = if (chatType == ChatType.CHANNEL) MAX_CHANNEL_SUBSCRIBERS else maxGroupMembers()
                 if (requestedIds.size > memberCap) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("一次性添加成员不能超过 $memberCap 人")); return@post
                 }
                 val addResult = if (chatType == ChatType.CHANNEL) {
                     chatRepo.addGroupMembersAs(cid, uid, requestedIds, MAX_CHANNEL_SUBSCRIBERS)
                 } else {
-                    chatRepo.addGroupMembersAs(cid, uid, requestedIds, MAX_GROUP_MEMBERS)
+                    chatRepo.addGroupMembersAs(cid, uid, requestedIds, maxGroupMembers())
                 }
                 if (addResult.result == ChatRepository.GroupMemberMutationResult.USER_NOT_FOUND) {
                     call.respond(
@@ -15082,6 +15174,31 @@ put("status", "ok")
                     }
                     call.respond(HttpStatusCode.Created, comment)
                 }
+            }
+
+            put("/api/posts/{id}/comments/{cid}") {
+                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                if (call.rejectIfPostRestricted(userRepo, userId)) return@put
+                if (!commentRateLimiter.acquire(userId, maxPerMinute = 30)) {
+                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("评论操作过于频繁，请稍后再试"))
+                    return@put
+                }
+                val postId = call.parameters["id"]!!
+                val cid = call.parameters["cid"]!!
+                val req = call.receiveBoundedText()?.let { parseJson<UpdateCommentRequest>(it) }
+                if (req == null || !isValidCommentPayload(req.content)) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("评论内容无效"))
+                    return@put
+                }
+                val moderation = moderationRuleRepo.evaluate(userId, "COMMENT", req.content.trim())
+                if (moderation.blocked) {
+                    val status = if (moderation.action == "AUTO_RATE_LIMIT") HttpStatusCode.TooManyRequests else HttpStatusCode.UnprocessableEntity
+                    call.respond(status, ErrorResponse(moderation.message ?: "评论未通过安全检查"))
+                    return@put
+                }
+                val comment = postRepo.updateCommentForUser(cid, postId, userId, req.content.trim())
+                if (comment == null) call.respond(HttpStatusCode.NotFound, ErrorResponse("评论不存在或无权编辑"))
+                else call.respond(comment)
             }
 
             delete("/api/posts/{id}/comments/{cid}") {

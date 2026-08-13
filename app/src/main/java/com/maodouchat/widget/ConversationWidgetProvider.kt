@@ -134,10 +134,36 @@ class ConversationWidgetProvider : AppWidgetProvider() {
 
     private fun handleMarkRead(context: Context, intent: Intent) {
         val chatId = intent.getStringExtra(ConversationWidgetContract.EXTRA_CHAT_ID).orEmpty()
+        val ownerUserId = intent.getStringExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID).orEmpty()
         if (chatId.isBlank()) return
+        // 账号归属校验：旧账号残留 widget 不得用当前账号 token 标记任意会话已读。
+        if (!com.maodouchat.notification.NotificationIntentPolicy.belongsToCurrentAccount(
+                notificationOwnerUserId = ownerUserId,
+                currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
+                sessionPurgeInProgress = com.maodouchat.security.SecureSessionManager.isPurgeInProgress(),
+            )
+        ) {
+            return
+        }
         val app = context.applicationContext as? MaodouchatApp ?: return
         app.applicationScope.launch {
             try {
+                // 先同步服务端，避免“只清本地角标、换设备/重同步后未读复活”的历史问题。
+                val tokenManager = com.maodouchat.network.TokenManager.getInstance(app)
+                val ownerUserId = tokenManager.getUserId().orEmpty()
+                val token = tokenManager.getToken().orEmpty()
+                if (ownerUserId.isNotBlank() && token.isNotBlank() &&
+                    com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = ownerUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = tokenManager.getUserId(),
+                    )
+                ) {
+                    val serverResult = com.maodouchat.network.ApiService.markAllAsRead(token, chatId)
+                    if (serverResult.isFailure) {
+                        android.util.Log.w("ConversationWidgetProvider", "widget mark-read server sync failed", serverResult.exceptionOrNull())
+                    }
+                }
                 val chatRepo = com.maodouchat.data.repository.ChatRepository(app.database.chatDao(), app.database.userDao())
                 chatRepo.markChatRead(chatId)
                 MaodouchatApp.emitChatRead(chatId)
@@ -153,6 +179,16 @@ class ConversationWidgetProvider : AppWidgetProvider() {
 
     private fun handleReplySent(context: Context, intent: Intent) {
         val chatId = intent.getStringExtra(ConversationWidgetContract.EXTRA_CHAT_ID).orEmpty()
+        val widgetOwnerUserId = intent.getStringExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID).orEmpty()
+        // 账号归属校验：旧账号残留 widget 不得用当前账号 token 发快捷回复。
+        if (!com.maodouchat.notification.NotificationIntentPolicy.belongsToCurrentAccount(
+                notificationOwnerUserId = widgetOwnerUserId,
+                currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
+                sessionPurgeInProgress = com.maodouchat.security.SecureSessionManager.isPurgeInProgress(),
+            )
+        ) {
+            return
+        }
         val rawText = RemoteInput.getResultsFromIntent(intent)
             ?.getCharSequence(ConversationWidgetContract.EXTRA_REPLY_TEXT)
             ?.toString()

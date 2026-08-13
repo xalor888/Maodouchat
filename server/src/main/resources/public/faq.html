@@ -3,33 +3,39 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#0b100e"/>
   <title>常见问题 - 毛豆聊天</title>
   <meta name="description" content="毛豆聊天常见问题解答：账户与登录、聊天与群组、隐私与安全、密聊、AI、机器人开发、故障排除。"/>
   <meta name="keywords" content="毛豆聊天,FAQ,常见问题,帮助,密聊,端到端加密,机器人"/>
-  <link rel="canonical" href="https://maodouchat.com/faq.html"/>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%236366f1'/><text x='16' y='22' text-anchor='middle' font-size='18' fill='white'>🫘</text></svg>"/>
+  <link rel="canonical" href="https://maodouchat.com/faq"/>
+  <link rel="icon" href="/assets/logo.png"/>
   <link rel="stylesheet" href="/assets/style.css"/>
 </head>
 <body>
 
 <!-- Theme Toggle -->
-<button class="theme-toggle" id="themeToggle" aria-label="切换主题">🌙</button>
+<button class="theme-toggle" id="themeToggle" aria-label="切换主题" title="切换主题">
+  <svg id="iconSun" hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+  <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</button>
 
 <!-- Nav -->
 <header class="nav" id="nav">
   <div class="nav-inner">
     <a href="/" class="nav-brand">
-      <svg viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#6366f1"/><path d="M14 15c0-2 1.5-4 4-4h4c2.5 0 4 2 4 4v5c0 2-1.5 4-4 4h-2l-3 3v-3h-1c-1.5 0-2-1-2-2v-7z" fill="#fff"/><circle cx="17" cy="18" r="1.2" fill="#6366f1"/><circle cx="22" cy="18" r="1.2" fill="#6366f1"/></svg>
-      毛豆聊天
+      <img src="/assets/logo.png" alt="毛豆聊天"/>
+      <span>毛豆聊天</span>
     </a>
-    <button class="nav-mobile" id="navToggle" aria-label="菜单">☰</button>
+    <button class="nav-mobile" id="navToggle" aria-label="打开菜单" aria-expanded="false" title="菜单">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
     <nav class="nav-links" id="navLinks">
       <a href="/#features">功能</a>
       <a href="/#security">安全</a>
       <a href="/#ai">AI</a>
       <a href="/#preview">预览</a>
       <a href="/#developers">开发者</a>
-      <a href="/faq.html">FAQ</a>
+      <a href="/faq">FAQ</a>
       <a href="/#changelog">更新</a>
       <a href="/#download" class="btn-download">下载 App</a>
     </nav>
@@ -39,7 +45,7 @@
 <!-- Page Hero -->
 <section class="page-hero">
   <h1>常见问题</h1>
-  <p>关于账户、聊天、隐私、密聊、AI、机器人开发与故障排除的解答。没找到答案？<a href="/help.html">访问帮助中心</a>。</p>
+  <p>关于账户、聊天、隐私、密聊、AI、机器人开发与故障排除的解答。没找到答案？<a href="/help">访问帮助中心</a>。</p>
 </section>
 
 <div class="page-container">
@@ -68,7 +74,7 @@
     </details>
     <details class="faq-item">
       <summary>如何注销账号？</summary>
-      <div class="faq-a">在「设置 -> 账号 -> 注销账号」中提交注销。注销后你的资料、密钥与服务端密文信封将被删除，且不可恢复。详见<a href="/privacy.html">隐私政策</a>。</div>
+      <div class="faq-a">在「设置 -> 账号 -> 注销账号」中提交注销。注销后你的资料、密钥与服务端密文信封将被删除，且不可恢复。详见<a href="/privacy">隐私政策</a>。</div>
     </details>
 
     <h2 class="faq-cat" id="cat-chat">聊天与群组</h2>
@@ -88,11 +94,11 @@
     <h2 class="faq-cat" id="cat-privacy">隐私与安全</h2>
     <details class="faq-item">
       <summary>什么是端到端加密？</summary>
-      <div class="faq-a">端到端加密意味着消息在发送方设备加密、接收方设备解密，服务端只看到密文信封。毛豆聊天 1:1 使用 Double Ratchet，群使用 Sender Key，附件 AES-256-GCM。详见<a href="/security.html">安全详解</a>。</div>
+      <div class="faq-a">端到端加密意味着消息在发送方设备加密、接收方设备解密，服务端只看到密文信封。毛豆聊天 1:1 使用 Double Ratchet，群使用 Sender Key，附件 AES-256-GCM。详见<a href="/security">安全详解</a>。</div>
     </details>
     <details class="faq-item">
       <summary>服务端能看到我的消息吗？</summary>
-      <div class="faq-a">不能。服务端仅存储密文信封与路由元数据（发送/接收方 ID、时间戳），无法解密消息正文或附件。详见<a href="/security.html#transparency">透明度说明</a>。</div>
+      <div class="faq-a">不能。服务端仅存储密文信封与路由元数据（发送/接收方 ID、时间戳），无法解密消息正文或附件。详见<a href="/security#transparency">透明度说明</a>。</div>
     </details>
     <details class="faq-item">
       <summary>如何验证对方身份（安全代码）？</summary>
@@ -126,11 +132,11 @@
     <h2 class="faq-cat" id="cat-bot">机器人开发</h2>
     <details class="faq-item">
       <summary>如何创建机器人？</summary>
-      <div class="faq-a">在 App「设置 -> 我的机器人」创建 Bot 获取 Token，通过 HTTP API 发送消息、管理群组、处理回调。支持 Webhook（HMAC 签名校验）与长轮询两种模式。详见<a href="/developer.html">开发者控制台</a>。</div>
+      <div class="faq-a">在 App「设置 -> 我的机器人」创建 Bot 获取 Token，通过 HTTP API 发送消息、管理群组、处理回调。支持 Webhook（HMAC 签名校验）与长轮询两种模式。详见<a href="/developer">开发者控制台</a>。</div>
     </details>
     <details class="faq-item">
       <summary>Bot API 支持哪些功能？</summary>
-      <div class="faq-a">发送文本/Markdown 消息、内联键盘、图片/文件、位置、联系人；管理群成员与权限；投票；Webhook HMAC 校验；AI 能力开关查询等。完整文档见 <a href="/developer.html">开发者控制台</a>。</div>
+      <div class="faq-a">发送文本/Markdown 消息、内联键盘、图片/文件、位置、联系人；管理群成员与权限；投票；Webhook HMAC 校验；AI 能力开关查询等。完整文档见 <a href="/developer">开发者控制台</a>。</div>
     </details>
     <details class="faq-item">
       <summary>机器人收费吗？</summary>
@@ -140,7 +146,7 @@
     <h2 class="faq-cat" id="cat-trouble">故障排除</h2>
     <details class="faq-item">
       <summary>消息发送失败 / 收不到消息？</summary>
-      <div class="faq-a">请检查网络连接；确认对方未屏蔽你；查看 App 内连接状态。若使用自托管服务端，检查服务端与推送（FCM）配置。仍有问题请<a href="/help.html">报告问题</a>。</div>
+      <div class="faq-a">请检查网络连接；确认对方未屏蔽你；查看 App 内连接状态。若使用自托管服务端，检查服务端与推送（FCM）配置。仍有问题请<a href="/help">报告问题</a>。</div>
     </details>
     <details class="faq-item">
       <summary>通话质量差怎么办？</summary>
@@ -148,7 +154,7 @@
     </details>
     <details class="faq-item">
       <summary>如何反馈建议或报告 Bug？</summary>
-      <div class="faq-a">通过 App 内「设置 -> 反馈」提交，或邮件至 <a href="mailto:support@maodouchat.com">support@maodouchat.com</a>。安全漏洞请报告至 <a href="mailto:security@maodouchat.com">security@maodouchat.com</a>。详见<a href="/help.html">帮助中心</a>。</div>
+      <div class="faq-a">通过 App 内「设置 -> 反馈」提交，或邮件至 <a href="mailto:support@maodouchat.com">support@maodouchat.com</a>。安全漏洞请报告至 <a href="mailto:security@maodouchat.com">security@maodouchat.com</a>。详见<a href="/help">帮助中心</a>。</div>
     </details>
   </div>
 
@@ -176,16 +182,16 @@
     </div>
     <div class="footer-col">
       <h4>资源与帮助</h4>
-      <a href="/faq.html">常见问题</a>
-      <a href="/help.html">帮助中心</a>
-      <a href="/security.html">安全详解</a>
-      <a href="/developer.html">开发者控制台</a>
+      <a href="/faq">常见问题</a>
+      <a href="/help">帮助中心</a>
+      <a href="/security">安全详解</a>
+      <a href="/developer">开发者控制台</a>
       <a href="/#changelog">更新日志</a>
     </div>
     <div class="footer-col">
       <h4>法律与后台</h4>
-      <a href="/privacy.html">隐私政策</a>
-      <a href="/terms.html">服务条款</a>
+      <a href="/privacy">隐私政策</a>
+      <a href="/terms">服务条款</a>
       <a href="/admin">管理后台</a>
       <a href="mailto:security@maodouchat.com">安全披露</a>
     </div>
@@ -202,13 +208,26 @@
   var themeToggle = document.getElementById('themeToggle');
   var html = document.documentElement;
   var savedTheme = localStorage.getItem('maodou-theme') || 'dark';
-  html.setAttribute('data-theme', savedTheme);
-  themeToggle.textContent = savedTheme === 'dark' ? '🌙' : '☀️';
+  if (savedTheme !== 'dark' && savedTheme !== 'light') {
+    savedTheme = 'dark';
+  }
+  var iconSun = document.getElementById('iconSun');
+  var iconMoon = document.getElementById('iconMoon');
+  function applyTheme(theme) {
+    html.setAttribute('data-theme', theme);
+    if (theme === 'dark') {
+      iconSun.setAttribute('hidden', '');
+      iconMoon.removeAttribute('hidden');
+    } else {
+      iconMoon.setAttribute('hidden', '');
+      iconSun.removeAttribute('hidden');
+    }
+  }
+  applyTheme(savedTheme);
   themeToggle.addEventListener('click', function() {
     var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', next);
     localStorage.setItem('maodou-theme', next);
-    themeToggle.textContent = next === 'dark' ? '🌙' : '☀️';
+    applyTheme(next);
   });
   var navToggle = document.getElementById('navToggle');
   var navLinks = document.getElementById('navLinks');

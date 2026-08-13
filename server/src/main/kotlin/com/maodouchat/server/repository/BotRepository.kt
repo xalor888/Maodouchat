@@ -35,6 +35,7 @@ object BotRepository {
     // 8.48 修复 L1：收件箱事件 JSON 上限——超过即拒写（take 截断会从多字节字符/JSON token
     // 中间切断产生损坏行，bot 轮询解析抛异常）。正常事件远小于该值。
     private const val MAX_UPDATE_JSON_CHARS = 16_000
+    private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
     private val logger = org.slf4j.LoggerFactory.getLogger(BotRepository::class.java)
 
     @Serializable
@@ -59,16 +60,24 @@ object BotRepository {
         val description: String
     )
 
+    sealed interface BotCreateResult {
+        data class Success(val bot: BotDto) : BotCreateResult
+        data object InvalidInput : BotCreateResult
+        data object UsernameTaken : BotCreateResult
+        data object MaxBotsReached : BotCreateResult
+        data object OwnerInvalid : BotCreateResult
+    }
+
     fun listByOwner(ownerUserId: String): List<BotDto> = transaction {
         BotApps.selectAll().where { BotApps.ownerUserId eq ownerUserId }
             .orderBy(BotApps.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
             .map { it.toDto() }
     }
 
-    fun create(ownerUserId: String, name: String, username: String, description: String?): BotDto? {
+    fun create(ownerUserId: String, name: String, username: String, description: String?): BotCreateResult {
         val n = name.trim().take(120)
-        val u = normalizeUsername(username) ?: return null
-        if (n.isBlank()) return null
+        val u = normalizeUsername(username) ?: return BotCreateResult.InvalidInput
+        if (n.isBlank()) return BotCreateResult.InvalidInput
         val maxBots = try {
             com.maodouchat.server.service.RuntimeConfigService.maxBotsPerUser()
         } catch (_: Exception) { 20 }
@@ -78,12 +87,12 @@ object BotRepository {
         return try {
             transaction {
                 val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
-                    ?: return@transaction null
-                if (owner[Users.deletedAt] != null) return@transaction null
+                    ?: return@transaction BotCreateResult.OwnerInvalid
+                if (owner[Users.deletedAt] != null) return@transaction BotCreateResult.OwnerInvalid
                 val owned = BotApps.selectAll().where { BotApps.ownerUserId eq ownerUserId }.count()
-                if (owned >= maxBots.coerceAtLeast(0).toLong()) return@transaction null
+                if (owned >= maxBots.coerceAtLeast(0).toLong()) return@transaction BotCreateResult.MaxBotsReached
                 if (BotApps.selectAll().where { BotApps.username eq u }.firstOrNull() != null) {
-                    return@transaction null
+                    return@transaction BotCreateResult.UsernameTaken
                 }
                 // Bot identity is also a Users row so message.senderId FK remains valid.
                 Users.insert {
@@ -106,10 +115,12 @@ object BotRepository {
                     it[BotApps.createdAt] = now
                     it[BotApps.updatedAt] = now
                 }
-                BotApps.selectAll().where { BotApps.id eq id }.first().toDto().copy(tokenOnce = token)
+                BotCreateResult.Success(
+                    BotApps.selectAll().where { BotApps.id eq id }.first().toDto().copy(tokenOnce = token)
+                )
             }
         } catch (error: Exception) {
-            if (isUniqueViolation(error)) null else throw error
+            if (isUniqueViolation(error)) BotCreateResult.UsernameTaken else throw error
         }
     }
 
@@ -560,8 +571,7 @@ object BotRepository {
     private fun parseCommands(raw: String?): List<BotCommandDef> {
         if (raw.isNullOrBlank()) return emptyList()
         return try {
-            val el = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-                .parseToJsonElement(raw)
+            val el = json.parseToJsonElement(raw)
             val arr = el as? kotlinx.serialization.json.JsonArray ?: return emptyList()
             arr.mapNotNull { item ->
                 val obj = item as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null

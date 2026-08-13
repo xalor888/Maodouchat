@@ -56,6 +56,9 @@ object OnDemandStickerStore {
     private const val MAX_PACKS = 6
     private const val MAX_TOTAL_BYTES = 24L * 1024L * 1024L
     private const val MANIFEST_TTL_MS = 10 * 60 * 1000L
+    private const val MAX_MANIFEST_BYTES = 1_048_576
+    private const val MAX_MANIFEST_PACKS = 64
+    private const val MAX_STICKERS_PER_PACK = 300
 
     /** 内置最小集合：1 包「基础表情」（纯 emoji，无需下载）。 */
     const val BUILT_IN_PACK_ID = "basic"
@@ -87,7 +90,8 @@ object OnDemandStickerStore {
     }
 
     /** 8.34：每包下载互斥——getSticker 与 UI 手动下载同一包并发时此前互相覆盖 .part 导致 SHA 失败。 */
-    private val packLocks = ConcurrentHashMap<String, Mutex>()
+    private class PackLock(val mutex: Mutex = Mutex(), var users: Int = 0)
+    private val packLocks = ConcurrentHashMap<String, PackLock>()
 
     @Volatile
     private var cachedManifest: List<RemotePack> = emptyList()
@@ -163,6 +167,7 @@ object OnDemandStickerStore {
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) throw IllegalStateException("manifest HTTP ${response.code}")
                 val body = response.body?.string().orEmpty()
+                if (body.length > MAX_MANIFEST_BYTES) throw IllegalStateException("manifest too large")
                 val parsed = parseManifest(body)
                 if (parsed.isEmpty()) throw IllegalStateException("manifest empty")
                 cachedManifest = parsed
@@ -205,8 +210,26 @@ object OnDemandStickerStore {
         }
 
         // 8.34：整个下载+淘汰流程按包加锁（并发 getSticker / 手动下载不再互相覆盖 .part）
-        packLocks.computeIfAbsent(safeId) { Mutex() }.withLock {
-            downloadPackLocked(context, safeId, pack)
+        val lock = packLocks.compute(safeId) { _, existing ->
+            (existing ?: PackLock()).also { it.users++ }
+        }!!
+        try {
+            lock.mutex.withLock {
+                downloadPackLocked(context, safeId, pack)
+            }
+        } finally {
+            packLocks.computeIfPresent(safeId) { _, current ->
+                if (current === lock) {
+                    if (current.users > 1) {
+                        current.users--
+                        current
+                    } else {
+                        null
+                    }
+                } else {
+                    current
+                }
+            }
         }
     }
 
@@ -280,7 +303,9 @@ object OnDemandStickerStore {
             .build()
         return httpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IllegalStateException("manifest HTTP ${response.code}")
-            response.body?.string().orEmpty()
+            val body = response.body?.string().orEmpty()
+            if (body.length > MAX_MANIFEST_BYTES) throw IllegalStateException("manifest too large")
+            body
         }
     }
 
@@ -288,21 +313,29 @@ object OnDemandStickerStore {
         val root = JSONObject(raw)
         val packs = root.optJSONArray("packs") ?: JSONArray()
         return buildList {
+            var packCount = 0
             for (i in 0 until packs.length()) {
+                if (packCount >= MAX_MANIFEST_PACKS) break
                 val pack = packs.optJSONObject(i) ?: continue
                 val id = pack.optString("id").trim()
                 if (id.isEmpty()) continue
                 val stickers = pack.optJSONArray("stickers") ?: JSONArray()
                 val items = buildList {
+                    var stickerCount = 0
                     for (j in 0 until stickers.length()) {
+                        if (stickerCount >= MAX_STICKERS_PER_PACK) break
                         val s = stickers.optJSONObject(j) ?: continue
                         val name = s.optString("name").trim()
                         val url = s.optString("url").trim()
                         if (name.isEmpty() || url.isEmpty()) continue
                         add(RemoteSticker(name, url, s.optString("sha256").trim().ifBlank { null }))
+                        stickerCount++
                     }
                 }
-                if (items.isNotEmpty()) add(RemotePack(id, items))
+                if (items.isNotEmpty()) {
+                    add(RemotePack(id, items))
+                    packCount++
+                }
             }
         }
     }

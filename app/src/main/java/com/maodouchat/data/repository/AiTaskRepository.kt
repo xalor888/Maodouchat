@@ -45,9 +45,12 @@ class AiTaskRepository(
      */
     suspend fun deleteCompletedByChatId(chatId: String) {
         dao.getIdsByChatId(chatId).forEach { id ->
-            runCatching {
+            try {
                 val entity = dao.getById(id)
                 if (entity?.isCompleted == true) AiTaskReminderScheduler.cancelTask(appContext, id)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
             }
         }
         dao.deleteCompletedByChatId(chatId)

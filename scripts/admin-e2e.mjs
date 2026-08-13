@@ -14,6 +14,7 @@ function findChromium() {
   const configured = process.env.CHROMIUM_PATH;
   const candidates = [
     configured,
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
     "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
     "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",

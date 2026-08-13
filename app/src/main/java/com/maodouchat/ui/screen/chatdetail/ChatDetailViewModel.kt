@@ -479,8 +479,18 @@ class ChatDetailViewModel(
             aiOperationRepo.pruneTerminal()
             // AI 本地缓存保留期清理：总结缓存 90 天，已完成任务 90 天
             val cutoff = System.currentTimeMillis() - 90L * 24L * 60L * 60L * 1_000L
-            runCatching { aiSummaryRepo.pruneOlderThan(cutoff) }
-            runCatching { aiTaskRepo.pruneCompletedOlderThan(cutoff) }
+            try {
+                aiSummaryRepo.pruneOlderThan(cutoff)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+            }
+            try {
+                aiTaskRepo.pruneCompletedOlderThan(cutoff)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -3033,7 +3043,12 @@ class ChatDetailViewModel(
         if (ownerUserId.isBlank() || activeChatId.isBlank()) return
         draftSaveJob?.cancel()
         viewModelScope.launch(Dispatchers.IO) {
-            runCatching { chatDraftDao.delete(ownerUserId, activeChatId) }
+            try {
+                chatDraftDao.delete(ownerUserId, activeChatId)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+            }
         }
         _uiState.update { it.copy(hasSavedDraft = false) }
     }
@@ -4695,7 +4710,7 @@ class ChatDetailViewModel(
                     }
                     val members = _uiState.value.chat?.participants.orEmpty()
                     val total = if (members.isNotEmpty()) members.count { it.id != ownerUserId } else receipts.size
-                    val read = receipts.count { it.readAt != null }
+                    val read = receipts.size
                     _uiState.update {
                         it.copy(groupReadCounts = it.groupReadCounts + (messageId to ReadCountUi(read, total)))
                     }
@@ -4936,7 +4951,7 @@ class ChatDetailViewModel(
                 return@launch
             }
             val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            ApiService.getUsers(liveToken).fold(
+            ApiService.getAllSearchableUsers(liveToken).fold(
                 onSuccess = { users ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = ownerUserId,
@@ -8616,22 +8631,22 @@ fun sendCurrentLocation() {
 
     private suspend fun clearLocalChatContent(targetChatId: String, removePin: Boolean) {
         val ownerUserId = currentUserId
-        val cachedMessageIds = runCatching { messageRepo.getMessageIdsByChatId(targetChatId) }.getOrDefault(emptyList())
-        runCatching {
+        val cachedMessageIds = bestEffort { messageRepo.getMessageIdsByChatId(targetChatId) }.orEmpty()
+        bestEffort {
             com.maodouchat.attachment.AttachmentTransferCoordinator.cancelForChat(app, targetChatId)
         }
-        runCatching {
+        bestEffort {
             val removed = com.maodouchat.util.ScheduledMessageStore.clearForChat(app, targetChatId)
             removed.forEach { com.maodouchat.util.ScheduledMessageScheduler.cancel(app, it) }
         }
         if (removePin) {
-            runCatching { chatLockRepo.remove(targetChatId) }
+            bestEffort { chatLockRepo.remove(targetChatId) }
             com.maodouchat.security.ChatLockSession.clear(targetChatId)
         }
-        runCatching { messageRepo.deleteMessagesByChatId(targetChatId) }
-        runCatching { app.database.messageSearchDao().deleteChatIndex(targetChatId) }
+        bestEffort { messageRepo.deleteMessagesByChatId(targetChatId) }
+        bestEffort { app.database.messageSearchDao().deleteChatIndex(targetChatId) }
         if (ownerUserId.isNotBlank()) {
-            runCatching {
+            bestEffort {
                 app.database.attachmentTransferDao().clearWireContentForChat(
                     targetChatId,
                     ownerUserId = ownerUserId
@@ -8639,14 +8654,22 @@ fun sendCurrentLocation() {
             }
         }
         cachedMessageIds.forEach { messageId ->
-            runCatching {
+            bestEffort {
                 com.maodouchat.util.MediaCache.deleteCachedMediaForMessage(app, messageId)
             }
         }
-        runCatching {
+        bestEffort {
             app.notificationCenter.removeChatItems(targetChatId)
             com.maodouchat.util.AppNotifier.cancelMessage(app, targetChatId)
         }
+    }
+
+    private suspend fun <T> bestEffort(block: suspend () -> T): T? = try {
+        block()
+    } catch (error: kotlinx.coroutines.CancellationException) {
+        throw error
+    } catch (_: Exception) {
+        null
     }
 
     fun exportToUri(context: android.content.Context, uri: android.net.Uri) {

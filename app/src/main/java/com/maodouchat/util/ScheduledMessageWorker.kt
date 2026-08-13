@@ -94,7 +94,7 @@ class ScheduledMessageWorker(
         // 重复定时消息首轮发送后即终止，重复从未生效。现改为先重排下一次再移除当前到条目。
         // 1.21：repeatCount>0 时达上限（occurrencesSent+1 >= repeatCount）即停止重排。
         if (item.repeatIntervalMs > 0L && (item.repeatCount == 0 || item.occurrencesSent + 1 < item.repeatCount)) {
-            runCatching {
+            try {
                 ScheduledMessageStore.add(
                     applicationContext,
                     item.chatId,
@@ -109,6 +109,10 @@ class ScheduledMessageWorker(
                 )?.let { rescheduled ->
                     ScheduledMessageScheduler.schedule(applicationContext, rescheduled)
                 }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                android.util.Log.w(TAG, "Reschedule recurring message failed", error)
             }
         }
         ScheduledMessageStore.removeForUser(applicationContext, scheduleId, expectedOwnerUserId)
@@ -163,6 +167,7 @@ class ScheduledMessageWorker(
     }
 
     companion object {
+        private const val TAG = "ScheduledMessageWorker"
         const val KEY_SCHEDULE_ID = "schedule_id"
         const val KEY_OWNER_USER_ID = "owner_user_id"
         /** 默认指数退避 30s 起，5 次约覆盖 7~8 分钟瞬态窗口。 */
@@ -187,11 +192,10 @@ class ScheduledMessageWorker(
         scheduleId: String,
         expectedOwnerUserId: String
     ): Result {
-        runCatching {
-        // 1.07：重复定时——发送前若配置了重复间隔，重新入队下一次（净增 1 条）
-        // 1.21：与成功路径一致，达重复次数上限后不再重排
-        if (item.repeatIntervalMs > 0L && (item.repeatCount == 0 || item.occurrencesSent + 1 < item.repeatCount)) {
-            runCatching {
+        try {
+            // 1.07：重复定时——发送前若配置了重复间隔，重新入队下一次（净增 1 条）
+            // 1.21：与成功路径一致，达重复次数上限后不再重排
+            if (item.repeatIntervalMs > 0L && (item.repeatCount == 0 || item.occurrencesSent + 1 < item.repeatCount)) {
                 ScheduledMessageStore.add(
                     applicationContext,
                     item.chatId,
@@ -207,9 +211,12 @@ class ScheduledMessageWorker(
                     ScheduledMessageScheduler.schedule(applicationContext, rescheduled)
                 }
             }
-        }
 
-        ScheduledMessageStore.removeForUser(applicationContext, scheduleId, expectedOwnerUserId)
+            ScheduledMessageStore.removeForUser(applicationContext, scheduleId, expectedOwnerUserId)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            android.util.Log.w(TAG, "Abandon scheduled message failed", error)
         }
         com.maodouchat.util.AppNotifier.showScheduledMessageFailed(applicationContext)
         return Result.success()

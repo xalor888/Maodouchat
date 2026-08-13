@@ -1033,20 +1033,26 @@ class AiGatewayService(
     override fun checkBudget(userId: String, estimatedTokens: Long): BudgetResult {
         val budget = RuntimeConfigService.aiDailyTokenBudgetPerUser()
         if (budget <= 0L) return BudgetResult.Allowed
-        val est = estimatedTokens.coerceAtLeast(0L)
+        // 路由层只按输入估算；实际响应还有输出 token 计费，预检固定加一份保守输出预留，
+        // 避免连续大输出请求在实际落账前重复通过预算检查。
+        val est = estimatedTokens.coerceAtLeast(0L) + BUDGET_OUTPUT_ESTIMATE_TOKENS
         val now = System.currentTimeMillis()
         val used = runCatching { auditRepository.sumTokensForUserToday(userId) }.getOrDefault(0L)
         val monitor = budgetMonitorFor(userId)
-        synchronized(monitor) {
-            val reserved = purgeExpiredReservations(userId, now)
-            if (used + reserved + est <= budget) {
-                budgetReservations
-                    .computeIfAbsent(userId) { mutableListOf() }
-                    .add(Reservation(amount = est, expiresAt = now + AI_BUDGET_RESERVATION_LEASE_MS))
-                return BudgetResult.Allowed
+        try {
+            synchronized(monitor.lock) {
+                val reserved = purgeExpiredReservations(userId, now)
+                if (used + reserved + est <= budget) {
+                    budgetReservations
+                        .computeIfAbsent(userId) { mutableListOf() }
+                        .add(Reservation(amount = est, expiresAt = now + AI_BUDGET_RESERVATION_LEASE_MS))
+                    return BudgetResult.Allowed
+                }
+                return BudgetResult.Exceeded(usedTokens = used, budgetTokens = budget, retryAfterSeconds = secondsUntilMidnight())
             }
+        } finally {
+            releaseBudgetMonitor(userId, monitor)
         }
-        return BudgetResult.Exceeded(usedTokens = used, budgetTokens = budget, retryAfterSeconds = secondsUntilMidnight())
     }
 
     /**
@@ -1056,9 +1062,52 @@ class AiGatewayService(
      */
     private data class Reservation(val amount: Long, val expiresAt: Long)
     private val AI_BUDGET_RESERVATION_LEASE_MS = 120_000L
+    private val BUDGET_OUTPUT_ESTIMATE_TOKENS = 1_024L
     private val budgetReservations = ConcurrentHashMap<String, MutableList<Reservation>>()
-    private val budgetMonitors = ConcurrentHashMap<String, Any>()
-    private fun budgetMonitorFor(userId: String): Any = budgetMonitors.computeIfAbsent(userId) { Any() }
+    private class BudgetMonitor(val lock: Any = Any(), var users: Int = 0)
+    private val budgetMonitors = ConcurrentHashMap<String, BudgetMonitor>()
+    private val budgetMonitorSweepAt = java.util.concurrent.atomic.AtomicLong(0L)
+    private val MAX_BUDGET_MONITORS = 100_000
+
+    private fun budgetMonitorFor(userId: String): BudgetMonitor {
+        maybeSweepBudgetMonitors()
+        return budgetMonitors.compute(userId) { _, existing ->
+            val monitor = existing ?: BudgetMonitor()
+            monitor.users++
+            monitor
+        }!!
+    }
+
+    private fun releaseBudgetMonitor(userId: String, monitor: BudgetMonitor) {
+        budgetMonitors.computeIfPresent(userId) { _, current ->
+            if (current === monitor) {
+                if (current.users > 1) {
+                    current.users--
+                    current
+                } else if (budgetReservations[userId] == null) {
+                    null
+                } else {
+                    current.users = 0
+                    current
+                }
+            } else {
+                current
+            }
+        }
+    }
+
+    private fun maybeSweepBudgetMonitors() {
+        if (budgetMonitors.size < MAX_BUDGET_MONITORS) return
+        val now = System.currentTimeMillis()
+        val last = budgetMonitorSweepAt.get()
+        if (now - last < 60_000L) return
+        if (!budgetMonitorSweepAt.compareAndSet(last, now)) return
+        budgetMonitors.keys.forEach { key ->
+            budgetMonitors.computeIfPresent(key) { _, current ->
+                if (current.users == 0 && budgetReservations[key] == null) null else current
+            }
+        }
+    }
 
     /** 清掉某用户已过期预留并返回仍有效的预留总量。仅在 [budgetMonitorFor] 锁内调用。 */
     private fun purgeExpiredReservations(userId: String, now: Long): Long {

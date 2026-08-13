@@ -1,0 +1,17 @@
+{
+  "name": "毛豆聊天 Maodouchat",
+  "short_name": "毛豆聊天",
+  "description": "轻量、丝滑、端到端加密的现代即时通讯。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b100e",
+  "theme_color": "#0b100e",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

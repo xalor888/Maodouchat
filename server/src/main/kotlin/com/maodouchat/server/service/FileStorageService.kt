@@ -240,6 +240,12 @@ object FileStorageService {
     fun deleteStalePostImages(validFilenames: Set<String>, olderThan: Long): Int =
         deleteStaleImages("posts", validFilenames, olderThan, ::isPostImageFilename)
 
+    /** 列出已超过保留期、且文件名符合动态图片格式的候选文件（不删除）。 */
+    fun listStalePostImageFiles(olderThan: Long): List<String> =
+        resolveTypeRoot("posts")?.listFiles().orEmpty()
+            .filter { file -> file.isFile && file.lastModified() <= olderThan && isPostImageFilename(file.name) }
+            .map { it.name }
+
     fun deleteStaleGroupAvatars(validFilenames: Set<String>, olderThan: Long): Int =
         deleteStaleImages("group-avatars", validFilenames, olderThan, ::isGroupAvatarFilename)
 

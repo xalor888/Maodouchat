@@ -284,6 +284,9 @@
     <string name="error_invalid_email">Enter a valid email address</string>
     <string name="error_enter_password">Enter your password</string>
     <string name="error_password_min_length">Password must be at least 6 characters</string>
+    <string name="login_confirm_password">Confirm password</string>
+    <string name="login_password_confirm_mismatch">Passwords do not match</string>
+    <string name="login_require_code_first">Request a verification code first</string>
     <string name="error_enter_username">Enter a username</string>
     <string name="error_enter_verification_code">Enter the verification code</string>
     <string name="error_send_code_failed">Could not send the code</string>
@@ -1532,6 +1535,11 @@
     <string name="group_detail_mute_all_set">All members muted</string>
     <string name="group_detail_mute_all_cleared">All members unmuted</string>
     <string name="explore_delete_comment">Delete comment</string>
+    <string name="explore_edit_comment">Edit comment</string>
+    <string name="explore_comment_edit_hint">Enter new comment text</string>
+    <string name="explore_comment_edit_invalid">Comment cannot be empty or exceed 1000 characters</string>
+    <string name="explore_comment_edit_success">Comment updated</string>
+    <string name="explore_comment_edit_failed">Could not update comment</string>
     <string name="explore_comment_like">Like</string>
     <string name="explore_comment_reply">Reply</string>
     <string name="explore_comment_copy">Copy</string>

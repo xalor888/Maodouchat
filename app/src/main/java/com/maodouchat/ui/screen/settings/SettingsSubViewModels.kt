@@ -1607,6 +1607,7 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
+    @OptIn(coil.annotation.ExperimentalCoilApi::class)
     fun clearCache() {
         if (clearCacheJob?.isActive == true) return
         cacheRefreshGeneration++

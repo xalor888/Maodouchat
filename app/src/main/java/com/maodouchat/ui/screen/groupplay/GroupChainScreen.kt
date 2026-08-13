@@ -154,6 +154,10 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
     fun openChain(chainId: String) {
         viewModelScope.launch {
             val text = GroupPlayHttp.get(token(), "/api/chains/$chainId")
+            if (text == null) {
+                _uiState.value = _uiState.value.copy(error = text(R.string.group_play_chain_not_found))
+                return@launch
+            }
             val o = runCatching { JSONObject(text) }.getOrNull()
             if (o == null) {
                 _uiState.value = _uiState.value.copy(error = text(R.string.group_play_chain_not_found))

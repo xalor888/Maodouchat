@@ -62,6 +62,12 @@ private suspend fun ApplicationCall.rejectIfSuspendedForPolls(userId: String): B
     return true
 }
 
+private suspend fun ApplicationCall.rejectIfMutedForPolls(chatId: String, userId: String): Boolean {
+    if (!PollRepository.isMuted(chatId, userId)) return false
+    respond(HttpStatusCode.Forbidden, ErrorResponse("你已被禁言，暂时无法参与群玩法"))
+    return true
+}
+
 fun Application.configurePollRouting() {
     routing {
         configurePollRoutes()
@@ -82,6 +88,7 @@ fun Routing.configurePollRoutes() {
             if (!PollRepository.isMember(chatId, userId)) {
                 return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
+            if (call.rejectIfMutedForPolls(chatId, userId)) return@post
             if (!pollRateLimiter.acquire("$userId:$chatId:checkin", maxPerMinute = 20)) {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("签到过于频繁，请稍后再试"))
             }
@@ -139,6 +146,7 @@ fun Routing.configurePollRoutes() {
             if (!PollRepository.isMember(chatId, userId)) {
                 return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
+            if (call.rejectIfMutedForPolls(chatId, userId)) return@post
             val chain = GroupCheckinRepository.createChain(chatId, userId, title, topic, maxEntries)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法创建接龙"))
             broadcastGroupPlayUpdate(chatId, "chain_created", chain)
@@ -170,6 +178,11 @@ fun Routing.configurePollRoutes() {
             if (call.rejectIfSuspendedForPolls(userId)) return@post
             val chainId = call.parameters["chainId"]
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chainId"))
+            // 8.52 一致性：接龙不存在或非成员统一 403（与 PK 投票口径一致），
+            // 并在限流前拦截，避免非成员/禁言成员消耗群玩法配额。
+            val chainForMute = GroupCheckinRepository.getChain(chainId, userId)
+                ?: return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
+            if (call.rejectIfMutedForPolls(chainForMute.chatId, userId)) return@post
             if (!pollRateLimiter.acquire("$userId:$chainId:chain_join", maxPerMinute = 30)) {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("接龙过于频繁"))
             }
@@ -196,6 +209,7 @@ fun Routing.configurePollRoutes() {
             if (!PollRepository.isMember(chatId, userId)) {
                 return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
+            if (call.rejectIfMutedForPolls(chatId, userId)) return@post
             if (!pollRateLimiter.acquire("$userId:$chatId:pk_create", maxPerMinute = 10)) {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建 PK 过于频繁"))
             }
@@ -246,6 +260,7 @@ val pk = GroupCheckinRepository.createPk(chatId, userId, leftTitle, rightTitle)
             if (pkChatId == null || !PollRepository.isMember(pkChatId, userId)) {
                 return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
+            if (call.rejectIfMutedForPolls(pkChatId, userId)) return@post
             if (!pollRateLimiter.acquire("$userId:$pkId:pk_vote", maxPerMinute = 30)) {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("投票过于频繁"))
             }

@@ -94,7 +94,8 @@ object GroupPlayRepository {
             if (!row[GroupPolls.multi] && valid.size > 1) return@transaction null
             val now = System.currentTimeMillis()
             val isClosed = row[GroupPolls.closed] || ((row[GroupPolls.closesAt] ?: Long.MAX_VALUE) <= now)
-            if (isClosed) return@transaction toPollDto(row, userId)
+            // 已关闭的投票不是「成功但未变更」：返回 null，路由回 400，避免客户端误以为投票已计入。
+            if (isClosed) return@transaction null
             GroupPollVotes.deleteWhere {
                 (GroupPollVotes.pollId eq pollId) and (GroupPollVotes.userId eq userId)
             }

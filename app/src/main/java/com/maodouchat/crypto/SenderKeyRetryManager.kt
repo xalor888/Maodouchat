@@ -71,7 +71,7 @@ class SenderKeyRetryManager(
             now + delayMs
         } else {
             // 8.49：existing 在 freshEpoch=false 时必非空（同 epoch），消除冗余 !!
-            maxOf(existing?.nextAttemptAt ?: now, now + delayMs)
+            maxOf(existing.nextAttemptAt, now + delayMs)
         }
         retryDao.upsert(
             SenderKeyRetryEntity(
@@ -102,8 +102,13 @@ class SenderKeyRetryManager(
         processMutex.withLock {
             // 8.48 修复：收养 v24→v25 迁移遗留的孤儿行（ownerUserId='' 永不被 getDue 命中）——
             // 否则升级前已排队的 SK 分发重试永久失联，受影响会话的群成员 SK 覆盖缺口不补齐
-            runCatching { retryDao.adoptOrphans(userId) }
-                .onFailure { Log.w(TAG, "adoptOrphans failed", it) }
+            try {
+                retryDao.adoptOrphans(userId)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w(TAG, "adoptOrphans failed", error)
+            }
             _processDueTasksLocked(userId, token, limit)
         }
     }
