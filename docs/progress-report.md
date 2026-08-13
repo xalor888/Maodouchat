@@ -5698,3 +5698,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **`attachmentDownloadMutexes` 只增不减**：每个查看过的附件消息都永久保留一个 Mutex，长期浏览会无界增长。改为带引用计数的 `AttachmentDownloadLock`，无使用者时移除，与 Signal/贴纸锁同一模式。
 
 **验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。
+
+### 9.67 2026-08-13 无限调优：反应锁清理
+
+1. **`reactionMutexes` 只增不减**：每个点过赞/反应的 messageId 都永久保留一个 Mutex。改为带引用计数的 `ReactionLock`，反应协程结束时移除。
+
+**验证**：`:app:testDebugUnitTest`、`:app:lintDebug` 通过；`git diff --check` 无输出。

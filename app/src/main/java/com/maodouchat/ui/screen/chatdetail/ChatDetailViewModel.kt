@@ -4496,7 +4496,8 @@ class ChatDetailViewModel(
         }
     }
 
-    private val reactionMutexes = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.sync.Mutex>()
+    private class ReactionLock(val mutex: kotlinx.coroutines.sync.Mutex = kotlinx.coroutines.sync.Mutex(), var users: Int = 0)
+    private val reactionLocks = java.util.concurrent.ConcurrentHashMap<String, ReactionLock>()
 
     fun setMessageReaction(messageId: String, emoji: String) {
         if (!requireReactions()) return
@@ -4505,10 +4506,13 @@ class ChatDetailViewModel(
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
             return
         }
-        val mutex = reactionMutexes.computeIfAbsent(messageId) { kotlinx.coroutines.sync.Mutex() }
         viewModelScope.launch {
-            // 按 messageId 串行化，避免快速双击/加取消竞态导致 UI 与服务端反应状态不一致
-            mutex.withLock {
+            val lock = reactionLocks.compute(messageId) { _, existing ->
+                (existing ?: ReactionLock()).also { it.users++ }
+            }!!
+            try {
+                // 按 messageId 串行化，避免快速双击/加取消竞态导致 UI 与服务端反应状态不一致
+                lock.mutex.withLock {
                 val original = _uiState.value.messages.find { it.id == messageId } ?: return@withLock
                 val currentReactions = original.reactions
                 val alreadyReacted = currentReactions.any { it.userId == reactionUserId && it.emoji == emoji }
@@ -4550,6 +4554,20 @@ class ChatDetailViewModel(
                     // 取消时回滚乐观反应，避免 UI 与服务端不一致
                     updateMessageReactions(messageId, original.reactions, persist = false)
                     throw error
+                }
+                }
+            } finally {
+                reactionLocks.computeIfPresent(messageId) { _, current ->
+                    if (current === lock) {
+                        if (current.users > 1) {
+                            current.users--
+                            current
+                        } else {
+                            null
+                        }
+                    } else {
+                        current
+                    }
                 }
             }
         }
