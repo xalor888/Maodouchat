@@ -139,7 +139,7 @@ object GroupPlayRepository {
                 ?: return@transaction emptyList()
             if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, userId)) return@transaction emptyList()
             val polls = GroupPolls.selectAll().where { GroupPolls.chatId eq chatId }
-                .orderBy(GroupPolls.createdAt to SortOrder.DESC)
+                .orderBy(GroupPolls.createdAt to SortOrder.DESC, GroupPolls.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
                 .toList()
             // 8.48 修复 H4：批量取投票（此前 toPollDto 逐个 poll 全量载入 → N+1）

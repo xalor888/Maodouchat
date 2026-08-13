@@ -202,7 +202,7 @@ class FriendRepository {
                 .where { (FriendRequests.toUserId eq userId) and (FriendRequests.status eq st) }
             val query = if (blockedIds.isEmpty()) base else base.andWhere { FriendRequests.fromUserId notInList blockedIds }
             val rows = query
-                .orderBy(FriendRequests.createdAt to SortOrder.DESC)
+                .orderBy(FriendRequests.createdAt to SortOrder.DESC, FriendRequests.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
                 .toList()
             mapRequestList(rows)
@@ -216,7 +216,7 @@ class FriendRepository {
                 .where { (FriendRequests.fromUserId eq userId) and (FriendRequests.status eq st) }
             val query = if (blockedIds.isEmpty()) base else base.andWhere { FriendRequests.toUserId notInList blockedIds }
             val rows = query
-                .orderBy(FriendRequests.createdAt to SortOrder.DESC)
+                .orderBy(FriendRequests.createdAt to SortOrder.DESC, FriendRequests.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
                 .toList()
             mapRequestList(rows)

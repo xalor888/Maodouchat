@@ -5782,3 +5782,9 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 1. **注销/删帖按 postId 清理占用行没有索引**：`post_image_claims` 只有 filename 主键，按 `postId` 删除会全表扫。补 `idx_post_image_claims_post`，注销/删帖路径不再随占用表增长退化。
 
 **验证**：`:server:test`（PostImageClaimTest）通过；`git diff --check` 无输出。
+
+### 9.81 2026-08-13 无限调优：补齐剩余 offset 分页稳定排序
+
+1. **admin/开发端内联分页与若干仓库列表仍只按 createdAt 排序**：同毫秒多条记录时翻页/导出会跳行或重复。补全 AdminRouting、DeveloperRouting 及 RefreshTokens、AI 同步队列、群接龙/PK/投票、风控事件、好友申请、AI 审计等列表的 id/复合键 tie-break，服务端分页列表已全部具备稳定二级排序。
+
+**验证**：`:server:test` 全量通过；`git diff --check` 无输出。

@@ -145,7 +145,7 @@ class AiRepository {
     fun getAuditLogs(userId: String, limit: Int = 50): List<AiAuditLogResponse> = transaction {
         AiAuditLogs.selectAll()
             .where { AiAuditLogs.userId eq userId }
-            .orderBy(AiAuditLogs.createdAt to SortOrder.DESC)
+            .orderBy(AiAuditLogs.createdAt to SortOrder.DESC, AiAuditLogs.id to SortOrder.DESC)
             .limit(limit.coerceIn(1, 100))
             .map {
                 AiAuditLogResponse(

@@ -97,7 +97,7 @@ class AiSummarySyncRepository {
                 (AiSummarySyncEnvelopes.userId eq userId) and
                     (AiSummarySyncEnvelopes.targetDeviceId eq targetDeviceId)
             }
-            .orderBy(AiSummarySyncEnvelopes.createdAt to SortOrder.DESC)
+            .orderBy(AiSummarySyncEnvelopes.createdAt to SortOrder.DESC, AiSummarySyncEnvelopes.id to SortOrder.DESC)
             .map { it[AiSummarySyncEnvelopes.id] }
             .drop(MAX_PER_DEVICE)
         if (staleIds.isNotEmpty()) {

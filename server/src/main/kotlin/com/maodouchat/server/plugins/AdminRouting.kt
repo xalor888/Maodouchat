@@ -447,7 +447,7 @@ fun Application.configureAdminRouting(
                                 (ModerationAuditLog.action.lowerCase() like pattern)
                         }
                     }
-                    query.orderBy(ModerationAuditLog.createdAt to SortOrder.DESC)
+                    query.orderBy(ModerationAuditLog.createdAt to SortOrder.DESC, ModerationAuditLog.id to SortOrder.DESC)
                         .limit(limit, offset)
                         .map {
                             AdminAuditLogResponse(
@@ -470,7 +470,7 @@ fun Application.configureAdminRouting(
                 val offset = (call.request.queryParameters["offset"]?.toIntOrNull() ?: 0).coerceAtLeast(0)
                 val logs = transaction {
                     ModerationAuditLog.selectAll()
-                        .orderBy(ModerationAuditLog.createdAt to SortOrder.DESC)
+                        .orderBy(ModerationAuditLog.createdAt to SortOrder.DESC, ModerationAuditLog.id to SortOrder.DESC)
                         .limit(limit, offset.toLong())
                         .map {
                             AdminAuditLogResponse(
@@ -858,7 +858,10 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
                     if (status != null) query.andWhere { Posts.status eq status }
                     val escapedSearch = search?.let { escapeLikePattern(it) }
                     if (escapedSearch != null) query.andWhere { Posts.content like "%$escapedSearch%" }
-                    val rows = query.orderBy(Posts.createdAt to SortOrder.DESC).limit(limit, offset).toList()
+                    val rows = query
+                        .orderBy(Posts.createdAt to SortOrder.DESC, Posts.id to SortOrder.DESC)
+                        .limit(limit, offset)
+                        .toList()
                     val authorIds = rows.map { it[Posts.authorId] }.distinct()
                     val authorNames = if (authorIds.isEmpty()) emptyMap() else Users.selectAll()
                         .where { Users.id inList authorIds }
@@ -910,7 +913,7 @@ put("status", "deleted")
                             (PostComments.content like "%$escapedSearch%") or (Users.name like "%$escapedSearch%")
                         }
                     }
-                    query.orderBy(PostComments.createdAt to SortOrder.DESC)
+                    query.orderBy(PostComments.createdAt to SortOrder.DESC, PostComments.id to SortOrder.DESC)
                         .limit(limit, offset)
                         .map {
                             CommentAdminResponse(
@@ -1194,7 +1197,7 @@ put("status", "deleted")
                 val events = transaction {
                     val query = RiskEvents.selectAll()
                     if (needsReviewOnly) query.andWhere { RiskEvents.needsReview eq true }
-                    query.orderBy(RiskEvents.createdAt to SortOrder.DESC)
+                    query.orderBy(RiskEvents.createdAt to SortOrder.DESC, RiskEvents.id to SortOrder.DESC)
                         .limit(limit, offset)
                         .map {
                             RiskEventAdminResponse(
@@ -1255,7 +1258,8 @@ put("status", "resolved")
                     if (userFilter != null) {
                         query.andWhere { AiAuditLogs.userId eq userFilter }
                     }
-                    val rows = query.orderBy(AiAuditLogs.createdAt to SortOrder.DESC)
+                    val rows = query
+                        .orderBy(AiAuditLogs.createdAt to SortOrder.DESC, AiAuditLogs.id to SortOrder.DESC)
                         .limit(limit, offset)
                         .toList()
                     // input_tokens/output_tokens 通过 ALTER TABLE 添加，未在 Table 单例中声明，
@@ -2207,7 +2211,10 @@ get("/ai-usage-export") {
                 // Metadata only — never export prompt/body
                 val rows = transaction {
                     val resultRows = AiAuditLogs.selectAll()
-                        .orderBy(AiAuditLogs.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+                        .orderBy(
+                            AiAuditLogs.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
+                            AiAuditLogs.id to org.jetbrains.exposed.sql.SortOrder.DESC
+                        )
                         .limit(limit)
                         .toList()
                     // input_tokens/output_tokens 通过 ALTER TABLE 添加，未在 Table 单例中声明，
@@ -2383,7 +2390,10 @@ put("count", logs.size)
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
                 val rows = org.jetbrains.exposed.sql.transactions.transaction {
                     com.maodouchat.server.db.Reports.selectAll()
-                        .orderBy(com.maodouchat.server.db.Reports.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+                        .orderBy(
+                            com.maodouchat.server.db.Reports.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
+                            com.maodouchat.server.db.Reports.id to org.jetbrains.exposed.sql.SortOrder.DESC
+                        )
                         .limit(limit)
                         .map { row ->
                             listOf(
@@ -2415,7 +2425,10 @@ put("count", logs.size)
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
                 val rows = org.jetbrains.exposed.sql.transactions.transaction {
                     com.maodouchat.server.db.RiskEvents.selectAll()
-                        .orderBy(com.maodouchat.server.db.RiskEvents.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+                        .orderBy(
+                            com.maodouchat.server.db.RiskEvents.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
+                            com.maodouchat.server.db.RiskEvents.id to org.jetbrains.exposed.sql.SortOrder.DESC
+                        )
                         .limit(limit)
                         .map { row ->
                             listOf(
@@ -2511,7 +2524,10 @@ get("/polls-export") {
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
                 val rows = transaction {
                     val polls = GroupPolls.selectAll()
-                        .orderBy(GroupPolls.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+                        .orderBy(
+                            GroupPolls.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
+                            GroupPolls.id to org.jetbrains.exposed.sql.SortOrder.DESC
+                        )
                         .limit(limit)
                         .toList()
                     // 8.48 修复 H6：批量 count（此前逐投票查询 → limit 1 万次查询）
@@ -2559,7 +2575,10 @@ get("/polls-export") {
                 // Audit metadata only — no message bodies
                 val rows = transaction {
                     ModerationAuditLog.selectAll()
-                        .orderBy(ModerationAuditLog.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+                        .orderBy(
+                            ModerationAuditLog.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
+                            ModerationAuditLog.id to org.jetbrains.exposed.sql.SortOrder.DESC
+                        )
                         .limit(limit)
                         .map { row ->
                             listOf(
@@ -2592,7 +2611,10 @@ get("/polls-export") {
                 // Command names only — no message bodies
                 val rows = transaction {
                     BotCommandLogs.selectAll()
-                        .orderBy(BotCommandLogs.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+                        .orderBy(
+                            BotCommandLogs.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
+                            BotCommandLogs.id to org.jetbrains.exposed.sql.SortOrder.DESC
+                        )
                         .limit(limit)
                         .map { row ->
                             listOf(
@@ -2785,7 +2807,11 @@ put("count", updated.size)
                 // Friendship graph metadata only — no message bodies
                 val rows = transaction {
                     Friendships.selectAll()
-                        .orderBy(Friendships.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+                        .orderBy(
+                            Friendships.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
+                            Friendships.userLowId to org.jetbrains.exposed.sql.SortOrder.DESC,
+                            Friendships.userHighId to org.jetbrains.exposed.sql.SortOrder.DESC
+                        )
                         .limit(limit)
                         .map { row ->
                             listOf(
@@ -2815,7 +2841,10 @@ put("count", updated.size)
                 // Report metadata only — no message bodies / E2EE plaintext
                 val rows = transaction {
                     Reports.selectAll()
-                        .orderBy(Reports.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+                        .orderBy(
+                            Reports.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
+                            Reports.id to org.jetbrains.exposed.sql.SortOrder.DESC
+                        )
                         .limit(limit)
                         .map { row ->
                             listOf(

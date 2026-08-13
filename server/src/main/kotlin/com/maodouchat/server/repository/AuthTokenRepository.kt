@@ -283,7 +283,10 @@ class AuthTokenRepository {
         }
         RefreshTokens.selectAll()
             .where { RefreshTokens.userId eq userId }
-            .orderBy(RefreshTokens.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+            .orderBy(
+                RefreshTokens.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
+                RefreshTokens.tokenHash to org.jetbrains.exposed.sql.SortOrder.DESC
+            )
             .mapNotNull { row ->
                 val revoked = row[RefreshTokens.revokedAt]
                 if (!includeRevoked && (

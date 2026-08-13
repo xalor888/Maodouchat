@@ -50,7 +50,7 @@ object PollRepository {
         if (chatId.isBlank()) return emptyList()
         return transaction {
             GroupPolls.selectAll().where { GroupPolls.chatId eq chatId }
-                .orderBy(GroupPolls.createdAt to SortOrder.DESC)
+                .orderBy(GroupPolls.createdAt to SortOrder.DESC, GroupPolls.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
                 .map { row ->
                     val pollId = row[GroupPolls.id]

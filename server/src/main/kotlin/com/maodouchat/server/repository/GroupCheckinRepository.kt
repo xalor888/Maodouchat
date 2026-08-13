@@ -285,7 +285,7 @@ object GroupCheckinRepository {
                 ?: return@transaction emptyList()
             if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, viewerId)) return@transaction emptyList()
             val chains = GroupChains.selectAll().where { GroupChains.chatId eq chatId }
-                .orderBy(GroupChains.createdAt to SortOrder.DESC)
+                .orderBy(GroupChains.createdAt to SortOrder.DESC, GroupChains.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
                 .toList()
             // 8.48 修复 H2：批量取全部条目（此前 toChainDto 逐条查 → N+1）
@@ -419,7 +419,7 @@ object GroupCheckinRepository {
                 ?: return@transaction emptyList()
             if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, viewerId)) return@transaction emptyList()
             val pks = GroupPkRounds.selectAll().where { GroupPkRounds.chatId eq chatId }
-                .orderBy(GroupPkRounds.createdAt to SortOrder.DESC)
+                .orderBy(GroupPkRounds.createdAt to SortOrder.DESC, GroupPkRounds.id to SortOrder.DESC)
                 .limit(limit.coerceIn(1, 100))
                 .toList()
             // 8.48 修复 H3：批量取投票（此前 toPkDto 逐个 PK 全量载入 → N+1）

@@ -165,7 +165,10 @@ fun Application.configureDeveloperRouting() {
                     if (sinceMs != null && sinceMs > 0) {
                         query.andWhere { BotCommandLogs.createdAt greater sinceMs }
                     }
-                    query.orderBy(BotCommandLogs.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+                    query.orderBy(
+                        BotCommandLogs.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
+                        BotCommandLogs.id to org.jetbrains.exposed.sql.SortOrder.DESC
+                    )
                         .limit(limit, offset)
                         .map { row ->
                             BotLogEntry(

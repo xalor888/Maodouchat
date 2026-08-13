@@ -240,7 +240,7 @@ class ModerationRuleRepository {
     fun getRiskEvents(limit: Int = 100, needsReview: Boolean? = null): List<RiskEventResponse> = transaction {
         val query = RiskEvents.selectAll()
         if (needsReview != null) query.andWhere { RiskEvents.needsReview eq needsReview }
-        query.orderBy(RiskEvents.createdAt to SortOrder.DESC)
+        query.orderBy(RiskEvents.createdAt to SortOrder.DESC, RiskEvents.id to SortOrder.DESC)
             .limit(limit.coerceIn(1, 200))
             .map { it.toRiskEventResponse() }
     }
