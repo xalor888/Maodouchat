@@ -95,7 +95,7 @@ private fun devSessionUserId(call: ApplicationCall): String? {
     if (decoded.getClaim("token_use").asString() != TOKEN_USE_DEV_SESSION) return null
     val userId = decoded.subject ?: return null
     if (!devAuthTokenRepo.isAccessTokenAllowed(userId, JwtConfig.tokenVersion(decoded), decoded.id)) return null
-    if (ServerConfig.developerUserIds.isNotEmpty() && userId !in ServerConfig.developerUserIds) return null
+    if (userId !in ServerConfig.developerUserIds) return null
     return userId
 }
 
@@ -103,6 +103,17 @@ private fun devSessionUserId(call: ApplicationCall): String? {
 private fun devSessionOwnedBot(botId: String, userId: String): BotRepository.BotDto? {
     val bot = BotRepository.get(botId) ?: return null
     return if (bot.ownerUserId == userId) bot else null
+}
+
+private suspend fun ApplicationCall.rejectIfDeveloperMaintenance(): Boolean {
+    if (!RuntimeConfigService.isMaintenanceMode()) return false
+    respond(
+        HttpStatusCode.ServiceUnavailable,
+        ErrorResponse(RuntimeConfigService.get(RuntimeConfigService.KEY_MAINTENANCE_MESSAGE).ifBlank {
+            "System under maintenance"
+        })
+    )
+    return true
 }
 
 /**
@@ -369,8 +380,9 @@ fun Application.configureDeveloperRouting() {
             post("/bots") {
                 val userId = devSessionUserId(call)
                     ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
+                if (call.rejectIfDeveloperMaintenance()) return@post
                 if (!RuntimeConfigService.isBotsAllowed()) {
-                    return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("bot platform disabled"))
+                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot platform disabled"))
                 }
                 val body = call.receiveBoundedText().orEmpty()
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
@@ -394,6 +406,7 @@ fun Application.configureDeveloperRouting() {
             post("/bots/{id}/token") {
                 val userId = devSessionUserId(call)
                     ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
+                if (call.rejectIfDeveloperMaintenance()) return@post
                 val botId = call.parameters["id"]
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 val bot = BotRepository.regenerateToken(botId, userId)
@@ -405,6 +418,7 @@ fun Application.configureDeveloperRouting() {
             put("/bots/{id}/webhook") {
                 val userId = devSessionUserId(call)
                     ?: return@put call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
+                if (call.rejectIfDeveloperMaintenance()) return@put
                 val botId = call.parameters["id"]
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 val body = call.receiveBoundedText().orEmpty()
@@ -421,6 +435,7 @@ fun Application.configureDeveloperRouting() {
             delete("/bots/{id}") {
                 val userId = devSessionUserId(call)
                     ?: return@delete call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
+                if (call.rejectIfDeveloperMaintenance()) return@delete
                 val botId = call.parameters["id"]
                     ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 val ok = BotRepository.delete(botId, userId)
@@ -436,6 +451,7 @@ put("ok", true)
             put("/bots/{id}/enabled") {
                 val userId = devSessionUserId(call)
                     ?: return@put call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
+                if (call.rejectIfDeveloperMaintenance()) return@put
                 val botId = call.parameters["id"]
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 val body = call.receiveBoundedText().orEmpty()
@@ -453,6 +469,7 @@ put("ok", true)
             put("/bots/{id}/commands") {
                 val userId = devSessionUserId(call)
                     ?: return@put call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
+                if (call.rejectIfDeveloperMaintenance()) return@put
                 val botId = call.parameters["id"]
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 if (devSessionOwnedBot(botId, userId) == null) {
@@ -551,7 +568,7 @@ private suspend fun authenticateDeveloperBot(call: ApplicationCall): BotReposito
             if (userId.isNullOrBlank() ||
                 // 8.48 修复 L3：dev_session 分支与 devSessionUserId 一致校验开发者白名单——
                 // 运营清空白名单后，已签发会话在其 2 小时有效期内仍可访问 dashboard/analytics/test-webhook
-                (ServerConfig.developerUserIds.isNotEmpty() && userId !in ServerConfig.developerUserIds) ||
+                (userId !in ServerConfig.developerUserIds) ||
                 !devAuthTokenRepo.isAccessTokenAllowed(userId, JwtConfig.tokenVersion(decoded), decoded.id)
             ) {
                 call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
@@ -583,7 +600,7 @@ private suspend fun authenticateDeveloperIdentity(call: ApplicationCall): Boolea
         if (decoded != null && decoded.getClaim("token_use").asString() == TOKEN_USE_DEV_SESSION) {
             val userId = decoded.subject
             if (userId.isNullOrBlank() ||
-                (ServerConfig.developerUserIds.isNotEmpty() && userId !in ServerConfig.developerUserIds) ||
+                (userId !in ServerConfig.developerUserIds) ||
                 !devAuthTokenRepo.isAccessTokenAllowed(userId, JwtConfig.tokenVersion(decoded), decoded.id)
             ) {
                 call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))

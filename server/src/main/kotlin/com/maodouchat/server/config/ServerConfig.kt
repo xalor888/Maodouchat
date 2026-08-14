@@ -150,8 +150,7 @@ object ServerConfig {
     /**
      * 开发者账号 userId 允许列表（配置期静态，适合小规模私人部署）。
      * 格式：逗号分隔的用户 ID，环境变量 DEVELOPER_USER_IDS。
-     * 若为空则维持历史行为（任何通过邮箱密码校验的账号都可获取 dev_session）；
-     * 配置后仅列表内账号可登录开发者平台，作为纵深防御。
+     * 失败闭合：未配置时拒绝所有开发者账号登录，防止任意已登录账号获取开发者会话。
      */
     val developerUserIds: Set<String>
         get() = env("DEVELOPER_USER_IDS", "")

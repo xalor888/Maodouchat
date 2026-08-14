@@ -101,6 +101,7 @@ object BotRepository {
                 val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
                     ?: return@transaction BotCreateResult.OwnerInvalid
                 if (owner[Users.deletedAt] != null) return@transaction BotCreateResult.OwnerInvalid
+                if (owner[Users.suspendedUntil] > now) return@transaction BotCreateResult.OwnerInvalid
                 val owned = BotApps.selectAll().where { BotApps.ownerUserId eq ownerUserId }.count()
                 if (owned >= maxBots.coerceAtLeast(0).toLong()) return@transaction BotCreateResult.MaxBotsReached
                 if (BotApps.selectAll().where { BotApps.username eq u }.firstOrNull() != null) {
@@ -140,6 +141,9 @@ object BotRepository {
         val token = generateToken()
         val now = System.currentTimeMillis()
         return transaction {
+            val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
+                ?: return@transaction null
+            if (owner[Users.deletedAt] != null || owner[Users.suspendedUntil] > now) return@transaction null
             val updated = BotApps.update({
                 (BotApps.id eq botId) and (BotApps.ownerUserId eq ownerUserId)
             }) {
@@ -159,6 +163,9 @@ object BotRepository {
         }
         val now = System.currentTimeMillis()
         return transaction {
+            val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
+                ?: return@transaction null
+            if (owner[Users.deletedAt] != null || owner[Users.suspendedUntil] > now) return@transaction null
             val updated = BotApps.update({
                 (BotApps.id eq botId) and (BotApps.ownerUserId eq ownerUserId)
             }) {
@@ -198,12 +205,16 @@ object BotRepository {
 
 
     fun setEnabled(botId: String, ownerUserId: String, enabled: Boolean): BotDto? {
+        val now = System.currentTimeMillis()
         return transaction {
+            val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
+                ?: return@transaction null
+            if (owner[Users.deletedAt] != null || owner[Users.suspendedUntil] > now) return@transaction null
             val updated = BotApps.update({
                 (BotApps.id eq botId) and (BotApps.ownerUserId eq ownerUserId)
             }) {
                 it[BotApps.enabled] = enabled
-                it[updatedAt] = System.currentTimeMillis()
+                it[updatedAt] = now
             }
             if (updated != 1) return@transaction null
             BotApps.selectAll().where { BotApps.id eq botId }.first().toDto()
@@ -216,6 +227,7 @@ object BotRepository {
             val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
                 ?: return@transaction false
             if (owner[Users.deletedAt] != null) return@transaction false
+            if (owner[Users.suspendedUntil] > System.currentTimeMillis()) return@transaction false
             BotApps.selectAll().where {
                 (BotApps.id eq botId) and (BotApps.ownerUserId eq ownerUserId)
             }.forUpdate().firstOrNull() ?: return@transaction false
