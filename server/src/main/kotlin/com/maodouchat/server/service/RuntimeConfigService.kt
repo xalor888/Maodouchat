@@ -826,43 +826,57 @@ object RuntimeConfigService {
         val cleaned = value.trim().take(4_000)
         val now = System.currentTimeMillis()
         transaction {
-            if (com.maodouchat.server.db.isH2Db()) {
-                // H2 2.x 不支持 Exposed 单键 upsert 生成的 MERGE ... USING (VALUES)，用 select→update/insert
-                val existing = SystemSettings.selectAll()
-                    .where { SystemSettings.key eq key }
-                    .firstOrNull()
-                if (existing == null) {
-                    SystemSettings.insert {
-                        it[SystemSettings.key] = key
-                        it[SystemSettings.value] = cleaned
-                        it[updatedAt] = now
-                        it[updatedBy] = actorId
-                    }
-                } else {
-                    SystemSettings.update({ SystemSettings.key eq key }) {
-                        it[SystemSettings.value] = cleaned
-                        it[updatedAt] = now
-                        it[updatedBy] = actorId
-                    }
-                }
-            } else {
-                SystemSettings.upsert(SystemSettings.key) {
-                    it[SystemSettings.key] = key
-                    it[SystemSettings.value] = cleaned
-                    it[updatedAt] = now
-                    it[updatedBy] = actorId
-                }
-            }
+            writeSettingInTx(key, cleaned, actorId, now)
         }
         cache[key] = cleaned
         loadedAt.set(now)
         return true
     }
 
+    private fun writeSettingInTx(key: String, cleaned: String, actorId: String, now: Long) {
+        if (com.maodouchat.server.db.isH2Db()) {
+            // H2 2.x 不支持 Exposed 单键 upsert 生成的 MERGE ... USING (VALUES)，用 select→update/insert
+            val existing = SystemSettings.selectAll()
+                .where { SystemSettings.key eq key }
+                .firstOrNull()
+            if (existing == null) {
+                SystemSettings.insert {
+                    it[SystemSettings.key] = key
+                    it[SystemSettings.value] = cleaned
+                    it[updatedAt] = now
+                    it[updatedBy] = actorId
+                }
+            } else {
+                SystemSettings.update({ SystemSettings.key eq key }) {
+                    it[SystemSettings.value] = cleaned
+                    it[updatedAt] = now
+                    it[updatedBy] = actorId
+                }
+            }
+        } else {
+            SystemSettings.upsert(SystemSettings.key) {
+                it[SystemSettings.key] = key
+                it[SystemSettings.value] = cleaned
+                it[updatedAt] = now
+                it[updatedBy] = actorId
+            }
+        }
+    }
+
     fun setMany(values: Map<String, String>, actorId: String?): Map<String, String> {
-        val applied = linkedMapOf<String, String>()
-        for ((k, v) in values) {
-            if (set(k, v, actorId)) applied[k] = get(k)
+        if (actorId == null || !AdminAccess.isAdmin(actorId)) return all()
+        val now = System.currentTimeMillis()
+        val valid = values.mapNotNull { (key, value) ->
+            key.takeIf { it in knownKeys }?.let { it to value.trim().take(4_000) }
+        }.toMap()
+        if (valid.isNotEmpty()) {
+            transaction {
+                valid.forEach { (key, cleaned) ->
+                    writeSettingInTx(key, cleaned, actorId, now)
+                }
+            }
+            valid.forEach { (key, cleaned) -> cache[key] = cleaned }
+            loadedAt.set(now)
         }
         return all()
     }
