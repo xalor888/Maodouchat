@@ -15572,6 +15572,7 @@ put("status", "ok")
                 }
                 val since = call.request.queryParameters["since"]?.toLongOrNull() ?: 0L
                 val sinceId = call.request.queryParameters["sinceId"]
+                    ?.takeIf { it.isNotBlank() && it.length <= 100 }
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 200).coerceIn(1, 500)
                 call.respond(messageRepo.getMutationsSince(chatId, since, limit, sinceId, viewerId = userId))
             }
