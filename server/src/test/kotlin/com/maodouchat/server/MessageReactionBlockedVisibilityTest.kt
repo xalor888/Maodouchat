@@ -58,11 +58,24 @@ class MessageReactionBlockedVisibilityTest {
                 it[BlockedUsers.blockerId] = "u1"
                 it[BlockedUsers.blockedId] = "u2"
             }
+            BlockedUsers.insert {
+                it[BlockedUsers.blockerId] = "u2"
+                it[BlockedUsers.blockedId] = "u1"
+            }
             Messages.insert {
                 it[Messages.id] = "m1"
                 it[Messages.chatId] = "g1"
                 it[Messages.senderId] = "u3"
                 it[Messages.content] = "hello"
+                it[Messages.type] = "TEXT"
+                it[Messages.timestamp] = now
+                it[Messages.status] = "SENT"
+            }
+            Messages.insert {
+                it[Messages.id] = "m4"
+                it[Messages.chatId] = "g1"
+                it[Messages.senderId] = "u1"
+                it[Messages.content] = "reverse blocked"
                 it[Messages.type] = "TEXT"
                 it[Messages.timestamp] = now
                 it[Messages.status] = "SENT"
@@ -111,6 +124,8 @@ class MessageReactionBlockedVisibilityTest {
 
         val messages = MessageRepository().getMessages("g1", limit = 50, viewerId = "u1")
         assertTrue(messages.none { it.id == "m2" })
+        val messagesForBlockedViewer = MessageRepository().getMessages("g1", limit = 50, viewerId = "u2")
+        assertTrue(messagesForBlockedViewer.none { it.id == "m4" })
         assertEquals(listOf("u3"), messages.first { it.id == "m1" }.reactions.map { it.userId })
         assertEquals(listOf("u3"), MessageRepository().getReactionsForViewer("m1", "u1").map { it.userId })
         val reactionsByViewer = MessageRepository().getReactionsForViewers("m1", listOf("u1", "u3"))

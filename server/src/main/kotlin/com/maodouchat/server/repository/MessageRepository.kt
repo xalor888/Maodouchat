@@ -373,15 +373,21 @@ class MessageRepository {
      */
     private fun blockedSenderIdsForViewerInTx(viewerId: String?): Set<String> {
         if (viewerId.isNullOrBlank()) return emptySet()
-        val blockedByMe = BlockedUsers.selectAll()
-            .where { BlockedUsers.blockerId eq viewerId }
-            .map { it[BlockedUsers.blockedId] }
-            .toSet()
-        val blockedMe = BlockedUsers.selectAll()
-            .where { BlockedUsers.blockedId eq viewerId }
-            .map { it[BlockedUsers.blockerId] }
-            .toSet()
-        return blockedByMe + blockedMe
+        // 双向拉黑只关心 (blockerId, blockedId) 两列。原先先查 blocker=viewer，
+        // 再查 blocked=viewer，每次消息历史/未读/全局搜索都会发出两次 selectAll；
+        // 合并为一条 OR 条件后只取这两列，减少热路径上的全行扫描与网络往返。
+        val blockedIds = mutableSetOf<String>()
+        BlockedUsers.select(BlockedUsers.blockerId, BlockedUsers.blockedId)
+            .where { (BlockedUsers.blockerId eq viewerId) or (BlockedUsers.blockedId eq viewerId) }
+            .forEach { row ->
+                if (row[BlockedUsers.blockerId] == viewerId) {
+                    blockedIds += row[BlockedUsers.blockedId]
+                }
+                if (row[BlockedUsers.blockedId] == viewerId) {
+                    blockedIds += row[BlockedUsers.blockerId]
+                }
+            }
+        return blockedIds
     }
 
     /**

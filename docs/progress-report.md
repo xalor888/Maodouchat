@@ -6337,6 +6337,13 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 
 **验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
 
+### 9.173 2026-08-14 无限调优：双向拉黑过滤由两次全行查询合并为单次列查询
+
+1. **消息历史/未读窗口/全局搜索每次读取都两次 `selectAll()` 拉黑表**：`blockedSenderIdsForViewerInTx` 先查 `blocker=viewer`，再查 `blocked=viewer`，两条查询还取回整行。改为一条 `(blocker_id = viewer OR blocked_id = viewer)` 条件、只投影 `blocker_id/blocked_id` 两列，减少热路径上的往返与行宽；集合语义（双向拉黑并集）保持不变。
+2. **现有拉黑可见性测试只覆盖正向屏蔽**：补一条反向拉黑关系与一条被反向拉黑发送者的消息，验证被拉黑方同样看不到拉黑方消息，避免后续重写破坏双向语义。
+
+**验证**：server `test` 全量通过；`:app:compileDebugKotlin` 与 `:app:testDebugUnitTest` 全量通过；`git diff --check` 无输出。
+
 ### 9.172 2026-08-14 无限调优：修正通话前台通知取消 key 不匹配
 
 1. **`CallForegroundService.onDestroy` 用 `cancel(tag, id)` 取消按纯 `id` 发布的前台通知**：`startForeground(NOTIFICATION_ID, notification, type)` 发布的是无 tag 通知，销毁时却只取消 `NOTIFICATION_TAG + NOTIFICATION_ID`，导致 Q+ 通话结束后“通话进行中”通知残留。改为同时取消实际 id、旧 tag 兼容项，以及 pre-Q 高位 id。
