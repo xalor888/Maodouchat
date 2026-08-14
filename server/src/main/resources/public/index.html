@@ -296,7 +296,21 @@ Authorization: Bearer &lt;bot-token&gt;
   var themeToggle = document.getElementById('themeToggle');
   var iconSun = document.getElementById('iconSun');
   var iconMoon = document.getElementById('iconMoon');
-  var savedTheme = localStorage.getItem('maodou-theme') || 'light';
+  function readSavedTheme() {
+    try {
+      return localStorage.getItem('maodou-theme');
+    } catch (error) {
+      return null;
+    }
+  }
+  function saveTheme(theme) {
+    try {
+      localStorage.setItem('maodou-theme', theme);
+    } catch (error) {
+      // Storage may be unavailable in private or restricted contexts.
+    }
+  }
+  var savedTheme = readSavedTheme() || 'light';
   if (savedTheme !== 'dark' && savedTheme !== 'light') savedTheme = 'light';
 
   function applyTheme(theme) {
@@ -315,7 +329,7 @@ Authorization: Bearer &lt;bot-token&gt;
   applyTheme(savedTheme);
   themeToggle.addEventListener('click', function() {
     var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    localStorage.setItem('maodou-theme', next);
+    saveTheme(next);
     applyTheme(next);
   });
 

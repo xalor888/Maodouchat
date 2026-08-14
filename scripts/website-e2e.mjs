@@ -111,6 +111,34 @@ async function checkPage(browser, path, width, height) {
   return { path, width, ...state };
 }
 
+async function checkStorageBlockedTheme(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await context.addInitScript(() => {
+    Storage.prototype.getItem = function() {
+      throw new DOMException('Storage blocked', 'SecurityError');
+    };
+    Storage.prototype.setItem = function() {
+      throw new DOMException('Storage blocked', 'SecurityError');
+    };
+  });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const response = await page.goto(`${base}/`, { waitUntil: 'networkidle' });
+  assert(response && response.status() === 200, 'storage-blocked homepage should return 200');
+  assert(
+    await page.evaluate(() => document.documentElement.dataset.theme === 'light'),
+    'storage-blocked homepage should fall back to light theme'
+  );
+  await page.click('#themeToggle');
+  assert(
+    await page.evaluate(() => document.documentElement.dataset.theme === 'dark'),
+    'storage-blocked homepage should still toggle dark mode'
+  );
+  assert(errors.length === 0, `storage-blocked homepage page errors: ${errors.join('; ')}`);
+  await context.close();
+}
+
 async function checkStaticRoutes() {
   const results = [];
   for (const path of ['/sitemap.xml', '/robots.txt', '/.well-known/security.txt', '/manifest.webmanifest', '/sw.js']) {
@@ -145,6 +173,7 @@ try {
     results.push(await checkPage(browser, path, 1440, 900));
     results.push(await checkPage(browser, path, 390, 844));
   }
+  await checkStorageBlockedTheme(browser);
   await browser.close();
   const staticRoutes = await checkStaticRoutes();
   console.log(`website e2e OK: ${results.length} page/viewport checks, ${staticRoutes.length} static routes`);
