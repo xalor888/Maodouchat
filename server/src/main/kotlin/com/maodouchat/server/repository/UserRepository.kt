@@ -1120,6 +1120,25 @@ class UserRepository {
         }
     }
 
+    /**
+     * 批量判断一个用户集合内是否已经存在任一方向的拉黑关系。
+     * 供建群 / 建频道等入群前校验使用，避免成员对全排列 N+1 查询。
+     */
+    fun hasBlockedPairInTx(userIds: List<String>): Boolean {
+        val distinct = userIds.distinct()
+        if (distinct.size < 2) return false
+        return transaction {
+            !BlockedUsers.selectAll()
+                .where {
+                    (BlockedUsers.blockerId inList distinct) and
+                        (BlockedUsers.blockedId inList distinct) and
+                        (BlockedUsers.blockerId neq BlockedUsers.blockedId)
+                }
+                .limit(1)
+                .empty()
+        }
+    }
+
     private fun normalizeVisibility(value: String): String {
         return if (value in ALLOWED_POST_VISIBILITIES) value else "PUBLIC"
     }

@@ -2560,10 +2560,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.Created, chatResponse)
                 } else {
                     // 建群/建频道：任一对成员双向拉黑则拒绝（与邀请入群/加人一致）
-                    val blockedPair = allParticipants.asSequence()
-                        .flatMap { a -> allParticipants.asSequence().filter { b -> a < b }.map { b -> a to b } }
-                        .firstOrNull { (a, b) -> userRepo.isBlockedEitherWay(a, b) }
-                    if (blockedPair != null) {
+                    if (userRepo.hasBlockedPairInTx(allParticipants)) {
                         call.respond(
                             HttpStatusCode.Forbidden,
                             ErrorResponse(
