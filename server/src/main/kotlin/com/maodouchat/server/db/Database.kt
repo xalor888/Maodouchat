@@ -848,6 +848,8 @@ private fun ensureIndexes() {
         "CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at)",
         "CREATE INDEX IF NOT EXISTS idx_posts_author_created ON posts(author_id, created_at)",
         "CREATE INDEX IF NOT EXISTS idx_post_likes_post_id ON post_likes(post_id)",
+        // 9.155：点赞者列表按 (post_id, created_at DESC, user_id DESC) 键集分页——复合覆盖索引
+        "CREATE INDEX IF NOT EXISTS idx_post_likes_post_created_user ON post_likes(post_id, created_at, user_id)",
         "CREATE INDEX IF NOT EXISTS idx_post_comments_post_created ON post_comments(post_id, created_at)",
         "CREATE INDEX IF NOT EXISTS idx_friend_requests_to_status ON friend_requests(to_user_id, status)",
         "CREATE INDEX IF NOT EXISTS idx_friend_requests_from_status ON friend_requests(from_user_id, status)",

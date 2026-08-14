@@ -2775,10 +2775,9 @@ fun GeneralSettingsScreen(
                 )
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 // 1.04：语言设置（系统/中文/English，云同步）
-                val currentLanguage = com.maodouchat.util.AppLocaleManager.getMode(context)
                 ActionRow(
                     label = stringResource(R.string.general_language),
-                    subtitle = when (currentLanguage) {
+                    subtitle = when (state.languageMode) {
                         com.maodouchat.util.AppLocaleManager.MODE_CHINESE -> stringResource(R.string.general_language_chinese)
                         com.maodouchat.util.AppLocaleManager.MODE_ENGLISH -> stringResource(R.string.general_language_english)
                         else -> stringResource(R.string.general_language_system)
@@ -2834,7 +2833,14 @@ fun GeneralSettingsScreen(
                         TextButton(
                             onClick = {
                                 showLanguageDialog = false
-                                com.maodouchat.util.AppLocaleManager.setMode(context, mode)
+                                // 9.155：此前直接 AppLocaleManager.setMode——绕过 VM 状态与
+                                // pushClientPrefs，多端/重登后被云端旧值拉回；与上方
+                                // LanguageRow 统一走 viewModel.setLanguageMode（含云同步），
+                                // 预 Android 13 同样用 Activity 上下文重建使语言即时生效
+                                viewModel.setLanguageMode(mode)
+                                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                                    context.findActivity()?.recreate()
+                                }
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) { Text(stringResource(labelRes), color = OnSurface) }

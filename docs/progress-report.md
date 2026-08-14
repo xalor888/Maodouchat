@@ -6345,3 +6345,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实：bulk-ban 批量事务含 `existing` 预检 + 行级复检，reasonCode 只进入 200 截断的 detail，无 22001/毒化路径；`ADMIN_SESSION_REVOKE` 审计 detail 的 prefix 受 12-64 hex 校验约束；其余 ModerationAuditLog.detail 写入点均 ≤500。
 
 **验证**：server `compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.155 2026-08-13 无限调优：语言设置双入口不同步、点赞者列表复合索引
+
+1. **「通用」设置页语言双入口状态分叉**：同一屏幕既有 LanguageRow 芯片（走 `viewModel.setLanguageMode`：状态更新 + `pushClientPrefs` 云同步 + 预 Android 13 重建 Activity），又有「语言」ActionRow 弹窗直接调 `AppLocaleManager.setMode`——绕开 VM 状态与云同步，多端/重登后被云端旧值拉回，且预 Android 13 不重建 Activity 语言不即时生效。弹窗按钮统一改走 `viewModel.setLanguageMode` + Activity 重建，ActionRow 副标题改读 `state.languageMode`（与芯片一致）。
+2. **点赞者列表复合索引**：`listPostLikers` 按 `(post_id, created_at DESC, user_id DESC)` 键集分页 + 双向拉黑过滤重扫，仅有 `idx_post_likes_post_id` 单列索引——补 `idx_post_likes_post_created_user(post_id, created_at, user_id)` 覆盖索引（ensureIndexes 幂等）。
+
+另核实（无洞）：`MessageRepository.updateStatus/deleteMessage/getMessagesBefore/Since` 锁序、状态单调、游标稳定；`BotWebhookService` DNS 钉扎/地址白名单/头校验/重试+收件箱兜底完整，inbox 有 30 天 purge；`STATUS_UPDATE`/`SEND_MESSAGE`/`NUDGE`/`TYPING` WS 处理器成员/拉黑/禁言/限流齐全；`ChatLockRepository` PBKDF2-600k+常数时间比较+5 次失败锁定；`AppLocaleManager` 弹窗修复前客户端仅发 `bytes=N-` 开区间 Range，与 9.151 服务端闭区间/后缀扩展完全兼容。
+
+**验证**：server `compileKotlin` 与 `:app:compileDebugKotlin` 均通过；`git diff --check` 无输出。
