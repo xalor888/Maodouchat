@@ -2,6 +2,7 @@ package com.maodouchat.server.service
 
 import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.ChatParticipants
+import com.maodouchat.server.db.Users
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -151,6 +152,15 @@ object BotWebhookService {
         }
     }
 
+    /** Align webhook fanout with BotRepository.authenticate: suspended/deleted/restricted owners must not keep receiving bot events. */
+    private fun isBotOwnerDeliverable(ownerUserId: String, now: Long): Boolean {
+        val owner = Users.selectAll().where { Users.id eq ownerUserId }.firstOrNull() ?: return false
+        return owner[Users.deletedAt] == null &&
+            owner[Users.suspendedUntil] <= now &&
+            owner[Users.messageRestrictedUntil] <= now &&
+            owner[Users.postRestrictedUntil] <= now
+    }
+
     private fun enqueue(delivery: suspend () -> Unit) {
         val queue = activeQueue() ?: run {
             // 服务未 start / 已 shutdown 时静默丢弃会掩盖 bot 能力“看起来没反应”的问题，
@@ -184,6 +194,7 @@ object BotWebhookService {
         enqueue {
             data class Target(val botId: String, val url: String?, val tokenHash: String)
             val targets = transaction {
+                val now = System.currentTimeMillis()
                 val botIds = ChatParticipants.selectAll()
                     .where { ChatParticipants.chatId eq chatId }
                     .map { it[ChatParticipants.userId] }
@@ -192,8 +203,14 @@ object BotWebhookService {
                     // bot 发消息 → 收到 bot_message → 自动回复 → 无限回声循环
                     .filter { it != senderId }
                 if (botIds.isEmpty()) return@transaction emptyList()
-                BotApps.selectAll()
+                val rows = BotApps.selectAll()
                     .where { (BotApps.id inList botIds) and (BotApps.enabled eq true) }
+                    .toList()
+                val activeOwnerIds = rows.map { it[BotApps.ownerUserId] }.distinct()
+                    .filter { isBotOwnerDeliverable(it, now) }
+                    .toSet()
+                if (activeOwnerIds.isEmpty()) return@transaction emptyList()
+                rows.filter { it[BotApps.ownerUserId] in activeOwnerIds }
                     .map { row ->
                         val url = row[BotApps.webhookUrl]?.trim().orEmpty().ifBlank { null }
                         Target(row[BotApps.id], url, row[BotApps.tokenHash])
@@ -287,13 +304,14 @@ object BotWebhookService {
         if (botId.isBlank() || bodyJson.isBlank()) return
         enqueue {
             val target = transaction {
-                BotApps.selectAll()
+                val now = System.currentTimeMillis()
+                val row = BotApps.selectAll()
                     .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
                     .firstOrNull()
-                    ?.let { row ->
-                        val url = row[BotApps.webhookUrl]?.trim().orEmpty().ifBlank { null }
-                        Triple(row[BotApps.id], url, row[BotApps.tokenHash])
-                    }
+                row?.takeIf { isBotOwnerDeliverable(it[BotApps.ownerUserId], now) }?.let { bot ->
+                    val url = bot[BotApps.webhookUrl]?.trim().orEmpty().ifBlank { null }
+                    Triple(bot[BotApps.id], url, bot[BotApps.tokenHash])
+                }
             } ?: return@enqueue
             val ts = System.currentTimeMillis()
             // Inbox already enqueued by caller; only fire webhook here if configured.
