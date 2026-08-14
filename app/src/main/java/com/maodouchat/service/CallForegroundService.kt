@@ -102,9 +102,9 @@ class CallForegroundService : Service() {
         activeCallId = ""
         runCatching {
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                nm.cancel(NOTIFICATION_TAG, NOTIFICATION_ID)
-            } else {
+            nm.cancel(NOTIFICATION_ID)
+            nm.cancel(NOTIFICATION_TAG, NOTIFICATION_ID)
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
                 nm.cancel(NOTIFICATION_ID_HIGH)
             }
         }

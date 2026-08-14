@@ -6337,6 +6337,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 
 **验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
 
+### 9.172 2026-08-14 无限调优：修正通话前台通知取消 key 不匹配
+
+1. **`CallForegroundService.onDestroy` 用 `cancel(tag, id)` 取消按纯 `id` 发布的前台通知**：`startForeground(NOTIFICATION_ID, notification, type)` 发布的是无 tag 通知，销毁时却只取消 `NOTIFICATION_TAG + NOTIFICATION_ID`，导致 Q+ 通话结束后“通话进行中”通知残留。改为同时取消实际 id、旧 tag 兼容项，以及 pre-Q 高位 id。
+
+**验证**：`:app:compileDebugKotlin` 与 `:app:testDebugUnitTest` 全量通过；`git diff --check` 无输出。
+
 ### 9.171 2026-08-14 无限调优：通话前台服务按 API 30 边界区分 foregroundServiceType
 
 1. **API 29 上使用 API 30 才引入的 `FOREGROUND_SERVICE_TYPE_MICROPHONE/CAMERA`**：`CallForegroundService` 只按 `>= Q` 就进入 typed `startForeground` 分支，Android 10 会收到尚未定义的服务类型位；Lint 的 `InlinedApi` 已标出。改为 `>= R` 才使用麦克风/相机类型，Q 单独走 `startForeground(..., 0)`，既满足 Android 14+ 类型要求，也避免低版本越界语义。
