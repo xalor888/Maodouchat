@@ -375,12 +375,22 @@ object BotRepository {
             return
         }
         transaction {
-            BotApps.selectAll().where { BotApps.id eq botId }.forUpdate().firstOrNull()
+            val now = System.currentTimeMillis()
+            val bot = BotApps.selectAll()
+                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
+                .forUpdate()
+                .firstOrNull() ?: return@transaction
+            val owner = Users.selectAll().where { Users.id eq bot[BotApps.ownerUserId] }.firstOrNull()
                 ?: return@transaction
+            if (owner[Users.deletedAt] != null ||
+                owner[Users.suspendedUntil] > now ||
+                owner[Users.messageRestrictedUntil] > now ||
+                owner[Users.postRestrictedUntil] > now
+            ) return@transaction
             BotUpdateInbox.insert {
                 it[BotUpdateInbox.botId] = botId
                 it[BotUpdateInbox.updateJson] = updateJson
-                it[createdAt] = System.currentTimeMillis()
+                it[createdAt] = now
             }
         }
     }

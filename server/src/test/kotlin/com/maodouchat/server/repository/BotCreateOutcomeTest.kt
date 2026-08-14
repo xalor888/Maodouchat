@@ -1,6 +1,7 @@
 package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.AiPreferences
+import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.GroupPollVotes
@@ -18,6 +19,7 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -148,5 +150,38 @@ class BotCreateOutcomeTest {
             assertTrue(AiPreferences.selectAll().where { AiPreferences.userId eq botId }.empty())
             assertTrue(GroupPollVotes.selectAll().where { GroupPollVotes.userId eq botId }.empty())
         }
+    }
+
+    @Test
+    fun `enqueueUpdate refuses disabled or suspended-owner bots`() {
+        setupDb()
+        val created = BotRepository.create("u1", "Inbox Bot", "inbox_bot", "description")
+        assertIs<BotRepository.BotCreateResult.Success>(created)
+        val botId = created.bot.id
+
+        BotRepository.enqueueUpdate(botId, """{"event":"chat"}""")
+        assertEquals(1L, BotRepository.countPendingUpdates(botId))
+
+        val suspendedUntil = System.currentTimeMillis() + 60_000
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = suspendedUntil
+            }
+        }
+
+        BotRepository.enqueueUpdate(botId, """{"event":"must_drop"}""")
+        assertEquals(1L, BotRepository.countPendingUpdates(botId))
+
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = 0
+            }
+            BotApps.update({ BotApps.id eq botId }) {
+                it[BotApps.enabled] = false
+            }
+        }
+
+        BotRepository.enqueueUpdate(botId, """{"event":"disabled"}""")
+        assertEquals(1L, BotRepository.countPendingUpdates(botId))
     }
 }
