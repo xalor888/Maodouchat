@@ -6337,6 +6337,13 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 
 **验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
 
+### 9.167 2026-08-14 无限调优：修复 H2 保留字 `matched` 导致全量服务端测试/新库启动失败
+
+1. **`widenRiskEventsMatchedColumn` 裸写 `matched` 在 H2 2.2.224 找不到列**：Exposed 因 `MATCHED` 是 H2 保留字而将 `risk_events.matched` 建成带引号列名，迁移 SQL 却用未加引号的 `matched`，H2 按保留字解析后报 `Column "MATCHED" not found`。结果新建内存库每次启动都卡在 `initDatabase()`，52 个服务端测试失败。迁移 SQL 改为显式引用 `"matched"`；PostgreSQL 路径同步加引号，语义不变。
+2. **三个路由测试未同步 `configureSecretSurfaceRouting(userRepo)` 参数**：`MinimalRouteTest`、`LoginLockoutPrivacyRouteTest`、`TotpFlowRouteTest` 仍按旧签名调用，导致 `compileTestKotlin` 失败。补齐 `userRepo = userRepo`，与生产注册一致。
+
+**验证**：server `test` 全量通过；`:app:testDebugUnitTest` 全量通过；`git diff --check` 无输出。
+
 ### 9.154 2026-08-13 无限调优：管理端审计 detail 溢出 22001 与处置端点 0 行更新误报成功
 
 1. **`moderation_audit_log.detail` 500 字列宽 < 入库上限 580**：三个处置端点（封禁/禁动态/禁消息）写 `auditDetail(...).take(MAX_NOTE_CHARS+80)`，前缀（`bannedUntil=…; reasonCode=…; note=`）+ 500 字备注约 550+ 字符——PG 严格 varchar 抛 22001，整事务回滚：**封禁未生效 + 500**（H2 宽松不暴露，与 9.144 reports 同型）。列宽加宽至 800 + 启动期 `widenModerationAuditDetailColumn()`（PG/H2 双方言，9.144 口径），入库侧统一 `MODERATION_AUDIT_DETAIL_MAX_CHARS=800` 截断。

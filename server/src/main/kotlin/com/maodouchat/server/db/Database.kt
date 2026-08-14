@@ -815,9 +815,9 @@ private fun widenRiskEventsMatchedColumn() {
     val isPostgres = org.jetbrains.exposed.sql.transactions.TransactionManager.current()
         .db.vendor.contains("postgres", ignoreCase = true)
     val sql = if (isPostgres) {
-        "ALTER TABLE risk_events ALTER COLUMN matched TYPE VARCHAR(280)"
+        "ALTER TABLE risk_events ALTER COLUMN \"matched\" TYPE VARCHAR(280)"
     } else {
-        "ALTER TABLE risk_events ALTER COLUMN matched VARCHAR(280)"
+        "ALTER TABLE risk_events ALTER COLUMN \"matched\" VARCHAR(280)"
     }
     TransactionManager.current().exec(sql)
 }

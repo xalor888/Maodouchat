@@ -109,7 +109,7 @@ private fun Application.moduleUnderTest(seedDemoUsers: Boolean = false, aiGatewa
         userTagRepo = com.maodouchat.server.repository.UserTagRepository(),
         rateLimitStatsRepo = com.maodouchat.server.repository.RateLimitStatsRepository()
     )
-    configureSecretSurfaceRouting(chatRepo = chatRepo, messageRepo = messageRepo)
+    configureSecretSurfaceRouting(chatRepo = chatRepo, messageRepo = messageRepo, userRepo = userRepo)
 }
 
 class RefreshSessionIsolationRouteTest {

@@ -176,7 +176,7 @@ class TotpFlowRouteTest {
             userTagRepo = com.maodouchat.server.repository.UserTagRepository(),
             rateLimitStatsRepo = com.maodouchat.server.repository.RateLimitStatsRepository()
         )
-        configureSecretSurfaceRouting(chatRepo = chatRepo, messageRepo = messageRepo)
+        configureSecretSurfaceRouting(chatRepo = chatRepo, messageRepo = messageRepo, userRepo = userRepo)
     }
 
     private fun extractToken(body: String): String =
