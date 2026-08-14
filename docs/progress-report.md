@@ -6422,3 +6422,11 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实（本轮，无洞）：FCM 服务（owner 门控 + HMAC 校验 + Room 去重 + DND/静音窗）、`PushRegistrationManager`（全路径 owner 门控 + deviceId 同步落盘）、`ChatQuietHoursStore`（账号隔离 + 读改写互斥）、`FrequencyWatermark`（QIM 距离公式含环绕校验无误、SYNC/载荷布局与提取一致）、`SecretWatermarkTransformation`、`NearbyRepository`（范围框 + 游标分批 + 封禁/拉黑过滤 + 唯一冲突事务外重试）、`AppNotifier` 各 cancel 路径、`GroupMutePolicy`、`IncomingCallCoordinator.peekPending/clear` 语义均正确；全屏图片查看器 `ZoomableAsyncImage` 状态经 `items(key=id)`/对话框关闭重置，无跨图泄漏。
 
 **验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
+
+### 9.164 2026-08-13 无限调优：WS 新消息通知阻塞主线程
+
+1. **主线程调用含 runBlocking 的通知路径**：ChatListViewModel 的 WS collector 跑在 Main 上，`AppNotifier.showMessage` 内部 `isChatPinLocked`/`isSecretChat` 用 `runBlocking(Dispatchers.IO)` 查 Room——runBlocking 阻塞的是调用线程本身，消息洪峰下主线程被逐条 DB 读卡住（掉帧/ANR 风险）。调用点改 `withContext(Dispatchers.IO)` 包裹。其余调用方（FCM 服务线程、BacklogSyncWorker/MessageReminderWorker 的 Worker 线程）本身非主线程，不动。
+
+另核实（本轮，无洞）：`MaodouchatConnectionService`（超接销毁旧 Connection、onAnswer 失败降级断开、reject/disconnect/abort 清理完整）、`CallActionBus`/`CallOrchestrator`（generation 回放防护）、`IncomingCallCoordinator.peekPending/clear`、`MediaExport`（displayName 消毒 + IS_PENDING + 失败删行）、`BacklogSyncWorker`（逐迭代门禁 + per-chat 节流 + 游标推进）、`MessageDao.searchChatIdsByMessageContent`（ESCAPE + GROUP BY 排序）、`SealedSenderDelivery`（证书校验 + 设备绑定语义）、`AppNotifier` 的 runBlocking 查询均 fail-closed。
+
+**验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。

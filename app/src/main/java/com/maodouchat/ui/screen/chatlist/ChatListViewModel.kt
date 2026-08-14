@@ -2469,16 +2469,20 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                         }
                                         // Reuse decryptedPlain (same WS event; never decrypt twice).
                                         // soundEnabled must match FCM path (prefs), not default true.
-                                        com.maodouchat.util.AppNotifier.showMessage(
-                                            ctx,
-                                            targetId,
-                                            notifyTitle,
-                                            previewText,
-                                            event.message.id,
-                                            soundEnabled =
-                                                com.maodouchat.notification.NotificationPreferences.soundEnabled(ctx),
-                                            expectedUserId = listReceiveOwnerUserId,
-                                        )
+                                        // 9.164：showMessage 内部含 runBlocking(IO) 查锁/密聊表——
+                                        // 该 collector 跑在主线程，直接调用会阻塞主线程（消息洪峰下掉帧/ANR）
+                                        withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                            com.maodouchat.util.AppNotifier.showMessage(
+                                                ctx,
+                                                targetId,
+                                                notifyTitle,
+                                                previewText,
+                                                event.message.id,
+                                                soundEnabled =
+                                                    com.maodouchat.notification.NotificationPreferences.soundEnabled(ctx),
+                                                expectedUserId = listReceiveOwnerUserId,
+                                            )
+                                        }
                                     }
                                 }
                             } catch (error: kotlinx.coroutines.CancellationException) {
