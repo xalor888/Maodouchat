@@ -189,8 +189,8 @@ class ModerationRuleRepository {
             }
             request.enabled?.let { value -> it[ModerationRules.enabled] = value }
             action?.let { value -> it[ModerationRules.action] = value }
-            request.hitThreshold?.let { value -> it[ModerationRules.hitThreshold] = value.coerceIn(1, 10_000) }
-            request.windowMs?.let { value -> it[ModerationRules.windowMs] = value.coerceIn(1_000L, MAX_WINDOW_MS) }
+            request.hitThreshold?.let { value -> it[ModerationRules.hitThreshold] = value.coerceIn(0, 10_000) }
+            request.windowMs?.let { value -> it[ModerationRules.windowMs] = value.coerceIn(0L, MAX_WINDOW_MS) }
             escalationAction?.let { value -> it[ModerationRules.escalationAction] = value }
             request.priority?.let { value -> it[ModerationRules.priority] = value.coerceIn(0, 10_000) }
             it[ModerationRules.updatedAt] = System.currentTimeMillis()
