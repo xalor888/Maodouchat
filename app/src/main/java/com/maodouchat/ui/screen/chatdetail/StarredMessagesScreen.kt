@@ -479,7 +479,8 @@ fun StarredMessagesScreen(
                     other?.displayName ?: memberLabel
                 }
             }
-            val preview = message.content.substringBefore("<meta>").trim()
+            // 9.153：与正文解析口径一致——meta 恒在末尾，取最后一个 <meta> 之前的内容做搜索预览
+            val preview = message.content.substringBeforeLast("<meta>").trim()
             sender.contains(q, ignoreCase = true) ||
                 chatName.contains(q, ignoreCase = true) ||
                 preview.contains(q, ignoreCase = true)

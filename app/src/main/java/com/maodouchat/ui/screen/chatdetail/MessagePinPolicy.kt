@@ -54,7 +54,9 @@ object MessagePinPolicy {
     }
 
     fun textPreview(content: String, maxLen: Int = 96): String {
-        val plain = content.substringBefore("<meta>").trim().replace('\n', ' ')
+        // 9.153：meta 块恒在正文末尾（9.143 口径），substringBefore 取首个 <meta> 会截断
+        // 含字面 <meta> 的正文；改为取最后一个 <meta> 之前的全部内容
+        val plain = content.substringBeforeLast("<meta>").trim().replace('\n', ' ')
         if (plain.isBlank()) return ""
         return if (plain.length <= maxLen) plain else plain.take(maxLen - 1) + "…"
     }

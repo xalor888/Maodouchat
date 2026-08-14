@@ -6327,3 +6327,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实：`markSurfaceActive` 迟到重标路径被 viewModelScope 取消在 DAO 挂起点阻断（DAO 后无挂起点即同步完成）；若在 onCleared 中 markSurfaceInactive 反会与 MainActivity 路由处理器冲突（FLAG_SECURE 提前释放/密聊媒体误删），故不加。
 
 **验证**：server `compileKotlin` 与 `:app:compileDebugKotlin` 均通过；`git diff --check` 无输出。
+
+### 9.153 2026-08-13 无限调优：meta 边界口径残余两处统一
+
+1. **`MessagePinPolicy.textPreview` 取首个 `<meta>`**：9.143 已确立「真实 meta 块恒在正文末尾」口径（parsedContent/parsedMeta 用 lastIndexOf），此处 `substringBefore` 仍取首个——正文含字面 `<meta>` 时置顶预览被截断（后段丢失）。改为 `substringBeforeLast`。
+2. **收藏页搜索预览同病**：`StarredMessagesScreen` 全局搜索预览 `message.content.substringBefore("<meta>")`，含字面量的消息无法被关键词命中后段文本。同样改为 `substringBeforeLast("<meta>")`。
+
+另核实（无洞，记录备查）：`BotRepository.containsCallbackData` 已用 lastIndexOf 且要求 `</meta>` 恰在末尾、meta 长度受限；`OnDemandStickerStore` 清单/包/文件字节均封顶且下载走 Dispatchers.IO；`AttachmentTransferSummaryRepository.observe` 750ms 轮询带 owner 门控；`EncryptedAttachmentCrypto.decrypt` 明文受 cipherSize（≤100MB）隐式约束、结束前全量校验长度与双 SHA；各 `while(true)` 循环均含 delay/终止条件无空转。
+
+**验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
