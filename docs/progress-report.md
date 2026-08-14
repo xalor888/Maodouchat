@@ -6294,3 +6294,16 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实：`SenderKeyCoveragePolicy`/`IdentitySafetyPolicy`/`SafetyCodePolicy` 三个纯策略文件语义正确（worst-wins 信任聚合、空列表=COMPLETE 契约、安全码比对忽略非数字）；`NotificationCenterScreen` 使用稳定 key 与正确的按天分组结构。
 
 **验证**：`:app:compileDebugKotlin` 通过（ANDROID_HOME=~/Library/Android/sdk）；`git diff --check` 无输出。
+
+### 9.150 2026-08-13 无限调优：会话/群成员弹窗陈旧快照、Compose 外观偏好刷新、请求体读取空转烧 CPU
+
+1. **ChatListScreen 群主转让弹窗正文误用 `chat_group`**：正文显示「群聊」而非转让说明。改用专用的 `chat_owner_transfer_required_title`/`chat_owner_transfer_required_message`（strings.xml 早已定义但零引用）。
+2. **长按菜单/置顶等切换操作信任陈旧 Chat 快照**：`menuChat` 保存长按瞬间的 Chat，WS 刷新（他端置顶/静音等）后点击会按旧值取反，反向覆盖新值。`ChatListViewModel.togglePinned/toggleNotificationsMuted/toggleArchived/toggleMarkedUnread` 改为按 `chatId` 现查 `_uiState.chats` 最新快照取反；菜单文案同步用最新快照渲染。`archiveChatFromSuggestion`/`batchTogglePinSelected` 相应改 id 调用。
+3. **弹窗目标实体已消失仍可确认操作**：ChatListScreen 的 `menuChat/silentUntilChat/folderMoveChat/clearHistoryChat` 与 GroupDetailScreen 的 `titleTarget/removeTarget/muteTarget/ownershipTarget` 增加 `LaunchedEffect(state.chats/members)` 守卫——目标会话/成员被删除（他端/WS 同步）后自动关闭弹窗。
+4. **ChatDetailScreen 壁纸/字号偏好组合时读一次**：改为可变状态并在 ON_RESUME 观察者中刷新（设置页修改后返回仍存活的聊天页立即生效）。
+5. **全屏视频 `videoViewRef` 为普通局部 var**：重组即被重置 null，onDispose 会跳过 `stopPlayback()` 造成 MediaPlayer 泄漏/后台出声。改为 `remember { mutableStateOf }`。
+6. **服务端三处请求体读取空转**：`receiveBoundedText`/`receiveEncryptedAttachmentChunk`/`receiveEncryptedAttachment` 的 `readAvailable` 返回 0 时直接 `continue` 忙等——慢速/恶意客户端逐字节送包会烧满一个 CPU 核。改为 `channel.awaitContent()` 挂起等待数据或 EOF（Ktor 2.3.7 返回 Unit）。
+
+另核实：`EncryptedAttachmentRepository.createReplacingPending/createUploadSession/updateUploadProgress/markUploaded` 均以 `forUpdate` 行锁 + uploaderId 归属校验，chunk 路由与 `EncryptedAttachmentStorage.appendChunk` 的 offset/回放/配额逻辑无洞。
+
+**验证**：`:app:compileDebugKotlin` 与 server `compileKotlin` 均通过；`git diff --check` 无输出。

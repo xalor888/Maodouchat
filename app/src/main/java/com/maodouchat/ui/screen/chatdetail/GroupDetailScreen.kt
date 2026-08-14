@@ -1250,6 +1250,15 @@ fun GroupDetailScreen(
     // 0.99：全员静音确认
     var showMuteAllConfirm by remember { mutableStateOf(false) }
     var ownershipTarget by remember { mutableStateOf<GroupMemberUi?>(null) }
+    // 9.150：成员操作弹窗持有的 GroupMemberUi 快照——目标成员被移出/退出（他端或 WS 同步）后自动关闭弹窗，
+    // 避免对已不存在成员继续「移除/转让」操作
+    LaunchedEffect(state.members) {
+        val ids = state.members.mapTo(hashSetOf()) { it.userId }
+        if (titleTarget?.let { it.userId !in ids } == true) titleTarget = null
+        if (removeTarget?.let { it.userId !in ids } == true) removeTarget = null
+        if (muteTarget?.let { it.userId !in ids } == true) muteTarget = null
+        if (ownershipTarget?.let { it.userId !in ids } == true) ownershipTarget = null
+    }
     var showAvatarFull by remember { mutableStateOf(false) }
     var showInviteDialog by rememberSaveable { mutableStateOf(false) }
     var memberSearch by rememberSaveable { mutableStateOf("") }

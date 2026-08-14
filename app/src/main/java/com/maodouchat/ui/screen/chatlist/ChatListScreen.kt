@@ -197,6 +197,16 @@ fun ChatListScreen(
         mutableStateOf(com.maodouchat.util.PostLoginGuidePreferences.shouldShow(context))
     }
 
+    // 9.150：菜单/弹窗持有的 Chat 快照——目标会话被删除（他端/WS 同步）后自动关闭，
+    // 避免对已不存在的会话继续静音/归档/清空操作
+    LaunchedEffect(state.chats) {
+        val ids = state.chats.mapTo(hashSetOf()) { it.id }
+        if (menuChat?.let { it.id !in ids } == true) menuChat = null
+        if (silentUntilChat?.let { it.id !in ids } == true) silentUntilChat = null
+        if (folderMoveChat?.let { it.id !in ids } == true) folderMoveChat = null
+        if (clearHistoryChat?.let { it.id !in ids } == true) clearHistoryChat = null
+    }
+
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -727,9 +737,9 @@ fun ChatListScreen(
                                     isPinned = chat.pinnedAt > 0,
                                     isMuted = chat.notificationsMuted,
                                     isArchived = chat.archived,
-                                    onPin = { viewModel.togglePinned(chat) },
-                                    onMute = { viewModel.toggleNotificationsMuted(chat) },
-                                    onArchive = { viewModel.toggleArchived(chat) },
+                                    onPin = { viewModel.togglePinned(chat.id) },
+                                    onMute = { viewModel.toggleNotificationsMuted(chat.id) },
+                                    onArchive = { viewModel.toggleArchived(chat.id) },
                                     onDelete = { viewModel.deleteChat(chat.id) },
                                     modifier = Modifier.animateItem(
                                         fadeInSpec = motion.listItemFadeInSpec(),
@@ -759,7 +769,7 @@ fun ChatListScreen(
                                             else menuChat = chat
                                         },
                                         // 1.182：点未读角标标记已读
-                                        onBadgeClick = { viewModel.toggleMarkedUnread(chat) }
+                                        onBadgeClick = { viewModel.toggleMarkedUnread(chat.id) }
                                     )
                                 }
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
@@ -772,7 +782,9 @@ fun ChatListScreen(
     }
 }
 
-    menuChat?.let { chat ->
+    menuChat?.let { menuSnapshot ->
+        // 9.150：菜单文案与动作均以 state.chats 最新快照为准，避免长按瞬间的 Chat 快照在 WS 刷新后陈旧
+        val chat = state.chats.firstOrNull { it.id == menuSnapshot.id } ?: menuSnapshot
         DropdownMenu(expanded = true, onDismissRequest = { menuChat = null }) {
             // 1.368：多选（长按菜单进入批量模式，先勾选当前会话）
             DropdownMenuItem(
@@ -787,15 +799,15 @@ fun ChatListScreen(
             if (state.unreadChatCount > 0) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.chat_mark_all_read)) }, onClick = { viewModel.markAllUnreadChatsRead(); menuChat = null })
             }
-            DropdownMenuItem(text = { Text(stringResource(if (chat.pinnedAt > 0) R.string.chat_unpin else R.string.chat_pin)) }, onClick = { viewModel.togglePinned(chat); menuChat = null })
-            DropdownMenuItem(text = { Text(stringResource(if (chat.notificationsMuted) R.string.chat_unmute_notifications else R.string.chat_mute_notifications)) }, onClick = { viewModel.toggleNotificationsMuted(chat); menuChat = null })
+            DropdownMenuItem(text = { Text(stringResource(if (chat.pinnedAt > 0) R.string.chat_unpin else R.string.chat_pin)) }, onClick = { viewModel.togglePinned(chat.id); menuChat = null })
+            DropdownMenuItem(text = { Text(stringResource(if (chat.notificationsMuted) R.string.chat_unmute_notifications else R.string.chat_mute_notifications)) }, onClick = { viewModel.toggleNotificationsMuted(chat.id); menuChat = null })
             // 1.31：临时静音至快捷项（本地，1/8/24 小时）
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.chat_silent_until_menu)) },
                 onClick = { silentUntilChat = chat; menuChat = null }
             )
-            DropdownMenuItem(text = { Text(stringResource(if (chat.archived) R.string.chat_unarchive else R.string.chat_archive)) }, onClick = { viewModel.toggleArchived(chat); menuChat = null })
-            DropdownMenuItem(text = { Text(stringResource(if (chat.markedUnread || chat.unreadCount > 0) R.string.chat_mark_read else R.string.chat_mark_unread)) }, onClick = { viewModel.toggleMarkedUnread(chat); menuChat = null })
+            DropdownMenuItem(text = { Text(stringResource(if (chat.archived) R.string.chat_unarchive else R.string.chat_archive)) }, onClick = { viewModel.toggleArchived(chat.id); menuChat = null })
+            DropdownMenuItem(text = { Text(stringResource(if (chat.markedUnread || chat.unreadCount > 0) R.string.chat_mark_read else R.string.chat_mark_unread)) }, onClick = { viewModel.toggleMarkedUnread(chat.id); menuChat = null })
             // 1.142：有草稿时清除草稿（本地）
             if (state.drafts[chat.id]?.text?.isNotBlank() == true) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.chat_clear_draft)) }, onClick = { viewModel.clearChatDraft(chat.id); menuChat = null })
@@ -1115,8 +1127,9 @@ fun ChatListScreen(
     state.ownerTransferRequiredChatId?.let { chatId ->
         AlertDialog(
             onDismissRequest = { viewModel.clearOwnerTransferRequired() },
-            title = { Text(stringResource(R.string.chat_leave_group)) },
-            text = { Text(stringResource(R.string.chat_group)) },
+            // 9.150：正文误用 chat_group（"群聊"），改用专为转让群主提示定义的字符串
+            title = { Text(stringResource(R.string.chat_owner_transfer_required_title)) },
+            text = { Text(stringResource(R.string.chat_owner_transfer_required_message)) },
             confirmButton = {
                 TextButton(onClick = { viewModel.clearOwnerTransferRequired(); onOpenGroupDetail(chatId) }) { Text(stringResource(android.R.string.ok)) }
             }

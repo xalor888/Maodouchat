@@ -103,7 +103,12 @@ internal suspend fun ApplicationCall.receiveBoundedText(maxChars: Int = MAX_JSON
     while (true) {
         val read = channel.readAvailable(buffer, 0, buffer.size)
         if (read < 0) break
-        if (read == 0) continue
+        if (read == 0) {
+            // 9.150：readAvailable 无数据时立即返回 0，直接 continue 会空转烧 CPU
+            //（慢速/恶意客户端逐字节送包时尤其明显）；挂起等待有数据或 EOF 再继续
+            channel.awaitContent()
+            continue
+        }
         if (total + read > maxBytes) return null
         output.write(buffer, 0, read)
         total += read
@@ -16530,7 +16535,11 @@ private suspend fun ApplicationCall.receiveEncryptedAttachmentChunk(maxBytes: In
     while (true) {
         val read = channel.readAvailable(buffer, 0, buffer.size)
         if (read < 0) break
-        if (read == 0) continue
+        if (read == 0) {
+            // 9.150：同上——等待数据/EOF，避免空转烧 CPU
+            channel.awaitContent()
+            continue
+        }
         if (output.size() + read > maxBytes) return null
         output.write(buffer, 0, read)
     }
@@ -16554,7 +16563,11 @@ private suspend fun ApplicationCall.receiveEncryptedAttachment(
             while (true) {
                 val read = channel.readAvailable(buffer, 0, buffer.size)
                 if (read < 0) break
-                if (read == 0) continue
+                if (read == 0) {
+                    // 9.150：同上——慢速客户端逐字节上传时等待数据，避免空转烧 CPU
+                    channel.awaitContent()
+                    continue
+                }
                 total += read
                 if (total > maxBytes) return null
                 digest.update(buffer, 0, read)

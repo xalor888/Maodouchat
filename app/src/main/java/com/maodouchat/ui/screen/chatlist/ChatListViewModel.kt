@@ -450,9 +450,8 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
     fun archiveChatFromSuggestion(chat: Chat) {
         // 8.48 修复：建议卡片只在 init+3s 计算一次，本地 archived 可能已陈旧——
         // 若该会话已被（长按菜单/他端/服务端）归档，点「归档」不得反向取消归档，仅移除建议
-        if (!chat.archived) {
-            toggleArchived(chat)
-        }
+        val fresh = _uiState.value.chats.firstOrNull { it.id == chat.id }
+        if (fresh != null && !fresh.archived) toggleArchived(chat.id)
         dismissArchiveSuggestion(chat.id)
     }
 
@@ -1319,11 +1318,14 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
     fun clearRealtimeBanner() { _uiState.update { it.copy(realtimeBanner = null) } }
     fun clearOwnerTransferRequired() { _uiState.update { it.copy(ownerTransferRequiredChatId = null) } }
 
-    fun togglePinned(chat: Chat) {
+    // 9.150：置顶/静音/归档/标未读改为按 chatId 现查 _uiState 最新快照取反，
+    // 不再信任调用方传入的 Chat 快照（长按菜单 menuChat 可能在 WS 刷新后陈旧，反向操作会覆盖新值）
+    fun togglePinned(chatId: String) {
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_PIN)) {
             _uiState.update { it.copy(errorMessage = text(R.string.feature_disabled_by_admin)) }
             return
         }
+        val chat = _uiState.value.chats.firstOrNull { it.id == chatId } ?: return
         updateChatSettings(
             chat,
             withOptimisticSettingsClock(
@@ -1333,11 +1335,12 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         )
     }
 
-    fun toggleNotificationsMuted(chat: Chat) {
+    fun toggleNotificationsMuted(chatId: String) {
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_MUTE)) {
             _uiState.update { it.copy(errorMessage = text(R.string.feature_disabled_by_admin)) }
             return
         }
+        val chat = _uiState.value.chats.firstOrNull { it.id == chatId } ?: return
         updateChatSettings(
             chat,
             withOptimisticSettingsClock(chat.copy(notificationsMuted = !chat.notificationsMuted)),
@@ -1345,11 +1348,12 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         )
     }
 
-    fun toggleArchived(chat: Chat) {
+    fun toggleArchived(chatId: String) {
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_ARCHIVE)) {
             _uiState.update { it.copy(errorMessage = text(R.string.feature_disabled_by_admin)) }
             return
         }
+        val chat = _uiState.value.chats.firstOrNull { it.id == chatId } ?: return
         updateChatSettings(
             chat,
             withOptimisticSettingsClock(
@@ -1359,11 +1363,12 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         )
     }
 
-    fun toggleMarkedUnread(chat: Chat) {
+    fun toggleMarkedUnread(chatId: String) {
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MARKED_UNREAD)) {
             _uiState.update { it.copy(errorMessage = text(R.string.feature_disabled_by_admin)) }
             return
         }
+        val chat = _uiState.value.chats.firstOrNull { it.id == chatId } ?: return
         updateChatSettings(
             chat,
             withOptimisticSettingsClock(chat.copy(markedUnread = !chat.markedUnread)),
@@ -1456,8 +1461,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
     fun batchTogglePinSelected() {
         val selected = _uiState.value.selectedChatIds
         if (selected.isEmpty()) return
-        val chatsById = _uiState.value.chats.associateBy { it.id }
-        selected.forEach { id -> chatsById[id]?.let { togglePinned(it) } }
+        selected.forEach(::togglePinned)
     }
 
     /** 1.368：批量标记已读选中会话（未读/标未读才调用，服务端一次 batchMarkRead） */

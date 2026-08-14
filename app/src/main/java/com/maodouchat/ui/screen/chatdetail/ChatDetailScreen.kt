@@ -371,11 +371,27 @@ fun ChatDetailScreen(
         dismissedSafetyMessageIds = next
         com.maodouchat.ai.AiPrivacyPreferences.setDismissedSafetyMessageIds(context, next)
     }
+    // 9.150：壁纸/字号偏好改为可变状态并在 ON_RESUME 刷新——从设置页改完返回
+    // 仍存活的聊天页实例不再持有陈旧背景/字号
+    var chatWallpaperPreset by remember {
+        mutableStateOf(com.maodouchat.util.ChatAppearancePreferences.getWallpaper(context))
+    }
+    // 自定义图片壁纸（本地 URI）：设置页选择图片后，聊天背景优先显示图片
+    var customWallpaperUri by remember {
+        mutableStateOf(com.maodouchat.util.ChatAppearancePreferences.getCustomWallpaperUri(context))
+    }
+    var chatFontScale by remember {
+        mutableStateOf(com.maodouchat.util.ChatAppearancePreferences.getFontScale(context))
+    }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 localSafetyEnabled = com.maodouchat.ai.AiPrivacyPreferences.localSafetyEnabled(context)
+                // 9.150：刷新外观偏好（设置页修改后返回即时生效）
+                chatWallpaperPreset = com.maodouchat.util.ChatAppearancePreferences.getWallpaper(context)
+                customWallpaperUri = com.maodouchat.util.ChatAppearancePreferences.getCustomWallpaperUri(context)
+                chatFontScale = com.maodouchat.util.ChatAppearancePreferences.getFontScale(context)
                 // 8.32 修复 F2：回到前台恢复 activeChatId（MainActivity.onPause 已清空），
                 // 使「打开中的聊天」重新享有消息不弹通知/不计未读的语义。
                 com.maodouchat.MaodouchatApp.activeChatId = viewModel.activeChatId
@@ -455,16 +471,6 @@ fun ChatDetailScreen(
     var navigationHighlightMessageId by remember { mutableStateOf<String?>(null) }
     val bubbleBounds = remember { mutableMapOf<String, BubbleBounds>() }
     val configuration = LocalConfiguration.current
-    val chatWallpaperPreset = remember {
-        com.maodouchat.util.ChatAppearancePreferences.getWallpaper(context)
-    }
-    // 自定义图片壁纸（本地 URI）：设置页选择图片后，聊天背景优先显示图片
-    val customWallpaperUri = remember {
-        com.maodouchat.util.ChatAppearancePreferences.getCustomWallpaperUri(context)
-    }
-    val chatFontScale = remember {
-        com.maodouchat.util.ChatAppearancePreferences.getFontScale(context)
-    }
     val isDarkChat = LocalChatPalette.current === com.maodouchat.ui.theme.DarkChatPalette
     val chatBackgroundColor = remember(chatWallpaperPreset, isDarkChat) {
         com.maodouchat.util.ChatAppearancePolicy.resolveBackground(
@@ -5520,7 +5526,8 @@ DropdownMenuItem(
         val videoLocalOk = remember(msg.content) {
             com.maodouchat.util.MediaCache.isReadableLocalUri(context, videoContent)
         }
-        var videoViewRef: android.widget.VideoView? = null
+        // 9.150：引用放入 remember 状态，避免内容重组时被重置为 null 导致 onDispose 跳过 stopPlayback
+        val videoViewRef = remember { mutableStateOf<android.widget.VideoView?>(null) }
         androidx.compose.ui.window.Dialog(
             onDismissRequest = { fullScreenVideo = null },
             properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
@@ -5534,7 +5541,7 @@ DropdownMenuItem(
                 AndroidView(
                     factory = {
                         android.widget.VideoView(it).apply {
-                            videoViewRef = this
+                            videoViewRef.value = this
                             setVideoURI(android.net.Uri.parse(videoContent))
                             setOnCompletionListener { fullScreenVideo = null }
                             setOnErrorListener { _, _, _ -> fullScreenVideo = null; true }
@@ -5546,8 +5553,8 @@ DropdownMenuItem(
                 androidx.compose.runtime.DisposableEffect(Unit) {
                     onDispose {
                         // 用户关闭/系统退出时，确保 MediaPlayer 释放，避免原生资源泄漏与后台继续出声
-                        videoViewRef?.stopPlayback()
-                        videoViewRef = null
+                        videoViewRef.value?.stopPlayback()
+                        videoViewRef.value = null
                         fullScreenVideo = null
                     }
                 }
