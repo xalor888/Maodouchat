@@ -134,6 +134,7 @@ fun Application.configureDeveloperRouting() {
     val developerLoginEmailRateLimiter = BoundedRateLimiter()
     val developerBotCreateRateLimiter = BoundedRateLimiter()
     val developerBotTokenRateLimiter = BoundedRateLimiter()
+    val developerWebhookTestRateLimiter = BoundedRateLimiter()
 
     routing {
         route("/api/developer") {
@@ -217,6 +218,9 @@ fun Application.configureDeveloperRouting() {
             post("/bots/{id}/test-webhook") {
                 val bot = authenticateDeveloperBot(call) ?: return@post
                 if (call.rejectIfDeveloperMaintenance()) return@post
+                if (!developerWebhookTestRateLimiter.acquire(bot.id, maxPerMinute = 10)) {
+                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
+                }
                 val targetBotId = call.parameters["id"].orEmpty()
                 if (targetBotId != bot.id) {
                     return@post call.respond(
