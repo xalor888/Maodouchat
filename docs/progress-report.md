@@ -6397,3 +6397,11 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实：`looksLikeMarkdown`/`toPlainText` 正则均为线性（无嵌套量词，无灾难性回溯）；Kotlin UTF-16 索引使 emoji 无越界风险；`SwipeableChatItem` 状态按 `items(key={it.id})` 正确归属（F4 无洞）；`ReplySwipeGesture` 无调用点为死代码；`~df:` 家族「无闭栏消费到行尾」语义存疑不改。
 
 **验证**：server `compileKotlin` 与 `:app:compileDebugKotlin` 均通过；`git diff --check` 无输出。
+
+### 9.161 2026-08-13 无限调优：file_analyze 日预算预检按解码字符估算
+
+1. **`file_analyze` 预算预检低估非 PDF 文本**：服务端把非 PDF 文件 base64 解码为 UTF-8 文本进 prompt（`take(120_000)` 字符 ≈ 3 万 token），而预检统一按 `estimateMultimodalTokens(byteCount)`（256 字节:1 token）估算——小体积高信息密度文本（如 120k 字符 CJK 文件）实际输入 token 比估算大一个量级，日预算预检形同虚设。改为：PDF 保持字节折算口径；非 PDF 按 `byteCount×3/4` 解码字符数（封顶 120k）+ 问题文本估算。
+
+另核实（重复投递报告，其余项状态）：B1 上游缺 usage 日预算失效与 E1 响应体读失败不可重试已由 9.160 修复在位；C3 预留只增不减为注释明示的软预算设计（偏保守不过放）；C1 `estimateTokens +1` 为保守过估；B2 仅引擎级 120s 超时属有界挂起；E2/C4/S1/P2（取消重抛、预算锁、流式缓冲、system-role 注入）复核无洞。
+
+**验证**：server `compileKotlin` 通过；`git diff --check` 无输出。

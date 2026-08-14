@@ -15209,7 +15209,15 @@ put("status", "ok")
                 }
                 val startedAt = System.currentTimeMillis()
                 // 8.52 修复 AI-1：文件内容 + 问题文本一起估算（此前只算 ≤500 字的问题）
-                val estTokens = estimateMultimodalTokens(file.byteCount.toLong(), request.question)
+                // 9.161：非 PDF 文本走 base64→UTF-8 解码进 prompt（服务端 take(120_000)），
+                // 按解码字符数估算——此前统一按字节 256:1 折算，实际 prompt 大一个量级，
+                // 日预算预检低估、可高频调用绕过
+                val estTokens = if (file.mimeType == "application/pdf") {
+                    estimateMultimodalTokens(file.byteCount.toLong(), request.question)
+                } else {
+                    val decodedChars = (file.byteCount.toLong() * 3L / 4L).coerceAtMost(120_000L)
+                    maxOf(1L, decodedChars / 4L + (request.question?.length ?: 0) / 4L)
+                }
                 val budget = aiGateway.checkBudget(uid, estTokens)
                 if (budget is com.maodouchat.server.service.BudgetResult.Exceeded) {
                     call.response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
