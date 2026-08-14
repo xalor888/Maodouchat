@@ -3999,8 +3999,8 @@ put("nextOffset", nextOffset)
                         requireBotDeliverable = true
                     )
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, messageId, "editMessage")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("edit failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, messageId, "editMessage")
                 // Fan-out MESSAGE_EDITED so clients refresh keyboard/body.
                 val chatIdForEdit = runCatching {
                     org.jetbrains.exposed.sql.transactions.transaction {
@@ -4252,8 +4252,8 @@ put("count", admins.size)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(newId, toChatId, bot.id, forwardedBody, now, if (t == "MARKDOWN") "MARKDOWN" else "TEXT")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, toChatId, messageId, "forwardMessage")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("forward failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, toChatId, messageId, "forwardMessage")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = newId, chatId = toChatId, senderId = bot.id, content = forwardedBody,
                     type = if (t == "MARKDOWN") "MARKDOWN" else "TEXT", timestamp = now, status = "SENT"
@@ -4332,8 +4332,8 @@ put("chatId", toChatId)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(newId, toChatId, bot.id, content, now, if (t == "MARKDOWN") "MARKDOWN" else "TEXT")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, toChatId, messageId, "copyMessage")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("copy failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, toChatId, messageId, "copyMessage")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = newId, chatId = toChatId, senderId = bot.id, content = content,
                     type = if (t == "MARKDOWN") "MARKDOWN" else "TEXT", timestamp = now, status = "SENT"
@@ -4827,8 +4827,8 @@ put("messageId", msgId)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "TEXT")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDice")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDice")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "TEXT", timestamp = now, status = "SENT"
@@ -5209,8 +5209,8 @@ put("cleared", true)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "LOCATION")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendLocation")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendLocation")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "LOCATION", timestamp = now, status = "SENT"
@@ -5383,8 +5383,8 @@ put("count", history.size)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "TEXT")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendContact")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendContact")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "TEXT", timestamp = now, status = "SENT"
@@ -5460,8 +5460,8 @@ put("messageId", msgId)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "LOCATION")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVenue")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVenue")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "LOCATION", timestamp = now, status = "SENT"
@@ -5610,8 +5610,8 @@ put("count", outcome.pins.size)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "STICKER")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSticker")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSticker")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "STICKER", timestamp = now, status = "SENT"
@@ -5699,8 +5699,8 @@ put("type", "STICKER")
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "VOICE")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVoice")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVoice")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "VOICE", timestamp = now, status = "SENT"
@@ -5874,8 +5874,8 @@ put("role", "MEMBER")
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "FILE")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDocument")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDocument")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "FILE", timestamp = now, status = "SENT"
@@ -5954,8 +5954,8 @@ put("size", bytes.size)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "IMAGE")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPhoto")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPhoto")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "IMAGE", timestamp = now, status = "SENT"
@@ -6121,8 +6121,8 @@ put("upToId", upTo)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "VIDEO")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVideo")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVideo")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "VIDEO", timestamp = now, status = "SENT"
@@ -6193,8 +6193,8 @@ put("type", "VIDEO")
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "GIF")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAnimation")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAnimation")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "GIF", timestamp = now, status = "SENT"
@@ -6387,8 +6387,8 @@ put("event", event)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "FILE")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAudio")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAudio")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "FILE", timestamp = now, status = "SENT"
@@ -6546,8 +6546,8 @@ put("hasInvite", invite.isNotBlank())
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, contentOut, now, msgType)
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMessageSilent")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMessageSilent")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = contentOut,
                     type = msgType, timestamp = now, status = "SENT"
@@ -6604,8 +6604,8 @@ put("type", msgType)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, text, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMarkdown")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMarkdown")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = text,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -6681,8 +6681,8 @@ put("commands", Json.parseToJsonElement(Json.encodeToString(commands)))
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "NUDGE")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendNudge")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendNudge")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "NUDGE", timestamp = now, status = "SENT"
@@ -6839,8 +6839,8 @@ put("alias", "closePoll")
                         editedAt = editedAt
                     )
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, existing.chatId, messageId, "editMessageCaption")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("edit failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, existing.chatId, messageId, "editMessageCaption")
                 val ej = json.encodeToString(
                     WsMessage.serializer(),
                     WsMessage(
@@ -6938,8 +6938,8 @@ put("recent", buildJsonArray {
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, fenced, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendCode")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendCode")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = fenced,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -7078,8 +7078,8 @@ put("reactions", Json.parseToJsonElement(Json.encodeToString(botReactions)))
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendQuote")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendQuote")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -7228,8 +7228,8 @@ put("starred", starred)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendChecklist")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendChecklist")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -7320,8 +7320,8 @@ put("enabled", bot.enabled)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "TEXT")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPollQuiz")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPollQuiz")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "TEXT", timestamp = now, status = "SENT"
@@ -7376,8 +7376,8 @@ put("correctOptionIndex", safeIdx)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "TEXT")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDiceCustom")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDiceCustom")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "TEXT", timestamp = now, status = "SENT"
@@ -7452,8 +7452,8 @@ put("ts", System.currentTimeMillis())
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendHr")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendHr")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -7506,8 +7506,8 @@ put("type", "MARKDOWN")
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendStatus")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendStatus")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -7607,8 +7607,8 @@ put("webhookConfigured", !bot.webhookUrl.isNullOrBlank())
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content.take(4000), now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendTable")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendTable")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content.take(4000),
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -7664,8 +7664,8 @@ put("rows", rows.size)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendBadge")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendBadge")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -7804,8 +7804,8 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendProgress")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendProgress")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -7870,8 +7870,8 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendCountdown")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendCountdown")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -7915,8 +7915,8 @@ put("seconds", seconds)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAlert")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAlert")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -8074,8 +8074,8 @@ put("enabled", bot.enabled)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendRemind")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendRemind")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -8119,8 +8119,8 @@ put("type", "SYSTEM")
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDivider")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDivider")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -8280,8 +8280,8 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendToast")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendToast")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -8326,8 +8326,8 @@ put("type", "SYSTEM")
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendKeyValue")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendKeyValue")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -8479,8 +8479,8 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendNotice")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendNotice")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -8528,8 +8528,8 @@ put("type", "SYSTEM")
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendQuoteCard")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendQuoteCard")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -8683,8 +8683,8 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendBanner")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendBanner")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -8730,8 +8730,8 @@ put("type", "MARKDOWN")
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendJsonCard")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendJsonCard")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -8885,8 +8885,8 @@ put("surface", 39)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendTimeline")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendTimeline")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -8934,8 +8934,8 @@ put("type", "MARKDOWN")
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMetric")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMetric")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -9065,8 +9065,8 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSteps")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSteps")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -9113,8 +9113,8 @@ put("type", "MARKDOWN")
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendCompare")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendCompare")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -9263,8 +9263,8 @@ put("surface", 39)
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMentionCard")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMentionCard")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -9310,8 +9310,8 @@ put("type", "MARKDOWN")
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendInviteHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendInviteHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -9458,8 +9458,8 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendNudgeCard")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendNudgeCard")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -9505,8 +9505,8 @@ put("type", "MARKDOWN")
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSafetyHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSafetyHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -9649,8 +9649,8 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendQrHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendQrHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -9699,8 +9699,8 @@ put("type", "SYSTEM")
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "MARKDOWN")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendContactCard")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendContactCard")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "MARKDOWN", timestamp = now, status = "SENT"
@@ -9840,8 +9840,8 @@ put("serverTime", System.currentTimeMillis())
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSpoilerHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSpoilerHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -9887,8 +9887,8 @@ put("type", "SYSTEM")
                 val ok = runCatching {
                     messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM")
                 }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDownloadHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDownloadHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10020,8 +10020,8 @@ put("serverTime", System.currentTimeMillis())
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendLocationHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendLocationHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10061,8 +10061,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendFileHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendFileHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10102,8 +10102,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10143,8 +10143,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecureHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecureHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10253,8 +10253,8 @@ put("serverTime", System.currentTimeMillis())
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPhotoHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPhotoHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10294,8 +10294,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVideoHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVideoHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10335,8 +10335,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAiHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAiHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10376,8 +10376,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSummaryHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSummaryHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10488,8 +10488,8 @@ put("serverTime", System.currentTimeMillis())
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSuggestHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSuggestHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10529,8 +10529,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendTranscribeHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendTranscribeHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10618,8 +10618,8 @@ put("serverTime", System.currentTimeMillis())
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAnalyzeHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAnalyzeHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10659,8 +10659,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendGroupAssistHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendGroupAssistHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10747,8 +10747,8 @@ put("serverTime", System.currentTimeMillis())
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendFileAnalyzeHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendFileAnalyzeHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10788,8 +10788,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSemanticHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSemanticHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10876,8 +10876,8 @@ put("serverTime", System.currentTimeMillis())
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendGifHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendGifHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -10917,8 +10917,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendWatermarkHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendWatermarkHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11005,8 +11005,8 @@ put("serverTime", System.currentTimeMillis())
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVoiceCallHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVoiceCallHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11046,8 +11046,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVideoCallHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVideoCallHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11132,8 +11132,8 @@ put("ping", "buzz")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendWallpaperHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendWallpaperHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11173,8 +11173,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendFontScaleHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendFontScaleHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11259,8 +11259,8 @@ put("ping", "chime")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendUnreadHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendUnreadHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11300,8 +11300,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendRingtoneHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendRingtoneHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11386,8 +11386,8 @@ put("ping", "ring")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSoundHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSoundHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11427,8 +11427,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPreviewHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPreviewHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11513,8 +11513,8 @@ put("ping", "beep")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPushHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPushHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11554,8 +11554,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendTaskReminderHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendTaskReminderHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11640,8 +11640,8 @@ put("ping", "push")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDndHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDndHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11681,8 +11681,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendOfflineAiHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendOfflineAiHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11767,8 +11767,8 @@ put("ping", "quiet")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSoundscapeHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSoundscapeHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11808,8 +11808,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendHapticsHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendHapticsHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11894,8 +11894,8 @@ put("ping", "feel")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMotionHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMotionHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -11935,8 +11935,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendNavHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendNavHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12021,8 +12021,8 @@ put("ping", "slide")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendCaptureDetectHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendCaptureDetectHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12062,8 +12062,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendRecentsHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendRecentsHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12149,8 +12149,8 @@ put("ping", "shield")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretCopyHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretCopyHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12190,8 +12190,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretExportHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretExportHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12276,8 +12276,8 @@ put("ping", "leak")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretForwardHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretForwardHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12317,8 +12317,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretChatExportHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretChatExportHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12403,8 +12403,8 @@ put("ping", "vault")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSealedSenderHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSealedSenderHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12444,8 +12444,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPqxdhHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPqxdhHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12529,8 +12529,8 @@ put("ping", "seal")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVisibleWatermarkHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVisibleWatermarkHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12570,8 +12570,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretAutoDisappearHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretAutoDisappearHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12655,8 +12655,8 @@ put("ping", "mark")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretLinkPreviewHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretLinkPreviewHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12696,8 +12696,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretExternalLinkHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretExternalLinkHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12781,8 +12781,8 @@ put("ping", "link")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretNotifPreviewHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretNotifPreviewHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12822,8 +12822,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretListPreviewHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretListPreviewHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12911,8 +12911,8 @@ put("ping", "priv")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretReactionHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretReactionHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12953,8 +12953,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretStarHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretStarHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -12995,8 +12995,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretTypingHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretTypingHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -13037,8 +13037,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretReadReceiptHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretReadReceiptHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -13079,8 +13079,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretPresenceHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretPresenceHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
@@ -13121,8 +13121,8 @@ put("type", "SYSTEM")
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val now = System.currentTimeMillis()
                 val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretLastSeenHint")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretLastSeenHint")
                 val botMessage = com.maodouchat.server.model.MessageResponse(
                     id = msgId, chatId = chatId, senderId = bot.id, content = content,
                     type = "SYSTEM", timestamp = now, status = "SENT"
