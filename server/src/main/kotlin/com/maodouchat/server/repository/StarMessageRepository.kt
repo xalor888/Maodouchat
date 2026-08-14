@@ -28,8 +28,15 @@ class StarMessageRepository {
      * 切换星标状态：已星标则取消，未星标则添加。
      * @return true = 现在是星标；false = 现在不是星标；null = 消息类型不可星标
      */
-    fun toggleStar(userId: String, messageId: String): Boolean? = try {
+    fun toggleStar(
+        userId: String,
+        messageId: String,
+        requireBotDeliverable: Boolean = false
+    ): Boolean? = try {
         transaction {
+            if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(userId, System.currentTimeMillis())) {
+                return@transaction null
+            }
             // MessageRepository 的消息变更先锁 message 再锁 chat；星标保持同序。
             val message = Messages.selectAll().where { Messages.id eq messageId }.forUpdate().firstOrNull()
                 ?: return@transaction null

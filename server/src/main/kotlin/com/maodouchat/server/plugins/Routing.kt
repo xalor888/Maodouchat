@@ -3992,7 +3992,14 @@ put("nextOffset", nextOffset)
                     }
                     contentOut = contentOut + "<meta>" + metaObj.toString() + "</meta>"
                 }
-                val ok = runCatching { messageRepo.editMessage(messageId, bot.id, contentOut) }.getOrDefault(false)
+                val ok = runCatching {
+                    messageRepo.editMessage(
+                        messageId = messageId,
+                        userId = bot.id,
+                        newContent = contentOut,
+                        requireBotDeliverable = true
+                    )
+                }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, messageId, "editMessage")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("edit failed"))
                 // Fan-out MESSAGE_EDITED so clients refresh keyboard/body.
@@ -4424,7 +4431,13 @@ put("result", (outcome?.result?.name ?: "UNKNOWN"))
                 if (msg.senderId != bot.id) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("can only delete own bot messages"))
                 }
-                val result = runCatching { messageRepo.deleteMessage(messageId, bot.id) }.getOrNull()
+                val result = runCatching {
+                    messageRepo.deleteMessage(
+                        messageId = messageId,
+                        userId = bot.id,
+                        requireBotDeliverable = true
+                    )
+                }.getOrNull()
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, messageId, "deleteMessage")
                 call.respond(
                 buildJsonObject {
@@ -6800,16 +6813,12 @@ put("alias", "closePoll")
                 val editedAt = System.currentTimeMillis()
                 // Bot plaintext cards may use media types; bypass peer edit window / attachment lock.
                 val ok = runCatching {
-                    org.jetbrains.exposed.sql.transactions.transaction {
-                        val updated = com.maodouchat.server.db.Messages.update({
-                            (com.maodouchat.server.db.Messages.id eq messageId) and
-                                (com.maodouchat.server.db.Messages.senderId eq bot.id)
-                        }) {
-                            it[com.maodouchat.server.db.Messages.content] = newBody.take(8000)
-                            it[com.maodouchat.server.db.Messages.editedAt] = editedAt
-                        }
-                        updated > 0
-                    }
+                    messageRepo.editBotMessageCaption(
+                        messageId = messageId,
+                        botUserId = bot.id,
+                        newContent = newBody,
+                        editedAt = editedAt
+                    )
                 }.getOrDefault(false)
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, existing.chatId, messageId, "editMessageCaption")
                 if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("edit failed"))
@@ -6970,7 +6979,12 @@ put("type", "MARKDOWN")
                 if (!chatRepo.isParticipant(msg.chatId, bot.id)) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 }
-                messageRepo.setReaction(messageId, bot.id, emoji)
+                messageRepo.setReaction(
+                    messageId = messageId,
+                    userId = bot.id,
+                    emoji = emoji,
+                    requireBotDeliverable = true
+                )
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("cannot react"))
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, msg.chatId, messageId, "setMessageReaction")
                 val botReactions = messageRepo.getReactionsForViewer(messageId, bot.id)
@@ -7139,7 +7153,11 @@ put("count", chats.size)
                 if (!chatRepo.isParticipant(msg.chatId, bot.id)) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 }
-                val starred = starMessageRepo.toggleStar(bot.id, messageId)
+                val starred = starMessageRepo.toggleStar(
+                    userId = bot.id,
+                    messageId = messageId,
+                    requireBotDeliverable = true
+                )
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("cannot star"))
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, msg.chatId, messageId, "starMessage")
                 call.respond(

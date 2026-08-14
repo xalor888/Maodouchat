@@ -694,10 +694,18 @@ class MessageRepository {
         }
     }
 
-    fun setReaction(messageId: String, userId: String, emoji: String): List<MessageReactionResponse>? {
+    fun setReaction(
+        messageId: String,
+        userId: String,
+        emoji: String,
+        requireBotDeliverable: Boolean = false
+    ): List<MessageReactionResponse>? {
         // 并发首次反应可能撞 PK；PG 同事务 catch unique 会 abort，故外层 re-read
         return try {
             transaction {
+                if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(userId, System.currentTimeMillis())) {
+                    return@transaction null
+                }
                 val locked = lockChatThenMessage(messageId) ?: return@transaction null
                 val msg = locked.message
                 if (msg[Messages.type] in NON_REACTABLE_TYPES) return@transaction null
@@ -875,8 +883,15 @@ class MessageRepository {
      * @return DeleteMessageResult.ok: true 成功 / false 无权 / null 已不存在
      * 附件行在同事务删除，避免消息删掉后 COMMITTED 孤儿永不过期。
      */
-    fun deleteMessage(messageId: String, userId: String): DeleteMessageResult {
+    fun deleteMessage(
+        messageId: String,
+        userId: String,
+        requireBotDeliverable: Boolean = false
+    ): DeleteMessageResult {
         return transaction {
+            if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(userId, System.currentTimeMillis())) {
+                return@transaction DeleteMessageResult(ok = false)
+            }
             val locked = lockChatThenMessage(messageId)
                 ?: return@transaction DeleteMessageResult(ok = null)
             val msg = locked.message
@@ -1034,8 +1049,16 @@ class MessageRepository {
             if (type == "LOCATION") LIVE_LOCATION_EDIT_WINDOW_MS else EDIT_WINDOW_MS
     }
 
-    fun editMessage(messageId: String, userId: String, newContent: String): Boolean {
+    fun editMessage(
+        messageId: String,
+        userId: String,
+        newContent: String,
+        requireBotDeliverable: Boolean = false
+    ): Boolean {
         return transaction {
+            if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(userId, System.currentTimeMillis())) {
+                return@transaction false
+            }
             val locked = lockChatThenMessage(messageId) ?: return@transaction false
             val msg = locked.message
             if (msg[Messages.senderId] != userId) return@transaction false
@@ -1097,6 +1120,35 @@ class MessageRepository {
             }
             updated > 0
         }
+    }
+
+    /**
+     * Bot plaintext card caption edit: bypasses peer edit-window/attachment restrictions
+     * but still revalidates bot availability and chat membership inside the write transaction.
+     */
+    fun editBotMessageCaption(
+        messageId: String,
+        botUserId: String,
+        newContent: String,
+        editedAt: Long
+    ): Boolean = transaction {
+        if (!BotRepository.isBotDeliverableInTx(botUserId, System.currentTimeMillis())) {
+            return@transaction false
+        }
+        val message = Messages.selectAll().where { Messages.id eq messageId }.forUpdate().firstOrNull()
+            ?: return@transaction false
+        if (message[Messages.senderId] != botUserId) return@transaction false
+        val chatId = message[Messages.chatId]
+        ChatParticipants.selectAll().where {
+            (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq botUserId)
+        }.forUpdate().firstOrNull() ?: return@transaction false
+        val updated = Messages.update({
+            (Messages.id eq messageId) and (Messages.senderId eq botUserId)
+        }) {
+            it[Messages.content] = newContent.take(8000)
+            it[Messages.editedAt] = editedAt
+        }
+        updated > 0
     }
 
     fun getReadReceipts(messageId: String, viewerId: String): List<ReadReceiptResponse> {

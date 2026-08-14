@@ -586,4 +586,55 @@ class BotCreateOutcomeTest {
             ).result
         )
     }
+
+    @Test
+    fun `message mutations revalidate bot owner state inside transactions`() {
+        setupDb()
+        val created = BotRepository.create("u1", "Message Mutation Bot", "message_mutation_bot", "description")
+        assertIs<BotRepository.BotCreateResult.Success>(created)
+        val botId = created.bot.id
+        val now = System.currentTimeMillis()
+        transaction {
+            Chats.insert {
+                it[Chats.id] = "c1"
+            }
+            ChatParticipants.insert {
+                it[ChatParticipants.chatId] = "c1"
+                it[ChatParticipants.userId] = botId
+                it[ChatParticipants.joinedAt] = now
+            }
+            listOf("m_ok", "m_blocked").forEach { messageId ->
+                Messages.insert {
+                    it[Messages.id] = messageId
+                    it[Messages.chatId] = "c1"
+                    it[Messages.senderId] = botId
+                    it[Messages.content] = "hello"
+                    it[Messages.type] = "TEXT"
+                    it[Messages.timestamp] = now
+                }
+            }
+        }
+
+        val messageRepo = MessageRepository()
+        val starMessageRepo = StarMessageRepository()
+
+        assertTrue(messageRepo.editMessage("m_ok", botId, "edited", requireBotDeliverable = true))
+        assertTrue(messageRepo.editBotMessageCaption("m_ok", botId, "caption", now + 1L))
+        assertTrue(messageRepo.setReaction("m_ok", botId, "x", requireBotDeliverable = true) != null)
+        assertTrue(starMessageRepo.toggleStar(botId, "m_ok", requireBotDeliverable = true) == true)
+        assertEquals(true, messageRepo.deleteMessage("m_ok", botId, requireBotDeliverable = true).ok)
+
+        val suspendedUntil = System.currentTimeMillis() + 60_000
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = suspendedUntil
+            }
+        }
+
+        assertFalse(messageRepo.editMessage("m_blocked", botId, "blocked", requireBotDeliverable = true))
+        assertFalse(messageRepo.editBotMessageCaption("m_blocked", botId, "blocked", now + 2L))
+        assertNull(messageRepo.setReaction("m_blocked", botId, "y", requireBotDeliverable = true))
+        assertNull(starMessageRepo.toggleStar(botId, "m_blocked", requireBotDeliverable = true))
+        assertEquals(false, messageRepo.deleteMessage("m_blocked", botId, requireBotDeliverable = true).ok)
+    }
 }
