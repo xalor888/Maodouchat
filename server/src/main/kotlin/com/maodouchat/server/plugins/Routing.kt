@@ -2836,9 +2836,26 @@ put("status", "ok")
                 val body = call.receiveBoundedTextOrEmpty(8_192)
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val indexes = obj["optionIndexes"]?.jsonArray?.mapNotNull { runCatching { it.jsonPrimitive.int }.getOrNull() ?: runCatching { it.jsonPrimitive.content.toInt() }.getOrNull() }
-                    ?: (obj["optionIndex"]?.jsonPrimitive?.intOrNull ?: obj["optionIndex"]?.jsonPrimitive?.content?.toIntOrNull())?.let { listOf(it) }
-                    ?: emptyList()
+                // 9.157：严格解析——此前 mapNotNull 静默丢弃非法元素（如 [0,"abc",1] 被投成 [0,1]，
+                // 用户发送垃圾数据却按子集成功投票）。任一元素非非负整数即整体拒绝。
+                val indexes = buildList {
+                    val arr = obj["optionIndexes"]?.jsonArray
+                    if (arr != null) {
+                        for (element in arr) {
+                            val v = (element as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull()
+                            if (v == null || v < 0) {
+                                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("投票选项无效"))
+                            }
+                            add(v)
+                        }
+                    } else {
+                        val single = (obj["optionIndex"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull()
+                        if (single == null || single < 0) {
+                            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("投票选项无效"))
+                        }
+                        add(single)
+                    }
+                }
                 com.maodouchat.server.repository.GroupPlayRepository.getPoll(pollId, userId)?.let { existing ->
                     if (com.maodouchat.server.repository.PollRepository.isMuted(existing.chatId, userId)) {
                         return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("你已被禁言，暂时无法参与群玩法"))
@@ -4734,12 +4751,25 @@ put("sides", sides)
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val pollId = obj["pollId"]?.jsonPrimitive?.content.orEmpty()
-                val indexes = obj["optionIndexes"]?.let { el ->
-                    (el as? kotlinx.serialization.json.JsonArray)?.mapNotNull {
-                        runCatching { it.jsonPrimitive.content.toInt() }.getOrNull()
+                // 9.157：同用户投票端点——非法元素整体拒绝，不静默截成子集投票
+                val indexes = buildList {
+                    val arr = obj["optionIndexes"] as? kotlinx.serialization.json.JsonArray
+                    if (arr != null) {
+                        for (element in arr) {
+                            val v = (element as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull()
+                            if (v == null || v < 0) {
+                                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid optionIndexes"))
+                            }
+                            add(v)
+                        }
+                    } else {
+                        val single = (obj["optionIndex"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull()
+                        if (single == null || single < 0) {
+                            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId/optionIndexes required"))
+                        }
+                        add(single)
                     }
-                } ?: (obj["optionIndex"]?.jsonPrimitive?.content?.toIntOrNull())?.let { listOf(it) }
-                ?: emptyList()
+                }
                 if (pollId.isBlank() || indexes.isEmpty()) {
                     return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId/optionIndexes required"))
                 }

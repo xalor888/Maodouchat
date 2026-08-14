@@ -6362,3 +6362,10 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实（无洞，本轮）：`CacheService/LRUCache` 容量/TTL/淘汰计数/生命周期正确；`ChatRepository.transferOwnership/addGroupMembersAs` 聊天行锁串行化 + 用户锁序 + 批量拉黑对检查完整；管理端删号磁盘清理逐项 best-effort 且 DB 注销先行提交；`cross-chat-qa` 路由对每个候选 chatId 做成员校验（8.47）；子代理复审确认 9.150 三项修复在最新源码中均生效且三个列表/群详情/通知中心文件无新增可复现 bug。
 
 **验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
+
+### 9.157 2026-08-13 无限调优：投票端点非法 optionIndexes 被静默截成子集投票
+
+1. **投票选项解析静默丢弃非法元素**：用户投票端点 `mapNotNull { runCatching { toInt } }` 会把 `[0,"abc",1]` 静默解析成 `[0,1]` 照常投票；bot 投票端点同病。改为严格解析——任一元素非非负整数（含非 JsonPrimitive 元素、负数、超 Int 范围）整体 400 拒绝，且用 `as? JsonPrimitive` 安全转型（单字段路径此前对对象/数组值会抛 IllegalArgumentException，虽被 StatusPages 兜底为 400，现改在解析层明确拒绝）。
+2. 顺带核实子代理重复投递的报告：checkIn 并发双签已在 9.152 修复（事务外捕获 23505 + 新事务幂等回读）；`PollRepository.isMuted` 非成员返回 false 的隐患已逐一核对全部调用点均为「先 isMember 后 isMuted」顺序，无洞；`closesAt` 到期不落库为读时重算约定，读取路径均已重算。
+
+**验证**：server `compileKotlin` 通过；`git diff --check` 无输出。
