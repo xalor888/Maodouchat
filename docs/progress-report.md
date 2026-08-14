@@ -6354,3 +6354,11 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实（无洞）：`MessageRepository.updateStatus/deleteMessage/getMessagesBefore/Since` 锁序、状态单调、游标稳定；`BotWebhookService` DNS 钉扎/地址白名单/头校验/重试+收件箱兜底完整，inbox 有 30 天 purge；`STATUS_UPDATE`/`SEND_MESSAGE`/`NUDGE`/`TYPING` WS 处理器成员/拉黑/禁言/限流齐全；`ChatLockRepository` PBKDF2-600k+常数时间比较+5 次失败锁定；`AppLocaleManager` 弹窗修复前客户端仅发 `bytes=N-` 开区间 Range，与 9.151 服务端闭区间/后缀扩展完全兼容。
 
 **验证**：server `compileKotlin` 与 `:app:compileDebugKotlin` 均通过；`git diff --check` 无输出。
+
+### 9.156 2026-08-13 无限调优：会话列表消息搜索超长输入恒被丢弃
+
+1. **`onSearchQueryChange` 转义与陈旧守卫口径不一致**：state 存的是 `LIST_SEARCH_MAX_LENGTH` 截断后的 `clipped`，但 LIKE 转义与「输入已更新则丢弃」守卫都拿未截断的 `query` 比对——粘贴超长关键词时 `searchQuery != query` 恒成立，搜索结果**每次都被丢弃**（表现为搜索永远空结果），同时 LIKE 还以全文匹配白跑一遍。统一改用 `clipped`：守卫正确、查询长度受限。
+
+另核实（无洞，本轮）：`CacheService/LRUCache` 容量/TTL/淘汰计数/生命周期正确；`ChatRepository.transferOwnership/addGroupMembersAs` 聊天行锁串行化 + 用户锁序 + 批量拉黑对检查完整；管理端删号磁盘清理逐项 best-effort 且 DB 注销先行提交；`cross-chat-qa` 路由对每个候选 chatId 做成员校验（8.47）；子代理复审确认 9.150 三项修复在最新源码中均生效且三个列表/群详情/通知中心文件无新增可复现 bug。
+
+**验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。

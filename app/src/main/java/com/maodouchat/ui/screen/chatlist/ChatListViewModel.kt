@@ -930,7 +930,10 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 _uiState.update { it.copy(messageMatchedChatIds = emptySet()) }
                 return@launch
             }
-            val escaped = com.maodouchat.data.local.LikeQueryPolicy.escapeForContains(query)
+            // 9.156：转义与陈旧比对统一使用 clipped——此前用未截断的 query，
+            // 超长粘贴（> LIST_SEARCH_MAX_LENGTH）时 searchQuery 存的是截断值，
+            // 陈旧守卫恒判「已过期」→ 搜索结果永远被丢弃；LIKE 还以全文匹配浪费查询
+            val escaped = com.maodouchat.data.local.LikeQueryPolicy.escapeForContains(clipped)
             if (escaped.isBlank()) {
                 _uiState.update { it.copy(messageMatchedChatIds = emptySet()) }
                 return@launch
@@ -942,7 +945,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     .filterNot { it in locked || it in secret }
             }
             // Drop if user kept typing past this snapshot or account switched mid-search.
-            if (_uiState.value.searchQuery != query) return@launch
+            if (_uiState.value.searchQuery != clipped) return@launch
             if (tokenManager.getUserId().orEmpty() != searchOwnerUserId) return@launch
             _uiState.update { it.copy(messageMatchedChatIds = matchedIds.toSet()) }
         }
