@@ -66,6 +66,47 @@ async function checkPage(browser, path, width, height) {
   }
   assert(errors.length === 0, `${path}@${width} console errors: ${errors.join('; ')}`);
 
+  if (path === '/' && width === 390) {
+    const themeToggle = page.locator('#themeToggle');
+    await themeToggle.click();
+    assert(
+      (await page.evaluate(() => ({
+        theme: document.documentElement.dataset.theme,
+        meta: document.querySelector('#themeColor')?.content
+      }))).theme === 'dark',
+      'homepage theme toggle should enter dark mode'
+    );
+    await themeToggle.click();
+
+    const navToggle = page.locator('#navToggle');
+    await navToggle.click();
+    assert(
+      await page.evaluate(() => document.getElementById('navLinks').classList.contains('open')),
+      'mobile navigation should open'
+    );
+    await page.keyboard.press('Escape');
+    assert(
+      await page.evaluate(() => !document.getElementById('navLinks').classList.contains('open')),
+      'Escape should close mobile navigation'
+    );
+
+    const secretTab = page.locator('#tab-secret');
+    await secretTab.click();
+    await secretTab.press('ArrowRight');
+    const tabState = await page.evaluate(() => ({
+      focus: document.activeElement?.id,
+      selected: [...document.querySelectorAll('.preview-tab')]
+        .filter(tab => tab.getAttribute('aria-selected') === 'true')
+        .map(tab => tab.id),
+      visible: [...document.querySelectorAll('.phone-screen')]
+        .filter(panel => panel.classList.contains('active'))
+        .map(panel => panel.id)
+    }));
+    assert(tabState.focus === 'tab-ai', 'preview tabs should support arrow-key navigation');
+    assert(tabState.selected.join(',') === 'tab-ai', 'arrow key should select the next preview tab');
+    assert(tabState.visible.join(',') === 'panel-ai', 'selected tab should show its matching panel');
+  }
+
   await context.close();
   return { path, width, ...state };
 }

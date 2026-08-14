@@ -1,13 +1,13 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="theme-color" content="#0b100e"/>
+  <meta id="themeColor" name="theme-color" content="#f6f5ef"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <title>毛豆聊天 Maodouchat - 端到端加密即时通讯</title>
-  <meta name="description" content="毛豆聊天 - 对标 Telegram 的优雅体验，融合微信/QQ 的核心之长。端到端加密、AI 助手、密聊防截图、阅后即焚、开发者机器人平台。"/>
-  <meta name="keywords" content="毛豆聊天,Maodouchat,即时通讯,IM,端到端加密,E2EE,Signal Protocol,密聊,阅后即焚,AI 助手,机器人平台,开源 IM,Telegram 替代,加密聊天"/>
+  <meta name="description" content="毛豆聊天是轻量、丝滑、端到端加密的 Android 即时通讯应用，提供密聊、阅后即焚、AI 助手、加密附件与开放机器人平台。"/>
+  <meta name="keywords" content="毛豆聊天,Maodouchat,即时通讯,IM,端到端加密,E2EE,Signal Protocol,密聊,阅后即焚,AI 助手,机器人平台,加密聊天"/>
   <meta name="author" content="毛豆聊天"/>
   <link rel="canonical" href="https://maodouchat.com/"/>
   <link rel="icon" href="/assets/logo.png"/>
@@ -26,660 +26,265 @@
   <meta name="twitter:description" content="轻量、丝滑、端到端加密。AI 助手、密聊防截图、阅后即焚与开放机器人平台。"/>
   <meta name="twitter:image" content="https://maodouchat.com/assets/logo.png"/>
 
-  <link rel="stylesheet" href="/assets/style.css"/>
+  <script>
+    try {
+      var initialTheme = localStorage.getItem('maodou-theme');
+      if (initialTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.getElementById('themeColor').setAttribute('content', '#101614');
+      }
+    } catch (error) {}
+  </script>
+  <link rel="stylesheet" href="/assets/landing.css"/>
 </head>
 <body>
-
-<button class="theme-toggle" id="themeToggle" aria-label="切换主题" title="切换主题">
-  <svg id="iconSun" hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-  <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-</button>
-
 <header class="nav" id="nav">
   <div class="nav-inner">
-    <a href="/" class="nav-brand">
-      <img src="/assets/logo.png" alt="毛豆聊天"/>
+    <a class="brand" href="/" aria-label="毛豆聊天首页">
+      <img src="/assets/logo.png" alt=""/>
       <span>毛豆聊天</span>
     </a>
-    <button class="nav-mobile" id="navToggle" aria-label="打开菜单" aria-expanded="false" title="菜单">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    <button class="nav-toggle" id="navToggle" type="button" aria-label="打开菜单" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
     <nav class="nav-links" id="navLinks" aria-label="主导航">
       <a href="#features">功能</a>
       <a href="#security">安全</a>
-      <a href="#ai">AI</a>
       <a href="#preview">预览</a>
       <a href="#developers">开发者</a>
       <a href="/faq">FAQ</a>
-      <a href="#download" class="btn-download">下载 App</a>
+      <a class="nav-cta" href="#download">下载 App</a>
     </nav>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="切换主题">
+      <svg id="iconSun" hidden viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4V2M12 22v-2M4 12H2M22 12h-2M5.6 5.6 4.2 4.2M19.8 19.8l-1.4-1.4M5.6 18.4 4.2 19.8M19.8 4.2l-1.4 1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg>
+      <svg id="iconMoon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg>
+    </button>
   </div>
 </header>
 
 <main>
-  <!-- Hero -->
   <section class="hero" id="hero">
-    <div class="hero-scene" aria-hidden="true">
-      <div class="hero-chat back">
-        <div class="chat-topbar">
-          <div class="chat-avatar">林</div>
-          <div class="chat-title">
-            <strong>产品讨论组</strong>
-            <span>3 条未读</span>
-          </div>
-          <span class="chat-secure">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-            E2EE
-          </span>
-        </div>
-        <div class="chat-body">
-          <div class="chat-row">
-            <div class="chat-bubble">新版首页已经在路上了</div>
-          </div>
-          <div class="chat-row out">
-            <div class="chat-bubble">这版视觉终于配得上加密协议了</div>
-          </div>
-          <div class="chat-row">
-            <div class="chat-bubble">看完记得给设计团队加鸡腿</div>
-          </div>
-        </div>
-        <div class="chat-input">
-          <span>输入消息...</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-        </div>
-      </div>
-
-      <div class="hero-chat front">
-        <div class="chat-topbar">
-          <div class="chat-avatar">豆</div>
-          <div class="chat-title">
-            <strong>小豆</strong>
-            <span>刚刚在线</span>
-          </div>
-          <span class="chat-secure">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            密聊
-          </span>
-        </div>
-        <div class="chat-body">
-          <div class="chat-row out">
-            <div class="chat-bubble">今晚的路线图评审改到 20:00</div>
-            <div class="chat-meta"><span>已读</span><span>19:42</span></div>
-          </div>
-          <div class="chat-row">
-            <div class="chat-bubble">收到，我把密聊演示一起准备好</div>
-            <div class="chat-meta"><span>19:43</span></div>
-          </div>
-          <div class="chat-row out">
-            <div class="chat-bubble">好，会上见</div>
-          </div>
-        </div>
-        <div class="chat-input">
-          <span>只有你们能看到这条消息</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-        </div>
-      </div>
-
-      <div class="chat-pill">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
-        端到端加密已连接
-      </div>
-    </div>
-
-    <div class="hero-copy">
-      <div class="hero-kicker">Maodouchat · 端到端加密即时通讯</div>
-      <h1 class="hero-title">毛豆聊天</h1>
-      <p class="hero-desc">把 Telegram 的优雅、微信与 QQ 的顺手，和真正看得见的隐私保护放在同一个 App 里。</p>
-      <div class="hero-actions">
-        <a href="#download" class="btn btn-primary">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          获取 App
-        </a>
-        <a href="#developers" class="btn btn-ghost">接入机器人</a>
-      </div>
-      <div class="hero-proof">
-        <span class="hero-proof-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-          Signal Protocol
-        </span>
-        <span class="hero-proof-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-          开源可自托管
-        </span>
-        <span class="hero-proof-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-          轻量极速
-        </span>
-        <span class="hero-proof-item service-status" id="serviceStatus" data-state="checking">
-          <svg class="status-dot" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg>
+    <img class="hero-logo" src="/assets/logo.png" alt="" aria-hidden="true"/>
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <div class="service-status" id="serviceStatus" data-state="checking">
+          <span class="status-dot" aria-hidden="true"></span>
           <span id="serviceStatusText" aria-live="polite">服务状态检查中</span>
-        </span>
-      </div>
-    </div>
-  </section>
-
-  <!-- Features -->
-  <section class="section" id="features">
-    <div class="container">
-      <div class="section-head reveal">
-        <div class="kicker">核心功能</div>
-        <h2 class="section-title">加密与体验，都不做减法</h2>
-        <p class="section-desc">默认端到端加密，也把群聊、AI、密聊与开放机器人平台做进同一个客户端。</p>
-      </div>
-      <div class="feature-grid">
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
-          <h3>端到端加密</h3>
-          <p>1:1 Double Ratchet 与群 Sender Key，附件 AES-256-GCM，服务端只保存密文信封。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4M9 13h.01M15 13h.01"/></svg></div>
-          <h3>AI 助手</h3>
-          <p>智能摘要、实时翻译、AI 改写、语音转录、图片分析与语义搜索。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></div>
-          <h3>附件加密</h3>
-          <p>图片、视频、文档、语音与文件全部加密传输，支持安全分享。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-          <h3>群聊管理</h3>
-          <p>投票、骰子、幸运签、表情猜词等群玩法，完整管理员权限体系。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>
-          <h3>音视频通话</h3>
-          <p>WebRTC 端到端加密通话，一对一与群组通话都保持低延迟。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
-          <h3>动态朋友圈</h3>
-          <p>图文动态、评论互动与点赞，隐私可控的社交空间。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg></div>
-          <h3>密聊模式</h3>
-          <p>FLAG_SECURE 防截屏，不可见盲水印含用户 ID 与时间，支持频域取证。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></div>
-          <h3>阅后即焚</h3>
-          <p>30 秒到 30 天多档计时，截屏告警，图片支持一次性查看。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
-          <h3>截屏即焚</h3>
-          <p>检测到截屏或录屏尝试时，立即销毁本地解密缓存媒体。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
-          <h3>会话自动销毁</h3>
-          <p>密聊超过无活动 TTL 即整体销毁，消息级之外再加会话级兜底。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></svg></div>
-          <h3>转发白名单</h3>
-          <p>密聊消息只可转发到白名单会话，白名单外一律拦截。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M9 6h6v4H9zM9 12h6v4H9zM9 18h6"/></svg></div>
-          <h3>SIM 变更防护</h3>
-          <p>SIM 卡拔出或更换时立即锁定并清除密聊数据，设备易主也不泄密。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M21 2l-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg></div>
-          <h3>双因素门禁</h3>
-          <p>生物识别或 App 锁开道，进入密聊前二次验证。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg></div>
-          <h3>新设备风控</h3>
-          <p>只信任已登记设备指纹，陌生设备上的密聊默认锁定不预览。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 11a4 4 0 0 1 4 4c0 1.9.2 3.7.8 5M8 15a4 4 0 0 1 8 0M6.1 12.5A8 8 0 0 1 12 8c1.6 0 3.1.5 4.4 1.3M5 19.2A12 12 0 0 1 12 12M17.5 19.5A12 12 0 0 0 15 16M4 10.8A12 12 0 0 1 12 4c2.1 0 4 .6 5.6 1.5M9.5 20.1A8 8 0 0 0 12 17"/></svg></div>
-          <h3>设备核验</h3>
-          <p>进入密聊前核对对端设备指纹，指纹不一致拒绝展示内容。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
-          <h3>双向密聊提示</h3>
-          <p>双方都开启密聊才展示防护徽标，单边密聊明确提示仅本机防护。</p>
-        </article>
-        <article class="feature-card reveal">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-          <h3>开放机器人平台</h3>
-          <p>HTTP API、Webhook HMAC、长轮询与内联键盘，几分钟接入你的 Bot。</p>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <!-- Security -->
-  <section class="section section-alt" id="security">
-    <div class="container">
-      <div class="section-head reveal">
-        <div class="kicker">隐私优先的安全架构</div>
-        <h2 class="section-title">消息从发起到接收，全程只有你和对方能读</h2>
-        <p class="section-desc">服务端只承担路由与密文存储，不接触消息明文、附件明文或会话密钥。</p>
-      </div>
-      <div class="security-flow reveal">
-        <div class="flow-step">
-          <div class="flow-step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg></div>
-          <div class="flow-step-label">发送方</div>
-          <div class="flow-step-desc">消息在设备端加密</div>
         </div>
-        <div class="flow-step">
-          <div class="flow-step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
-          <div class="flow-step-label">E2EE 加密</div>
-          <div class="flow-step-desc">Signal Protocol</div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></div>
-          <div class="flow-step-label">服务器</div>
-          <div class="flow-step-desc">仅存储密文信封</div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
-          <div class="flow-step-label">E2EE 解密</div>
-          <div class="flow-step-desc">设备端解密</div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg></div>
-          <div class="flow-step-label">接收方</div>
-          <div class="flow-step-desc">安全接收明文</div>
-        </div>
-      </div>
-      <div class="security-metrics reveal">
-        <div class="metric"><strong>Signal</strong><span>Protocol</span></div>
-        <div class="metric"><strong>AES-256</strong><span>GCM 附件加密</span></div>
-        <div class="metric"><strong>PQXDH</strong><span>后量子预览</span></div>
-        <div class="metric"><strong>零知识</strong><span>服务器不可读</span></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- AI -->
-  <section class="section" id="ai">
-    <div class="container">
-      <div class="section-head reveal">
-        <div class="kicker">AI 智能体验</div>
-        <h2 class="section-title">AI 长在聊天里，而不是另一个入口</h2>
-        <p class="section-desc">摘要、翻译、改写、转录、视觉与语义搜索，按需调用，可随时关闭。</p>
-      </div>
-      <div class="ai-grid">
-        <article class="ai-card reveal">
-          <div class="ai-card-header">
-            <div class="ai-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-            <h3>智能摘要</h3>
-          </div>
-          <p>长对话一键生成摘要，快速抓住群聊重点，不遗漏重要信息。</p>
-          <div class="ai-demo"><span class="code-comment">// 为群聊消息生成摘要</span><br/><span class="code-keyword">POST</span> <span class="code-url">/api/bot/sendMarkdown</span><br/><span class="code-string">"chatId": "group_123"</span></div>
-        </article>
-        <article class="ai-card reveal">
-          <div class="ai-card-header">
-            <div class="ai-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
-            <h3>实时翻译</h3>
-          </div>
-          <p>跨语言沟通无障碍，消息自动翻译成你熟悉的语言，支持 100+ 语种。</p>
-          <div class="ai-demo"><span class="code-comment">// 消息 AI 翻译</span><br/><span class="code-keyword">POST</span> <span class="code-url">/api/bot/sendMessage</span><br/><span class="code-string">"chatId": "user_456"</span></div>
-        </article>
-        <article class="ai-card reveal">
-          <div class="ai-card-header">
-            <div class="ai-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
-            <h3>AI 改写</h3>
-          </div>
-          <p>润色消息内容，调整语气与风格，让表达更精准得体。</p>
-          <div class="ai-demo"><span class="code-comment">// 获取 AI 功能开关</span><br/><span class="code-keyword">GET</span> <span class="code-url">/api/bot/getAiFeatureFlags</span><br/><span class="code-string">{ "aiRewriteEnabled": true }</span></div>
-        </article>
-        <article class="ai-card reveal">
-          <div class="ai-card-header">
-            <div class="ai-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4"/></svg></div>
-            <h3>语音转录</h3>
-          </div>
-          <p>语音消息自动转文字，高精度识别，不方便听语音也能获取信息。</p>
-          <div class="ai-demo"><span class="code-comment">// 语音转录能力</span><br/><span class="code-keyword">GET</span> <span class="code-url">/api/bot/getAiAssistFlags</span><br/><span class="code-string">{ "aiTranscribeEnabled": true }</span></div>
-        </article>
-        <article class="ai-card reveal">
-          <div class="ai-card-header">
-            <div class="ai-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
-            <h3>图片分析</h3>
-          </div>
-          <p>识别图片内容、文字与场景，群聊助手也能智能回复。</p>
-          <div class="ai-demo"><span class="code-comment">// AI 视觉能力</span><br/><span class="code-keyword">GET</span> <span class="code-url">/api/bot/getAiVisionFlags</span><br/><span class="code-string">{ "aiVisionEnabled": true }</span></div>
-        </article>
-        <article class="ai-card reveal">
-          <div class="ai-card-header">
-            <div class="ai-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></div>
-            <h3>语义搜索</h3>
-          </div>
-          <p>超越关键词匹配，用语义理解精准定位历史消息和文档。</p>
-          <div class="ai-demo"><span class="code-comment">// AI 搜索能力</span><br/><span class="code-keyword">GET</span> <span class="code-url">/api/bot/getAiSearchFlags</span><br/><span class="code-string">{ "aiSemanticSearchEnabled": true }</span></div>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <!-- Preview -->
-  <section class="section section-alt" id="preview">
-    <div class="container">
-      <div class="section-head reveal">
-        <div class="kicker">产品预览</div>
-        <h2 class="section-title">丝滑、克制、一眼看懂</h2>
-        <p class="section-desc">把常用动作放在顺手的位置，把隐私提示放在必要的地方。</p>
-      </div>
-      <div class="preview-shell reveal">
-        <div class="preview-tabs" role="tablist" aria-label="产品预览">
-          <button class="preview-tab active" role="tab" aria-selected="true" data-preview="chat">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            <span><strong>聊天</strong><span>会话与群聊</span></span>
-          </button>
-          <button class="preview-tab" role="tab" aria-selected="false" data-preview="secret">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>
-            <span><strong>密聊</strong><span>防截屏与盲水印</span></span>
-          </button>
-          <button class="preview-tab" role="tab" aria-selected="false" data-preview="ai">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.8L18 9l-4.2 1.2L12 15l-1.8-4.8L6 9l4.2-1.2L12 3z"/><path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14z"/></svg>
-            <span><strong>AI 助手</strong><span>摘要与语义搜索</span></span>
-          </button>
-        </div>
-
-        <div>
-          <div class="phone" aria-label="毛豆聊天产品预览">
-            <div class="phone-screen active" data-screen="chat">
-              <div class="screen-top">
-                <div class="chat-avatar">豆</div>
-                <div><strong>消息</strong><span>2 个未读会话</span></div>
-                <span class="chat-secure"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>E2EE</span>
-              </div>
-              <div class="screen-list">
-                <div class="screen-row">
-                  <div class="chat-avatar">林</div>
-                  <div><strong>产品讨论组</strong><span>今晚 20:00 路线图评审</span></div>
-                  <span class="screen-dot"></span>
-                </div>
-                <div class="screen-row">
-                  <div class="chat-avatar">豆</div>
-                  <div><strong>小豆</strong><span>好，会上见</span></div>
-                  <span class="screen-dot"></span>
-                </div>
-                <div class="screen-row">
-                  <div class="chat-avatar">群</div>
-                  <div><strong>周末徒步</strong><span>照片已全部加密同步</span></div>
-                </div>
-                <div class="screen-row">
-                  <div class="chat-avatar">AI</div>
-                  <div><strong>AI 助手</strong><span>本周群聊周报已生成</span></div>
-                </div>
-              </div>
-              <div class="screen-toolbar">
-                <div class="screen-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>聊天</div>
-                <div class="screen-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>群聊</div>
-                <div class="screen-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>通话</div>
-                <div class="screen-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>动态</div>
-              </div>
-            </div>
-
-            <div class="phone-screen" data-screen="secret">
-              <div class="screen-top">
-                <div class="chat-avatar">豆</div>
-                <div><strong>小豆</strong><span>密聊已开启</span></div>
-                <span class="chat-secure"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>防截屏</span>
-              </div>
-              <div class="screen-content">
-                <div class="screen-bubble">这条消息只显示一次，已开启防截屏与盲水印。</div>
-                <div class="screen-bubble out">收到，阅后即焚计时 30 分钟。</div>
-                <div class="screen-bubble">安全代码已核对，设备指纹一致。</div>
-              </div>
-              <div class="screen-toolbar">
-                <div class="screen-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>焚毁</div>
-                <div class="screen-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>计时</div>
-                <div class="screen-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>转发</div>
-                <div class="screen-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M9 6h6v4H9zM9 12h6v4H9zM9 18h6"/></svg>SIM 锁</div>
-              </div>
-            </div>
-
-            <div class="phone-screen" data-screen="ai">
-              <div class="screen-top">
-                <div class="chat-avatar">AI</div>
-                <div><strong>AI 助手</strong><span>群聊周报</span></div>
-                <span class="chat-secure"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.8L18 9l-4.2 1.2L12 15l-1.8-4.8L6 9l4.2-1.2L12 3z"/><path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14z"/></svg>AI</span>
-              </div>
-              <div class="screen-content">
-                <div class="screen-bubble">本周群聊共 214 条消息，3 个重点：发布计划、密聊演示与机器人文档。</div>
-                <div class="screen-bubble">需要我把重点整理成会议纪要吗？</div>
-                <div class="screen-bubble out">好，整理一份发到群里。</div>
-              </div>
-              <div class="screen-toolbar">
-                <div class="screen-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>摘要</div>
-                <div class="screen-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>翻译</div>
-                <div class="screen-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>搜索</div>
-                <div class="screen-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>看图</div>
-              </div>
-            </div>
-          </div>
-          <p class="screen-caption">密聊、AI 与群聊能力集成在同一个 App 内，交互保持克制和一致。</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Developer -->
-  <section class="section" id="developers">
-    <div class="container">
-      <div class="section-head reveal">
-        <div class="kicker">开放机器人平台</div>
-        <h2 class="section-title">几行代码，接入你的 Bot</h2>
-        <p class="section-desc">创建 Token，调用 HTTP API，Webhook 或长轮询随你选。</p>
-      </div>
-      <div class="dev-grid reveal">
-        <div class="dev-info">
-          <h3>开发者友好，能力完整</h3>
-          <p>在 App「设置 → 我的机器人」创建 Bot 后，即可发送消息、管理群组、处理回调。支持 Markdown、内联键盘、媒体与群玩法。</p>
-          <div class="dev-chips">
-            <span class="dev-chip">Markdown 消息</span>
-            <span class="dev-chip">内联键盘</span>
-            <span class="dev-chip">Webhook HMAC</span>
-            <span class="dev-chip">群管与投票</span>
-            <span class="dev-chip">位置与联系人</span>
-            <span class="dev-chip">AI 能力开关</span>
-          </div>
-          <a href="/developer" class="btn btn-primary">
-            打开开发者控制台
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        <h1>毛豆聊天</h1>
+        <p>把重要对话放回自己手里。轻量 Android 即时通讯，消息与附件端到端加密，AI、群聊、通话与机器人平台按需开启。</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#download">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14"/></svg>
+            下载 App
+          </a>
+          <a class="button button-secondary" href="/security">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.4 3 8.4 7 10 4-1.6 7-5.6 7-10V6l-7-3Z"/></svg>
+            安全架构
           </a>
         </div>
-        <div class="dev-code">
-          <div class="dev-code-header">
-            <span class="dev-code-dot r"></span>
-            <span class="dev-code-dot y"></span>
-            <span class="dev-code-dot g"></span>
-            <span>curl 示例</span>
-          </div>
-          <pre><code><span class="code-comment"># 发送 Markdown 消息</span>
-<span class="code-keyword">curl</span> -X POST <span class="code-url">/api/bot/sendMessage</span> \
-  -H <span class="code-string">"X-Bot-Token: YOUR_TOKEN"</span> \
-  -H <span class="code-string">"Content-Type: application/json"</span> \
-  -d <span class="code-string">'{
-    "chatId": "group_123",
-    "text": "**Hello** from _Bot_!",
-    "parseMode": "MARKDOWN"
-  }'</span>
+      </div>
+      <div class="hero-device" aria-hidden="true">
+        <div class="device-notch"></div>
+        <div class="device-status">
+          <span>9:41</span>
+          <span>毛豆聊天</span>
+          <span>E2EE</span>
+        </div>
+        <div class="device-chat">
+          <div class="bubble incoming">这版加密链路跑通了吗？</div>
+          <div class="bubble outgoing">单聊、群聊和附件都已经设备端加密。</div>
+          <div class="bubble incoming">服务端能看到什么？</div>
+          <div class="bubble outgoing">只看到需要路由的密文。</div>
+        </div>
+        <div class="device-input"><span>发送加密消息</span><i></i></div>
+      </div>
+    </div>
+    <div class="hero-proof">
+      <div><strong>Signal 系协议</strong><span>单聊与群聊 E2EE</span></div>
+      <div><strong>SQLCipher</strong><span>本地数据库加密</span></div>
+      <div><strong>Android 优先</strong><span>Compose 原生体验</span></div>
+      <div><strong>可自托管</strong><span>Ktor + PostgreSQL</span></div>
+    </div>
+  </section>
 
-<span class="code-comment"># 查询 Bot 资料</span>
-<span class="code-keyword">curl</span> <span class="code-url">/api/bot/me</span> \
-  -H <span class="code-string">"X-Bot-Token: YOUR_TOKEN"</span></code></pre>
+  <section class="section" id="features">
+    <div class="section-inner">
+      <div class="section-head">
+        <span>核心能力</span>
+        <h2>该快的地方快，该严的地方严</h2>
+        <p>聊天、群组、动态、音视频通话与 AI 能力围绕同一条加密边界组织，功能完整但不把隐私变成附加项。</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <span class="feature-icon icon-green"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h12v20H6zM10 5h4M12 18h.01"/></svg></span>
+          <h3>即时通讯</h3>
+          <p>单聊、群聊、消息反应、编辑、撤回与离线推送保持轻快，常用操作都在拇指可达范围内。</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon icon-blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 10 6.5-3.5v11L15 14M3 6h12v12H3z"/></svg></span>
+          <h3>音视频通话</h3>
+          <p>WebRTC 通话使用 TURN 服务补足弱网路径，来电前台服务与邀请频率限制已内置。</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon icon-clay"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 15v2"/></svg></span>
+          <h3>密聊空间</h3>
+          <p>防截图、转发白名单、SIM 变更防护与阅后即焚层层叠加，敏感会话默认更谨慎。</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon icon-green"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3 4 14h6l-1 7 9-11h-6l1-7Z"/></svg></span>
+          <h3>可选 AI</h3>
+          <p>翻译、总结、提醒与图片理解按需调用；未配置密钥时，普通聊天不受影响。</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon icon-blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 4 8l8 4 8-4-8-4ZM4 12l8 4 8-4M4 16l8 4 8-4"/></svg></span>
+          <h3>加密附件</h3>
+          <p>附件独立加密存储，上传声明与下载领取分离，服务端不接触媒体明文。</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon icon-clay"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11l3-3v14l-3-3H8l-5 3V5l5 3Z"/></svg></span>
+          <h3>机器人平台</h3>
+          <p>HTTP API、HMAC Webhook、长轮询与内联键盘保留足够扩展性，接入成本保持低。</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="security-band" id="security">
+    <div class="section-inner">
+      <div class="security-head">
+        <span>安全架构</span>
+        <h2>明文止步于设备</h2>
+        <p>服务端负责身份、路由、密文存储与治理；消息正文、附件明文和会话密钥都不进入服务端信任边界。</p>
+      </div>
+      <ol class="security-flow">
+        <li><strong>设备端加密</strong><span>Signal 系协议生成会话密钥</span></li>
+        <li><strong>密文传输</strong><span>TLS 之上再叠加 E2EE 载荷</span></li>
+        <li><strong>密文存储</strong><span>服务端只见 opaque envelope</span></li>
+        <li><strong>设备端解密</strong><span>身份密钥与本地库同受保护</span></li>
+      </ol>
+      <div class="security-actions">
+        <a href="/security">安全详解</a>
+        <a href="/privacy">隐私政策</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section preview-section" id="preview">
+    <div class="section-inner">
+      <div class="section-head">
+        <span>产品预览</span>
+        <h2>界面先服务对话，再服务装饰</h2>
+        <p>切换下面三个场景，看看信息密度、安全提示与 AI 面板如何在不同任务里保持克制。</p>
+      </div>
+      <div class="preview-layout">
+        <div class="preview-tabs" role="tablist" aria-label="产品预览">
+          <button class="preview-tab active" id="tab-chat" role="tab" aria-controls="panel-chat" aria-selected="true" tabindex="0" data-preview="chat" type="button">聊天</button>
+          <button class="preview-tab" id="tab-secret" role="tab" aria-controls="panel-secret" aria-selected="false" tabindex="-1" data-preview="secret" type="button">密聊</button>
+          <button class="preview-tab" id="tab-ai" role="tab" aria-controls="panel-ai" aria-selected="false" tabindex="-1" data-preview="ai" type="button">AI</button>
+        </div>
+        <div class="preview-frame">
+          <div class="phone-screen active" id="panel-chat" role="tabpanel" aria-labelledby="tab-chat" tabindex="0" data-screen="chat">
+            <div class="screen-top"><span>产品设计组</span><span>12 位成员</span></div>
+            <div class="mock-messages">
+              <div class="mock-line">周会改到下午三点</div>
+              <div class="mock-line out">收到，我先更新日程</div>
+              <div class="mock-line">附件也同步加密上传</div>
+              <div class="mock-line out">好，接收端再解密展示</div>
+            </div>
+          </div>
+          <div class="phone-screen" id="panel-secret" role="tabpanel" aria-labelledby="tab-secret" tabindex="0" data-screen="secret">
+            <div class="screen-top secret"><span>密聊</span><span>双方防护已开启</span></div>
+            <div class="mock-messages">
+              <div class="mock-line secret">合同预算请看这条</div>
+              <div class="mock-line out">已开启阅读后销毁</div>
+              <div class="secret-note">转发白名单外已拦截 1 次</div>
+            </div>
+          </div>
+          <div class="phone-screen" id="panel-ai" role="tabpanel" aria-labelledby="tab-ai" tabindex="0" data-screen="ai">
+            <div class="screen-top ai"><span>AI 助手</span><span>本次会话范围</span></div>
+            <div class="mock-messages">
+              <div class="mock-line">把今天的会议要点整理成三条</div>
+              <div class="mock-line out ai">1. 首发范围收敛 Android<br>2. E2EE 优先于新功能<br>3. 发布前跑完整回归</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Comparison -->
-  <section class="section section-alt" id="compare">
-    <div class="container">
-      <div class="section-head reveal">
-        <div class="kicker">与主流 IM 对比</div>
-        <h2 class="section-title">隐私、开放与体验，找到平衡</h2>
-        <p class="section-desc">不是简单罗列参数，而是把加密和功能真正默认做到位。</p>
+  <section class="developer-band" id="developers">
+    <div class="section-inner developer-layout">
+      <div>
+        <span>开发者平台</span>
+        <h2>一个 Token，接入你的机器人</h2>
+        <p>创建 Bot 后即可使用 HTTP API 发送消息、管理会话、处理回调与内联键盘。Webhook 使用 HMAC 签名，回调处理支持长轮询兜底。</p>
+        <div class="developer-actions">
+          <a class="button button-primary" href="/developer">开发者控制台</a>
+          <a class="button button-secondary" href="/developer#api">API 文档</a>
+        </div>
       </div>
-      <div class="compare-wrap reveal">
-        <table class="compare-table">
-          <thead>
-            <tr>
-              <th>能力</th>
-              <th class="col-maodou">毛豆聊天</th>
-              <th>Telegram</th>
-              <th>微信</th>
-              <th>QQ</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>端到端加密</td><td class="col-maodou"><span class="compare-yes">默认开启</span></td><td><span class="compare-maybe">仅密聊</span></td><td><span class="compare-no">不支持</span></td><td><span class="compare-no">不支持</span></td></tr>
-            <tr><td>开源透明</td><td class="col-maodou"><span class="compare-yes">可自托管</span></td><td><span class="compare-yes">客户端开源</span></td><td><span class="compare-no">不支持</span></td><td><span class="compare-no">不支持</span></td></tr>
-            <tr><td>密聊防截屏</td><td class="col-maodou"><span class="compare-yes">FLAG_SECURE</span></td><td><span class="compare-maybe">部分</span></td><td><span class="compare-no">不支持</span></td><td><span class="compare-no">不支持</span></td></tr>
-            <tr><td>盲水印取证</td><td class="col-maodou"><span class="compare-yes">DCT-QIM</span></td><td><span class="compare-no">不支持</span></td><td><span class="compare-no">不支持</span></td><td><span class="compare-no">不支持</span></td></tr>
-            <tr><td>自带 AI 助手</td><td class="col-maodou"><span class="compare-yes">内置</span></td><td><span class="compare-maybe">第三方</span></td><td><span class="compare-no">不支持</span></td><td><span class="compare-maybe">部分</span></td></tr>
-            <tr><td>群人数上限</td><td class="col-maodou">万级</td><td>20 万</td><td>500</td><td>3000</td></tr>
-            <tr><td>跨平台</td><td class="col-maodou">Android <span class="compare-maybe">· iOS/桌面规划中</span></td><td><span class="compare-yes">全平台</span></td><td><span class="compare-yes">全平台</span></td><td><span class="compare-yes">全平台</span></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="compare-note reveal">数据基于各产品公开信息整理。对竞品的描述如有出入欢迎反馈。</p>
+      <pre><code>POST /api/bots/{botId}/messages
+Authorization: Bearer &lt;bot-token&gt;
+
+{
+  "chatId": "chat_01J...",
+  "type": "text",
+  "text": "Hello from Maodouchat Bot"
+}</code></pre>
     </div>
   </section>
 
-  <!-- FAQ -->
-  <section class="section" id="faq">
-    <div class="container">
-      <div class="section-head reveal">
-        <div class="kicker">常见问题</div>
-        <h2 class="section-title">你最关心的几个问题</h2>
-        <p class="section-desc">关于隐私、安全与使用，这里先给你明确答案。</p>
+  <section class="section download-section" id="download">
+    <div class="section-inner">
+      <div class="section-head">
+        <span>获取应用</span>
+        <h2>Android 已可用，更多平台在路上</h2>
+        <p>官方 APK 与 Google Play 发布准备中，iOS 与桌面端在路线图内。服务端支持 Docker Compose 自托管。</p>
       </div>
-      <div class="faq-list reveal">
-        <details class="faq-item" open>
-          <summary>什么是端到端加密？</summary>
-          <div class="faq-a">消息在发送设备上加密后发出，只有接收方设备能解密。毛豆聊天采用 Signal Protocol，附件使用 AES-256-GCM，服务端只存储密文信封。</div>
-        </details>
-        <details class="faq-item">
-          <summary>毛豆聊天免费吗？</summary>
-          <div class="faq-a">核心功能完全免费，包括端到端加密、群聊、AI 助手与机器人平台。你也可以自托管服务端。</div>
-        </details>
-        <details class="faq-item">
-          <summary>支持哪些平台？</summary>
-          <div class="faq-a">Android 客户端现已可用；iOS 与桌面端正在规划中。服务端是跨平台 Kotlin 后端，可自行部署。</div>
-        </details>
-        <details class="faq-item">
-          <summary>密聊模式是什么？</summary>
-          <div class="faq-a">密聊开启 FLAG_SECURE 防截屏，叠加不可见盲水印，支持 DCT-QIM 频域取证；结合阅后即焚，消息可定时消失。</div>
-        </details>
-        <details class="faq-item">
-          <summary>如何接入机器人？</summary>
-          <div class="faq-a">在 App「设置 → 我的机器人」创建 Bot 获取 Token，通过 HTTP API 发送消息、管理群组、处理回调。详见<a href="/developer">开发者控制台</a>。</div>
-        </details>
-        <details class="faq-item">
-          <summary>我的消息安全吗？</summary>
-          <div class="faq-a">安全。所有 1:1 与群消息默认端到端加密，服务端看不到消息正文、附件明文或密钥。详见<a href="/security">安全详解</a>。</div>
-        </details>
-      </div>
-      <div class="faq-more reveal">
-        <a href="/faq" class="btn btn-ghost">查看全部常见问题</a>
+      <div class="download-grid">
+        <article class="download-card"><h3>Android APK</h3><span class="pill soon">即将开放</span><button type="button" disabled>下载 APK</button></article>
+        <article class="download-card"><h3>Google Play</h3><span class="pill soon">即将上线</span><button type="button" disabled>敬请期待</button></article>
+        <article class="download-card"><h3>iOS</h3><span class="pill plan">规划中</span><button type="button" disabled>规划中</button></article>
+        <article class="download-card"><h3>桌面端</h3><span class="pill plan">规划中</span><button type="button" disabled>规划中</button></article>
       </div>
     </div>
   </section>
 
-  <!-- Download -->
-  <section class="section section-alt" id="download">
-    <div class="container">
-      <div class="section-head reveal">
-        <div class="kicker">下载毛豆聊天</div>
-        <h2 class="section-title">Android 已可用，更多平台在路上</h2>
-        <p class="section-desc">获取 App 后注册即用，服务端可自托管。</p>
+  <section class="section faq-section">
+    <div class="section-inner">
+      <div class="section-head">
+        <span>常见问题</span>
+        <h2>先回答几个关键问题</h2>
       </div>
-      <div class="download-layout reveal">
-        <div>
-          <div class="download-platforms">
-            <div class="dl-card">
-              <div class="dl-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg></div>
-              <div class="dl-name">Android APK</div>
-              <div class="dl-status"><span class="pill pill-soon">即将开放</span></div>
-              <button class="dl-btn" disabled>下载 APK</button>
-            </div>
-            <div class="dl-card disabled">
-              <div class="dl-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
-              <div class="dl-name">Google Play</div>
-              <div class="dl-status"><span class="pill pill-soon">即将上线</span></div>
-              <button class="dl-btn" disabled>敬请期待</button>
-            </div>
-            <div class="dl-card disabled">
-              <div class="dl-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4"/></svg></div>
-              <div class="dl-name">iOS</div>
-              <div class="dl-status"><span class="pill pill-plan">规划中</span></div>
-              <button class="dl-btn" disabled>规划中</button>
-            </div>
-            <div class="dl-card disabled">
-              <div class="dl-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4a2 2 0 0 0-2 2v1h20v-1a2 2 0 0 0-2-2z"/></svg></div>
-              <div class="dl-name">桌面端</div>
-              <div class="dl-status"><span class="pill pill-plan">规划中</span></div>
-              <button class="dl-btn" disabled>规划中</button>
-            </div>
-          </div>
-        </div>
-        <div>
-          <div class="download-features">
-            <div class="download-feature"><div class="download-feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div><span>轻量极速</span></div>
-            <div class="download-feature"><div class="download-feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div><span>E2EE 加密</span></div>
-            <div class="download-feature"><div class="download-feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><span>克制的设计</span></div>
-            <div class="download-feature"><div class="download-feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4M9 13h.01M15 13h.01"/></svg></div><span>AI 赋能</span></div>
-            <div class="download-feature"><div class="download-feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><span>开源透明</span></div>
-            <div class="download-feature"><div class="download-feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div><span>完全免费</span></div>
-          </div>
-          <div class="version-line" id="changelog">
-            当前版本：<strong>v1.0</strong> · 更新于 <strong>2026-07</strong> · <a href="/help#changelog">查看更新日志</a>
-          </div>
-        </div>
+      <div class="faq-list">
+        <details open><summary>毛豆聊天看到我的消息吗？</summary><p>看不到。单聊与群聊默认端到端加密，服务端存储的是密文，不保存消息明文、附件明文或会话密钥。</p></details>
+        <details><summary>如何创建机器人？</summary><p>在 App 的「设置 → 我的机器人」创建 Bot 获取 Token，然后通过 HTTP API 或 Webhook 接入。详见开发者控制台。</p></details>
+        <details><summary>AI 会读取所有聊天吗？</summary><p>不会。AI 能力按任务和选定范围调用，未配置 AI 密钥时聊天功能照常使用。</p></details>
+        <details><summary>可以自己部署服务端吗？</summary><p>可以。项目提供 Docker Compose 与生产配置校验，生产环境要求 PostgreSQL、HTTPS、强密钥和 SMTP 等基础条件。</p></details>
       </div>
     </div>
   </section>
 </main>
 
 <footer class="footer">
-  <div class="footer-cols">
-    <div class="footer-col">
-      <div class="footer-brand">毛豆聊天 Maodouchat</div>
-      <p>轻量、丝滑、端到端加密。把 Telegram 的优雅与微信/QQ 的顺手，做成一个更开放、更隐私的即时通讯。</p>
-      <p style="margin-top:10px">支持邮箱：<a href="mailto:support@maodouchat.com">support@maodouchat.com</a></p>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <img src="/assets/logo.png" alt=""/>
+      <div><strong>毛豆聊天</strong><span>用心做的端到端加密即时通讯</span></div>
     </div>
-    <div class="footer-col">
-      <h4>产品</h4>
-      <a href="#features">核心功能</a>
+    <div class="footer-links">
+      <a href="#features">功能</a>
       <a href="#security">安全</a>
-      <a href="#ai">AI 助手</a>
-      <a href="#preview">产品预览</a>
-      <a href="#compare">与主流 IM 对比</a>
-      <a href="#download">下载</a>
-    </div>
-    <div class="footer-col">
-      <h4>资源与帮助</h4>
-      <a href="/faq">常见问题</a>
+      <a href="#developers">开发者</a>
+      <a href="/faq">FAQ</a>
       <a href="/help">帮助中心</a>
-      <a href="/security">安全详解</a>
-      <a href="/developer">开发者控制台</a>
-      <a href="#changelog">更新日志</a>
-    </div>
-    <div class="footer-col">
-      <h4>法律与后台</h4>
       <a href="/privacy">隐私政策</a>
       <a href="/terms">服务条款</a>
-      <a href="/admin">管理后台</a>
       <a href="mailto:security@maodouchat.com">安全披露</a>
     </div>
   </div>
-  <div class="footer-bottom">
-    <span>&copy; 2026 毛豆聊天. All rights reserved.</span>
-    <span>毛豆聊天 · 用心做的即时通讯</span>
-  </div>
+  <div class="footer-bottom"><span>&copy; 2026 毛豆聊天</span><span>Made with Kotlin, Compose and Ktor</span></div>
 </footer>
 
 <script>
@@ -687,27 +292,27 @@
   'use strict';
 
   var root = document.documentElement;
+  var themeMeta = document.getElementById('themeColor');
   var themeToggle = document.getElementById('themeToggle');
   var iconSun = document.getElementById('iconSun');
   var iconMoon = document.getElementById('iconMoon');
-  var savedTheme = localStorage.getItem('maodou-theme') || 'dark';
-  if (savedTheme !== 'dark' && savedTheme !== 'light') {
-    savedTheme = 'dark';
-  }
+  var savedTheme = localStorage.getItem('maodou-theme') || 'light';
+  if (savedTheme !== 'dark' && savedTheme !== 'light') savedTheme = 'light';
 
   function applyTheme(theme) {
     root.setAttribute('data-theme', theme);
+    themeMeta.setAttribute('content', theme === 'dark' ? '#101614' : '#f6f5ef');
+    themeToggle.setAttribute('aria-label', theme === 'dark' ? '切换到浅色主题' : '切换到深色主题');
     if (theme === 'dark') {
-      iconSun.setAttribute('hidden', '');
-      iconMoon.removeAttribute('hidden');
-    } else {
-      iconMoon.setAttribute('hidden', '');
       iconSun.removeAttribute('hidden');
+      iconMoon.setAttribute('hidden', '');
+    } else {
+      iconMoon.removeAttribute('hidden');
+      iconSun.setAttribute('hidden', '');
     }
   }
 
   applyTheme(savedTheme);
-
   themeToggle.addEventListener('click', function() {
     var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     localStorage.setItem('maodou-theme', next);
@@ -718,60 +323,61 @@
   var navToggle = document.getElementById('navToggle');
   var navLinks = document.getElementById('navLinks');
 
-  navToggle.addEventListener('click', function() {
-    var open = navLinks.classList.toggle('open');
+  function setNavOpen(open) {
+    navLinks.classList.toggle('open', open);
     navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     navToggle.setAttribute('aria-label', open ? '关闭菜单' : '打开菜单');
-  });
+    if (open) navLinks.querySelector('a').focus();
+  }
 
+  navToggle.addEventListener('click', function() {
+    setNavOpen(!navLinks.classList.contains('open'));
+  });
   navLinks.querySelectorAll('a').forEach(function(link) {
     link.addEventListener('click', function() {
-      navLinks.classList.remove('open');
-      navToggle.setAttribute('aria-expanded', 'false');
-      navToggle.setAttribute('aria-label', '打开菜单');
+      setNavOpen(false);
     });
   });
-
+  document.addEventListener('click', function(event) {
+    if (!navLinks.classList.contains('open')) return;
+    if (navLinks.contains(event.target) || navToggle.contains(event.target)) return;
+    setNavOpen(false);
+  });
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape' && navLinks.classList.contains('open')) {
+      setNavOpen(false);
+      navToggle.focus();
+    }
+  });
   window.addEventListener('scroll', function() {
-    nav.classList.toggle('scrolled', window.scrollY > 24);
+    nav.classList.toggle('scrolled', window.scrollY > 16);
   }, { passive: true });
-
-  var observer = new IntersectionObserver(function(entries) {
-    entries.forEach(function(entry) {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-        observer.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
-
-  document.querySelectorAll('.reveal').forEach(function(el, index) {
-    el.style.transitionDelay = Math.min(index % 8 * 40, 240) + 'ms';
-    observer.observe(el);
-  });
-
-  if (
-    'serviceWorker' in navigator &&
-    (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-  ) {
-    window.addEventListener('load', function() {
-      navigator.serviceWorker.register('/sw.js').catch(function() {});
-    });
-  }
 
   var tabs = document.querySelectorAll('.preview-tab');
   var screens = document.querySelectorAll('.phone-screen');
-
+  function selectTab(tab) {
+    tabs.forEach(function(item) {
+      var active = item === tab;
+      item.classList.toggle('active', active);
+      item.setAttribute('aria-selected', active ? 'true' : 'false');
+      item.tabIndex = active ? 0 : -1;
+    });
+    screens.forEach(function(screen) {
+      screen.classList.toggle('active', screen.getAttribute('data-screen') === tab.getAttribute('data-preview'));
+    });
+  }
   tabs.forEach(function(tab) {
     tab.addEventListener('click', function() {
-      tabs.forEach(function(t) {
-        var active = t === tab;
-        t.classList.toggle('active', active);
-        t.setAttribute('aria-selected', active ? 'true' : 'false');
-      });
-      screens.forEach(function(screen) {
-        screen.classList.toggle('active', screen.getAttribute('data-screen') === tab.getAttribute('data-preview'));
-      });
+      selectTab(tab);
+    });
+    tab.addEventListener('keydown', function(event) {
+      var offset = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 :
+        event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : 0;
+      if (!offset) return;
+      event.preventDefault();
+      var next = tabs[(Array.prototype.indexOf.call(tabs, tab) + offset + tabs.length) % tabs.length];
+      selectTab(next);
+      next.focus();
     });
   });
 
@@ -781,15 +387,11 @@
     serviceStatus.dataset.state = 'offline';
     serviceStatusText.textContent = '服务状态未知';
   }, 5000);
-
   fetch('/api/public/status', { cache: 'no-store' })
-    .then(function(response) {
-      if (!response.ok) throw new Error('bad status');
-      return response.json();
-    })
+    .then(function(response) { return response.ok ? response.json() : Promise.reject(new Error('bad status')); })
     .then(function(data) {
-      clearTimeout(serviceTimer);
       if (!data || data.ok !== true) throw new Error('bad payload');
+      clearTimeout(serviceTimer);
       serviceStatus.dataset.state = 'online';
       serviceStatusText.textContent = data.maintenance ? '服务维护中' : '服务在线';
     })
@@ -798,6 +400,14 @@
       serviceStatus.dataset.state = 'offline';
       serviceStatusText.textContent = '服务状态未知';
     });
+
+  if ('serviceWorker' in navigator && ['https:', 'http:'].includes(location.protocol)) {
+    window.addEventListener('load', function() {
+      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'https:') {
+        navigator.serviceWorker.register('/sw.js').catch(function() {});
+      }
+    });
+  }
 })();
 </script>
 </body>
