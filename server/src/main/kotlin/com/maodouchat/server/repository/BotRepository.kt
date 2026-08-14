@@ -323,6 +323,8 @@ object BotRepository {
                 it[Users.status] = ""
                 it[Users.avatar] = null
                 it[Users.isOnline] = false
+                it[Users.showOnline] = false
+                it[Users.showStatus] = false
                 it[Users.searchable] = false
                 it[Users.lastSeen] = 0
                 it[Users.deletedAt] = System.currentTimeMillis()
