@@ -421,19 +421,21 @@ fun Application.configureAdminEnhanceRouting(
                         ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
                     // 风控联动：打上 HIGH/CRITICAL 风险标签时写入风险事件队列，进入人工复核
                     val risky = tags.filter { it.id in req.tagIds && it.riskLevel in setOf("HIGH", "CRITICAL") }
-                    risky.forEach { tag ->
+                    if (risky.isNotEmpty()) {
                         val now = System.currentTimeMillis()
                         transaction {
-                            RiskEvents.insert {
-                                it[RiskEvents.id] = UUID.randomUUID().toString()
-                                it[RiskEvents.userId] = userId
-                                it[RiskEvents.sourceValue] = "USER_TAG"
-                                it[RiskEvents.ruleId] = tag.id
-                                it[RiskEvents.action] = "TAG_RISK"
-                                it[RiskEvents.matched] = "tag=${tag.name};risk=${tag.riskLevel}"
-                                it[RiskEvents.referenceId] = tag.id
-                                it[RiskEvents.needsReview] = true
-                                it[RiskEvents.createdAt] = now
+                            risky.forEach { tag ->
+                                RiskEvents.insert {
+                                    it[RiskEvents.id] = UUID.randomUUID().toString()
+                                    it[RiskEvents.userId] = userId
+                                    it[RiskEvents.sourceValue] = "USER_TAG"
+                                    it[RiskEvents.ruleId] = tag.id
+                                    it[RiskEvents.action] = "TAG_RISK"
+                                    it[RiskEvents.matched] = "tag=${tag.name};risk=${tag.riskLevel}"
+                                    it[RiskEvents.referenceId] = tag.id
+                                    it[RiskEvents.needsReview] = true
+                                    it[RiskEvents.createdAt] = now
+                                }
                             }
                         }
                     }
