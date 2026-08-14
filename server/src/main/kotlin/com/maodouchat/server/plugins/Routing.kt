@@ -3727,11 +3727,11 @@ put("url", "")
                 }
                 val members = chatRepo.getGroupMembers(chatId)
                 val m = members.firstOrNull { it.userId == userId }
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, userId, "getChatMember")
                 if (m == null) {
                     // 1:1 or non-group: check participant list
                     val isMember = chatRepo.isParticipant(chatId, userId)
                     if (!isMember) return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("member not found"))
+                    com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, userId, "getChatMember")
                     call.respond(
                 buildJsonObject {
 put("userId", userId)
@@ -3740,6 +3740,7 @@ put("role", "MEMBER")
                 }
             )
                 } else {
+                    com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, userId, "getChatMember")
                     call.respond(
                 buildJsonObject {
 put("userId", m.userId)
