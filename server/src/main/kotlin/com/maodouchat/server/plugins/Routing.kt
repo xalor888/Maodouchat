@@ -1141,6 +1141,11 @@ put("status", "ok")
                 ?: "body{font-family:sans-serif}"
             call.respondText(css, io.ktor.http.ContentType.Text.CSS)
         }
+        get("/assets/home.css") {
+            val css = this::class.java.classLoader.getResource("public/assets/home.css")?.readText()
+                ?: ""
+            call.respondText(css, io.ktor.http.ContentType.Text.CSS)
+        }
         get("/assets/style.css") {
             val css = this::class.java.classLoader.getResource("public/assets/style.css")?.readText()
                 ?: ""

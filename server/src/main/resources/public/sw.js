@@ -1,7 +1,8 @@
-const CACHE_NAME = 'maodouchat-site-v1';
+const CACHE_NAME = 'maodouchat-site-v2';
 const CORE_ASSETS = [
   '/',
   '/assets/style.css',
+  '/assets/home.css',
   '/assets/logo.png',
   '/assets/icon-512.png',
   '/manifest.webmanifest'
