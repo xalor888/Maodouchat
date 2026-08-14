@@ -604,8 +604,14 @@ object BotRepository {
 
 
     fun getMyCommands(botId: String): List<BotCommandDef> {
-        val bot = get(botId) ?: return emptyList()
-        return parseCommands(bot.commandsJson)
+        return transaction {
+            val now = System.currentTimeMillis()
+            val bot = BotApps.selectAll()
+                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
+                .firstOrNull() ?: return@transaction emptyList()
+            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction emptyList()
+            parseCommands(bot[BotApps.commandsJson])
+        }
     }
 
     fun setMyCommands(botId: String, commands: List<BotCommandDef>): List<BotCommandDef>? {

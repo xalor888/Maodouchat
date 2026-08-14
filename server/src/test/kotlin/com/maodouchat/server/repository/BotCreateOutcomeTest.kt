@@ -239,6 +239,36 @@ class BotCreateOutcomeTest {
     }
 
     @Test
+    fun `getMyCommands hides command menu after owner or bot becomes unavailable`() {
+        setupDb()
+        val created = BotRepository.create("u1", "Command Bot", "command_bot", "description")
+        assertIs<BotRepository.BotCreateResult.Success>(created)
+        val botId = created.bot.id
+        val commands = listOf(BotRepository.BotCommandDef(command = "help", description = "show help"))
+
+        assertTrue(BotRepository.setMyCommands(botId, commands) != null)
+        assertTrue(BotRepository.getMyCommands(botId).isNotEmpty())
+
+        val suspendedUntil = System.currentTimeMillis() + 60_000
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = suspendedUntil
+            }
+        }
+        assertTrue(BotRepository.getMyCommands(botId).isEmpty())
+
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = 0
+            }
+            BotApps.update({ BotApps.id eq botId }) {
+                it[BotApps.enabled] = false
+            }
+        }
+        assertTrue(BotRepository.getMyCommands(botId).isEmpty())
+    }
+
+    @Test
     fun `inbox polling and deletion revalidate owner and enabled state`() {
         setupDb()
         val created = BotRepository.create("u1", "Poll Bot", "poll_bot", "description")

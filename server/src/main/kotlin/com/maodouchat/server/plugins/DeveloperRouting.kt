@@ -119,6 +119,10 @@ private suspend fun ApplicationCall.rejectIfDeveloperMaintenance(): Boolean {
     return true
 }
 
+private suspend fun ApplicationCall.respondDeveloperBotUnavailable() {
+    respond(HttpStatusCode.Forbidden, ErrorResponse("bot unavailable or disabled", code = "BOT_UNAVAILABLE"))
+}
+
 /**
  * Developer portal API - richer data for bot developers.
  *
@@ -410,9 +414,10 @@ fun Application.configureDeveloperRouting() {
                         call.respond(HttpStatusCode.Conflict, ErrorResponse("机器人用户名已被占用"))
                     BotRepository.BotCreateResult.MaxBotsReached ->
                         call.respond(HttpStatusCode.Conflict, ErrorResponse("机器人数量已达上限"))
-                    BotRepository.BotCreateResult.InvalidInput,
-                    BotRepository.BotCreateResult.OwnerInvalid ->
+                    BotRepository.BotCreateResult.InvalidInput ->
                         call.respond(HttpStatusCode.BadRequest, ErrorResponse("创建机器人失败（用户名非法）"))
+                    BotRepository.BotCreateResult.OwnerInvalid ->
+                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("开发者账号状态不可用"))
                 }
             }
 
@@ -444,10 +449,13 @@ fun Application.configureDeveloperRouting() {
                 val body = call.receiveBoundedText().orEmpty()
                 val url = runCatching {
                     Json.parseToJsonElement(body).jsonObject["url"]?.jsonPrimitive?.content
-                }.getOrNull()
+                }.getOrNull()?.trim()?.take(500)
+                if (!url.isNullOrBlank() && !BotRepository.isAllowedWebhookUrl(url)) {
+                    return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("webhook 无效"))
+                }
                 // secret is accepted for forward-compat but not persisted (no repo column yet).
                 val bot = BotRepository.setWebhook(botId, userId, url)
-                    ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("webhook 无效"))
+                    ?: return@put call.respondDeveloperBotUnavailable()
                 call.respond(bot)
             }
 
@@ -542,11 +550,13 @@ put("ok", true)
                         add(BotRepository.BotCommandDef(command = command, description = description))
                     }
                 }
-                val saved = BotRepository.setMyCommands(botId, defs)
+                val normalized = BotRepository.normalizeCommands(defs)
                     ?: return@put call.respond(
                         HttpStatusCode.BadRequest,
                         ErrorResponse("invalid commands (max 100, unique a-z0-9_, description required)")
                     )
+                val saved = BotRepository.setMyCommands(botId, normalized)
+                    ?: return@put call.respondDeveloperBotUnavailable()
                 call.respond(
                 buildJsonObject {
 put("ok", true)
