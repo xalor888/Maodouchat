@@ -2742,10 +2742,9 @@ put("status", "ok")
                 }
                 val isGroup = chatRepo.getChatById(chatId)?.isGroup == true
                 // 群聊只写个人回执，不推 MESSAGE_STATUS READ（否则发送方误判全员已读）
-                // 双向拉黑不向对方推已读，避免泄露“仍在读”
+                // markAllAsRead 已按双向拉黑过滤发送方，此处只广播可见已读回执
                 if (!isGroup) {
                     updated.groupBy({ it.second }, { it.first }).forEach { (senderId, messageIds) ->
-                        if (userRepo.isBlockedEitherWay(userId, senderId)) return@forEach
                         messageIds.forEach { messageId ->
                             val statusJson = json.encodeToString(
                                 WsMessage.serializer(),
@@ -15653,8 +15652,7 @@ put("status", "ok")
                                 // 8.48 修复 M5：getParticipantIds 提到消息循环外（此前每条已读消息查一次）
                                 val expireRecipients = try { chatRepo.getParticipantIds(chatId) } catch (_: Exception) { emptyList() }
                                 updated.forEach { (messageId, senderId, expiresAt) ->
-                                    // 双向拉黑不向对方推已读，避免泄露“仍在读”（与单聊 mark-read 口径一致）
-                                    if (userRepo.isBlockedEitherWay(uid, senderId)) return@forEach
+                                    // markAllAsRead 已过滤双向拉黑发送方
                                     val statusJson = json.encodeToString(
                                         WsMessage.serializer(),
                                         WsMessage("MESSAGE_STATUS", json.encodeToString(
