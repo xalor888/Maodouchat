@@ -13279,12 +13279,13 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
 
         authenticate("auth-jwt") {
             put("/api/chats/{chatId}/disappearing-messages") {
-
+                if (call.rejectIfMaintenance()) return@put
                 if (!RuntimeConfigService.isDisappearingMessagesEnabled()) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("disappearing_messages_disabled"))
                     return@put
                 }
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                if (call.rejectIfSuspended(userRepo, userId)) return@put
                 val chatId = call.parameters["chatId"]!!
                 val request = call.receiveBoundedText()?.let { parseJson<UpdateDisappearingMessagesRequest>(it) } ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求体无效"))
@@ -13938,6 +13939,7 @@ put("status", "ok")
             // 设置我在本群昵称
             put("/api/chats/{chatId}/members/me/nickname") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject; val cid = call.parameters["chatId"]!!
+                if (call.rejectIfSuspended(userRepo, uid)) return@put
                 val req = call.receiveBoundedText()?.let { parseJson<UpdateGroupNicknameRequest>(it) } ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效")); return@put
                 }
@@ -15293,12 +15295,13 @@ put("status", "ok")
                 )
             }
             post("/api/chats/{chatId}/messages/{messageId}/pin") {
-
+                if (call.rejectIfMaintenance()) return@post
                 if (!RuntimeConfigService.isMessagePinEnabled()) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("message_pin_disabled"))
                     return@post
                 }
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                if (call.rejectIfSuspended(userRepo, uid)) return@post
                 val chatId = call.parameters["chatId"]!!
                 val mid = call.parameters["messageId"]!!
                 if (!chatRepo.isParticipant(chatId, uid)) {
