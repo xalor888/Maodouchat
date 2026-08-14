@@ -6337,6 +6337,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 
 **验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
 
+### 9.168 2026-08-14 无限调优：服务端 SDP 视频检测同样修正大小写剥离
+
+1. **`sdpHasActiveVideo` 的 `startsWith`/`removePrefix` 大小写语义不一致**：服务端与客户端共享同款 SDP 解析逻辑，`startsWith("m=video", ignoreCase = true)` 后却用大小写敏感的 `removePrefix("m=video")`；`M=video`（网关/SBC 大写 m-line）返回空端口，视频通话被误判为音频。改为按固定长度 7 剥离，与 9.166 客户端修复对齐。
+
+**验证**：新增 `SdpVideoDetectionTest`；server `test` 全量通过；`git diff --check` 无输出。
+
 ### 9.167 2026-08-14 无限调优：修复 H2 保留字 `matched` 导致全量服务端测试/新库启动失败
 
 1. **`widenRiskEventsMatchedColumn` 裸写 `matched` 在 H2 2.2.224 找不到列**：Exposed 因 `MATCHED` 是 H2 保留字而将 `risk_events.matched` 建成带引号列名，迁移 SQL 却用未加引号的 `matched`，H2 按保留字解析后报 `Column "MATCHED" not found`。结果新建内存库每次启动都卡在 `initDatabase()`，52 个服务端测试失败。迁移 SQL 改为显式引用 `"matched"`；PostgreSQL 路径同步加引号，语义不变。

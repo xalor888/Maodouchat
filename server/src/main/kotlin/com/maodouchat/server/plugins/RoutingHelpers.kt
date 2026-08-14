@@ -679,7 +679,7 @@ fun sdpHasActiveVideo(sdp: String?): Boolean {
     return sdp.lineSequence().any { line ->
         val t = line.trimStart()
         if (!t.startsWith("m=video", ignoreCase = true)) return@any false
-        val port = t.removePrefix("m=video").trimStart().takeWhile { it.isDigit() }
+        val port = t.substring(7).trimStart().takeWhile { it.isDigit() }
         port.toIntOrNull()?.let { it > 0 } ?: false
     }
 }
