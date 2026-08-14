@@ -6414,3 +6414,11 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实：`toggleLike`（单飞 + 全门禁 + 404 移除）、`loadPostDetail`（generation + isCurrentOwner）、`loadMoreComments`（userId 比对）均已正确门禁，不动。
 
 **验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
+
+### 9.163 2026-08-13 无限调优：来电协调器消费读-清非原子
+
+1. **`IncomingCallCoordinator.consumePending` 读-清两步非原子**：Telecom「接听」回调与来电路由组合可并发消费同一来电——两个消费方同时读到非空，各自清空并拿到同一 `PendingIncomingCall`，导致重复接听/挂断处理。改为 CAS 循环（`compareAndSet(snapshot, null)`）原子消费，一次来电只交给一个消费方。
+
+另核实（本轮，无洞）：FCM 服务（owner 门控 + HMAC 校验 + Room 去重 + DND/静音窗）、`PushRegistrationManager`（全路径 owner 门控 + deviceId 同步落盘）、`ChatQuietHoursStore`（账号隔离 + 读改写互斥）、`FrequencyWatermark`（QIM 距离公式含环绕校验无误、SYNC/载荷布局与提取一致）、`SecretWatermarkTransformation`、`NearbyRepository`（范围框 + 游标分批 + 封禁/拉黑过滤 + 唯一冲突事务外重试）、`AppNotifier` 各 cancel 路径、`GroupMutePolicy`、`IncomingCallCoordinator.peekPending/clear` 语义均正确；全屏图片查看器 `ZoomableAsyncImage` 状态经 `items(key=id)`/对话框关闭重置，无跨图泄漏。
+
+**验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。

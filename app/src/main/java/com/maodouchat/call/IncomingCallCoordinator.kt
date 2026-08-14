@@ -34,8 +34,18 @@ object IncomingCallCoordinator {
     }
 
     fun consumePending(): PendingIncomingCall? {
-        val current = _pending.value ?: return null
-        _pending.value = null
+        // 9.163：读-清必须原子——Telecom「接听」回调与来电路由组合可并发消费，
+        // 此前两步读写在两个消费方同时到达时会把同一来电交给两处（重复接听/挂断处理）
+        var current: PendingIncomingCall? = null
+        while (true) {
+            val snapshot = _pending.value
+            if (snapshot == null) break
+            if (_pending.compareAndSet(snapshot, null)) {
+                current = snapshot
+                break
+            }
+        }
+        if (current == null) return null
         _consumedEvents.value = System.currentTimeMillis()
         return if (System.currentTimeMillis() - current.receivedAtMillis > STALE_MS) null else current
     }
