@@ -182,8 +182,8 @@ private suspend fun sendSecretSurfaceHint(
     val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
     val now = System.currentTimeMillis()
     val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-    BotRepository.logCommand(bot.id, chatId, null, "sendSecretSurfaceHint:$prefix")
     if (!ok) return call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+    BotRepository.logCommand(bot.id, chatId, null, "sendSecretSurfaceHint:$prefix")
     // 9.136：与 Routing.kt 经典 bot 端点一致补实时 WS fanout（9.131 遗漏本文件 8 个端点——
     // 此前仅落库，在线成员需重新拉历史才可见）
     val botMessage = MessageResponse(
