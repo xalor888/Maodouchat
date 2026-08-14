@@ -2922,7 +2922,7 @@ put("status", "ok")
                 }
                 val bot = com.maodouchat.server.repository.BotRepository.get(botUserId)
                 if (bot == null || !bot.enabled) {
-                    return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("bot unavailable"))
+                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot unavailable"))
                 }
                 val updateId = "cbq_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
                 val payload = kotlinx.serialization.json.buildJsonObject {
@@ -2991,7 +2991,7 @@ post("/api/chats/{chatId}/bots") {
                     ChatRepository.AddOwnedBotResult.BOT_NOT_OWNED ->
                         return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("只能邀请自己的机器人"))
                     ChatRepository.AddOwnedBotResult.BOT_DISABLED ->
-                        return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("bot disabled"))
+                        return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot disabled"))
                     ChatRepository.AddOwnedBotResult.MEMBER_LIMIT_EXCEEDED ->
                         return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("群成员已达上限"))
                 }
@@ -3043,9 +3043,10 @@ get("/api/bots") {
                         call.respond(HttpStatusCode.Conflict, ErrorResponse("机器人用户名已被占用"))
                     com.maodouchat.server.repository.BotRepository.BotCreateResult.MaxBotsReached ->
                         call.respond(HttpStatusCode.Conflict, ErrorResponse("机器人数量已达上限"))
-                    com.maodouchat.server.repository.BotRepository.BotCreateResult.InvalidInput,
-                    com.maodouchat.server.repository.BotRepository.BotCreateResult.OwnerInvalid ->
+                    com.maodouchat.server.repository.BotRepository.BotCreateResult.InvalidInput ->
                         call.respond(HttpStatusCode.BadRequest, ErrorResponse("创建机器人失败（用户名非法）"))
+                    com.maodouchat.server.repository.BotRepository.BotCreateResult.OwnerInvalid ->
+                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("账号状态不可用"))
                 }
             }
             post("/api/bots/{botId}/token") {
@@ -3067,9 +3068,13 @@ get("/api/bots") {
                 if (call.rejectIfSuspended(userRepo, userId)) return@put
                 val botId = call.parameters["botId"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 val body = call.receiveBoundedTextOrEmpty()
-                val url = runCatching { Json.parseToJsonElement(body).jsonObject["url"]?.jsonPrimitive?.content }.getOrNull()
+                val url = runCatching { Json.parseToJsonElement(body).jsonObject["url"]?.jsonPrimitive?.content }
+                    .getOrNull()?.trim()?.take(500)
+                if (!url.isNullOrBlank() && !com.maodouchat.server.repository.BotRepository.isAllowedWebhookUrl(url)) {
+                    return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("webhook 无效"))
+                }
                 val bot = com.maodouchat.server.repository.BotRepository.setWebhook(botId, userId, url)
-                    ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("webhook 无效"))
+                    ?: return@put call.respondBotUnavailable()
                 call.respond(bot)
             }
             delete("/api/bots/{botId}") {
