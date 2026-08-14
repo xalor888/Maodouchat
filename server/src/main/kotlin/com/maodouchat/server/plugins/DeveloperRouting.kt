@@ -135,6 +135,7 @@ fun Application.configureDeveloperRouting() {
     val developerBotCreateRateLimiter = BoundedRateLimiter()
     val developerBotTokenRateLimiter = BoundedRateLimiter()
     val developerWebhookTestRateLimiter = BoundedRateLimiter()
+    val developerBotSettingsRateLimiter = BoundedRateLimiter()
 
     routing {
         route("/api/developer") {
@@ -435,6 +436,9 @@ fun Application.configureDeveloperRouting() {
                 val userId = devSessionUserId(call)
                     ?: return@put call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
                 if (call.rejectIfDeveloperMaintenance()) return@put
+                if (!developerBotSettingsRateLimiter.acquire(userId, maxPerMinute = 60)) {
+                    return@put call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
+                }
                 val botId = call.parameters["id"]
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 val body = call.receiveBoundedText().orEmpty()
@@ -452,6 +456,9 @@ fun Application.configureDeveloperRouting() {
                 val userId = devSessionUserId(call)
                     ?: return@delete call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
                 if (call.rejectIfDeveloperMaintenance()) return@delete
+                if (!developerBotSettingsRateLimiter.acquire(userId, maxPerMinute = 60)) {
+                    return@delete call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
+                }
                 val botId = call.parameters["id"]
                     ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 // 与 REST 删除机器人一致：删除会 bump 群成员版本；此前开发者账号路径只删 DB，
@@ -483,6 +490,9 @@ put("ok", true)
                 val userId = devSessionUserId(call)
                     ?: return@put call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
                 if (call.rejectIfDeveloperMaintenance()) return@put
+                if (!developerBotSettingsRateLimiter.acquire(userId, maxPerMinute = 60)) {
+                    return@put call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
+                }
                 val botId = call.parameters["id"]
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 val body = call.receiveBoundedText().orEmpty()
@@ -501,6 +511,9 @@ put("ok", true)
                 val userId = devSessionUserId(call)
                     ?: return@put call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
                 if (call.rejectIfDeveloperMaintenance()) return@put
+                if (!developerBotSettingsRateLimiter.acquire(userId, maxPerMinute = 60)) {
+                    return@put call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
+                }
                 val botId = call.parameters["id"]
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 if (devSessionOwnedBot(botId, userId) == null) {
