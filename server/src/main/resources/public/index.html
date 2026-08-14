@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta id="themeColor" name="theme-color" content="#f4f6f1"/>
+  <meta id="themeColor" name="theme-color" content="#f5f7f4"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <title>毛豆聊天 Maodouchat - 端到端加密即时通讯</title>
   <meta name="description" content="毛豆聊天是轻量、丝滑、端到端加密的 Android 即时通讯应用，提供密聊、阅后即焚、AI 助手、加密附件与开放机器人平台。"/>
@@ -31,7 +31,7 @@
       var initialTheme = localStorage.getItem('maodou-theme');
       if (initialTheme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
-        document.getElementById('themeColor').setAttribute('content', '#0b100e');
+        document.getElementById('themeColor').setAttribute('content', '#0a0f0c');
       }
     } catch (error) {}
   </script>
@@ -391,7 +391,7 @@ Authorization: Bearer &lt;bot-token&gt;
 
   function applyTheme(theme) {
     root.setAttribute('data-theme', theme);
-    themeMeta.setAttribute('content', theme === 'dark' ? '#0b100e' : '#f4f6f1');
+    themeMeta.setAttribute('content', theme === 'dark' ? '#0a0f0c' : '#f5f7f4');
     themeToggle.setAttribute('aria-label', theme === 'dark' ? '切换到浅色主题' : '切换到深色主题');
     if (theme === 'dark') {
       iconSun.removeAttribute('hidden');
