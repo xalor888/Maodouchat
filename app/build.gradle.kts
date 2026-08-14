@@ -315,6 +315,7 @@ dependencies {
 
     // Encrypted SharedPreferences
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
 
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")

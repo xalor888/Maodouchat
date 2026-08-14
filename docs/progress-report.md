@@ -6337,6 +6337,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 
 **验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
 
+### 9.170 2026-08-14 无限调优：图片 EXIF 方向读取迁移 AndroidX 实现
+
+1. **`ImagePicker` 仍使用 `android.media.ExifInterface`**：Android 框架旧实现在部分旧版本存在已知安全/兼容问题，Lint 明确警告；`getAttributeInt` 对畸形 EXIF 的行为也不稳定，可能影响图片方向矫正。迁移到 `androidx.exifinterface:exifinterface:1.3.7`，保持方向常量与调用语义不变。
+
+**验证**：`:app:compileDebugKotlin` 与 `:app:testDebugUnitTest` 全量通过；`git diff --check` 无输出。
+
 ### 9.169 2026-08-14 无限调优：媒体缓存定时清理改到 IO 调度，避免主线程 `runBlocking`
 
 1. **`MediaCache.cleanup` 内含 `runBlocking(Dispatchers.IO)`，却在 `applicationScope` 主线程协程里直接调用**：每 6 小时一次的保护在途附件查询会阻塞 Main，若 Room 正在做同步/加密库慢查询，可造成短暂 ANR。调用点改为 `withContext(Dispatchers.IO)` 包裹，让文件扫描与 Room 查询都在 IO 调度器上执行。
