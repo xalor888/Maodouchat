@@ -1328,7 +1328,9 @@ authenticate("auth-jwt") {
                 }
                 if (!chatRepo.isParticipant(record.chatId, userId)) {
                     encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)
-                    EncryptedAttachmentStorage.delete(attachmentId)
+                    // 9.151：已 COMMITTED 的附件密文仍被群内其他成员下载，
+                    // 上传者退群后重查状态/重传不得连带删除 .bin
+                    if (record.status != "COMMITTED") EncryptedAttachmentStorage.delete(attachmentId)
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("已不在该聊天中"))
                     return@get
                 }
@@ -1366,7 +1368,8 @@ authenticate("auth-jwt") {
                 }
                 if (!chatRepo.isParticipant(record.chatId, userId)) {
                     encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)
-                    EncryptedAttachmentStorage.delete(attachmentId)
+                    // 9.151：同 GET——COMMITTED 附件密文不可因上传者退群后的重传被删除
+                    if (record.status != "COMMITTED") EncryptedAttachmentStorage.delete(attachmentId)
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("已不在该聊天中"))
                     return@put
                 }
@@ -1605,24 +1608,26 @@ put("status", "ok")
                 call.response.header(HttpHeaders.CacheControl, "private, no-store")
                 call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=encrypted-attachment.bin")
                 call.response.header("Accept-Ranges", "bytes")
-                val rangeStart = call.request.header("Range")?.let { parseAttachmentRangeStart(it, file.length()) }
-                if (call.request.header("Range") != null && rangeStart == null) {
+                val rangeHeader = call.request.header("Range")
+                // 9.151：多区段（含逗号）忽略回退全量（RFC 允许）；单区段非法/无法满足 → 416
+                val range = rangeHeader?.takeIf { ',' !in it }?.let { parseAttachmentRange(it, file.length()) }
+                if (rangeHeader != null && ',' !in rangeHeader && range == null) {
                     call.response.header("Content-Range", "bytes */${file.length()}")
                     call.respondText("", status = ATTACHMENT_RANGE_NOT_SATISFIABLE)
                     return@get
                 }
-                if (rangeStart == null) {
+                if (range == null) {
                     call.respondFile(file)
                 } else {
-                    val remaining = file.length() - rangeStart
-                    call.response.header("Content-Range", "bytes $rangeStart-${file.length() - 1}/${file.length()}")
+                    val remaining = range.last - range.first + 1
+                    call.response.header("Content-Range", "bytes ${range.first}-${range.last}/${file.length()}")
                     call.response.header(HttpHeaders.ContentLength, remaining)
                     call.respondOutputStream(
                         contentType = ContentType.Application.OctetStream,
                         status = HttpStatusCode.PartialContent
                     ) {
                         java.io.RandomAccessFile(file, "r").use { input ->
-                            input.seek(rangeStart)
+                            input.seek(range.first)
                             val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                             var left = remaining
                             while (left > 0L) {
@@ -16522,10 +16527,24 @@ private suspend fun reconcileAttachmentUpload(
     return repository.get(record.id)
 }
 
-private fun parseAttachmentRangeStart(value: String, fileSize: Long): Long? {
-    val match = Regex("^bytes=(\\d+)-$").matchEntire(value.trim()) ?: return null
-    val start = match.groupValues[1].toLongOrNull() ?: return null
-    return start.takeIf { it in 0 until fileSize }
+// 9.151：支持 bytes=a-b / bytes=a- / bytes=-n 三种单区段形式（RFC 9110）。
+// 非法或满足不了的单区段返回 null（→ 416）；多区段（含逗号）由调用方选择忽略回退全量。
+private fun parseAttachmentRange(value: String, fileSize: Long): LongRange? {
+    if (fileSize <= 0L) return null
+    val trimmed = value.trim()
+    Regex("^bytes=(\\d+)-(\\d*)$").matchEntire(trimmed)?.let { m ->
+        val start = m.groupValues[1].toLongOrNull() ?: return null
+        if (start >= fileSize) return null
+        val endRaw = m.groupValues[2]
+        val end = if (endRaw.isEmpty()) fileSize - 1 else (endRaw.toLongOrNull() ?: return null).coerceAtMost(fileSize - 1)
+        return if (start <= end) start..end else null
+    }
+    Regex("^bytes=-(\\d+)$").matchEntire(trimmed)?.let { m ->
+        val length = m.groupValues[1].toLongOrNull() ?: return null
+        if (length <= 0L) return null
+        return (fileSize - length).coerceAtLeast(0L)..(fileSize - 1)
+    }
+    return null
 }
 
 private suspend fun ApplicationCall.receiveEncryptedAttachmentChunk(maxBytes: Int): ByteArray? {

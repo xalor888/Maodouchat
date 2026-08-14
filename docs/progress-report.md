@@ -6307,3 +6307,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实：`EncryptedAttachmentRepository.createReplacingPending/createUploadSession/updateUploadProgress/markUploaded` 均以 `forUpdate` 行锁 + uploaderId 归属校验，chunk 路由与 `EncryptedAttachmentStorage.appendChunk` 的 offset/回放/配额逻辑无洞。
 
 **验证**：`:app:compileDebugKotlin` 与 server `compileKotlin` 均通过；`git diff --check` 无输出。
+
+### 9.151 2026-08-13 无限调优：附件 Range 规范支持与 COMMITTED 密文误删守卫
+
+1. **附件下载 Range 仅支持 `bytes=N-`**：`bytes=a-b`（闭区间）与 `bytes=-n`（后缀）是 RFC 9110 标准形式，此前一律回 416，续传/播放器重试会失败。`parseAttachmentRange` 现支持三种单区段形式（end 截断到 fileSize-1、start>end/start≥fileSize 判不可满足），多区段（含逗号）按 RFC 允许忽略回退 200 全量，仅单区段非法/不可满足回 416。
+2. **上传者退群后重查/重传会连带删除已 COMMITTED 附件密文**：`GET/PUT /api/attachment-uploads/{id}` 的 not-participant 分支无条件 `EncryptedAttachmentStorage.delete`——`.bin` 是群内其他成员仍可下载的 COMMITTED 密文（`removeUncommitted` 只删未提交行，行留文件删即全体 404）。改为仅 `status != "COMMITTED"` 时删除存储文件。
+
+另核实：`createUploadSession/reconcileAttachmentUpload/toUploadStatus` 与 `EncryptedAttachmentStorage.appendChunk` 的复用/回放/配额路径无洞。
+
+**验证**：server `compileKotlin` 通过；`git diff --check` 无输出。
