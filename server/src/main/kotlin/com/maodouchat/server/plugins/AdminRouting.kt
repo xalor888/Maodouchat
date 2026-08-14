@@ -644,8 +644,10 @@ fun Application.configureAdminRouting(
                     is AdminDispositionPolicy.DispositionValidation.Ok -> disposition
                 }
                 val updated = transaction {
-                    if (Users.selectAll().where { Users.id eq id }.firstOrNull() == null) return@transaction false
-                    Users.update({ Users.id eq id }) { it[suspendedUntil] = bannedUntil }
+                    // 9.154：以 update 影响行数为准——firstOrNull 与 update 之间并发删除会
+                    // 让封禁落空却仍写审计行、回 200 并轮换会话
+                    val changed = Users.update({ Users.id eq id }) { it[suspendedUntil] = bannedUntil }
+                    if (changed == 0) return@transaction false
                     ModerationAuditLog.insert {
                         it[userId] = id
                         it[action] = "ADMIN_STATUS_UPDATE"
@@ -653,7 +655,7 @@ fun Application.configureAdminRouting(
                             bannedUntil = bannedUntil,
                             reasonCode = okDisposition.reasonCode,
                             note = okDisposition.note
-                        ).take(AdminDispositionPolicy.MAX_NOTE_CHARS + 80)
+                        ).take(com.maodouchat.server.db.MODERATION_AUDIT_DETAIL_MAX_CHARS)
                         it[ModerationAuditLog.actorId] = actorId
                         it[createdAt] = now
                     }
@@ -710,8 +712,9 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
                     is AdminDispositionPolicy.DispositionValidation.Ok -> disposition
                 }
                 val updated = transaction {
-                    if (Users.selectAll().where { Users.id eq id }.firstOrNull() == null) return@transaction false
-                    Users.update({ Users.id eq id }) { it[Users.postRestrictedUntil] = postRestrictedUntil }
+                    // 9.154：同封禁端点——以 update 影响行数为准
+                    val changed = Users.update({ Users.id eq id }) { it[Users.postRestrictedUntil] = postRestrictedUntil }
+                    if (changed == 0) return@transaction false
                     ModerationAuditLog.insert {
                         it[userId] = id
                         it[action] = "ADMIN_POST_RESTRICT"
@@ -719,7 +722,7 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
                             postRestrictedUntil = postRestrictedUntil,
                             reasonCode = okDisposition.reasonCode,
                             note = okDisposition.note
-                        ).take(AdminDispositionPolicy.MAX_NOTE_CHARS + 80)
+                        ).take(com.maodouchat.server.db.MODERATION_AUDIT_DETAIL_MAX_CHARS)
                         it[ModerationAuditLog.actorId] = actorId
                         it[createdAt] = now
                     }
@@ -770,8 +773,9 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
                     is AdminDispositionPolicy.DispositionValidation.Ok -> disposition
                 }
                 val updated = transaction {
-                    if (Users.selectAll().where { Users.id eq id }.firstOrNull() == null) return@transaction false
-                    Users.update({ Users.id eq id }) { it[Users.messageRestrictedUntil] = messageRestrictedUntil }
+                    // 9.154：同封禁端点——以 update 影响行数为准
+                    val changed = Users.update({ Users.id eq id }) { it[Users.messageRestrictedUntil] = messageRestrictedUntil }
+                    if (changed == 0) return@transaction false
                     ModerationAuditLog.insert {
                         it[userId] = id
                         it[action] = "ADMIN_MESSAGE_RESTRICT"
@@ -779,7 +783,7 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
                             messageRestrictedUntil = messageRestrictedUntil,
                             reasonCode = okDisposition.reasonCode,
                             note = okDisposition.note
-                        ).take(AdminDispositionPolicy.MAX_NOTE_CHARS + 80)
+                        ).take(com.maodouchat.server.db.MODERATION_AUDIT_DETAIL_MAX_CHARS)
                         it[ModerationAuditLog.actorId] = actorId
                         it[createdAt] = now
                     }

@@ -537,12 +537,17 @@ object Reports : Table("reports") {
 }
 
 /** 管理员操作审计：用户/内容/规则变更留痕 */
+/** 9.154：moderation_audit_log.detail 列宽与入库截断上限（auditDetail 前缀 + 500 字备注超 500）。 */
+const val MODERATION_AUDIT_DETAIL_MAX_CHARS = 800
+
 object ModerationAuditLog : Table("moderation_audit_log") {
     val id = varchar("id", 100).clientDefault { java.util.UUID.randomUUID().toString() }
     val actorId = varchar("actor_id", 50).nullable()
     val userId = varchar("user_id", 50).nullable()
     val action = varchar("action", 40)
-    val detail = varchar("detail", 500).nullable()
+    // 9.154：detail 加宽 500→800——auditDetail 前缀 + 500 字备注超 500 字节（PG 22001 → 整事务回滚，
+    // 封禁落空且 500）；入库侧统一按 MODERATION_AUDIT_DETAIL_MAX_CHARS 截断
+    val detail = varchar("detail", 800).nullable()
     val createdAt = long("created_at").default(System.currentTimeMillis())
     override val primaryKey = PrimaryKey(id)
 }
@@ -715,6 +720,7 @@ fun initDatabase() {
         // 9.144：既有库加宽（新增实例由 Table 定义直接建宽列）
         widenReportsColumns()
         widenRiskEventsMatchedColumn()
+        widenModerationAuditDetailColumn()
         // 确保 init {} 中的索引被创建（createMissingTablesAndColumns 可能不会自动建）
         ensureIndexes()
         migrateAuthSessionState()
@@ -812,6 +818,18 @@ private fun widenRiskEventsMatchedColumn() {
         "ALTER TABLE risk_events ALTER COLUMN matched TYPE VARCHAR(280)"
     } else {
         "ALTER TABLE risk_events ALTER COLUMN matched VARCHAR(280)"
+    }
+    TransactionManager.current().exec(sql)
+}
+
+/** 9.154：既有库加宽 moderation_audit_log.detail 500→800（同 reports 口径，createMissingTablesAndColumns 只补列不扩列）。 */
+private fun widenModerationAuditDetailColumn() {
+    val isPostgres = org.jetbrains.exposed.sql.transactions.TransactionManager.current()
+        .db.vendor.contains("postgres", ignoreCase = true)
+    val sql = if (isPostgres) {
+        "ALTER TABLE moderation_audit_log ALTER COLUMN detail TYPE VARCHAR(800)"
+    } else {
+        "ALTER TABLE moderation_audit_log ALTER COLUMN detail VARCHAR(800)"
     }
     TransactionManager.current().exec(sql)
 }

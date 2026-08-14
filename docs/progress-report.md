@@ -6336,3 +6336,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实（无洞，记录备查）：`BotRepository.containsCallbackData` 已用 lastIndexOf 且要求 `</meta>` 恰在末尾、meta 长度受限；`OnDemandStickerStore` 清单/包/文件字节均封顶且下载走 Dispatchers.IO；`AttachmentTransferSummaryRepository.observe` 750ms 轮询带 owner 门控；`EncryptedAttachmentCrypto.decrypt` 明文受 cipherSize（≤100MB）隐式约束、结束前全量校验长度与双 SHA；各 `while(true)` 循环均含 delay/终止条件无空转。
 
 **验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
+
+### 9.154 2026-08-13 无限调优：管理端审计 detail 溢出 22001 与处置端点 0 行更新误报成功
+
+1. **`moderation_audit_log.detail` 500 字列宽 < 入库上限 580**：三个处置端点（封禁/禁动态/禁消息）写 `auditDetail(...).take(MAX_NOTE_CHARS+80)`，前缀（`bannedUntil=…; reasonCode=…; note=`）+ 500 字备注约 550+ 字符——PG 严格 varchar 抛 22001，整事务回滚：**封禁未生效 + 500**（H2 宽松不暴露，与 9.144 reports 同型）。列宽加宽至 800 + 启动期 `widenModerationAuditDetailColumn()`（PG/H2 双方言，9.144 口径），入库侧统一 `MODERATION_AUDIT_DETAIL_MAX_CHARS=800` 截断。
+2. **处置端点存在性检查与 UPDATE 之间的并发删除**：`firstOrNull()` 存在检查与 `Users.update` 同事务但无行锁——并发删除使 update 命中 0 行，仍写审计行、回 200、轮换会话/断连，封禁实际未生效。三个端点改为以 `update` 返回的影响行数为准，0 行即返回 false（404，不写审计、不轮换）。
+
+另核实：bulk-ban 批量事务含 `existing` 预检 + 行级复检，reasonCode 只进入 200 截断的 detail，无 22001/毒化路径；`ADMIN_SESSION_REVOKE` 审计 detail 的 prefix 受 12-64 hex 校验约束；其余 ModerationAuditLog.detail 写入点均 ≤500。
+
+**验证**：server `compileKotlin` 通过；`git diff --check` 无输出。
