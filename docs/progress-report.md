@@ -6377,3 +6377,11 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实：管理端 7 处 bulk-set `rawIds` 的同类 mapNotNull 为管理员专用入口，结果按实际处理集回报（skipped/updated 计数真实），维持宽松解析可接受，不改。
 
 **验证**：server `compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.159 2026-08-13 无限调优：设备移除/改名弹窗改为按 id 现查，消除陈旧 DTO 快照
+
+1. **设备弹窗持有完整 `DeviceInfoDto` 快照**：`pendingRemoveDevice`/`renameDevice` 存长按瞬间的设备对象——他端确认待登录设备（PENDING→CONFIRMED）或删除设备后，弹窗仍按旧 status/名称渲染，确认动作作用到已变化会话（「拒绝待登录」实为移除活跃会话）。改为只存 `deviceId: Int?`，渲染时按 `state.devices` 现查最新行；目标设备从列表消失时 `LaunchedEffect(state.devices)` 自动关闭弹窗（与 9.150 B3 会话/成员守卫同口径）。
+
+另核实（重复投递报告，已处理项确认）：语言弹窗双路径 9.155 已修复在位（SettingsSubScreens.kt:2717/2840 均走 `viewModel.setLanguageMode`）；震动开关为「渠道级」本地偏好（Android 通知渠道模型，注释背书），维持本地不同步；其余七类（门禁、开关键、mutex、IO 线程、草稿 owner 键）复核无洞。
+
+**验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。

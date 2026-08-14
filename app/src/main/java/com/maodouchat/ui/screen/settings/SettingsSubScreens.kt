@@ -149,8 +149,11 @@ fun AccountSecurityScreen(
     var newPassword by rememberSaveable(state.userId) { mutableStateOf("") }
     var confirmPassword by rememberSaveable(state.userId) { mutableStateOf("") }
     var showChangeDialog by remember(state.userId) { mutableStateOf(false) }
-    var pendingRemoveDevice by remember(state.userId) { mutableStateOf<DeviceInfoDto?>(null) }
-    var renameDevice by remember(state.userId) { mutableStateOf<DeviceInfoDto?>(null) }
+    // 9.159：只存 deviceId，弹窗渲染时按 state.devices 现查——此前存整个 DeviceInfoDto 快照，
+    // 列表刷新（他端确认 PENDING→CONFIRMED）后弹窗仍按旧 status/名称渲染，确认动作可能
+    // 作用到已变化会话；设备从列表消失（他端删除）时自动关闭弹窗
+    var pendingRemoveDeviceId by remember(state.userId) { mutableStateOf<Int?>(null) }
+    var renameDeviceId by remember(state.userId) { mutableStateOf<Int?>(null) }
     var renameDraft by rememberSaveable(state.userId) { mutableStateOf("") }
     var showDeleteAccountDialog by remember(state.userId) { mutableStateOf(false) }
     var deletePassword by rememberSaveable(state.userId) { mutableStateOf("") }
@@ -399,10 +402,10 @@ fun AccountSecurityScreen(
                                     isMutationInProgress = isDeviceMutationInProgress,
                                     canConfirm = currentDeviceConfirmed && device.deviceId != state.currentDeviceId,
                                     onRename = {
-                                        renameDevice = device
+                                        renameDeviceId = device.deviceId
                                         renameDraft = device.deviceName
                                     },
-                                    onRemove = { pendingRemoveDevice = device },
+                                    onRemove = { pendingRemoveDeviceId = device.deviceId },
                                     onConfirm = { viewModel.confirmMyDevice(device.deviceId) }
                                 )
                                 if (index != filteredDevices.lastIndex) HorizontalDividerLite()
@@ -1091,10 +1094,18 @@ fun AccountSecurityScreen(
         )
     }
 
+    // 9.159：目标设备从他端被删除/确认后自动关闭弹窗（与 9.150 会话/成员守卫同口径）
+    LaunchedEffect(state.devices) {
+        val ids = state.devices.mapTo(hashSetOf()) { it.deviceId }
+        if (pendingRemoveDeviceId?.let { it !in ids } == true) pendingRemoveDeviceId = null
+        if (renameDeviceId?.let { it !in ids } == true) renameDeviceId = null
+    }
+
+    val pendingRemoveDevice = pendingRemoveDeviceId?.let { id -> state.devices.firstOrNull { it.deviceId == id } }
     pendingRemoveDevice?.let { device ->
         val isPendingDevice = device.status == "PENDING"
         AlertDialog(
-            onDismissRequest = { pendingRemoveDevice = null },
+            onDismissRequest = { pendingRemoveDeviceId = null },
             title = { Text(if (isPendingDevice) stringResource(R.string.account_reject_device) else stringResource(R.string.account_remove_device)) },
             text = {
                 Text(
@@ -1107,19 +1118,20 @@ fun AccountSecurityScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    pendingRemoveDevice = null
+                    pendingRemoveDeviceId = null
                     viewModel.removeMyDevice(device.deviceId)
                 }) {
                     Text(if (isPendingDevice) stringResource(R.string.account_reject) else stringResource(R.string.chat_remove), color = Error)
                 }
             },
-            dismissButton = { TextButton(onClick = { pendingRemoveDevice = null }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) } }
+            dismissButton = { TextButton(onClick = { pendingRemoveDeviceId = null }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) } }
         )
     }
 
+    val renameDevice = renameDeviceId?.let { id -> state.devices.firstOrNull { it.deviceId == id } }
     renameDevice?.let { device ->
         AlertDialog(
-            onDismissRequest = { renameDevice = null },
+            onDismissRequest = { renameDeviceId = null },
             title = { Text(stringResource(R.string.account_device_name_title)) },
             text = {
                 OutlinedTextField(
@@ -1141,12 +1153,12 @@ fun AccountSecurityScreen(
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.renameMyDevice(device.deviceId, renameDraft)
-                    renameDevice = null
+                    renameDeviceId = null
                 }) {
                     Text(stringResource(R.string.common_save), color = Primary)
                 }
             },
-            dismissButton = { TextButton(onClick = { renameDevice = null }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) } }
+            dismissButton = { TextButton(onClick = { renameDeviceId = null }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) } }
         )
     }
 }
