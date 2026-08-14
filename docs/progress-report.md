@@ -6369,3 +6369,11 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 2. 顺带核实子代理重复投递的报告：checkIn 并发双签已在 9.152 修复（事务外捕获 23505 + 新事务幂等回读）；`PollRepository.isMuted` 非成员返回 false 的隐患已逐一核对全部调用点均为「先 isMember 后 isMuted」顺序，无洞；`closesAt` 到期不落库为读时重算约定，读取路径均已重算。
 
 **验证**：server `compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.158 2026-08-13 无限调优：投票创建 options 静默丢弃非法元素
+
+1. **`/api/chats/{chatId}/polls` 创建选项解析静默丢弃**：`options` 数组用 `mapNotNull { runCatching { it.jsonPrimitive.content } }`——`["a", {}, "b"]` 被静默创建为 2 选项投票，非法元素不报错。与 9.157 投票口径一致改为严格解析：任一元素非 JsonPrimitive 即整体 400「投票选项无效」；`buildList` + 非局部 return 在路由内直接响应。
+
+另核实：管理端 7 处 bulk-set `rawIds` 的同类 mapNotNull 为管理员专用入口，结果按实际处理集回报（skipped/updated 计数真实），维持宽松解析可接受，不改。
+
+**验证**：server `compileKotlin` 通过；`git diff --check` 无输出。

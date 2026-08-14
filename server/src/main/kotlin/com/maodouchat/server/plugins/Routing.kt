@@ -2788,7 +2788,19 @@ put("status", "ok")
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val question = obj["question"]?.jsonPrimitive?.content.orEmpty()
-                val options = obj["options"]?.jsonArray?.mapNotNull { runCatching { it.jsonPrimitive.content }.getOrNull() }.orEmpty()
+                // 9.157：与投票选项一致——非法元素整体拒绝，不静默截成子集
+                val options = buildList {
+                    val arr = obj["options"]?.jsonArray
+                    if (arr != null) {
+                        for (element in arr) {
+                            val text = (element as? kotlinx.serialization.json.JsonPrimitive)?.content
+                            if (text == null) {
+                                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("投票选项无效"))
+                            }
+                            add(text)
+                        }
+                    }
+                }
                 val multi = obj["multi"]?.jsonPrimitive?.booleanOrNull
                     ?: obj["multi"]?.jsonPrimitive?.content?.toBooleanStrictOrNull()
                     ?: false
