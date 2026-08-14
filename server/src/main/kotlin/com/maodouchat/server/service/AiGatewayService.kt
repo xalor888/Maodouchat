@@ -682,6 +682,9 @@ class AiGatewayService(
         }
 
         val body = response.bodyAsTextSafe()
+        if (body == null) {
+            return AiGatewayResult.UpstreamError(0, "transcription response body read failed")
+        }
         if (response.status.value !in 200..299) {
             val retryAfter = parseRetryAfter(response.headers["Retry-After"])
             return AiGatewayResult.UpstreamError(response.status.value, extractErrorMessage(body) ?: "HTTP ${response.status.value} empty body", retryAfter)
@@ -806,6 +809,10 @@ class AiGatewayService(
         }
 
         val body = response.bodyAsTextSafe()
+        if (body == null) {
+            // 9.160：瞬态读失败按可重试上游错误处理（executeWithRetry 会退避重试）
+            return AiGatewayResult.UpstreamError(0, "response body read failed")
+        }
         if (response.status.value !in 200..299) {
             val retryAfter = parseRetryAfter(response.headers["Retry-After"])
             return AiGatewayResult.UpstreamError(response.status.value, extractErrorMessage(body) ?: "HTTP ${response.status.value} empty body", retryAfter)
@@ -816,7 +823,14 @@ class AiGatewayService(
         return if (output.isNullOrBlank()) {
             AiGatewayResult.InvalidResponse("AI 响应为空")
         } else {
-            AiGatewayResult.Success(output.trim(), model, usage?.inputTokens, usage?.outputTokens)
+            // 9.160：上游缺 usage 时按文本估算回填——否则审计落 NULL，
+            // sumTokensForUserToday 恒 0，日预算对该模型/转发链路永久失效
+            AiGatewayResult.Success(
+                output.trim(),
+                model,
+                usage?.inputTokens ?: estimateInputTokens(input),
+                usage?.outputTokens ?: maxOf(1L, output.trim().length / 4L)
+            )
         }
     }
 
@@ -849,7 +863,7 @@ class AiGatewayService(
                     setBody(buildRequest(model, effort, input, maxOutputTokens, stream = true))
                 }.execute { response ->
                     if (response.status.value !in 200..299) {
-                        val body = response.bodyAsTextSafe()
+                        val body = response.bodyAsTextSafe() ?: ""
                         val retryAfter = parseRetryAfter(response.headers["Retry-After"])
                         return@execute AiGatewayResult.UpstreamError(response.status.value, extractErrorMessage(body) ?: "HTTP ${response.status.value} empty body", retryAfter)
                     }
@@ -911,7 +925,13 @@ class AiGatewayService(
                     when {
                         streamError != null -> AiGatewayResult.UpstreamError(502, streamError)
                         output.isBlank() -> AiGatewayResult.InvalidResponse("AI 响应为空")
-                        else -> AiGatewayResult.Success(output.toString().trim(), model, inTokens, outTokens)
+                        // 9.160：流式缺 usage 同样估算回填，防日预算对该链路失效
+                        else -> AiGatewayResult.Success(
+                            output.toString().trim(),
+                            model,
+                            inTokens ?: estimateInputTokens(input),
+                            outTokens ?: maxOf(1L, output.length / 4L)
+                        )
                     }
                 }
             } catch (error: CancellationException) {
@@ -1015,6 +1035,24 @@ class AiGatewayService(
         val input = usage["input_tokens"]?.jsonPrimitive?.longOrNull
         val output = usage["output_tokens"]?.jsonPrimitive?.longOrNull
         return if (input != null || output != null) Usage(input, output) else null
+    }
+
+    /** 9.160：上游缺 usage 时按请求文本估算输入 token（4 字符/1 token 保守口径）。 */
+    private fun estimateInputTokens(input: List<OpenAiInputMessage>): Long {
+        var chars = 0L
+        for (msg in input) {
+            when (val content = msg.content) {
+                is JsonPrimitive -> if (content.isString) chars += content.content.length
+                is JsonArray -> for (element in content) {
+                    val obj = element as? JsonObject ?: continue
+                    val text = (obj["text"] as? JsonPrimitive)?.contentOrNull
+                        ?: (obj["input_text"] as? JsonPrimitive)?.contentOrNull
+                    if (text != null) chars += text.length
+                }
+                else -> Unit
+            }
+        }
+        return maxOf(1L, chars / 4L)
     }
 
     /**
@@ -1271,11 +1309,13 @@ class AiGatewayService(
 
     private fun JsonElement.asArrayOrNull(): JsonArray? = this as? JsonArray
 
-    private suspend fun HttpResponse.bodyAsTextSafe(): String {
+    private suspend fun HttpResponse.bodyAsTextSafe(): String? {
+        // 9.160：读失败返回 null（此前回 "" 与「200 空正文」不可区分——瞬时网络错误被
+        // 归为 InvalidResponse 永久失败，不触发重试）
         return try {
             bodyAsText()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Exception) {
-            ""
+            null
         }
     }
 

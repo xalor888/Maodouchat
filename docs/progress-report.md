@@ -6385,3 +6385,15 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实（重复投递报告，已处理项确认）：语言弹窗双路径 9.155 已修复在位（SettingsSubScreens.kt:2717/2840 均走 `viewModel.setLanguageMode`）；震动开关为「渠道级」本地偏好（Android 通知渠道模型，注释背书），维持本地不同步；其余七类（门禁、开关键、mutex、IO 线程、草稿 owner 键）复核无洞。
 
 **验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
+
+### 9.160 2026-08-13 无限调优：AI 网关 token 计量与可重试性、Markdown 围栏/双波浪死分支、滑动行陈旧 snapTo
+
+1. **上游缺 `usage` 时日预算永久失效**：`recordAudit` 原样落 NULL → `sumTokensForUserToday` 计 0，省略 usage 的转发链路可无限调用不累计预算。非流式/流式路径均改为估算回填（输入按 4 字符/1 token，输出按文本长度），与 transcribe 的 8.52 口径一致。
+2. **响应体读失败不可重试**：`bodyAsTextSafe()` 读异常回 `""`，与「200 空正文」不可区分 → 瞬时网络错误被归为 InvalidResponse 永久失败。改为返回 null，读失败按可重试 `UpstreamError` 处理（三个调用点同步更新）。
+3. **Markdown 4+ 反引号围栏误解析**：开/闭栏都只认 `startsWith("```")`，含 ``` 行的 4 反引号围栏在内层提前闭合。改为按开栏反引号长度匹配闭栏。
+4. **`~~sub:` 死分支**：`~~` 删除线分支先于 `~~sub:` 命中，下标语法恒被渲染成删除线；`~~cite:` 同理。删除线分支放行两个前缀，并补 `~~cite:` 分支（与 `~cite:` 同款样式）。
+5. **滑动行每像素 launch snapTo 竞态**：帧卡顿/重排时排队的陈旧 snapTo 会在 settle/close 动画开始后回写旧偏移（行卡在半开）。用 Job 引用取消上一份，收尾动画不被抢占。
+
+另核实：`looksLikeMarkdown`/`toPlainText` 正则均为线性（无嵌套量词，无灾难性回溯）；Kotlin UTF-16 索引使 emoji 无越界风险；`SwipeableChatItem` 状态按 `items(key={it.id})` 正确归属（F4 无洞）；`ReplySwipeGesture` 无调用点为死代码；`~df:` 家族「无闭栏消费到行尾」语义存疑不改。
+
+**验证**：server `compileKotlin` 与 `:app:compileDebugKotlin` 均通过；`git diff --check` 无输出。

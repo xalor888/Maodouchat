@@ -299,9 +299,13 @@ private fun parseMarkdownBlocks(src: String): List<MdBlock> {
         when {
             line.startsWith("```") -> {
                 flushPara()
+                // 9.160：按开栏反引号长度匹配闭栏——4+ 反引号围栏（内含 ``` 行）此前
+                // 在内层行提前闭合，后续代码被误解析为标题/引用/表格
+                val fence = line.takeWhile { it == '`' }.length
+                val closer = "`".repeat(fence)
                 val buf = StringBuilder()
                 i++
-                while (i < lines.size && !lines[i].startsWith("```")) {
+                while (i < lines.size && !lines[i].startsWith(closer)) {
                     if (buf.isNotEmpty()) buf.append('\n')
                     buf.append(lines[i])
                     i++
@@ -401,11 +405,25 @@ private fun inlineMarkdown(text: String, baseColor: Color, onLinkClick: (String)
                     append(s[i]); i++
                 }
             }
-            s.startsWith("~~", i) -> {
+            // 9.160：~~ 删除线分支放行 ~~sub:/~~cite:（此前先命中删除线，
+            // 下标语法 ~~sub:…~~ 恒被渲染成删除线，460 分支为死代码）
+            s.startsWith("~~", i) && !s.startsWith("~~sub:", i) && !s.startsWith("~~cite:", i) -> {
                 val end = s.indexOf("~~", i + 2)
                 if (end > i) {
                     withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough, color = baseColor)) {
                         append(s.substring(i + 2, end))
+                    }
+                    i = end + 2
+                } else {
+                    append(s[i]); i++
+                }
+            }
+            // 9.160：双波浪引用（与单波浪 ~cite: 同款样式）
+            s.startsWith("~~cite:", i) -> {
+                val end = s.indexOf("~~", i + 7)
+                if (end > i) {
+                    withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = baseColor.copy(alpha = 0.85f))) {
+                        append(s.substring(i + 7, end))
                     }
                     i = end + 2
                 } else {

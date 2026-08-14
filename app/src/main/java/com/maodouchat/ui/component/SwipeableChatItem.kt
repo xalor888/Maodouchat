@@ -86,16 +86,23 @@ fun SwipeableChatItem(
     var dragStart by remember { mutableFloatStateOf(0f) }
     var settledOpen by remember { mutableStateOf(false) }
     var crossedSettleThreshold by remember { mutableStateOf(false) }
+    // 9.160：拖拽期间每个像素回调都会 launch 一次 snapTo——帧卡顿/重排时排队中的
+    // 陈旧 snapTo 会在 settle/close 动画开始后回写旧偏移，行视觉上卡在半开状态。
+    // 用 Job 引用取消上一份，保证同一时刻只有一个突变在途且收尾动画不被抢占。
+    var dragSnapJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var settleJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     fun close() {
-        scope.launch {
+        settleJob?.cancel()
+        settleJob = scope.launch {
             offset.animateTo(0f, motion.springSpec(dampingRatio = 0.86f, stiffness = 420f))
             settledOpen = false
         }
     }
 
     fun settle(target: Float) {
-        scope.launch {
+        settleJob?.cancel()
+        settleJob = scope.launch {
             offset.animateTo(target, motion.springSpec(dampingRatio = 0.86f, stiffness = 420f))
             settledOpen = target != 0f
         }
@@ -131,7 +138,8 @@ fun SwipeableChatItem(
                     }
                 ) { _, dragAmount ->
                     val next = (offset.value + dragAmount).coerceIn(-openRightPx * 1.08f, openLeftPx * 1.08f)
-                    scope.launch { offset.snapTo(next) }
+                    dragSnapJob?.cancel()
+                    dragSnapJob = scope.launch { offset.snapTo(next) }
                     // Light tick when the drag first crosses the settle threshold.
                     val crossed = abs(next) >= settleThreshold
                     if (crossed && !crossedSettleThreshold) {
