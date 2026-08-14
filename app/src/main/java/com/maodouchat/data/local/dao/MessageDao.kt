@@ -153,6 +153,8 @@ interface MessageDao {
         """
         SELECT chatId FROM messages
         WHERE type IN ('TEXT', 'NUDGE', 'LOCATION')
+          AND chatId NOT IN (SELECT chatId FROM secret_chats)
+          AND chatId NOT IN (SELECT chatId FROM chat_locks)
           AND content LIKE '%' || :keyword || '%' ESCAPE '\'
         GROUP BY chatId
         ORDER BY MAX(timestamp) DESC

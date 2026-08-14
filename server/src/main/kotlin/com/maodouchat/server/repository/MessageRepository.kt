@@ -478,6 +478,11 @@ class MessageRepository {
                 0
             }
             val readAt = System.currentTimeMillis()
+            // 与 getMessages/getUnreadWindow 一致：已到期的阅后即焚消息不再产生已读回执，
+            // 避免清理任务执行前短暂复活为已读，并向发送方广播过期消息的 READ/EXPIRES 事件。
+            val notExpired = (Messages.expiresAt.isNull()) or
+                (Messages.expiresAt eq 0L) or
+                (Messages.expiresAt greater readAt)
             val results = mutableListOf<Triple<String, String, Long?>>()
             // 8.30 性能优化 B1：分批处理（每批 500 行），避免活跃大群一次"全部已读"
             // 把全部未读消息拉进内存 + 逐行 upsert；1:1 全局状态 UPDATE 与阅后即焚
@@ -494,6 +499,7 @@ class MessageRepository {
                             (Messages.senderId neq readerId) and
                             senderCondition and
                             (Messages.type neq "SK_DIST") and (Messages.type neq "REVOKED") and
+                            notExpired and
                             (Messages.id notInSubQuery readByUser)
                     }
                     .limit(MARK_READ_BATCH_SIZE)
@@ -507,6 +513,7 @@ class MessageRepository {
                             (Messages.senderId neq readerId) and
                             senderCondition and
                             (Messages.type neq "SK_DIST") and (Messages.type neq "REVOKED") and
+                            notExpired and
                             (Messages.id inList ids)
                     }) {
                         it[Messages.status] = "READ"
