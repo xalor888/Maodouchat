@@ -135,14 +135,19 @@ class ChatRepository {
                 it[Chats.memberRevision] = if (isGroup) 1 else 0
             }
             val now = System.currentTimeMillis()
-            uniqueParticipantIds.forEach { userId ->
-                ChatParticipants.insert {
-                    it[ChatParticipants.chatId] = chatId
-                    it[ChatParticipants.userId] = userId
-                    it[ChatParticipants.joinedAt] = now
-                    // 群聊/频道中创建者为 OWNER，其他人为 MEMBER；非群聊全部为 MEMBER
-                    it[ChatParticipants.role] = if (isGroup && userId == (creatorId ?: uniqueParticipantIds.first())) "OWNER" else "MEMBER"
-                }
+            val participantRows = uniqueParticipantIds.map { userId ->
+                Triple(
+                    chatId,
+                    userId,
+                    if (isGroup && userId == (creatorId ?: uniqueParticipantIds.first())) "OWNER" else "MEMBER"
+                )
+            }
+            ChatParticipants.batchInsert(participantRows) { entry ->
+                this[ChatParticipants.chatId] = entry.first
+                this[ChatParticipants.userId] = entry.second
+                this[ChatParticipants.joinedAt] = now
+                // 群聊/频道中创建者为 OWNER，其他人为 MEMBER；非群聊全部为 MEMBER
+                this[ChatParticipants.role] = entry.third
             }
             getChatByIdInTx(chatId, creatorId ?: uniqueParticipantIds.first())!!
         }
