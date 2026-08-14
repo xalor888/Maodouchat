@@ -6337,6 +6337,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 
 **验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
 
+### 9.169 2026-08-14 无限调优：媒体缓存定时清理改到 IO 调度，避免主线程 `runBlocking`
+
+1. **`MediaCache.cleanup` 内含 `runBlocking(Dispatchers.IO)`，却在 `applicationScope` 主线程协程里直接调用**：每 6 小时一次的保护在途附件查询会阻塞 Main，若 Room 正在做同步/加密库慢查询，可造成短暂 ANR。调用点改为 `withContext(Dispatchers.IO)` 包裹，让文件扫描与 Room 查询都在 IO 调度器上执行。
+
+**验证**：`:app:compileDebugKotlin` 与 `:app:testDebugUnitTest` 全量通过；`git diff --check` 无输出。
+
 ### 9.168 2026-08-14 无限调优：服务端 SDP 视频检测同样修正大小写剥离
 
 1. **`sdpHasActiveVideo` 的 `startsWith`/`removePrefix` 大小写语义不一致**：服务端与客户端共享同款 SDP 解析逻辑，`startsWith("m=video", ignoreCase = true)` 后却用大小写敏感的 `removePrefix("m=video")`；`M=video`（网关/SBC 大写 m-line）返回空端口，视频通话被误判为音频。改为按固定长度 7 剥离，与 9.166 客户端修复对齐。

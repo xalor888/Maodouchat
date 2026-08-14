@@ -27,6 +27,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 
@@ -274,7 +275,9 @@ class MaodouchatApp : Application() {
             while (isActive) {
                 delay(6L * 60 * 60 * 1000)
                 try {
-                    com.maodouchat.util.MediaCache.cleanup(this@MaodouchatApp)
+                    withContext(Dispatchers.IO) {
+                        com.maodouchat.util.MediaCache.cleanup(this@MaodouchatApp)
+                    }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
