@@ -13702,6 +13702,7 @@ put("status", "ok")
             delete("/api/chats/{chatId}/members/{memberId}") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject
                 val cid = call.parameters["chatId"]!!; val mid = call.parameters["memberId"]!!
+                if (call.rejectIfSuspended(userRepo, uid)) return@delete
                 val recipientsBefore = chatRepo.getParticipantIds(cid)
                 val mutation = chatRepo.removeGroupMemberAs(cid, uid, mid)
                 if (call.respondGroupMemberMutationFailure(mutation)) return@delete
@@ -13723,6 +13724,7 @@ put("status", "ok")
             // 群管理：改名（仅 OWNER/ADMIN）
             put("/api/chats/{chatId}/name") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject; val cid = call.parameters["chatId"]!!
+                if (call.rejectIfSuspended(userRepo, uid)) return@put
                 val b = call.receiveBoundedText()?.let { parseJson<CreateChatRequest>(it) }
                 val newName = b?.groupName.orEmpty().trim()
                 if (newName.isBlank() || newName.length > 50) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("群名长度需 1-50 字符")); return@put }
@@ -13739,6 +13741,7 @@ put("status", "ok")
             // 群公告（仅 OWNER/ADMIN 可编辑；所有成员可通过聊天详情读取）
             put("/api/chats/{chatId}/announcement") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject; val cid = call.parameters["chatId"]!!
+                if (call.rejectIfSuspended(userRepo, uid)) return@put
                 val req = call.receiveBoundedText()?.let { parseJson<UpdateGroupAnnouncementRequest>(it) } ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效")); return@put
                 }
@@ -13786,6 +13789,7 @@ put("status", "ok")
 
             post("/api/chats/{chatId}/avatar") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject; val cid = call.parameters["chatId"]!!
+                if (call.rejectIfSuspended(userRepo, uid)) return@post
                 if (!avatarRateLimiter.acquire(uid, maxPerMinute = 10)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("头像操作过于频繁，请稍后再试"))
                     return@post
@@ -13890,6 +13894,7 @@ put("avatarUrl", avatarUrl)
             put("/api/chats/{chatId}/members/{memberId}/role") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject
                 val cid = call.parameters["chatId"]!!; val mid = call.parameters["memberId"]!!
+                if (call.rejectIfSuspended(userRepo, uid)) return@put
                 val req = call.receiveBoundedText()?.let { parseJson<UpdateMemberRoleRequest>(it) } ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效")); return@put
                 }
@@ -13909,6 +13914,7 @@ put("status", "ok")
             put("/api/chats/{chatId}/members/{memberId}/ownership") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject
                 val cid = call.parameters["chatId"]!!; val mid = call.parameters["memberId"]!!
+                if (call.rejectIfSuspended(userRepo, uid)) return@put
                 when (chatRepo.transferOwnership(cid, uid, mid)) {
                     ChatRepository.TransferOwnershipResult.TRANSFERRED -> {
                         notifyGroupRevisionChanged(chatRepo, json, cid, "OWNERSHIP_TRANSFERRED", uid, mid)
@@ -13953,6 +13959,7 @@ put("status", "ok")
             put("/api/chats/{chatId}/members/{memberId}/title") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject
                 val cid = call.parameters["chatId"]!!; val mid = call.parameters["memberId"]!!
+                if (call.rejectIfSuspended(userRepo, uid)) return@put
                 val req = call.receiveBoundedText()?.let { parseJson<UpdateMemberTitleRequest>(it) } ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效")); return@put
                 }
@@ -13974,6 +13981,7 @@ put("status", "ok")
             put("/api/chats/{chatId}/members/{memberId}/mute") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject
                 val cid = call.parameters["chatId"]!!; val mid = call.parameters["memberId"]!!
+                if (call.rejectIfSuspended(userRepo, uid)) return@put
                 val req = call.receiveBoundedText()?.let { parseJson<UpdateMemberMuteRequest>(it) } ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效")); return@put
                 }
