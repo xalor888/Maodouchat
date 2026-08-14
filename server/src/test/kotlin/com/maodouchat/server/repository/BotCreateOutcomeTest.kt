@@ -2,6 +2,7 @@ package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.AiPreferences
 import com.maodouchat.server.db.BotApps
+import com.maodouchat.server.db.BotCommandLogs
 import com.maodouchat.server.db.BotUpdateInbox
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
@@ -636,5 +637,42 @@ class BotCreateOutcomeTest {
         assertNull(messageRepo.setReaction("m_blocked", botId, "y", requireBotDeliverable = true))
         assertNull(starMessageRepo.toggleStar(botId, "m_blocked", requireBotDeliverable = true))
         assertEquals(false, messageRepo.deleteMessage("m_blocked", botId, requireBotDeliverable = true).ok)
+    }
+
+    @Test
+    fun `command logging revalidates bot owner and enabled state`() {
+        setupDb()
+        val created = BotRepository.create("u1", "Command Log Bot", "command_log_bot", "description")
+        assertIs<BotRepository.BotCreateResult.Success>(created)
+        val botId = created.bot.id
+
+        BotRepository.logCommand(botId, null, null, "test")
+        transaction {
+            assertEquals(1L, BotCommandLogs.selectAll().where { BotCommandLogs.botId eq botId }.count())
+        }
+
+        val suspendedUntil = System.currentTimeMillis() + 60_000
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = suspendedUntil
+            }
+        }
+        BotRepository.logCommand(botId, null, null, "blocked")
+        transaction {
+            assertEquals(1L, BotCommandLogs.selectAll().where { BotCommandLogs.botId eq botId }.count())
+        }
+
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = 0
+            }
+            BotApps.update({ BotApps.id eq botId }) {
+                it[BotApps.enabled] = false
+            }
+        }
+        BotRepository.logCommand(botId, null, null, "disabled")
+        transaction {
+            assertEquals(1L, BotCommandLogs.selectAll().where { BotCommandLogs.botId eq botId }.count())
+        }
     }
 }

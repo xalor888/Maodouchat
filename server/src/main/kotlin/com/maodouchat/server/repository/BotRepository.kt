@@ -514,8 +514,12 @@ object BotRepository {
 
     fun logCommand(botId: String, chatId: String?, userId: String?, command: String) {
         transaction {
-            BotApps.selectAll().where { BotApps.id eq botId }.forUpdate().firstOrNull()
-                ?: return@transaction
+            val now = System.currentTimeMillis()
+            val bot = BotApps.selectAll()
+                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
+                .forUpdate()
+                .firstOrNull() ?: return@transaction
+            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction
             BotCommandLogs.insert {
                 it[id] = "bcl_" + UUID.randomUUID().toString().replace("-", "").take(16)
                 it[BotCommandLogs.botId] = botId
