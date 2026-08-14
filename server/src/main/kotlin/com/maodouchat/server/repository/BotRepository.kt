@@ -400,12 +400,18 @@ object BotRepository {
         if (callbackData.isBlank() || callbackData.length > MAX_CALLBACK_DATA_LENGTH) return@transaction false
         // 8.48：超限拒写，避免 take 截断产生损坏 JSON 行
         if (updateJson.length > MAX_UPDATE_JSON_CHARS) return@transaction false
+        val now = System.currentTimeMillis()
         // Bot deletion uses bot -> chat; lock in the same order before writing bot-owned rows.
-        val botEnabled = BotApps.selectAll()
+        val botRow = BotApps.selectAll()
             .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
             .forUpdate()
-            .firstOrNull() != null
-        if (!botEnabled) return@transaction false
+            .firstOrNull() ?: return@transaction false
+        val owner = Users.selectAll().where { Users.id eq botRow[BotApps.ownerUserId] }.firstOrNull()
+        if (owner == null || owner[Users.deletedAt] != null ||
+            owner[Users.suspendedUntil] > now ||
+            owner[Users.messageRestrictedUntil] > now ||
+            owner[Users.postRestrictedUntil] > now
+        ) return@transaction false
         Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
             ?: return@transaction false
         val participants = ChatParticipants.selectAll().where { ChatParticipants.chatId eq chatId }.toList()
@@ -416,7 +422,6 @@ object BotRepository {
             ?: return@transaction false
         if (message[Messages.chatId] != chatId || message[Messages.senderId] != botId) return@transaction false
         if (!containsCallbackData(message[Messages.content], callbackData)) return@transaction false
-        val now = System.currentTimeMillis()
         BotUpdateInbox.insert {
             it[BotUpdateInbox.botId] = botId
             it[BotUpdateInbox.updateJson] = updateJson
