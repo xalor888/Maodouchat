@@ -200,6 +200,11 @@ object BotRepository {
     }
 
     fun countPendingUpdates(botId: String, offset: Long = 0): Long = transaction {
+        val now = System.currentTimeMillis()
+        val bot = BotApps.selectAll()
+            .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
+            .firstOrNull() ?: return@transaction 0L
+        if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction 0L
         BotUpdateInbox.selectAll()
             .where {
                 (BotUpdateInbox.botId eq botId) and
@@ -456,6 +461,11 @@ object BotRepository {
     }
 
     fun getUpdates(botId: String, offset: Long = 0, limit: Int = 50): List<Pair<Long, String>> = transaction {
+        val now = System.currentTimeMillis()
+        val bot = BotApps.selectAll()
+            .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
+            .firstOrNull() ?: return@transaction emptyList()
+        if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction emptyList()
         BotUpdateInbox.selectAll()
             .where {
                 (BotUpdateInbox.botId eq botId) and
@@ -467,6 +477,11 @@ object BotRepository {
     }
 
     fun deleteUpdates(botId: String, upToId: Long): Int = transaction {
+        val now = System.currentTimeMillis()
+        val bot = BotApps.selectAll()
+            .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
+            .firstOrNull() ?: return@transaction 0
+        if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction 0
         BotUpdateInbox.deleteWhere {
             (BotUpdateInbox.botId eq botId) and (BotUpdateInbox.id lessEq upToId)
         }

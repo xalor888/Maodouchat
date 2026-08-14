@@ -2,6 +2,7 @@ package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.AiPreferences
 import com.maodouchat.server.db.BotApps
+import com.maodouchat.server.db.BotUpdateInbox
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.GroupPollVotes
@@ -160,7 +161,12 @@ class BotCreateOutcomeTest {
         val botId = created.bot.id
 
         BotRepository.enqueueUpdate(botId, """{"event":"chat"}""")
-        assertEquals(1L, BotRepository.countPendingUpdates(botId))
+        transaction {
+            assertEquals(
+                1L,
+                BotUpdateInbox.selectAll().where { BotUpdateInbox.botId eq botId }.count()
+            )
+        }
 
         val suspendedUntil = System.currentTimeMillis() + 60_000
         transaction {
@@ -170,7 +176,12 @@ class BotCreateOutcomeTest {
         }
 
         BotRepository.enqueueUpdate(botId, """{"event":"must_drop"}""")
-        assertEquals(1L, BotRepository.countPendingUpdates(botId))
+        transaction {
+            assertEquals(
+                1L,
+                BotUpdateInbox.selectAll().where { BotUpdateInbox.botId eq botId }.count()
+            )
+        }
 
         transaction {
             Users.update({ Users.id eq "u1" }) {
@@ -182,7 +193,12 @@ class BotCreateOutcomeTest {
         }
 
         BotRepository.enqueueUpdate(botId, """{"event":"disabled"}""")
-        assertEquals(1L, BotRepository.countPendingUpdates(botId))
+        transaction {
+            assertEquals(
+                1L,
+                BotUpdateInbox.selectAll().where { BotUpdateInbox.botId eq botId }.count()
+            )
+        }
     }
 
     @Test
@@ -220,5 +236,41 @@ class BotCreateOutcomeTest {
 
         assertTrue(BotRepository.setWebhookByToken(botId, "https://example.com/hook") == null)
         assertTrue(BotRepository.setMyName(botId, "disabled-name") == null)
+    }
+
+    @Test
+    fun `inbox polling and deletion revalidate owner and enabled state`() {
+        setupDb()
+        val created = BotRepository.create("u1", "Poll Bot", "poll_bot", "description")
+        assertIs<BotRepository.BotCreateResult.Success>(created)
+        val botId = created.bot.id
+
+        BotRepository.enqueueUpdate(botId, """{"event":"poll"}""")
+        assertEquals(1L, BotRepository.countPendingUpdates(botId))
+        assertEquals(1, BotRepository.getUpdates(botId).size)
+
+        val suspendedUntil = System.currentTimeMillis() + 60_000
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = suspendedUntil
+            }
+        }
+
+        assertEquals(0L, BotRepository.countPendingUpdates(botId))
+        assertTrue(BotRepository.getUpdates(botId).isEmpty())
+        assertEquals(0, BotRepository.deleteUpdates(botId, Long.MAX_VALUE))
+
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = 0
+            }
+            BotApps.update({ BotApps.id eq botId }) {
+                it[BotApps.enabled] = false
+            }
+        }
+
+        assertEquals(0L, BotRepository.countPendingUpdates(botId))
+        assertTrue(BotRepository.getUpdates(botId).isEmpty())
+        assertEquals(0, BotRepository.deleteUpdates(botId, Long.MAX_VALUE))
     }
 }
