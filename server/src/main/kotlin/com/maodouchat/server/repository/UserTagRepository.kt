@@ -10,6 +10,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
+import org.jetbrains.exposed.sql.batchInsert
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
@@ -152,9 +153,12 @@ class UserTagRepository {
         assignedBy: String?
     ): List<AssignmentRow>? = transaction {
         val now = System.currentTimeMillis()
-        val ids = tagIds.distinct().filter { tagId ->
-            UserTags.selectAll().where { UserTags.id eq tagId }.firstOrNull() != null
-        }
+        val distinctTagIds = tagIds.distinct()
+        val existingTagIds = UserTags.selectAll()
+            .where { UserTags.id inList distinctTagIds }
+            .map { it[UserTags.id] }
+            .toSet()
+        val ids = distinctTagIds.filter { it in existingTagIds }
         // 串行化同一用户的并发打标（两个管理员/风控同时打标同一用户）：
         // PG 上事务内 catch 唯一冲突后再 SELECT 必 500，锁住用户行后 exists 检查即准确，
         // (tagId, userId) PK 竞态从源头消除（与项目内 chat 行锁串行化模式一致）。
@@ -162,18 +166,20 @@ class UserTagRepository {
         // 悬空 FK 触发约束异常返回 500
         Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
             ?: return@transaction null
-        ids.forEach { tagId ->
-            val existing = UserTagAssignments.selectAll().where {
-                (UserTagAssignments.tagId eq tagId) and (UserTagAssignments.userId eq userId)
-            }.firstOrNull()
-            if (existing == null) {
-                UserTagAssignments.insert {
-                    it[UserTagAssignments.tagId] = tagId
-                    it[UserTagAssignments.userId] = userId
-                    it[UserTagAssignments.assignmentSource] = source.uppercase().take(20).ifBlank { "MANUAL" }
-                    it[UserTagAssignments.assignedBy] = assignedBy
-                    it[UserTagAssignments.createdAt] = now
-                }
+        val existingAssignmentIds = UserTagAssignments.selectAll()
+            .where {
+                (UserTagAssignments.userId eq userId) and (UserTagAssignments.tagId inList ids)
+            }
+            .map { it[UserTagAssignments.tagId] }
+            .toSet()
+        val toInsert = ids.filter { it !in existingAssignmentIds }
+        if (toInsert.isNotEmpty()) {
+            UserTagAssignments.batchInsert(toInsert) { tagId ->
+                this[UserTagAssignments.tagId] = tagId
+                this[UserTagAssignments.userId] = userId
+                this[UserTagAssignments.assignmentSource] = source.uppercase().take(20).ifBlank { "MANUAL" }
+                this[UserTagAssignments.assignedBy] = assignedBy
+                this[UserTagAssignments.createdAt] = now
             }
         }
         userAssignments(userId)
