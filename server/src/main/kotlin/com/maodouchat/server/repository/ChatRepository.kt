@@ -698,8 +698,15 @@ class ChatRepository {
      * - 如果聊天已无参与者，则级联删除聊天、消息和加密附件元数据
      * - 返回被删除的附件 ID，由调用方清理磁盘对象（避免事务内做 IO）
      */
-    fun leaveChat(chatId: String, userId: String): LeaveChatOutcome {
+    fun leaveChat(
+        chatId: String,
+        userId: String,
+        requireBotDeliverable: Boolean = false
+    ): LeaveChatOutcome {
         return transaction {
+            if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(userId, System.currentTimeMillis())) {
+                return@transaction LeaveChatOutcome(LeaveChatResult.NOT_PARTICIPANT)
+            }
             val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
                 ?: return@transaction LeaveChatOutcome(LeaveChatResult.NOT_PARTICIPANT)
             val participants = ChatParticipants.selectAll().where { ChatParticipants.chatId eq chatId }.toList()
@@ -796,8 +803,12 @@ class ChatRepository {
         chatId: String,
         actorId: String,
         requestedUserIds: List<String>,
-        maxMembers: Int
+        maxMembers: Int,
+        requireBotDeliverable: Boolean = false
     ): AddGroupMembersResult = transaction {
+        if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
+            return@transaction AddGroupMembersResult(GroupMemberMutationResult.FORBIDDEN)
+        }
         val requestedIds = requestedUserIds.distinct()
         val lockedRequestedUsers = lockUsersInTx(requestedIds)
         val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
@@ -914,8 +925,12 @@ class ChatRepository {
     fun removeGroupMemberAs(
         chatId: String,
         actorId: String,
-        targetUserId: String
+        targetUserId: String,
+        requireBotDeliverable: Boolean = false
     ): GroupMemberMutationResult = transaction {
+        if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
+            return@transaction GroupMemberMutationResult.FORBIDDEN
+        }
         val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
             ?: return@transaction GroupMemberMutationResult.CHAT_NOT_FOUND
         if (!chat[Chats.isGroup]) return@transaction GroupMemberMutationResult.NOT_GROUP
@@ -951,9 +966,13 @@ class ChatRepository {
         chatId: String,
         actorId: String,
         targetUserId: String,
-        role: String
+        role: String,
+        requireBotDeliverable: Boolean = false
     ): GroupMemberMutationResult = transaction {
         if (role !in MUTABLE_MEMBER_ROLES) return@transaction GroupMemberMutationResult.FORBIDDEN
+        if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
+            return@transaction GroupMemberMutationResult.FORBIDDEN
+        }
         val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
             ?: return@transaction GroupMemberMutationResult.CHAT_NOT_FOUND
         if (!chat[Chats.isGroup]) return@transaction GroupMemberMutationResult.NOT_GROUP
@@ -1007,8 +1026,12 @@ class ChatRepository {
         chatId: String,
         actorId: String,
         targetUserId: String,
-        mutedUntil: Long
+        mutedUntil: Long,
+        requireBotDeliverable: Boolean = false
     ): GroupMemberMutationResult = transaction {
+        if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
+            return@transaction GroupMemberMutationResult.FORBIDDEN
+        }
         val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
             ?: return@transaction GroupMemberMutationResult.CHAT_NOT_FOUND
         if (!chat[Chats.isGroup]) return@transaction GroupMemberMutationResult.NOT_GROUP
@@ -1046,8 +1069,12 @@ class ChatRepository {
         chatId: String,
         actorId: String,
         targetUserIds: List<String>,
-        mutedUntil: Long
+        mutedUntil: Long,
+        requireBotDeliverable: Boolean = false
     ): Int = transaction {
+        if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
+            return@transaction 0
+        }
         val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
             ?: return@transaction 0
         if (!chat[Chats.isGroup]) return@transaction 0
@@ -1204,7 +1231,15 @@ class ChatRepository {
         }
     }
 
-    fun updateGroupNameAsAdmin(chatId: String, actorId: String, name: String): GroupMemberMutationResult = transaction {
+    fun updateGroupNameAsAdmin(
+        chatId: String,
+        actorId: String,
+        name: String,
+        requireBotDeliverable: Boolean = false
+    ): GroupMemberMutationResult = transaction {
+        if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
+            return@transaction GroupMemberMutationResult.FORBIDDEN
+        }
         val chat = lockedGroupForAdmin(chatId, actorId) ?: return@transaction groupAdminFailure(chatId, actorId)
         Chats.update({ Chats.id eq chatId }) {
             it[Chats.groupName] = name
@@ -1217,8 +1252,12 @@ class ChatRepository {
     fun updateGroupAnnouncementAsAdmin(
         chatId: String,
         actorId: String,
-        announcement: String?
+        announcement: String?,
+        requireBotDeliverable: Boolean = false
     ): GroupMemberMutationResult = transaction {
+        if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
+            return@transaction GroupMemberMutationResult.FORBIDDEN
+        }
         val chat = lockedGroupForAdmin(chatId, actorId) ?: return@transaction groupAdminFailure(chatId, actorId)
         Chats.update({ Chats.id eq chatId }) {
             it[Chats.groupAnnouncement] = announcement
@@ -1231,8 +1270,12 @@ class ChatRepository {
     fun updateGroupAvatarAsAdmin(
         chatId: String,
         actorId: String,
-        avatarUrl: String
+        avatarUrl: String,
+        requireBotDeliverable: Boolean = false
     ): GroupAvatarMutationResult = transaction {
+        if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
+            return@transaction GroupAvatarMutationResult(GroupMemberMutationResult.FORBIDDEN)
+        }
         val chat = lockedGroupForAdmin(chatId, actorId)
             ?: return@transaction GroupAvatarMutationResult(groupAdminFailure(chatId, actorId))
         val previous = chat[Chats.groupAvatar]
@@ -1292,8 +1335,12 @@ class ChatRepository {
         actorId: String,
         rotate: Boolean,
         expiresAt: Long,
-        maxUses: Int
+        maxUses: Int,
+        requireBotDeliverable: Boolean = false
     ): GroupInviteMutationResult = transaction {
+        if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
+            return@transaction GroupInviteMutationResult(GroupMemberMutationResult.FORBIDDEN)
+        }
         val chat = lockedGroupForAdmin(chatId, actorId)
             ?: return@transaction GroupInviteMutationResult(groupAdminFailure(chatId, actorId))
         val existingToken = chat[Chats.groupInviteToken]
@@ -1335,7 +1382,14 @@ class ChatRepository {
         )
     }
 
-    fun revokeGroupInviteAsAdmin(chatId: String, actorId: String): GroupMemberMutationResult = transaction {
+    fun revokeGroupInviteAsAdmin(
+        chatId: String,
+        actorId: String,
+        requireBotDeliverable: Boolean = false
+    ): GroupMemberMutationResult = transaction {
+        if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
+            return@transaction GroupMemberMutationResult.FORBIDDEN
+        }
         val chat = lockedGroupForAdmin(chatId, actorId) ?: return@transaction groupAdminFailure(chatId, actorId)
         Chats.update({ Chats.id eq chatId }) {
             it[Chats.groupInviteToken] = null
@@ -1348,7 +1402,14 @@ class ChatRepository {
         GroupMemberMutationResult.UPDATED
     }
 
-    fun clearGroupAvatarAsAdmin(chatId: String, actorId: String): GroupAvatarMutationResult = transaction {
+    fun clearGroupAvatarAsAdmin(
+        chatId: String,
+        actorId: String,
+        requireBotDeliverable: Boolean = false
+    ): GroupAvatarMutationResult = transaction {
+        if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
+            return@transaction GroupAvatarMutationResult(GroupMemberMutationResult.FORBIDDEN)
+        }
         val chat = lockedGroupForAdmin(chatId, actorId)
             ?: return@transaction GroupAvatarMutationResult(groupAdminFailure(chatId, actorId))
         val previous = chat[Chats.groupAvatar]

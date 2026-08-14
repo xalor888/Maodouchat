@@ -3786,7 +3786,13 @@ put("status", if (m.mutedUntil > System.currentTimeMillis()) "restricted" else "
                 }
                 // Promote bot role temporarily for mute: treat bot as ADMIN if owner invited as member
                 // Use owner path: if bot role is MEMBER, still try mute only when bot is elevated — promote on invite.
-                val mutation = chatRepo.updateGroupMemberMuteAsAdmin(chatId, bot.id, userId, until)
+                val mutation = chatRepo.updateGroupMemberMuteAsAdmin(
+                    chatId = chatId,
+                    actorId = bot.id,
+                    targetUserId = userId,
+                    mutedUntil = until,
+                    requireBotDeliverable = true
+                )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, userId, "restrictChatMember")
                 if (mutation != com.maodouchat.server.repository.ChatRepository.GroupMemberMutationResult.UPDATED) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("restrict failed: $mutation"))
@@ -3823,7 +3829,12 @@ put("mutedUntil", until)
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 }
                 val recipientsBefore = chatRepo.getParticipantIds(chatId)
-                val mutation = chatRepo.removeGroupMemberAs(chatId, bot.id, userId)
+                val mutation = chatRepo.removeGroupMemberAs(
+                    chatId = chatId,
+                    actorId = bot.id,
+                    targetUserId = userId,
+                    requireBotDeliverable = true
+                )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, userId, "banChatMember")
                 if (mutation != com.maodouchat.server.repository.ChatRepository.GroupMemberMutationResult.UPDATED) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("ban failed: $mutation"))
@@ -4086,7 +4097,12 @@ put("botIsMember", (bot.id in members))
                 if (!chatRepo.isParticipant(chatId, bot.id)) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 }
-                val mutation = chatRepo.updateGroupNameAsAdmin(chatId, bot.id, title)
+                val mutation = chatRepo.updateGroupNameAsAdmin(
+                    chatId = chatId,
+                    actorId = bot.id,
+                    name = title,
+                    requireBotDeliverable = true
+                )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "setChatTitle")
                 if (mutation != com.maodouchat.server.repository.ChatRepository.GroupMemberMutationResult.UPDATED) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("set title failed: $mutation"))
@@ -4126,7 +4142,12 @@ put("title", title)
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 }
                 val announcement = description.takeIf { it.isNotBlank() }
-                val mutation = chatRepo.updateGroupAnnouncementAsAdmin(chatId, bot.id, announcement)
+                val mutation = chatRepo.updateGroupAnnouncementAsAdmin(
+                    chatId = chatId,
+                    actorId = bot.id,
+                    announcement = announcement,
+                    requireBotDeliverable = true
+                )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "setChatDescription")
                 if (mutation != com.maodouchat.server.repository.ChatRepository.GroupMemberMutationResult.UPDATED) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("set description failed: $mutation"))
@@ -4348,7 +4369,9 @@ put("chatId", toChatId)
                 // 8.33 修复：与用户退群一致——退群前抓取成员，成功后广播 memberRevision；群主 bot 退群返回 409
                 val wasGroup = chatRepo.getChatById(chatId)?.isGroup == true
                 val recipientsBefore = if (wasGroup) chatRepo.getParticipantIds(chatId) else emptyList()
-                val outcome = runCatching { chatRepo.leaveChat(chatId, bot.id) }.getOrNull()
+                val outcome = runCatching {
+                    chatRepo.leaveChat(chatId = chatId, userId = bot.id, requireBotDeliverable = true)
+                }.getOrNull()
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "leaveChat")
                 if (outcome?.result == ChatRepository.LeaveChatResult.OWNER_TRANSFER_REQUIRED) {
                     return@post call.respond(
@@ -4510,7 +4533,13 @@ put("count", count)
                 val maxMembers = try {
                     com.maodouchat.server.service.RuntimeConfigService.maxGroupSize()
                 } catch (_: Exception) { 200 }
-                val result = chatRepo.addGroupMembersAs(chatId, bot.id, listOf(userId), maxMembers)
+                val result = chatRepo.addGroupMembersAs(
+                    chatId = chatId,
+                    actorId = bot.id,
+                    requestedUserIds = listOf(userId),
+                    maxMembers = maxMembers,
+                    requireBotDeliverable = true
+                )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, userId, "unbanChatMember")
                 if (result.result != com.maodouchat.server.repository.ChatRepository.GroupMemberMutationResult.UPDATED) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("unban failed: ${result.result}"))
@@ -4557,7 +4586,13 @@ put("added", Json.parseToJsonElement(Json.encodeToString(result.addedUserIds)))
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 }
                 // Only OWNER can change roles; bots invited as ADMIN cannot promote — require owner bot or use updateGroupMemberRoleAsOwner
-                val mutation = chatRepo.updateGroupMemberRoleAsOwner(chatId, bot.id, userId, role)
+                val mutation = chatRepo.updateGroupMemberRoleAsOwner(
+                    chatId = chatId,
+                    actorId = bot.id,
+                    targetUserId = userId,
+                    role = role,
+                    requireBotDeliverable = true
+                )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, userId, "promoteChatMember")
                 if (mutation != com.maodouchat.server.repository.ChatRepository.GroupMemberMutationResult.UPDATED) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("role update failed: $mutation"))
@@ -4938,7 +4973,14 @@ put("poll", Json.parseToJsonElement(Json.encodeToString(poll)))
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("频道不支持邀请加入"))
                 }
                 val expiresAt = System.currentTimeMillis() + expiresIn * 1000L
-                val mutation = chatRepo.configureGroupInviteAsAdmin(chatId, bot.id, rotate, expiresAt, maxUses)
+                val mutation = chatRepo.configureGroupInviteAsAdmin(
+                    chatId = chatId,
+                    actorId = bot.id,
+                    rotate = rotate,
+                    expiresAt = expiresAt,
+                    maxUses = maxUses,
+                    requireBotDeliverable = true
+                )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "exportChatInviteLink")
                 if (mutation.result != com.maodouchat.server.repository.ChatRepository.GroupMemberMutationResult.UPDATED) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("invite failed: ${mutation.result}"))
@@ -4986,7 +5028,12 @@ put("usedCount", inv.usedCount)
                 }
                 var committed = false
                 try {
-                    val mutation = chatRepo.updateGroupAvatarAsAdmin(chatId, bot.id, avatarUrl)
+                    val mutation = chatRepo.updateGroupAvatarAsAdmin(
+                        chatId = chatId,
+                        actorId = bot.id,
+                        avatarUrl = avatarUrl,
+                        requireBotDeliverable = true
+                    )
                     com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "setChatPhoto")
                     if (mutation.result != com.maodouchat.server.repository.ChatRepository.GroupMemberMutationResult.UPDATED) {
                         return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("set photo failed: ${mutation.result}"))
@@ -5030,7 +5077,11 @@ put("avatarUrl", avatarUrl)
                 if (!chatRepo.isParticipant(chatId, bot.id)) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 }
-                val mutation = chatRepo.revokeGroupInviteAsAdmin(chatId, bot.id)
+                val mutation = chatRepo.revokeGroupInviteAsAdmin(
+                    chatId = chatId,
+                    actorId = bot.id,
+                    requireBotDeliverable = true
+                )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "revokeChatInviteLink")
                 if (mutation != com.maodouchat.server.repository.ChatRepository.GroupMemberMutationResult.UPDATED) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("revoke failed: $mutation"))
@@ -5063,7 +5114,11 @@ put("revoked", true)
                 if (!chatRepo.isParticipant(chatId, bot.id)) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 }
-                val mutation = chatRepo.clearGroupAvatarAsAdmin(chatId, bot.id)
+                val mutation = chatRepo.clearGroupAvatarAsAdmin(
+                    chatId = chatId,
+                    actorId = bot.id,
+                    requireBotDeliverable = true
+                )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "deleteChatPhoto")
                 if (mutation.result != com.maodouchat.server.repository.ChatRepository.GroupMemberMutationResult.UPDATED) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("delete photo failed: ${mutation.result}"))
@@ -5705,7 +5760,13 @@ put("hasInvite", invite.isNotBlank())
                 if (!chatRepo.isParticipant(chatId, bot.id)) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 }
-                val mutation = chatRepo.updateGroupMemberRoleAsOwner(chatId, bot.id, userId, "MEMBER")
+                val mutation = chatRepo.updateGroupMemberRoleAsOwner(
+                    chatId = chatId,
+                    actorId = bot.id,
+                    targetUserId = userId,
+                    role = "MEMBER",
+                    requireBotDeliverable = true
+                )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, userId, "demoteChatMember")
                 if (mutation != com.maodouchat.server.repository.ChatRepository.GroupMemberMutationResult.UPDATED) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("demote failed: $mutation"))
@@ -6182,9 +6243,17 @@ put("username", bot.username)
                 // 独立事务静音 ≈5 次查询/人，500 人群 ≈2500 次）
                 val nonBotMembers = members.filter { it != bot.id }
                 val changed = if (nonBotMembers.isEmpty()) 0
-                else chatRepo.muteGroupMembersAsAdmin(chatId, bot.id, nonBotMembers, muteUntil)
+                else chatRepo.muteGroupMembersAsAdmin(
+                    chatId = chatId,
+                    actorId = bot.id,
+                    targetUserIds = nonBotMembers,
+                    mutedUntil = muteUntil,
+                    requireBotDeliverable = true
+                )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "setChatPermissions")
-                notifyGroupRevisionChanged(chatRepo, json, chatId, "CHAT_PERMISSIONS", bot.id)
+                if (changed > 0) {
+                    notifyGroupRevisionChanged(chatRepo, json, chatId, "CHAT_PERMISSIONS", bot.id)
+                }
                 call.respond(
                 buildJsonObject {
 put("ok", true)
@@ -6336,7 +6405,12 @@ put("type", "FILE")
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 }
                 val recipientsBefore = chatRepo.getParticipantIds(chatId)
-                val mutation = chatRepo.removeGroupMemberAs(chatId, bot.id, userId)
+                val mutation = chatRepo.removeGroupMemberAs(
+                    chatId = chatId,
+                    actorId = bot.id,
+                    targetUserId = userId,
+                    requireBotDeliverable = true
+                )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, userId, "kickChatMember")
                 if (mutation != com.maodouchat.server.repository.ChatRepository.GroupMemberMutationResult.UPDATED) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("kick failed: $mutation"))

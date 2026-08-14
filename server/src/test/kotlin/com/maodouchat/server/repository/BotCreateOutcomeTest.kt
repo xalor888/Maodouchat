@@ -477,4 +477,113 @@ class BotCreateOutcomeTest {
             repo.clearAll("g1", botId, actorIsManager = true, requireBotDeliverable = true).result
         )
     }
+
+    @Test
+    fun `group management writes revalidate bot owner state inside transactions`() {
+        setupDb()
+        val created = BotRepository.create("u1", "Group Write Bot", "group_write_bot", "description")
+        assertIs<BotRepository.BotCreateResult.Success>(created)
+        val botId = created.bot.id
+        val now = System.currentTimeMillis()
+        transaction {
+            Users.insert {
+                it[Users.id] = "u2"
+                it[Users.name] = "u2"
+                it[Users.email] = "u2@test.local"
+                it[Users.passwordHash] = "x"
+            }
+            Chats.insert {
+                it[Chats.id] = "g1"
+                it[Chats.isGroup] = true
+                it[Chats.chatType] = "GROUP"
+                it[Chats.groupName] = "Group Write"
+                it[Chats.lastMessageType] = "TEXT"
+                it[Chats.lastMessageTime] = now
+                it[Chats.groupInviteToken] = "invite-token-00000000000000000000000000"
+                it[Chats.groupInviteExpiresAt] = now + 60_000L
+                it[Chats.groupInviteMaxUses] = 1
+            }
+            ChatParticipants.insert {
+                it[ChatParticipants.chatId] = "g1"
+                it[ChatParticipants.userId] = botId
+                it[ChatParticipants.role] = "ADMIN"
+                it[ChatParticipants.joinedAt] = now
+            }
+            ChatParticipants.insert {
+                it[ChatParticipants.chatId] = "g1"
+                it[ChatParticipants.userId] = "u2"
+                it[ChatParticipants.role] = "MEMBER"
+                it[ChatParticipants.joinedAt] = now
+            }
+        }
+
+        val chatRepo = ChatRepository()
+        assertEquals(
+            ChatRepository.GroupMemberMutationResult.UPDATED,
+            chatRepo.updateGroupMemberMuteAsAdmin(
+                chatId = "g1",
+                actorId = botId,
+                targetUserId = "u2",
+                mutedUntil = now + 60_000L,
+                requireBotDeliverable = true
+            )
+        )
+
+        val suspendedUntil = System.currentTimeMillis() + 60_000
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = suspendedUntil
+            }
+        }
+
+        assertEquals(
+            ChatRepository.GroupMemberMutationResult.FORBIDDEN,
+            chatRepo.updateGroupMemberMuteAsAdmin(
+                chatId = "g1",
+                actorId = botId,
+                targetUserId = "u2",
+                mutedUntil = 0L,
+                requireBotDeliverable = true
+            )
+        )
+        assertEquals(
+            ChatRepository.GroupMemberMutationResult.FORBIDDEN,
+            chatRepo.removeGroupMemberAs(
+                chatId = "g1",
+                actorId = botId,
+                targetUserId = "u2",
+                requireBotDeliverable = true
+            )
+        )
+        assertEquals(
+            ChatRepository.GroupMemberMutationResult.FORBIDDEN,
+            chatRepo.updateGroupNameAsAdmin(
+                chatId = "g1",
+                actorId = botId,
+                name = "Blocked",
+                requireBotDeliverable = true
+            )
+        )
+        assertEquals(
+            0,
+            chatRepo.muteGroupMembersAsAdmin(
+                chatId = "g1",
+                actorId = botId,
+                targetUserIds = listOf("u2"),
+                mutedUntil = now + 120_000L,
+                requireBotDeliverable = true
+            )
+        )
+        assertEquals(
+            ChatRepository.GroupMemberMutationResult.FORBIDDEN,
+            chatRepo.configureGroupInviteAsAdmin(
+                chatId = "g1",
+                actorId = botId,
+                rotate = true,
+                expiresAt = now + 3600_000L,
+                maxUses = 10,
+                requireBotDeliverable = true
+            ).result
+        )
+    }
 }
