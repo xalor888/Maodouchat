@@ -185,7 +185,7 @@ private suspend fun notifyGroupRevisionChanged(
 }
 
 /** 批量快照已就绪时的广播入口（避免逐群 getChatById + getParticipantIds）。 */
-private suspend fun notifyGroupRevisionChangedWithData(
+internal suspend fun notifyGroupRevisionChangedWithData(
     json: Json,
     chatId: String,
     reason: String,
