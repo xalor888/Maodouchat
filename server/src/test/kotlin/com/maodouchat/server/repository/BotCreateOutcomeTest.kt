@@ -184,4 +184,41 @@ class BotCreateOutcomeTest {
         BotRepository.enqueueUpdate(botId, """{"event":"disabled"}""")
         assertEquals(1L, BotRepository.countPendingUpdates(botId))
     }
+
+    @Test
+    fun `token-auth mutations revalidate owner and enabled state`() {
+        setupDb()
+        val created = BotRepository.create("u1", "Mutation Bot", "mutation_bot", "description")
+        assertIs<BotRepository.BotCreateResult.Success>(created)
+        val botId = created.bot.id
+        val suspendedUntil = System.currentTimeMillis() + 60_000
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = suspendedUntil
+            }
+        }
+
+        assertTrue(BotRepository.setWebhookByToken(botId, "https://example.com/hook") == null)
+        assertTrue(BotRepository.setMyName(botId, "blocked-name") == null)
+        assertTrue(BotRepository.setMyDescription(botId, "blocked-description") == null)
+        assertTrue(
+            BotRepository.setMyCommands(
+                botId,
+                listOf(BotRepository.BotCommandDef(command = "help", description = "help"))
+            ) == null
+        )
+        assertTrue(!BotRepository.clearMyCommands(botId))
+
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = 0
+            }
+            BotApps.update({ BotApps.id eq botId }) {
+                it[BotApps.enabled] = false
+            }
+        }
+
+        assertTrue(BotRepository.setWebhookByToken(botId, "https://example.com/hook") == null)
+        assertTrue(BotRepository.setMyName(botId, "disabled-name") == null)
+    }
 }

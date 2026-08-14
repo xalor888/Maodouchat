@@ -185,6 +185,11 @@ object BotRepository {
         }
         val now = System.currentTimeMillis()
         return transaction {
+            val bot = BotApps.selectAll()
+                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
+                .forUpdate().firstOrNull()
+                ?: return@transaction null
+            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction null
             val updated = BotApps.update({ BotApps.id eq botId }) {
                 it[webhookUrl] = clean
                 it[updatedAt] = now
@@ -380,19 +385,21 @@ object BotRepository {
                 .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
                 .forUpdate()
                 .firstOrNull() ?: return@transaction
-            val owner = Users.selectAll().where { Users.id eq bot[BotApps.ownerUserId] }.firstOrNull()
-                ?: return@transaction
-            if (owner[Users.deletedAt] != null ||
-                owner[Users.suspendedUntil] > now ||
-                owner[Users.messageRestrictedUntil] > now ||
-                owner[Users.postRestrictedUntil] > now
-            ) return@transaction
+            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction
             BotUpdateInbox.insert {
                 it[BotUpdateInbox.botId] = botId
                 it[BotUpdateInbox.updateJson] = updateJson
                 it[createdAt] = now
             }
         }
+    }
+
+    private fun isOwnerDeliverable(ownerUserId: String, now: Long): Boolean {
+        val owner = Users.selectAll().where { Users.id eq ownerUserId }.firstOrNull() ?: return false
+        return owner[Users.deletedAt] == null &&
+            owner[Users.suspendedUntil] <= now &&
+            owner[Users.messageRestrictedUntil] <= now &&
+            owner[Users.postRestrictedUntil] <= now
     }
 
     /** Validate callback ownership/membership and enqueue it atomically with the audit row. */
@@ -591,6 +598,11 @@ object BotRepository {
         val json = encodeCommands(normalized)
         val now = System.currentTimeMillis()
         return transaction {
+            val bot = BotApps.selectAll()
+                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
+                .forUpdate().firstOrNull()
+                ?: return@transaction null
+            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction null
             val updated = BotApps.update({ BotApps.id eq botId }) {
                 it[commandsJson] = json
                 it[updatedAt] = now
@@ -603,6 +615,11 @@ object BotRepository {
         val clean = description?.trim()?.take(500)
         val now = System.currentTimeMillis()
         return transaction {
+            val bot = BotApps.selectAll()
+                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
+                .forUpdate().firstOrNull()
+                ?: return@transaction null
+            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction null
             val updated = BotApps.update({ BotApps.id eq botId }) {
                 it[BotApps.description] = clean
                 it[updatedAt] = now
@@ -617,6 +634,11 @@ object BotRepository {
         if (clean.isBlank()) return null
         val now = System.currentTimeMillis()
         return transaction {
+            val bot = BotApps.selectAll()
+                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
+                .forUpdate().firstOrNull()
+                ?: return@transaction null
+            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction null
             val updated = BotApps.update({ BotApps.id eq botId }) {
                 it[BotApps.name] = clean
                 it[updatedAt] = now
@@ -630,10 +652,16 @@ object BotRepository {
     }
 
     fun clearMyCommands(botId: String): Boolean {
+        val now = System.currentTimeMillis()
         return transaction {
+            val bot = BotApps.selectAll()
+                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
+                .forUpdate().firstOrNull()
+                ?: return@transaction false
+            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction false
             BotApps.update({ BotApps.id eq botId }) {
                 it[commandsJson] = null
-                it[updatedAt] = System.currentTimeMillis()
+                it[updatedAt] = now
             } == 1
         }
     }
