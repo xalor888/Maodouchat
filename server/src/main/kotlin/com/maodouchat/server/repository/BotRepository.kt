@@ -407,6 +407,19 @@ object BotRepository {
             owner[Users.postRestrictedUntil] <= now
     }
 
+    /** Transaction-local bot availability check for write paths outside BotRepository. */
+    internal fun isBotDeliverableInTx(botId: String, now: Long): Boolean {
+        val bot = BotApps.selectAll()
+            .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
+            .forUpdate()
+            .firstOrNull() ?: return false
+        return isOwnerDeliverable(bot[BotApps.ownerUserId], now)
+    }
+
+    fun isBotDeliverable(botId: String): Boolean = transaction {
+        isBotDeliverableInTx(botId, System.currentTimeMillis())
+    }
+
     /** Validate callback ownership/membership and enqueue it atomically with the audit row. */
     fun enqueueCallbackIfAuthorized(
         chatId: String,

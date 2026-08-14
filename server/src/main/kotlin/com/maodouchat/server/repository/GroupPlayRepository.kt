@@ -49,7 +49,8 @@ object GroupPlayRepository {
         options: List<String>,
         multi: Boolean,
         anonymous: Boolean,
-        closesAt: Long?
+        closesAt: Long?,
+        requireBotDeliverable: Boolean = false
     ): PollDto? {
         val q = question.trim()
         val opts = options.map(String::trim)
@@ -61,6 +62,9 @@ object GroupPlayRepository {
         if (closesAt != null && (closesAt <= now || closesAt - now > MAX_POLL_DURATION_MS)) return null
         val id = "poll_" + UUID.randomUUID().toString().replace("-", "").take(16)
         return transaction {
+            if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(creatorId, now)) {
+                return@transaction null
+            }
             val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
                 ?: return@transaction null
             if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, creatorId)) return@transaction null
@@ -81,9 +85,18 @@ object GroupPlayRepository {
         }
     }
 
-    fun vote(pollId: String, userId: String, optionIndexes: List<Int>): PollDto? {
+    fun vote(
+        pollId: String,
+        userId: String,
+        optionIndexes: List<Int>,
+        requireBotDeliverable: Boolean = false
+    ): PollDto? {
         if (!isValidId(pollId) || !isValidId(userId) || optionIndexes.isEmpty() || optionIndexes.size > MAX_OPTIONS) return null
         return transaction {
+            val now = System.currentTimeMillis()
+            if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(userId, now)) {
+                return@transaction null
+            }
             val probe = GroupPolls.selectAll().where { GroupPolls.id eq pollId }.firstOrNull()
                 ?: return@transaction null
             val chatId = probe[GroupPolls.chatId]
@@ -96,7 +109,6 @@ object GroupPlayRepository {
             val valid = optionIndexes.distinct()
             if (valid.isEmpty() || valid.any { it !in options.indices }) return@transaction null
             if (!row[GroupPolls.multi] && valid.size > 1) return@transaction null
-            val now = System.currentTimeMillis()
             val isClosed = row[GroupPolls.closed] || ((row[GroupPolls.closesAt] ?: Long.MAX_VALUE) <= now)
             // 已关闭的投票不是「成功但未变更」：返回 null，路由回 400，避免客户端误以为投票已计入。
             if (isClosed) return@transaction null
@@ -115,9 +127,17 @@ object GroupPlayRepository {
         }
     }
 
-    fun closePoll(pollId: String, userId: String): PollDto? {
+    fun closePoll(
+        pollId: String,
+        userId: String,
+        requireBotDeliverable: Boolean = false
+    ): PollDto? {
         if (!isValidId(pollId) || !isValidId(userId)) return null
         return transaction {
+            val now = System.currentTimeMillis()
+            if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(userId, now)) {
+                return@transaction null
+            }
             val probe = GroupPolls.selectAll().where { GroupPolls.id eq pollId }.firstOrNull()
                 ?: return@transaction null
             val chatId = probe[GroupPolls.chatId]

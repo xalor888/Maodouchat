@@ -26,6 +26,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -332,5 +333,148 @@ class BotCreateOutcomeTest {
         assertEquals(0L, BotRepository.countPendingUpdates(botId))
         assertTrue(BotRepository.getUpdates(botId).isEmpty())
         assertEquals(0, BotRepository.deleteUpdates(botId, Long.MAX_VALUE))
+    }
+
+    @Test
+    fun `group poll writes revalidate bot owner state inside transactions`() {
+        setupDb()
+        val created = BotRepository.create("u1", "Poll Write Bot", "poll_write_bot", "description")
+        assertIs<BotRepository.BotCreateResult.Success>(created)
+        val botId = created.bot.id
+        val now = System.currentTimeMillis()
+        transaction {
+            Chats.insert {
+                it[Chats.id] = "g1"
+                it[Chats.isGroup] = true
+                it[Chats.chatType] = "GROUP"
+                it[Chats.groupName] = "Poll Group"
+                it[Chats.lastMessageType] = "TEXT"
+                it[Chats.lastMessageTime] = now
+                it[Chats.groupInviteToken] = "invite-token-00000000000000000000000000"
+                it[Chats.groupInviteExpiresAt] = now + 60_000L
+                it[Chats.groupInviteMaxUses] = 1
+            }
+            ChatParticipants.insert {
+                it[ChatParticipants.chatId] = "g1"
+                it[ChatParticipants.userId] = botId
+                it[ChatParticipants.role] = "ADMIN"
+                it[ChatParticipants.joinedAt] = now
+            }
+        }
+
+        val poll = GroupPlayRepository.createPoll(
+            chatId = "g1",
+            creatorId = botId,
+            question = "Release scope?",
+            options = listOf("Android only", "Desktop later"),
+            multi = false,
+            anonymous = false,
+            closesAt = null,
+            requireBotDeliverable = true
+        )!!
+        assertTrue(
+            GroupPlayRepository.vote(
+                pollId = poll.id,
+                userId = botId,
+                optionIndexes = listOf(0),
+                requireBotDeliverable = true
+            ) != null
+        )
+
+        val suspendedUntil = System.currentTimeMillis() + 60_000
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = suspendedUntil
+            }
+        }
+
+        assertFalse(BotRepository.isBotDeliverable(botId))
+        assertNull(
+            GroupPlayRepository.createPoll(
+                chatId = "g1",
+                creatorId = botId,
+                question = "Blocked?",
+                options = listOf("Yes", "No"),
+                multi = false,
+                anonymous = false,
+                closesAt = null,
+                requireBotDeliverable = true
+            )
+        )
+        assertNull(
+            GroupPlayRepository.vote(
+                pollId = poll.id,
+                userId = botId,
+                optionIndexes = listOf(1),
+                requireBotDeliverable = true
+            )
+        )
+        assertNull(
+            GroupPlayRepository.closePoll(
+                pollId = poll.id,
+                userId = botId,
+                requireBotDeliverable = true
+            )
+        )
+    }
+
+    @Test
+    fun `pin writes revalidate bot owner state inside transactions`() {
+        setupDb()
+        val created = BotRepository.create("u1", "Pin Write Bot", "pin_write_bot", "description")
+        assertIs<BotRepository.BotCreateResult.Success>(created)
+        val botId = created.bot.id
+        val now = System.currentTimeMillis()
+        transaction {
+            Chats.insert {
+                it[Chats.id] = "g1"
+                it[Chats.isGroup] = true
+                it[Chats.chatType] = "GROUP"
+                it[Chats.groupName] = "Pin Group"
+                it[Chats.lastMessageType] = "TEXT"
+                it[Chats.lastMessageTime] = now
+                it[Chats.groupInviteToken] = "invite-token-00000000000000000000000000"
+                it[Chats.groupInviteExpiresAt] = now + 60_000L
+                it[Chats.groupInviteMaxUses] = 1
+            }
+            ChatParticipants.insert {
+                it[ChatParticipants.chatId] = "g1"
+                it[ChatParticipants.userId] = botId
+                it[ChatParticipants.role] = "ADMIN"
+                it[ChatParticipants.joinedAt] = now
+            }
+            listOf("m1", "m2").forEach { messageId ->
+                Messages.insert {
+                    it[Messages.id] = messageId
+                    it[Messages.chatId] = "g1"
+                    it[Messages.senderId] = botId
+                    it[Messages.content] = messageId
+                    it[Messages.type] = "TEXT"
+                    it[Messages.timestamp] = now
+                }
+            }
+        }
+
+        val repo = PinnedMessageRepository()
+        assertEquals(
+            PinnedMessageRepository.PinResult.PINNED,
+            repo.toggle("g1", "m1", botId, actorIsManager = true, requireBotDeliverable = true).result
+        )
+
+        val suspendedUntil = System.currentTimeMillis() + 60_000
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = suspendedUntil
+            }
+        }
+
+        assertEquals(
+            PinnedMessageRepository.PinResult.FORBIDDEN,
+            repo.toggle("g1", "m2", botId, actorIsManager = true, requireBotDeliverable = true).result
+        )
+        assertEquals(
+            PinnedMessageRepository.PinResult.FORBIDDEN,
+            repo.clearAll("g1", botId, actorIsManager = true, requireBotDeliverable = true).result
+        )
     }
 }

@@ -3557,6 +3557,9 @@ put("action", action)
                 if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
+                if (!com.maodouchat.server.repository.BotRepository.isBotDeliverable(bot.id)) {
+                    return@post call.respondBotUnavailable()
+                }
 
                 if (!com.maodouchat.server.service.RuntimeConfigService.isMessagePinEnabled()) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("message_pin_disabled"))
@@ -3586,7 +3589,8 @@ put("action", action)
                     chatId = chatId,
                     messageId = messageId,
                     actorId = bot.id,
-                    actorIsManager = actorIsManager
+                    actorIsManager = actorIsManager,
+                    requireBotDeliverable = true
                 )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "pinChatMessage")
                 when (outcome.result) {
@@ -4578,6 +4582,9 @@ put("role", role)
                 if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
+                if (!com.maodouchat.server.repository.BotRepository.isBotDeliverable(bot.id)) {
+                    return@post call.respondBotUnavailable()
+                }
                 val body = call.receiveBoundedTextOrEmpty()
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -4589,7 +4596,12 @@ put("role", role)
                 val chat = chatRepo.getChatById(chatId)
                     ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("chat not found"))
                 val actorIsManager = if (chat.isGroup) chatRepo.isOwnerOrAdmin(chatId, bot.id) else true
-                val outcome = pinnedMessageRepo.clearAll(chatId, bot.id, actorIsManager)
+                val outcome = pinnedMessageRepo.clearAll(
+                    chatId = chatId,
+                    actorId = bot.id,
+                    actorIsManager = actorIsManager,
+                    requireBotDeliverable = true
+                )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "unpinAllChatMessages")
                 if (outcome.result == com.maodouchat.server.repository.PinnedMessageRepository.PinResult.FORBIDDEN) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
@@ -4631,6 +4643,9 @@ put("count", 0)
                 if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
+                if (!com.maodouchat.server.repository.BotRepository.isBotDeliverable(bot.id)) {
+                    return@post call.respondBotUnavailable()
+                }
                 if (!com.maodouchat.server.service.RuntimeConfigService.isPollsEnabled()) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("polls_disabled"))
                 }
@@ -4670,7 +4685,8 @@ put("count", 0)
                     options = options,
                     multi = multi,
                     anonymous = anonymous,
-                    closesAt = closesAt
+                    closesAt = closesAt,
+                    requireBotDeliverable = true
                 ) ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("poll create failed"))
                 // Also drop a bot plaintext summary message so chat history shows the poll.
                 val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
@@ -4788,6 +4804,9 @@ put("sides", sides)
                 if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
+                if (!com.maodouchat.server.repository.BotRepository.isBotDeliverable(bot.id)) {
+                    return@post call.respondBotUnavailable()
+                }
                 val body = call.receiveBoundedTextOrEmpty()
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -4814,7 +4833,12 @@ put("sides", sides)
                 if (pollId.isBlank() || indexes.isEmpty()) {
                     return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId/optionIndexes required"))
                 }
-                val poll = com.maodouchat.server.repository.GroupPlayRepository.vote(pollId, bot.id, indexes)
+                val poll = com.maodouchat.server.repository.GroupPlayRepository.vote(
+                    pollId = pollId,
+                    userId = bot.id,
+                    optionIndexes = indexes,
+                    requireBotDeliverable = true
+                )
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("vote failed"))
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, poll.chatId, pollId, "votePoll")
                 call.respond(
@@ -4835,12 +4859,19 @@ put("poll", Json.parseToJsonElement(Json.encodeToString(poll)))
                 if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
+                if (!com.maodouchat.server.repository.BotRepository.isBotDeliverable(bot.id)) {
+                    return@post call.respondBotUnavailable()
+                }
                 val body = call.receiveBoundedTextOrEmpty()
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val pollId = obj["pollId"]?.jsonPrimitive?.content.orEmpty()
                 if (pollId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId required"))
-                val poll = com.maodouchat.server.repository.GroupPlayRepository.closePoll(pollId, bot.id)
+                val poll = com.maodouchat.server.repository.GroupPlayRepository.closePoll(
+                    pollId = pollId,
+                    userId = bot.id,
+                    requireBotDeliverable = true
+                )
                     ?: return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("close failed (creator only)"))
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, poll.chatId, pollId, "closePoll")
                 call.respond(
@@ -5382,6 +5413,9 @@ put("title", title)
                 if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
+                if (!com.maodouchat.server.repository.BotRepository.isBotDeliverable(bot.id)) {
+                    return@post call.respondBotUnavailable()
+                }
                 val body = call.receiveBoundedTextOrEmpty()
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -5413,7 +5447,8 @@ put("alreadyUnpinned", true)
                     chatId = chatId,
                     messageId = messageId,
                     actorId = bot.id,
-                    actorIsManager = actorIsManager
+                    actorIsManager = actorIsManager,
+                    requireBotDeliverable = true
                 )
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "unpinChatMessage")
                 when (outcome.result) {
@@ -6628,12 +6663,19 @@ put("mediaUploadEnabled", com.maodouchat.server.service.RuntimeConfigService.isM
                 if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
+                if (!com.maodouchat.server.repository.BotRepository.isBotDeliverable(bot.id)) {
+                    return@post call.respondBotUnavailable()
+                }
                 val body = call.receiveBoundedTextOrEmpty()
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val pollId = obj["pollId"]?.jsonPrimitive?.content.orEmpty()
                 if (pollId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId required"))
-                val poll = com.maodouchat.server.repository.GroupPlayRepository.closePoll(pollId, bot.id)
+                val poll = com.maodouchat.server.repository.GroupPlayRepository.closePoll(
+                    pollId = pollId,
+                    userId = bot.id,
+                    requireBotDeliverable = true
+                )
                     ?: return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("stop failed (creator only)"))
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, poll.chatId, pollId, "stopPoll")
                 call.respond(

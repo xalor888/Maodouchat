@@ -57,12 +57,16 @@ class PinnedMessageRepository {
         chatId: String,
         messageId: String,
         actorId: String,
-        actorIsManager: Boolean
+        actorIsManager: Boolean,
+        requireBotDeliverable: Boolean = false
     ): ToggleOutcome {
         // PG：唯一冲突后当前事务 abort，同事务任何后续查询都抛 25P02（500）；
         // 且嵌套 transaction{} 复用外层连接救不回来——必须 catch 在事务外、回滚后开新事务回读。
         return try {
             transaction {
+                if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
+                    return@transaction ToggleOutcome(PinResult.FORBIDDEN)
+                }
                 val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
                     ?: return@transaction ToggleOutcome(PinResult.NOT_FOUND)
                 val isGroup = chat[Chats.isGroup]
@@ -134,8 +138,16 @@ class PinnedMessageRepository {
     /**
      * Clear all pins for a chat (bot/admin). Returns remaining list (empty on success).
      */
-    fun clearAll(chatId: String, actorId: String, actorIsManager: Boolean): ToggleOutcome {
+    fun clearAll(
+        chatId: String,
+        actorId: String,
+        actorIsManager: Boolean,
+        requireBotDeliverable: Boolean = false
+    ): ToggleOutcome {
         return transaction {
+            if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
+                return@transaction ToggleOutcome(PinResult.FORBIDDEN)
+            }
             val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
                 ?: return@transaction ToggleOutcome(PinResult.NOT_FOUND)
             val isGroup = chat[Chats.isGroup]
