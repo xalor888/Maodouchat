@@ -399,7 +399,7 @@ object BotRepository {
         }
     }
 
-    private fun isOwnerDeliverable(ownerUserId: String, now: Long): Boolean {
+    internal fun isOwnerDeliverable(ownerUserId: String, now: Long): Boolean {
         val owner = Users.selectAll().where { Users.id eq ownerUserId }.firstOrNull() ?: return false
         return owner[Users.deletedAt] == null &&
             owner[Users.suspendedUntil] <= now &&

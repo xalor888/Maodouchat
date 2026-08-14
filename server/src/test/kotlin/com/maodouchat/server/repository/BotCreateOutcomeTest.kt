@@ -24,6 +24,7 @@ import org.jetbrains.exposed.sql.update
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -266,6 +267,35 @@ class BotCreateOutcomeTest {
             }
         }
         assertTrue(BotRepository.getMyCommands(botId).isEmpty())
+    }
+
+    @Test
+    fun `insertBotMessage revalidates owner state inside message transaction`() {
+        setupDb()
+        val created = BotRepository.create("u1", "Message Bot", "message_bot", "description")
+        assertIs<BotRepository.BotCreateResult.Success>(created)
+        val botId = created.bot.id
+        val now = System.currentTimeMillis()
+        transaction {
+            Chats.insert {
+                it[Chats.id] = "c1"
+            }
+            ChatParticipants.insert {
+                it[ChatParticipants.chatId] = "c1"
+                it[ChatParticipants.userId] = botId
+                it[ChatParticipants.joinedAt] = now
+            }
+        }
+
+        assertTrue(MessageRepository().insertBotMessage("m1", "c1", botId, "hello", now))
+
+        val suspendedUntil = System.currentTimeMillis() + 60_000
+        transaction {
+            Users.update({ Users.id eq "u1" }) {
+                it[Users.suspendedUntil] = suspendedUntil
+            }
+        }
+        assertFalse(MessageRepository().insertBotMessage("m2", "c1", botId, "blocked", now))
     }
 
     @Test

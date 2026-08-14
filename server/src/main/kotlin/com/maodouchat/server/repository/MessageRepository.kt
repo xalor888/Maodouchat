@@ -1140,9 +1140,12 @@ class MessageRepository {
     }
 
     fun insertBotMessage(id: String, chatId: String, botUserId: String, content: String, timestamp: Long, type: String = "TEXT"): Boolean = transaction {
-        BotApps.selectAll().where {
+        val botRow = BotApps.selectAll().where {
             (BotApps.id eq botUserId) and (BotApps.enabled eq true)
         }.forUpdate().firstOrNull() ?: return@transaction false
+        if (!BotRepository.isOwnerDeliverable(botRow[BotApps.ownerUserId], System.currentTimeMillis())) {
+            return@transaction false
+        }
         Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
             ?: return@transaction false
         ChatParticipants.selectAll().where {
