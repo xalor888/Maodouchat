@@ -274,3 +274,7 @@ Release：
 
 - Android：Kotlin + Jetpack Compose + Room + OkHttp/WebSocket + libsignal + WebRTC 基础模块。
 - Server：Ktor + JWT + Exposed + H2/可配置数据库 + WebSocket。
+
+## License
+
+本项目采用 [Apache License 2.0](LICENSE)。
