@@ -642,10 +642,10 @@ private suspend fun WebSocketSession.handleWsMessage(
             recipients.forEach { userId ->
                 sendToUser(userId, msgJson)
             }
+            // 与 SEND_MESSAGE 一样批量过滤静音用户，避免拍一拍在大群中逐成员查询。
+            val mutedIds = chatRepo.mutedUserIdsInTx(payload.chatId, recipients)
             pushService.enqueueEncryptedMessage(
-                recipientIds = recipients.filter {
-                    !chatRepo.areNotificationsMuted(payload.chatId, it)
-                },
+                recipientIds = recipients.filter { it !in mutedIds },
                 chatId = message.chatId,
                 messageId = message.id,
                 senderId = senderId,
