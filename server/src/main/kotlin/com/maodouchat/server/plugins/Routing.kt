@@ -2959,6 +2959,7 @@ put("callbackQueryId", updateId)
 
 post("/api/chats/{chatId}/bots") {
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                if (call.rejectIfMaintenance()) return@post
                 if (!RuntimeConfigService.isBotsAllowed()) {
                     // 8.32 一致性：功能禁用统一 403（与 nearby/posts/chat_folders 等 disabled 语义一致）
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot platform disabled"))
@@ -3044,7 +3045,9 @@ get("/api/bots") {
                 }
             }
             post("/api/bots/{botId}/token") {
+                if (call.rejectIfMaintenance()) return@post
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                if (call.rejectIfSuspended(userRepo, userId)) return@post
                 // token 轮换限流：防高频轮换刷 DB 写
                 if (!botTokenRateLimiter.acquire(userId, maxPerMinute = 10)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
@@ -3055,7 +3058,9 @@ get("/api/bots") {
                 call.respond(bot)
             }
             put("/api/bots/{botId}/webhook") {
+                if (call.rejectIfMaintenance()) return@put
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                if (call.rejectIfSuspended(userRepo, userId)) return@put
                 val botId = call.parameters["botId"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 val body = call.receiveBoundedTextOrEmpty()
                 val url = runCatching { Json.parseToJsonElement(body).jsonObject["url"]?.jsonPrimitive?.content }.getOrNull()
@@ -3064,7 +3069,9 @@ get("/api/bots") {
                 call.respond(bot)
             }
             delete("/api/bots/{botId}") {
+                if (call.rejectIfMaintenance()) return@delete
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                if (call.rejectIfSuspended(userRepo, userId)) return@delete
                 val botId = call.parameters["botId"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 // 8.33 修复：删除 bot 会 bump memberRevision，但此前无广播，客户端成员列表残留
                 val affectedGroupIds = com.maodouchat.server.repository.BotRepository.groupChatIdsFor(botId)
@@ -3089,7 +3096,9 @@ put("ok", true)
             )
             }
             put("/api/bots/{botId}/enabled") {
+                if (call.rejectIfMaintenance()) return@put
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                if (call.rejectIfSuspended(userRepo, userId)) return@put
                 val botId = call.parameters["botId"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 val body = call.receiveBoundedTextOrEmpty()
                 val enabled = runCatching {
