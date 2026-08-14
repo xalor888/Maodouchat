@@ -756,7 +756,7 @@ private fun MediaCenterImageViewer(
         items(items, key = { it.message.id }, contentType = { "file" }) { item ->
             val message = item.message
             val meta = message.parsedMeta()
-            val localAvailable = remember(message.content) { MediaCache.isReadableLocalUri(context, message.parsedContent()) }
+            val localAvailable = remember(message.id, message.content) { MediaCache.isReadableLocalUri(context, message.parsedContent()) }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

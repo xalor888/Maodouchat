@@ -295,22 +295,37 @@ class StarredMessagesViewModel(
 
     // 1.91：收藏列表直接取消收藏（乐观移除该行；服务端仍收藏或失败时恢复）
     fun unstarMessage(messageId: String) {
+        val ownerUserId = tokenManager.getUserId().orEmpty()
         val liveToken = tokenManager.getToken().orEmpty()
-        if (liveToken.isBlank()) return
+        if (liveToken.isBlank() || ownerUserId.isBlank()) return
         val message = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
         _uiState.update { it.copy(messages = it.messages.filter { m -> m.id != messageId }) }
         viewModelScope.launch {
-            ApiService.toggleStarMessage(liveToken, messageId).fold(
+            val result = ApiService.toggleStarMessage(liveToken, messageId)
+            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                    expectedUserId = ownerUserId,
+                    liveToken = tokenManager.getToken(),
+                    liveUserId = tokenManager.getUserId(),
+                )
+            ) {
+                return@launch
+            }
+            result.fold(
                 onSuccess = { response ->
-                    if (response.starred) {
+                    // toggle 语义：响应 starred=true 说明服务端仍是收藏态（此前已在他端取消、
+                    // 本次 toggle 又把它收藏回来）——只有列表当前没有该行时才回灌，
+                    // 避免覆盖刷新后的最新列表
+                    if (response.starred && _uiState.value.messages.none { it.id == messageId }) {
                         _uiState.update { state ->
                             state.copy(messages = (state.messages + message).distinctBy { m -> m.id })
                         }
                     }
                 },
                 onFailure = { _ ->
-                    _uiState.update { state ->
-                        state.copy(messages = (state.messages + message).distinctBy { m -> m.id })
+                    if (_uiState.value.messages.none { it.id == messageId }) {
+                        _uiState.update { state ->
+                            state.copy(messages = (state.messages + message).distinctBy { m -> m.id })
+                        }
                     }
                 }
             )
@@ -319,28 +334,37 @@ class StarredMessagesViewModel(
 
     // 1.161：清空全部收藏（逐条取消收藏；失败恢复该条）
     fun clearAllStarred() {
+        val ownerUserId = tokenManager.getUserId().orEmpty()
         val liveToken = tokenManager.getToken().orEmpty()
-        if (liveToken.isBlank()) return
+        if (liveToken.isBlank() || ownerUserId.isBlank()) return
         val all = _uiState.value.messages
         if (all.isEmpty()) return
         _uiState.update { it.copy(messages = emptyList()) }
         viewModelScope.launch {
-            all.forEach { message ->
-                ApiService.toggleStarMessage(liveToken, message.id).fold(
-                    onSuccess = { response ->
-                        if (response.starred) {
-                            _uiState.update { state ->
-                                state.copy(messages = (state.messages + message).distinctBy { m -> m.id })
-                            }
-                        }
-                    },
-                    onFailure = { _ ->
-                        _uiState.update { state ->
-                            state.copy(messages = (state.messages + message).distinctBy { m -> m.id })
-                        }
-                    }
-                )
+            // 9.152：此前逐条 toggle 并发执行且每个回调把消息回灌进已清空列表——
+            // toggle 语义下（他端已取消的条目会被重新收藏）并发回调必然把条目拉回列表。
+            // 改为顺序执行、不再由回调回灌，结束后从服务端权威重拉：失败/被重新收藏的
+            // 条目如实恢复显示，避免「清空」动作自我撤销。
+            for (message in all) {
+                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = ownerUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = tokenManager.getUserId(),
+                    )
+                ) {
+                    return@launch
+                }
+                ApiService.toggleStarMessage(liveToken, message.id)
             }
+            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                    expectedUserId = ownerUserId,
+                    liveToken = tokenManager.getToken(),
+                    liveUserId = tokenManager.getUserId(),
+                )
+            ) {
+                return@launch
+            }
+            load()
         }
     }
 

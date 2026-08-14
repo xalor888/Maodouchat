@@ -4,7 +4,6 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.repository.GroupCheckinRepository
 import com.maodouchat.server.repository.PollRepository
-import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.Users
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -28,9 +27,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.or
 import org.slf4j.LoggerFactory
 
 /**
@@ -98,7 +95,7 @@ fun Routing.configurePollRoutes() {
             // 8.32 一致性：非成员 403（与群管理端点一致），其余失败保持 400
             val dto = GroupCheckinRepository.checkIn(chatId, userId)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法签到"))
-            broadcastGroupPlayUpdate(chatId, "checkin_updated", userId, dto) { viewerId ->
+            broadcastGroupPlayUpdate(chatId, "checkin_updated") { viewerId ->
                 GroupCheckinRepository.checkinForViewer(chatId, userId, viewerId)
             }
             call.respond(dto)
@@ -155,7 +152,7 @@ fun Routing.configurePollRoutes() {
             if (call.rejectIfMutedForPolls(chatId, userId)) return@post
             val chain = GroupCheckinRepository.createChain(chatId, userId, title, topic, maxEntries)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法创建接龙"))
-            broadcastGroupPlayUpdate(chatId, "chain_created", userId, chain) { viewerId ->
+            broadcastGroupPlayUpdate(chatId, "chain_created") { viewerId ->
                 GroupCheckinRepository.getChain(chain.id, viewerId)
             }
             call.respond(chain)
@@ -203,7 +200,7 @@ fun Routing.configurePollRoutes() {
             }
             val chain = GroupCheckinRepository.joinChain(chainId, userId, content)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("接龙已结束或人数已满"))
-            broadcastGroupPlayUpdate(chain.chatId, "chain_updated", userId, chain) { viewerId ->
+            broadcastGroupPlayUpdate(chain.chatId, "chain_updated") { viewerId ->
                 GroupCheckinRepository.getChain(chain.id, viewerId)
             }
             call.respond(chain)
@@ -236,7 +233,7 @@ fun Routing.configurePollRoutes() {
                         // 8.32 一致性：非成员 403（与群管理端点一致），其余失败保持 400
 val pk = GroupCheckinRepository.createPk(chatId, userId, leftTitle, rightTitle)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法创建 PK"))
-            broadcastGroupPlayUpdate(chatId, "pk_created", userId, pk) { viewerId ->
+            broadcastGroupPlayUpdate(chatId, "pk_created") { viewerId ->
                 GroupCheckinRepository.getPk(pk.id, viewerId)
             }
             call.respond(pk)
@@ -283,7 +280,7 @@ val pk = GroupCheckinRepository.createPk(chatId, userId, leftTitle, rightTitle)
             // 8.32 一致性：非成员 403（与群管理端点一致），其余失败保持 400
             val pk = GroupCheckinRepository.votePk(pkId, userId, choice)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("PK 投票失败：仅限群成员且未结束"))
-            broadcastGroupPlayUpdate(pk.chatId, "pk_updated", userId, pk) { viewerId ->
+            broadcastGroupPlayUpdate(pk.chatId, "pk_updated") { viewerId ->
                 GroupCheckinRepository.getPk(pk.id, viewerId)
             }
             call.respond(pk)
@@ -296,7 +293,7 @@ val pk = GroupCheckinRepository.createPk(chatId, userId, leftTitle, rightTitle)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pkId"))
             val pk = GroupCheckinRepository.closePk(pkId, userId)
                 ?: return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("只有创建者可关闭 PK"))
-            broadcastGroupPlayUpdate(pk.chatId, "pk_closed", userId, pk) { viewerId ->
+            broadcastGroupPlayUpdate(pk.chatId, "pk_closed") { viewerId ->
                 GroupCheckinRepository.getPk(pk.id, viewerId)
             }
             call.respond(pk)
@@ -320,37 +317,22 @@ val pk = GroupCheckinRepository.createPk(chatId, userId, leftTitle, rightTitle)
 private suspend inline fun <reified T> broadcastGroupPlayUpdate(
     chatId: String,
     event: String,
-    baseViewerId: String,
-    basePayload: T,
-    payloadForViewer: (String) -> T?
+    crossinline payloadForViewer: (String) -> T?
 ) {
     val members = PollRepository.memberIds(chatId)
     if (members.isEmpty()) return
-    val blockedByUser = blockedIdsByMember(members)
-    val baseBlocked = blockedByUser[baseViewerId].orEmpty()
-    val baseMessage = groupPlayWsMessage(event, basePayload)
-    // 8.48/9.106：广播不能复用操作者视角——逐收件人按双向拉黑生成 payload
-    val messagesByUser = members.mapNotNull { uid ->
-        val message = if (blockedByUser[uid].orEmpty() == baseBlocked) baseMessage
-        else payloadForViewer(uid)?.let { groupPlayWsMessage(event, it) }
-        message?.let { uid to it }
-    }.toMap()
-    // 8.47：并发 fan-out——此前逐成员串行 await，任一慢客户端（≤500 成员）拖慢该群
-    // 全部写端点的响应；sendToUser 按用户 session 加锁，跨用户并发安全。
-    if (messagesByUser.size <= 1) {
-        messagesByUser.forEach { (uid, message) ->
-            runCatching { sendToUser(uid, message) }
-                .onFailure { pollLogger.debug("GROUP_PLAY_UPDATE push failed user={}: {}", uid, it.message) }
-        }
-    } else {
-        coroutineScope {
-            messagesByUser.map { (uid, message) ->
-                async {
-                    runCatching { sendToUser(uid, message) }
-                        .onFailure { pollLogger.debug("GROUP_PLAY_UPDATE push failed user={}: {}", uid, it.message) }
-                }
-            }.forEach { it.await() }
-        }
+    // 9.152：不得复用操作者视角 payload——CheckinDto.alreadyCheckedIn / ChainDto.myJoined /
+    // PkDto.myChoice 均为按收件人计算（PK 投票本为隐私选择，myChoice 仅本人可见），
+    // 此前「拉黑集合相同即复用操作者 payload」的捷径会把操作者的个人字段发给其他成员
+    //（隐私泄露 + 客户端误显示为本人状态）。逐收件人生成 payload 并与发送同协程并行。
+    coroutineScope {
+        members.map { uid ->
+            async {
+                val payload = payloadForViewer(uid) ?: return@async
+                runCatching { sendToUser(uid, groupPlayWsMessage(event, payload)) }
+                    .onFailure { pollLogger.debug("GROUP_PLAY_UPDATE push failed user={}: {}", uid, it.message) }
+            }
+        }.forEach { it.await() }
     }
 }
 
@@ -361,20 +343,4 @@ private inline fun <reified T> groupPlayWsMessage(event: String, payload: T): St
         put("data", Json.parseToJsonElement(pollJson.encodeToString(payload)))
     }
     return pollJson.encodeToString(WsMessage("GROUP_PLAY_UPDATE", wrapped.toString()))
-}
-
-private fun blockedIdsByMember(memberIds: List<String>): Map<String, Set<String>> {
-    if (memberIds.isEmpty()) return emptyMap()
-    val result = memberIds.associateWith { mutableSetOf<String>() }.toMutableMap()
-    transaction {
-        BlockedUsers.selectAll().where {
-            (BlockedUsers.blockerId inList memberIds) or (BlockedUsers.blockedId inList memberIds)
-        }.forEach { row ->
-            val blocker = row[BlockedUsers.blockerId]
-            val blocked = row[BlockedUsers.blockedId]
-            result[blocker]?.add(blocked)
-            result[blocked]?.add(blocker)
-        }
-    }
-    return result
 }

@@ -6316,3 +6316,14 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实：`createUploadSession/reconcileAttachmentUpload/toUploadStatus` 与 `EncryptedAttachmentStorage.appendChunk` 的复用/回放/配额路径无洞。
 
 **验证**：server `compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.152 2026-08-13 无限调优：群玩法广播个人字段泄漏、签到并发双签 500、收藏清空自我撤销
+
+1. **群玩法 WS 广播复用操作者视角 payload**：`broadcastGroupPlayUpdate` 此前「拉黑集合与操作者相同即复用操作者 payload」的捷径——`PkDto.myChoice`（PK 投票本为隐私选择，仅本人可见）、`ChainDto.myJoined`、`CheckinDto.alreadyCheckedIn` 均为按收件人计算，同拉黑集合的其他成员会收到操作者的 `myChoice`（隐私泄露 + 客户端误显为本人状态）。改为逐收件人生成 payload 并与发送在同一协程内并行；`blockedIdsByMember` 死代码删除。
+2. **群签到并发双签 500**：两请求同时通过 `existing==null` 检查后 INSERT 撞 `(chatId,userId,checkinDate)` 唯一约束，异常逃逸为 500。按 StarMessageRepository 口径：捕获在事务外（PG 冲突会 abort 整事务），新事务幂等回读当日已存在行返回 DTO。
+3. **收藏列表取消收藏/清空全部自我撤销**：`unstarMessage`/`clearAllStarred` 的完成回调把陈旧 Message 快照回灌列表；且 `toggleStarMessage` 为 toggle 语义——他端已取消的条目会被并发 toggle 重新收藏并回灌（「清空」动作部分自我撤销）。unstar 改为 owner 门控 + 仅列表确实缺该行时回灌；clearAll 改为顺序执行、回调不再回灌、结束后从服务端权威重拉（失败/被重新收藏的条目如实恢复）。
+4. **MediaCenter FileList `remember(message.content)` 键缺失 id**：与 MediaGrid/VoiceList 的 `(message.id, message.content)` 口径统一，防同内容消息间缓存可用性状态串扰。
+
+另核实：`markSurfaceActive` 迟到重标路径被 viewModelScope 取消在 DAO 挂起点阻断（DAO 后无挂起点即同步完成）；若在 onCleared 中 markSurfaceInactive 反会与 MainActivity 路由处理器冲突（FLAG_SECURE 提前释放/密聊媒体误删），故不加。
+
+**验证**：server `compileKotlin` 与 `:app:compileDebugKotlin` 均通过；`git diff --check` 无输出。
