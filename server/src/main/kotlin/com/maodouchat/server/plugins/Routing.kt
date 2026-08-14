@@ -13584,10 +13584,7 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
                 // 1:1 拉黑预检：双向（与 sendMessage 事务内复检一致）
                 if (!isGroup) {
                     val peers = chatRepo.getParticipantIds(chatId).filter { it != userId }
-                    if (peers.any {
-                            userRepo.hasBlocked(it, userId) || userRepo.hasBlocked(userId, it)
-                        }
-                    ) {
+                    if (userRepo.blockedEitherWayIdsInTx(userId, peers).isNotEmpty()) {
                         call.respond(HttpStatusCode.Forbidden, ErrorResponse("存在屏蔽关系，无法发送消息"))
                         return@post
                     }

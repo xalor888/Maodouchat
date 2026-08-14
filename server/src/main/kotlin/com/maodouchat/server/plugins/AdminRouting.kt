@@ -3858,6 +3858,7 @@ post("/users/bulk-force-token-bump") {
                 if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
+                val bumped = mutableListOf<Triple<String, Long, Long>>()
                 ids.forEach { id ->
                     if (id == actorId || AdminAccess.isAdmin(id)) {
                         skipped += id
@@ -3866,15 +3867,21 @@ post("/users/bulk-force-token-bump") {
                     val next = authTokenRepo.rotateAccessTokenVersion(id)
                     val ok = next > 0L
                     if (ok) {
-                        transaction {
-                        ModerationAuditLog.insert {
-                            it[ModerationAuditLog.userId] = id
-                            it[ModerationAuditLog.action] = "ADMIN_BULK_TOKEN_BUMP"
-                            it[ModerationAuditLog.detail] = "version=$next"
-                            it[ModerationAuditLog.actorId] = actorId
-                            it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
+                        bumped += Triple(id, next, System.currentTimeMillis())
+                    }
+                    if (ok) updated += id else skipped += id
+                }
+                if (bumped.isNotEmpty()) {
+                    transaction {
+                        ModerationAuditLog.batchInsert(bumped) { entry ->
+                            this[ModerationAuditLog.userId] = entry.first
+                            this[ModerationAuditLog.action] = "ADMIN_BULK_TOKEN_BUMP"
+                            this[ModerationAuditLog.detail] = "version=${entry.second}"
+                            this[ModerationAuditLog.actorId] = actorId
+                            this[ModerationAuditLog.createdAt] = entry.third
                         }
-                        }
+                    }
+                    bumped.forEach { (id, _, _) ->
                         try {
                             disconnectUserSessions(id, "admin bulk token bump")
                         } catch (cancel: kotlinx.coroutines.CancellationException) {
@@ -3882,7 +3889,6 @@ post("/users/bulk-force-token-bump") {
                         } catch (_: Exception) {
                         }
                     }
-                    if (ok) updated += id else skipped += id
                 }
                 call.respond(
                 buildJsonObject {
