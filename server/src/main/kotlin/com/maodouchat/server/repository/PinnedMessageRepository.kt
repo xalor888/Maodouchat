@@ -112,7 +112,8 @@ class PinnedMessageRepository {
                 val count = PinnedMessages.selectAll()
                     .where { PinnedMessages.chatId eq chatId }
                     .forUpdate()
-                    .count()
+                    .toList()
+                    .size
                 if (count >= MAX_PINS_PER_CHAT) {
                     return@transaction ToggleOutcome(PinResult.LIMIT, listInTx(chatId))
                 }

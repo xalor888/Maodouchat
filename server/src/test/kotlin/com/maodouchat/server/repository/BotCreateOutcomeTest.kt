@@ -20,8 +20,10 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import org.junit.jupiter.api.AfterEach
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -35,11 +37,13 @@ import kotlin.test.assertTrue
  */
 class BotCreateOutcomeTest {
 
+    private var database: Database? = null
+
     private val dbUrl =
         "jdbc:h2:mem:bot-create-test-${kotlin.random.Random.nextInt(1_000_000)}-${AtomicInteger().incrementAndGet()};DB_CLOSE_DELAY=-1"
 
     private fun setupDb() {
-        Database.connect(dbUrl, driver = "org.h2.Driver", user = "sa", password = "")
+        database = Database.connect(dbUrl, driver = "org.h2.Driver", user = "sa", password = "")
         initDatabase()
         transaction {
             Users.insert {
@@ -49,6 +53,12 @@ class BotCreateOutcomeTest {
                 it[Users.passwordHash] = "x"
             }
         }
+    }
+
+    @AfterEach
+    fun tearDownDb() {
+        database?.let { TransactionManager.closeAndUnregister(it) }
+        database = null
     }
 
     @Test
