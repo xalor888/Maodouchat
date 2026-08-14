@@ -702,7 +702,7 @@ object BotRepository {
         }
     }
 
-    private fun normalizeCommands(commands: List<BotCommandDef>): List<BotCommandDef>? {
+    internal fun normalizeCommands(commands: List<BotCommandDef>): List<BotCommandDef>? {
         if (commands.size > 100) return null
         val out = ArrayList<BotCommandDef>(commands.size)
         val seen = HashSet<String>()

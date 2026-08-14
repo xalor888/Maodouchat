@@ -209,6 +209,10 @@ internal suspend fun notifyGroupRevisionChangedWithData(
     recipients.forEach { sendToUser(it, message) }
 }
 
+private suspend fun ApplicationCall.respondBotUnavailable() {
+    respond(HttpStatusCode.Forbidden, ErrorResponse("bot unavailable or disabled", code = "BOT_UNAVAILABLE"))
+}
+
 private suspend fun ApplicationCall.respondGroupMemberMutationFailure(
     result: ChatRepository.GroupMemberMutationResult
 ): Boolean {
@@ -3473,11 +3477,13 @@ put("count", commands.size)
                         description = description
                     )
                 }
-                val saved = com.maodouchat.server.repository.BotRepository.setMyCommands(bot.id, defs)
+                val normalized = com.maodouchat.server.repository.BotRepository.normalizeCommands(defs)
                     ?: return@post call.respond(
                         HttpStatusCode.BadRequest,
                         ErrorResponse("invalid commands (max 100, unique a-z0-9_, description required)")
                     )
+                val saved = com.maodouchat.server.repository.BotRepository.setMyCommands(bot.id, normalized)
+                    ?: return@post call.respondBotUnavailable()
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "setMyCommands")
                 call.respond(
                 buildJsonObject {
@@ -3656,9 +3662,12 @@ put("count", pins.size)
                 val body = call.receiveBoundedTextOrEmpty()
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val url = obj["url"]?.jsonPrimitive?.content
+                val url = obj["url"]?.jsonPrimitive?.content?.trim()?.take(500)
+                if (!url.isNullOrBlank() && !com.maodouchat.server.repository.BotRepository.isAllowedWebhookUrl(url)) {
+                    return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid webhook url"))
+                }
                 val updated = com.maodouchat.server.repository.BotRepository.setWebhookByToken(bot.id, url)
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid webhook url"))
+                    ?: return@post call.respondBotUnavailable()
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "setWebhook")
                 call.respond(
                 buildJsonObject {
@@ -3678,7 +3687,9 @@ put("url", (updated.webhookUrl ?: ""))
                 if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
-                com.maodouchat.server.repository.BotRepository.setWebhookByToken(bot.id, null)
+                if (com.maodouchat.server.repository.BotRepository.setWebhookByToken(bot.id, null) == null) {
+                    return@post call.respondBotUnavailable()
+                }
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "deleteWebhook")
                 call.respond(
                 buildJsonObject {
@@ -4401,7 +4412,9 @@ post("/api/bot/deleteMyCommands") {
                 if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
-                com.maodouchat.server.repository.BotRepository.clearMyCommands(bot.id)
+                if (!com.maodouchat.server.repository.BotRepository.clearMyCommands(bot.id)) {
+                    return@post call.respondBotUnavailable()
+                }
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "deleteMyCommands")
                 call.respond(
                 buildJsonObject {
@@ -4428,7 +4441,7 @@ put("count", 0)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val description = (obj["description"] ?: obj["about"])?.jsonPrimitive?.content
                 val updated = com.maodouchat.server.repository.BotRepository.setMyDescription(bot.id, description)
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("update failed"))
+                    ?: return@post call.respondBotUnavailable()
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "setMyDescription")
                 call.respond(
                 buildJsonObject {
@@ -5147,9 +5160,12 @@ put("count", polls.size)
                 val body = call.receiveBoundedTextOrEmpty()
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val name = (obj["name"] ?: obj["displayName"])?.jsonPrimitive?.content.orEmpty()
+                val name = (obj["name"] ?: obj["displayName"])?.jsonPrimitive?.content.orEmpty().trim().take(120)
+                if (name.isBlank()) {
+                    return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid name"))
+                }
                 val updated = com.maodouchat.server.repository.BotRepository.setMyName(bot.id, name)
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid name"))
+                    ?: return@post call.respondBotUnavailable()
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "setMyName")
                 call.respond(
                 buildJsonObject {
@@ -6966,6 +6982,7 @@ put("count", chats.size)
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
                 val cleared = com.maodouchat.server.repository.BotRepository.setMyCommands(bot.id, emptyList())
+                    ?: return@post call.respondBotUnavailable()
                 com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "clearCommands")
                 call.respond(
                     buildJsonObject {
