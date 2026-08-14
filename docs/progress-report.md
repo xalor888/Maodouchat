@@ -6337,6 +6337,14 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 
 **验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
 
+### 9.174 2026-08-14 无限调优：会话列表/单聊最后消息排除已过期阅后即焚，并删掉未使用的聚合查询
+
+1. **会话列表与单聊详情的最后一条消息未过滤 `expiresAt`**：`getChatsForUser` 的窗口函数、`getChatById` 和内部 `getChatByIdInTx` 都只按 `timestamp` 选最后一条；阅后即焚消息过期后，在后台清理执行前仍会继续占据会话列表预览和排序，违背「过期即消失」语义。统一补上与历史消息一致的 `expires_at IS NULL / =0 / > now` 条件。
+2. **单聊详情 `getChatById` 与内部实现不一致**：最新一条为 `SK_DIST` 时，内部实现会回退到下一条可见消息，公开接口却直接清空预览。改为同样调用 `lastVisibleMessage`，避免同一条会话在创建回读和详情接口中显示不同预览。
+3. **`getChatsForUser` 中 `maxTsByChat` 已计算但从未使用**：该聚合查询白白扫一次消息索引，直接删除。
+
+**验证**：新增 `ChatListExpiredPreviewTest`；server `test` 全量通过；`git diff --check` 无输出。
+
 ### 9.173 2026-08-14 无限调优：双向拉黑过滤由两次全行查询合并为单次列查询
 
 1. **消息历史/未读窗口/全局搜索每次读取都两次 `selectAll()` 拉黑表**：`blockedSenderIdsForViewerInTx` 先查 `blocker=viewer`，再查 `blocked=viewer`，两条查询还取回整行。改为一条 `(blocker_id = viewer OR blocked_id = viewer)` 条件、只投影 `blocker_id/blocked_id` 两列，减少热路径上的往返与行宽；集合语义（双向拉黑并集）保持不变。

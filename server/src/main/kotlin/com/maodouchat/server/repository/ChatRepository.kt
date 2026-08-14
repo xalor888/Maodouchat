@@ -46,7 +46,6 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.max
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.select
@@ -303,7 +302,11 @@ class ChatRepository {
                     isOnline = it[Users.showOnline] && it[Users.isOnline]
                 )
             }
-        val lastMsg = Messages.selectAll().where { Messages.chatId eq chatId }
+        val nowMs = System.currentTimeMillis()
+        val notExpired = (Messages.expiresAt.isNull()) or
+            (Messages.expiresAt eq 0L) or
+            (Messages.expiresAt greater nowMs)
+        val lastMsg = Messages.selectAll().where { (Messages.chatId eq chatId) and notExpired }
             .orderBy(Messages.timestamp to SortOrder.DESC)
             .limit(1)
             .firstOrNull()
@@ -362,19 +365,21 @@ class ChatRepository {
                         isOnline = it[Users.showOnline] && it[Users.isOnline]
                     )
                 }
-            val lastMsg = Messages.selectAll().where { Messages.chatId eq chatId }
+            val nowMs = System.currentTimeMillis()
+            val notExpired = (Messages.expiresAt.isNull()) or
+                (Messages.expiresAt eq 0L) or
+                (Messages.expiresAt greater nowMs)
+            val lastMsg = Messages.selectAll().where { (Messages.chatId eq chatId) and notExpired }
                 .orderBy(Messages.timestamp to SortOrder.DESC)
                 .limit(1)
                 .firstOrNull()
             val lastMsgType = lastMsg?.get(Messages.type)
             val lastMsgSender = lastMsg?.get(Messages.senderId)
-            val visibleLastMsg = if (
-                lastMsgType == HIDDEN_SENDER_KEY_TYPE ||
-                (viewerId.isNotBlank() && lastMsgSender != null && lastMsgSender != viewerId && lastMsgSender in blockedEitherWay)
-            ) {
-                null
-            } else {
-                lastMsg
+            val visibleLastMsg = when {
+                viewerId.isNotBlank() &&
+                    lastMsgSender != null && lastMsgSender != viewerId && lastMsgSender in blockedEitherWay -> null
+                lastMsgType == HIDDEN_SENDER_KEY_TYPE -> lastVisibleMessage(chatId, viewerId, blockedEitherWay)
+                else -> lastMsg
             }
 
             // 修复 lastMessage/lastMessageType 不一致：当只有 SK_DIST 消息时，统一用空预览
@@ -416,21 +421,15 @@ class ChatRepository {
                 .where { ChatParticipants.chatId inList chatIds }
                 .groupBy { it[ChatParticipants.chatId] }
                 .mapValues { (_, rows) -> rows.joinToString("|") { it[ChatParticipants.userId] } }
-            // 批量查询最后一条消息：优化为两步查询，避免加载全部消息到内存
-            // Step 1: 用 SQL 聚合获取每个聊心的最大 timestamp（走索引，不加载消息体）
-            val maxTsExpr = Messages.timestamp.max()
-            val maxTsByChat: Map<String, Long> = Messages
-                .select(Messages.chatId, maxTsExpr)
-                .where { Messages.chatId inList chatIds }
-                .groupBy(Messages.chatId)
-                .associate { it[Messages.chatId] to (it[maxTsExpr] ?: 0L) }
-
-            // Step 2: 单条窗口函数 SQL 一次取回每个 chat 的最后一条消息 id
-            // （8.30 性能优化 A2：替代逐 chat 查询；H2/PostgreSQL 均支持 ROW_NUMBER OVER）
+            // 批量查询最后一条可见消息：用窗口函数一次取回每个 chat 的 id。
+            // 阅后即焚已过期消息与历史列表同一口径排除，避免被当作最后一条预览。
+            val nowMs = System.currentTimeMillis()
             val lastMsgIds: Set<String> = if (chatIds.isEmpty()) {
                 emptySet()
             } else {
                 val placeholders = chatIds.joinToString(",") { "?" }
+                val params = chatIds.map { org.jetbrains.exposed.sql.VarCharColumnType() to it } +
+                    (org.jetbrains.exposed.sql.LongColumnType() to nowMs)
                 TransactionManager.current().exec(
                     """
                     SELECT chat_id, id FROM (
@@ -438,9 +437,10 @@ class ChatRepository {
                                ROW_NUMBER() OVER (PARTITION BY chat_id ORDER BY "timestamp" DESC, id DESC) AS rn
                         FROM messages
                         WHERE chat_id IN ($placeholders)
+                          AND (expires_at IS NULL OR expires_at = 0 OR expires_at > ?)
                     ) ranked WHERE rn = 1
                     """.trimIndent(),
-                    chatIds.map { org.jetbrains.exposed.sql.VarCharColumnType() to it }
+                    params
                 ) { rs ->
                     val ids = LinkedHashSet<String>()
                     while (rs.next()) ids.add(rs.getString("id"))
@@ -490,7 +490,6 @@ class ChatRepository {
                 }
                 .toSet()
             // BUG-8 fix: 排除已过期的阅后即焚消息，与 getMessages 保持一致
-            val nowMs = System.currentTimeMillis()
             val notExpired = (Messages.expiresAt.isNull()) or (Messages.expiresAt eq 0L) or (Messages.expiresAt greater nowMs)
             val unreadBase = (Messages.chatId inList chatIds) and
                 (Messages.type neq "SK_DIST") and
@@ -1589,7 +1588,13 @@ class ChatRepository {
         viewerId: String? = null,
         blocked: Set<String> = emptySet()
     ): ResultRow? {
-        val base = (Messages.chatId eq chatId) and (Messages.type neq HIDDEN_SENDER_KEY_TYPE)
+        val nowMs = System.currentTimeMillis()
+        val notExpired = (Messages.expiresAt.isNull()) or
+            (Messages.expiresAt eq 0L) or
+            (Messages.expiresAt greater nowMs)
+        val base = (Messages.chatId eq chatId) and
+            (Messages.type neq HIDDEN_SENDER_KEY_TYPE) and
+            notExpired
         val condition = if (viewerId.isNullOrBlank() || blocked.isEmpty()) base
         else base and (Messages.senderId notInList blocked.toList())
         return Messages.selectAll().where { condition }
