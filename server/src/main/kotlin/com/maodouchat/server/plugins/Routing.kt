@@ -7013,7 +7013,9 @@ put("type", "MARKDOWN")
                 val botReactions = messageRepo.getReactionsForViewer(messageId, bot.id)
                 // 双向拉黑过滤，与 sendMessage 口径一致
                 val botChatParticipants = chatRepo.getParticipantIds(msg.chatId)
-                val botBlockedIds = userRepo.blockedEitherWayIdsInTx(bot.id, botChatParticipants)
+                val botBlockedIds = try {
+                    userRepo.blockedEitherWayIdsInTx(bot.id, botChatParticipants)
+                } catch (_: Exception) { emptySet() }
                 val botReactionViewers = botChatParticipants.filter { it !in botBlockedIds }
                 val botReactionsByViewer = messageRepo.getReactionsForViewers(messageId, botReactionViewers)
                 botReactionViewers.forEach { pid ->
@@ -13635,7 +13637,9 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
                         sealedSender = message.sealedSender
                     )
                     // 8.30 性能优化 A1：批量双向拉黑 + 批量静音（替代逐成员事务）
-                    val blockedIds = userRepo.blockedEitherWayIdsInTx(userId, participants)
+                    val blockedIds = try {
+                        userRepo.blockedEitherWayIdsInTx(userId, participants)
+                    } catch (_: Exception) { emptySet() }
                     val recipients = participants.filter { it !in blockedIds }
                     recipients.forEach { participantId ->
                         val viewerMsg = SealedSenderDelivery.forViewer(message, participantId)
@@ -13773,7 +13777,9 @@ put("status", "ok")
                         )
                         // 双向拉黑过滤，与 NEW_MESSAGE fanout 口径一致（发送者拉黑对方也不推送）
                         val participants = chatRepo.getParticipantIds(message.chatId)
-                        val blockedIds = userRepo.blockedEitherWayIdsInTx(userId, participants)
+                        val blockedIds = try {
+                            userRepo.blockedEitherWayIdsInTx(userId, participants)
+                        } catch (_: Exception) { emptySet() }
                         participants.forEach { participantId ->
                             if (participantId != userId && participantId !in blockedIds) {
                                 sendToUser(participantId, revokeNotification)
@@ -15585,7 +15591,9 @@ put("status", "ok")
                 val actorReactions = messageRepo.getReactionsForViewer(mid, uid)
                 // 双向拉黑过滤，与 NEW_MESSAGE fanout 口径一致
                 val participants = chatRepo.getParticipantIds(msg.chatId)
-                val blockedIds = userRepo.blockedEitherWayIdsInTx(uid, participants)
+                val blockedIds = try {
+                    userRepo.blockedEitherWayIdsInTx(uid, participants)
+                } catch (_: Exception) { emptySet() }
                 val reactionViewers = participants.filter { it != uid && it !in blockedIds }
                 val reactionsByViewer = messageRepo.getReactionsForViewers(mid, reactionViewers)
                 reactionViewers.forEach { participantId ->
@@ -15749,7 +15757,9 @@ put("status", "ok")
                     ))
                 )
                 val participants = chatRepo.getParticipantIds(message.chatId)
-                val blockedIds = userRepo.blockedEitherWayIdsInTx(userId, participants)
+                val blockedIds = try {
+                    userRepo.blockedEitherWayIdsInTx(userId, participants)
+                } catch (_: Exception) { emptySet() }
                 participants.forEach { participantId ->
                     if (participantId != userId && participantId !in blockedIds) {
                         sendToUser(participantId, deleteNotification)
