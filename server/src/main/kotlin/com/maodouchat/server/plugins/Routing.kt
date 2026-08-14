@@ -3014,11 +3014,13 @@ get("/api/bots") {
                 call.respond(com.maodouchat.server.repository.BotRepository.listByOwner(userId))
             }
             post("/api/bots") {
+                if (call.rejectIfMaintenance()) return@post
                 if (!RuntimeConfigService.isBotsAllowed()) {
                     // 8.32 一致性：功能禁用统一 403（与 nearby/posts/chat_folders 等 disabled 语义一致）
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot platform disabled"))
                 }
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                if (call.rejectIfSuspended(userRepo, userId)) return@post
                 // 创建限流：防 create-delete churn 刷 DB（maxBotsPerUser 语义可被绕过）
                 if (!botCreateRateLimiter.acquire(userId, maxPerMinute = 5)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建机器人太频繁，请稍后再试"))
