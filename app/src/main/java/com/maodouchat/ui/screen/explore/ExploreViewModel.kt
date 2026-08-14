@@ -485,11 +485,13 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     /** 1.06：举报动态。 */
     fun reportPost(post: com.maodouchat.network.PostDto) {
         val token = tokenManager.getToken()
-        if (token.isNullOrBlank()) return
+        // 9.162：快照 owner——此前门禁直接读 live userId，挂起期间换号会以新号校验旧请求
+        val ownerUserId = tokenManager.getUserId().orEmpty()
+        if (token.isNullOrBlank() || ownerUserId.isBlank()) return
         viewModelScope.launch {
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = tokenManager.getUserId().orEmpty(),
+                        expectedUserId = ownerUserId,
                         liveToken = tokenManager.getToken(),
                         liveUserId = tokenManager.getUserId(),
                     )
@@ -504,6 +506,15 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     reason = "举报动态",
                     description = post.content.take(200).takeIf { it.isNotBlank() }
                 ).onSuccess {
+                    // 9.162：挂起点后复检会话归属（与 deleteComment 同口径）
+                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                            expectedUserId = ownerUserId,
+                            liveToken = tokenManager.getToken(),
+                            liveUserId = tokenManager.getUserId(),
+                        )
+                    ) {
+                        return@onSuccess
+                    }
                     _uiState.update { it.copy(infoMessage = text(R.string.explore_report_sent)) }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -536,6 +547,16 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 val liveToken = tokenManager.getToken() ?: token
                 ApiService.blockUser(liveToken, userId).fold(
                     onSuccess = {
+                        // 9.162：挂起点后复检——换号窗口内不得把旧账号的屏蔽结果
+                        // 写进新账号的动态列表
+                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                                expectedUserId = ownerUserId,
+                                liveToken = tokenManager.getToken(),
+                                liveUserId = tokenManager.getUserId(),
+                            )
+                        ) {
+                            return@fold
+                        }
                         _uiState.update { st ->
                             st.copy(
                                 posts = st.posts.filterNot { it.author.id == userId },
@@ -545,7 +566,14 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         }
                     },
                     onFailure = {
-                        _uiState.update { it.copy(infoMessage = text(R.string.explore_block_failed)) }
+                        if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                                expectedUserId = ownerUserId,
+                                liveToken = tokenManager.getToken(),
+                                liveUserId = tokenManager.getUserId(),
+                            )
+                        ) {
+                            _uiState.update { it.copy(infoMessage = text(R.string.explore_block_failed)) }
+                        }
                     }
                 )
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -579,9 +607,25 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     reason = "举报评论",
                     description = comment.content.take(200).takeIf { it.isNotBlank() }
                 ).onSuccess {
+                    // 9.162：挂起点后复检会话归属
+                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                            expectedUserId = ownerUserId,
+                            liveToken = tokenManager.getToken(),
+                            liveUserId = tokenManager.getUserId(),
+                        )
+                    ) {
+                        return@onSuccess
+                    }
                     _uiState.update { it.copy(infoMessage = text(R.string.explore_report_sent)) }
                 }.onFailure {
-                    _uiState.update { it.copy(infoMessage = text(R.string.explore_report_failed)) }
+                    if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                            expectedUserId = ownerUserId,
+                            liveToken = tokenManager.getToken(),
+                            liveUserId = tokenManager.getUserId(),
+                        )
+                    ) {
+                        _uiState.update { it.copy(infoMessage = text(R.string.explore_report_failed)) }
+                    }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -609,6 +653,16 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 val liveToken = tokenManager.getToken() ?: token
                 ApiService.deleteComment(liveToken, postId, comment.id)
                     .onSuccess {
+                        // 9.162：网络挂起点后复检会话归属——此前直接写 state，
+                        // 换号窗口内旧账号的删除响应会污染新账号的评论列表/计数
+                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                                expectedUserId = ownerUserId,
+                                liveToken = tokenManager.getToken(),
+                                liveUserId = tokenManager.getUserId(),
+                            )
+                        ) {
+                            return@onSuccess
+                        }
                         _uiState.update { state ->
                             state.copy(
                                 comments = state.comments.filter { it.id != comment.id },
@@ -759,6 +813,15 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     ApiService.unlikeComment(liveToken, postId, comment.id)
                 }
                 result.onSuccess { resp ->
+                    // 9.162：挂起点后复检——换号窗口内不得把旧账号的评论点赞态写进新账号列表
+                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                            expectedUserId = ownerUserId,
+                            liveToken = tokenManager.getToken(),
+                            liveUserId = tokenManager.getUserId(),
+                        )
+                    ) {
+                        return@onSuccess
+                    }
                     _uiState.update { state ->
                         state.copy(
                             comments = state.comments.map {
@@ -767,7 +830,15 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         )
                     }
                 }.onFailure {
-                    // 失败回滚
+                    // 失败回滚（同样先复检归属）
+                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                            expectedUserId = ownerUserId,
+                            liveToken = tokenManager.getToken(),
+                            liveUserId = tokenManager.getUserId(),
+                        )
+                    ) {
+                        return@onFailure
+                    }
                     _uiState.update { state ->
                         state.copy(
                             comments = state.comments.map {
@@ -1513,12 +1584,25 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 val liveToken = tokenManager.getToken() ?: token
                 ApiService.getPostLikers(liveToken, postId).fold(
                     onSuccess = { resp ->
-                        if (_uiState.value.likersPostId == postId) {
+                        // 9.162：挂起点后复检——旧账号的点赞者名单不得写入新账号的 UI
+                        if (_uiState.value.likersPostId == postId &&
+                            com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                                expectedUserId = ownerUserId,
+                                liveToken = tokenManager.getToken(),
+                                liveUserId = tokenManager.getUserId(),
+                            )
+                        ) {
                             _uiState.update { it.copy(likers = resp.likers, isLikersLoading = false) }
                         }
                     },
                     onFailure = { _ ->
-                        if (_uiState.value.likersPostId == postId) {
+                        if (_uiState.value.likersPostId == postId &&
+                            com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                                expectedUserId = ownerUserId,
+                                liveToken = tokenManager.getToken(),
+                                liveUserId = tokenManager.getUserId(),
+                            )
+                        ) {
                             _uiState.update { it.copy(likers = emptyList(), isLikersLoading = false) }
                         }
                     }

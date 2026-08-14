@@ -54,7 +54,9 @@ object MediaViewerPolicy {
         if (current > 1.05f) MIN_SCALE else DOUBLE_TAP_SCALE
 
     fun clampScale(scale: Float): Float =
-        scale.coerceIn(MIN_SCALE, MAX_SCALE)
+        // 9.162：双指同点等退化手势可产生 NaN 缩放——coerceIn 对 NaN 原样透传，
+        // graphicsLayer 吃到 NaN 后图片渲染消失且无法再缩回；NaN 一律回落最小比例
+        if (scale.isNaN()) MIN_SCALE else scale.coerceIn(MIN_SCALE, MAX_SCALE)
 
     fun canExportLocal(
         localReadable: Boolean,

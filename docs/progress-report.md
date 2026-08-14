@@ -6405,3 +6405,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实（重复投递报告，其余项状态）：B1 上游缺 usage 日预算失效与 E1 响应体读失败不可重试已由 9.160 修复在位；C3 预留只增不减为注释明示的软预算设计（偏保守不过放）；C1 `estimateTokens +1` 为保守过估；B2 仅引擎级 120s 超时属有界挂起；E2/C4/S1/P2（取消重抛、预算锁、流式缓冲、system-role 注入）复核无洞。
 
 **验证**：server `compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.162 2026-08-13 无限调优：Explore 六处挂起点后缺会话门禁、图片缩放 NaN 防护
+
+1. **ExploreViewModel 六处网络回调缺挂起点后门禁**：`deleteComment`/`reportPost`/`blockPostAuthor`/`reportComment`/`toggleCommentLike`/`loadLikers` 的成功（部分含失败）回调直接写 `_uiState`——换号窗口内旧账号响应会把评论列表/计数/点赞态/点赞者名单/屏蔽结果写进新账号 UI（同文件 toggleLike/saveCommentEdit 均有门禁，属遗漏）。全部补 `BackgroundSessionGate.mayContinue`；`reportPost` 顺带把门禁的 live userId 改为函数入口快照（此前挂起期间换号会以新号校验旧请求）。
+2. **`MediaViewerPolicy.clampScale` NaN 透传**：双指同点等退化手势可产生 NaN 缩放，`coerceIn` 对 NaN 原样返回 → graphicsLayer 吃到 NaN 后图片渲染消失且无法恢复。NaN 一律回落 MIN_SCALE。
+
+另核实：`toggleLike`（单飞 + 全门禁 + 404 移除）、`loadPostDetail`（generation + isCurrentOwner）、`loadMoreComments`（userId 比对）均已正确门禁，不动。
+
+**验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
