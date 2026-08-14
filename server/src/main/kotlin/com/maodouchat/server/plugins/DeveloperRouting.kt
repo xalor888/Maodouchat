@@ -129,6 +129,8 @@ fun Application.configureDeveloperRouting() {
     val developerLoginRateLimiter = BoundedRateLimiter()
     /** 8.131：开发者登录按账号限流（防轮换源 IP 爆破，与主登录 loginEmailRateLimiter 同策略）。 */
     val developerLoginEmailRateLimiter = BoundedRateLimiter()
+    val developerBotCreateRateLimiter = BoundedRateLimiter()
+    val developerBotTokenRateLimiter = BoundedRateLimiter()
 
     routing {
         route("/api/developer") {
@@ -211,6 +213,7 @@ fun Application.configureDeveloperRouting() {
             // ─── Test webhook ─────────────────────
             post("/bots/{id}/test-webhook") {
                 val bot = authenticateDeveloperBot(call) ?: return@post
+                if (call.rejectIfDeveloperMaintenance()) return@post
                 val targetBotId = call.parameters["id"].orEmpty()
                 if (targetBotId != bot.id) {
                     return@post call.respond(
@@ -384,6 +387,9 @@ fun Application.configureDeveloperRouting() {
                 if (!RuntimeConfigService.isBotsAllowed()) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot platform disabled"))
                 }
+                if (!developerBotCreateRateLimiter.acquire(userId, maxPerMinute = 5)) {
+                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建机器人太频繁，请稍后再试"))
+                }
                 val body = call.receiveBoundedText().orEmpty()
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -407,6 +413,9 @@ fun Application.configureDeveloperRouting() {
                 val userId = devSessionUserId(call)
                     ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
                 if (call.rejectIfDeveloperMaintenance()) return@post
+                if (!developerBotTokenRateLimiter.acquire(userId, maxPerMinute = 10)) {
+                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
+                }
                 val botId = call.parameters["id"]
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 val bot = BotRepository.regenerateToken(botId, userId)
