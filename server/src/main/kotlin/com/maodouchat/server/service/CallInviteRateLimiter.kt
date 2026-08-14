@@ -36,14 +36,19 @@ class CallInviteRateLimiter(
 
         // Dedup: same callId (group call fan-out to multiple recipients) is allowed without
         // counting as a new attempt, but capped to prevent callId reuse spam on 1:1 calls.
-        if (callId.isNotBlank() && attempts.any { it.key == callId }) {
+        if (callId.isNotBlank()) {
+            val first = attempts.firstOrNull { it.key == callId }
             val entry = dedupHitsByKey[callId]
             val hits = entry?.hits ?: 0
-            if (hits < MAX_DEDUP_HITS) {
+            // 9.165：此前 MAX_DEDUP_HITS=64 且无时间窗——群通话 fan-out 每收件人一次去重，
+            // 超过 64 成员的群（默认上限 200/硬上限 500）第 65+ 收件人被回落常规限流
+            //（5 次/分钟），大群通话邀请后半段全部失败。上限提到群硬上限，并限定在
+            // 首次尝试后 60s 的 fan-out 窗口内，防 1:1 复用 callId 的长时刷量。
+            if (hits < MAX_DEDUP_HITS && first != null && now - first.timestamp < FANOUT_WINDOW_MS) {
                 dedupHitsByKey[callId] = DedupEntry(hits = hits + 1, lastAccess = now)
                 return CallInviteRateLimitDecision(allowed = true)
             }
-            // Exceeded dedup cap: fall through to normal rate-limit check.
+            // Exceeded dedup cap or window: fall through to normal rate-limit check.
         }
 
         val lastMinute = attempts.count { now - it.timestamp < ONE_MINUTE_MS }
@@ -67,8 +72,10 @@ class CallInviteRateLimiter(
         private const val ONE_MINUTE_MS = 60_000L
         private const val TEN_MINUTES_MS = 10 * ONE_MINUTE_MS
         private const val SWEEP_INTERVAL_MS = 60_000L
-        /** Max dedup hits per callId: allows large group call fan-out but caps 1:1 callId reuse spam. */
-        private const val MAX_DEDUP_HITS = 64
+        /** 9.165：去重上限对齐群成员硬上限（500）——大群通话 fan-out 不再被 64 截断。 */
+        private const val MAX_DEDUP_HITS = 500
+        /** 9.165：fan-out 去重窗口——同 callId 仅在首次尝试后 60s 内免计次。 */
+        private const val FANOUT_WINDOW_MS = 60_000L
 
         fun isInitialInvite(type: String, groupId: String, groupInvite: Boolean): Boolean =
             type.equals("offer", ignoreCase = true) && (groupId.isBlank() || groupInvite)

@@ -52,7 +52,10 @@ enum class CallType { AUDIO, VIDEO, GROUP;
             for (line in sdp.lineSequence()) {
                 val trimmed = line.trim()
                 if (trimmed.startsWith("m=video", ignoreCase = true)) {
-                    val port = trimmed.removePrefix("m=video").trimStart()
+                    // 9.166：标签已按忽略大小写匹配，直接按固定长度 7 剥离（removePrefix 无
+                    // ignoreCase 重载）——此前大小写剥离不一致，`M=video` 行端口解析为 0，
+                    // 视频通话被误判为 AUDIO，相机永不协商
+                    val port = trimmed.substring(7).trimStart()
                         .takeWhile { it.isDigit() }.toIntOrNull() ?: 0
                     if (port != 0) return VIDEO
                 }
@@ -130,6 +133,8 @@ class WebRTCManager(
             onAudioRoutesChanged?.invoke(available, selected)
         }
         audioController.setOnAudioFocusChangedListener { granted ->
+            // 9.166：焦点回调跑在音频系统线程——released 后不得触碰已销毁的本地音轨
+            if (released) return@setOnAudioFocusChangedListener
             runCatching { localAudioTrack?.setEnabled(granted && !userMuted) }
             if (!granted) onAudioFocusLost?.invoke()
         }
@@ -160,7 +165,8 @@ class WebRTCManager(
     private val groupRemoteDescriptionSet = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicBoolean>()
     private val groupPendingIceCandidates = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.CopyOnWriteArrayList<IceCandidate>>()
     private var localAudioSource: AudioSource? = null
-    private var localAudioTrack: AudioTrack? = null
+    // 9.166：焦点/信令回调线程读取，须 @Volatile 保证可见性（清理路径在锁内置空）
+    @Volatile private var localAudioTrack: AudioTrack? = null
     @Volatile private var userMuted = false
     private var localVideoSource: VideoSource? = null
     private var localVideoTrack: VideoTrack? = null
@@ -873,7 +879,13 @@ class WebRTCManager(
         }
         audioController.start(type)
         if (localAudioTrack == null) {
-            createLocalAudioTrack("AUDIO_TRACK") ?: return false
+            val created = createLocalAudioTrack("AUDIO_TRACK")
+            if (created == null) {
+                // 9.166：本地音轨创建失败时回滚刚获取的音频焦点/通话模式——调用方
+                // cleanupUnusedGroupMedia 只在无对端连接时清理，已有对端时焦点泄漏到进程结束
+                audioController.stop()
+                return false
+            }
         }
         if (type == CallType.VIDEO && localVideoTrack == null) {
             val track = createLocalVideoTrack("VIDEO_TRACK") ?: return false
@@ -1127,8 +1139,14 @@ class WebRTCManager(
     }
 
     private fun cleanupCallResources() {
-        if (directCallSession != 0L) {
-            directCallGate.invalidate(directCallSession)
+        val session = directCallSession
+        if (session != 0L && !directCallGate.isCurrent(session)) {
+            // 9.166：晚到的旧会话清理回调（异步错误路径）——新通话已 begin()，
+            // 直接返回：既不动新会话的门/标记，也不销毁其 PeerConnection/轨道
+            return
+        }
+        if (session != 0L) {
+            directCallGate.invalidate(session)
             directCallSession = 0L
         }
         groupPeerSessions.clear()

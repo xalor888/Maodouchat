@@ -6430,3 +6430,20 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 另核实（本轮，无洞）：`MaodouchatConnectionService`（超接销毁旧 Connection、onAnswer 失败降级断开、reject/disconnect/abort 清理完整）、`CallActionBus`/`CallOrchestrator`（generation 回放防护）、`IncomingCallCoordinator.peekPending/clear`、`MediaExport`（displayName 消毒 + IS_PENDING + 失败删行）、`BacklogSyncWorker`（逐迭代门禁 + per-chat 节流 + 游标推进）、`MessageDao.searchChatIdsByMessageContent`（ESCAPE + GROUP BY 排序）、`SealedSenderDelivery`（证书校验 + 设备绑定语义）、`AppNotifier` 的 runBlocking 查询均 fail-closed。
 
 **验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
+
+### 9.165 2026-08-13 无限调优：群通话邀请限流截断大群 fan-out
+
+1. **`CallInviteRateLimiter` 去重上限 64 截断群通话邀请**：群通话 fan-out 每收件人一次去重免计次，上限 64 远小于群成员上限（默认 200/硬上限 500）——超过 ~68 名成员后其余收件人回落常规限流（5 次/分钟），大群通话邀请后半段全部「发起通话过于频繁」失败。上限提到 500（群硬上限），并加 60s fan-out 窗口（同 callId 仅首次尝试后 60s 内免计次），兼顾防 1:1 callId 复用刷量。
+
+**验证**：server `compileKotlin` 通过；`git diff --check` 无输出。
+
+### 9.166 2026-08-13 无限调优：WebRTC 四项并发/解析修复
+
+1. **`detectFromSdp` 大小写剥离不一致**：`startsWith` 忽略大小写但 `removePrefix` 区分——`M=video`（网关/SBC 大写 m-line）端口解析为 0，视频通话被误判为 AUDIO、相机永不协商。标签按固定长度 7 剥离。
+2. **音频焦点回调读已销毁音轨**：焦点监听跑在音频系统线程，`released` 后仍可能触碰已 dispose 的本地音轨。回调加 `released` 守卫，`localAudioTrack` 改 `@Volatile` 保证可见性。
+3. **本地音轨创建失败泄漏音频焦点**：`ensureLocalMedia` 在 `audioController.start` 后创建音轨失败直接 `return false`——已有对端时 `cleanupUnusedGroupMedia` 不清资源，焦点/MODE_IN_COMMUNICATION 泄漏到进程结束。失败路径补 `audioController.stop()`。
+4. **晚到旧会话清理销毁后继通话**：异步错误回调触发的 `cleanupCallResources` 无条件销毁当前 `peerConnection`——旧通话 A 的清理晚于新通话 B 的 `begin()` 时，B 的资源被销毁（CAS 只保护 generation 门，不保护资源）。清理前校验 `directCallGate.isCurrent(session)`，旧会话清理直接返回。
+
+另核实：`CallSessionGate.invalidate` 的 CAS 语义本身正确（后继 begin 已递增时 CAS 失败不污染门）；`CallInviteRateLimiter` 其余路径（10 分钟窗清理、dedup 计数）无洞；`MissedCallRecorder`/`MissedCallTimeoutPolicy`/`SignalingOfferFreshnessPolicy` owner 门禁与幂等语义正确。
+
+**验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
