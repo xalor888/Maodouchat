@@ -451,7 +451,7 @@ private suspend fun WebSocketSession.handleWsMessage(
             if (!isGroup) {
                 val peers = chatRepo.getParticipantIds(payload.chatId).filter { it != senderId }
                 // 与 REST/insert 一致：双向拉黑均拒绝
-                if (peers.any { userRepo.isBlockedEitherWay(it, senderId) }) {
+                if (userRepo.blockedEitherWayIdsInTx(senderId, peers).isNotEmpty()) {
                     sendError("无法与已屏蔽的用户发送消息", json)
                     return
                 }
@@ -612,7 +612,7 @@ private suspend fun WebSocketSession.handleWsMessage(
                 // 1:1 拍一拍：与消息发送一致的双向拉黑预检（群聊不做整体预检——
                 // 与 SEND_MESSAGE 一致，由 fanout 按双向拉黑过滤到个人）
                 val peers = chatRepo.getParticipantIds(payload.chatId).filter { it != senderId }
-                if (peers.any { userRepo.isBlockedEitherWay(it, senderId) }) {
+                if (userRepo.blockedEitherWayIdsInTx(senderId, peers).isNotEmpty()) {
                     sendError("无法与已屏蔽的用户拍一拍", json)
                     return
                 }
