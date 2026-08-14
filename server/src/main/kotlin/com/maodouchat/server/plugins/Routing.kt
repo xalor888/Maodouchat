@@ -2152,17 +2152,19 @@ put("results", Json.parseToJsonElement(Json.encodeToString(results)))
                     FriendRequestEventPayload(action = action, request = request)
                 )
                 val envelope = json.encodeToString(WsMessage.serializer(), WsMessage("FRIEND_REQUEST", payload))
-                val peers = setOf(request.fromUser.id, request.toUser.id)
-                peers.forEach { pid ->
-                    // 9.129：WS 实时事件与 push 同口径——申请创建后若双方已互相拉黑，
-                    // 不再向对方实时推送好友申请事件（push 路径早已过滤，WS 漏网）
-                    val other = if (pid == request.fromUser.id) request.toUser.id else request.fromUser.id
-                    if (userRepo.isBlockedEitherWay(pid, other)) return@forEach
-                    sendToUser(pid, envelope)
-                }
+                // 9.129：WS 实时事件与 push 同口径——申请创建后若双方已互相拉黑，
+                // 不再向对方实时推送好友申请事件（push 路径早已过滤，WS 漏网）
+                val fromBlockedIds = try {
+                    userRepo.blockedEitherWayIdsInTx(request.fromUser.id, listOf(request.toUser.id))
+                } catch (_: Exception) { emptySet() }
+                val toBlockedIds = try {
+                    userRepo.blockedEitherWayIdsInTx(request.toUser.id, listOf(request.fromUser.id))
+                } catch (_: Exception) { emptySet() }
+                if (request.toUser.id !in fromBlockedIds) sendToUser(request.fromUser.id, envelope)
+                if (request.fromUser.id !in toBlockedIds) sendToUser(request.toUser.id, envelope)
                 // FCM wake for offline peer (CREATED → recipient; ACCEPTED → original sender)
                 when (action) {
-                    "CREATED" -> if (!userRepo.isBlockedEitherWay(request.toUser.id, request.fromUser.id)) {
+                    "CREATED" -> if (request.fromUser.id !in toBlockedIds) {
                         pushService.enqueueFriendRequest(
                             recipientId = request.toUser.id,
                             fromUserId = request.fromUser.id,
@@ -2170,7 +2172,7 @@ put("results", Json.parseToJsonElement(Json.encodeToString(results)))
                             action = action
                         )
                     }
-                    "ACCEPTED" -> if (!userRepo.isBlockedEitherWay(request.fromUser.id, request.toUser.id)) {
+                    "ACCEPTED" -> if (request.toUser.id !in fromBlockedIds) {
                         pushService.enqueueFriendRequest(
                             recipientId = request.fromUser.id,
                             fromUserId = request.toUser.id,
