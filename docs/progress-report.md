@@ -6337,6 +6337,12 @@ CacheService 三个缓存接入 2/3（用户资料 + 公开状态）；群元数
 
 **验证**：`:app:compileDebugKotlin` 通过；`git diff --check` 无输出。
 
+### 9.171 2026-08-14 无限调优：通话前台服务按 API 30 边界区分 foregroundServiceType
+
+1. **API 29 上使用 API 30 才引入的 `FOREGROUND_SERVICE_TYPE_MICROPHONE/CAMERA`**：`CallForegroundService` 只按 `>= Q` 就进入 typed `startForeground` 分支，Android 10 会收到尚未定义的服务类型位；Lint 的 `InlinedApi` 已标出。改为 `>= R` 才使用麦克风/相机类型，Q 单独走 `startForeground(..., 0)`，既满足 Android 14+ 类型要求，也避免低版本越界语义。
+
+**验证**：`:app:compileDebugKotlin` 与 `:app:testDebugUnitTest` 全量通过；`git diff --check` 无输出。
+
 ### 9.170 2026-08-14 无限调优：图片 EXIF 方向读取迁移 AndroidX 实现
 
 1. **`ImagePicker` 仍使用 `android.media.ExifInterface`**：Android 框架旧实现在部分旧版本存在已知安全/兼容问题，Lint 明确警告；`getAttributeInt` 对畸形 EXIF 的行为也不稳定，可能影响图片方向矫正。迁移到 `androidx.exifinterface:exifinterface:1.3.7`，保持方向常量与调用语义不变。
