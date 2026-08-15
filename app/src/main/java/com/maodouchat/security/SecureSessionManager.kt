@@ -57,6 +57,8 @@ class SecureSessionManager(
             // 假聊天解锁标记同样是进程内状态，注销/换号后必须失效，
             // 否则同账号重新登录可能直接绕过假聊天前置页。
             FakeChatManager.clearUnlockedSession()
+            // 全局 typing presence 也应立即清空，避免账号切换后短暂沿用上一账号的输入状态。
+            runCatching { com.maodouchat.util.TypingPresenceStore.clear() }
             // Process-global open-chat marker must not suppress notifications for the next account.
             MaodouchatApp.activeChatId = null
             // Stop any in-flight voice bubble so the next account never hears prior media.
