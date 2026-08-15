@@ -226,6 +226,7 @@ object EmailService {
 
     private fun reserveCacheSlot(cacheKey: String): Boolean = synchronized(cacheCapacityLock) {
         if (codeCache.containsKey(cacheKey)) return@synchronized false
+        if (pendingCacheKeys.contains(cacheKey)) return@synchronized false
         if (codeCache.size + pendingCacheKeys.size >= MAX_CACHED_CODES) {
             throw IllegalStateException("验证码服务繁忙，请稍后再试")
         }

@@ -45,8 +45,10 @@ object FloatingBallController {
     // weak reference here prevents the singleton from retaining the View after removal.
     private var ballView: WeakReference<View>? = null
     private var layoutParams: WindowManager.LayoutParams? = null
+    private var gestureEpoch: Long = 0L
 
     // ---- 状态 ----
+    @Synchronized
     fun isShowing(): Boolean = ballView?.get()?.isAttachedToWindow == true
 
     fun isGranted(context: Context): Boolean =
@@ -80,6 +82,7 @@ object FloatingBallController {
     }
 
     /** 应用内显式启动（权限已具备时调用） */
+    @Synchronized
     fun start(context: Context) {
         val app = context.applicationContext
         if (isShowing()) return
@@ -121,6 +124,7 @@ object FloatingBallController {
     }
 
     /** 停止并移除悬浮球 */
+    @Synchronized
     fun stop(context: Context) {
         val app = context.applicationContext
         val wm = windowManager ?: runCatching { app.getSystemService(Context.WINDOW_SERVICE) as WindowManager }.getOrNull() ?: return
@@ -131,14 +135,29 @@ object FloatingBallController {
             layoutParams = null
             return
         }
-        runCatching { wm.removeView(view) }
+        invalidateGestures()
+        if (view.isAttachedToWindow) {
+            runCatching { wm.removeView(view) }
+        }
         windowManager = null
         ballView = null
         layoutParams = null
     }
 
+    @Synchronized
     fun toggle(context: Context) {
         if (isShowing()) stop(context) else start(context)
+    }
+
+    @Synchronized
+    internal fun beginGesture(): Long = ++gestureEpoch
+
+    @Synchronized
+    internal fun isCurrentGesture(epoch: Long): Boolean = epoch == gestureEpoch
+
+    @Synchronized
+    internal fun invalidateGestures() {
+        gestureEpoch++
     }
 
     // ---- 内部 ----
@@ -206,6 +225,7 @@ internal object FloatingBallGesture {
     ): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                GestureState.epoch = controller.beginGesture()
                 GestureState.downX = event.rawX
                 GestureState.downY = event.rawY
                 GestureState.lastRawX = event.rawX
@@ -217,6 +237,9 @@ internal object FloatingBallGesture {
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
+                if (!controller.isCurrentGesture(GestureState.epoch) || !view.isAttachedToWindow) {
+                    return true
+                }
                 val touchSlop = ViewConfiguration.get(app).scaledTouchSlop
                 if (!GestureState.dragging &&
                     (abs(event.rawX - GestureState.downX) > touchSlop ||
@@ -232,7 +255,7 @@ internal object FloatingBallGesture {
                     val bounds = controller.boundsOf(wm)
                     params.x = (params.x + dx).toInt().coerceIn(0, (bounds.width() - params.width).coerceAtLeast(0))
                     params.y = (params.y + dy).toInt().coerceIn(0, (bounds.height() - params.height).coerceAtLeast(0))
-                    wm.updateViewLayout(view, params)
+                    runCatching { wm.updateViewLayout(view, params) }
                     GestureState.moved = true
                 }
                 GestureState.lastRawX = event.rawX
@@ -240,6 +263,9 @@ internal object FloatingBallGesture {
                 return true
             }
             MotionEvent.ACTION_UP -> {
+                if (!controller.isCurrentGesture(GestureState.epoch) || !view.isAttachedToWindow) {
+                    return true
+                }
                 val bounds = controller.boundsOf(wm)
                 val recycleTop = (bounds.height() * FloatingBallController.RECYCLE_ZONE_RATIO).toInt()
                 if (GestureState.dragging && params.y + params.height / 2 <= recycleTop) {
@@ -251,11 +277,13 @@ internal object FloatingBallGesture {
                     return true
                 }
                 // 短惯性滑行（postDelayed 逐帧衰减）
-                glide(app, wm, view, params, GestureState.moveDx, GestureState.moveDy, controller)
+                glide(app, wm, view, params, GestureState.moveDx, GestureState.moveDy, controller, GestureState.epoch)
                 return true
             }
             MotionEvent.ACTION_CANCEL -> {
-                if (GestureState.moved) controller.persistPosition(app, wm, params)
+                if (controller.isCurrentGesture(GestureState.epoch) && view.isAttachedToWindow && GestureState.moved) {
+                    controller.persistPosition(app, wm, params)
+                }
                 return true
             }
         }
@@ -270,6 +298,7 @@ internal object FloatingBallGesture {
         vx: Float,
         vy: Float,
         controller: FloatingBallController,
+        epoch: Long,
     ) {
         val bounds = controller.boundsOf(wm)
         val startX = params.x
@@ -278,6 +307,9 @@ internal object FloatingBallGesture {
         var step = 0
         val runnable = object : Runnable {
             override fun run() {
+                if (!controller.isCurrentGesture(epoch) || !view.isAttachedToWindow) {
+                    return
+                }
                 if (step >= total) {
                     controller.persistPosition(app, wm, params)
                     return
@@ -286,7 +318,7 @@ internal object FloatingBallGesture {
                 val p = 1f - step.toFloat() / total
                 params.x = (startX + vx * p).toInt().coerceIn(0, (bounds.width() - params.width).coerceAtLeast(0))
                 params.y = (startY + vy * p).toInt().coerceIn(0, (bounds.height() - params.height).coerceAtLeast(0))
-                wm.updateViewLayout(view, params)
+                runCatching { wm.updateViewLayout(view, params) }
                 view.postDelayed(this, 16L)
             }
         }
@@ -296,6 +328,7 @@ internal object FloatingBallGesture {
 
 /** 手势会话状态（进程级单帧状态，避免每次构造对象） */
 private object GestureState {
+    var epoch = 0L
     var downX = 0f
     var downY = 0f
     var lastRawX = 0f

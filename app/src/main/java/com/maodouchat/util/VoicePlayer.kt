@@ -100,6 +100,8 @@ object VoicePlayer {
             val speed = _state.value.speed.let { if (it in SPEED_STEPS.toList()) it else 1f }
             val mp = MediaPlayer()
             player = mp
+            currentId = messageId
+            currentSource = source
             mp.apply {
                 setAudioAttributes(buildAttributes(earpiece))
                 when {
@@ -148,8 +150,6 @@ object VoicePlayer {
                     true
                 }
                 prepareAsync()
-                currentId = messageId
-                currentSource = source
             }
         } catch (e: Exception) {
             android.util.Log.w("VoicePlayer", "play failed for $messageId", e)
@@ -163,7 +163,11 @@ object VoicePlayer {
         if (currentId == messageId && mp != null) {
             // 8.33 修复：pause/start 无防护——MediaPlayer 进入 Error 态（源文件被缓存清理删除、
             // 解码失败）时抛 IllegalStateException 直达主线程崩溃；与 play() 一致包 runCatching。
-            if (mp.isPlaying) {
+            val playing = runCatching { mp.isPlaying }.getOrElse {
+                stopInternal(keepRoutePreference = true)
+                return
+            }
+            if (playing) {
                 try {
                     mp.pause()
                 } catch (_: IllegalStateException) {

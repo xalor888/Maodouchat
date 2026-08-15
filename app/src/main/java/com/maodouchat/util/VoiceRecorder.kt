@@ -34,13 +34,16 @@ class VoiceRecorder(private val context: Context) {
         val file = File(context.cacheDir, "voice_${System.currentTimeMillis()}.m4a")
         outputFile = file
 
+        var newRecorder: MediaRecorder? = null
         try {
-            recorder = (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            newRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 MediaRecorder(context)
             } else {
                 @Suppress("DEPRECATION")
                 MediaRecorder()
-            }).apply {
+            }
+            recorder = newRecorder
+            newRecorder.apply {
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
@@ -55,7 +58,7 @@ class VoiceRecorder(private val context: Context) {
             isRecording = true
         } catch (e: Exception) {
             Log.w(TAG, "startRecording failed (file=${file.absolutePath})", e)
-            recorder?.release()
+            runCatching { newRecorder?.release() }
             recorder = null
             isRecording = false
             outputFile = null

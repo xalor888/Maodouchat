@@ -1098,7 +1098,16 @@ class UserRepository {
 
     fun isBlockedEitherWay(a: String, b: String): Boolean {
         if (a.isBlank() || b.isBlank() || a == b) return false
-        return hasBlocked(a, b) || hasBlocked(b, a)
+        // Single transaction/query keeps the two directions consistent. The previous two
+        // separate hasBlocked calls could race and return a stale non-blocked result.
+        return transaction {
+            !BlockedUsers.selectAll()
+                .where {
+                    ((BlockedUsers.blockerId eq a) and (BlockedUsers.blockedId eq b)) or
+                        ((BlockedUsers.blockerId eq b) and (BlockedUsers.blockedId eq a))
+                }
+                .empty()
+        }
     }
 
     /**

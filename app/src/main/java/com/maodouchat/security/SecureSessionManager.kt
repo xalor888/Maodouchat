@@ -97,6 +97,9 @@ class SecureSessionManager(
                     Log.w(TAG, "Failed to unregister push token during logout", error)
                 }
             }
+            // Registration state is process-local UI state; do not let the next account
+            // inherit the previous account's "registered / healthy" push status.
+            PushRegistrationManager.resetRegistrationStateForAccountChange(context)
             try {
                 AttachmentTransferCoordinator.deleteAll(context)
             } catch (error: kotlinx.coroutines.CancellationException) {

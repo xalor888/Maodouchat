@@ -49,6 +49,17 @@ object PushRegistrationManager {
     /** 当前推送注册状态（供 UI 展示）。 */
     fun getRegistrationState(): RegistrationState = registrationState
 
+    /** Logout/account switch only; Firebase remains initialized for the next login. */
+    @Synchronized
+    fun resetRegistrationStateForAccountChange(context: Context) {
+        registrationState = RegistrationState.UNKNOWN
+        lastRegistrationError = null
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_REGISTRATION_STATE, RegistrationState.UNKNOWN.name)
+            .apply()
+    }
+
     /** 最近一次注册失败原因（供 UI 展示）。 */
     fun getLastRegistrationError(): String? = lastRegistrationError
 
