@@ -54,6 +54,9 @@ class SecureSessionManager(
 
     private suspend fun purgeLocalSessionLocked(destroyEncryptedDatabase: Boolean) {
             AppLockManager.clearAuthenticatedSession()
+            // 假聊天解锁标记同样是进程内状态，注销/换号后必须失效，
+            // 否则同账号重新登录可能直接绕过假聊天前置页。
+            FakeChatManager.clearUnlockedSession()
             // Process-global open-chat marker must not suppress notifications for the next account.
             MaodouchatApp.activeChatId = null
             // Stop any in-flight voice bubble so the next account never hears prior media.
