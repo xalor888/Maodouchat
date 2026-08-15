@@ -1162,13 +1162,7 @@ put("status", "ok")
         get("/developer.html") {
             call.respondRedirect("/developer", permanent = true)
         }
-        // ─── 官网静态页面（FAQ / 隐私 / 条款 / 安全 / 帮助） ───
-        get("/faq") {
-            call.respondPublicHtml("faq", "<h1>FAQ</h1>")
-        }
-        get("/faq.html") {
-            call.respondRedirect("/faq", permanent = true)
-        }
+        // ─── 官网静态页面（开发者 / 隐私 / 条款 / 安全） ───
         get("/privacy") {
             call.respondPublicHtml("privacy", "<h1>Privacy Policy</h1>")
         }
@@ -1187,11 +1181,18 @@ put("status", "ok")
         get("/security.html") {
             call.respondRedirect("/security", permanent = true)
         }
+        // 旧页面永久重定向到首页相应模块
+        get("/faq") {
+            call.respondRedirect("/#faq", permanent = true)
+        }
+        get("/faq.html") {
+            call.respondRedirect("/#faq", permanent = true)
+        }
         get("/help") {
-            call.respondPublicHtml("help", "<h1>Help</h1>")
+            call.respondRedirect("/#faq", permanent = true)
         }
         get("/help.html") {
-            call.respondRedirect("/help", permanent = true)
+            call.respondRedirect("/#faq", permanent = true)
         }
         get("/assets/logo.png") {
             val bytes = this::class.java.classLoader.getResourceAsStream("public/assets/logo.png")?.use { it.readBytes() }
@@ -1203,7 +1204,7 @@ put("status", "ok")
         }
         get("/sitemap.xml") {
             val base = ServerConfig.baseUrl.trimEnd('/')
-            val pages = listOf("", "faq", "privacy", "terms", "security", "help")
+            val pages = listOf("", "developer", "security", "privacy", "terms")
             val urls = pages.joinToString("") { page ->
                 val loc = if (page.isBlank()) "$base/" else "$base/$page"
                 "<url><loc>$loc</loc><changefreq>weekly</changefreq></url>"

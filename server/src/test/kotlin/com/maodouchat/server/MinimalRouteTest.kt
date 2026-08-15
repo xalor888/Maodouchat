@@ -336,7 +336,7 @@ class PublicWebsiteRouteTest {
     fun `website serves clean urls and redirects legacy html links`() = testApplication {
         application { moduleUnderTest(seedDemoUsers = true) }
 
-        val cleanPages = listOf("/", "/faq", "/privacy", "/terms", "/security", "/help", "/developer")
+        val cleanPages = listOf("/", "/privacy", "/terms", "/security", "/developer")
         cleanPages.forEach { path ->
             val response = client.get(path)
             assertEquals(HttpStatusCode.OK, response.status, "$path -> ${response.status}")
@@ -344,11 +344,13 @@ class PublicWebsiteRouteTest {
         }
 
         val legacyPages = mapOf(
-            "/faq.html" to "/faq",
+            "/faq" to "/#faq",
+            "/faq.html" to "/#faq",
+            "/help" to "/#faq",
+            "/help.html" to "/#faq",
             "/privacy.html" to "/privacy",
             "/terms.html" to "/terms",
             "/security.html" to "/security",
-            "/help.html" to "/help",
             "/developer.html" to "/developer"
         )
         val noRedirectClient = createClient { followRedirects = false }
@@ -366,7 +368,7 @@ class PublicWebsiteRouteTest {
 
         val sitemap = client.get("/sitemap.xml")
         assertEquals(HttpStatusCode.OK, sitemap.status, sitemap.bodyAsText())
-        assertTrue(sitemap.bodyAsText().contains("/faq</loc>"), sitemap.bodyAsText())
+        assertTrue(sitemap.bodyAsText().contains("/security</loc>"), sitemap.bodyAsText())
         assertFalse(sitemap.bodyAsText().contains(".html"), "Sitemap should only use clean URLs")
 
         val robots = client.get("/robots.txt")

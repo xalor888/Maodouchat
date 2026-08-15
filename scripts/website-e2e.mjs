@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 const base = (process.env.BASE_URL || 'http://127.0.0.1:18080').replace(/\/$/, '');
-const pages = ['/', '/faq', '/privacy', '/terms', '/security', '/help', '/developer'];
+const pages = ['/', '/privacy', '/terms', '/security', '/developer'];
 
 function findChromium() {
   const configured = process.env.CHROME_PATH;
@@ -156,7 +156,7 @@ async function checkStaticRoutes() {
 
   const legacy = await fetch(`${base}/faq.html`, { redirect: 'manual' });
   assert(legacy.status === 301, '/faq.html should return 301');
-  assert((legacy.headers.get('location') || '').endsWith('/faq'), '/faq.html should point to /faq');
+  assert((legacy.headers.get('location') || '').includes('/#faq'), '/faq.html should point to /#faq');
   const securityLegacy = await fetch(`${base}/security.txt`, { redirect: 'manual' });
   assert(securityLegacy.status === 301, '/security.txt should return 301');
   assert(
