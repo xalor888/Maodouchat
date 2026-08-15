@@ -231,6 +231,13 @@ object FakeChatManager {
         return prefs(ctx).getBoolean(key(KEY_HIDE_ICON, userId), false)
     }
 
+    /** 拨号码恢复桌面图标后同步偏好，避免设置页继续显示“已隐藏”。 */
+    fun markLauncherIconRestored(ctx: Context) {
+        val userId = userId(ctx)
+        if (userId.isBlank()) return
+        prefs(ctx).edit().remove(key(KEY_HIDE_ICON, userId)).apply()
+    }
+
     /**
      * 隐藏/恢复桌面图标。隐藏后只能通过拨号盘 `*#*#75263#*#*` 恢复并拉起 App。
      * 返回 false 表示操作失败（例如系统组件状态无法写入）。

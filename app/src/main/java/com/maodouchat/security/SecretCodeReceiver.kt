@@ -20,13 +20,14 @@ class SecretCodeReceiver : BroadcastReceiver() {
         if (host != FakeChatManager.SECRET_CODE) return
         val pm = context.packageManager
         val component = ComponentName(context, com.maodouchat.MainActivity::class.java)
-        runCatching {
+        val restored = runCatching {
             pm.setComponentEnabledSetting(
                 component,
                 PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                 PackageManager.DONT_KILL_APP
             )
-        }
+        }.isSuccess
+        if (restored) FakeChatManager.markLauncherIconRestored(context)
         runCatching {
             context.startActivity(
                 Intent(context, com.maodouchat.MainActivity::class.java)
