@@ -203,12 +203,12 @@ android {
     }
 }
 
-// B1 体积护栏：重建 Release APK 后统计体积分解并校验 ≤ 基线（默认 10MB），超限任务失败（阻断发版）。
+// B1 体积护栏：重建 Release APK 后统计体积分解并校验 ≤ 基线（默认 14MB），超限任务失败（阻断发版）。
 // 用法：./gradlew.bat :app:verifyReleaseSize -PMAODOU_RELEASE_API_BASE_URL=https://... -PMAODOU_RELEASE_WS_URL=wss://...
 // 统计逻辑见 com.maodouchat.slim.SizeGuard（纯 JVM，读 APK 分解 dex/.so/资源占比）。
 tasks.register<JavaExec>("verifyReleaseSize") {
     group = "verification"
-    description = "体积护栏：检查 Release APK 体积 ≤ 基线（默认 10MB），超限即失败"
+    description = "体积护栏：检查 Release APK 体积 ≤ 基线（默认 14MB），超限即失败"
     dependsOn("assembleRelease")
     classpath = files(
         layout.buildDirectory.dir("intermediates/javac/release/classes"),

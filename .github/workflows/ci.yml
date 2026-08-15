@@ -145,6 +145,13 @@ jobs:
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug --no-daemon --console=plain
 
+      - name: Verify release APK dry-run
+        run: |
+          ./gradlew :app:assembleRelease :app:verifyReleaseSize \
+            -PMAODOU_RELEASE_API_BASE_URL=https://ci.invalid \
+            -PMAODOU_RELEASE_WS_URL=wss://ci.invalid/ws \
+            --no-daemon --console=plain
+
       - name: Verify debug APK with aapt2 (manifest/resources parse + icon)
         run: |
           AAPT2=$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -1)
