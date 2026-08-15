@@ -1891,6 +1891,43 @@ class ChatCleanupRouteTest {
     }
 }
 
+class ChatLookupPrivacyRouteTest {
+    @Test
+    fun `existing and missing chats are indistinguishable to non members`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+
+        suspend fun login(email: String): String {
+            val response = client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"$email","password":"password123"}""")
+            }
+            assertEquals(HttpStatusCode.OK, response.status)
+            return extractToken(response.bodyAsText())
+        }
+
+        val ownerToken = login("alex@example.com")
+        val outsiderToken = login("bob@example.com")
+        val chatResponse = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $ownerToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":["u2"],"isGroup":false}""")
+        }
+        assertEquals(HttpStatusCode.Created, chatResponse.status)
+        val chatId = (Json.parseToJsonElement(chatResponse.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+
+        val existing = client.get("/api/chats/$chatId") {
+            header(HttpHeaders.Authorization, "Bearer $outsiderToken")
+        }
+        val missing = client.get("/api/chats/c_does_not_exist") {
+            header(HttpHeaders.Authorization, "Bearer $outsiderToken")
+        }
+
+        assertEquals(HttpStatusCode.NotFound, existing.status)
+        assertEquals(HttpStatusCode.NotFound, missing.status)
+        assertEquals(existing.bodyAsText(), missing.bodyAsText())
+    }
+}
+
 class SenderKeyDistributionRouteTest {
     @Test
     fun `sender key coverage is isolated per sender and exposes newly confirmed devices`() = testApplication {

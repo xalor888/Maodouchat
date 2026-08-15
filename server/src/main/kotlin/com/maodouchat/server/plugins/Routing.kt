@@ -2647,14 +2647,15 @@ put("status", "ok")
             get("/api/chats/{id}") {
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
                 val chatId = call.parameters["id"]!!
+                // 先做成员门禁，避免通过 403/404 差异向非成员暴露聊天是否存在。
+                if (!chatRepo.isParticipant(chatId, userId)) {
+                    call.respond(HttpStatusCode.NotFound, ErrorResponse("聊天不存在"))
+                    return@get
+                }
                 // 8.48：传 viewerId——打开聊天也不泄露被双向拉黑方的最后消息预览
                 val chat = chatRepo.getChatById(chatId, userId)
                 if (chat == null) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("聊天不存在"))
-                    return@get
-                }
-                if (!chatRepo.isParticipant(chatId, userId)) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
                     return@get
                 }
                 call.respond(chat)
