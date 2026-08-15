@@ -1,5 +1,6 @@
 package com.maodouchat.call
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.util.Log
@@ -78,6 +79,7 @@ object WebRtcNativeLibraryLoader {
     }
 
     /** 尝试从指定绝对路径加载 .so。 */
+    @SuppressLint("UnsafeDynamicallyLoadedCode")
     private fun tryLoad(path: String): Boolean = try {
         System.load(path)
         true

@@ -1,5 +1,6 @@
 package com.maodouchat.perf
 
+import android.annotation.SuppressLint
 import android.os.Build
 import android.os.SystemClock
 import android.os.Trace
@@ -42,6 +43,9 @@ object StartupTracer {
     @Volatile
     private var fullyDrawnLogged = false
 
+    @Volatile
+    private var traceSectionActive = false
+
     /** 里程碑名 → 相对 begin 的耗时（ms），按到达顺序保存，重复里程碑只保留第一次。 */
     private val milestones = LinkedHashMap<String, Long>(8)
 
@@ -56,7 +60,7 @@ object StartupTracer {
             milestones.clear()
             milestones["begin:$tag"] = 0L
         }
-        traceBegin(tag)
+        beginTraceSection(tag)
     }
 
     /**
@@ -83,7 +87,7 @@ object StartupTracer {
             milestones.putIfAbsent("fullyDrawn", elapsed)
             fullyDrawnLogged = true
         }
-        traceEnd()
+        endTraceSection()
         Log.d(TAG, summary())
     }
 
@@ -125,14 +129,25 @@ object StartupTracer {
     private fun traceEnabled(): Boolean =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && Trace.isEnabled()
 
-    private fun traceBegin(name: String) {
-        if (traceEnabled()) Trace.beginSection(TRACE_PREFIX + name)
+    @SuppressLint("UnclosedTrace")
+    private fun beginTraceSection(name: String) {
+        if (!traceEnabled()) {
+            traceSectionActive = false
+            return
+        }
+        if (traceSectionActive) Trace.endSection()
+        Trace.beginSection(TRACE_PREFIX + name)
+        traceSectionActive = true
     }
 
-    private fun traceEnd() {
+    @SuppressLint("UnclosedTrace")
+    private fun endTraceSection() {
+        if (!traceSectionActive) return
         if (traceEnabled()) Trace.endSection()
+        traceSectionActive = false
     }
 
+    @SuppressLint("UnclosedTrace")
     private inline fun traceSection(name: String, block: () -> Unit) {
         val enabled = traceEnabled()
         if (enabled) Trace.beginSection(TRACE_PREFIX + name)

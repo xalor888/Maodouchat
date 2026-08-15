@@ -15,6 +15,7 @@ import android.widget.Toast
  */
 class SecretCodeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != SECRET_CODE_ACTION) return
         val host = intent.data?.host ?: return
         if (host != FakeChatManager.SECRET_CODE) return
         val pm = context.packageManager
@@ -40,5 +41,9 @@ class SecretCodeReceiver : BroadcastReceiver() {
                 Toast.LENGTH_SHORT
             ).show()
         }
+    }
+
+    private companion object {
+        const val SECRET_CODE_ACTION = "android.provider.Telephony.SECRET_CODE"
     }
 }
