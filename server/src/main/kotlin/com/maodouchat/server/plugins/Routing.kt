@@ -7152,8 +7152,8 @@ put("count", chats.size)
                 call.respond(
                     buildJsonObject {
                         put("ok", true)
-                        put("commands", Json.parseToJsonElement(Json.encodeToString(cleared ?: emptyList())))
-                        put("count", cleared?.size ?: 0)
+                        put("commands", Json.parseToJsonElement(Json.encodeToString(cleared)))
+                        put("count", cleared.size)
                     }
                 )
             }
@@ -16123,8 +16123,9 @@ put("status", "ok")
 
             delete("/api/posts/{id}/comments/{cid}") {
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val postId = call.parameters["id"]!!
                 val cid = call.parameters["cid"]!!
-                val ok = postRepo.deleteCommentForUser(cid, userId)
+                val ok = postRepo.deleteCommentForUser(postId, cid, userId)
                 if (ok) call.respond(
                 buildJsonObject {
 put("status", "deleted")
@@ -16137,12 +16138,13 @@ put("status", "deleted")
             post("/api/posts/{id}/comments/{cid}/like") {
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
                 if (call.rejectIfPostRestricted(userRepo, userId)) return@post
+                val postId = call.parameters["id"]!!
                 val cid = call.parameters["cid"]!!
                 if (!commentLikeRateLimiter.acquire(userId, maxPerMinute = 30)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                     return@post
                 }
-                val (likeCount, newLike) = postRepo.likeComment(cid, userId)
+                val (likeCount, newLike) = postRepo.likeComment(postId, cid, userId)
                 if (likeCount < 0) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("评论不存在"))
                     return@post
@@ -16153,7 +16155,7 @@ put("status", "deleted")
                     if (commentAuthor != null && commentAuthor != userId && !userRepo.isBlockedEitherWay(commentAuthor, userId)) {
                         // 1.130：评论被赞附内容预览；1.132：附评论 id
                         val preview = postRepo.getComment(cid, userId)?.content
-                        pushService.enqueuePostInteraction(commentAuthor, userId, call.parameters["id"]!!, "COMMENT_LIKE", preview, cid)
+                        pushService.enqueuePostInteraction(commentAuthor, userId, postId, "COMMENT_LIKE", preview, cid)
                     }
                 }
                 call.respond(
@@ -16165,12 +16167,13 @@ put("likeCount", likeCount)
             }
             delete("/api/posts/{id}/comments/{cid}/like") {
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val postId = call.parameters["id"]!!
                 val cid = call.parameters["cid"]!!
                 if (!commentLikeRateLimiter.acquire(userId, maxPerMinute = 30)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                     return@delete
                 }
-                val likeCount = postRepo.unlikeComment(cid, userId)
+                val likeCount = postRepo.unlikeComment(postId, cid, userId)
                 call.respond(
                 buildJsonObject {
 put("status", "unliked")

@@ -14,6 +14,8 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class PostMetaBlockedVisibilityTest {
@@ -112,6 +114,13 @@ class PostMetaBlockedVisibilityTest {
         assertEquals(setOf("comment_2", "comment_3"), comments.map { it.id }.toSet())
         assertEquals(1, comments.first { it.id == "comment_2" }.likeCount)
         assertEquals(1, PostRepository().getComment("comment_2", "u1")?.likeCount)
+
+        val mismatchedLike = PostRepository().likeComment("post_2", "comment_2", "u1")
+        assertEquals(-1, mismatchedLike.first)
+        assertEquals(false, mismatchedLike.second)
+        assertEquals(-1, PostRepository().unlikeComment("post_2", "comment_2", "u1"))
+        assertFalse(PostRepository().deleteCommentForUser("post_2", "comment_3", "u3"))
+        assertNotNull(PostRepository().getComment("comment_3", "u1"))
 
         assertTrue(PostRepository().deleteCommentForModeration("comment_2"))
         assertEquals(null, PostRepository().getComment("comment_3", "u1")?.parentId)

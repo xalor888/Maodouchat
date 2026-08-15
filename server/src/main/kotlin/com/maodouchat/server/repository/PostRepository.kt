@@ -337,11 +337,11 @@ class PostRepository {
      * 用户自助删除本人评论（被遗忘权/隐私）。仅当评论作者为 [userId] 时成功，
      * 否则返回 false（对应路由返回 404，避免泄露评论归属）。
      */
-    fun deleteCommentForUser(commentId: String, userId: String): Boolean {
+    fun deleteCommentForUser(postId: String, commentId: String, userId: String): Boolean {
         return transaction {
             val comment = PostComments.selectAll().where { PostComments.id eq commentId }.forUpdate().firstOrNull()
                 ?: return@transaction false
-            if (comment[PostComments.authorId] != userId) return@transaction false
+            if (comment[PostComments.authorId] != userId || comment[PostComments.postId] != postId) return@transaction false
             // 1.79：删除评论时其回复的 parentId 一并置空（避免悬挂引用）
             PostComments.update({ PostComments.parentId eq commentId }) { it[parentId] = null }
             // 1.126：删除评论时清理其点赞（孤儿行不再等 6h 兜底）
@@ -814,13 +814,14 @@ class PostRepository {
     }
 
     /** 1.52：点赞评论（幂等；返回 (新点赞数, 是否新点赞)）。 */
-    fun likeComment(commentId: String, userId: String): Pair<Int, Boolean> {
+    fun likeComment(postId: String, commentId: String, userId: String): Pair<Int, Boolean> {
         // PG：并发点赞撞 (commentId, userId) 唯一约束会 abort 当前事务，同事务再查计数必 500；
         // catch 必须在事务外（Exposed 已回滚归还连接），冲突即「已被并发请求点赞成功」。
         return try {
             transaction {
                 val comment = PostComments.selectAll().where { PostComments.id eq commentId }.limit(1).firstOrNull()
                     ?: return@transaction (-1 to false)
+                if (comment[PostComments.postId] != postId) return@transaction (-1 to false)
                 // 与 likePost 一致：评论所属动态对当前用户不可见（PRIVATE/CONTACTS/双向拉黑）时禁止点赞，
                 // 避免越权交互与“评论是否存在”的探测 oracle
                 if (!canViewInTransaction(comment[PostComments.postId], userId, lockPost = false)) {
@@ -845,15 +846,23 @@ class PostRepository {
             if (!isUniqueViolation(e)) throw e
             transaction {
                 // 胜者已提交点赞；本请求视为「已有赞」，返回最新计数
+                val comment = PostComments.selectAll().where { PostComments.id eq commentId }.limit(1).firstOrNull()
+                    ?: return@transaction (-1 to false)
+                if (comment[PostComments.postId] != postId ||
+                    !canViewInTransaction(comment[PostComments.postId], userId, lockPost = false)
+                ) {
+                    return@transaction (-1 to false)
+                }
                 commentLikeCount(commentId) to false
             }
         }
     }
 
     /** 1.52：取消点赞评论（幂等；返回新点赞数）。 */
-    fun unlikeComment(commentId: String, userId: String): Int = transaction {
+    fun unlikeComment(postId: String, commentId: String, userId: String): Int = transaction {
         val comment = PostComments.selectAll().where { PostComments.id eq commentId }.limit(1).firstOrNull()
             ?: return@transaction -1
+        if (comment[PostComments.postId] != postId) return@transaction -1
         if (!canViewInTransaction(comment[PostComments.postId], userId, lockPost = false)) {
             return@transaction -1
         }
