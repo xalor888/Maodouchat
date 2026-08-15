@@ -98,6 +98,7 @@ interface MessageSearchDao {
         INNER JOIN message_search_tokens t ON t.messageId = d.messageId
         WHERE t.token IN (:tokens)
           AND d.chatId NOT IN (SELECT chatId FROM secret_chats)
+          AND d.chatId NOT IN (SELECT chatId FROM chat_locks)
         GROUP BY d.messageId
         ORDER BY matchCount DESC, d.timestamp DESC
         LIMIT :limit
@@ -118,6 +119,7 @@ interface MessageSearchDao {
         INNER JOIN message_search_tokens t ON t.messageId = d.messageId
         WHERE t.token IN (:tokens) AND d.messageType IN (:types)
           AND d.chatId NOT IN (SELECT chatId FROM secret_chats)
+          AND d.chatId NOT IN (SELECT chatId FROM chat_locks)
         GROUP BY d.messageId
         ORDER BY matchCount DESC, d.timestamp DESC
         LIMIT :limit
