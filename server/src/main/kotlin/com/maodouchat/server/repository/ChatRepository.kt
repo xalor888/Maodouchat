@@ -499,6 +499,7 @@ class ChatRepository {
             val notExpired = (Messages.expiresAt.isNull()) or (Messages.expiresAt eq 0L) or (Messages.expiresAt greater nowMs)
             val unreadBase = (Messages.chatId inList chatIds) and
                 (Messages.type neq "SK_DIST") and
+                (Messages.type neq "REVOKED") and
                 (Messages.senderId neq userId) and
                 (Messages.id notInSubQuery readByUser) and
                 notExpired

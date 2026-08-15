@@ -663,6 +663,7 @@ class MessageRepository {
             val base = (Messages.chatId eq chatId) and
                 (Messages.senderId neq readerId) and
                 (Messages.type neq "SK_DIST") and
+                (Messages.type neq "REVOKED") and
                 (Messages.id notInSubQuery readByUser) and
                 notExpired
             val condition = if (blockedSenders.isEmpty()) base
