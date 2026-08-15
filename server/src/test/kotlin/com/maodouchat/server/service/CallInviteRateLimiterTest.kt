@@ -20,12 +20,27 @@ class CallInviteRateLimiterTest {
     }
 
     @Test
+    fun `group dedup key is scoped to caller and group`() {
+        var now = 1_000L
+        val limiter = CallInviteRateLimiter(maxPerMinute = 100, maxPerTenMinutes = 2) { now }
+        val sameGroup = CallInviteRateLimiter.sessionKey("call-a", "group-a", "u2")
+        val otherGroup = CallInviteRateLimiter.sessionKey("call-a", "group-b", "u2")
+        val thirdGroup = CallInviteRateLimiter.sessionKey("call-a", "group-c", "u2")
+
+        assertTrue(limiter.tryAcquire("u1", sameGroup).allowed)
+        assertTrue(limiter.tryAcquire("u1", sameGroup).allowed)
+        assertTrue(limiter.tryAcquire("u1", otherGroup).allowed)
+        assertFalse(limiter.tryAcquire("u1", thirdGroup).allowed)
+    }
+
+    @Test
     fun `only direct or explicit group invite offers consume quota`() {
         assertTrue(CallInviteRateLimiter.isInitialInvite("offer", "", false))
         assertTrue(CallInviteRateLimiter.isInitialInvite("offer", "group-a", true))
         assertFalse(CallInviteRateLimiter.isInitialInvite("offer", "group-a", false))
         assertFalse(CallInviteRateLimiter.isInitialInvite("answer", "group-a", true))
         assertTrue(CallInviteRateLimiter.sessionKey("call-a", "group-a", "u2") == CallInviteRateLimiter.sessionKey("call-a", "group-a", "u3"))
+        assertFalse(CallInviteRateLimiter.sessionKey("call-a", "group-a", "u2") == CallInviteRateLimiter.sessionKey("call-a", "group-b", "u3"))
         assertFalse(CallInviteRateLimiter.sessionKey("call-a", "", "u2") == CallInviteRateLimiter.sessionKey("call-a", "", "u3"))
     }
 }
