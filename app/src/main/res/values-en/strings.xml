@@ -2643,7 +2643,7 @@
     <string name="fake_chat_guide_3">3. Pair it with “Re-lock when returning” so the app re-hides itself after every background cycle</string>
     <string name="fake_chat_peer_name">Maodou Store Support</string>
     <string name="fake_chat_peer_status">Online · 3G</string>
-    <string name="fake_chat_announcement">Maodou Store Summer Sale — up to 50% off everything</string>
+    <string name="fake_chat_announcement" formatted="false">Maodou Store Summer Sale — up to 50% off everything</string>
     <string name="fake_chat_input_hint">Type a message…</string>
     <string name="fake_chat_send">Send</string>
     <string name="fake_chat_pin_title">Verify</string>

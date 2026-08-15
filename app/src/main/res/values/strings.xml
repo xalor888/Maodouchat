@@ -2644,7 +2644,7 @@
     <string name="fake_chat_guide_3">3. 建议配合「返回时重新锁定」使用，退到后台后自动重新隐藏</string>
     <string name="fake_chat_peer_name">毛豆商城客服</string>
     <string name="fake_chat_peer_status">在线 · 3G</string>
-    <string name="fake_chat_announcement">毛豆商城 618 大促火热进行中，全场 5 折起</string>
+    <string name="fake_chat_announcement" formatted="false">毛豆商城 618 大促火热进行中，全场 5 折起</string>
     <string name="fake_chat_input_hint">请输入内容…</string>
     <string name="fake_chat_send">发送</string>
     <string name="fake_chat_pin_title">验证</string>
