@@ -1,5 +1,6 @@
 package com.maodouchat.network
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
@@ -317,6 +318,7 @@ class TokenManager private constructor(private val context: Context) {
     companion object {
         private const val TAG = "TokenManager"
 
+        @SuppressLint("StaticFieldLeak")
         @Volatile
         private var INSTANCE: TokenManager? = null
 

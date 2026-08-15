@@ -12,7 +12,6 @@ import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.data.repository.NotificationCenterRepository
-import com.maodouchat.network.ApiService
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.TokenManager
 import com.maodouchat.push.PushRegistrationManager
@@ -134,7 +133,8 @@ class MaodouchatApp : Application() {
         // 8.45：启动即加载运行时服务器配置（设置页可配置，免重新构建 APK），
         // 必须在任何网络调用（含 ImageLoader 的 apiHost 解析）之前完成
         ApiConfig.init(this)
-        ApiService.configure(TokenManager.getInstance(this))
+        // TokenManager is a process singleton; initialize it before any network worker may read tokens.
+        TokenManager.getInstance(this)
         PushRegistrationManager.initialize(this)
         // 8.48：Application 初始化完成里程碑（DB/Signal/依赖就绪）
         com.maodouchat.perf.StartupTracer.mark("applicationInit")

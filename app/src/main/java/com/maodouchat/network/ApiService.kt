@@ -72,7 +72,10 @@ internal fun apiExceptionForIOException(error: java.io.IOException): ApiExceptio
 object ApiService {
 
     private val json = Json { ignoreUnknownKeys = true }
-    private var tokenManager: TokenManager? = null
+    // TokenManager is a process singleton holding applicationContext only. Reading it on
+    // demand avoids keeping a second static strong reference in ApiService (lint/leak risk).
+    private val tokenManager: TokenManager?
+        get() = TokenManager.getInstanceOrNull()
     private val refreshMutex = Mutex()
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -102,10 +105,6 @@ object ApiService {
      */
     fun notifyTokenExpired(ownerUserId: String) {
         _tokenExpired.tryEmit(TokenExpiredEvent(ownerUserId))
-    }
-
-    fun configure(tokenManager: TokenManager) {
-        this.tokenManager = tokenManager
     }
 
     /**

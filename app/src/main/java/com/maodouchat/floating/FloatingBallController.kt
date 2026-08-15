@@ -18,6 +18,7 @@ import android.widget.ImageView
 import android.widget.Toast
 import com.maodouchat.MainActivity
 import com.maodouchat.R
+import java.lang.ref.WeakReference
 import kotlin.math.abs
 
 /**
@@ -40,11 +41,13 @@ object FloatingBallController {
     internal const val RECYCLE_ZONE_RATIO = 0.12f     // 顶部 12% 为回收区
 
     private var windowManager: WindowManager? = null
-    private var ballView: View? = null
+    // WindowManager itself keeps a strong reference while the overlay is attached. Holding only a
+    // weak reference here prevents the singleton from retaining the View after removal.
+    private var ballView: WeakReference<View>? = null
     private var layoutParams: WindowManager.LayoutParams? = null
 
     // ---- 状态 ----
-    fun isShowing(): Boolean = ballView != null && ballView?.isAttachedToWindow == true
+    fun isShowing(): Boolean = ballView?.get()?.isAttachedToWindow == true
 
     fun isGranted(context: Context): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
@@ -111,9 +114,9 @@ object FloatingBallController {
         ball.setOnTouchListener { _, event ->
             FloatingBallGesture.handle(app, wm, ball, params, event, this)
         }
-        runCatching { wm.addView(ball, params) }
+        runCatching { wm.addView(ball, params) }.onFailure { return }
         windowManager = wm
-        ballView = ball
+        ballView = WeakReference(ball)
         layoutParams = params
     }
 
@@ -121,7 +124,13 @@ object FloatingBallController {
     fun stop(context: Context) {
         val app = context.applicationContext
         val wm = windowManager ?: runCatching { app.getSystemService(Context.WINDOW_SERVICE) as WindowManager }.getOrNull() ?: return
-        val view = ballView ?: return
+        val view = ballView?.get()
+        if (view == null) {
+            windowManager = null
+            ballView = null
+            layoutParams = null
+            return
+        }
         runCatching { wm.removeView(view) }
         windowManager = null
         ballView = null
