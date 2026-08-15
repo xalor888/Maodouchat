@@ -4,6 +4,7 @@ import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.MessageReactions
 import com.maodouchat.server.db.Messages
+import com.maodouchat.server.db.StarMessages
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.MessageRepository
@@ -70,6 +71,11 @@ class MessageRevokeReactionCleanupTest {
                 it[MessageReactions.emoji] = "👍"
                 it[MessageReactions.reactedAt] = now
             }
+            StarMessages.insert {
+                it[StarMessages.userId] = "u2"
+                it[StarMessages.messageId] = "m1"
+                it[StarMessages.starredAt] = now
+            }
         }
 
         val result = MessageRepository().revokeMessage("m1", "u1")
@@ -77,6 +83,7 @@ class MessageRevokeReactionCleanupTest {
 
         transaction {
             assertTrue(MessageReactions.selectAll().where { MessageReactions.messageId eq "m1" }.empty())
+            assertTrue(StarMessages.selectAll().where { StarMessages.messageId eq "m1" }.empty())
             assertEquals("REVOKED", Messages.selectAll().where { Messages.id eq "m1" }.first()[Messages.type])
         }
     }

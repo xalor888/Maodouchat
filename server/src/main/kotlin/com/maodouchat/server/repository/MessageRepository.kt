@@ -1009,6 +1009,8 @@ class MessageRepository {
             }
             // 撤回后不可再作为置顶展示
             PinnedMessages.deleteWhere { PinnedMessages.messageId eq messageId }
+            // 撤回后清理星标，避免废行长期占用 getStarredMessages 的最近 N 条窗口
+            StarMessages.deleteWhere { StarMessages.messageId eq messageId }
             // 撤回后清除已读回执：避免“撤回的消息被读了”的隐私泄露（与 deleteMessage 一致）
             ReadReceipts.deleteWhere { ReadReceipts.messageId eq messageId }
             // 撤回后清除反应：避免“撤回的消息曾被谁回应”的元数据泄露
