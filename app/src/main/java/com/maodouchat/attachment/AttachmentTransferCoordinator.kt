@@ -83,6 +83,11 @@ object AttachmentTransferCoordinator {
             return false
         }
         AttachmentTransferScheduler.cancel(context, messageId, ownerUserId)
+        // finalize 可能在本函数读到 READY 后立刻 claim 成 SENDING。先做带状态条件的删除，
+        // 只有确认仍未被 claim 时才清理服务端对象与本地文件；否则留给 finalizer 收尾。
+        if (dao.deleteUnlessSending(messageId, ownerUserId = ownerUserId) != 1) {
+            return false
+        }
         // 8.49 修复：服务端对象删除降级为 best-effort——失败（会话失效/网络）不再中断本地清理。
         // 服务端未提交对象有 24h TTL 兜底；此前 return false 会把密文/源文件与 DB 行全部留下，
         // 且孤儿 GC 因行存在而保护它们，登出后账号数据残留磁盘。
@@ -90,12 +95,9 @@ object AttachmentTransferCoordinator {
             runCatching { deleteServerObject(context, transfer) }
                 .onFailure { android.util.Log.w("AttachmentTransferCoordinator", "server object delete failed for $messageId", it) }
         }
-        if (!isCurrentOwner(context, ownerUserId)) return false
         deletePrivateUploadFile(context, transfer.encryptedPath)
         MediaCache.deletePreparedAttachmentSource(context, transfer.sourceUri)
         MediaCache.releasePersistableReadPermission(context, transfer.sourceUri)
-        if (!isCurrentOwner(context, ownerUserId)) return false
-        dao.delete(messageId, ownerUserId = ownerUserId)
         return true
     }
 

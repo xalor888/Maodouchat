@@ -95,6 +95,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.Date
 import java.util.Locale
 
@@ -137,6 +138,7 @@ class StarredMessagesViewModel(
         StarredMessagesUiState(currentUserId = currentUserId, globalScope = globalScope)
     )
     val uiState: StateFlow<StarredMessagesUiState> = _uiState.asStateFlow()
+    private val loadGeneration = AtomicInteger(0)
 
     init {
         load()
@@ -146,12 +148,14 @@ class StarredMessagesViewModel(
         val loadOwnerUserId = tokenManager.getUserId().orEmpty()
         if (token.isBlank() || loadOwnerUserId.isBlank()) {
             // Default isLoading=true; blank session must not leave the spinner stuck.
+            loadGeneration.incrementAndGet()
             _uiState.update {
                 it.copy(isLoading = false, error = text(R.string.error_session_expired))
             }
             return
         }
         viewModelScope.launch {
+            val generation = loadGeneration.incrementAndGet()
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -160,7 +164,9 @@ class StarredMessagesViewModel(
                         liveUserId = tokenManager.getUserId(),
                     )
                 ) {
-                    _uiState.update { it.copy(isLoading = false, error = text(R.string.error_session_expired)) }
+                    if (loadGeneration.get() == generation) {
+                        _uiState.update { it.copy(isLoading = false, error = text(R.string.error_session_expired)) }
+                    }
                     return@launch
                 }
                 val result = withContext(Dispatchers.IO) {
@@ -232,6 +238,7 @@ class StarredMessagesViewModel(
                 }
                 result.fold(
                     onSuccess = { payload ->
+                        if (loadGeneration.get() != generation) return@fold
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = loadOwnerUserId,
                                 liveToken = tokenManager.getToken(),
@@ -261,11 +268,15 @@ class StarredMessagesViewModel(
                         }
                     },
                     onFailure = { error ->
-                        _uiState.update { it.copy(isLoading = false, error = error.message ?: text(R.string.starred_load_failed)) }
+                        if (loadGeneration.get() == generation) {
+                            _uiState.update { it.copy(isLoading = false, error = error.message ?: text(R.string.starred_load_failed)) }
+                        }
                     }
                 )
             } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { it.copy(isLoading = false) }
+                if (loadGeneration.get() == generation) {
+                    _uiState.update { it.copy(isLoading = false) }
+                }
                 throw error
             }
         }
@@ -299,6 +310,7 @@ class StarredMessagesViewModel(
         val liveToken = tokenManager.getToken().orEmpty()
         if (liveToken.isBlank() || ownerUserId.isBlank()) return
         val message = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
+        loadGeneration.incrementAndGet()
         _uiState.update { it.copy(messages = it.messages.filter { m -> m.id != messageId }) }
         viewModelScope.launch {
             val result = ApiService.toggleStarMessage(liveToken, messageId)
@@ -339,6 +351,7 @@ class StarredMessagesViewModel(
         if (liveToken.isBlank() || ownerUserId.isBlank()) return
         val all = _uiState.value.messages
         if (all.isEmpty()) return
+        loadGeneration.incrementAndGet()
         _uiState.update { it.copy(messages = emptyList()) }
         viewModelScope.launch {
             // 9.152：此前逐条 toggle 并发执行且每个回调把消息回灌进已清空列表——

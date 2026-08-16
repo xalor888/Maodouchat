@@ -155,6 +155,9 @@ interface AttachmentTransferDao {
     @Query("DELETE FROM attachment_transfers WHERE messageId = :messageId AND ownerUserId = :ownerUserId")
     suspend fun delete(messageId: String, ownerUserId: String): Int
 
+    @Query("DELETE FROM attachment_transfers WHERE messageId = :messageId AND ownerUserId = :ownerUserId AND state != 'SENDING'")
+    suspend fun deleteUnlessSending(messageId: String, ownerUserId: String): Int
+
     @Query("DELETE FROM attachment_transfers WHERE chatId = :chatId AND ownerUserId = :ownerUserId")
     suspend fun deleteByChat(chatId: String, ownerUserId: String): Int
 
