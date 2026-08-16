@@ -33,8 +33,14 @@ class LinkPreviewPolicyTest {
         assertNull(LinkPreviewPolicy.sanitizeUrl("http://0x7f000001/a"))
         assertNull(LinkPreviewPolicy.sanitizeUrl("http://0177.0.0.1/a"))
         assertNull(LinkPreviewPolicy.sanitizeUrl("http://0x7f.0.0.1/a"))
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://[::]/a"))
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://[0:0:0:0:0:0:0:1]/a"))
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://[::127.0.0.1]/a"))
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://[::ffff:127.0.0.1]/a"))
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://[fe80::1]/a"))
         assertNotNull(LinkPreviewPolicy.sanitizeUrl("https://example.com/path"))
         assertNotNull(LinkPreviewPolicy.sanitizeUrl("http://1.2.3.4/path"))
+        assertNotNull(LinkPreviewPolicy.sanitizeUrl("http://[2001:4860:4860::8888]/path"))
     }
 
     @Test

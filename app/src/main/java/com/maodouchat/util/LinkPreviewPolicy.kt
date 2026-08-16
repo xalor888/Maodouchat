@@ -1,5 +1,7 @@
 package com.maodouchat.util
 
+import java.net.Inet6Address
+import java.net.InetAddress
 import java.net.URI
 import java.util.Locale
 import java.util.regex.Pattern
@@ -76,14 +78,11 @@ object LinkPreviewPolicy {
                     (a == 100 && b in 64..127)
                 ) return null
             }
-            // IPv6 内网/环回地址（含 IPv4-mapped）
+            // IPv6 literal 过滤：环回、未指定、链路本地、站点本地、组播，以及
+            // IPv4-mapped/IPv4-compatible 编码都不能作为链接预览探测目标。
             if (host.contains(":")) {
-                val h = host.removeSurrounding("[", "]").lowercase()
-                if (h == "::1" || h.startsWith("fc") || h.startsWith("fd") ||
-                    h.startsWith("fe8") || h.startsWith("fe9") ||
-                    h.startsWith("fea") || h.startsWith("feb") ||
-                    h.contains("::ffff:")
-                ) return null
+                val h = host.removeSurrounding("[", "]").lowercase(Locale.ROOT)
+                if (h.contains("::ffff:") || isNonPublicIpv6Literal(h)) return null
             }
             uri.toString()
         }.getOrNull()
@@ -93,6 +92,18 @@ object LinkPreviewPolicy {
         return runCatching { URI(url).host?.removePrefix("www.") ?: url }
             .getOrDefault(url)
             .take(96)
+    }
+
+    private fun isNonPublicIpv6Literal(host: String): Boolean {
+        return runCatching {
+            val address = InetAddress.getByName(host)
+            address.isAnyLocalAddress ||
+                address.isLoopbackAddress ||
+                address.isLinkLocalAddress ||
+                address.isSiteLocalAddress ||
+                address.isMulticastAddress ||
+                (address is Inet6Address && address.isIPv4CompatibleAddress)
+        }.getOrDefault(true)
     }
 
     /**
