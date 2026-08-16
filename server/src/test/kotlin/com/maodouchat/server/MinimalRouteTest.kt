@@ -207,7 +207,13 @@ class RoutingSecurityHelperTest {
         assertFalse(BotRepository.isAllowedWebhookUrl("https://[::ffff:127.0.0.1]/hook"))
         assertFalse(BotRepository.isAllowedWebhookUrl("https://[0:0:0:0:0:0:0:1]/hook"))
         assertFalse(BotRepository.isAllowedWebhookUrl("https://[64:ff9b::7f00:1]/hook"))
+        assertFalse(BotRepository.isAllowedWebhookUrl("https://100.64.0.1/hook"))
+        assertFalse(BotRepository.isAllowedWebhookUrl("https://2130706433/hook"))
+        assertFalse(BotRepository.isAllowedWebhookUrl("https://0x7f000001/hook"))
+        assertFalse(BotRepository.isAllowedWebhookUrl("https://0177.0.0.1/hook"))
+        assertFalse(BotRepository.isAllowedWebhookUrl("https://127.1/hook"))
         assertTrue(BotRepository.isAllowedWebhookUrl("https://example.com/hook"))
+        assertTrue(BotRepository.isAllowedWebhookUrl("https://1.2.3.4/hook"))
         assertTrue(BotRepository.isAllowedWebhookUrl("https://[2606:4700:4700::1111]/hook"))
         assertFailsWith<IllegalArgumentException> {
             postPinnedWebhookJson(

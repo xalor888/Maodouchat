@@ -819,18 +819,10 @@ object BotRepository {
     private const val MAX_CALLBACK_META_LENGTH = 16_000
 
     private fun isBlockedSsrfHost(host: String): Boolean {
-        if (host in setOf("metadata.google.internal", "169.254.169.254")) return true
-        if (host == "localhost" || host.endsWith(".localhost")) return true
-        val parts = host.split(".")
-        if (parts.size == 4 && parts.all { it.toIntOrNull()?.let { n -> n in 0..255 } == true }) {
-            val a = parts[0].toInt()
-            val b = parts[1].toInt()
-            return a == 0 || a == 10 || a == 127 ||
-                (a == 169 && b == 254) ||
-                (a == 172 && b in 16..31) ||
-                (a == 192 && b == 168)
-        }
-        val h = host.removeSurrounding("[", "]").lowercase()
+        val h = host.removeSurrounding("[", "]").trimEnd('.').lowercase()
+        if (h in setOf("metadata.google.internal", "169.254.169.254")) return true
+        if (h == "localhost" || h.endsWith(".localhost")) return true
+        if (isBlockedIpv4Literal(h)) return true
         if (h.contains(":")) {
             if (h == "::1" || h == "0:0:0:0:0:0:0:1") return true
             if (h.startsWith("fc") || h.startsWith("fd")) return true
@@ -839,6 +831,37 @@ object BotRepository {
             return !address.isAllowedWebhookAddress(allowLoopback = false)
         }
         return false
+    }
+
+    private fun isBlockedIpv4Literal(host: String): Boolean {
+        if (host.matches(Regex("""^0x[0-9a-f]+$"""))) return true
+        val parts = host.split(".")
+        if (parts.size !in 1..4) return false
+        if (parts.any { it.isBlank() }) return true
+        if (parts.any { it.startsWith("0x") || (it.length > 1 && it.startsWith("0")) }) return true
+        if (parts.size != 4) {
+            return parts.all { it.matches(Regex("""\d+""")) }
+        }
+        val octets = parts.map { it.toIntOrNull() }
+        if (octets.any { it == null || it !in 0..255 }) return true
+        val a = octets[0]!!
+        val b = octets[1]!!
+        val c = octets[2]!!
+        val d = octets[3]!!
+        return a == 0 || a == 10 || a == 127 || a >= 224 ||
+            (a == 100 && b in 64..127) ||
+            (a == 169 && b == 254) ||
+            (a == 168 && b == 63 && c == 129 && d == 16) ||
+            (a == 172 && b in 16..31) ||
+            (a == 192 && b == 168) ||
+            (a == 198 && b in 18..19) ||
+            (a == 192 && b == 0 && c in setOf(0, 2)) ||
+            (a == 192 && b == 31 && c == 196) ||
+            (a == 192 && b == 52 && c == 193) ||
+            (a == 192 && b == 88 && c == 99) ||
+            (a == 192 && b == 175 && c == 48) ||
+            (a == 198 && b == 51 && c == 100) ||
+            (a == 203 && b == 0 && c == 113)
     }
 
     /**
