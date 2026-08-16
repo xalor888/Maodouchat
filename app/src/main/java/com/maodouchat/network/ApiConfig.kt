@@ -81,8 +81,8 @@ object ApiConfig {
         val host = uri.host?.trim().orEmpty()
         if (host.isBlank()) return context.getString(com.maodouchat.R.string.server_url_no_host)
         if (host.length > 255) return context.getString(com.maodouchat.R.string.server_url_invalid)
-        // 明确拒绝 URL 中的用户名密码/query/fragment（防止误填拖尾路径）
-        if (uri.userInfo != null || uri.query != null || uri.fragment != null) {
+        // 明确拒绝 URL 中的用户名密码/query/fragment 和非根路径，防止后续 API/WS 拼接错位。
+        if (uri.userInfo != null || uri.query != null || uri.fragment != null || ServerUrlPolicy.hasUnsupportedPath(uri.path)) {
             return context.getString(com.maodouchat.R.string.server_url_extra)
         }
         val port = uri.port
