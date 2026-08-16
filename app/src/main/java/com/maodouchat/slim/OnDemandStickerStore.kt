@@ -11,7 +11,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
-import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -61,6 +60,7 @@ object OnDemandStickerStore {
     private const val MAX_STICKERS_PER_PACK = 300
     /** 单个贴纸文件最大字节数（2MB）：防异常贴纸源磁盘耗尽。 */
     private const val MAX_STICKER_FILE_BYTES = 2L * 1024L * 1024L
+    private val SHA256_REGEX = Regex("^[0-9a-fA-F]{64}$")
 
     /** 内置最小集合：1 包「基础表情」（纯 emoji，无需下载）。 */
     const val BUILT_IN_PACK_ID = "basic"
@@ -72,7 +72,7 @@ object OnDemandStickerStore {
         "❤️", "💔", "🎉", "🎊", "🔥", "💯", "⭐", "✨",
     )
 
-    private data class RemoteSticker(val name: String, val url: String, val sha256: String?)
+    private data class RemoteSticker(val name: String, val url: String, val sha256: String)
 
     private data class RemotePack(val id: String, val stickers: List<RemoteSticker>)
 
@@ -112,17 +112,11 @@ object OnDemandStickerStore {
 
     /** 某个贴纸包的本地目录。 */
     fun packDir(context: Context, packId: String): File =
-        File(stickerRoot(context), sanitizePackId(packId)).apply { mkdirs() }
+        File(stickerRoot(context), StickerNamePolicy.sanitizePackId(packId)).apply { mkdirs() }
 
     /** 某个贴纸文件的本地路径（未检查是否存在）。 */
     fun localStickerFile(context: Context, packId: String, name: String): File =
-        File(packDir(context, packId), sanitizeFileName(name))
-
-    /** 本地已缓存的所有贴纸文件（跨包）。 */
-    fun cachedStickerFiles(context: Context): List<File> =
-        stickerRoot(context).listFiles { f -> f.isDirectory }
-            ?.flatMap { dir -> dir.listFiles { f -> f.isFile }?.toList().orEmpty() }
-            .orEmpty()
+        File(packDir(context, packId), StickerNamePolicy.sanitizeFileName(name))
 
     /**
      * 按需取贴纸文件：
@@ -132,13 +126,13 @@ object OnDemandStickerStore {
      * 命中时若清单提供 sha256 则校验，不匹配视为未命中（重新下载）。
      */
     suspend fun getSticker(context: Context, name: String): File? {
-        val fileName = sanitizeFileName(name)
+        val fileName = StickerNamePolicy.sanitizeFileName(name)
         if (fileName.isEmpty()) return null
         val pack = findPackContaining(fileName)
         if (pack != null) {
-            val expected = pack.stickers.firstOrNull { sanitizeFileName(it.name) == fileName }
+            val expected = pack.stickers.firstOrNull { StickerNamePolicy.sanitizeFileName(it.name) == fileName } ?: return null
             val local = File(packDir(context, pack.id), fileName)
-            if (local.isFile && (expected?.sha256 == null || sha256(local) == expected.sha256)) {
+            if (StickerFilePolicy.isCurrent(local, expected.sha256)) {
                 // 8.49 修复：命中路径 touch——evict 按目录 mtime 淘汰，命中不 touch 会把
                 // 最常用的包排在最旧位置最先淘汰，与 LRU 目标相反（只有下载才更新 mtime）
                 touch(context, pack.id)
@@ -147,15 +141,15 @@ object OnDemandStickerStore {
             val result = ensurePack(context, pack.id)
             if (result.downloaded > 0 || result.failed == 0) {
                 val after = File(packDir(context, pack.id), fileName)
-                if (after.isFile && (expected?.sha256 == null || sha256(after) == expected.sha256)) {
+                if (StickerFilePolicy.isCurrent(after, expected.sha256)) {
                     return after
                 }
                 return null
             }
             return null
         }
-        // 清单未加载或未收录该贴纸：退化为跨包模糊查找（保守，无包归属可校验）
-        return cachedStickerFiles(context).firstOrNull { it.name == fileName }
+        // 远程贴纸必须由清单定位并校验 SHA-256；清单不可用/未收录时由调用方回退内置表情。
+        return null
     }
 
     /** 刷新贴纸包清单（带 TTL 与内存缓存，失败静默保留旧清单）。 */
@@ -187,7 +181,7 @@ object OnDemandStickerStore {
      * 下载后执行 LRU 淘汰，返回统计与状态文案。
      */
     suspend fun ensurePack(context: Context, packId: String): StickerPackDownloadResult = withContext(Dispatchers.IO) {
-        val safeId = sanitizePackId(packId)
+        val safeId = StickerNamePolicy.sanitizePackId(packId)
         if (safeId.isEmpty()) {
             return@withContext StickerPackDownloadResult(
                 packId, 0, 0, context.getString(R.string.sticker_store_download_failed)
@@ -205,7 +199,11 @@ object OnDemandStickerStore {
 
         val dir = packDir(context, safeId)
         val existing = dir.listFiles { f -> f.isFile }?.toSet().orEmpty()
-        if (pack.stickers.all { s -> existing.any { it.name == sanitizeFileName(s.name) && it.length() > 0L } } &&
+        if (pack.stickers.all { s ->
+                existing.any { file ->
+                    file.name == StickerNamePolicy.sanitizeFileName(s.name) && StickerFilePolicy.isCurrent(file, s.sha256)
+                }
+            } &&
             pack.stickers.isNotEmpty()
         ) {
             touch(context, safeId)
@@ -247,11 +245,10 @@ object OnDemandStickerStore {
         var failed = 0
         for (sticker in pack.stickers) {
             val target = localStickerFile(context, safeId, sticker.name)
-            if (target.isFile && target.length() > 0L) {
-                if (sticker.sha256 == null || sha256(target) == sticker.sha256) {
-                    downloaded++
-                    continue
-                }
+            if (StickerFilePolicy.isCurrent(target, sticker.sha256)) {
+                downloaded++
+                continue
+            } else if (target.isFile || target.exists()) {
                 target.delete()
             }
             if (downloadFile(sticker.url, target, sticker.sha256)) downloaded++ else failed++
@@ -287,14 +284,14 @@ object OnDemandStickerStore {
 
     /** 记录包最近使用时间（LRU 依据）。 */
     fun touch(context: Context, packId: String) {
-        val dir = packDir(context, sanitizePackId(packId))
+        val dir = packDir(context, StickerNamePolicy.sanitizePackId(packId))
         if (dir.isDirectory) dir.setLastModified(System.currentTimeMillis())
     }
 
     // ---- 内部实现 ----
 
     private fun findPackContaining(fileName: String): RemotePack? =
-        cachedManifest.firstOrNull { pack -> pack.stickers.any { sanitizeFileName(it.name) == fileName } }
+        cachedManifest.firstOrNull { pack -> pack.stickers.any { StickerNamePolicy.sanitizeFileName(it.name) == fileName } }
 
     private fun fetchManifestRaw(): String {
         val request = Request.Builder()
@@ -318,7 +315,7 @@ object OnDemandStickerStore {
                 if (packCount >= MAX_MANIFEST_PACKS) break
                 val pack = packs.optJSONObject(i) ?: continue
                 val id = pack.optString("id").trim()
-                if (id.isEmpty()) continue
+                if (id.isEmpty() || StickerNamePolicy.sanitizePackId(id) != id) continue
                 val stickers = pack.optJSONArray("stickers") ?: JSONArray()
                 val items = buildList {
                     var stickerCount = 0
@@ -326,10 +323,13 @@ object OnDemandStickerStore {
                         if (stickerCount >= MAX_STICKERS_PER_PACK) break
                         val s = stickers.optJSONObject(j) ?: continue
                         val name = s.optString("name").trim()
+                        if (name.isEmpty() || StickerNamePolicy.sanitizeFileName(name) != name) continue
                         val rawUrl = s.optString("url").trim()
                         if (name.isEmpty() || rawUrl.isEmpty()) continue
                         val url = StickerSourcePolicy.resolve(rawUrl, ApiConfig.BASE_URL) ?: continue
-                        add(RemoteSticker(name, url, s.optString("sha256").trim().ifBlank { null }))
+                        val rawSha256 = s.optString("sha256").trim()
+                        if (rawSha256.length != 64 || !SHA256_REGEX.matches(rawSha256)) continue
+                        add(RemoteSticker(name, url, rawSha256.lowercase()))
                         stickerCount++
                     }
                 }
@@ -341,7 +341,7 @@ object OnDemandStickerStore {
         }
     }
 
-    private fun downloadFile(url: String, target: File, expectedSha256: String?): Boolean = runCatching {
+    private fun downloadFile(url: String, target: File, expectedSha256: String): Boolean = runCatching {
         target.parentFile?.mkdirs()
         val request = Request.Builder().url(url).get().build()
         httpClient.newCall(request).execute().use { response ->
@@ -365,11 +365,13 @@ object OnDemandStickerStore {
                     }
                 } }
                 if (tmp.length() <= 0L) throw IllegalStateException("empty file")
-                if (expectedSha256 != null && sha256(tmp) != expectedSha256) {
+                if (StickerFilePolicy.sha256(tmp) != expectedSha256) {
                     throw IllegalStateException("SHA-256 mismatch")
                 }
                 if (!tmp.renameTo(target)) {
-                    if (!target.isFile) throw IllegalStateException("write failed")
+                    if (!StickerFilePolicy.isCurrent(target, expectedSha256)) {
+                        throw IllegalStateException("write failed")
+                    }
                     tmp.delete()
                 }
             } finally {
@@ -382,22 +384,10 @@ object OnDemandStickerStore {
         false
     }
 
-    private fun sha256(file: File): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        file.inputStream().buffered().use { input ->
-            val buffer = ByteArray(64 * 1024)
-            while (true) {
-                val read = input.read(buffer)
-                if (read < 0) break
-                digest.update(buffer, 0, read)
-            }
-        }
-        return digest.digest().joinToString("") { "%02x".format(it) }
+    /** 服务器切换后清空内存清单；旧文件由 SHA-256 校验保证不会被当作当前文件复用。 */
+    fun invalidateServerState() {
+        cachedManifest = emptyList()
+        manifestFetchedAtMs = 0L
     }
 
-    private fun sanitizePackId(id: String): String =
-        id.trim().replace(Regex("[^A-Za-z0-9_-]"), "").take(40)
-
-    private fun sanitizeFileName(name: String): String =
-        name.trim().replace(Regex("[^A-Za-z0-9._-]"), "").take(80)
 }

@@ -3353,6 +3353,7 @@ fun ServerSettingsScreen(
                         com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
                         // 8.48 修复：断开旧 WebSocket——否则 REST 已指向新服务器而 WS 仍连旧服务器
                         com.maodouchat.network.WebSocketClient.disconnect()
+                        com.maodouchat.slim.OnDemandStickerStore.invalidateServerState()
                     }
                 },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
@@ -3390,6 +3391,9 @@ fun ServerSettingsScreen(
             confirmButton = {
                 TextButton(onClick = {
                     com.maodouchat.network.ApiConfig.resetToDefault(context)
+                    com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
+                    com.maodouchat.network.WebSocketClient.disconnect()
+                    com.maodouchat.slim.OnDemandStickerStore.invalidateServerState()
                     showResetConfirm = false
                     input = com.maodouchat.network.ApiConfig.BASE_URL
                     result = serverResetDoneText
