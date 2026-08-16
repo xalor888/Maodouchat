@@ -16,6 +16,7 @@ import com.maodouchat.server.db.ReadReceipts
 import com.maodouchat.server.db.SenderKeyDistributions
 import com.maodouchat.server.db.StarMessages
 import com.maodouchat.server.db.Users
+import com.maodouchat.server.plugins.isAllowedWebhookAddress
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -36,6 +37,7 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import java.net.InetAddress
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.UUID
@@ -829,9 +831,13 @@ object BotRepository {
                 (a == 192 && b == 168)
         }
         val h = host.removeSurrounding("[", "]").lowercase()
-        if (h == "::1" || h == "0:0:0:0:0:0:0:1") return true
-        if (h.startsWith("fc") || h.startsWith("fd")) return true
-        if (h.startsWith("fe8") || h.startsWith("fe9") || h.startsWith("fea") || h.startsWith("feb")) return true
+        if (h.contains(":")) {
+            if (h == "::1" || h == "0:0:0:0:0:0:0:1") return true
+            if (h.startsWith("fc") || h.startsWith("fd")) return true
+            if (h.startsWith("fe8") || h.startsWith("fe9") || h.startsWith("fea") || h.startsWith("feb")) return true
+            val address = runCatching { InetAddress.getByName(h) }.getOrNull() ?: return true
+            return !address.isAllowedWebhookAddress(allowLoopback = false)
+        }
         return false
     }
 

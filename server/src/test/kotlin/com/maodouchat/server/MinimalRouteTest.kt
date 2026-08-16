@@ -202,6 +202,13 @@ class RoutingSecurityHelperTest {
         assertFalse(java.net.InetAddress.getByName("2001:db8::1").isAllowedWebhookAddress(allowLoopback = false))
         assertTrue(java.net.InetAddress.getByName("8.8.8.8").isAllowedWebhookAddress(allowLoopback = false))
         assertTrue(java.net.InetAddress.getByName("2606:4700:4700::1111").isAllowedWebhookAddress(allowLoopback = false))
+        assertFalse(BotRepository.isAllowedWebhookUrl("https://[::]/hook"))
+        assertFalse(BotRepository.isAllowedWebhookUrl("https://[::127.0.0.1]/hook"))
+        assertFalse(BotRepository.isAllowedWebhookUrl("https://[::ffff:127.0.0.1]/hook"))
+        assertFalse(BotRepository.isAllowedWebhookUrl("https://[0:0:0:0:0:0:0:1]/hook"))
+        assertFalse(BotRepository.isAllowedWebhookUrl("https://[64:ff9b::7f00:1]/hook"))
+        assertTrue(BotRepository.isAllowedWebhookUrl("https://example.com/hook"))
+        assertTrue(BotRepository.isAllowedWebhookUrl("https://[2606:4700:4700::1111]/hook"))
         assertFailsWith<IllegalArgumentException> {
             postPinnedWebhookJson(
                 url = "https://example.com:0/hook",
