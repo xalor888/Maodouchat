@@ -45,7 +45,7 @@ object ApiConfig {
         val trimmed = baseUrl.trim()
         val validationError = validateBaseUrl(trimmed, context)
         if (validationError != null) return validationError
-        val normalized = trimmed.trimEnd('/')
+        val normalized = normalizeBaseUrl(trimmed)
         val wsUrl = wsUrlFor(normalized)
         val prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         prefs.edit().putString(PREF_KEY_BASE_URL, normalized).putString(PREF_KEY_WS_URL, wsUrl).apply()
@@ -65,11 +65,20 @@ object ApiConfig {
     /** 由 HTTP(S) 服务器地址推导 WebSocket 地址（http→ws，https→wss，路径 /ws）。 */
     fun wsUrlFor(baseUrl: String): String {
         val normalized = baseUrl.trim().trimEnd('/')
+        val schemeEnd = normalized.indexOf("://")
+        val lowerScheme = if (schemeEnd > 0) normalized.substring(0, schemeEnd).lowercase() else ""
         return when {
-            normalized.startsWith("https://") -> "wss://${normalized.removePrefix("https://")}/ws"
-            normalized.startsWith("http://") -> "ws://${normalized.removePrefix("http://")}/ws"
+            lowerScheme == "https" -> "wss://${normalized.substring(schemeEnd + 3)}/ws"
+            lowerScheme == "http" -> "ws://${normalized.substring(schemeEnd + 3)}/ws"
             else -> "$normalized/ws"
         }
+    }
+
+    private fun normalizeBaseUrl(value: String): String {
+        val normalized = value.trim().trimEnd('/')
+        val schemeEnd = normalized.indexOf("://")
+        if (schemeEnd <= 0) return normalized
+        return normalized.substring(0, schemeEnd).lowercase() + normalized.substring(schemeEnd)
     }
 
     // 8.48：校验错误资源化（此前硬编码中文，服务器设置页英文用户看到中文）

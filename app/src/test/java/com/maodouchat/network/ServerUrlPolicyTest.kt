@@ -14,6 +14,8 @@ class ServerUrlPolicyTest {
         assertNull(ServerUrlPolicy.validate("https://chat.example.com/"))
         assertNull(ServerUrlPolicy.validate("http://192.168.1.10:8080"))
         assertNull(ServerUrlPolicy.validate("https://chat.example.com:8443"))
+        assertNull(ServerUrlPolicy.validate("HTTPS://chat.example.com"))
+        assertNull(ServerUrlPolicy.validate("HTTP://192.168.1.10:8080"))
     }
 
     @Test
