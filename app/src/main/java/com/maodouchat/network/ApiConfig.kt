@@ -42,9 +42,10 @@ object ApiConfig {
      * @return 校验失败时返回错误文案，成功返回 null 并立即生效
      */
     fun setServer(baseUrl: String, context: Context): String? {
-        val normalized = baseUrl.trim().trimEnd('/')
-        val validationError = validateBaseUrl(normalized, context)
+        val trimmed = baseUrl.trim()
+        val validationError = validateBaseUrl(trimmed, context)
         if (validationError != null) return validationError
+        val normalized = trimmed.trimEnd('/')
         val wsUrl = wsUrlFor(normalized)
         val prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         prefs.edit().putString(PREF_KEY_BASE_URL, normalized).putString(PREF_KEY_WS_URL, wsUrl).apply()
@@ -73,21 +74,15 @@ object ApiConfig {
 
     // 8.48：校验错误资源化（此前硬编码中文，服务器设置页英文用户看到中文）
     private fun validateBaseUrl(value: String, context: Context): String? {
-        if (value.isBlank()) return context.getString(com.maodouchat.R.string.server_url_empty)
-        val uri = runCatching { android.net.Uri.parse(value) }.getOrNull()
-            ?: return context.getString(com.maodouchat.R.string.server_url_invalid)
-        val scheme = uri.scheme?.lowercase()
-        if (scheme != "http" && scheme != "https") return context.getString(com.maodouchat.R.string.server_url_scheme)
-        val host = uri.host?.trim().orEmpty()
-        if (host.isBlank()) return context.getString(com.maodouchat.R.string.server_url_no_host)
-        if (host.length > 255) return context.getString(com.maodouchat.R.string.server_url_invalid)
-        // 明确拒绝 URL 中的用户名密码/query/fragment 和非根路径，防止后续 API/WS 拼接错位。
-        if (uri.userInfo != null || uri.query != null || uri.fragment != null || ServerUrlPolicy.hasUnsupportedPath(uri.path)) {
-            return context.getString(com.maodouchat.R.string.server_url_extra)
+        val problem = ServerUrlPolicy.validate(value) ?: return null
+        return when (problem) {
+            ServerUrlPolicy.Problem.EMPTY -> context.getString(com.maodouchat.R.string.server_url_empty)
+            ServerUrlPolicy.Problem.INVALID -> context.getString(com.maodouchat.R.string.server_url_invalid)
+            ServerUrlPolicy.Problem.SCHEME -> context.getString(com.maodouchat.R.string.server_url_scheme)
+            ServerUrlPolicy.Problem.HOST -> context.getString(com.maodouchat.R.string.server_url_no_host)
+            ServerUrlPolicy.Problem.EXTRA -> context.getString(com.maodouchat.R.string.server_url_extra)
+            ServerUrlPolicy.Problem.PORT -> context.getString(com.maodouchat.R.string.server_url_port)
         }
-        val port = uri.port
-        if (port != -1 && port !in 1..65535) return context.getString(com.maodouchat.R.string.server_url_port)
-        return null
     }
 
     // Token 存储 Key
