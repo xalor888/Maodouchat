@@ -254,12 +254,7 @@ object OnDemandStickerStore {
                 }
                 target.delete()
             }
-            val url = if (sticker.url.startsWith("http://") || sticker.url.startsWith("https://")) {
-                sticker.url
-            } else {
-                ApiConfig.BASE_URL.trimEnd('/') + "/" + sticker.url.trimStart('/')
-            }
-            if (downloadFile(url, target, sticker.sha256)) downloaded++ else failed++
+            if (downloadFile(sticker.url, target, sticker.sha256)) downloaded++ else failed++
         }
         evict(context)
         val message = if (failed == 0) {
@@ -331,8 +326,9 @@ object OnDemandStickerStore {
                         if (stickerCount >= MAX_STICKERS_PER_PACK) break
                         val s = stickers.optJSONObject(j) ?: continue
                         val name = s.optString("name").trim()
-                        val url = s.optString("url").trim()
-                        if (name.isEmpty() || url.isEmpty()) continue
+                        val rawUrl = s.optString("url").trim()
+                        if (name.isEmpty() || rawUrl.isEmpty()) continue
+                        val url = StickerSourcePolicy.resolve(rawUrl, ApiConfig.BASE_URL) ?: continue
                         add(RemoteSticker(name, url, s.optString("sha256").trim().ifBlank { null }))
                         stickerCount++
                     }
