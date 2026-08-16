@@ -2,6 +2,13 @@ package com.maodouchat.server.config
 
 import org.slf4j.LoggerFactory
 
+internal fun normalizeHttpScheme(value: String): String {
+    val trimmed = value.trim().trimEnd('/')
+    val schemeEnd = trimmed.indexOf("://")
+    if (schemeEnd <= 0) return trimmed
+    return trimmed.substring(0, schemeEnd).lowercase() + trimmed.substring(schemeEnd)
+}
+
 /**
  * 服务端运行配置。
  *
@@ -33,7 +40,7 @@ object ServerConfig {
     val host: String = env("HOST", "0.0.0.0")
     val port: Int = env("PORT", "8080").toIntOrNull() ?: 8080
 
-    val baseUrl: String = env("BASE_URL", "http://localhost:$port").trimEnd('/')
+    val baseUrl: String = normalizeHttpScheme(env("BASE_URL", "http://localhost:$port"))
 
     val databaseUrl: String get() = env("DATABASE_URL", "jdbc:h2:mem:maodouchat;DB_CLOSE_DELAY=-1")
     val databaseDriver: String get() = env("DATABASE_DRIVER", "org.h2.Driver")
@@ -69,7 +76,7 @@ object ServerConfig {
     /** CORS allowed origins (comma-separated). Empty means same-origin only. */
     val corsOrigins: List<String> get() = env("CORS_ORIGINS", "")
         .split(',')
-        .map(String::trim)
+        .map(::normalizeHttpScheme)
         .filter { it.isNotBlank() && (it.startsWith("http://") || it.startsWith("https://")) }
         .distinct()
 
@@ -77,7 +84,7 @@ object ServerConfig {
     val allowRegistration: Boolean get() = env("ALLOW_REGISTRATION", "true").toBooleanStrictOrNull() ?: true
 
     val openAiApiKey: String get() = env("OPENAI_API_KEY", "")
-    val openAiBaseUrl: String get() = env("OPENAI_BASE_URL", "https://api.openai.com/v1").trimEnd('/')
+    val openAiBaseUrl: String get() = normalizeHttpScheme(env("OPENAI_BASE_URL", "https://api.openai.com/v1"))
     /**
      * 默认/轻量模型别名，向后兼容。新代码应使用 [openAiModelLight] / [openAiModelStrong] / [openAiModelFallback]。
      * 默认值必须是 OpenAI 公开 API 上真实可用的模型，避免全新部署时 404。
