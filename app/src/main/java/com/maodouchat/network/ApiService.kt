@@ -289,7 +289,8 @@ object ApiService {
     private suspend fun refreshAccessToken(
         failedAccessToken: String? = null,
         expectedUserId: String
-    ): RefreshOutcome = refreshMutex.withLock {
+    ): RefreshOutcome = withContext(Dispatchers.IO) {
+        refreshMutex.withLock {
         val manager = tokenManager ?: return@withLock RefreshOutcome.SessionDead
         if (manager.getUserId() != expectedUserId) return@withLock RefreshOutcome.SessionChanged
         // 并发 waiter：若已有比失败 access 更新的 token，直接复用，避免二次 rotate / 误杀
@@ -373,6 +374,7 @@ object ApiService {
             WebSocketClient.connect(ApiConfig.WS_URL, auth.token)
         }
         RefreshOutcome.Success(auth.token)
+        }
     }
 
     /**
