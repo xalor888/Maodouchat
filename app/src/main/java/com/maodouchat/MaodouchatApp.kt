@@ -252,8 +252,7 @@ class MaodouchatApp : Application() {
                         ids.forEach { com.maodouchat.util.MediaCache.deleteCachedMediaForMessage(this@MaodouchatApp, it) }
                         // 8.32 修复 F9（隐私）：自毁消息清除后同步清理通知中心条目与 tray 预览
                         runCatching {
-                            com.maodouchat.data.repository.NotificationCenterRepository(this@MaodouchatApp)
-                                .deleteItemsForMessages(ids)
+                            notificationCenter.deleteItemsForMessages(ids)
                         }
                         runCatching {
                             expiredChatIds.forEach { chatIdOfExpired ->

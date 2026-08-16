@@ -2081,8 +2081,7 @@ class ChatDetailViewModel(
         // 8.32 修复 F9（隐私）：自毁消息删除后同步清理 tray 预览与通知中心条目，
         // 否则密文已删但通知栏仍展示正文预览。
         try {
-            com.maodouchat.data.repository.NotificationCenterRepository(getApplication())
-                .deleteItemsForMessages(expiredIds)
+            com.maodouchat.MaodouchatApp.instance.notificationCenter.deleteItemsForMessages(expiredIds)
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (_: Exception) {
