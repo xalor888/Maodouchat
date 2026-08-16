@@ -53,16 +53,20 @@ object LinkPreviewPolicy {
             // 拒绝非标准 IP 字面量编码（十进制整数 / 十六进制），这些会被 OkHttp 解析为内网地址
             // 例如 2130706433 (=127.0.0.1)、0x7f000001 (=127.0.0.1)。
             if (host.matches(Regex("""^(0x[0-9a-fA-F]+|\d+)$"""))) return null
-            // 点分十进制 IPv4：每段必须严格 0-255 且不以 0 开头（除非本身就是 "0"），
-            // 否则当作非法（拦截八进制前导零如 0177.0.0.1 ≡ 127.0.0.1）。
-            if (host.matches(Regex("""^\d{1,3}(\.\d{1,3}){3}$"""))) {
-                val parts = host.split(".")
-                val octets = parts.map { it.toIntOrNull() }
-                if (parts.zip(octets).any { (raw, n) ->
+            // Reject dotted hexadecimal shorthand such as 0x7f.0.0.1, which some parsers
+            // resolve as an IPv4-mapped private address.
+            if (host.matches(Regex("""^0x[0-9a-fA-F]+(\.[0-9a-fA-F]+)*$"""))) return null
+            // Reject decimal IPv4 shorthand (127.1, 127.0.1). Four-label dotted decimal is
+            // still allowed only when each octet is strict decimal and is not private.
+            val dottedNumericLabels = host.split(".")
+            if (dottedNumericLabels.size in 2..4 && dottedNumericLabels.all { it.matches(Regex("""\d+""")) }) {
+                if (dottedNumericLabels.size != 4) return null
+                val octets = dottedNumericLabels.map { it.toIntOrNull() }
+                if (dottedNumericLabels.zip(octets).any { (raw, n) ->
                         n == null || n !in 0..255 || (n != 0 && raw != n.toString())
                     }
                 ) return null
-                // 8.49 防御：网络主机名解析结果逐位判空（此前依赖第 54 行正则保证 4 段，脆弱不变量）
+                // Keep the explicit octet null checks after validation so later indexed reads are total.
                 val a = octets[0] ?: return null
                 val b = octets[1] ?: return null
                 if (a == 0 || a == 10 || a == 127 ||

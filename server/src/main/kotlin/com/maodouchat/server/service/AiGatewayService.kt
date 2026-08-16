@@ -1082,10 +1082,13 @@ class AiGatewayService(
         // 避免连续大输出请求在实际落账前重复通过预算检查。
         val est = estimatedTokens.coerceAtLeast(0L) + BUDGET_OUTPUT_ESTIMATE_TOKENS
         val now = System.currentTimeMillis()
-        val used = runCatching { auditRepository.sumTokensForUserToday(userId) }.getOrDefault(0L)
         val monitor = budgetMonitorFor(userId)
         try {
             synchronized(monitor.lock) {
+                // Read used tokens while holding the per-user monitor so a request that just
+                // recorded its audit cannot be missed by a concurrent checker that read before
+                // that audit was committed.
+                val used = runCatching { auditRepository.sumTokensForUserToday(userId) }.getOrDefault(0L)
                 val reserved = purgeExpiredReservations(userId, now)
                 if (used + reserved + est <= budget) {
                     budgetReservations
