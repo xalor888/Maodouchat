@@ -10,9 +10,10 @@ object MissedCallTimeoutPolicy {
      * Stable primary key for [com.maodouchat.data.model.MissedCall] and tray notify id.
      * Prefer the signaling [callId] so FCM incoming cancel + missed cancel share one slot
      * when possible; fall back to a synthetic id only when the offer had no callId.
-     * 注意：空 callId 时用「固定前缀 + 联系人」而非时间戳——NavGraph 30s 计时器与
+     * 注意：空 callId 时用「固定前缀 + 联系人 + 分钟粒度时间桶」——NavGraph 30s 计时器与
      * CallViewModel RINGING 超时两条路径会以各自 nowMs 生成不同 id，同一通未接来电
-     * 会写入两行/两条通知；固定 id 使双路径幂等（8.35 修复）。
+     * 会写入两行/两条通知；分钟桶使双路径幂等（8.35 修复），同时 8.49 修复同一联系人
+     * 的不同未接来电（旧行政 id 固定 mc_<peer>，第二通覆盖第一通、计数丢失）可区分。
      */
     fun missedRecordId(
         signalingCallId: String,
@@ -22,7 +23,7 @@ object MissedCallTimeoutPolicy {
         val callId = signalingCallId.trim()
         if (callId.isNotEmpty()) return callId
         val peer = fromUserId.trim().ifEmpty { "unknown" }
-        return "mc_$peer"
+        return "mc_${peer}_${nowMs / 60_000L}"
     }
 
     /**

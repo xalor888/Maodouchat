@@ -308,6 +308,15 @@ class SecureSessionManager(
             } catch (error: Exception) {
                 Log.w(TAG, "Failed to clear Coil image cache during local purge", error)
             }
+            // 8.49 修复：ai_enhance.db（AI 画像/分类/周报独立 SQLCipher 库）必须随主库清理——
+            // 此前游离于清理链路外：换号后上一账号画像残留磁盘，且重登后口令轮换使该库永久打不开
+            try {
+                com.maodouchat.data.repository.AiProfileRepository.purge(context.applicationContext)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w(TAG, "Failed to purge ai_enhance database during local purge", error)
+            }
 
             try {
                 if (destroyEncryptedDatabase) {
@@ -335,8 +344,11 @@ class SecureSessionManager(
                     database.chatLockDao().deleteAll()
                     database.secretChatDao().deleteAll()
                     database.aiSummaryCacheDao().deleteAll()
-                    signalProtocol.clearLocalState()
                 }
+                // 8.49 修复：clearLocalState 内部会先取 cryptoLock，而任意解密线程持 cryptoLock
+                // 期间会阻塞等待 DB 写锁——在 withTransaction（持有唯一写锁）内调用它构成
+                // 锁序倒置死锁。移到事务提交后执行，统一全链路锁序 cryptoLock -> DB。
+                signalProtocol.clearLocalState()
                 com.maodouchat.security.SecretChatSession.clearAllSurfaces()
             } catch (error: Throwable) {
                 Log.w(TAG, "Local database purge failed; destroying encrypted storage", error)

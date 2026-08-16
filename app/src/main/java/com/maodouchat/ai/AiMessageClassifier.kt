@@ -77,7 +77,7 @@ object AiMessageClassifier {
             }.sortedByDescending { it.count }
         }
         withContext(Dispatchers.IO) {
-            AiProfileRepository(context).saveChatClasses(chatId, tallies)
+            AiProfileRepository.getInstance(context).saveChatClasses(chatId, tallies)
         }
         return tallies
     }
@@ -85,7 +85,7 @@ object AiMessageClassifier {
     /** 读取上次分类统计（仅本地）。 */
     suspend fun cached(context: Context, chatId: String): List<AiProfileRepository.CategoryCount> =
         withContext(Dispatchers.IO) {
-            AiProfileRepository(context).getChatClasses(chatId)
+            AiProfileRepository.getInstance(context).getChatClasses(chatId)
         }
 
     private fun lexiconFor(category: Category): List<String> = when (category) {

@@ -29,6 +29,9 @@ class MessageSearchRepository(private val database: AppDatabase) {
         // 时 deleteDocument 不产生文档，用全部可搜索消息数会导致 msgCount 恒 > docCount，
         // 每次打开全局搜索都误判漂移触发全量重建
         val msgCount = messageDao.countSearchableWithContent()
+        // 8.49 修复：全库都无可索引内容（如新设备上全部消息仍是 backlog 密文）时直接短路，
+        // 否则 docCount==0 分支会让每次打开全局搜索都触发全表游标扫描
+        if (msgCount == 0 && docCount == 0) return 0
         if (docCount > 0) {
             val drift = kotlin.math.abs(msgCount - docCount)
             if (drift < (msgCount.toDouble() * STALE_DRIFT_RATIO).toInt().coerceAtLeast(MIN_STALE_DRIFT)) {

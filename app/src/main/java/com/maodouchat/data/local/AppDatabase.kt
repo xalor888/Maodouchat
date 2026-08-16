@@ -43,10 +43,9 @@ import com.maodouchat.data.local.entity.UserEntity
 
 @Database(
     entities = [UserEntity::class, ChatEntity::class, ChatDraftEntity::class, MessageEntity::class, SignalKeyEntity::class, IdentityTrustEntity::class, MissedCallEntity::class, ChatLockEntity::class, SecretChatEntity::class, AiSummaryCacheEntity::class, SenderKeyRetryEntity::class, AiTaskEntity::class, MessageSearchDocumentEntity::class, MessageSearchTokenEntity::class, AttachmentTransferEntity::class, AiOperationEntity::class],
-    version = 30,
+    version = 31,
     exportSchema = true
-)
-abstract class AppDatabase : RoomDatabase() {
+)abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
     abstract fun chatDao(): ChatDao
@@ -121,7 +120,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     DATABASE_NAME
                 ).openHelperFactory(SupportFactory(passphrase))
-                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30)
+                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31)
                 if (allowDestructiveMigration) {
                     builder.fallbackToDestructiveMigration(dropAllTables = true)
                 }
@@ -563,6 +562,15 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_29_30 = object : Migration(29, 30) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE users ADD COLUMN lastSeen INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        // v30→v31: messages 加入 sealedSender（8.49）——密封发送标志持久化。
+        // 存量行默认 0；此前该标志只在瞬态域字段上，DB round-trip 后丢失，
+        // outbox 重发会把密封消息降级为非密封发送。
+        val MIGRATION_30_31 = object : Migration(30, 31) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE messages ADD COLUMN sealedSender INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

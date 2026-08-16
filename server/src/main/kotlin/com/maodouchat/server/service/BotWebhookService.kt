@@ -8,6 +8,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -240,57 +241,65 @@ object BotWebhookService {
                 }
                 put("ts", ts)
             }.toString()
-            for (t in targets) {
-                val url = t.url
-                // 仅对“无 webhook”的 bot 写入长轮询收件箱；配置了 webhook 的 bot 永不调用
-                // getUpdates 轮询，写入的收件箱行永不被消费，会导致 bot_update_inbox 表无限膨胀。
-                if (url.isNullOrBlank()) {
-                    try {
-                        com.maodouchat.server.repository.BotRepository.enqueueUpdate(t.botId, body)
-                    } catch (cancel: CancellationException) {
-                        throw cancel
-                    } catch (_: Exception) {
-                    }
-                }
-                // Audit slash commands for developer console.
-                val cmdName = runCatching {
-                    val slash = textPreview?.trim().orEmpty()
-                    if (!slash.startsWith("/")) null
-                    else slash.removePrefix("/").substringBefore(" ").substringBefore("@").lowercase().take(64)
-                }.getOrNull()
-                if (!cmdName.isNullOrBlank()) {
-                    try {
-                        com.maodouchat.server.repository.BotRepository.logCommand(
-                            t.botId, chatId, senderId, "/$cmdName"
-                        )
-                    } catch (cancel: CancellationException) {
-                        throw cancel
-                    } catch (_: Exception) {
-                    }
-                }
-                if (!url.isNullOrBlank()) {
-                    // 投递重试（指数退避）+ 失败回退收件箱：事件不允许一次性丢失。
-                    // bot 配置了 webhook 但服务端暂时失败时，回退写 inbox 供 bot 轮询兜底。
-                    var delivered = false
-                    for (attempt in 1..WEBHOOK_MAX_ATTEMPTS) {
-                        try {
-                            postJson(url, body, ts, t.tokenHash, t.botId)
-                            delivered = true
-                            break
-                        } catch (cancel: CancellationException) {
-                            throw cancel
-                        } catch (_: Exception) {
-                            if (attempt < WEBHOOK_MAX_ATTEMPTS) {
-                                delay(WEBHOOK_RETRY_BASE_MS * attempt)
+            // 8.49 修复：按 target 并行投递——此前串行 for 循环里每个慢 webhook 最坏 ~25s
+            // （3 次尝试 × 连接+读 6s + 退避），一个多 bot 慢端点群即可长期占住仅有的
+            // 4 个 worker，队列满后溢出 fallback、再满即丢事件。并行化后单个慢目标
+            // 只拖住自己的协程，不再阻塞其他 target 的投递。
+            coroutineScope {
+                targets.forEach { t ->
+                    launch {
+                        val url = t.url
+                        // 仅对“无 webhook”的 bot 写入长轮询收件箱；配置了 webhook 的 bot 永不调用
+                        // getUpdates 轮询，写入的收件箱行永不被消费，会导致 bot_update_inbox 表无限膨胀。
+                        if (url.isNullOrBlank()) {
+                            try {
+                                com.maodouchat.server.repository.BotRepository.enqueueUpdate(t.botId, body)
+                            } catch (cancel: CancellationException) {
+                                throw cancel
+                            } catch (_: Exception) {
                             }
                         }
-                    }
-                    if (!delivered) {
-                        try {
-                            com.maodouchat.server.repository.BotRepository.enqueueUpdate(t.botId, body)
-                        } catch (cancel: CancellationException) {
-                            throw cancel
-                        } catch (_: Exception) {
+                        // Audit slash commands for developer console.
+                        val cmdName = runCatching {
+                            val slash = textPreview?.trim().orEmpty()
+                            if (!slash.startsWith("/")) null
+                            else slash.removePrefix("/").substringBefore(" ").substringBefore("@").lowercase().take(64)
+                        }.getOrNull()
+                        if (!cmdName.isNullOrBlank()) {
+                            try {
+                                com.maodouchat.server.repository.BotRepository.logCommand(
+                                    t.botId, chatId, senderId, "/$cmdName"
+                                )
+                            } catch (cancel: CancellationException) {
+                                throw cancel
+                            } catch (_: Exception) {
+                            }
+                        }
+                        if (!url.isNullOrBlank()) {
+                            // 投递重试（指数退避）+ 失败回退收件箱：事件不允许一次性丢失。
+                            // bot 配置了 webhook 但服务端暂时失败时，回退写 inbox 供 bot 轮询兜底。
+                            var delivered = false
+                            for (attempt in 1..WEBHOOK_MAX_ATTEMPTS) {
+                                try {
+                                    postJson(url, body, ts, t.tokenHash, t.botId)
+                                    delivered = true
+                                    break
+                                } catch (cancel: CancellationException) {
+                                    throw cancel
+                                } catch (_: Exception) {
+                                    if (attempt < WEBHOOK_MAX_ATTEMPTS) {
+                                        delay(WEBHOOK_RETRY_BASE_MS * attempt)
+                                    }
+                                }
+                            }
+                            if (!delivered) {
+                                try {
+                                    com.maodouchat.server.repository.BotRepository.enqueueUpdate(t.botId, body)
+                                } catch (cancel: CancellationException) {
+                                    throw cancel
+                                } catch (_: Exception) {
+                                }
+                            }
                         }
                     }
                 }

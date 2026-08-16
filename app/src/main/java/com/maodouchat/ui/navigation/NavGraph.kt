@@ -470,7 +470,11 @@ fun MaodouchatNavGraph(
                 onOpenItem = onOpenItem@{ item ->
                     // 已登出/会话失效时点击通知：先回登录页，避免进入无有效会话的空会话页（正确性 + 防异常）
                     if (com.maodouchat.network.TokenManager.getInstance(context).getToken().isNullOrBlank()) {
-                        navController.navigate(Routes.LOGIN)
+                        // 8.49：与 401 路径对齐清栈——否则 LOGIN 压在通知中心之上，
+                        // 返回键回到死会话页面，重复点击堆叠多个 LOGIN entry
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(0) { inclusive = true }
+                        }
                         return@onOpenItem
                     }
                     when {
@@ -1115,6 +1119,12 @@ private fun IncomingCallObserver(navController: NavHostController) {
                     val signalingCallId = event.callId.ifBlank { stillPending?.callId.orEmpty() }
                     // Clear coordinator so IncomingCallRoute pops and a later offer can ring.
                     IncomingCallCoordinator.clear()
+                    // 8.49 修复：振铃超时同步销毁 Telecom Connection——此前唯一销毁入口是
+                    // CallViewModel.endCall，锁屏/后台来电 Activity 被回收时 VM 不在，
+                    // 系统通话 UI 无限期 RINGING（35s 自毁兜底之外的即刻路径）
+                    if (signalingCallId.isNotBlank()) {
+                        com.maodouchat.telecom.MaodouchatConnectionService.finishConnection(signalingCallId)
+                    }
                     // If CallViewModel is still RINGING for this call, end without re-notifying
                     // peer (local timeout already implies no answer; VM timeout may race).
                     if (signalingCallId.isNotBlank()) {

@@ -85,7 +85,7 @@ object AiConversationProfile {
         }
         val profile = ConversationProfile(chatId = chatId, local = stats, narrative = narrative)
         withContext(Dispatchers.IO) {
-            AiProfileRepository(context).saveProfile(
+            AiProfileRepository.getInstance(context).saveProfile(
                 chatId = chatId,
                 statsJson = json.encodeToString(LocalStats.serializer(), stats),
                 narrative = narrative
@@ -96,7 +96,7 @@ object AiConversationProfile {
 
     /** 读取上次画像缓存（仅本地，不发请求）。 */
     suspend fun cached(context: Context, database: AppDatabase, chatId: String): ConversationProfile? {
-        val repository = AiProfileRepository(context)
+        val repository = AiProfileRepository.getInstance(context)
         val row = withContext(Dispatchers.IO) { repository.getProfile(chatId) } ?: return null
         val stats = runCatching {
             json.decodeFromString(LocalStats.serializer(), row.statsJson)

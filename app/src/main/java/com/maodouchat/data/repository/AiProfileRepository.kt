@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit
  * - 端侧 embedding 不落库（OnDeviceEmbeddingGate.isImplementationAllowed=false），
  *   本库只存文本统计与结果，不存向量/权重。
  */
-class AiProfileRepository(private val context: Context) {
+class AiProfileRepository private constructor(private val context: Context) {
 
     private val mutex = Mutex()
     @Volatile private var db: SQLiteDatabase? = null
@@ -57,8 +57,21 @@ class AiProfileRepository(private val context: Context) {
 
     private fun openDatabase(): SQLiteDatabase {
         val appContext = context.applicationContext
+        return try {
+            openAndInitDatabase(appContext)
+        } catch (error: Exception) {
+            // 8.49 修复：主库口令在登出/换号时销毁并重新生成，而本库沿用旧口令加密，
+            // 重登后首个建表语句即抛 "file is not a database"。内容均为可重建的缓存，
+            // 删库自愈比让 AI 画像/分类/周报永久失败直至清数据更安全。
+            Log.w(TAG, "ai_enhance.db unreadable; recreating", error)
+            deleteDatabaseFiles(appContext)
+            openAndInitDatabase(appContext)
+        }
+    }
+
+    private fun openAndInitDatabase(appContext: Context): SQLiteDatabase {
         val passphrase = DatabasePassphraseProvider.getPassphrase(appContext)
-        val file = File(appContext.getDatabasePath("ai_enhance.db").absolutePath)
+        val file = File(appContext.getDatabasePath(DB_NAME).absolutePath)
         file.parentFile?.mkdirs()
         val database = SQLiteDatabase.openOrCreateDatabase(file.absolutePath, passphrase, null)
         database.execSQL(
@@ -118,6 +131,53 @@ class AiProfileRepository(private val context: Context) {
     fun close() {
         runCatching { db?.close() }
         db = null
+    }
+
+    companion object {
+        private const val TAG = "AiProfileRepository"
+        private const val DB_NAME = "ai_enhance.db"
+        private const val MAX_JSON_LEN = 8_000
+        private const val MAX_NARRATIVE_LEN = 6_000
+        private const val MAX_REPORT_LEN = 20_000
+
+        @Volatile
+        private var INSTANCE: AiProfileRepository? = null
+
+        /**
+         * 进程级单例：此前每个调用点临时 new 实例且从不 close，SQLCipher 连接句柄
+         * 泄漏至 GC；统一句柄也保证登出清理能关闭唯一在用的连接。
+         */
+        fun getInstance(context: Context): AiProfileRepository =
+            INSTANCE ?: synchronized(this) {
+                INSTANCE ?: AiProfileRepository(context.applicationContext).also { INSTANCE = it }
+            }
+
+        /**
+         * 登出/换号/401 清会话时由 SecureSessionManager 调用：
+         * 关闭在用句柄并删除 ai_enhance.db 全部文件（含 -journal/-shm/-wal）。
+         * 8.49 修复：本库此前游离于账号清理链路外，上一账号画像残留磁盘，
+         * 且重登后口令轮换导致本库永久无法打开。
+         */
+        suspend fun purge(context: Context) {
+            val instance = INSTANCE
+            if (instance != null) {
+                instance.mutex.withLock {
+                    runCatching { instance.db?.close() }
+                    instance.db = null
+                }
+            }
+            synchronized(this) {
+                INSTANCE = null
+            }
+            deleteDatabaseFiles(context.applicationContext)
+        }
+
+        private fun deleteDatabaseFiles(appContext: Context) {
+            val dbFile = appContext.getDatabasePath(DB_NAME)
+            listOf("", "-journal", "-shm", "-wal").forEach { suffix ->
+                runCatching { dbFile.resolveSibling(dbFile.name + suffix).delete() }
+            }
+        }
     }
 
     // ── 会话画像 ──────────────────────────────────────────────
@@ -286,12 +346,6 @@ class AiProfileRepository(private val context: Context) {
     data class ArchiveRow(val chatId: String, val score: Int, val reason: String, val suggestedAt: Long)
     data class WeeklyReportRow(val chatId: String, val weekStart: Long, val weekEnd: Long, val report: String, val model: String?, val createdAt: Long)
     data class CategoryCount(val category: String, val count: Int, val confidence: Double)
-
-    private companion object {
-        const val MAX_JSON_LEN = 8_000
-        const val MAX_NARRATIVE_LEN = 6_000
-        const val MAX_REPORT_LEN = 20_000
-    }
 }
 
 /**

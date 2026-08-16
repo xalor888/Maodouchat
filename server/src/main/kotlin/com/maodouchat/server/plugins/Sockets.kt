@@ -560,8 +560,10 @@ private suspend fun WebSocketSession.handleWsMessage(
             if (userRepo.isBlockedEitherWay(senderId, message.senderId)) {
                 return
             }
-            val previousStatus = message.status
-            if (!messageRepo.updateStatus(payload.messageId, payload.status, readerId = senderId)) {
+            // 8.49 修复：旧状态改为行锁内读取的权威值——旧实现在独立事务先读再判断，
+            // 同一读者多设备并发回执双双读到旧值、重复推送 MESSAGE_STATUS
+            val previousStatus = messageRepo.updateStatusWithPrevious(payload.messageId, payload.status, readerId = senderId)
+            if (previousStatus == null) {
                 sendError("无权更新该消息状态", json)
                 return
             }

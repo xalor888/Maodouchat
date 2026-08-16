@@ -211,12 +211,19 @@ class ConversationWidgetProvider : AppWidgetProvider() {
                     // 系统重复投递：静默丢弃
                     return@launch
                 }
-                ConversationQuickReplySender.sendQuickReply(
-                    app = app,
-                    chatId = chatId,
-                    text = text,
-                    ownerUserId = ownerUserId,
-                )
+                // 8.49 修复：去重键改为发送成功后记录（此前发送前记账，真实失败后的
+                // 5 秒重试被误判为重复而静默丢弃）；失败时给出提示而非无声无息
+                if (ConversationQuickReplySender.sendQuickReply(
+                        app = app,
+                        chatId = chatId,
+                        text = text,
+                        ownerUserId = ownerUserId,
+                    )
+                ) {
+                    QuickReplyPolicy.rememberSent(app, ownerUserId, chatId, text)
+                } else {
+                    toast(app, com.maodouchat.R.string.quick_reply_rejected)
+                }
                 ConversationWidgetData.refreshAll(app)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e

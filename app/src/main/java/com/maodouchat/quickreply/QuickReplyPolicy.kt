@@ -100,6 +100,8 @@ object QuickReplyPolicy {
     // ---- 去重 ----
     /**
      * 同账号同会话同文本在 [DEDUPE_WINDOW_MS] 内只允许发送一次（防止系统重复投递 RemoteInput）。
+     * 8.49 修复：纯检查不记账——发送成功后由调用方 [rememberSent] 记键。此前发送前就记键，
+     * 发送路径异常时用户 5 秒内的显式重试被误判为系统重复投递而静默丢弃。
      * @return true 表示应丢弃本次（重复）
      */
     fun shouldSuppressDuplicate(context: Context, ownerUserId: String, chatId: String, text: String): Boolean {
@@ -107,9 +109,7 @@ object QuickReplyPolicy {
         val prefs = prefs(context)
         val now = SystemClock.elapsedRealtime()
         val last = prefs.getLong(KEY_DEDUPE_PREFIX + key, 0L)
-        if (now - last < DEDUPE_WINDOW_MS) return true
-        rememberSent(context, key, now)
-        return false
+        return now - last < DEDUPE_WINDOW_MS
     }
 
     fun rememberSent(context: Context, ownerUserId: String, chatId: String, text: String) {

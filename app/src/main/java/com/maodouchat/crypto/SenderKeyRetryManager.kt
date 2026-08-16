@@ -62,6 +62,22 @@ class SenderKeyRetryManager(
         if (chatId.isBlank()) return
         val ownerUserId = tokenManager.getUserId().orEmpty()
         if (ownerUserId.isBlank() || !sessionActive(ownerUserId)) return
+        // 8.49 修复：读-改-写整段纳入互斥——UI 手动重发路径的 enqueue 与 60s 循环/Worker 的
+        // markFailure 并发时，过期 existing 快照的整行 REPLACE 会回退 attempts 退避预算
+        processMutex.withLock {
+            enqueueLocked(ownerUserId, chatId, epoch, reason, delayMs)
+        }
+        refreshBackgroundSchedule(ownerUserId)
+    }
+
+    /** 调用方必须已持有 processMutex（ensureCoverageNow 锁内失败路径直接复用，避免重入死锁）。 */
+    private suspend fun enqueueLocked(
+        ownerUserId: String,
+        chatId: String,
+        epoch: Long,
+        reason: String,
+        delayMs: Long
+    ) {
         val now = System.currentTimeMillis()
         val existing = retryDao.get(ownerUserId, chatId)
         // 8.41：同 epoch 重入不得把退避时间拉回 30s——覆盖问题持续期间每次发送都调 enqueue，
@@ -70,7 +86,7 @@ class SenderKeyRetryManager(
         val nextAttemptAt = if (freshEpoch) {
             now + delayMs
         } else {
-            // 8.49：existing 在 freshEpoch=false 时必非空（同 epoch），消除冗余 !!
+            // existing 在 freshEpoch=false 时必非空（同 epoch），消除冗余 !!
             maxOf(existing.nextAttemptAt, now + delayMs)
         }
         retryDao.upsert(
@@ -85,7 +101,6 @@ class SenderKeyRetryManager(
                 updatedAt = now
             )
         )
-        refreshBackgroundSchedule(ownerUserId)
     }
 
     suspend fun processDueTasks(limit: Int = 5) {
@@ -291,12 +306,14 @@ class SenderKeyRetryManager(
                     // 8.37：网络瞬态失败（超时/断网）不得销毁群 SenderKey 或清空 READY 附件 wire——
                     // 其他设备已按旧 SKDM 加密的密文会在 key 轮换后无法解密；只入队退避重试。
                     // 8.41：以 TransientCoverageException 抛出，使发送路径保持 SENDING 待 flusher 重试
-                    enqueue(chatId, expectedEpoch, "coverage_send_network_failed:${error.message.orEmpty()}")
+                    enqueueLocked(userId, chatId, expectedEpoch, "coverage_send_network_failed:${error.message.orEmpty()}", INITIAL_DELAY_MS)
+                    refreshBackgroundSchedule(userId)
                     return@withLock Result.failure(TransientCoverageException("sender key coverage transient failure", error))
                 }
                 signalProtocol.invalidateGroupSenderKey(chatId)
                 clearAttachmentWireForChat(chatId)
-                enqueue(chatId, expectedEpoch, "coverage_send_failed:${error.message.orEmpty()}")
+                enqueueLocked(userId, chatId, expectedEpoch, "coverage_send_failed:${error.message.orEmpty()}", INITIAL_DELAY_MS)
+                refreshBackgroundSchedule(userId)
                 Result.failure(error)
             }
         }

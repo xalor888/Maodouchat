@@ -71,7 +71,7 @@ class UserRepository {
     fun register(name: String, email: String, password: String): UserResponse? {
         val normalizedEmail = email.normalizedEmail()
         val safeName = name.trim().take(MAX_NAME_LENGTH)
-        return try {
+        val registerTx = {
             transaction {
                 if (!Users.selectAll().where { Users.email eq normalizedEmail }.empty()) return@transaction null
 
@@ -92,13 +92,20 @@ class UserRepository {
                     it[isModerator] = normalizedEmail in ServerConfig.moderatorEmails
                 }
                 // 一次性引导：BOOTSTRAP_FIRST_USER_AS_ADMIN=true 时第一个注册账号自动成为
-                // 主管理员（在事务内计数，配合唯一约束保证并发下只有一个"第一个"用户）。
+                // 主管理员（调用方在 registrationLock 内串行执行，见 companion 注释）。
                 if (ServerConfig.bootstrapFirstUserAsAdmin &&
                     Users.selectAll().where { Users.id neq id }.empty()
                 ) {
                     com.maodouchat.server.config.AdminAccess.grantAdmin(id)
                 }
                 UserResponse(id, safeName, normalizedEmail, status = "在线", isModerator = normalizedEmail in ServerConfig.moderatorEmails)
+            }
+        }
+        return try {
+            if (ServerConfig.bootstrapFirstUserAsAdmin) {
+                synchronized(registrationLock) { registerTx() }
+            } else {
+                registerTx()
             }
         } catch (error: Exception) {
             if (isUniqueViolation(error)) null else throw error
@@ -1180,6 +1187,14 @@ class UserRepository {
         private const val DELETED_USER_NAME = "已注销用户"
         private val secureRandom = SecureRandom()
         val ALLOWED_POST_VISIBILITIES = setOf("PUBLIC", "CONTACTS", "PRIVATE")
+
+        /**
+         * 8.49 修复 BOOTSTRAP_FIRST_USER_AS_ADMIN 并发竞态：READ COMMITTED 下两个并发
+         * 注册事务互看不到对方未提交的插入，双双判定自己是"第一个用户"→双主管理员。
+         * 单实例部署（compose 固定单 server）下用进程锁把整个注册事务串行化：
+         * 先提交者成为唯一"第一个"，后到者在锁内能看到已提交行。注册本身低频，锁开销可忽略。
+         */
+        private val registrationLock = Any()
     }
 }
 

@@ -898,6 +898,12 @@ class ChatDetailViewModel(
         _uiState
             .onEach { state ->
                 if (state.chat == null) return@onEach
+                // 8.49 修复：仅当本会话是全局当前活跃会话（前台可见）时才自动置已读——
+                // A→B 堆叠时旧 VM 仍在收集 state、退后台时 Activity 未销毁，旧实现会把
+                // 后台新到消息标 READ 并向服务端回报，对端看到假“已读”且列表角标被清零。
+                // MainActivity.onStop 会清空 activeChatId，ChatDetailScreen 可见时重设。
+                val thisChatId = activeChatId.ifBlank { chatId }
+                if (com.maodouchat.MaodouchatApp.activeChatId != thisChatId) return@onEach
                 val currentIds = state.messages.map { it.id to it.status }
                 if (currentIds == lastMessagesSeen) return@onEach
                 lastMessagesSeen = currentIds
@@ -1860,8 +1866,9 @@ class ChatDetailViewModel(
             append(targetUserId)
             append("]")
         }
-        _uiState.update { it.copy(inputText = cardContent) }
-        sendMessage()
+        // 8.49 修复：改走 forceText——写入 inputText 再 sendMessage() 会把用户未发送的
+        // 持久化草稿一并清除（sendMessage 清空输入框并 clearDraft），造成数据丢失
+        sendMessage(forceText = cardContent)
     }
 
     /** 1.156：会话详情内标记未读/已读（乐观更新 + 失败回滚）。 */
@@ -5372,15 +5379,20 @@ class ChatDetailViewModel(
                             // 0.67：转发来源标记（密聊转发不记录来源名，仅置「已转发」标记以保护隐私）
                             val sourceName = if (_uiState.value.isSecretChat == true) null
                                 else _uiState.value.chat?.participants?.firstOrNull { it.id == message.senderId }?.name
+                            // 8.49 修复：meta 一律取 parsedMeta()（DB/WS round-trip 后瞬态字段恒空，
+                            // 旧写法会错误覆盖转发链）；来源随 content 经统一 <meta> 编码持久化，
+                            // 此前只写瞬态 meta 字段，重启后「转发自 X」丢失
+                            val forwardMeta = message.parsedMeta()
+                                .copy(forwardedFrom = message.parsedMeta().forwardedFrom ?: sourceName)
                             val local = Message(
                                 id = msgId,
                                 chatId = targetChat.id,
                                 senderId = currentUserId,
-                                content = plainContent,
+                                content = com.maodouchat.util.JsonFormat.composeContentWithMeta(plainContent, forwardMeta),
                                 type = message.type,
                                 timestamp = timestamp,
                                 status = MessageStatus.SENDING,
-                                meta = message.meta.copy(forwardedFrom = message.meta.forwardedFrom ?: sourceName)
+                                meta = forwardMeta
                             )
                             messageRepo.insertMessage(local)
                             indexSearchableMessage(local)
@@ -6090,8 +6102,8 @@ class ChatDetailViewModel(
             .ifEmpty { listOf("A", "B", "C") }
         val winner = members.random()
         val content = com.maodouchat.util.GroupPlayPolicy.formatLottery(members, winner, label)
-        _uiState.update { it.copy(inputText = content) }
-        sendMessage()
+        // 8.49：forceText 不扰动用户草稿（见 sendContactCard 注释）
+        sendMessage(forceText = content)
     }
 
     fun sendHotSeat() {
@@ -6103,8 +6115,8 @@ class ChatDetailViewModel(
             .filter { it.isNotBlank() }
             .randomOrNull() ?: "someone"
         val content = com.maodouchat.util.GroupPlayPolicy.formatHotSeat(target, label)
-        _uiState.update { it.copy(inputText = content) }
-        sendMessage()
+        // 8.49：forceText 不扰动用户草稿（见 sendContactCard 注释）
+        sendMessage(forceText = content)
     }
 
 fun sendSpinWheel() {
@@ -6114,8 +6126,8 @@ fun sendSpinWheel() {
             com.maodouchat.util.GroupPlayPolicy.spinWheel(),
             label
         )
-        _uiState.update { it.copy(inputText = content) }
-        sendMessage()
+        // 8.49：forceText 不扰动用户草稿（见 sendContactCard 注释）
+        sendMessage(forceText = content)
     }
 
     fun sendStoryChain() {
@@ -6125,16 +6137,16 @@ fun sendSpinWheel() {
             "Once upon a time, someone typed a message that changed everything...",
             label
         )
-        _uiState.update { it.copy(inputText = content) }
-        sendMessage()
+        // 8.49：forceText 不扰动用户草稿（见 sendContactCard 注释）
+        sendMessage(forceText = content)
     }
 
     fun sendGroupCountdown(seconds: Int = 30) {
         if (!requireGroupPlay()) return
         val label = tokenManager.getUserId()?.take(8) ?: "me"
         val content = com.maodouchat.util.GroupPlayPolicy.formatCountdown(seconds, label)
-        _uiState.update { it.copy(inputText = content) }
-        sendMessage()
+        // 8.49：forceText 不扰动用户草稿（见 sendContactCard 注释）
+        sendMessage(forceText = content)
     }
 
 fun inviteFirstOwnedBot() {
@@ -6872,31 +6884,9 @@ fun sendCurrentLocation() {
         return msgId
     }
 
-    internal fun composeContentWithMeta(text: String, meta: com.maodouchat.data.model.MessageMeta): String {
-        if (
-            meta.mentions.isEmpty() &&
-            meta.replyToId == null &&
-            meta.voiceTranscript.isNullOrBlank() &&
-            meta.voiceDurationMs == null &&
-            meta.translations.isEmpty() &&
-            meta.aiImageAnalyses.isEmpty() &&
-            meta.aiFileAnalyses.isEmpty() &&
-            meta.aiFileLastQuestion.isNullOrBlank() &&
-            !meta.aiAssisted &&
-            meta.fileName.isNullOrBlank() &&
-            meta.fileMimeType.isNullOrBlank() &&
-            meta.fileSizeBytes == null &&
-            meta.attachmentId == null &&
-            !meta.markdown &&
-            !meta.viewOnce &&
-            !meta.viewOnceOpened &&
-            !meta.silent &&
-            !meta.spoilerMedia &&
-            !meta.spoilerRevealed
-        ) return text
-        val json = com.maodouchat.util.JsonFormat.encodeMessageMeta(meta)
-        return text + com.maodouchat.data.model.Message.META_TAG_PREFIX + json + "</meta>"
-    }
+    internal fun composeContentWithMeta(text: String, meta: com.maodouchat.data.model.MessageMeta): String =
+        // 9.144：委托 JsonFormat 权威实现——本地手写清单漏字段（forwardedFrom 等）曾被静默丢弃
+        com.maodouchat.util.JsonFormat.composeContentWithMeta(text, meta)
 
     /** 群通话入口：把当前群除自己外的成员挨个邀请 */
     fun startGroupCallFromChat(
@@ -6941,9 +6931,15 @@ fun sendCurrentLocation() {
         fixedMessageId: String? = null,
         existingMessage: Message? = null,
         voiceDurationMs: Long? = existingMessage?.parsedMeta()?.voiceDurationMs,
-        viewOnce: Boolean = existingMessage?.meta?.viewOnce == true,
-        spoilerMedia: Boolean = existingMessage?.meta?.spoilerMedia == true
+        // 8.49 修复：改读 parsedMeta()——DB round-trip 后瞬态 meta 字段恒为默认值，
+        // 旧写法让阅后即焚/剧透遮罩媒体在重发后失去一次性查看保护
+        viewOnce: Boolean = existingMessage?.parsedMeta()?.viewOnce == true,
+        spoilerMedia: Boolean = existingMessage?.parsedMeta()?.spoilerMedia == true
     ) {
+        // 8.49 修复：附件路径补双击防重（9.146 只给 sendMessage/sendGroupTextMessage 加过）——
+        // 连点生成不同 messageId，服务端按 requestedId 去重拦不住，同一文件并发上传两次。
+        // fixedMessageId 路径（重发复用原 id）不受影响。
+        if (_uiState.value.isSending && fixedMessageId == null) return
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MEDIA_UPLOAD)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.media_upload_disabled)) }
             return
@@ -9202,11 +9198,14 @@ fun sendCurrentLocation() {
         val draftOwnerUserId = tokenManager.getUserId().orEmpty()
         val draftChatId = activeChatId
         val draftText = _uiState.value.inputText
+        // 8.49 修复：与 scheduleDraftPersistence/clearDraft/restoreDraft 一致检查 CHAT_DRAFTS
+        // 运行时开关——管理员关闭草稿功能后，残余输入不应被持久化为明文草稿
+        val draftsFeatureEnabled = RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_DRAFTS)
         // 捕获 chatDraftDao 到局部变量，避免 lambda 闭包捕获 this（ViewModel），
         // 从而防止 ViewModel 被 applicationScope 中的挂起引用阻止 GC 回收。
         val draftDao = chatDraftDao
         val tokenMgr = tokenManager
-        if (draftOwnerUserId.isNotBlank() && draftChatId.isNotBlank()) {
+        if (draftsFeatureEnabled && draftOwnerUserId.isNotBlank() && draftChatId.isNotBlank()) {
             com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
                 withContext(NonCancellable) {
                     // Soft-purge/logout may destroy Room or switch owner before this runs.

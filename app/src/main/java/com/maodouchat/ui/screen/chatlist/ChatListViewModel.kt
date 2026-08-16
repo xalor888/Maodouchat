@@ -369,7 +369,9 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         }
         // 1.54：底部导航未读角标——汇总未读数推送到 UnreadBadgeStore
         viewModelScope.launch {
-            _uiState.map { state -> state.chats.sumOf { it.unreadCount } }
+            // 8.49 修复：与 unreadChatCount/文件夹角标口径统一，排除已归档会话——
+            // 否则归档会话来消息时 Tab 角标上涨，默认列表却看不到对应未读
+            _uiState.map { state -> state.chats.filter { !it.archived }.sumOf { it.unreadCount } }
                 .distinctUntilChanged()
                 .collect { com.maodouchat.ui.screen.chatlist.UnreadBadgeStore.totalUnread.value = it }
         }
@@ -1815,9 +1817,11 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     android.util.Log.w("ChatListViewModel", "deleteChat failed: " + (error?.message ?: "unknown"))
                     deletedChatIds.remove(chatId)
                     if (previous != null) {
-                        // 回滚去重：若 WS/刷新已把会话加回列表则不再重复插入
+                        // 回滚去重：若 WS/刷新已把会话加回列表则不再重复插入。
+                        // 8.49 修复：按置顶/活跃度重排插入——此前无条件插到第 0 位，
+                        // 会把置顶会话压下去、破坏列表排序直到下次 loadChats
                         _uiState.update { st ->
-                            if (st.chats.none { it.id == chatId }) st.copy(chats = listOf(previous) + st.chats) else st
+                            if (st.chats.none { it.id == chatId }) st.copy(chats = restoreChatSorted(st.chats, previous)) else st
                         }
                     }
                     if (requiresGroupOwnershipTransfer(error)) {
@@ -1866,7 +1870,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     ) &&
                     _uiState.value.chats.none { it.id == chatId }
                 ) {
-                    _uiState.update { st -> st.copy(chats = listOf(previous) + st.chats) }
+                    _uiState.update { st -> st.copy(chats = restoreChatSorted(st.chats, previous)) }
                 }
                 throw error
             }
@@ -1882,6 +1886,14 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             }
         }
     }
+
+    /** 8.49：删除失败回滚时按置顶/最近活跃把会话插回列表（filteredChats 主排序的简化版，最终由下次 loadChats 收敛）。 */
+    private fun restoreChatSorted(existing: List<Chat>, chat: Chat): List<Chat> =
+        (existing + chat).sortedWith(
+            compareByDescending<Chat> { it.pinnedAt > 0 }
+                .thenByDescending { it.pinnedAt }
+                .thenByDescending { it.lastMessageTime }
+        )
 
     private suspend fun cleanupLocalChat(chatId: String, ownerUserId: String) {
         // 先记录消息 ID；删除 SQLCipher 行后将无法定位对应的解密媒体缓存。
@@ -3092,7 +3104,9 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                         liveUserId = tokenManager.getUserId(),
                                     )
                                 ) return@withContext
-                                chatRepo.cacheChats(chats)
+                                // 8.49 修复：写库与 UI 一律使用 filteredChats——此前用未过滤的 chats，
+                                // 刚被 stale 清理删掉的本地行又被插回 Room，幽灵会话+角标复活
+                                chatRepo.cacheChats(filteredChats)
                             } catch (cleanupError: kotlinx.coroutines.CancellationException) {
                                 throw cleanupError
                             } catch (cleanupError: Exception) {
@@ -3106,7 +3120,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                 )
                             ) return@withContext
                             // cacheChats 合并本地备注后，从 Room 回读标题用 displayName
-                            val nickMerged = chats.map { c ->
+                            val nickMerged = filteredChats.map { c ->
                                 chatRepo.getChatById(c.id) ?: c
                             }
                             if (requestId != loadChatsRequestId ||

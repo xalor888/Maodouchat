@@ -7,8 +7,10 @@
 {$PUBLIC_HOST} {
     encode zstd gzip
 
+    # 8.48 修复：上限须与 server 的 MAX_ATTACHMENT_BYTES 匹配（附件为 base64 载荷，约 4/3 膨胀）。
+    # 默认 140MB 覆盖默认 100MB 附件上限；两个变量请在 .env 中一起调整
     request_body {
-        max_size 10MB
+        max_size {$MAX_BODY_BYTES:146800640}
     }
 
     reverse_proxy server:8080 {

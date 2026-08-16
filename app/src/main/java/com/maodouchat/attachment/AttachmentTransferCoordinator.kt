@@ -83,7 +83,13 @@ object AttachmentTransferCoordinator {
             return false
         }
         AttachmentTransferScheduler.cancel(context, messageId, ownerUserId)
-        if (deleteServerObject && !deleteServerObject(context, transfer)) return false
+        // 8.49 修复：服务端对象删除降级为 best-effort——失败（会话失效/网络）不再中断本地清理。
+        // 服务端未提交对象有 24h TTL 兜底；此前 return false 会把密文/源文件与 DB 行全部留下，
+        // 且孤儿 GC 因行存在而保护它们，登出后账号数据残留磁盘。
+        if (deleteServerObject) {
+            runCatching { deleteServerObject(context, transfer) }
+                .onFailure { android.util.Log.w("AttachmentTransferCoordinator", "server object delete failed for $messageId", it) }
+        }
         if (!isCurrentOwner(context, ownerUserId)) return false
         deletePrivateUploadFile(context, transfer.encryptedPath)
         MediaCache.deletePreparedAttachmentSource(context, transfer.sourceUri)
@@ -147,8 +153,10 @@ object AttachmentTransferCoordinator {
             if (!isCurrentOwner(context, ownerUserId)) return
             AttachmentTransferScheduler.cancel(context, transfer.messageId, ownerUserId)
             if (transfer.state != "SENDING") {
-                // SENDING（finalize 在途）不删服务端对象，防止消息引用已删附件（见 cancelForChat）
-                if (!deleteServerObject(context, transfer)) return
+                // SENDING（finalize 在途）不删服务端对象，防止消息引用已删附件（见 cancelForChat）。
+                // 8.49 修复：服务端删除失败不再 return 中断剩余条目——best-effort + 24h TTL 兜底
+                runCatching { deleteServerObject(context, transfer) }
+                    .onFailure { android.util.Log.w("AttachmentTransferCoordinator", "server object delete failed for ${transfer.messageId}", it) }
             }
             deletePrivateUploadFile(context, transfer.encryptedPath)
             MediaCache.deletePreparedAttachmentSource(context, transfer.sourceUri)

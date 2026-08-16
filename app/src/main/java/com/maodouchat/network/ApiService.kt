@@ -96,7 +96,9 @@ object ApiService {
      */
     data class TokenExpiredEvent(val ownerUserId: String)
 
-    private val _tokenExpired = MutableSharedFlow<TokenExpiredEvent>(extraBufferCapacity = 1)
+    // 8.49：replay=1——NavGraph 收集器随 Activity 重建（旋转/深色切换）时无收集器窗口内
+    // tryEmit 的 401 事件会被直接丢弃，用户停留在已失效会话直到下一次 401
+    private val _tokenExpired = MutableSharedFlow<TokenExpiredEvent>(replay = 1, extraBufferCapacity = 1)
     val tokenExpired: SharedFlow<TokenExpiredEvent> = _tokenExpired.asSharedFlow()
 
     /**

@@ -192,6 +192,9 @@ class GroupDetailViewModel(
     private val currentUserId: String get() = tokenManager.getUserId().orEmpty()
     private val autoRedistributionAttemptedEpochs = mutableSetOf<Long>()
 
+    /** 8.49：群审计分页游标——服务端已返回的原始条数（offset 语义），与本地去重后的列表长度解耦。 */
+    private var auditNextOffset: Int = 0
+
     private fun text(id: Int, vararg args: Any): String =
         getApplication<Application>().getString(id, *args)
 
@@ -361,6 +364,8 @@ class GroupDetailViewModel(
                         // 8.39：显式传 limit=100（服务端上限）——此前不传走默认 50，
                         // UI「展开更多」阈值 80 永不触发，审计历史被静默截断
                         val auditLogs = ApiService.getGroupAudit(liveToken, chatId, limit = 100).getOrDefault(emptyList())
+                        // 8.49：记录服务端已返回的原始条数（见 loadMoreAuditLogs 注释）
+                        auditNextOffset = auditLogs.size
                         val memberIds = members.map { it.userId }.toSet()
                         val candidates = ApiService.getAllSearchableUsers(liveToken).getOrDefault(emptyList())
                             .filter { it.id !in memberIds && it.id != loadOwnerUserId }
@@ -475,8 +480,12 @@ class GroupDetailViewModel(
                     return@launch
                 }
                 val liveToken = tokenManager.getToken().orEmpty().ifBlank { auditToken }
-                val offset = _uiState.value.auditLogs.size
+                // 8.49 修复：offset 用「服务端已返回的总条数」推进，而非本地列表长度——
+                // distinctBy 去重会把列表压短，旧算法使下一页 offset 偏小/偏大交替，
+                // 中段审计记录可能被永久跳过
+                val offset = auditNextOffset
                 val page = ApiService.getGroupAudit(liveToken, chatId, limit = 100, offset = offset).getOrNull().orEmpty()
+                auditNextOffset = offset + page.size
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = auditOwnerUserId,
                         liveToken = tokenManager.getToken(),

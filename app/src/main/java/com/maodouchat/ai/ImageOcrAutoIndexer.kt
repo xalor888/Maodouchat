@@ -221,32 +221,9 @@ class ImageOcrAutoIndexer(
         }.getOrNull()
     }
 
-    /** 与 ChatDetailViewModel.composeContentWithMeta 等价的编码逻辑。 */
-    private fun composeContentWithMeta(text: String, meta: com.maodouchat.data.model.MessageMeta): String {
-        if (
-            meta.mentions.isEmpty() &&
-            meta.replyToId == null &&
-            meta.voiceTranscript.isNullOrBlank() &&
-            meta.voiceDurationMs == null &&
-            meta.translations.isEmpty() &&
-            meta.aiImageAnalyses.isEmpty() &&
-            meta.aiFileAnalyses.isEmpty() &&
-            meta.aiFileLastQuestion.isNullOrBlank() &&
-            !meta.aiAssisted &&
-            meta.fileName.isNullOrBlank() &&
-            meta.fileMimeType.isNullOrBlank() &&
-            meta.fileSizeBytes == null &&
-            meta.attachmentId == null &&
-            !meta.markdown &&
-            !meta.viewOnce &&
-            !meta.viewOnceOpened &&
-            !meta.silent &&
-            !meta.spoilerMedia &&
-            !meta.spoilerRevealed
-        ) return text
-        val json = com.maodouchat.util.JsonFormat.encodeMessageMeta(meta)
-        return text + com.maodouchat.data.model.Message.META_TAG_PREFIX + json + "</meta>"
-    }
+    /** 与 ChatDetailViewModel.composeContentWithMeta 等价：统一委托 JsonFormat 权威实现（9.144）。 */
+    private fun composeContentWithMeta(text: String, meta: com.maodouchat.data.model.MessageMeta): String =
+        com.maodouchat.util.JsonFormat.composeContentWithMeta(text, meta)
 
     private companion object {
         const val OCR_MODE = "ocr"

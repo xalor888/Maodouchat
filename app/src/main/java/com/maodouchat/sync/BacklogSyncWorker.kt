@@ -80,63 +80,10 @@ class BacklogSyncWorker(
                 // 8.46 修复：runCatching 吞掉 CancellationException——WorkManager 停止 worker
                 // 时协程取消被吞，循环继续处理其余会话，且把"没同步成功"的会话记了尝试时刻
                 // （节流窗被错误占用）。改 try/catch 并对 CancellationException 重抛。
-                val cursor = tokenManager.getSyncCursor(chat.id)
-                val result = ApiService.getMessagesSince(token, chat.id, cursor.timestampMs, limit = 100, sinceId = cursor.messageId)
-                if (result.isFailure) {
-                    perChatFailed = true
-                    syncFailed = true
-                    continue
-                }
-                // 9.136：网络往返后再过门禁——旧会话的响应不得写进新账号/清库中的 Room
-                if (!BackgroundSessionGate.mayContinue(ownerId, tokenManager.getToken(), tokenManager.getUserId())) {
-                    return Result.success()
-                }
-                val dtos = result.getOrThrow()
-                // 与 ChatDetailViewModel 相同字段映射（E2EE 密文原样落库，预览由 AppNotifier 统一脱敏）
-                val messages = dtos.sortedWith(compareBy<MessageDto> { it.timestamp }.thenBy { it.id })
-                    .map { dto ->
-                        Message(
-                            id = dto.id,
-                            chatId = dto.chatId,
-                            senderId = dto.senderId,
-                            content = dto.content,
-                            type = MessageType.fromWire(dto.type),
-                            timestamp = dto.timestamp,
-                            status = MessageStatus.fromWire(dto.status),
-                            editedAt = dto.editedAt,
-                            starred = dto.starred,
-                            reactions = dto.reactions,
-                            expiresAt = dto.expiresAt,
-                            sealedSender = dto.sealedSender
-                        )
-                    }
-                // 9.136：activeChatId 是进程级全局值（无账号归属），按迭代快照一次，
-                // 供未读抑制与通知抑制两处共用，避免跨账号会话状态污染本批决策
-                val activeChatId = MaodouchatApp.activeChatId
-                val newMessageIds = messages.mapNotNull { msg ->
-                    if (messageRepo.getMessageById(msg.id) == null) msg.id else null
-                }.toSet()
-                messageRepo.insertMessages(messages)
-                val incomingUnread = messages.count { msg ->
-                    msg.id in newMessageIds &&
-                        msg.senderId != ownerId &&
-                        msg.type !in setOf(MessageType.SK_DIST, MessageType.REVOKED) &&
-                        activeChatId != chat.id
-                }
-                if (incomingUnread > 0) {
-                    app.database.chatDao().incrementUnread(chat.id, incomingUnread)
-                }
-                // 8.48：空结果（游标已最新）不推进游标但仍标记尝试时刻
-                if (messages.isNotEmpty()) {
-                    val last = messages.maxWith(compareBy<Message> { it.timestamp }.thenBy { it.id })
-                    tokenManager.saveSyncCursor(chat.id, com.maodouchat.network.TokenManager.SyncCursor(timestampMs = last.timestamp, messageId = last.id))
-                    synced += messages.size
-                // 前台聊天列表若正在展示，立即从 Room 重算尾部预览/排序；
-                // 本地未读增量只作断线窗口兜底，服务端会话快照会覆盖校准。
-                    com.maodouchat.MaodouchatApp.emitChatListPreviewRefresh(chat.id)
-                }
-
-                // 补发通知：非活跃会话 + 未静音 + DND 不抑制（跳过 SK_DIST/REVOKED 控制消息）
+                // 8.49 修复：单页 100 条把收敛速率钳制在 100 条/15 分钟——消息速率高的群
+                // 持续落后。改为循环拉页直到取空或达到页数上限；游标逐页推进（中断安全，
+                // 下轮续拉），多页合并为一次托盘通知
+                var pageCursor = tokenManager.getSyncCursor(chat.id)
                 val muted = chat.notificationsMuted
                 val suppress = LocalSuppressPolicy.applies(app)
                 // 8.46：会话级免打扰时段——per-chat 静音窗内不弹通知
@@ -146,17 +93,94 @@ class BacklogSyncWorker(
                 )
                 // 1.02：会话临时静音至（静音期间不弹通知）
                 val silentUntilSuppress = com.maodouchat.notification.ChatQuietHoursStore.silentUntil(app, chat.id) > System.currentTimeMillis()
-                val visible = messages.any { it.type !in setOf(MessageType.SK_DIST, MessageType.REVOKED) }
-                if (visible && activeChatId != chat.id && !muted && !suppress && !quietHoursSuppress && !silentUntilSuppress) {
-                    val senderId = messages.lastOrNull()?.senderId.orEmpty()
-                    val senderName = app.database.userDao().getUserById(senderId)?.name
+                var shouldNotify = false
+                var notifySenderId = ""
+                var notifyMessageId = ""
+                var pages = 0
+                while (pages < MAX_SYNC_PAGES_PER_CHAT) {
+                    pages++
+                    val result = ApiService.getMessagesSince(token, chat.id, pageCursor.timestampMs, limit = SYNC_PAGE_SIZE, sinceId = pageCursor.messageId)
+                    if (result.isFailure) {
+                        perChatFailed = true
+                        syncFailed = true
+                        break
+                    }
+                    // 9.136：网络往返后再过门禁——旧会话的响应不得写进新账号/清库中的 Room
+                    if (!BackgroundSessionGate.mayContinue(ownerId, tokenManager.getToken(), tokenManager.getUserId())) {
+                        return Result.success()
+                    }
+                    val dtos = result.getOrThrow()
+                    // 与 ChatDetailViewModel 相同字段映射（E2EE 密文原样落库，预览由 AppNotifier 统一脱敏）
+                    val messages = dtos.sortedWith(compareBy<MessageDto> { it.timestamp }.thenBy { it.id })
+                        .map { dto ->
+                            Message(
+                                id = dto.id,
+                                chatId = dto.chatId,
+                                senderId = dto.senderId,
+                                content = dto.content,
+                                type = MessageType.fromWire(dto.type),
+                                timestamp = dto.timestamp,
+                                status = MessageStatus.fromWire(dto.status),
+                                editedAt = dto.editedAt,
+                                starred = dto.starred,
+                                reactions = dto.reactions,
+                                expiresAt = dto.expiresAt,
+                                sealedSender = dto.sealedSender
+                            )
+                        }
+                    if (messages.isEmpty()) break
+                    // 9.136：activeChatId 是进程级全局值（无账号归属），按迭代快照一次，
+                    // 供未读抑制与通知抑制两处共用，避免跨账号会话状态污染本批决策
+                    val activeChatId = MaodouchatApp.activeChatId
+                    val newMessageIds = messages.mapNotNull { msg ->
+                        if (messageRepo.getMessageById(msg.id) == null) msg.id else null
+                    }.toSet()
+                    messageRepo.insertMessages(messages)
+                    val incomingUnread = messages.count { msg ->
+                        msg.id in newMessageIds &&
+                            msg.senderId != ownerId &&
+                            msg.type !in setOf(MessageType.SK_DIST, MessageType.REVOKED) &&
+                            activeChatId != chat.id
+                    }
+                    if (incomingUnread > 0) {
+                        app.database.chatDao().incrementUnread(chat.id, incomingUnread)
+                    }
+                    val last = messages.maxWith(compareBy<Message> { it.timestamp }.thenBy { it.id })
+                    tokenManager.saveSyncCursor(chat.id, com.maodouchat.network.TokenManager.SyncCursor(timestampMs = last.timestamp, messageId = last.id))
+                    synced += messages.size
+                    // 前台聊天列表若正在展示，立即从 Room 重算尾部预览/排序；
+                    // 本地未读增量只作断线窗口兜底，服务端会话快照会覆盖校准。
+                    com.maodouchat.MaodouchatApp.emitChatListPreviewRefresh(chat.id)
+                    // 8.49 修复：通知与未读计数同门禁——必须是本批新到（newMessageIds）且非本人
+                    // 发送的消息才弹通知。旧条件只看类型，导致：① 前台 WS 已通知过的消息在
+                    // 游标推进前的下一轮被重复通知；② 多设备场景自己的消息也弹"新加密消息"
+                    messages.lastOrNull {
+                        it.id in newMessageIds &&
+                            it.senderId != ownerId &&
+                            it.type !in setOf(MessageType.SK_DIST, MessageType.REVOKED)
+                    }?.let { hit ->
+                        shouldNotify = true
+                        notifySenderId = hit.senderId
+                        notifyMessageId = last.id
+                    }
+                    if (messages.size < SYNC_PAGE_SIZE) break
+                    pageCursor = com.maodouchat.network.TokenManager.SyncCursor(timestampMs = last.timestamp, messageId = last.id)
+                }
+
+                // 补发通知：非活跃会话 + 未静音 + DND 不抑制（跳过 SK_DIST/REVOKED 控制消息）
+                if (
+                    shouldNotify &&
+                        MaodouchatApp.activeChatId != chat.id &&
+                        !muted && !suppress && !quietHoursSuppress && !silentUntilSuppress
+                ) {
+                    val senderName = app.database.userDao().getUserById(notifySenderId)?.name
                         ?: app.getString(com.maodouchat.R.string.app_name)
                     AppNotifier.showMessage(
                         context = app,
                         chatId = chat.id,
                         senderName = senderName,
                         preview = app.getString(com.maodouchat.R.string.notification_encrypted_message),
-                        messageId = messages.lastOrNull()?.id.orEmpty(),
+                        messageId = notifyMessageId,
                         soundEnabled = NotificationPreferences.soundEnabled(app) && chat.notificationsMuted != true,
                         expectedUserId = ownerId,
                         // 0.72：群聊走独立通知渠道（独立铃声）
@@ -210,6 +234,10 @@ class BacklogSyncWorker(
         private const val PERIOD_MINUTES = 15L
         /** 单会话最小同步间隔（10 分钟），避免周期任务与手动打开聊天重复拉取。 */
         private const val MIN_SYNC_INTERVAL_MS = 10L * 60L * 1_000L
+
+        /** 8.49：分页拉取——单页大小与页数上限（防极端积压一轮拉爆 worker 时限）。 */
+        private const val SYNC_PAGE_SIZE = 100
+        private const val MAX_SYNC_PAGES_PER_CHAT = 10
 
         /** 幂等注册周期任务（进程重启自动恢复；与 SecretSurfaceWatchdogWorker 同模式）。 */
         fun schedule(context: Context) {

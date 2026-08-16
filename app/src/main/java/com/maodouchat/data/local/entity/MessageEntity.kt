@@ -45,7 +45,10 @@ data class MessageEntity(
     val editedAt: Long? = null,
     val starred: Boolean = false,
     val reactionsJson: String = "[]",
-    val expiresAt: Long? = null
+    val expiresAt: Long? = null,
+    // 8.49 修复：sealed-sender 标志持久化——此前仅存于瞬态域字段，DB round-trip 后恒为
+    // false，断线重连从 outbox 重发的密封消息会以非密封方式发送（隐私降级）
+    val sealedSender: Boolean = false
 )
 
 fun MessageEntity.toDomain(): Message = Message(
@@ -59,7 +62,8 @@ fun MessageEntity.toDomain(): Message = Message(
     editedAt = editedAt,
     starred = starred,
     reactions = decodeReactions(reactionsJson),
-    expiresAt = expiresAt?.takeIf { it > 0L }
+    expiresAt = expiresAt?.takeIf { it > 0L },
+    sealedSender = sealedSender
 )
 
 fun Message.toEntity(): MessageEntity = MessageEntity(
@@ -73,7 +77,8 @@ fun Message.toEntity(): MessageEntity = MessageEntity(
     editedAt = editedAt,
     starred = starred,
     reactionsJson = encodeReactions(reactions),
-    expiresAt = expiresAt?.takeIf { it > 0L }
+    expiresAt = expiresAt?.takeIf { it > 0L },
+    sealedSender = sealedSender
 )
 
 private val messageEntityJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }

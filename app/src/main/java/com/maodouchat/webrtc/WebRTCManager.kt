@@ -681,6 +681,11 @@ class WebRTCManager(
         runCatching { pc.setRemoteDescription(object : SdpObserver {
             override fun onCreateSuccess(p0: SessionDescription?) {}
             override fun onSetSuccess() {
+                // 8.49 修复：回调在途时 pc 可能已被 removeGroupPeer 替换/销毁——与
+                // acceptGroupOffer 的 onSetSuccess 一致做 session 门禁，且不把 stale
+                // 的 remoteDescriptionSet 留给该 peer 的下一个 session（否则新 session
+                // 的候选会在远端描述未设置时被直接 add 丢弃）
+                if (!isCurrentGroupPeer(peerUserId, session)) return@onSetSuccess
                 // BUG 1 fix: remote description 已设置，flush 缓冲的 ICE candidate
                 val set = groupRemoteDescriptionSet.computeIfAbsent(peerUserId) { java.util.concurrent.atomic.AtomicBoolean(false) }
                 set.set(true)
@@ -690,6 +695,7 @@ class WebRTCManager(
             }
             override fun onCreateFailure(p0: String?) {}
             override fun onSetFailure(error: String?) {
+                if (!isCurrentGroupPeer(peerUserId, session)) return@onSetFailure
                 reportGroupOperationError(peerUserId, session, "set remote answer failed: ${error.orEmpty()}")
             }
         }, answer) }.onFailure { error ->
@@ -860,6 +866,10 @@ class WebRTCManager(
             return null
         }
         groupPeerSessions[peerUserId] = session
+        // 8.49：新 session 重置该 peer 的远端描述/候选缓冲标志——上一 session 的 stale
+        // 状态不能留给新连接（否则新 session 候选会在远端描述未设置时被直接 add 丢弃）
+        groupRemoteDescriptionSet[peerUserId]?.set(false)
+        groupPendingIceCandidates[peerUserId]?.clear()
         return connection
     }
 

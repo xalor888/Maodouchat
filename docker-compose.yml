@@ -8,6 +8,8 @@ services:
     environment:
       PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST to the public API hostname}
       ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL for TLS certificate notices}
+      # 8.48：代理层请求体上限与 server 的 MAX_ATTACHMENT_BYTES 联动（默认 140MB 覆盖 100MB 附件 + base64 膨胀）
+      MAX_BODY_BYTES: ${MAX_BODY_BYTES:-146800640}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -128,18 +130,22 @@ services:
   turn:
     image: coturn/coturn:4.6.3
     restart: unless-stopped
-    # STUN 始终可用；TURN 仅在配置了 TURN_SHARED_SECRET 时启用（relaxed 模式留空时
-    # 使用本地随机密钥，TURN 用户凭据不会下发给客户端，等效于纯 STUN）。
+    # STUN 始终可用；TURN 仅在配置了 TURN_SHARED_SECRET 时对外可用。
+    # 8.48 修复：留空时改为每次容器启动随机生成密钥（旧实现是仓库里的固定默认值，
+    # 知道该字符串的任何人都能算出 REST 凭据把本机当开放中继）；
+    # 随机密钥不下发凭据，对客户端等效纯 STUN，行为不变。
+    environment:
+      TURN_SHARED_SECRET: ${TURN_SHARED_SECRET:-}
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - --fingerprint
-      - --use-auth-secret
-      - --static-auth-secret=${TURN_SHARED_SECRET:-local-only-turn-secret-not-issued-0000}
-      - --realm=${TURN_REALM:-${PUBLIC_HOST}}
-      - --min-port=49160
-      - --max-port=49200
-      - --no-tls
-      - --no-dtls
-      - --log-file=stdout
+      - |
+        TURN_SECRET="$${TURN_SHARED_SECRET:-}"
+        if [ -z "$$TURN_SECRET" ]; then
+          TURN_SECRET="$$(head -c 24 /dev/urandom | base64 | tr -d '=+/')"
+        fi
+        exec turnserver --fingerprint --use-auth-secret --static-auth-secret="$$TURN_SECRET" \
+          --realm=${TURN_REALM:-${PUBLIC_HOST}} \
+          --min-port=49160 --max-port=49200 --no-tls --no-dtls --log-file=stdout
     ports:
       - "3478:3478/tcp"
       - "3478:3478/udp"

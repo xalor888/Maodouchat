@@ -33,15 +33,26 @@ class MissedCallTimeoutPolicyTest {
 
     @Test
     fun blankCallIdFallsBackToSynthetic() {
-        // 8.35：空 callId 时用固定前缀 + 联系人（不掺时间戳），保证双路径（NavGraph 计时器 /
-        // CallViewModel RINGING 超时）写入同一 id 幂等，避免同一通未接来电被记两行
+        // 8.35：空 callId 时用固定前缀 + 联系人 + 分钟桶，保证双路径（NavGraph 计时器 /
+        // CallViewModel RINGING 超时，相差 < 1 分钟）写入同一 id 幂等；
+        // 8.49：分钟桶让同一联系人的不同未接来电不再互相覆盖
         assertEquals(
-            "mc_u9",
+            "mc_u9_0",
             MissedCallTimeoutPolicy.missedRecordId(
                 signalingCallId = "  ",
                 fromUserId = "u9",
                 nowMs = 1000L,
             )
+        )
+        // 双路径幂等：同一分钟内的两次生成结果一致
+        assertEquals(
+            MissedCallTimeoutPolicy.missedRecordId(" ", "u9", 61_000L),
+            MissedCallTimeoutPolicy.missedRecordId(" ", "u9", 119_000L),
+        )
+        // 不同通话（跨分钟）可区分
+        assertFalse(
+            MissedCallTimeoutPolicy.missedRecordId(" ", "u9", 61_000L) ==
+                MissedCallTimeoutPolicy.missedRecordId(" ", "u9", 121_000L)
         )
     }
 

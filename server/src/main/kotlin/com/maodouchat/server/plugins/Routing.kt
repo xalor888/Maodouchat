@@ -13668,6 +13668,12 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
 
             put("/api/messages/{messageId}/status") {
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                // 8.49 修复：补 per-user 限流（与 WS STATUS_UPDATE 的 60/min 对齐）——
+                // 该端点此前仅剩全局 IP 兜底，重复回执可被刷量放大为发送方 WS 推送风暴
+                if (!messageMutateRateLimiter.acquire("status:$userId", maxPerMinute = 60)) {
+                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("请求过于频繁"))
+                    return@put
+                }
                 val messageId = call.parameters["messageId"]!!
                 val message = messageRepo.getMessageById(messageId)
                 if (message == null) {
@@ -13702,23 +13708,28 @@ put("status", "ok")
             )
                     return@put
                 }
-                if (!messageRepo.updateStatus(messageId, req.status, readerId = userId)) {
+                // 8.49 修复：与 WS 路径对齐——仅在状态确实变化时推送 MESSAGE_STATUS；
+                // 旧实现无条件推送，重复/回退回执（多设备重试）都会打扰发送方
+                val previousStatus = messageRepo.updateStatusWithPrevious(messageId, req.status, readerId = userId)
+                if (previousStatus == null) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权更新该消息状态"))
                     return@put
                 }
                 // 群聊 READ 仅个人回执；全局 MESSAGE_STATUS READ 会让发送方误判全员已读
-                val isGroup = chatRepo.getChatById(message.chatId)?.isGroup == true
-                if (!(isGroup && req.status == "READ")) {
-                    val statusJson = json.encodeToString(
-                        WsMessage(
-                            "MESSAGE_STATUS",
-                            json.encodeToString(
-                                StatusUpdatePayload.serializer(),
-                                StatusUpdatePayload(messageId, req.status)
+                if (previousStatus != req.status) {
+                    val isGroup = chatRepo.getChatById(message.chatId)?.isGroup == true
+                    if (!(isGroup && req.status == "READ")) {
+                        val statusJson = json.encodeToString(
+                            WsMessage(
+                                "MESSAGE_STATUS",
+                                json.encodeToString(
+                                    StatusUpdatePayload.serializer(),
+                                    StatusUpdatePayload(messageId, req.status)
+                                )
                             )
                         )
-                    )
-                    sendToUser(message.senderId, statusJson)
+                        sendToUser(message.senderId, statusJson)
+                    }
                 }
                 call.respond(
                 buildJsonObject {
@@ -15644,12 +15655,29 @@ put("status", "ok")
             // 批量标记聊天已读（一次请求标记多个聊天中所有未读消息为已读）
             post("/api/messages/batch-read") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                // 8.49 修复：补 per-user 限流——markAllAsRead 持 chat 行锁跑大事务，
+                // 此前仅剩全局 IP 兜底，50 个大群 × 高频请求可长时间占满连接池拖慢全站写入
+                if (!messageMutateRateLimiter.acquire("batch_read:$uid", maxPerMinute = 20)) {
+                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("请求过于频繁"))
+                    return@post
+                }
                 val req = call.receiveBoundedText()?.let { parseJson<BatchReadRequest>(it) } ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求体无效"))
                     return@post
                 }
                 if (req.chatIds.isEmpty() || req.chatIds.size > 50) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 数量无效"))
+                    return@post
+                }
+                // 8.49 修复：与 GET read-receipts 一致检查回执功能开关——关闭时静默空操作，
+                // 避免关掉回执后仍产生成片的 MESSAGE_STATUS / MESSAGE_EXPIRES 推送
+                if (!com.maodouchat.server.service.RuntimeConfigService.isReadReceiptsEnabled()) {
+                    call.respond(
+                        buildJsonObject {
+                            put("status", "ok")
+                            put("updatedChats", 0)
+                        }
+                    )
                     return@post
                 }
                 val allUpdated = mutableMapOf<String, Int>()

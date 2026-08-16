@@ -1,5 +1,6 @@
 package com.maodouchat.util
 
+import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -14,6 +15,7 @@ import kotlinx.serialization.json.jsonPrimitive
  * 把任何 Map/List/标量 转成紧凑 JSON 字符串（无 indent）
  */
 object JsonFormat {
+    private const val META_TAG_SUFFIX = "</meta>"
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = false; encodeDefaults = true }
     private val prettyJson = Json { ignoreUnknownKeys = true; prettyPrint = true; encodeDefaults = true }
 
@@ -22,6 +24,37 @@ object JsonFormat {
 
     /** Encode MessageMeta as a JSON object (never data-class toString()). */
     fun encodeMessageMeta(meta: MessageMeta): String = encode(messageMetaMap(meta))
+
+    /**
+     * 9.144：统一的「正文 + <meta> 标签」编码入口。
+     * 此前 ViewModel / AiMessageMetaSyncRepository / ImageOcrAutoIndexer 各持一份手写
+     * 副本，分别漏掉 forwardedFrom / viewOnce / silent / spoilerMedia 等字段，跨设备
+     * AI meta 同步与 OCR 回写落库时会把隐私标志静默清除——所有副本一律委托到此处。
+     *
+     * 8.49：`<meta>` / `</meta>` 字面量是协议保留字——发送方完全可控的字符串值
+     * （fileName / forwardedFrom 等）携带字面量会破坏 parsedContent/parsedMeta 的
+     * 定位解析（正文截断或整段 meta 丢弃），编码前一律剥离。
+     */
+    fun composeContentWithMeta(text: String, meta: MessageMeta): String {
+        val map = messageMetaMap(meta)
+        val safeText = stripMetaTagLiterals(text)
+        if (map.values.all(::isDefaultMetaValue)) return safeText
+        val encoded = stripMetaTagLiterals(encode(map))
+        return safeText + Message.META_TAG_PREFIX + encoded + META_TAG_SUFFIX
+    }
+
+    private fun stripMetaTagLiterals(value: String): String =
+        if (!value.contains(META_TAG_SUFFIX) && !value.contains(Message.META_TAG_PREFIX)) value
+        else value.replace(META_TAG_SUFFIX, "").replace(Message.META_TAG_PREFIX, "")
+
+    private fun isDefaultMetaValue(value: Any?): Boolean = when (value) {
+        null -> true
+        is String -> value.isBlank()
+        is Boolean -> !value
+        is List<*> -> value.isEmpty()
+        is Map<*, *> -> value.isEmpty()
+        else -> false
+    }
 
     fun messageMetaMap(meta: MessageMeta): Map<String, Any?> = mapOf(
         "mentions" to meta.mentions,
@@ -80,25 +113,29 @@ object JsonFormat {
     fun fromJsonString(text: String): MessageMeta {
         if (text.isBlank()) return MessageMeta()
         val element = json.parseToJsonElement(text).jsonObject
-        val mentions = element["mentions"]?.jsonArray?.mapNotNull { it.asStringOrNull() } ?: emptyList()
+        // 8.49 修复：全部容器字段用安全转型——jsonArray/jsonObject 扩展在类型混淆时抛
+        // IllegalStateException，parsedMeta 的 runCatching 会把整段 meta（含附件解密
+        // 密钥）回退为空，媒体永久无法解密；单字段损坏只应丢该字段（对齐 inlineKeyboard 写法）
+        val mentions = (element["mentions"] as? kotlinx.serialization.json.JsonArray)
+            ?.mapNotNull { it.asStringOrNull() } ?: emptyList()
         val replyToId = element["replyToId"]?.asStringOrNull()
         // 9.143：与 messageMetaMap 配对，恢复转发来源显示名
         val forwardedFrom = element["forwardedFrom"]?.asStringOrNull()
         val voiceTranscript = element["voiceTranscript"]?.asStringOrNull()
         val voiceDurationMs = element["voiceDurationMs"]?.asStringOrNull()?.toLongOrNull()
-        val translations = element["translations"]?.jsonObject
+        val translations = (element["translations"] as? JsonObject)
             ?.mapValues { (_, value) -> value.asStringOrNull().orEmpty() }
             ?.filterValues { it.isNotBlank() }
             .orEmpty()
         val preferredTranslationLanguage = element["preferredTranslationLanguage"]
             ?.asStringOrNull()
-        val aiImageAnalyses = element["aiImageAnalyses"]?.jsonObject
+        val aiImageAnalyses = (element["aiImageAnalyses"] as? JsonObject)
             ?.mapValues { (_, value) -> value.asStringOrNull().orEmpty() }
             ?.filterValues { it.isNotBlank() }
             .orEmpty()
         val preferredImageAnalysisMode = element["preferredImageAnalysisMode"]
             ?.asStringOrNull()
-        val aiFileAnalyses = element["aiFileAnalyses"]?.jsonObject
+        val aiFileAnalyses = (element["aiFileAnalyses"] as? JsonObject)
             ?.mapValues { (_, value) -> value.asStringOrNull().orEmpty() }
             ?.filterValues { it.isNotBlank() }
             .orEmpty()
@@ -128,7 +165,7 @@ object JsonFormat {
         val spoilerMedia = element["spoilerMedia"]?.asStringOrNull()?.toBooleanStrictOrNull() ?: false
         val spoilerRevealed = element["spoilerRevealed"]?.asStringOrNull()?.toBooleanStrictOrNull() ?: false
         val forceReply = element["forceReply"]?.asStringOrNull()?.toBooleanStrictOrNull() ?: false
-        val inlineKeyboard = element["inlineKeyboard"]?.jsonArray?.mapNotNull { rowEl ->
+        val inlineKeyboard = (element["inlineKeyboard"] as? kotlinx.serialization.json.JsonArray)?.mapNotNull { rowEl ->
             val rowArr = rowEl as? kotlinx.serialization.json.JsonArray ?: return@mapNotNull null
             rowArr.mapNotNull { btnEl ->
                 val o = btnEl as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null

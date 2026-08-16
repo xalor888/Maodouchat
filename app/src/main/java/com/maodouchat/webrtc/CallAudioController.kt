@@ -62,9 +62,12 @@ class CallAudioController(context: Context) {
         if (started) {
             when (change) {
                 AudioManager.AUDIOFOCUS_GAIN -> notifyFocusChanged(true)
-                AudioManager.AUDIOFOCUS_LOSS,
+                // 8.49 修复：仅永久丢失才上报失焦——TRANSIENT（来电/助手瞬间遮挡）与
+                // CAN_DUCK（通知提示音压低音量）语义都不该禁用麦克风发送轨，
+                // 旧实现把三类等同处理，一次提示音就会让对端瞬间听不到本端
+                AudioManager.AUDIOFOCUS_LOSS -> notifyFocusChanged(false)
                 AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> notifyFocusChanged(false)
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> Unit
             }
         }
     }
@@ -177,8 +180,10 @@ class CallAudioController(context: Context) {
                 // 此前对所有非 SPEAKER 路由（蓝牙/有线/听筒）固定返回 false，refreshRoute
                 // 用 firstOrNull{applyRoute} 迭代候选时全部"失败"→ 通话永远只能外放。
                 if (device != null && canUseCommunicationDevice(device)) {
+                    // 8.49 修复：透传 setCommunicationDevice 的真实结果——失败时落入
+                    // firstOrNull 的下一候选；旧实现无条件 true，蓝牙正断开等瞬时报错
+                    // 会让选路短路"成功"，UI 显示已切换但实际输出设备未变
                     audioManager.setCommunicationDevice(device)
-                    true
                 } else {
                     @Suppress("DEPRECATION")
                     audioManager.isSpeakerphoneOn = preferred == CallAudioRoute.SPEAKER

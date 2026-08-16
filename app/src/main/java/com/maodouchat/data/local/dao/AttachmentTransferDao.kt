@@ -19,6 +19,10 @@ interface AttachmentTransferDao {
     @Query("SELECT * FROM attachment_transfers WHERE chatId = :chatId AND ownerUserId = :ownerUserId ORDER BY createdAt ASC")
     fun observeByChat(chatId: String, ownerUserId: String): Flow<List<AttachmentTransferEntity>>
 
+    // 8.49：账号级 Flow 直查——供传输汇总浮窗替代 750ms 全表轮询
+    @Query("SELECT * FROM attachment_transfers WHERE ownerUserId = :ownerUserId ORDER BY createdAt ASC")
+    fun observeAll(ownerUserId: String): Flow<List<AttachmentTransferEntity>>
+
     @Query("SELECT * FROM attachment_transfers WHERE chatId = :chatId AND ownerUserId = :ownerUserId")
     suspend fun getByChat(chatId: String, ownerUserId: String): List<AttachmentTransferEntity>
 

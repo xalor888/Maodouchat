@@ -1089,9 +1089,19 @@ class SignalProtocol(
     }
 
     suspend fun clearLocalState() {
+        // 8.49 修复：只清当前账号作用域——库内键均按 user:<accountId>: 前缀、
+        // identity_trust 按 accountId 隔离，全表删除会把同库其他账号的 Signal
+        // 身份/会话/信任一并销毁。accountId 必须在内存态失效前捕获。
+        val accountId = currentUserId
         invalidateInMemoryAccountState()
-        signalKeyDao.deleteAllKeys()
-        identityTrustDao.deleteAllTrust()
+        if (accountId != null) {
+            signalKeyDao.deleteKeysWithPrefix("user:$accountId:")
+            identityTrustDao.deleteForAccount(accountId)
+        } else {
+            // 无账号上下文（未登录/内存态已失效）时退回匿名作用域
+            signalKeyDao.deleteKeysWithPrefix("anonymous:")
+            identityTrustDao.deleteAllTrust()
+        }
         generateIdentityKeys()
     }
 

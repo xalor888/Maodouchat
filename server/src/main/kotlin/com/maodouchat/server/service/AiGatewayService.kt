@@ -29,6 +29,7 @@ import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -778,7 +779,13 @@ class AiGatewayService(
         input: List<OpenAiInputMessage>,
         maxOutputTokens: Int
     ): AiGatewayResult<String> {
-        if (!llmSemaphore.tryAcquire(LLM_ACQUIRE_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+        // 8.49 修复：tryAcquire(5s) 是纯阻塞等待——此前直接跑在调用协程（Netty 事件循环派发）
+        // 上，LLM 上游饱和排队时每个请求阻塞调用线程最长 5 秒，N 个并发即占住 N 个工作线程，
+        // 放大为整站请求延迟。移到 IO 调度器执行。
+        if (!withContext(kotlinx.coroutines.Dispatchers.IO) {
+                llmSemaphore.tryAcquire(LLM_ACQUIRE_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+            }
+        ) {
             return AiGatewayResult.UpstreamError(429, "AI 并发已满，请稍后再试")
         }
         return try {

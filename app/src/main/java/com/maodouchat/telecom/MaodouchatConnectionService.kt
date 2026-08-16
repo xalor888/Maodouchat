@@ -84,13 +84,15 @@ class MaodouchatConnectionService : ConnectionService() {
         )
         // 8.46 修复：覆盖前销毁旧 Connection——否则前一通来电尚未被系统回收时又来新来电，
         // 旧 Connection 永远不 destroy()，系统 Telecom 会残留「幽灵活跃通话」。
+        // 8.49 修复：同 callId 的重复派发（FCM at-least-once 重投）同样销毁旧连接——
+        // 否则旧连接不在受控引用中，finishConnection 只能销毁最新一条，旧的双响铃连接永久残留
         activeConnection?.let { previous ->
-            if (previous.callId != callId) {
+            if (previous !== conn) {
                 runCatching {
                     previous.setDisconnected(android.telecom.DisconnectCause(android.telecom.DisconnectCause.CANCELED))
                     previous.destroy()
                 }
-                Log.i(TAG, "destroyed superseded connection callId=${previous.callId}")
+                Log.i(TAG, "destroyed superseded connection callId=${previous.callId} duplicate=${previous.callId == callId}")
             }
         }
         activeConnection = conn
@@ -115,6 +117,35 @@ internal class MaodouchatConnection(
     internal val callId: String,
     private val isVideo: Boolean,
 ) : Connection() {
+
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    @Volatile private var ringTimeoutFired = false
+    @Volatile private var finished = false
+
+    /** 8.49：自毁兜底——NavGraph 的 30s 振铃超时协程可能随 Composition/进程回收一起消失，
+     *  此时 finishConnection 永不被调用，系统 Telecom 无限期 RINGING（幽灵响铃）。对齐
+     *  AppNotifier.showIncomingCall 的 35s 通知超时，未接听即自毁并清 pending。 */
+    private val ringTimeoutRunnable = Runnable {
+        if (finished || ringTimeoutFired) return@Runnable
+        ringTimeoutFired = true
+        Log.w("MaodouConn", "ring timeout self-destruct callId=$callId")
+        runCatching { IncomingCallCoordinator.clear() }
+        if (callId.isNotBlank()) {
+            runCatching { CallActionBus.requestHangUp(callId, notifyPeer = true) }
+        }
+        finish(DisconnectCause(DisconnectCause.CANCELED))
+    }
+
+    private fun finish(cause: DisconnectCause) {
+        if (finished) return
+        finished = true
+        mainHandler.removeCallbacks(ringTimeoutRunnable)
+        runCatching {
+            setDisconnected(cause)
+            destroy()
+        }
+        MaodouchatConnectionService.clearActive(callId)
+    }
 
     init {
         connectionCapabilities = PhoneAccount.CAPABILITY_SELF_MANAGED
@@ -147,10 +178,22 @@ internal class MaodouchatConnection(
         } catch (e: Exception) {
             // 部分 ROM / API 级别下 setNotification 不可见，忽略
         }
+        // 8.49：35s 振铃自毁兜底（finish 会移除回调）
+        mainHandler.postDelayed(ringTimeoutRunnable, RING_TIMEOUT_MS)
     }
 
     override fun onAnswer(videoState: Int) {
         Log.i("MaodouConn", "onAnswer: accepting callId=$callId videoState=$videoState")
+        // 8.49 修复：接听前校验 pending 存活——超过 STALE_MS(120s) 后 pending 已被清空/过期，
+        // 旧实现仍 startActivity 并 setActive，系统状态栏永久残留幽灵 ACTIVE 通话
+        val pending = IncomingCallCoordinator.peekPending()
+        val stalePending = pending == null ||
+            (callId.isNotBlank() && pending.callId.isNotBlank() && pending.callId != callId)
+        if (stalePending) {
+            Log.w("MaodouConn", "onAnswer: pending stale/missing, dropping callId=$callId")
+            finish(DisconnectCause(DisconnectCause.ERROR))
+            return
+        }
         // 路由到应用内 CallScreen 完成实际接听
         try {
             val openIntent = Intent(applicationContext, MainActivity::class.java).apply {
@@ -163,11 +206,10 @@ internal class MaodouchatConnection(
             applicationContext.startActivity(openIntent)
             // BUG 2 fix: 仅在 startActivity 成功时 setActive，避免幽灵通话
             setActive()
+            mainHandler.removeCallbacks(ringTimeoutRunnable)
         } catch (e: Exception) {
             Log.w("MaodouConn", "open CallScreen failed", e)
-            setDisconnected(DisconnectCause(DisconnectCause.ERROR))
-            destroy()
-            MaodouchatConnectionService.clearActive(callId)
+            finish(DisconnectCause(DisconnectCause.ERROR))
         }
     }
 
@@ -181,9 +223,7 @@ internal class MaodouchatConnection(
         if (callId.isNotBlank()) {
             CallActionBus.requestHangUp(callId, notifyPeer = true)
         }
-        setDisconnected(DisconnectCause(DisconnectCause.REJECTED))
-        destroy()
-        MaodouchatConnectionService.clearActive(callId)
+        finish(DisconnectCause(DisconnectCause.REJECTED))
     }
 
     override fun onReject(reason: String?) {
@@ -196,16 +236,17 @@ internal class MaodouchatConnection(
         if (callId.isNotBlank()) {
             CallActionBus.requestHangUp(callId, notifyPeer = true)
         }
-        setDisconnected(DisconnectCause(DisconnectCause.LOCAL))
-        destroy()
-        MaodouchatConnectionService.clearActive(callId)
+        finish(DisconnectCause(DisconnectCause.LOCAL))
     }
 
     override fun onAbort() {
         Log.i("MaodouConn", "onAbort: callId=$callId (remote cancel / timeout)")
         IncomingCallCoordinator.clear()
-        setDisconnected(DisconnectCause(DisconnectCause.CANCELED))
-        destroy()
-        MaodouchatConnectionService.clearActive(callId)
+        finish(DisconnectCause(DisconnectCause.CANCELED))
+    }
+
+    private companion object {
+        /** 略大于 NavGraph 的 30s 振铃超时与 AppNotifier 35s 通知超时对齐。 */
+        private const val RING_TIMEOUT_MS = 35_000L
     }
 }

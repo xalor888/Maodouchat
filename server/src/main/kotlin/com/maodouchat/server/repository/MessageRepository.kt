@@ -393,19 +393,22 @@ class MessageRepository {
     /**
      * @param readerId when status is READ, also insert a per-user read receipt so unread queries clear.
      *                 Global Messages.status is only a coarse 1:1 delivery hint for senders.
+     * @return 变更前状态；null 表示拒绝（非参与者/发送者本人/撤回消息等）。
+     * 8.49 修复：旧状态在行锁内读取并返回——此前调用方在独立事务先读 status 再自行判断
+     * “是否变化”，同一读者多设备并发回执会双双读到旧值、向发送方重复推送 MESSAGE_STATUS。
      */
-    fun updateStatus(messageId: String, status: String, readerId: String? = null): Boolean {
+    fun updateStatusWithPrevious(messageId: String, status: String, readerId: String? = null): String? {
         return transaction {
-            val resolvedReaderId = readerId?.takeIf(String::isNotBlank) ?: return@transaction false
-            val locked = lockChatThenMessage(messageId) ?: return@transaction false
+            val resolvedReaderId = readerId?.takeIf(String::isNotBlank) ?: return@transaction null
+            val locked = lockChatThenMessage(messageId) ?: return@transaction null
             val row = locked.message
             // 撤回消息不再接受状态变更（已读/送达回执），隐私加固（WS 层已提前丢弃，此为纵深防御）
-            if (row[Messages.type] == "REVOKED") return@transaction false
+            if (row[Messages.type] == "REVOKED") return@transaction null
             val chatId = locked.chat[Chats.id]
             val isParticipant = ChatParticipants.selectAll().where {
                 (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq resolvedReaderId)
             }.firstOrNull() != null
-            if (!isParticipant || row[Messages.senderId] == resolvedReaderId) return@transaction false
+            if (!isParticipant || row[Messages.senderId] == resolvedReaderId) return@transaction null
             val currentStatus = row[Messages.status]
             // 防止状态回退 — 只允许状态升级（SENT < DELIVERED < READ），不降级
             // FAILED 是客户端本地语义，服务端不接受覆盖已接受的发送状态
@@ -414,7 +417,7 @@ class MessageRepository {
                 if (status == "READ") {
                     insertReadReceipt(messageId, resolvedReaderId)
                 }
-                return@transaction true
+                return@transaction currentStatus
             }
             val isGroup = locked.chat[Chats.isGroup]
             // 群聊不把“任一成员已读”写成全局 READ，避免发送者误判全员已读
@@ -426,9 +429,12 @@ class MessageRepository {
             if (status == "READ") {
                 insertReadReceipt(messageId, resolvedReaderId)
             }
-            true
+            currentStatus
         }
     }
+
+    fun updateStatus(messageId: String, status: String, readerId: String? = null): Boolean =
+        updateStatusWithPrevious(messageId, status, readerId) != null
 
     /**
      * 消息状态优先级：SENT(1) < DELIVERED(2) < READ(3)

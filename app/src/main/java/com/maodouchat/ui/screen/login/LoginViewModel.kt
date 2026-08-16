@@ -50,9 +50,10 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         if (tokenManager.isLoggedIn()) {
-            _uiState.update { it.copy(isLoggedIn = true, requiresTotp = false, totpCode = "") }
             // Restored session: ensure Signal store is loaded before user opens chats.
             // App-level cold-start also does this; this covers LoginViewModel-first paths.
+            // 8.49 修复：isLoggedIn 改为初始化完成后置位（与新鲜登录路径一致）——此前同步
+            // 置 true，密钥库加载慢时用户先进聊天页看到解密失败占位
             viewModelScope.launch {
                 val userId = tokenManager.getUserId()
                 val token = tokenManager.getToken()
@@ -65,6 +66,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         android.util.Log.w("LoginViewModel", "Signal restore for restored session failed", error)
                     }
                 }
+                _uiState.update { it.copy(isLoggedIn = true, requiresTotp = false, totpCode = "") }
             }
         }
     }
@@ -272,13 +274,17 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         app.secureSessionManager.purgeIfAccountChanged(auth.userId)
                         // Token 持久化失败 = 下次冷启动丢失登录态，直接暴露给用户
-                        val sessionSaved = tokenManager.saveAuthSession(
-                            token = auth.token,
-                            refreshToken = auth.refreshToken,
-                            userId = auth.userId,
-                            accessTokenExpiresAt = auth.expiresAt,
-                            refreshTokenExpiresAt = auth.refreshExpiresAt
-                        )
+                        // 8.49：saveAuthSession 内部对 EncryptedSharedPreferences commit()（同步
+                        // fsync），移到 IO 调度器避免主线程卡顿
+                        val sessionSaved = withContext(Dispatchers.IO) {
+                            tokenManager.saveAuthSession(
+                                token = auth.token,
+                                refreshToken = auth.refreshToken,
+                                userId = auth.userId,
+                                accessTokenExpiresAt = auth.expiresAt,
+                                refreshTokenExpiresAt = auth.refreshExpiresAt
+                            )
+                        }
                         if (!sessionSaved) {
                             _uiState.update { it.copy(isLoading = false, errorMessage = text(R.string.error_session_persist_failed)) }
                             return@launch
@@ -303,10 +309,16 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                                 android.util.Log.w("LoginViewModel", "Signal keys initialization/upload failed after retries — continuing login with degraded E2EE")
                             }
                         }
-                        PushRegistrationManager.refreshRegistration(app)
-                        AiTaskReminderScheduler.ensureScheduled(app)
-                        com.maodouchat.attachment.AttachmentTransferCoordinator.reconcile(app)
+                        // 8.49 修复：Signal 就绪后置位登录成功——后置步骤（推送注册/提醒调度/
+                        // 附件对账）失败不再吞掉 isLoggedIn，把已生效的会话留在登录页
                         _uiState.update { it.copy(isLoading = false, isLoggedIn = true) }
+                        // 8.49：后置步骤各自 best-effort，异常不再中断（isLoggedIn 已置位）
+                        runCatching { PushRegistrationManager.refreshRegistration(app) }
+                            .onFailure { android.util.Log.w("LoginViewModel", "push registration after login failed", it) }
+                        runCatching { AiTaskReminderScheduler.ensureScheduled(app) }
+                            .onFailure { android.util.Log.w("LoginViewModel", "ai task reminder scheduling failed", it) }
+                        runCatching { com.maodouchat.attachment.AttachmentTransferCoordinator.reconcile(app) }
+                            .onFailure { android.util.Log.w("LoginViewModel", "attachment reconcile after login failed", it) }
                     },
                     onFailure = { error ->
                         _uiState.update { it.copy(isLoading = false, errorMessage = error.message ?: text(R.string.error_operation_failed)) }

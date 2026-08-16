@@ -278,6 +278,9 @@
   // ─── 加载 Tab ───────────────────────
   // 8.47 修复：loadSeq 版本号——快速切换 tab 时旧请求晚返回不得覆盖当前页（错误页/错页数据）
   var loadSeq = 0;
+  // 8.47 补全：成功路径同样受 seq 守卫——loader 由 loadTab 传入 seq 时，
+  // 若已有更新的 loadTab 启动（快速切换 tab），旧响应不得覆盖当前页
+  function staleTab(seq) { return typeof seq === 'number' && seq !== loadSeq; }
   async function loadTab() {
     var seq = ++loadSeq;
     // 8.47 修复：B6 专属 tab（announcements/user-tags/rate-limit/device-consistency）
@@ -287,24 +290,24 @@
     el('content').innerHTML = '<div class="loading-state"><div class="spinner"></div><span>加载中…</span></div>';
     try {
       switch (activeTab) {
-        case 'dashboard': await loadDashboard(); break;
-        case 'ranking': await loadRanking(); break;
-        case 'online': await loadOnline(); break;
-        case 'users': await loadUsers(); break;
-        case 'chats': await loadChats(); break;
-        case 'messages': await loadMessageSearch(); break;
-        case 'posts': await loadPosts(); break;
-        case 'comments': await loadComments(); break;
-        case 'reports': await loadReports(); break;
-        case 'rules': await loadRules(); break;
-        case 'risk-events': await loadRiskEvents(); break;
-        case 'storage': await loadStorage(); break;
-        case 'ai-usage': await loadAiUsage(); break;
-        case 'push-tokens': await loadPushTokens(); break;
-        case 'audit': await loadAudit(); break;
-        case 'watermark': await loadWatermark(); break;
-        case 'bots': await loadBots(); break;
-        case 'settings': await loadSettings(); break;
+        case 'dashboard': await loadDashboard(seq); break;
+        case 'ranking': await loadRanking(seq); break;
+        case 'online': await loadOnline(seq); break;
+        case 'users': await loadUsers(seq); break;
+        case 'chats': await loadChats(seq); break;
+        case 'messages': await loadMessageSearch(seq); break;
+        case 'posts': await loadPosts(seq); break;
+        case 'comments': await loadComments(seq); break;
+        case 'reports': await loadReports(seq); break;
+        case 'rules': await loadRules(seq); break;
+        case 'risk-events': await loadRiskEvents(seq); break;
+        case 'storage': await loadStorage(seq); break;
+        case 'ai-usage': await loadAiUsage(seq); break;
+        case 'push-tokens': await loadPushTokens(seq); break;
+        case 'audit': await loadAudit(seq); break;
+        case 'watermark': await loadWatermark(seq); break;
+        case 'bots': await loadBots(seq); break;
+        case 'settings': await loadSettings(seq); break;
       }
     } catch (x) {
       if (seq !== loadSeq) return;
@@ -389,7 +392,7 @@
   // ═════════════════════════════════════
   // 仪表盘
   // ═════════════════════════════════════
-  async function loadDashboard() {
+  async function loadDashboard(seq) {
     var d = await api('/api/admin/dashboard');
     var s = await api('/api/admin/system-stats');
     var t = await api('/api/admin/trends');
@@ -457,6 +460,7 @@
       '<div class="mem-bar"><div class="mem-bar-fill" style="width:' + memPct + '%"></div></div>' +
       '</div></div></div>';
 
+    if (staleTab(seq)) return;
     el('content').innerHTML = statsHtml + chartHtml + healthHtml;
   }
 
@@ -518,7 +522,7 @@
   // ═════════════════════════════════════
   // 用户管理
   // ═════════════════════════════════════
-  async function loadUsers() {
+  async function loadUsers(seq) {
     var q = searchQuery.users || '';
     var st = filterStatus.users || '';
     var offset = (page.users || 0) * pageSize;
@@ -574,6 +578,7 @@
     }
 
     html += '</tbody></table></div>' + pager('users', rows.length) + '</div></div>';
+    if (staleTab(seq)) return;
     el('content').innerHTML = html;
     bindSearch('users', loadUsers);
     bindPager('users', rows.length, loadUsers);
@@ -882,13 +887,29 @@
       '</div></div>' +
       '<div class="detail-section"><h4>Security ops</h4>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
-      '<button class="btn btn-danger" onclick="adminForceLogout(\'' + esc(d.id) + '\')">Force logout</button>' +
-      '<button class="btn" onclick="adminLoadUserSessions(\'' + esc(d.id) + '\')">Sessions</button>' +
-      '<button class="btn btn-danger" onclick="adminMessageRestrict(\'' + esc(d.id) + '\')">Msg ban</button>' +
-      '<button class="btn" onclick="adminSetModerator(\'' + esc(d.id) + '\', true)">Grant moderator</button>' +
-      '<button class="btn" onclick="adminSetModerator(\'' + esc(d.id) + '\', false)">Revoke moderator</button>' +
-      '<button class="btn" onclick="adminDisableTotp(\'' + esc(d.id) + '\')">Disable TOTP</button>' +
+      '<button class="btn btn-danger" data-ua="force-logout" data-user-id="' + esc(d.id) + '">Force logout</button>' +
+      '<button class="btn" data-ua="sessions" data-user-id="' + esc(d.id) + '">Sessions</button>' +
+      '<button class="btn btn-danger" data-ua="msg-restrict" data-user-id="' + esc(d.id) + '">Msg ban</button>' +
+      '<button class="btn" data-ua="grant-mod" data-user-id="' + esc(d.id) + '">Grant moderator</button>' +
+      '<button class="btn" data-ua="revoke-mod" data-user-id="' + esc(d.id) + '">Revoke moderator</button>' +
+      '<button class="btn" data-ua="disable-totp" data-user-id="' + esc(d.id) + '">Disable TOTP</button>' +
       '</div></div>';
+
+    // 8.48 修复：内联 onclick 的 esc() 对 JS 字符串上下文无效（&#39; 属性解析后还原为引号），
+    // 改为 data-* + 事件委托；onclick 属性赋值幂等，不会随抽屉重开而叠加
+    drawerBody.onclick = function (ev) {
+      var btn = ev.target && ev.target.closest ? ev.target.closest('button[data-ua]') : null;
+      if (!btn) return;
+      var uid = btn.getAttribute('data-user-id') || '';
+      switch (btn.getAttribute('data-ua')) {
+        case 'force-logout': adminForceLogout(uid); break;
+        case 'sessions': adminLoadUserSessions(uid); break;
+        case 'msg-restrict': adminMessageRestrict(uid); break;
+        case 'grant-mod': adminSetModerator(uid, true); break;
+        case 'revoke-mod': adminSetModerator(uid, false); break;
+        case 'disable-totp': adminDisableTotp(uid); break;
+      }
+    };
 
     el('drawer-overlay').classList.remove('hidden');
   }
@@ -897,7 +918,7 @@
   // 群聊管理
   // ═════════════════════════════════════
   
-  async function loadMessageSearch() {
+  async function loadMessageSearch(seq) {
     var n = el('page-title'); if (n) n.textContent = 'Message search';
     var q = (searchQuery.messages || '');
     var html = '<div class="panel"><div class="panel-header"><h2>Message metadata search</h2></div><div class="panel-body">' +
@@ -908,6 +929,7 @@
       '<input id="msg-user" placeholder="senderId" style="width:180px"/>' +
       '<button class="btn btn-primary" id="msg-search-btn">Search</button></div>' +
       '<div id="msg-results"><div class="empty-state"><p>Enter filters and search</p></div></div></div></div>';
+    if (staleTab(seq)) return;
     el('content').innerHTML = html;
     async function run() {
       var qq = (el('msg-q').value || '').trim();
@@ -950,7 +972,7 @@
     el('msg-q').onkeydown = function (e) { if (e.key === 'Enter') run(); };
   }
 
-async function loadChats() {
+async function loadChats(seq) {
     var q = searchQuery.chats || '';
     var offset = (page.chats || 0) * pageSize;
     var url = '/api/admin/chats?limit=' + pageSize + '&offset=' + offset;
@@ -979,6 +1001,7 @@ async function loadChats() {
     }
 
     html += '</tbody></table></div>' + pager('chats', rows.length) + '</div></div>';
+    if (staleTab(seq)) return;
     el('content').innerHTML = html;
     bindSearch('chats', loadChats);
     bindPager('chats', rows.length, loadChats);
@@ -1020,7 +1043,7 @@ async function loadChats() {
   // ═════════════════════════════════════
   // 动态管理
   // ═════════════════════════════════════
-  async function loadPosts() {
+  async function loadPosts(seq) {
     var q = searchQuery.posts || '';
     var st = filterStatus.posts || '';
     var offset = (page.posts || 0) * pageSize;
@@ -1056,6 +1079,7 @@ async function loadChats() {
     }
 
     html += '</tbody></table></div>' + pager('posts', rows.length) + '</div></div>';
+    if (staleTab(seq)) return;
     el('content').innerHTML = html;
     bindSearch('posts', loadPosts);
     bindPager('posts', rows.length, loadPosts);
@@ -1076,7 +1100,7 @@ async function loadChats() {
   // ═════════════════════════════════════
   // 评论管理
   // ═════════════════════════════════════
-  async function loadComments() {
+  async function loadComments(seq) {
     var q = searchQuery.comments || '';
     var offset = (page.comments || 0) * pageSize;
     var url = '/api/admin/comments?limit=' + pageSize + '&offset=' + offset;
@@ -1102,6 +1126,7 @@ async function loadChats() {
     }
 
     html += '</tbody></table></div>' + pager('comments', rows.length) + '</div></div>';
+    if (staleTab(seq)) return;
     el('content').innerHTML = html;
     bindSearch('comments', loadComments);
     bindPager('comments', rows.length, loadComments);
@@ -1121,7 +1146,7 @@ async function loadChats() {
   // ═════════════════════════════════════
   // 举报审核
   // ═════════════════════════════════════
-  async function loadReports() {
+  async function loadReports(seq) {
     var st = filterStatus.reports || '';
     var offset = (page.reports || 0) * pageSize;
     var url = '/api/admin/reports?limit=' + pageSize + '&offset=' + offset;
@@ -1170,6 +1195,7 @@ async function loadChats() {
     }
 
     html += '</tbody></table></div>' + pager('reports', rows.length) + '</div></div>';
+    if (staleTab(seq)) return;
     el('content').innerHTML = html;
 
     var filterEl = el('filter-reports');
@@ -1213,7 +1239,7 @@ async function loadChats() {
   // ═════════════════════════════════════
   // 风控规则
   // ═════════════════════════════════════
-  async function loadRules() {
+  async function loadRules(seq) {
     var rows = await api('/api/admin/moderation-rules');
     var byId = {};
     rows.forEach(function (r) { byId[r.id] = r; });
@@ -1254,6 +1280,7 @@ async function loadChats() {
     }
 
     html += '</tbody></table></div></div></div>';
+    if (staleTab(seq)) return;
     el('content').innerHTML = html;
 
     var editing = '';
@@ -1358,7 +1385,7 @@ async function loadChats() {
   // ═════════════════════════════════════
   // 风控事件
   // ═════════════════════════════════════
-  async function loadRiskEvents() {
+  async function loadRiskEvents(seq) {
     var pendingOnly = filterStatus['risk-events'] === 'true';
     var offset = (page['risk-events'] || 0) * pageSize;
     var url = '/api/admin/risk-events?limit=' + pageSize + '&offset=' + offset;
@@ -1394,6 +1421,7 @@ async function loadChats() {
     }
 
     html += '</tbody></table></div>' + pager('risk-events', rows.length) + '</div></div>';
+    if (staleTab(seq)) return;
     el('content').innerHTML = html;
 
     var filterEl = el('filter-risk-events');
@@ -1416,7 +1444,7 @@ async function loadChats() {
   // ═════════════════════════════════════
   // AI 审计
   // ═════════════════════════════════════
-  async function loadAiUsage() {
+  async function loadAiUsage(seq) {
     var offset = (page['ai-usage'] || 0) * pageSize;
     var q = searchQuery['ai-usage'] || '';
     var url = '/api/admin/ai-usage?limit=' + pageSize + '&offset=' + offset;
@@ -1458,6 +1486,7 @@ async function loadChats() {
     }
 
     html += '</tbody></table></div>' + pager('ai-usage', rows.length) + '</div></div>';
+    if (staleTab(seq)) return;
     el('content').innerHTML = html;
     bindPager('ai-usage', rows.length, loadAiUsage);
     var searchBtn = el('ai-usage-search-btn');
@@ -1474,7 +1503,7 @@ async function loadChats() {
   // ═════════════════════════════════════
   // 推送令牌
   // ═════════════════════════════════════
-  async function loadPushTokens() {
+  async function loadPushTokens(seq) {
     var q = searchQuery['push-tokens'] || '';
     var offset = (page['push-tokens'] || 0) * pageSize;
     var url = '/api/admin/push-tokens?limit=' + pageSize + '&offset=' + offset;
@@ -1503,6 +1532,7 @@ async function loadChats() {
     }
 
     html += '</tbody></table></div>' + pager('push-tokens', rows.length) + '</div></div>';
+    if (staleTab(seq)) return;
     el('content').innerHTML = html;
     bindSearch('push-tokens', loadPushTokens);
     bindPager('push-tokens', rows.length, loadPushTokens);
@@ -1511,7 +1541,7 @@ async function loadChats() {
   // ═════════════════════════════════════
   // 操作审计
   // ═════════════════════════════════════
-  async function loadAudit() {
+  async function loadAudit(seq) {
     var offset = (page.audit || 0) * pageSize;
     var actionF = filterStatus.audit || '';
     var q = searchQuery.audit || '';
@@ -1549,6 +1579,7 @@ async function loadChats() {
     }
 
     html += '</tbody></table></div>' + pager('audit', rows.length) + '</div></div>';
+    if (staleTab(seq)) return;
     el('content').innerHTML = html;
 
     bindSearch('audit', loadAudit);
@@ -1574,7 +1605,7 @@ async function loadChats() {
   // ═════════════════════════════════════
   // 排行榜
   // ═════════════════════════════════════
-  async function loadRanking() {
+  async function loadRanking(seq) {
     var r = await api('/api/admin/ranking?limit=20');
     var rt = null;
     try { rt = await api('/api/admin/rich-trends'); } catch (e) { /* 可选 */ }
@@ -1630,13 +1661,14 @@ async function loadChats() {
       rankTable('群活跃排行', r.mostActiveGroups) +
       '</div>';
 
+    if (staleTab(seq)) return;
     el('content').innerHTML = grid + charts + tables;
   }
 
   // ═════════════════════════════════════
   // 在线用户
   // ═════════════════════════════════════
-  async function loadOnline() {
+  async function loadOnline(seq) {
     var users = await api('/api/admin/online?limit=500');
     var badge = el('nav-online-badge');
     if (badge) {
@@ -1669,6 +1701,7 @@ async function loadChats() {
     }
 
     html += '</tbody></table></div></div></div>';
+    if (staleTab(seq)) return;
     el('content').innerHTML = html;
     var refBtn = el('online-refresh');
     if (refBtn) refBtn.onclick = function () { loadOnline(); };
@@ -1677,7 +1710,7 @@ async function loadChats() {
   // ═════════════════════════════════════
   // 存储用量
   // ═════════════════════════════════════
-  async function loadStorage() {
+  async function loadStorage(seq) {
     var s = await api('/api/admin/storage');
 
     var statsHtml = '<div class="stats-grid">' +
@@ -1706,6 +1739,7 @@ async function loadChats() {
       (catRows || '<tr><td colspan="4"><div class="empty-state"><p>暂无附件</p></div></td></tr>') +
       '</tbody></table></div></div></div>';
 
+    if (staleTab(seq)) return;
     el('content').innerHTML = statsHtml + catHtml;
   }
 
@@ -1847,7 +1881,7 @@ async function loadChats() {
 
 
   
-  async function loadSettings() {
+  async function loadSettings(seq) {
     var n = el('page-title'); if (n) n.textContent = 'System settings';
     var data = await api('/api/admin/settings');
     var s = data.settings || {};
@@ -1987,6 +2021,7 @@ async function loadChats() {
       row('secret_last_seen_block_enabled', 'Secret chat last seen block (clients)', 'bool') +
       '<div style="margin-top:12px;font-size:12px;color:var(--text-muted)">Env allowRegistration: ' +
       esc(String(data.envAllowRegistration)) + '</div></div></div>';
+    if (staleTab(seq)) return;
     el('content').innerHTML = html;
     el('settings-save').onclick = async function () {
       var updates = {};
@@ -2062,13 +2097,14 @@ async function loadWatermark() {
     };
   }
 
-  async function loadBots() {
+  async function loadBots(seq) {
     var n = el('page-title'); if (n) n.textContent = 'Bots';
     el('content').innerHTML = '<div class="loading-state"><div class="spinner"></div><span>Loading...</span></div>';
     try {
       var rows = await api('/api/admin/bots?limit=100');
       var list = Array.isArray(rows) ? rows : (rows.items || rows.bots || []);
       if (!list.length) {
+        if (staleTab(seq)) return;
         el('content').innerHTML = '<div class="empty-state"><p>No bots yet. Developers can create via POST /api/bots</p></div>';
         return;
       }
@@ -2079,6 +2115,7 @@ async function loadWatermark() {
           '<button class="btn btn-ghost btn-sm" data-bot-logs="' + esc(b.id) + '">Logs</button></td></tr>';
       });
       html += '</tbody></table><pre id="bot-logs-view" class="mono" style="max-height:280px;overflow:auto;margin-top:12px;white-space:pre-wrap"></pre></div>';
+      if (staleTab(seq)) return;
       el('content').innerHTML = html;
       var exportBtn = el('runtime-export-btn');
       if (exportBtn) exportBtn.onclick = async function () {
@@ -2201,6 +2238,10 @@ async function loadWatermark() {
     showPrompt: showPrompt,
     ensureDispositionTemplates: ensureDispositionTemplates,
     loadUsers: loadUsers,
+    // 8.48 补全：B6 模块与主模块共享同一 tab 渲染序号——主/B6 tab 互切时，
+    // 任一侧的旧响应都不得覆盖另一侧的新页面
+    nextTabSeq: function () { return ++loadSeq; },
+    isStaleTab: staleTab,
     get dispositionTemplates() { return dispositionTemplates; }
   };
 
@@ -2211,7 +2252,7 @@ async function adminForceLogout(userId) {
   if (!userId) return;
   if (!confirm('Force logout user ' + userId + ' on all devices?')) return;
   try {
-    await window.__b6Admin.window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/force-logout', { method: 'POST', body: '{}' });
+    await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/force-logout', { method: 'POST', body: '{}' });
     window.__b6Admin.toast('Force logout ok');
   } catch (e) {
     window.__b6Admin.toast('Force logout failed: ' + (e && e.message ? e.message : e));
@@ -2221,7 +2262,7 @@ async function adminForceLogout(userId) {
 async function adminLoadUserSessions(userId) {
   if (!userId) return;
   try {
-    var data = await window.__b6Admin.window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/sessions?includeRevoked=1');
+    var data = await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/sessions?includeRevoked=1');
     var lines = [];
     lines.push('Active refresh sessions: ' + (data.activeRefreshCount || 0));
     (data.refreshSessions || []).slice(0, 20).forEach(function (s, idx) {
@@ -2238,13 +2279,13 @@ async function adminLoadUserSessions(userId) {
     action = String(action).trim();
     if (!action) return;
     if (action.toUpperCase() === 'ALL') {
-      await window.__b6Admin.window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/sessions/revoke', {
+      await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/sessions/revoke', {
         method: 'POST',
         body: JSON.stringify({ all: true })
       });
       window.__b6Admin.toast('All sessions revoked', 'success');
     } else {
-      await window.__b6Admin.window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/sessions/revoke', {
+      await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/sessions/revoke', {
         method: 'POST',
         body: JSON.stringify({ tokenHashPrefix: action })
       });
@@ -2276,7 +2317,7 @@ async function adminLoadUserSessions(userId) {
       async function (reasonCode) {
         if (reasonCode === 'unrestrict_messages' || reasonCode === window.__b6Admin.dispositionTemplates.unrestrictMessagesReasonCode) {
           window.__b6Admin.showPrompt('Clear message ban', 'Optional note', '', 'Note', async function (note) {
-            await window.__b6Admin.window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/message-restriction', {
+            await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/message-restriction', {
               method: 'PUT',
               body: JSON.stringify({
                 messageRestrictedUntil: 0,
@@ -2302,7 +2343,7 @@ async function adminLoadUserSessions(userId) {
               window.__b6Admin.toast('Note required', 'error');
               return false;
             }
-            await window.__b6Admin.window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/message-restriction', {
+            await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/message-restriction', {
               method: 'PUT',
               body: JSON.stringify({
                 messageRestrictedUntil: until,
@@ -2331,7 +2372,7 @@ async function adminDisableTotp(userId) {
   if (!userId) return;
   if (!confirm('Disable TOTP for user ' + userId + '?')) return;
   try {
-    await window.__b6Admin.window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/disable-totp', { method: 'POST', body: '{}' });
+    await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/disable-totp', { method: 'POST', body: '{}' });
     window.__b6Admin.toast('TOTP disabled');
   } catch (e) {
     window.__b6Admin.toast('Disable TOTP failed: ' + (e && e.message ? e.message : e));
@@ -2343,7 +2384,7 @@ async function adminBroadcast() {
   var text = prompt('Broadcast message to all online users:');
   if (!text || !text.trim()) return;
   try {
-    var res = await window.__b6Admin.window.__b6Admin.api('/api/admin/broadcast', { method: 'POST', body: JSON.stringify({ text: text.trim(), title: 'System' }) });
+    var res = await window.__b6Admin.api('/api/admin/broadcast', { method: 'POST', body: JSON.stringify({ text: text.trim(), title: 'System' }) });
     window.__b6Admin.toast('Broadcast delivered to ' + (res.delivered || 0) + ' online sessions');
   } catch (e) {
     window.__b6Admin.toast('Broadcast failed: ' + (e && e.message ? e.message : e));
@@ -2353,7 +2394,7 @@ async function adminBroadcast() {
 async function adminSetModerator(userId, enabled) {
   if (!userId) return;
   try {
-    await window.__b6Admin.window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/moderator', {
+    await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/moderator', {
       method: 'PUT',
       body: JSON.stringify({ enabled: !!enabled })
     });
@@ -2407,7 +2448,7 @@ async function adminSetModerator(userId, enabled) {
   var STATUS_COLOR = { ACTIVE: 'badge-green', SCHEDULED: 'badge-blue', DRAFT: '', EXPIRED: '', CANCELLED: 'badge-red' };
 
   // ─── 公告广播 ───────────────────────────
-  async function loadAnnouncements() {
+  async function loadAnnouncements(seq) {
     var offset = (pg.announcements || 0) * pageSize;
     var q = document.getElementById('b6-ann-q') ? document.getElementById('b6-ann-q').value.trim() : '';
     var st = document.getElementById('b6-ann-status') ? document.getElementById('b6-ann-status').value : '';
@@ -2451,6 +2492,7 @@ async function adminSetModerator(userId, enabled) {
     }
 
     html += '</tbody></table></div>' + pager('announcements', rows.length) + '</div></div>';
+    if (H.isStaleTab(seq)) return;
     el('content').innerHTML = html;
 
     var searchBtn = document.getElementById('b6-ann-search');
@@ -2516,7 +2558,7 @@ async function adminSetModerator(userId, enabled) {
   }
 
   // ─── 用户标签 + 风控联动 ─────────────────
-  async function loadUserTags() {
+  async function loadUserTags(seq) {
     var tags = await api('/api/admin/user-tags');
     var risk = null;
     try { risk = await api('/api/admin/tags/risk-summary'); } catch (e) { /* 可选 */ }
@@ -2552,6 +2594,7 @@ async function adminSetModerator(userId, enabled) {
       });
     }
     html += '</tbody></table></div></div></div>';
+    if (H.isStaleTab(seq)) return;
     el('content').innerHTML = html;
 
     document.getElementById('b6-tag-create').onclick = async function () {
@@ -2628,7 +2671,7 @@ async function adminSetModerator(userId, enabled) {
   }
 
   // ─── 限流仪表盘 ─────────────────────────
-  async function loadRateLimit() {
+  async function loadRateLimit(seq) {
     var range = '24h';
     var holder = document.getElementById('b6-rl-range');
     if (holder) range = holder.value;
@@ -2663,6 +2706,7 @@ async function adminSetModerator(userId, enabled) {
       ' · 每 IP 每分钟上限 ' + d.live.maxPerMinute + ' · 最近采样 ' + (d.lastSnapshotAt ? date(d.lastSnapshotAt) : '—') +
       ' · 保留 ' + d.retentionDays + ' 天</p>' +
       '</div></div>';
+    if (H.isStaleTab(seq)) return;
     el('content').innerHTML = html;
 
     document.getElementById('b6-rl-refresh').onclick = loadRateLimit;
@@ -2677,7 +2721,7 @@ async function adminSetModerator(userId, enabled) {
   }
 
   // ─── 设备事件一致性 ─────────────────────
-  async function loadDeviceConsistency() {
+  async function loadDeviceConsistency(seq) {
     var offset = (pg['device-consistency'] || 0) * pageSize;
     var sum = await api('/api/admin/device-consistency/summary');
     var evs = await api('/api/admin/device-consistency/events?limit=' + pageSize + '&offset=' + offset);
@@ -2712,6 +2756,7 @@ async function adminSetModerator(userId, enabled) {
       });
     }
     html += '</tbody></table></div>' + pager('device-consistency', evs.length) + '</div></div>';
+    if (H.isStaleTab(seq)) return;
     el('content').innerHTML = html;
     bindPager('device-consistency', evs.length, loadDeviceConsistency);
   }
@@ -2725,12 +2770,15 @@ async function adminSetModerator(userId, enabled) {
     currentTab = tab;
     el('page-title').textContent = TABS[tab].title;
     el('content').innerHTML = '<div class="loading-state"><div class="spinner"></div><span>加载中…</span></div>';
-    TABS[tab].fn().catch(fail);
+    // 8.48：共享主模块的 tab 渲染序号——主/B6 tab 互切时旧响应不得覆盖新页面
+    var seq = H.nextTabSeq();
+    TABS[tab].fn(seq).catch(function (x) { if (!H.isStaleTab(seq)) fail(x); });
   });
   document.getElementById('refresh-btn').addEventListener('click', function () {
     if (currentTab && TABS[currentTab]) {
       el('content').innerHTML = '<div class="loading-state"><div class="spinner"></div><span>加载中…</span></div>';
-      TABS[currentTab].fn().catch(fail);
+      var seq = H.nextTabSeq();
+      TABS[currentTab].fn(seq).catch(function (x) { if (!H.isStaleTab(seq)) fail(x); });
     }
   });
 
@@ -2765,15 +2813,19 @@ async function adminSetModerator(userId, enabled) {
     block.innerHTML = '<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">B2 · 密聊防泄漏扩展（Surface #71–#78 · burnz/ttlz/fwlz/simz/2faz/ndz/dvz/sntz）</div>' + html;
     host.appendChild(block);
   }
+  // 8.48 修复：Settings 保存后 loadSettings() 会重渲染面板——observer 必须保持连接，
+  // 每次 Settings 面板出现且 B2 行缺失时重新注入（注入本身幂等，带 in-flight 防抖）
+  var b2SettingsBusy = false;
   var b2SettingsObserver = new MutationObserver(function () {
     if (document.getElementById('b2-secret-surface-rows')) return;
     var host = document.querySelector('#content .panel-body');
     var saveBtn = el('settings-save');
-    if (!host || !saveBtn) return;
+    if (!host || !saveBtn || b2SettingsBusy) return;
+    b2SettingsBusy = true;
     api('/api/admin/settings').then(function (data) {
       injectB2SecretRows((data && data.settings) || {});
-      b2SettingsObserver.disconnect();
-    }).catch(function () { b2SettingsObserver.disconnect(); });
+    }).catch(function () { /* 留待下一次 DOM 变更重试 */ })
+      .then(function () { b2SettingsBusy = false; });
   });
   b2SettingsObserver.observe(document.body, { childList: true, subtree: true });
 })();

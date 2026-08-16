@@ -121,11 +121,17 @@ interface MessageDao {
     // 8.48 修复：可搜索且正文非空的消息数——用于搜索索引漂移判定；
     // 空白/密文消息 indexMessage 时 deleteDocument 不产生文档，若用 getSearchableMessageIds
     // 计数则 msgCount 恒 > docCount，每次打开全局搜索都误判需全量重建
+    // 8.49 修复：与 indexMessage 的拒绝规则（looksLikeWireEnvelope）对齐——密文
+    // （{ / [{ / [" 开头的 wire envelope）永不产生文档，必须同样从基数排除，
+    // 否则未打开会话的 backlog 密文会让 drift 恒等于密文数，每次打开搜索都全量重建
     @Query(
         """
         SELECT COUNT(*) FROM messages
         WHERE type IN ('TEXT', 'MARKDOWN', 'VOICE', 'LOCATION', 'NUDGE', 'IMAGE', 'GIF', 'STICKER', 'VIDEO', 'FILE')
-          AND content != ''
+          AND TRIM(content) != ''
+          AND LTRIM(content) NOT LIKE '{%'
+          AND LTRIM(content) NOT LIKE '[{%'
+          AND LTRIM(content) NOT LIKE '["%'
           AND chatId NOT IN (SELECT chatId FROM secret_chats)
         """
     )

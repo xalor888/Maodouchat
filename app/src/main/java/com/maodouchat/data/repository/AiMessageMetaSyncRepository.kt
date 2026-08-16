@@ -373,50 +373,11 @@ class AiMessageMetaSyncRepository(
         return changed
     }
 
-    private fun composeContentWithMeta(text: String, meta: MessageMeta): String {
-        if (
-            meta.mentions.isEmpty() &&
-            meta.replyToId == null &&
-            meta.voiceTranscript.isNullOrBlank() &&
-            meta.voiceDurationMs == null &&
-            meta.translations.isEmpty() &&
-            meta.aiImageAnalyses.isEmpty() &&
-            meta.aiFileAnalyses.isEmpty() &&
-            meta.aiFileLastQuestion.isNullOrBlank() &&
-            !meta.aiAssisted &&
-            meta.fileName.isNullOrBlank() &&
-            meta.fileMimeType.isNullOrBlank() &&
-            meta.fileSizeBytes == null &&
-            meta.attachmentId == null
-        ) return text
-        val encoded = JsonFormat.encode(
-            mapOf(
-                "mentions" to meta.mentions,
-                "replyToId" to meta.replyToId,
-                "voiceTranscript" to meta.voiceTranscript,
-                "voiceDurationMs" to meta.voiceDurationMs,
-                "translations" to meta.translations,
-                "preferredTranslationLanguage" to meta.preferredTranslationLanguage,
-                "aiImageAnalyses" to meta.aiImageAnalyses,
-                "preferredImageAnalysisMode" to meta.preferredImageAnalysisMode,
-                "aiFileAnalyses" to meta.aiFileAnalyses,
-                "preferredFileAnalysisMode" to meta.preferredFileAnalysisMode,
-                "aiFileLastQuestion" to meta.aiFileLastQuestion,
-                "aiAssisted" to meta.aiAssisted,
-                "aiAssistantMode" to meta.aiAssistantMode,
-                "fileName" to meta.fileName,
-                "fileMimeType" to meta.fileMimeType,
-                "fileSizeBytes" to meta.fileSizeBytes,
-                "attachmentId" to meta.attachmentId,
-                "attachmentKeyBase64" to meta.attachmentKeyBase64,
-                "attachmentIvBase64" to meta.attachmentIvBase64,
-                "attachmentCipherSha256" to meta.attachmentCipherSha256,
-                "attachmentPlainSha256" to meta.attachmentPlainSha256,
-                "attachmentCipherSize" to meta.attachmentCipherSize
-            )
-        )
-        return text + Message.META_TAG_PREFIX + encoded + "</meta>"
-    }
+    private fun composeContentWithMeta(text: String, meta: MessageMeta): String =
+        // 9.144：委托 JsonFormat 权威实现——此前手写 map 缺 forwardedFrom/markdown/viewOnce/
+        // viewOnceOpened/silent/spoilerMedia/spoilerRevealed/inlineKeyboard/forceReply 九个字段，
+        // 跨设备 meta 合并落库时把阅后即焚/防剧透等隐私标志静默清除
+        JsonFormat.composeContentWithMeta(text, meta)
 
     @Serializable
     private data class AiMessageMetaSyncPayload(

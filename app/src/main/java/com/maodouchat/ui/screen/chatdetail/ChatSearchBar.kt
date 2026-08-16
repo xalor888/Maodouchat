@@ -154,10 +154,11 @@ internal fun ChatSearchBar(
             ) {
                 Text(stringResource(R.string.chat_semantic_search_no_results), style = MaterialTheme.typography.bodySmall, color = TextHint)
             }
-            // 8.52 UX：关键词模式无匹配时明确提示（此前只有 "0/0" 计数器）
-            if (mode == ChatSearchMode.KEYWORD && query.trim().isNotBlank() && resultCount == 0) {
-                Text(stringResource(R.string.chat_search_no_results), style = MaterialTheme.typography.bodySmall, color = TextHint)
-            }
+        }
+        // 8.52 UX（8.49 修复生效）：关键词模式无匹配时明确提示（此前只有 "0/0" 计数器）——
+        // 旧位置误放在 SEMANTIC 分支内，KEYWORD 条件恒为假，从未展示
+        if (mode == ChatSearchMode.KEYWORD && query.trim().isNotBlank() && resultCount == 0) {
+            Text(stringResource(R.string.chat_search_no_results), style = MaterialTheme.typography.bodySmall, color = TextHint)
         }
     }
 }

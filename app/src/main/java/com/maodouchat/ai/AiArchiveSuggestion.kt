@@ -36,7 +36,7 @@ object AiArchiveSuggestion {
         val suggestions = withContext(Dispatchers.IO) {
             compute(context, database)
         }
-        val repository = AiProfileRepository(context)
+        val repository = AiProfileRepository.getInstance(context)
         withContext(Dispatchers.IO) {
             repository.clearArchiveSuggestions()
             suggestions.forEach { repository.saveArchiveSuggestion(it.chatId, it.score, it.reason) }
@@ -47,7 +47,7 @@ object AiArchiveSuggestion {
     /** 读取上次计算并落库的建议（仅本地）。 */
     suspend fun cached(context: Context): List<Suggestion> =
         withContext(Dispatchers.IO) {
-            AiProfileRepository(context).listArchiveSuggestions().map { row ->
+            AiProfileRepository.getInstance(context).listArchiveSuggestions().map { row ->
                 Suggestion(row.chatId, row.score, row.reason)
             }
         }

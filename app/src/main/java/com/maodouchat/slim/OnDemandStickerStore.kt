@@ -139,6 +139,9 @@ object OnDemandStickerStore {
             val expected = pack.stickers.firstOrNull { sanitizeFileName(it.name) == fileName }
             val local = File(packDir(context, pack.id), fileName)
             if (local.isFile && (expected?.sha256 == null || sha256(local) == expected.sha256)) {
+                // 8.49 修复：命中路径 touch——evict 按目录 mtime 淘汰，命中不 touch 会把
+                // 最常用的包排在最旧位置最先淘汰，与 LRU 目标相反（只有下载才更新 mtime）
+                touch(context, pack.id)
                 return local
             }
             val result = ensurePack(context, pack.id)

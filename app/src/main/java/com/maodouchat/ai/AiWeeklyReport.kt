@@ -62,7 +62,7 @@ object AiWeeklyReport {
      */
     suspend fun generate(context: Context, database: AppDatabase, chatId: String): WeeklyReport? {
         val (weekStart, weekEnd) = currentWeekRange()
-        val repository = AiProfileRepository(context)
+        val repository = AiProfileRepository.getInstance(context)
         val cachedRow = withContext(Dispatchers.IO) { repository.getWeeklyReport(chatId, weekStart) }
         if (cachedRow != null) {
             return WeeklyReport(chatId, weekStart, weekEnd, cachedRow.report, cachedRow.model, cachedRow.createdAt)
@@ -111,7 +111,7 @@ object AiWeeklyReport {
     /** 读取某会话的历史周报（仅本地缓存）。 */
     suspend fun history(context: Context, chatId: String, limit: Int = 12): List<WeeklyReport> =
         withContext(Dispatchers.IO) {
-            AiProfileRepository(context).listWeeklyReports(chatId, limit).map { row ->
+            AiProfileRepository.getInstance(context).listWeeklyReports(chatId, limit).map { row ->
                 WeeklyReport(row.chatId, row.weekStart, row.weekEnd, row.report, row.model, row.createdAt)
             }
         }
