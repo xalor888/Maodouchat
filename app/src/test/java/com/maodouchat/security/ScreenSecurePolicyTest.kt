@@ -78,10 +78,12 @@ class ScreenSecurePolicyTest {
 
     @Test
     fun `extract chat id from surface routes`() {
-        assertNull(ScreenSecurePolicy.extractChatIdFromRoute("chat_detail/abc"))
-        assertNull(ScreenSecurePolicy.extractChatIdFromRoute("chat_detail/abc?messageId=m1"))
-        assertNull(ScreenSecurePolicy.extractChatIdFromRoute("media_center/x%20y"))
-        assertNull(ScreenSecurePolicy.extractChatIdFromRoute("group_detail/g1"))
+        assertEquals("abc", ScreenSecurePolicy.extractChatIdFromRoute("chat_detail/abc"))
+        assertEquals("abc", ScreenSecurePolicy.extractChatIdFromRoute("chat_detail/abc?messageId=m1"))
+        assertEquals("x y", ScreenSecurePolicy.extractChatIdFromRoute("media_center/x%20y"))
+        assertEquals("g1", ScreenSecurePolicy.extractChatIdFromRoute("group_detail/g1"))
+        assertEquals("c1", ScreenSecurePolicy.extractChatIdFromRoute("starred_messages/c1"))
+        assertEquals("c2", ScreenSecurePolicy.extractChatIdFromRoute("ai_tasks/c2"))
         assertNull(ScreenSecurePolicy.extractChatIdFromRoute("main"))
         assertNull(ScreenSecurePolicy.extractChatIdFromRoute(null))
     }

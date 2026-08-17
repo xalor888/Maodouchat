@@ -55,7 +55,10 @@ object ScreenSecurePolicy {
             return null
         }
         return runCatching {
-            android.net.Uri.decode(segments[1])
+            java.net.URLDecoder.decode(
+                segments[1].replace("+", "%2B"),
+                java.nio.charset.StandardCharsets.UTF_8.name()
+            )
         }.getOrNull()?.takeIf { it.isNotBlank() }
     }
 }
