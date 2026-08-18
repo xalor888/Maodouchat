@@ -36,6 +36,20 @@ class TurnCredentialServiceTest {
         assertTrue(response.iceServers.all { it.username.isBlank() && it.credential.isBlank() })
     }
 
+    @Test
+    fun `sanitizes userId in coturn username to prevent colon and newline injection`() {
+        val secret = "0123456789abcdef0123456789abcdef"
+        val response = TurnCredentialService(
+            turnUrls = listOf("turn:turn.example.com:3478"),
+            sharedSecret = secret,
+            ttlSeconds = 600,
+            nowSeconds = { 1_000 }
+        ).issue("user:admin\r\nmalicious")
+
+        val turn = response.iceServers.single { it.username.isNotBlank() }
+        assertEquals("1600:user_adminmalicious", turn.username)
+    }
+
     private fun expectedCredential(secret: String, username: String): String {
         val mac = Mac.getInstance("HmacSHA1")
         mac.init(SecretKeySpec(secret.toByteArray(), "HmacSHA1"))

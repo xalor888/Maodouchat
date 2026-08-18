@@ -20,7 +20,8 @@ class TurnCredentialService(
             IceServerResponse(listOf("stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"))
         )
         if (turnEnabled) {
-            val username = "$expiresAtSeconds:$userId"
+            val safeUserId = userId.trim().replace(":", "_").replace("\r", "").replace("\n", "").take(64)
+            val username = "$expiresAtSeconds:$safeUserId"
             servers += IceServerResponse(
                 urls = turnUrls,
                 username = username,

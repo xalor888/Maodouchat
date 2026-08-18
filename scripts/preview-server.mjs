@@ -33,6 +33,31 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (reqPath === '/sitemap.xml') {
+    res.writeHead(200, { 'Content-Type': 'text/xml; charset=utf-8' });
+    res.end(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>http://localhost:8080/</loc><changefreq>weekly</changefreq></url><url><loc>http://localhost:8080/developer</loc><changefreq>weekly</changefreq></url><url><loc>http://localhost:8080/security</loc><changefreq>weekly</changefreq></url><url><loc>http://localhost:8080/privacy</loc><changefreq>weekly</changefreq></url><url><loc>http://localhost:8080/terms</loc><changefreq>weekly</changefreq></url></urlset>`);
+    return;
+  }
+
+  if (reqPath === '/robots.txt') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /developer\nDisallow: /api/\nSitemap: http://localhost:8080/sitemap.xml\n');
+    return;
+  }
+
+  if (reqPath === '/security.txt') {
+    res.writeHead(301, { Location: '/.well-known/security.txt' });
+    res.end();
+    return;
+  }
+
+  if (reqPath === '/.well-known/security.txt') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Contact: mailto:security@maodouchat.com\nPreferred-Languages: zh, en\nCanonical: http://localhost:8080/.well-known/security.txt\nPolicy: http://localhost:8080/security#disclosure\nExpires: 2027-08-13T00:00:00.000Z\n');
+    return;
+  }
+
   // 旧页面 301 重定向
   if (['/faq', '/faq.html', '/help', '/help.html'].includes(reqPath)) {
     res.writeHead(301, { Location: '/#faq' });

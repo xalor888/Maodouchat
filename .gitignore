@@ -43,6 +43,8 @@ server/uploads/
 Thumbs.db
 *.swp
 *.swo
+__pycache__/
+*.pyc
 
 # AI tooling workspace state
 .opencode/
