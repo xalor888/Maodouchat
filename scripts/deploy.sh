@@ -528,6 +528,8 @@ if [[ "$NO_BUILD" == "true" ]]; then
 else
   docker compose up -d --build
 fi
+# 1.374：Caddyfile 是 bind mount，compose 不会因文件内容变化重建 proxy；强制重载保证配置生效
+docker compose up -d --no-deps --force-recreate proxy
 
 # ────────────────────────────────────────────
 # 5. 健康等待

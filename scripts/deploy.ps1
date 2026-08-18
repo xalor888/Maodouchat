@@ -253,6 +253,9 @@ if ($DryRun) {
 Write-Host "== Starting stack =="
 if ($NoBuild) { docker compose up -d } else { docker compose up -d --build }
 if ($LASTEXITCODE -ne 0) { Fail "docker compose up failed" }
+# 1.374：Caddyfile 是 bind mount，compose 不会因文件内容变化重建 proxy；强制重载保证配置生效
+docker compose up -d --no-deps --force-recreate proxy
+if ($LASTEXITCODE -ne 0) { Fail "docker compose proxy recreate failed" }
 
 # ── 4. 健康等待 ──────────────────────────────
 Write-Host "== Waiting for /health/ready (up to 300s) =="
@@ -295,4 +298,3 @@ Write-Host ""
 Write-Host " Update:   git pull && ./scripts/deploy.ps1  (rebuild image so new code takes effect)"
 Write-Host " Logs:     docker compose logs -f server"
 Write-Host "==============================="
-

@@ -137,6 +137,8 @@ offline_checks() {
   grep -q 'docker daemon' scripts/deploy.sh || fail "deploy.sh --doctor missing daemon liveness check"
   # 1.292：deploy 就绪后应校验容器健康状态（捕捉 unhealthy 潜伏问题）
   grep -q 'unhealthy_services' scripts/deploy.sh || fail "deploy.sh missing post-ready container health check"
+  # 1.374：deploy 应强制重建 proxy，使 bind mount 的 Caddyfile 内容变更生效
+  grep -q 'force-recreate proxy' scripts/deploy.sh || fail "deploy.sh missing proxy force-recreate"
   # 1.369：deploy 健康等待应对本地部署（localhost/IP）回退 http+自签（与 status.sh 1.367 一致）
   grep -q 'health_scheme' scripts/deploy.sh || fail "deploy.sh missing scheme-aware health wait"
   # 1.303：deploy 应校验 BASE_URL 与 PUBLIC_HOST 一致（防 App 连错域名）
