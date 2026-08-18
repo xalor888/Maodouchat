@@ -146,6 +146,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.DisposableEffect
@@ -419,7 +420,7 @@ fun ChatDetailScreen(
     var showSearchBar by rememberSaveable { mutableStateOf(false) }
     var showDateJumpDialog by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    var searchIndex by rememberSaveable { mutableStateOf(0) }
+    var searchIndex by rememberSaveable { mutableIntStateOf(0) }
     var searchMode by rememberSaveable { mutableStateOf(ChatSearchMode.KEYWORD) }
     var searchScope by rememberSaveable { mutableStateOf(ChatSearchScope.ALL) }
     var searchWindow by rememberSaveable { mutableStateOf(ChatSearchWindow.ALL) }
@@ -604,7 +605,7 @@ fun ChatDetailScreen(
     // 0.69：视频发送前预览确认（此前点即发，误选无法挽回）
     var pendingVideoConfirm by remember { mutableStateOf<PendingImageSend?>(null) }
     // 8.48：禁言提示到期重组触发器（到期时刻写入以驱动提示条消失）
-    var muteTick by remember { mutableStateOf(0L) }
+    var muteTick by remember { mutableLongStateOf(0L) }
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
@@ -6461,7 +6462,7 @@ private fun ScheduleSendDialog(
 ) {
     val context = LocalContext.current
     // 1.21：重复次数选择（0=不限）
-    var repeatCountChoice by remember { mutableStateOf(0) }
+    var repeatCountChoice by remember { mutableIntStateOf(0) }
     // 1.43：重排文案草稿
     var textDraft by remember(initialText) { mutableStateOf(initialText) }
     val options = com.maodouchat.util.ScheduledMessagePolicy.QUICK_DELAYS_MS.zip(
@@ -6783,7 +6784,7 @@ private fun LiveLocationSharingBanner(
     onStop: () -> Unit
 ) {
     var remaining by remember(untilMs) {
-        mutableStateOf(com.maodouchat.util.LiveLocationPolicy.remainingFromUntil(untilMs))
+        mutableLongStateOf(com.maodouchat.util.LiveLocationPolicy.remainingFromUntil(untilMs))
     }
     LaunchedEffect(untilMs) {
         while (true) {

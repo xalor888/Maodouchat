@@ -36,6 +36,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -69,7 +70,7 @@ fun CallHistoryScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     // clear 后通过 revision 触发重读
-    var revision by remember { mutableStateOf(0) }
+    var revision by remember { mutableIntStateOf(0) }
     val logs = remember(revision) { CallLogStore.list(context) }
     // 1.282：长按单条弹出操作菜单（删除该条 / 查看对方资料）
     var entryMenuId by rememberSaveable { mutableStateOf<String?>(null) }

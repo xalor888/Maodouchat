@@ -50,6 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -102,7 +103,7 @@ fun PublicProfileScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var profile by remember { mutableStateOf<PublicProfileData?>(null) }
     // 重试计数：自增后触发 LaunchedEffect 重新拉取
-    var retryKey by remember { mutableStateOf(0) }
+    var retryKey by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(username, retryKey) {
         loading = true

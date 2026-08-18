@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -1410,7 +1411,7 @@ private fun MainContainer(navController: NavHostController) {
     var selectedTab by rememberSaveable { mutableIntStateOf(MainTab.CHATS) }
     val motion = LocalMotionSettings.current
     // Missed-call tray tap must land on chats inbox (not contacts/explore/settings/archive).
-    var openMissedCallsRequest by remember { mutableStateOf(0L) }
+    var openMissedCallsRequest by remember { mutableLongStateOf(0L) }
     LaunchedEffect(Unit) {
         com.maodouchat.MaodouchatApp.openMissedCallsEvents.collect { req ->
             if (req.sessionGeneration != com.maodouchat.MaodouchatApp.currentSessionGeneration()) {

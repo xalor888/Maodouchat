@@ -57,6 +57,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -348,7 +350,7 @@ private fun LocationBubble(
     } else {
         payload.label
     }
-    var liveNow by remember(payload.sessionId, payload.liveUntil) { mutableStateOf(System.currentTimeMillis()) }
+    var liveNow by remember(payload.sessionId, payload.liveUntil) { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(payload.sessionId, payload.live, payload.liveUntil) {
         val until = payload.liveUntil
         if (payload.live && until != null) {
@@ -2271,7 +2273,7 @@ private fun DisappearCountdownLabel(
     modifier: Modifier = Modifier
 ) {
     if (expiresAt == null || expiresAt <= 0L) return
-    var nowMs by remember(expiresAt) { mutableStateOf(System.currentTimeMillis()) }
+    var nowMs by remember(expiresAt) { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(expiresAt) {
         while (true) {
             nowMs = System.currentTimeMillis()
@@ -2632,7 +2634,7 @@ private fun InteractivePollCard(
     }
     var counts by remember(pollId) { mutableStateOf(List(optionList.size) { 0 }) }
     var myVotes by remember(pollId) { mutableStateOf(emptySet<Int>()) }
-    var totalVoters by remember(pollId) { mutableStateOf(0) }
+    var totalVoters by remember(pollId) { mutableIntStateOf(0) }
     var closed by remember(pollId) { mutableStateOf(false) }
     var loading by remember(pollId) { mutableStateOf(false) }
     var voting by remember(pollId) { mutableStateOf(false) }

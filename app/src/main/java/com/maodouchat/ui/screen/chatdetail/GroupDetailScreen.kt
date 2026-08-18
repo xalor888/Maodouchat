@@ -64,6 +64,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -1276,8 +1278,8 @@ fun GroupDetailScreen(
     var auditExpanded by rememberSaveable { mutableStateOf(false) }
     var candidateSearch by rememberSaveable { mutableStateOf("") }
     var candidatesExpanded by rememberSaveable { mutableStateOf(false) }
-    var inviteExpirySeconds by rememberSaveable { mutableStateOf(7L * 24L * 60L * 60L) }
-    var inviteMaxUses by rememberSaveable { mutableStateOf(100) }
+    var inviteExpirySeconds by rememberSaveable { mutableLongStateOf(7L * 24L * 60L * 60L) }
+    var inviteMaxUses by rememberSaveable { mutableIntStateOf(100) }
     val context = LocalContext.current
     val shareInviteChooserTitle = stringResource(R.string.group_detail_share_invite)
     val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -2670,4 +2672,3 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
         if (cursor < snippet.text.length) append(snippet.text.substring(cursor))
     }
 }
-

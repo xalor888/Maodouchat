@@ -68,6 +68,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -173,7 +175,7 @@ fun AccountSecurityScreen(
     }
     val confirmedDeviceCount = state.devices.count { it.status == "CONFIRMED" }
     var appLockEnabled by remember(state.userId) { mutableStateOf(AppLockManager.isEnabled(context)) }
-    var appLockTimeout by remember(state.userId) { mutableStateOf(AppLockManager.getTimeoutMinutes(context)) }
+    var appLockTimeout by remember(state.userId) { mutableLongStateOf(AppLockManager.getTimeoutMinutes(context)) }
     val appLockRuntimeOn = remember { RuntimeFlags.isEnabled(context, RuntimeFlags.APP_LOCK) }
     var appLockError by remember(state.userId) { mutableStateOf<String?>(null) }
     var sensitiveGateEnabled by remember(state.userId) { mutableStateOf(SensitiveActionGate.isEnabled(context)) }
@@ -2543,8 +2545,8 @@ fun NotificationSettingsScreen(
             // 以已保存值为键：弹窗打开后 VM 从服务端同步更新 state 时，本地草稿重新初始化为最新值，
             // 避免出现“已保存 23:30-06:00，弹窗却显示默认 22:00-07:00”的陈旧值。
             var enabled by remember(state.dndEnabled) { mutableStateOf(state.dndEnabled) }
-            var startMinute by remember(state.dndStartMinute) { mutableStateOf(state.dndStartMinute) }
-            var endMinute by remember(state.dndEndMinute) { mutableStateOf(state.dndEndMinute) }
+            var startMinute by remember(state.dndStartMinute) { mutableIntStateOf(state.dndStartMinute) }
+            var endMinute by remember(state.dndEndMinute) { mutableIntStateOf(state.dndEndMinute) }
             val activity = LocalContext.current.findActivity()
             val dndPresets = listOf(
                 Triple(22 * 60, 7 * 60, R.string.notifications_dnd_preset_night),
