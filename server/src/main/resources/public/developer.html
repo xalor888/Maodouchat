@@ -1,12 +1,29 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="theme-color" content="#0b100e"/>
+  <meta id="themeColor" name="theme-color" content="#f7f8f4"/>
   <meta name="robots" content="noindex,nofollow"/>
   <title>毛豆聊天 开发者中心</title>
   <link rel="icon" href="/assets/logo.png"/>
+  <script>
+    (function() {
+      try {
+        var initialTheme = localStorage.getItem('maodou-theme');
+        if (!initialTheme) {
+          initialTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        if (initialTheme === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          var tc = document.getElementById('themeColor');
+          if (tc) tc.setAttribute('content', '#0b100e');
+        } else {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      } catch (error) {}
+    })();
+  </script>
   <link rel="stylesheet" href="/assets/style.css"/>
   <style>
     /* ═══ Developer Console Overrides ═══ */
@@ -460,6 +477,11 @@
   </style>
 </head>
 <body>
+
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="切换主题" title="切换主题">
+  <svg id="iconSun" hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+  <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</button>
 
 <!-- ═══ Login Page ═══ -->
 <div id="loginPage" class="dev-login">

@@ -1,20 +1,37 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="theme-color" content="#0b100e"/>
+  <meta id="themeColor" name="theme-color" content="#f7f8f4"/>
   <title>隐私政策 - 毛豆聊天</title>
   <meta name="description" content="毛豆聊天隐私政策：我们收集什么、不收集什么、端到端加密、密聊与盲水印、数据留存与删除、第三方服务与儿童隐私。"/>
   <meta name="keywords" content="毛豆聊天,隐私政策,端到端加密,数据留存,账号注销"/>
   <link rel="canonical" href="https://maodouchat.com/privacy"/>
   <meta name="robots" content="index,follow"/>
   <link rel="icon" href="/assets/logo.png"/>
+  <script>
+    (function() {
+      try {
+        var initialTheme = localStorage.getItem('maodou-theme');
+        if (!initialTheme) {
+          initialTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        if (initialTheme === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          var tc = document.getElementById('themeColor');
+          if (tc) tc.setAttribute('content', '#0b110d');
+        } else {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      } catch (error) {}
+    })();
+  </script>
   <link rel="stylesheet" href="/assets/style.css"/>
 </head>
 <body>
 
-<button class="theme-toggle" id="themeToggle" aria-label="切换主题" title="切换主题">
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="切换主题" title="切换主题">
   <svg id="iconSun" hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
   <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
 </button>
@@ -121,10 +138,10 @@
     <p>本政策可能不时更新。重大变更我们会通过 App 内公告或官网通知。继续使用服务即视为接受更新后的政策。更新日期标注于本页顶部。</p>
 
     <h2 id="contact">联系方式</h2>
-    <p>如有隐私相关问题，请联系：</p>
+    <p>如有隐私与安全相关问题，请联系：</p>
     <ul>
-      <li>邮箱：<a href="mailto:support@maodouchat.com">support@maodouchat.com</a></li>
-      <li>安全披露：<a href="mailto:security@maodouchat.com">security@maodouchat.com</a></li>
+      <li>支持邮箱：<a href="mailto:support@maodouchat.com">support@maodouchat.com</a></li>
+      <li>安全披露：<a href="https://github.com/xalor888/Maodouchat/security/advisories" target="_blank" rel="noopener noreferrer">GitHub Security Advisories</a></li>
       <li>常见问题与反馈：<a href="/#faq">/#faq</a> 与 <a href="https://github.com/xalor888/Maodouchat/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a></li>
     </ul>
   </div>
@@ -161,7 +178,7 @@
       <a href="/privacy">隐私政策</a>
       <a href="/terms">服务条款</a>
       <a href="/security">安全详解</a>
-      <a href="mailto:security@maodouchat.com">安全披露</a>
+      <a href="https://github.com/xalor888/Maodouchat/security/advisories" target="_blank" rel="noopener noreferrer">安全披露</a>
     </div>
   </div>
   <div class="footer-bottom">
@@ -173,40 +190,74 @@
 <script>
 (function() {
   'use strict';
+  var root = document.documentElement;
   var themeToggle = document.getElementById('themeToggle');
-  var html = document.documentElement;
-  var savedTheme = localStorage.getItem('maodou-theme') || 'dark';
-  if (savedTheme !== 'dark' && savedTheme !== 'light') {
-    savedTheme = 'dark';
-  }
+  var themeMeta = document.getElementById('themeColor');
   var iconSun = document.getElementById('iconSun');
   var iconMoon = document.getElementById('iconMoon');
-  function applyTheme(theme) {
-    html.setAttribute('data-theme', theme);
-    if (theme === 'dark') {
-      iconSun.setAttribute('hidden', '');
-      iconMoon.removeAttribute('hidden');
-    } else {
-      iconMoon.setAttribute('hidden', '');
-      iconSun.removeAttribute('hidden');
+
+  function readSavedTheme() {
+    try {
+      return localStorage.getItem('maodou-theme');
+    } catch (error) {
+      return null;
     }
   }
+
+  function saveTheme(theme) {
+    try {
+      localStorage.setItem('maodou-theme', theme);
+    } catch (error) {}
+  }
+
+  var savedTheme = readSavedTheme();
+  if (!savedTheme) {
+    savedTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  if (savedTheme !== 'dark' && savedTheme !== 'light') savedTheme = 'light';
+
+  function applyTheme(theme) {
+    root.setAttribute('data-theme', theme);
+    if (themeMeta) themeMeta.setAttribute('content', theme === 'dark' ? '#0b110d' : '#f7f8f4');
+    if (themeToggle) themeToggle.setAttribute('aria-label', theme === 'dark' ? '切换到浅色主题' : '切换到深色主题');
+    if (theme === 'dark') {
+      if (iconSun) iconSun.removeAttribute('hidden');
+      if (iconMoon) iconMoon.setAttribute('hidden', '');
+    } else {
+      if (iconMoon) iconMoon.removeAttribute('hidden');
+      if (iconSun) iconSun.setAttribute('hidden', '');
+    }
+  }
+
   applyTheme(savedTheme);
-  themeToggle.addEventListener('click', function() {
-    var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    localStorage.setItem('maodou-theme', next);
-    applyTheme(next);
-  });
+  if (themeToggle) {
+    themeToggle.addEventListener('click', function() {
+      var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      saveTheme(next);
+      applyTheme(next);
+    });
+  }
+
   var navToggle = document.getElementById('navToggle');
   var navLinks = document.getElementById('navLinks');
-  navToggle.addEventListener('click', function() { navLinks.classList.toggle('open'); });
-  navLinks.querySelectorAll('a').forEach(function(a) {
-    a.addEventListener('click', function() { navLinks.classList.remove('open'); });
-  });
+  if (navToggle && navLinks) {
+    navToggle.addEventListener('click', function() {
+      var open = navLinks.classList.toggle('open');
+      navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    navLinks.querySelectorAll('a').forEach(function(a) {
+      a.addEventListener('click', function() {
+        navLinks.classList.remove('open');
+        navToggle.setAttribute('aria-expanded', 'false');
+      });
+    });
+  }
   var nav = document.getElementById('nav');
-  window.addEventListener('scroll', function() {
-    nav.style.boxShadow = window.scrollY > 50 ? 'var(--shadow-md)' : 'none';
-  });
+  if (nav) {
+    window.addEventListener('scroll', function() {
+      nav.style.boxShadow = window.scrollY > 50 ? 'var(--shadow-md)' : 'none';
+    });
+  }
 })();
 </script>
 </body>

@@ -177,26 +177,31 @@ h1, h2, h3, h4 {
 /* ═══ Theme toggle ═══ */
 .theme-toggle {
   position: fixed;
-  top: 14px;
-  right: 18px;
-  z-index: 80;
-  width: 42px;
-  height: 42px;
+  top: 11px;
+  right: 26px;
+  z-index: 90;
+  width: 44px;
+  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 50%;
   background: var(--surface);
   color: var(--text-2);
   box-shadow: var(--shadow-sm);
-  transition: border-color var(--t-fast), transform var(--t-fast), color var(--t-fast);
+  transition: border-color var(--t-fast), transform var(--t-fast), color var(--t-fast), background var(--t-fast);
 }
 
 .theme-toggle:hover {
   border-color: var(--brand);
   color: var(--text);
   transform: translateY(-1px);
+}
+
+.theme-toggle svg {
+  width: 19px;
+  height: 19px;
 }
 
 /* ═══ Nav ═══ */

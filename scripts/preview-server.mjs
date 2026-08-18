@@ -22,9 +22,35 @@ const mimeTypes = {
   '.xml': 'text/xml; charset=utf-8'
 };
 
+const adminDir = path.resolve(__dirname, '../server/src/main/resources/admin');
+
 const server = http.createServer((req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   let reqPath = decodeURIComponent(parsedUrl.pathname);
+
+  // 管理后台路由支持
+  if (reqPath === '/admin' || reqPath === '/admin/') {
+    const adminHtml = path.join(adminDir, 'admin.html');
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'Content-Security-Policy': "frame-ancestors 'none'; base-uri 'none';"
+    });
+    fs.createReadStream(adminHtml).pipe(res);
+    return;
+  }
+
+  if (reqPath.startsWith('/admin/assets/')) {
+    const assetName = path.basename(reqPath);
+    const assetFile = path.join(adminDir, assetName);
+    if (fs.existsSync(assetFile)) {
+      const ext = path.extname(assetFile);
+      const contentType = mimeTypes[ext] || 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'no-store' });
+      fs.createReadStream(assetFile).pipe(res);
+      return;
+    }
+  }
 
   // 模拟 API 状态检查
   if (reqPath === '/api/public/status') {

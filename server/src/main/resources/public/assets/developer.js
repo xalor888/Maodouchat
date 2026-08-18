@@ -104,16 +104,41 @@
 
   // ─── Theme ──────────────────────────
   var themeToggle = document.getElementById('themeToggle');
+  var iconSun = document.getElementById('iconSun');
+  var iconMoon = document.getElementById('iconMoon');
+  var themeMeta = document.getElementById('themeColor');
+
+  function applyDevTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    if (themeMeta) themeMeta.setAttribute('content', theme === 'dark' ? '#0b100e' : '#f7f8f4');
+    if (themeToggle) {
+      themeToggle.setAttribute('aria-label', theme === 'dark' ? '切换到浅色主题' : '切换到深色主题');
+      if (iconSun && iconMoon) {
+        if (theme === 'dark') {
+          iconSun.removeAttribute('hidden');
+          iconMoon.setAttribute('hidden', '');
+        } else {
+          iconMoon.removeAttribute('hidden');
+          iconSun.setAttribute('hidden', '');
+        }
+      }
+    }
+  }
+
   if (themeToggle) {
-    var savedTheme = localStorage.getItem('maodou-theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    themeToggle.textContent = savedTheme === 'dark' ? '🌙' : '☀️';
+    var savedTheme = 'light';
+    try {
+      savedTheme = localStorage.getItem('maodou-theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    } catch (e) {}
+    if (savedTheme !== 'dark' && savedTheme !== 'light') savedTheme = 'light';
+    applyDevTheme(savedTheme);
     themeToggle.addEventListener('click', function () {
       var current = document.documentElement.getAttribute('data-theme');
       var next = current === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('maodou-theme', next);
-      themeToggle.textContent = next === 'dark' ? '🌙' : '☀️';
+      try {
+        localStorage.setItem('maodou-theme', next);
+      } catch (e) {}
+      applyDevTheme(next);
     });
   }
 
