@@ -287,6 +287,8 @@ offline_checks() {
   # 1.373：Caddyfile 应隐藏 /admin 并只放行随机 ADMIN_PATH 前缀
   grep -q 'respond @admin_page 404' deploy/Caddyfile || fail "Caddyfile must return 404 for /admin"
   grep -q 'ADMIN_PATH' deploy/Caddyfile || fail "Caddyfile missing ADMIN_PATH hidden admin route"
+  grep -q 'handle @hidden_exact' deploy/Caddyfile || fail "Caddyfile missing hidden admin exact route"
+  grep -q 'handle @hidden_prefix' deploy/Caddyfile || fail "Caddyfile missing hidden admin prefix route"
   ok "Caddyfile hides /admin behind ADMIN_PATH"
 
   # 1.276：部署文档应说明 status.sh 的监控 flags（--json/--short/--health-check/--watch）
