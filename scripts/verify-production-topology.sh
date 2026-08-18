@@ -31,9 +31,9 @@ offline_checks() {
   grep -q 'health/ready' docker-compose.yml || fail "compose healthcheck missing /health/ready"
   ok "compose healthcheck references /health/ready"
 
-  # 1.288：proxy 应有自身健康检查（Caddy admin API 存活探针）
-  grep -q '127.0.0.1:2019/config' docker-compose.yml || fail "compose proxy healthcheck missing (Caddy admin API)"
-  ok "compose proxy healthcheck uses Caddy admin API"
+  # 1.288：proxy 应有自身健康检查（Caddy 进程存活探针；admin API 关闭后不能再用 2019 探测）
+  grep -q 'pidof caddy' docker-compose.yml || fail "compose proxy healthcheck missing (Caddy process liveness)"
+  ok "compose proxy healthcheck uses Caddy process liveness"
 
   # 1.253：db 健康检查应基于 pg_isready，server 依赖 db healthy 才启动
   grep -q 'pg_isready' docker-compose.yml || fail "compose db healthcheck missing pg_isready"
