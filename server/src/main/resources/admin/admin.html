@@ -6,18 +6,22 @@
 <meta name="robots" content="noindex,nofollow"/>
 <link rel="icon" href="data:,"/>
 <title>毛豆聊天管理后台</title>
+<script>
+  (function () {
+    var theme = 'dark';
+    try {
+      theme = localStorage.getItem('admin-theme') ||
+        (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    } catch (e) {}
+    document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+  })();
+</script>
 <link rel="stylesheet" href="/admin/assets/admin.css"/>
 </head>
 <body>
 
 <!-- ═══ 登录页 ═══ -->
 <section id="login" class="login-page">
-  <div class="login-bg">
-    <div class="glow-orb glow-orb-1"></div>
-    <div class="glow-orb glow-orb-2"></div>
-    <div class="glow-orb glow-orb-3"></div>
-    <div class="grid-overlay"></div>
-  </div>
   <div class="login-card">
     <div class="login-brand">
       <svg class="login-logo" viewBox="0 0 40 40" fill="none">
@@ -199,6 +203,10 @@
       </button>
       <h1 class="topbar-title" id="page-title">仪表盘</h1>
       <div class="topbar-actions">
+        <button class="btn btn-ghost btn-icon" id="theme-toggle" type="button" aria-label="切换主题" title="切换主题">
+          <svg id="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg id="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" hidden><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
         <button class="btn btn-ghost btn-sm" id="refresh-btn">
           <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 3a5 5 0 014.5 3h-1.8l2.3 3 2.3-3h-1.6A6.5 6.5 0 008 1.5 6.5 6.5 0 001.5 8H3a5 5 0 015-5zm5 5a5 5 0 01-9.5 2h1.8l-2.3-3-2.3 3h1.6A6.5 6.5 0 008 14.5a6.5 6.5 0 006.5-6.5H13z"/></svg>
           刷新
@@ -258,5 +266,25 @@
 </div>
 
 <script src="/admin/assets/admin.js" defer></script>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('theme-toggle');
+    var sun = document.getElementById('icon-sun');
+    var moon = document.getElementById('icon-moon');
+    function syncIcons() {
+      var light = root.getAttribute('data-theme') === 'light';
+      if (sun) sun.hidden = light;
+      if (moon) moon.hidden = !light;
+    }
+    syncIcons();
+    if (btn) btn.addEventListener('click', function () {
+      var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('admin-theme', next); } catch (e) {}
+      syncIcons();
+    });
+  })();
+</script>
 </body>
 </html>

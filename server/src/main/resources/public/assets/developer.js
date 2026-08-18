@@ -311,24 +311,29 @@
     }
   }
 
-  // ─── Health (sidebar indicator) ─────
+  // ─── Health (sidebar + header indicators) ─────
   async function loadHealth() {
     var dot = el('healthDot');
     var label = el('healthLabel');
+    var topDot = el('healthDotTop');
+    var topLabel = el('healthLabelTop');
     if (!dot || !label) return;
-    dot.className = 'health-dot pending';
-    label.textContent = '检查中…';
+    var apply = function (cls, text) {
+      dot.className = 'health-dot ' + cls;
+      label.textContent = text;
+      if (topDot) topDot.className = 'health-dot ' + cls;
+      if (topLabel) topLabel.textContent = text;
+    };
+    apply('pending', '检查中…');
     try {
       var h = await api('/api/developer/health' + botQuery());
       var ok = h.status === 'healthy';
-      dot.className = 'health-dot ' + (ok ? 'success' : 'error');
-      label.textContent = ok ? '健康' : '降级';
+      apply(ok ? 'success' : 'error', ok ? '健康' : '降级');
       label.title = 'bot: ' + (h.bot && h.bot.enabled ? 'enabled' : 'disabled') +
         ' / webhook: ' + (h.bot && h.bot.webhookConfigured ? 'on' : 'off') +
         ' / maintenance: ' + (h.server && h.server.maintenanceMode ? 'on' : 'off');
     } catch (x) {
-      dot.className = 'health-dot error';
-      label.textContent = '不可用';
+      apply('error', '不可用');
     }
   }
 
