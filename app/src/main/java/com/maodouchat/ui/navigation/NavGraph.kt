@@ -327,7 +327,8 @@ fun MaodouchatNavGraph(
                     navController.navigate(Routes.MAIN) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
-                }
+                },
+                onOpenServer = { navController.navigate(Routes.SETTINGS_SERVER) }
             )
         }
 

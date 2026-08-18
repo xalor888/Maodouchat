@@ -106,6 +106,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 @SuppressLint("LocalContextGetResourceValueCall")
 fun LoginScreen(
     onLoginSuccess: () -> Unit = {},
+    onOpenServer: () -> Unit = {},
     viewModel: LoginViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -482,6 +483,18 @@ fun LoginScreen(
                             }
                             Text(label, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium, fontSize = 16.sp))
                         }
+                    }
+
+                    TextButton(
+                        onClick = onOpenServer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            stringResource(R.string.settings_server),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Primary,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
             }

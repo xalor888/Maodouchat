@@ -2824,6 +2824,10 @@
     <string name="settings_server_input_label">Server address</string>
     <string name="settings_server_save">Save &amp; apply</string>
     <string name="settings_server_saved">Saved. Please sign in again to continue the current session.</string>
+    <string name="settings_server_test">Test connection</string>
+    <string name="settings_server_testing">Testing connection…</string>
+    <string name="settings_server_test_success">Connected. Server applied.</string>
+    <string name="settings_server_test_failed">Connection failed. Check the server address and network.</string>
     <string name="settings_server_ws_hint">WebSocket address is derived automatically (http→ws, https→wss, path /ws)</string>
     <string name="settings_server_reset">Reset to default server</string>
     <string name="settings_server_reset_subtitle">Use the built-in default address</string>

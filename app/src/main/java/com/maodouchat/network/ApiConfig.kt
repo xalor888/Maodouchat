@@ -2,6 +2,8 @@ package com.maodouchat.network
 
 import android.content.Context
 import com.maodouchat.BuildConfig
+import java.net.HttpURLConnection
+import java.net.URL
 
 /**
  * API 配置
@@ -52,6 +54,26 @@ object ApiConfig {
         runtimeBaseUrl = normalized
         runtimeWsUrl = wsUrl
         return null
+    }
+
+    /** 校验但暂不写入，供保存前测试连接。 */
+    fun validateServerAddress(baseUrl: String, context: Context): String? =
+        validateBaseUrl(baseUrl.trim(), context)
+
+    /** 测试地址是否指向可用的 Maodouchat 服务。 */
+    fun testConnection(baseUrl: String): Boolean {
+        val normalized = normalizeBaseUrl(baseUrl.trim())
+        return runCatching {
+            val connection = URL("$normalized/health/ready").openConnection() as HttpURLConnection
+            connection.connectTimeout = 5_000
+            connection.readTimeout = 5_000
+            connection.requestMethod = "GET"
+            try {
+                connection.responseCode in 200..299
+            } finally {
+                connection.disconnect()
+            }
+        }.getOrDefault(false)
     }
 
     /** 恢复为编译期默认服务器。 */

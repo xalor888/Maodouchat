@@ -90,6 +90,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.maodouchat.network.AiAuditLogResponse
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.DeviceInfoDto
@@ -3284,8 +3286,13 @@ fun ServerSettingsScreen(
     val currentWs = remember { com.maodouchat.network.ApiConfig.WS_URL }
     var input by remember { mutableStateOf(currentBase) }
     var result by remember { mutableStateOf<String?>(null) }
+    var isWorking by remember { mutableStateOf(false) }
     var showResetConfirm by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val serverSavedText = stringResource(R.string.settings_server_saved)
+    val serverTestingText = stringResource(R.string.settings_server_testing)
+    val serverTestSuccessText = stringResource(R.string.settings_server_test_success)
+    val serverTestFailedText = stringResource(R.string.settings_server_test_failed)
     val serverResetDoneText = stringResource(R.string.settings_server_reset_done)
 
     Column(modifier = Modifier.fillMaxSize().background(Background)) {
@@ -3344,29 +3351,73 @@ fun ServerSettingsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Button(
-                onClick = {
-                    val error = com.maodouchat.network.ApiConfig.setServer(input, context)
-                    if (error != null) {
-                        result = error
-                    } else {
-                        result = serverSavedText
-                        // 8.48 修复：切换服务器后重建 ImageLoader（apiHost/DNS/授权头按新服务器）
-                        com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
-                        // 8.48 修复：断开旧 WebSocket——否则 REST 已指向新服务器而 WS 仍连旧服务器
-                        com.maodouchat.network.WebSocketClient.disconnect()
-                        com.maodouchat.slim.OnDemandStickerStore.invalidateServerState()
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(stringResource(R.string.settings_server_save))
+                TextButton(
+                    onClick = {
+                        if (isWorking) return@TextButton
+                        isWorking = true
+                        result = serverTestingText
+                        scope.launch {
+                            val ok = withContext(Dispatchers.IO) {
+                                com.maodouchat.network.ApiConfig.testConnection(input)
+                            }
+                            result = if (ok) serverTestSuccessText else serverTestFailedText
+                            isWorking = false
+                        }
+                    },
+                    enabled = !isWorking,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(stringResource(R.string.settings_server_test))
+                }
+
+                Button(
+                    onClick = {
+                        if (isWorking) return@Button
+                        val validationError = com.maodouchat.network.ApiConfig.validateServerAddress(input, context)
+                        if (validationError != null) {
+                            result = validationError
+                            return@Button
+                        }
+                        isWorking = true
+                        result = serverTestingText
+                        scope.launch {
+                            val ok = withContext(Dispatchers.IO) {
+                                com.maodouchat.network.ApiConfig.testConnection(input)
+                            }
+                            if (!ok) {
+                                result = serverTestFailedText
+                                isWorking = false
+                            } else {
+                                val applyError = com.maodouchat.network.ApiConfig.setServer(input, context)
+                                if (applyError != null) {
+                                    result = applyError
+                                } else {
+                                    result = serverTestSuccessText
+                                    com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
+                                    com.maodouchat.network.WebSocketClient.disconnect()
+                                    com.maodouchat.slim.OnDemandStickerStore.invalidateServerState()
+                                }
+                                isWorking = false
+                            }
+                        }
+                    },
+                    enabled = !isWorking,
+                    modifier = Modifier.weight(1.4f)
+                ) {
+                    Text(stringResource(R.string.settings_server_save))
+                }
             }
 
             Text(
                 text = result ?: stringResource(R.string.settings_server_ws_hint),
                 style = MaterialTheme.typography.bodySmall,
-                color = result?.let { if (it == serverSavedText) Primary else Error } ?: TextSecondary,
+                color = result?.let {
+                    if (it == serverSavedText || it == serverTestSuccessText || it == serverTestingText) Primary else Error
+                } ?: TextSecondary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
