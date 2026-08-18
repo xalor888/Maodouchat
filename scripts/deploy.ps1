@@ -194,6 +194,7 @@ if ($Hostname) {
     Replace-Key "TURN_REALM" "turn.${Host}"
     Replace-Key "TURN_URLS" "turn:turn.${Host}:3478?transport=udp,turn:turn.${Host}:3478?transport=tcp"
 }
+Replace-Key "ADMIN_PATH" ("admin-" + (Gen-Secret).Substring(0, 14))
 
 if ($Relaxed) {
     Replace-Key "RELAXED_VERIFICATION" "true"
@@ -240,6 +241,7 @@ if ($DryRun) {
     Write-Host "   ACME_EMAIL    = $acmeEmail"
     Write-Host "   RELAXED       = $(Get-EnvVal 'RELAXED_VERIFICATION')"
     Write-Host "   BOOTSTRAP     = $(Get-EnvVal 'BOOTSTRAP_FIRST_USER_AS_ADMIN')"
+    Write-Host "   ADMIN_PATH    = $(Get-EnvVal 'ADMIN_PATH')"
     Write-Host "   MASTER_ADMINS = $(Get-EnvVal 'MASTER_ADMINS')"
     Write-Host "   ALLOW_REG     = $(Get-EnvVal 'ALLOW_REGISTRATION')"
     Write-Host ""
@@ -274,7 +276,7 @@ Write-Host ""
 Write-Host "==============================="
 Write-Host " Maodouchat is UP:"
 Write-Host "   API:   $baseUrl"
-Write-Host "   Admin: $baseUrl/admin  (MASTER_ADMINS only)"
+Write-Host "   Admin: $baseUrl/$(Get-EnvVal 'ADMIN_PATH')/admin  (MASTER_ADMINS only)"
 Write-Host "   Web:   $baseUrl"
 Write-Host ""
 Write-Host " First-time admin setup:"
@@ -292,6 +294,5 @@ Write-Host ""
 Write-Host " Update:   git pull && ./scripts/deploy.ps1  (rebuild image so new code takes effect)"
 Write-Host " Logs:     docker compose logs -f server"
 Write-Host "==============================="
-
 
 

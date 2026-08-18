@@ -5,6 +5,13 @@
 
 # API 和主站点
 {$PUBLIC_HOST} {
+    # 管理后台隐藏路径：/admin 直接 404，只有随机前缀下的 /admin 可访问
+    @admin path /admin /admin/
+    respond @admin 404
+
+    @hidden path_regexp hidden ^/{$ADMIN_PATH}/admin(/.*)?$
+    rewrite @hidden /admin{re.hidden.1}
+
     encode zstd gzip
 
     # 8.48 修复：上限须与 server 的 MAX_ATTACHMENT_BYTES 匹配（附件为 base64 载荷，约 4/3 膨胀）。

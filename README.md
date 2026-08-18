@@ -109,7 +109,7 @@ gradle run
 
 ### 管理后台
 
-配置 `MASTER_ADMINS` 并重启服务后，通过 `https://<服务域名>/admin` 访问。生产环境必须使用 HTTPS，不要通过公网明文 HTTP 输入管理员密码。
+配置 `MASTER_ADMINS` 并重启服务后，通过 `https://<服务域名>/<ADMIN_PATH>/admin` 访问（`ADMIN_PATH` 是部署时自动生成的随机前缀，`/admin` 已隐藏）。生产环境必须使用 HTTPS，不要通过公网明文 HTTP 输入管理员密码。
 
 - 普通 App Access Token 不能直接访问完整管理 API。
 - 后台登录会再次校验主管理员密码，并换取用途限定的 5 分钟 `admin_session` Token。

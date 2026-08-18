@@ -202,5 +202,6 @@ jobs:
           docker run --rm \
             -e PUBLIC_HOST=api.example.com \
             -e ACME_EMAIL=admin@example.com \
+            -e ADMIN_PATH=admin-ci-secret \
             -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
             caddy:2.10.2-alpine caddy validate --config /etc/caddy/Caddyfile

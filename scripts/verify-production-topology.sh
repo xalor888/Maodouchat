@@ -117,6 +117,10 @@ offline_checks() {
   grep -q 'PUSH_HMAC_SECRET' docker-compose.yml || fail "compose missing PUSH_HMAC_SECRET passthrough"
   ok "compose passes PUSH_HMAC_SECRET"
 
+  # 隐藏后台路径必须透传，否则 Caddyfile 无法解析随机前缀
+  grep -q 'ADMIN_PATH:' docker-compose.yml || fail "compose missing ADMIN_PATH passthrough"
+  ok "compose passes ADMIN_PATH"
+
   # 1.361：compose 应透传治理/管理员/注册 env（MODERATOR_EMAILS/MASTER_ADMINS/ALLOW_REGISTRATION/DEVELOPER_USER_IDS）
   for key in MODERATOR_EMAILS MASTER_ADMINS ALLOW_REGISTRATION DEVELOPER_USER_IDS; do
     grep -q "^      ${key}:" docker-compose.yml || fail "compose missing ${key} passthrough"
@@ -220,7 +224,7 @@ offline_checks() {
   grep -q 'upstream tracking branch' scripts/update.sh || fail "update.sh missing upstream preflight"
   ok "backup/restore/update scripts support documented flags"
 
-  for key in PUBLIC_HOST ACME_EMAIL BASE_URL JWT_SECRET POSTGRES_PASSWORD PUSH_HMAC_SECRET \
+  for key in PUBLIC_HOST ACME_EMAIL BASE_URL JWT_SECRET POSTGRES_PASSWORD PUSH_HMAC_SECRET ADMIN_PATH \
              RELAXED_VERIFICATION BOOTSTRAP_FIRST_USER_AS_ADMIN SMTP_HOST TURN_URLS TURN_SHARED_SECRET; do
     grep -q "^$key=" .env.docker.example || fail ".env.docker.example missing $key"
   done
@@ -279,6 +283,11 @@ offline_checks() {
   # 1.362：Caddyfile 应关闭管理 API（admin off —— 防远程配置访问/泄漏）
   grep -q 'admin off' deploy/Caddyfile || fail "Caddyfile must disable admin API (admin off)"
   ok "Caddyfile disables admin API"
+
+  # 1.373：Caddyfile 应隐藏 /admin 并只放行随机 ADMIN_PATH 前缀
+  grep -q 'respond @admin 404' deploy/Caddyfile || fail "Caddyfile must return 404 for /admin"
+  grep -q 'ADMIN_PATH' deploy/Caddyfile || fail "Caddyfile missing ADMIN_PATH hidden admin route"
+  ok "Caddyfile hides /admin behind ADMIN_PATH"
 
   # 1.276：部署文档应说明 status.sh 的监控 flags（--json/--short/--health-check/--watch）
   for flag in --json --short --health-check --watch; do

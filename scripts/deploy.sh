@@ -419,6 +419,8 @@ replace_key POSTGRES_PASSWORD "$(gen_secret)"
 replace_key TURN_SHARED_SECRET "$(gen_secret)$(gen_secret)"
 replace_key TURN_REALM "${HOST:+turn.${HOST}}"
 replace_key TURN_URLS "${HOST:+turn:turn.${HOST}:3478?transport=udp,turn:turn.${HOST}:3478?transport=tcp}"
+# 隐藏管理后台：生成随机前缀，完整地址为 https://<host>/<ADMIN_PATH>/admin
+replace_key ADMIN_PATH "admin-$(tr -dc 'a-z0-9' </dev/urandom | head -c 14)"
 
 # 模式开关
 if [[ "$RELAXED" == "true" ]]; then
@@ -506,6 +508,7 @@ if [[ "$DRY_RUN" == "true" ]]; then
   echo "   SMTP_HOST     = $(sed -n 's/^SMTP_HOST=//p' .env | head -n1)"
   echo "   TURN_URLS     = $(sed -n 's/^TURN_URLS=//p' .env | head -n1)"
   echo "   BACKUP_KEEP   = $(sed -n 's/^BACKUP_KEEP=//p' .env | head -n1)"
+  echo "   ADMIN_PATH    = $(sed -n 's/^ADMIN_PATH=//p' .env | head -n1)"
   # 1.312：dry-run 展示管理员与注册配置（首次部署易遗漏）
   echo "   MASTER_ADMINS = $(sed -n 's/^MASTER_ADMINS=//p' .env | head -n1)"
   echo "   BOOTSTRAP     = $(sed -n 's/^BOOTSTRAP_FIRST_USER_AS_ADMIN=//p' .env | head -n1)"
@@ -574,7 +577,7 @@ echo
 echo "==============================="
 echo " Maodouchat is UP:"
 echo "   API:   $BASE_URL_VALUE"
-echo "   Admin: $BASE_URL_VALUE/admin  (MASTER_ADMINS only)"
+echo "   Admin: $BASE_URL_VALUE/$(sed -n 's/^ADMIN_PATH=//p' .env | head -n1)/admin  (MASTER_ADMINS only)"
 echo "   Web:   $BASE_URL_VALUE"
 echo
 echo " First-time admin setup:"

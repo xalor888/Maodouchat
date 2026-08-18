@@ -100,7 +100,7 @@ docker compose exec -T db psql -U maodouchat -d maodouchat -c "SELECT id,email F
 
 → 写入 `.env` 的 `MASTER_ADMINS=<user-id>` → 重启服务。
 
-完成后访问 `https://<域名>/admin`。生产环境必须使用 HTTPS，不要通过公网明文 HTTP 输入管理员密码。
+完成后访问 `https://<域名>/<ADMIN_PATH>/admin`（`ADMIN_PATH` 由 deploy.sh 自动生成随机前缀）。生产环境必须使用 HTTPS，不要通过公网明文 HTTP 输入管理员密码。
 
 ## 5. 健康检查
 

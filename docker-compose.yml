@@ -8,6 +8,7 @@ services:
     environment:
       PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST to the public API hostname}
       ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL for TLS certificate notices}
+      ADMIN_PATH: ${ADMIN_PATH:?Set ADMIN_PATH in .env}
       # 8.48：代理层请求体上限与 server 的 MAX_ATTACHMENT_BYTES 联动（默认 140MB 覆盖 100MB 附件 + base64 膨胀）
       MAX_BODY_BYTES: ${MAX_BODY_BYTES:-146800640}
     volumes:
