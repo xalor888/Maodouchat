@@ -184,7 +184,7 @@ p {
 
 .theme-toggle {
   position: fixed;
-  top: 18px;
+  top: 11px;
   right: 26px;
   z-index: 90;
   width: 44px;
@@ -213,34 +213,33 @@ p {
 
 .site-nav {
   position: fixed;
-  top: 14px;
-  left: 50%;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 70;
-  width: min(1160px, calc(100% - 32px));
   height: 66px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  border-bottom: 1px solid var(--line);
   background: var(--nav-bg);
   -webkit-backdrop-filter: blur(20px) saturate(1.25);
   backdrop-filter: blur(20px) saturate(1.25);
   box-shadow: var(--shadow-sm);
-  transform: translateX(-50%);
-  transition: width var(--t-normal), border-color var(--t-normal), box-shadow var(--t-normal);
+  transition: border-color var(--t-normal), box-shadow var(--t-normal);
 }
 
 .site-nav.scrolled {
-  width: min(1220px, calc(100% - 20px));
   border-color: var(--line-strong);
   box-shadow: var(--shadow-md);
 }
 
 .nav-inner {
   height: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 0 72px 0 18px;
+  padding: 0 72px 0 32px;
 }
 
 .nav-brand {
@@ -888,6 +887,71 @@ p {
 .note-bottom {
   right: 34px;
   bottom: 26px;
+}
+
+/* ---------- Hero 视觉区入场：渐显 + 平滑步进上移 ---------- */
+@keyframes maodou-rise {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes maodou-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* 侧边栏搜索 */
+.hero-visual .sidebar-search {
+  opacity: 0;
+  animation: maodou-rise .5s cubic-bezier(.22, .61, .36, 1) .08s both;
+}
+
+/* 侧边栏会话列表项 */
+.hero-visual .sidebar-item {
+  opacity: 0;
+  animation: maodou-rise .5s cubic-bezier(.22, .61, .36, 1) both;
+}
+
+.hero-visual .sidebar-item:nth-child(1) { animation-delay: .18s; }
+.hero-visual .sidebar-item:nth-child(2) { animation-delay: .28s; }
+.hero-visual .sidebar-item:nth-child(3) { animation-delay: .38s; }
+
+/* 消息列表容器(纯淡入,避免与气泡位移叠加) */
+.hero-visual .app-messages {
+  animation: maodou-fade-in .4s ease .2s both;
+}
+
+/* 消息气泡逐个步进上移 */
+.hero-visual .app-messages .message {
+  opacity: 0;
+  animation: maodou-rise .45s cubic-bezier(.22, .61, .36, 1) both;
+}
+
+.hero-visual .app-messages .message:nth-child(1) { animation-delay: .48s; }
+.hero-visual .app-messages .message:nth-child(2) { animation-delay: .6s; }
+.hero-visual .app-messages .message:nth-child(3) { animation-delay: .72s; }
+.hero-visual .app-messages .message:nth-child(4) { animation-delay: .84s; }
+.hero-visual .app-messages .message:nth-child(5) { animation-delay: .96s; }
+
+/* 悬浮卡片 */
+.hero-visual .float-note.note-top {
+  animation: maodou-rise .55s cubic-bezier(.22, .61, .36, 1) .7s both;
+}
+
+.hero-visual .float-note.note-bottom {
+  animation: maodou-rise .55s cubic-bezier(.22, .61, .36, 1) .85s both;
 }
 
 .section {
@@ -1901,15 +1965,10 @@ p {
 
 @media (max-width: 720px) {
   .site-nav {
-    top: 10px;
-    width: calc(100% - 20px);
     height: 64px;
-    border-radius: 13px;
   }
 
   .site-nav.scrolled {
-    width: calc(100% - 16px);
-  }
 
   .nav-inner {
     padding-right: 16px;
@@ -1949,7 +2008,7 @@ p {
   }
 
   .theme-toggle {
-    top: 18px;
+    top: 11px;
     right: 74px;
   }
 
@@ -2037,7 +2096,7 @@ p {
   }
 
   .theme-toggle {
-    top: 16px;
+    top: 11px;
     right: 66px;
     width: 40px;
     height: 40px;
