@@ -420,6 +420,7 @@ replace_key TURN_SHARED_SECRET "$(gen_secret)$(gen_secret)"
 replace_key TURN_REALM "${HOST:+turn.${HOST}}"
 replace_key TURN_URLS "${HOST:+turn:turn.${HOST}:3478?transport=udp,turn:turn.${HOST}:3478?transport=tcp}"
 # 隐藏管理后台：生成随机前缀，完整地址为 https://<host>/<ADMIN_PATH>/admin
+ensure_key ADMIN_PATH ""
 replace_key ADMIN_PATH "admin-$(tr -dc 'a-z0-9' </dev/urandom | head -c 14)"
 
 # 模式开关

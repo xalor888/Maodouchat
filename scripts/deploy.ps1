@@ -194,6 +194,7 @@ if ($Hostname) {
     Replace-Key "TURN_REALM" "turn.${Host}"
     Replace-Key "TURN_URLS" "turn:turn.${Host}:3478?transport=udp,turn:turn.${Host}:3478?transport=tcp"
 }
+Ensure-Key "ADMIN_PATH" ""
 Replace-Key "ADMIN_PATH" ("admin-" + (Gen-Secret).Substring(0, 14))
 
 if ($Relaxed) {
@@ -294,5 +295,4 @@ Write-Host ""
 Write-Host " Update:   git pull && ./scripts/deploy.ps1  (rebuild image so new code takes effect)"
 Write-Host " Logs:     docker compose logs -f server"
 Write-Host "==============================="
-
 
