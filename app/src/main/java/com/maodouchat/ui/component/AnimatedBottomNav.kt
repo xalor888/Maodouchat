@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.ui.theme.LocalMotionSettings
@@ -87,7 +88,7 @@ fun AnimatedBottomNav(
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .offset(x = pillOffset)
+                    .offset { IntOffset(pillOffset.roundToPx(), 0) }
                     .size(width = pillWidth, height = pillHeight)
                     .clip(RoundedCornerShape(14.dp))
                     .background(Primary.copy(alpha = 0.12f))

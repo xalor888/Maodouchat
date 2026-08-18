@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.Primary
@@ -105,7 +106,7 @@ private fun TypingDot(index: Int, animationsEnabled: Boolean) {
         label = "dotOffset$index"
     )
 
-    val alpha by infiniteTransition.animateFloat(
+    val dotAlpha by infiniteTransition.animateFloat(
         initialValue = 0.4f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -115,18 +116,20 @@ private fun TypingDot(index: Int, animationsEnabled: Boolean) {
         label = "dotAlpha$index"
     )
 
-    val scale = if (!animationsEnabled) 1f else 1f + offsetY / 12f
-
+    // offset/scale/alpha 延后到放置与绘制阶段读取动画状态：组合期不读 offsetY/dotAlpha，
+    // 动画每帧只触发 placement/draw，不再重组整个 TypingDot。
     Box(
         modifier = Modifier
             .size(7.dp)
-            .offset(y = if (animationsEnabled) offsetY.dp else 0.dp)
+            .offset { IntOffset(0, if (animationsEnabled) offsetY.dp.roundToPx() else 0) }
             .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
+                val s = if (animationsEnabled) 1f + offsetY / 12f else 1f
+                scaleX = s
+                scaleY = s
+                alpha = if (animationsEnabled) dotAlpha else 0.7f
             }
             .clip(RoundedCornerShape(3.5.dp))
-            .background(Primary.copy(alpha = if (animationsEnabled) alpha else 0.7f))
+            .background(Primary)
     )
 }
 
