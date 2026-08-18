@@ -285,7 +285,7 @@ offline_checks() {
   ok "Caddyfile disables admin API"
 
   # 1.373：Caddyfile 应隐藏 /admin 并只放行随机 ADMIN_PATH 前缀
-  grep -q 'respond @admin 404' deploy/Caddyfile || fail "Caddyfile must return 404 for /admin"
+  grep -q 'respond @admin_page 404' deploy/Caddyfile || fail "Caddyfile must return 404 for /admin"
   grep -q 'ADMIN_PATH' deploy/Caddyfile || fail "Caddyfile missing ADMIN_PATH hidden admin route"
   ok "Caddyfile hides /admin behind ADMIN_PATH"
 
