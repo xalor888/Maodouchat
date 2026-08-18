@@ -7,10 +7,14 @@
 {$PUBLIC_HOST} {
     # 管理后台隐藏路径：/admin 直接 404，只有随机前缀下的 /admin 可访问
     route {
-        @admin_page path /admin /admin/
+        @admin_page {
+            path /admin /admin/
+            not header X-Admin-Hidden 1
+        }
         respond @admin_page 404
 
         @hidden path_regexp hidden ^/{$ADMIN_PATH}/admin(/.*)?$
+        request_header @hidden X-Admin-Hidden "1"
         rewrite @hidden /admin{re.hidden.1}
     }
 
