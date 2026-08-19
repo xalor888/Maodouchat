@@ -477,7 +477,10 @@
     <string name="group_detail_audit_title">Group activity</string>
     <string name="group_detail_audit_search">Search actors, targets or actions</string>
     <string name="group_detail_audit_no_results">No matching activity</string>
-    <string name="group_detail_audit_more">%1$d more records</string>
+    <plurals name="group_detail_audit_more">
+        <item quantity="one">%1$d more record</item>
+        <item quantity="other">%1$d more records</item>
+    </plurals>
     <string name="group_detail_audit_load_more">Load older records</string>
     <string name="group_detail_audit_loading">Loading…</string>
     <string name="group_detail_candidates_more">%1$d more contacts to add</string>
@@ -1610,8 +1613,14 @@
     <string name="schedule_repeat_badge">Repeats</string>
     <string name="schedule_repeat_count_title">Repeat count</string>
     <string name="schedule_repeat_count_unlimited">Unlimited</string>
-    <string name="schedule_repeat_count">%1$d times</string>
-    <string name="schedule_repeat_remaining">%1$d left</string>
+    <plurals name="schedule_repeat_count">
+        <item quantity="one">%1$d time</item>
+        <item quantity="other">%1$d times</item>
+    </plurals>
+    <plurals name="schedule_repeat_remaining">
+        <item quantity="one">%1$d left</item>
+        <item quantity="other">%1$d left</item>
+    </plurals>
     <string name="chat_copy_no_text">Selected messages have no copyable text</string>
     <string name="account_devices">Signed-in devices</string>
     <string name="account_devices_hint">New devices require approval and receive no group keys until confirmed</string>
@@ -2099,7 +2108,10 @@
     <string name="global_search_ai_no_context">No authorized local messages are available for AI search</string>
     <string name="global_search_ai_failed">Cross-chat AI search failed</string>
     <string name="global_search_ai_retry">Retry AI search</string>
-    <string name="global_search_excluded_chats">Excluded %1$d chats with AI disabled or unverified access</string>
+    <plurals name="global_search_excluded_chats">
+        <item quantity="one">Excluded %1$d chat with AI disabled or unverified access</item>
+        <item quantity="other">Excluded %1$d chats with AI disabled or unverified access</item>
+    </plurals>
     <string name="global_search_redacted_chats">Excluded body hits from %1$d PIN-locked or secret chats</string>
     <string name="global_search_empty_initial">Search decrypted messages on this device</string>
     <string name="global_search_ai_ready">Enter a natural-language query, then run AI search</string>
@@ -2741,7 +2753,10 @@
     <string name="group_play_checkin_now">Check in</string>
     <string name="group_play_checkin_done">Checked in today</string>
     <string name="group_play_checkin_streak">%1$d-day streak</string>
-    <string name="group_play_checkin_total">%1$d total</string>
+    <plurals name="group_play_checkin_total">
+        <item quantity="one">%1$d total</item>
+        <item quantity="other">%1$d total</item>
+    </plurals>
     <string name="group_play_checkin_rank">#%1$d of %2$d today</string>
     <string name="group_play_checkin_leaderboard">Leaderboard</string>
     <string name="group_play_chain_title">Group chain</string>

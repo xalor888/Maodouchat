@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
@@ -172,7 +173,7 @@ fun GroupCheckinScreen(
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            stringResource(R.string.group_play_checkin_total, state.totalCount),
+                            pluralStringResource(R.plurals.group_play_checkin_total, state.totalCount, state.totalCount),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }

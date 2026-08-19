@@ -470,7 +470,9 @@
     <string name="group_detail_audit_title">群操作记录</string>
     <string name="group_detail_audit_search">搜索操作人、对象或动作</string>
     <string name="group_detail_audit_no_results">没有匹配的操作记录</string>
-    <string name="group_detail_audit_more">还有 %1$d 条记录</string>
+    <plurals name="group_detail_audit_more">
+        <item quantity="other">还有 %1$d 条记录</item>
+    </plurals>
     <string name="group_detail_audit_load_more">加载更早记录</string>
     <string name="group_detail_audit_loading">加载中…</string>
     <string name="group_detail_candidates_more">还有 %1$d 位可添加联系人</string>
@@ -1603,8 +1605,12 @@
     <string name="schedule_repeat_badge">重复</string>
     <string name="schedule_repeat_count_title">重复次数</string>
     <string name="schedule_repeat_count_unlimited">不限</string>
-    <string name="schedule_repeat_count">%1$d 次</string>
-    <string name="schedule_repeat_remaining">剩 %1$d 次</string>
+    <plurals name="schedule_repeat_count">
+        <item quantity="other">%1$d 次</item>
+    </plurals>
+    <plurals name="schedule_repeat_remaining">
+        <item quantity="other">剩 %1$d 次</item>
+    </plurals>
     <string name="chat_copy_no_text">选中的消息没有可复制的文本</string>
     <string name="account_devices">登录设备</string>
     <string name="account_devices_hint">新设备需由已确认设备批准，未确认设备不会收到群密钥</string>
@@ -2093,7 +2099,9 @@
     <string name="global_search_ai_no_context">没有可用于 AI 搜索的已授权本机消息</string>
     <string name="global_search_ai_failed">跨聊天 AI 搜索失败</string>
     <string name="global_search_ai_retry">重试 AI 搜索</string>
-    <string name="global_search_excluded_chats">已排除 %1$d 个关闭 AI 或无法确认权限的聊天</string>
+    <plurals name="global_search_excluded_chats">
+        <item quantity="other">已排除 %1$d 个关闭 AI 或无法确认权限的聊天</item>
+    </plurals>
     <string name="global_search_redacted_chats">已排除 %1$d 个 PIN 锁定或密聊会话的正文命中</string>
     <string name="global_search_empty_initial">搜索本机已解密的消息</string>
     <string name="global_search_ai_ready">输入自然语言问题后点击 AI 搜索</string>
@@ -2731,7 +2739,9 @@
     <string name="group_play_checkin_now">签到</string>
     <string name="group_play_checkin_done">今日已签到</string>
     <string name="group_play_checkin_streak">连续 %1$d 天</string>
-    <string name="group_play_checkin_total">累计 %1$d 天</string>
+    <plurals name="group_play_checkin_total">
+        <item quantity="other">累计 %1$d 天</item>
+    </plurals>
     <string name="group_play_checkin_rank">今日第 %1$d/%2$d 位签到</string>
     <string name="group_play_checkin_leaderboard">签到排行</string>
     <string name="group_play_chain_title">群接龙</string>

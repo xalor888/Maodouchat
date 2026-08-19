@@ -6572,7 +6572,7 @@ private fun ScheduleSendDialog(
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                if (count > 0) context.getString(R.string.schedule_repeat_count, count)
+                                if (count > 0) context.resources.getQuantityString(R.plurals.schedule_repeat_count, count, count)
                                 else context.getString(R.string.schedule_repeat_count_unlimited),
                                 color = if (repeatCountChoice == count) Primary else OnSurface,
                                 style = MaterialTheme.typography.labelMedium
@@ -6689,7 +6689,7 @@ private fun scheduleRepeatLabel(context: android.content.Context, intervalMs: Lo
     }
     return if (repeatCount > 0) {
         val remaining = (repeatCount - occurrencesSent).coerceAtLeast(0)
-        "$base · ${context.getString(R.string.schedule_repeat_remaining, remaining)}"
+        "$base · ${context.resources.getQuantityString(R.plurals.schedule_repeat_remaining, remaining, remaining)}"
     } else base
 }
 

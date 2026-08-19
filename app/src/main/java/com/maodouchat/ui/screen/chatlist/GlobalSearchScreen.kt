@@ -64,6 +64,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -765,14 +766,11 @@ fun GlobalSearchScreen(
             }
             if (state.excludedChatCount > 0) {
                 Text(
-                    stringResource(
-                        if (state.mode == GlobalSearchMode.AI) {
-                            R.string.global_search_excluded_chats
-                        } else {
-                            R.string.global_search_redacted_chats
-                        },
-                        state.excludedChatCount
-                    ),
+                    if (state.mode == GlobalSearchMode.AI) {
+                        pluralStringResource(R.plurals.global_search_excluded_chats, state.excludedChatCount, state.excludedChatCount)
+                    } else {
+                        stringResource(R.string.global_search_redacted_chats, state.excludedChatCount)
+                    },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.labelSmall,
                     color = LocalChatPalette.current.textSecondary

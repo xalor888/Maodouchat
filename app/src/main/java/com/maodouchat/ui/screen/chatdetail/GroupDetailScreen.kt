@@ -1839,7 +1839,7 @@ fun GroupDetailScreen(
                                         auditExpanded && state.hasMoreAudit ->
                                             stringResource(R.string.group_detail_audit_load_more)
                                         auditExpanded -> stringResource(R.string.chat_transcript_collapse)
-                                        else -> stringResource(R.string.group_detail_audit_more, remaining.coerceAtLeast(0))
+                                        else -> pluralStringResource(R.plurals.group_detail_audit_more, remaining.coerceAtLeast(0), remaining.coerceAtLeast(0))
                                     }
                                 )
                             }
