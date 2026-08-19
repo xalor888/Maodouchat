@@ -55,7 +55,7 @@ fun TypingIndicator(
         horizontalArrangement = Arrangement.Center,
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(SurfaceVariant.copy(alpha = 0.55f))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
             .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         if (text != null) {

@@ -1294,7 +1294,7 @@ fun PostDetailScreen(
                                         Box(
                                             modifier = Modifier
                                                 .clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
-                                                .background(Primary.copy(alpha = 0.12f))
+                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
                                                 .padding(horizontal = 4.dp, vertical = 1.dp)
                                         ) {
                                             Text(

@@ -65,7 +65,7 @@ fun GroupAvatar(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(SurfaceVariant),
+            .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center
     ) {
         when (displayParticipants.size) {
@@ -251,7 +251,7 @@ private fun StaggeredAvatarCell(
                 modifier = Modifier
                     .size(size)
                     .clip(CircleShape)
-                    .background(SurfaceVariant, CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
             )
         } else {
             val initial = participant.name.firstOrNull()?.toString() ?: "?"

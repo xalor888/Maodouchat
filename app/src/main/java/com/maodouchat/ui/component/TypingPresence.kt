@@ -110,7 +110,7 @@ fun TypingPresence(
                                 alpha = 0.45f + 0.55f * norm
                             }
                             .clip(RoundedCornerShape(3.5.dp))
-                            .background(Primary)
+                            .background(MaterialTheme.colorScheme.primary)
                     )
                 }
             } else {
@@ -120,7 +120,7 @@ fun TypingPresence(
                             .size(7.dp)
                             .graphicsLayer { alpha = 0.7f }
                             .clip(RoundedCornerShape(3.5.dp))
-                            .background(Primary)
+                            .background(MaterialTheme.colorScheme.primary)
                     )
                 }
             }

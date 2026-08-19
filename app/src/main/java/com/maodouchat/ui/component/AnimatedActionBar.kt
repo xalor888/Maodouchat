@@ -164,7 +164,7 @@ fun AnimatedFloatingActionButton(
             modifier = Modifier
                 .size(48.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .background(Primary)
+                .background(MaterialTheme.colorScheme.primary)
                 .clickable {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onClick()

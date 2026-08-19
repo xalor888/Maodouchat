@@ -225,7 +225,7 @@ fun FakeChatSettingsScreen(
             // 使用说明
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = SurfaceColor,
+                color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

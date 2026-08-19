@@ -315,7 +315,7 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = state.name, onValueChange = { viewModel.onNameChange(it) },
                             placeholder = { Text(stringResource(R.string.username), color = LocalChatPalette.current.textHint) },
-                            leadingIcon = { Icon(Icons.Outlined.Person, null, tint = Outline) },
+                            leadingIcon = { Icon(Icons.Outlined.Person, null, tint = MaterialTheme.colorScheme.outline) },
                             singleLine = true, shape = RoundedCornerShape(MaodouDimens.ControlRadius),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = LocalChatPalette.current.chatInputBackground, unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
@@ -329,7 +329,7 @@ fun LoginScreen(
                     OutlinedTextField(
                         value = state.email, onValueChange = { viewModel.onEmailChange(it) },
                         placeholder = { Text(stringResource(R.string.email_address), color = LocalChatPalette.current.textHint) },
-                        leadingIcon = { Icon(Icons.Outlined.Email, null, tint = Outline) },
+                        leadingIcon = { Icon(Icons.Outlined.Email, null, tint = MaterialTheme.colorScheme.outline) },
                         singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         shape = RoundedCornerShape(MaodouDimens.ControlRadius),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -345,7 +345,7 @@ fun LoginScreen(
                             value = state.totpCode,
                             onValueChange = { viewModel.onTotpCodeChange(it) },
                             placeholder = { Text(stringResource(R.string.login_totp_label), color = LocalChatPalette.current.textHint) },
-                            leadingIcon = { Icon(Icons.Outlined.Lock, null, tint = Outline) },
+                            leadingIcon = { Icon(Icons.Outlined.Lock, null, tint = MaterialTheme.colorScheme.outline) },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                             shape = RoundedCornerShape(MaodouDimens.ControlRadius),
@@ -405,11 +405,11 @@ fun LoginScreen(
                                 color = LocalChatPalette.current.textHint
                             )
                         },
-                        leadingIcon = { Icon(Icons.Outlined.Lock, null, tint = Outline) },
+                        leadingIcon = { Icon(Icons.Outlined.Lock, null, tint = MaterialTheme.colorScheme.outline) },
                         trailingIcon = {
                             IconButton(onClick = { viewModel.togglePasswordVisibility() }) {
                                 Icon(if (state.passwordVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
-                                    if (state.passwordVisible) stringResource(R.string.hide_password) else stringResource(R.string.show_password), tint = Outline)
+                                    if (state.passwordVisible) stringResource(R.string.hide_password) else stringResource(R.string.show_password), tint = MaterialTheme.colorScheme.outline)
                             }
                         },
                         singleLine = true,
@@ -429,7 +429,7 @@ fun LoginScreen(
                             value = state.passwordConfirm,
                             onValueChange = { viewModel.onPasswordConfirmChange(it) },
                             placeholder = { Text(stringResource(R.string.login_confirm_password), color = LocalChatPalette.current.textHint) },
-                            leadingIcon = { Icon(Icons.Outlined.Lock, null, tint = Outline) },
+                            leadingIcon = { Icon(Icons.Outlined.Lock, null, tint = MaterialTheme.colorScheme.outline) },
                             singleLine = true,
                             visualTransformation = if (state.passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),

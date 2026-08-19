@@ -446,7 +446,7 @@ private fun ProfileCard(
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.size(24.dp).align(Alignment.BottomEnd)
-                        .background(Primary, CircleShape)
+                        .background(MaterialTheme.colorScheme.primary, CircleShape)
                 ) {
                     Icon(Icons.Outlined.CameraAlt, contentDescription = stringResource(R.string.profile_change_avatar), tint = Color.White, modifier = Modifier.size(14.dp))
                 }
@@ -537,7 +537,7 @@ private fun ProfileCard(
                     if (username == null) {
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.settings_set_username),
-                            tint = Outline, modifier = Modifier.size(14.dp))
+                            tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(14.dp))
                     }
                 }
                 Spacer(modifier = Modifier.height(6.dp))
@@ -558,7 +558,7 @@ private fun ProfileCard(
                 Icon(Icons.Outlined.QrCode, contentDescription = stringResource(R.string.profile_my_qr), tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(24.dp))
             }
             Spacer(modifier = Modifier.width(4.dp))
-            Icon(Icons.AutoMirrored.Outlined.ArrowForwardIos, contentDescription = null, tint = Outline, modifier = Modifier.size(16.dp))
+            Icon(Icons.AutoMirrored.Outlined.ArrowForwardIos, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(16.dp))
         }
     }
 }
@@ -867,7 +867,7 @@ private fun SettingsItem(icon: ImageVector?, title: String, titleColor: Color = 
             .clickable(interactionSource = interactionSource, indication = androidx.compose.material3.ripple(), onClick = onClick)
     ) {
         if (icon != null) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(32.dp).background(PrimaryFixed.copy(alpha = 0.2f), RoundedCornerShape(8.dp))) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(32.dp).background(MaterialTheme.colorScheme.primaryFixed.copy(alpha = 0.2f), RoundedCornerShape(8.dp))) {
                 Icon(icon, contentDescription = title, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             }
             Spacer(modifier = Modifier.width(12.dp))
@@ -880,7 +880,7 @@ private fun SettingsItem(icon: ImageVector?, title: String, titleColor: Color = 
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
             }
         }
-        Icon(Icons.AutoMirrored.Outlined.ArrowForwardIos, contentDescription = null, tint = Outline, modifier = Modifier.size(16.dp))
+        Icon(Icons.AutoMirrored.Outlined.ArrowForwardIos, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(16.dp))
     }
 }
 

@@ -143,7 +143,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
             Text(
                 text = stringResource(R.string.about_copyright),
                 style = MaterialTheme.typography.labelSmall,
-                color = Outline
+                color = MaterialTheme.colorScheme.outline
             )
             Spacer(modifier = Modifier.height(16.dp))
         }

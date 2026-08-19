@@ -165,7 +165,7 @@ fun PasscodeLockScreen(
         ) {
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.size(88.dp).background(Primary.copy(alpha = 0.12f), CircleShape)
+                modifier = Modifier.size(88.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape)
             ) {
                 Icon(Icons.Outlined.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
             }

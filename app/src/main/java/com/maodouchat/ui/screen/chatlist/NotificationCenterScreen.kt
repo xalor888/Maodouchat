@@ -494,7 +494,7 @@ private fun NotificationRow(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Primary.copy(alpha = 0.12f))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text("${item.count}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
@@ -531,7 +531,7 @@ private fun NotificationRow(
             }
         }
         if (!item.read) {
-            Box(modifier = Modifier.padding(top = 8.dp, start = 6.dp).size(8.dp).background(Primary, CircleShape))
+            Box(modifier = Modifier.padding(top = 8.dp, start = 6.dp).size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
         }
         Spacer(modifier = Modifier.width(0.dp))
         IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {

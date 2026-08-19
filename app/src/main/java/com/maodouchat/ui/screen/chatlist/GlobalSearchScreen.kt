@@ -648,7 +648,7 @@ fun GlobalSearchScreen(
                     value = state.query,
                     onValueChange = viewModel::onQueryChange,
                     placeholder = { Text(stringResource(R.string.global_search_placeholder), color = LocalChatPalette.current.textHint) },
-                    leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, tint = Outline) },
+                    leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, tint = MaterialTheme.colorScheme.outline) },
                     trailingIcon = {
                         if (state.query.isNotEmpty()) {
                             IconButton(onClick = { viewModel.onQueryChange("") }) {
@@ -834,7 +834,7 @@ fun GlobalSearchScreen(
                                     query = state.query,
                                     onClick = { onOpenResult(hit.chatId, hit.messageId) }
                                 )
-                                HorizontalDivider(color = Outline.copy(alpha = 0.5f))
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                             }
                         }
                     }
@@ -987,7 +987,7 @@ private fun RecentSearchesSection(
                     modifier = Modifier.weight(1f)
                 )
             }
-            HorizontalDivider(color = Outline.copy(alpha = 0.5f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
         }
     }
 }

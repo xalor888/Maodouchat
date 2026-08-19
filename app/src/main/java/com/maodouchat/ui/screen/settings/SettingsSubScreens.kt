@@ -825,7 +825,7 @@ fun AccountSecurityScreen(
             Spacer(modifier = Modifier.height(12.dp))
             androidx.compose.material3.Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Surface,
+                color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 1.dp,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -3816,7 +3816,7 @@ private fun ThirdPartyServerCard() {
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
-                    .background(Primary.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             )
         }
@@ -4256,7 +4256,7 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
                         } else {
                             Box(
                                 modifier = Modifier.size(40.dp).clip(androidx.compose.foundation.shape.CircleShape)
-                                    .background(Primary),
+                                    .background(MaterialTheme.colorScheme.primary),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(user.name.firstOrNull()?.toString() ?: "?", color = Color.White, style = MaterialTheme.typography.titleMedium)

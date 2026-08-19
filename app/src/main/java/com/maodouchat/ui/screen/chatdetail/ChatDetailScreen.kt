@@ -1201,7 +1201,7 @@ fun ChatDetailScreen(
                             )
                         )
                     }
-                    Text(stringResource(R.string.chat_members_count, members.size), style = MaterialTheme.typography.labelMedium, color = Secondary)
+                    Text(stringResource(R.string.chat_members_count, members.size), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
                     if (filteredMembers.isEmpty() && q.isNotEmpty()) {
                         Text(
                             stringResource(R.string.chat_group_info_search_empty),
@@ -1226,7 +1226,7 @@ fun ChatDetailScreen(
                         }
                     }
                     if (state.groupCandidates.isNotEmpty()) {
-                        Text(stringResource(R.string.chat_add_member), style = MaterialTheme.typography.labelMedium, color = Secondary)
+                        Text(stringResource(R.string.chat_add_member), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
                         if (filteredCandidates.isEmpty() && q.isNotEmpty()) {
                             Text(
                                 stringResource(R.string.chat_group_info_search_empty),
@@ -1980,7 +1980,7 @@ if (showGroupCallTypeDialog) {
                     Text(
                         stringResource(R.string.call_select_members_count, selectedGroupCallMemberIds.size, maxSelected),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Secondary
+                        color = MaterialTheme.colorScheme.secondary
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
@@ -2321,7 +2321,7 @@ if (showGroupCallTypeDialog) {
                                 ChatHeaderStatus.Online -> Text(stringResource(R.string.chat_online), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 is ChatHeaderStatus.LastSeen -> Text(stringResource(R.string.user_last_seen_prefix) + " " + android.text.format.DateUtils.getRelativeTimeSpanString(status.timestamp, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS), style = MaterialTheme.typography.labelMedium, color = LocalChatPalette.current.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 ChatHeaderStatus.Offline -> Text(stringResource(R.string.chat_offline), style = MaterialTheme.typography.labelMedium, color = LocalChatPalette.current.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                is ChatHeaderStatus.Custom -> Text(status.text, style = MaterialTheme.typography.labelMedium, color = Secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                is ChatHeaderStatus.Custom -> Text(status.text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 ChatHeaderStatus.None -> Unit
                             }
                         }
@@ -3980,7 +3980,7 @@ DropdownMenuItem(
                     Text(
                         stringResource(R.string.chat_draft_restored),
                         style = MaterialTheme.typography.labelMedium,
-                        color = Secondary,
+                        color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.weight(1f)
                     )
                     TextButton(onClick = {
@@ -4910,12 +4910,12 @@ DropdownMenuItem(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.chat_loading), color = Secondary)
+                            Text(stringResource(R.string.chat_loading), color = MaterialTheme.colorScheme.secondary)
                         }
                     } else if (state.readReceipts.isEmpty()) {
-                        Text(stringResource(R.string.chat_no_read_receipts), color = Secondary)
+                        Text(stringResource(R.string.chat_no_read_receipts), color = MaterialTheme.colorScheme.secondary)
                     } else if (filteredReadReceipts.isEmpty()) {
-                        Text(stringResource(R.string.chat_read_details_search_empty), color = Secondary)
+                        Text(stringResource(R.string.chat_read_details_search_empty), color = MaterialTheme.colorScheme.secondary)
                     } else {
                         filteredReadReceipts.forEach { receipt ->
                             Row(
@@ -5160,7 +5160,7 @@ DropdownMenuItem(
             title = { Text(if (forwardMessages.size == 1) stringResource(R.string.chat_forward_to) else stringResource(R.string.chat_forward_selected, forwardMessages.size)) },
             text = {
                 if (state.forwardTargets.isEmpty()) {
-                    Text(stringResource(R.string.chat_no_forward_targets), color = Secondary)
+                    Text(stringResource(R.string.chat_no_forward_targets), color = MaterialTheme.colorScheme.secondary)
                 } else {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -5694,7 +5694,7 @@ private fun AiOperationStatusBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(PrimaryFixed.copy(alpha = 0.42f))
+            .background(MaterialTheme.colorScheme.primaryFixed.copy(alpha = 0.42f))
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -5974,7 +5974,7 @@ private fun ContactProfileSheet(
                 Text(
                     contact.status,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Secondary,
+                    color = MaterialTheme.colorScheme.secondary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -6066,7 +6066,7 @@ private fun GroupEncryptionWarningBanner(warning: String) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .background(Primary.copy(alpha = 0.08f))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
             .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
         Icon(Icons.Outlined.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
@@ -6192,7 +6192,7 @@ private fun GifSearchDialog(
                                                     .weight(1f)
                                                     .height(88.dp)
                                                     .clip(RoundedCornerShape(10.dp))
-                                                    .background(Primary.copy(alpha = 0.08f))
+                                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
                                                     .clickable {
                                                         onPickUri(Uri.parse(item.uriString), item.id)
                                                     },
@@ -6240,7 +6240,7 @@ private fun ScheduledMessagesBanner(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Primary.copy(alpha = 0.06f))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.06f))
             .clickable(onClick = onViewAll)
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
@@ -6714,7 +6714,7 @@ private fun SecretChatBanner(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .background(Primary.copy(alpha = 0.08f))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
             .clickable(onClick = onManage)
             .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
@@ -6804,7 +6804,7 @@ private fun LiveLocationSharingBanner(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .background(Primary.copy(alpha = 0.10f))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
             .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
         Icon(
@@ -6840,7 +6840,7 @@ private fun DisappearingMessagesBanner(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .background(Primary.copy(alpha = 0.07f))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.07f))
             .clickable(onClick = onChange)
             .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
@@ -7054,7 +7054,7 @@ private fun PinnedMessagesBanner(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .background(Primary.copy(alpha = 0.07f))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.07f))
             .clickable {
                 onOpen(current.messageId)
                 if (pins.size > 1) {
@@ -7137,7 +7137,7 @@ private fun GroupAnnouncementBanner(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .background(Primary.copy(alpha = 0.07f))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.07f))
             .clickable(onClick = onOpen)
             .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
@@ -7312,7 +7312,7 @@ private fun UnreadSummaryBanner(
                 modifier = Modifier
                     .size(28.dp)
                     .graphicsLayer { alpha = pulse }
-                    .background(Primary.copy(alpha = 0.18f), CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f), CircleShape)
             ) {
                 Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
             }
@@ -7386,7 +7386,7 @@ private fun SafetyCodeDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.chat_safety_loading), style = MaterialTheme.typography.bodySmall, color = Secondary)
+                        Text(stringResource(R.string.chat_safety_loading), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
                     }
                 }
 
@@ -7483,7 +7483,7 @@ private fun SafetyCodeDialog(
                         }
                     }
                 }
-                Text(stringResource(R.string.chat_safety_scan_hint), style = MaterialTheme.typography.bodySmall, color = Secondary)
+                Text(stringResource(R.string.chat_safety_scan_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
                 Text(
                     stringResource(R.string.chat_safety_format_note),
                     style = MaterialTheme.typography.labelSmall,
@@ -7524,7 +7524,7 @@ private fun DeviceSafetyRow(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .background(Primary.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
             .padding(10.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -7542,7 +7542,7 @@ private fun DeviceSafetyRow(
             color = MaterialTheme.colorScheme.onSurface
         )
         if (displayCode == null) {
-            Text(stringResource(R.string.chat_identity_fingerprint, device.identityKey.take(16)), style = MaterialTheme.typography.bodySmall, color = Secondary)
+            Text(stringResource(R.string.chat_identity_fingerprint, device.identityKey.take(16)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
         } else {
             TextButton(
                 onClick = {
@@ -7603,7 +7603,7 @@ private fun SafetyQrCard(
                 )
             }
             Spacer(modifier = Modifier.width(10.dp))
-            Text(stringResource(R.string.chat_scan_device_hint, peerDeviceId), style = MaterialTheme.typography.bodySmall, color = Secondary)
+            Text(stringResource(R.string.chat_scan_device_hint, peerDeviceId), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
         }
     }
 }
@@ -7663,7 +7663,7 @@ private fun AiImageAnalysisModeDialog(
                         }
                     }
                 }
-                HorizontalDivider(modifier = Modifier.padding(top = 6.dp), color = Outline.copy(alpha = 0.6f))
+                HorizontalDivider(modifier = Modifier.padding(top = 6.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
                 Text(
                     stringResource(R.string.chat_ai_image_privacy),
                     modifier = Modifier.padding(top = 10.dp, start = 8.dp, end = 8.dp),
@@ -7701,7 +7701,7 @@ private fun AiImageAnalysisResultDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(result, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                HorizontalDivider(color = Outline.copy(alpha = 0.6f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
                 Text(
                     stringResource(R.string.chat_ai_image_disclaimer),
                     style = MaterialTheme.typography.labelSmall,
@@ -7733,7 +7733,7 @@ private fun AiFileAnalysisModeDialog(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (fileName.isNotBlank()) {
                     Text(fileName, style = MaterialTheme.typography.labelMedium, color = LocalChatPalette.current.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    HorizontalDivider(color = Outline.copy(alpha = 0.6f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
                 }
                 AiFileAnalysisMode.entries.forEach { mode ->
                     val icon = if (mode == AiFileAnalysisMode.SUMMARIZE) Icons.Outlined.Description else Icons.AutoMirrored.Outlined.HelpOutline
@@ -7751,7 +7751,7 @@ private fun AiFileAnalysisModeDialog(
                         }
                     }
                 }
-                HorizontalDivider(modifier = Modifier.padding(top = 6.dp), color = Outline.copy(alpha = 0.6f))
+                HorizontalDivider(modifier = Modifier.padding(top = 6.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
                 Text(
                     stringResource(R.string.chat_ai_file_privacy),
                     modifier = Modifier.padding(top = 10.dp, start = 8.dp, end = 8.dp),
@@ -7832,7 +7832,7 @@ private fun AiFileAnalysisResultDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(result, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                HorizontalDivider(color = Outline.copy(alpha = 0.6f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
                 Text(stringResource(R.string.chat_ai_file_disclaimer), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
             }
         },
@@ -7946,7 +7946,7 @@ private fun AiSummaryScopeDialog(
                         }
                     }
                 }
-                HorizontalDivider(modifier = Modifier.padding(top = 6.dp), color = Outline.copy(alpha = 0.6f))
+                HorizontalDivider(modifier = Modifier.padding(top = 6.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
                 Text(
                     stringResource(R.string.chat_ai_summary_scope_privacy),
                     modifier = Modifier.padding(top = 10.dp, start = 8.dp, end = 8.dp),
@@ -8072,7 +8072,7 @@ private fun AiSummaryHistoryDialog(
                                     )
                                 }
                             }
-                            if (index != filteredSummaries.lastIndex) HorizontalDivider(color = Outline.copy(alpha = 0.5f))
+                            if (index != filteredSummaries.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                         }
                     }
                 }
@@ -8212,7 +8212,7 @@ private fun ConversationProfileDialog(
                             color = LocalChatPalette.current.textSecondary
                         )
                     }
-                    HorizontalDivider(color = Outline.copy(alpha = 0.5f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                     Text(
                         profile.narrative?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_ai_profile_no_narrative),
                         style = MaterialTheme.typography.bodyMedium,
@@ -8482,7 +8482,7 @@ private fun GroupAiAssistantDialog(
                     Text(animatedAnswer, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
                 if (tasks.isNotEmpty()) {
-                    HorizontalDivider(color = Outline.copy(alpha = 0.7f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.7f))
                     Text(
                         stringResource(R.string.ai_tasks_preview_count, tasks.size),
                         style = MaterialTheme.typography.titleSmall,
@@ -8680,7 +8680,7 @@ private fun VoicePreviewBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Primary.copy(alpha = 0.08f))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -8701,7 +8701,7 @@ private fun VoicePreviewBar(
             },
             modifier = Modifier
                 .size(40.dp)
-                .background(Primary, CircleShape)
+                .background(MaterialTheme.colorScheme.primary, CircleShape)
         ) {
             Icon(
                 imageVector = if (isPreviewPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
@@ -8873,7 +8873,7 @@ private fun ChatInputBar(
                             Text(
                                 stringResource(R.string.chat_ai_working),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = Secondary,
+                                color = MaterialTheme.colorScheme.secondary,
                                 modifier = Modifier.weight(1f)
                             )
                         } else {
@@ -8884,7 +8884,7 @@ private fun ChatInputBar(
                                 aiSuggestions.forEach { suggestion ->
                                     TextButton(
                                         onClick = { onAiSuggestionClick(suggestion) },
-                                        modifier = Modifier.background(Primary.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
+                                        modifier = Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
                                     ) {
                                         Text(suggestion, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
@@ -8898,7 +8898,7 @@ private fun ChatInputBar(
                     isAiWorking -> {
                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.chat_ai_working), style = MaterialTheme.typography.labelMedium, color = Secondary)
+                    Text(stringResource(R.string.chat_ai_working), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
                     }
                     aiSuggestions.isNotEmpty() -> {
                         Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
@@ -8910,7 +8910,7 @@ private fun ChatInputBar(
                             aiSuggestions.forEach { suggestion ->
                                 TextButton(
                                     onClick = { onAiSuggestionClick(suggestion) },
-                                    modifier = Modifier.background(Primary.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
+                                    modifier = Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
                                 ) {
                                     Text(suggestion, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
@@ -9190,7 +9190,7 @@ private fun ChatInputBar(
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Primary.copy(alpha = 0.08f))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
@@ -9280,7 +9280,7 @@ private fun ChatInputBar(
             }
         Row(verticalAlignment = Alignment.Bottom) {
             IconButton(onClick = { showAttachMenu = !showAttachMenu; if (showAttachMenu) showExpressionPanel = false }, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.chat_attachment), tint = Outline, modifier = Modifier.size(28.dp))
+                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.chat_attachment), tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(28.dp))
             }
             Box(modifier = Modifier.weight(1f).clip(RoundedCornerShape(20.dp)).background(LocalChatPalette.current.chatInputBackground)) {
                 // 1.175：回车发送偏好（开 → 单行 + IME Send；关 → 多行回车换行）
@@ -9306,7 +9306,7 @@ private fun ChatInputBar(
                                 )
                             }
                             IconButton(onClick = { showExpressionPanel = !showExpressionPanel; if (showExpressionPanel) showAttachMenu = false }, modifier = Modifier.size(40.dp)) {
-                                Icon(Icons.Outlined.SentimentSatisfied, contentDescription = stringResource(R.string.chat_emoji), tint = Outline, modifier = Modifier.size(24.dp))
+                                Icon(Icons.Outlined.SentimentSatisfied, contentDescription = stringResource(R.string.chat_emoji), tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(24.dp))
                             }
                         }
                     },
@@ -9327,7 +9327,7 @@ private fun ChatInputBar(
                     modifier = Modifier
                         .size(40.dp)
                         .then(
-                            if (composerActive) Modifier.background(Primary.copy(alpha = 0.12f), CircleShape)
+                            if (composerActive) Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape)
                             else Modifier
                         )
                 ) {
@@ -9610,7 +9610,7 @@ private fun ChatInputBar(
                     modifier = Modifier
                         .size(40.dp)
                         .shadow(1.dp, CircleShape)
-                        .background(Primary.copy(alpha = 0.92f), CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.92f), CircleShape)
                         .pointerInput(attachmentsEnabled) {
                             if (!attachmentsEnabled) return@pointerInput
                             awaitEachGesture {

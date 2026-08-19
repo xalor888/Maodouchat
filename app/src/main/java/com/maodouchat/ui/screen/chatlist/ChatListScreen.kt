@@ -688,7 +688,7 @@ fun ChatListScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { viewModel.setUnreadPriorityEnabled(false) }
-                        .background(Primary.copy(alpha = 0.08f))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Icon(Icons.Outlined.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
@@ -1489,7 +1489,7 @@ private fun ChatListItem(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Primary)
+                            .background(MaterialTheme.colorScheme.primary)
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                             .then(if (onBadgeClick != null) Modifier.clickable(onClick = onBadgeClick) else Modifier)
                     ) {

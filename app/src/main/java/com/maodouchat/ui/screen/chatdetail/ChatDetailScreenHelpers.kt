@@ -91,7 +91,7 @@ internal fun AttachMenuItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.clickable(onClick = if (enabled) onClick else onDisabledClick)
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp).background(PrimaryFixed.copy(alpha = itemAlpha), RoundedCornerShape(12.dp))) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primaryFixed.copy(alpha = itemAlpha), RoundedCornerShape(12.dp))) {
             Icon(icon, contentDescription = label, tint = itemColor, modifier = Modifier.size(24.dp))
         }
         Spacer(modifier = Modifier.height(4.dp))

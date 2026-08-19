@@ -96,7 +96,7 @@ fun AnimatedReplyPreview(
                     .width(3.dp)
                     .height(32.dp)
                     .clip(RoundedCornerShape(1.5.dp))
-                    .background(Primary)
+                    .background(MaterialTheme.colorScheme.primary)
             )
 
             Column(

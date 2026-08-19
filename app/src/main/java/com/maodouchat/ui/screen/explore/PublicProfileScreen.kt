@@ -236,7 +236,7 @@ private fun ProfileContentView(
             modifier = Modifier
                 .size(100.dp)
                 .clip(CircleShape)
-                .background(Primary.copy(alpha = 0.15f)),
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
             if (profile.avatar != null && profile.avatar.isNotBlank()) {

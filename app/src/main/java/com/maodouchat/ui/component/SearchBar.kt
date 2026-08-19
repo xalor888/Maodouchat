@@ -82,7 +82,7 @@ fun SearchBar(
                 Icon(
                     imageVector = Icons.Outlined.Search,
                     contentDescription = stringResource(R.string.contacts_search),
-                    tint = Outline,
+                    tint = MaterialTheme.colorScheme.outline,
                     modifier = Modifier.padding(start = 4.dp)
                 )
             },

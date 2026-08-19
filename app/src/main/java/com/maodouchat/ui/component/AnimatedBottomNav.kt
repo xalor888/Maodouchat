@@ -91,7 +91,7 @@ fun AnimatedBottomNav(
                     .offset { IntOffset(pillOffset.roundToPx(), 0) }
                     .size(width = pillWidth, height = pillHeight)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Primary.copy(alpha = 0.12f))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
             )
         }
 

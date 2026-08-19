@@ -281,7 +281,7 @@ fun ExploreScreen(
                         Text(
                             stringResource(R.string.explore_composer_draft_restored),
                             style = MaterialTheme.typography.labelMedium,
-                            color = Secondary,
+                            color = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = { viewModel.dismissComposerDraftHint() }) {
@@ -1270,7 +1270,7 @@ private fun CommentsDialog(
                                                 Box(
                                                     modifier = Modifier
                                                         .clip(RoundedCornerShape(4.dp))
-                                                        .background(Primary.copy(alpha = 0.12f))
+                                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
                                                         .padding(horizontal = 4.dp, vertical = 1.dp)
                                                 ) {
                                                     Text(

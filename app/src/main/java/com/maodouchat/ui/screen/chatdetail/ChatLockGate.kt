@@ -67,7 +67,7 @@ fun ChatLockGate(
             modifier = Modifier.padding(32.dp)
         ) {
             Box(
-                modifier = Modifier.size(80.dp).clip(CircleShape).background(Primary.copy(alpha = 0.12f)),
+                modifier = Modifier.size(80.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Outlined.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
@@ -178,7 +178,7 @@ private fun NumberPad(
                 .height(48.dp)
                 .width(220.dp)
                 .clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
-                .background(Primary)
+                .background(MaterialTheme.colorScheme.primary)
                 .clickableNumber { onSubmit() },
             contentAlignment = Alignment.Center
         ) {

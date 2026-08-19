@@ -630,7 +630,7 @@ fun StarredMessagesScreen(
                                     placementSpec = motion.listItemPlacementSpec()
                                 )
                             )
-                            HorizontalDivider(color = Outline.copy(alpha = 0.35f), modifier = Modifier.padding(start = 68.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), modifier = Modifier.padding(start = 68.dp))
                         }
                     }
                 }
@@ -716,7 +716,7 @@ private fun StarredMessageRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(formatStarredTime(message.timestamp), style = MaterialTheme.typography.labelSmall, color = Secondary)
+            Text(formatStarredTime(message.timestamp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
         }
     }
 }

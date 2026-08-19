@@ -404,10 +404,10 @@ private fun LocationBubble(
                     }
             ) {
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(104.dp).background(Primary.copy(alpha = if (isOwnMessage) 0.22f else 0.12f)),
+                    modifier = Modifier.fillMaxWidth().height(104.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = if (isOwnMessage) 0.22f else 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Box(modifier = Modifier.size(58.dp).graphicsLayer { scaleX = pulse; scaleY = pulse }.background(Primary.copy(alpha = 0.14f), CircleShape))
+                    Box(modifier = Modifier.size(58.dp).graphicsLayer { scaleX = pulse; scaleY = pulse }.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f), CircleShape))
                     Icon(Icons.Default.LocationOn, contentDescription = null, tint = if (isOwnMessage) Color.White else Primary, modifier = Modifier.size(42.dp))
                 }
                 Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {

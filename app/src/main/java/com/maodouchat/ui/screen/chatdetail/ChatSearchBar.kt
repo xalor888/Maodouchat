@@ -118,7 +118,7 @@ internal fun ChatSearchBar(
             Text(
                 text = if (resultCount == 0) "0/0" else "${resultIndex + 1}/$resultCount",
                 style = MaterialTheme.typography.labelMedium,
-                color = Secondary,
+                color = MaterialTheme.colorScheme.secondary,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.width(40.dp)
             )

@@ -244,7 +244,7 @@ fun ContactsScreen(
                                 Text(
                                     stringResource(R.string.contacts_friend_requests_incoming),
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = Outline,
+                                    color = MaterialTheme.colorScheme.outline,
                                     modifier = Modifier.weight(1f)
                                 )
                                 // 8.49：好友申请批量操作（非搜索态显示）
@@ -273,7 +273,7 @@ fun ContactsScreen(
                             Text(
                                 stringResource(R.string.contacts_friend_requests_outgoing),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = Outline,
+                                color = MaterialTheme.colorScheme.outline,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
@@ -303,7 +303,7 @@ fun ContactsScreen(
                                     .clickable { showGroupDialog = true }
                                     .padding(horizontal = 16.dp, vertical = 12.dp)
                             ) {
-                                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp).background(Primary, CircleShape)) {
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary, CircleShape)) {
                                     Icon(Icons.Filled.GroupAdd, contentDescription = stringResource(R.string.contacts_new_group), tint = Color.White, modifier = Modifier.size(22.dp))
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
@@ -326,7 +326,7 @@ fun ContactsScreen(
                                     .clickable { showChannelDialog = true }
                                     .padding(horizontal = 16.dp, vertical = 12.dp)
                             ) {
-                                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp).background(Primary.copy(alpha = 0.12f), CircleShape)) {
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape)) {
                                     Icon(Icons.Outlined.Campaign, contentDescription = stringResource(R.string.chat_create_channel), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
@@ -372,7 +372,7 @@ fun ContactsScreen(
                             Box(
                                 modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)).padding(horizontal = 16.dp, vertical = 6.dp)
                             ) {
-                                Text(letter, style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, letterSpacing = 0.5.sp), color = Outline)
+                                Text(letter, style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, letterSpacing = 0.5.sp), color = MaterialTheme.colorScheme.outline)
                             }
                         }
 
@@ -1042,7 +1042,7 @@ private fun AlphabetScroller(
                         scaleY = bubbleScale
                         alpha = bubbleScale
                     }
-                    .background(Primary, CircleShape),
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(

@@ -623,7 +623,7 @@ private fun MediaGrid(
                     Icon(Icons.Outlined.Image, stringResource(R.string.media_center_cache_missing), tint = LocalChatPalette.current.textHint, modifier = Modifier.size(42.dp).align(Alignment.Center))
                 }
                 if (message.type == MessageType.VIDEO) {
-                    Icon(Icons.Filled.PlayArrow, stringResource(R.string.message_preview_video), tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(34.dp).align(Alignment.Center).background(Primary.copy(alpha = 0.75f), RoundedCornerShape(18.dp)).padding(5.dp))
+                    Icon(Icons.Filled.PlayArrow, stringResource(R.string.message_preview_video), tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(34.dp).align(Alignment.Center).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.75f), RoundedCornerShape(18.dp)).padding(5.dp))
                 }
                 IconButton(onClick = { onOpenMessage(message.id) }, modifier = Modifier.align(Alignment.TopEnd).size(36.dp)) {
                     Icon(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.media_center_open_message), tint = MaterialTheme.colorScheme.onPrimary)
@@ -801,7 +801,7 @@ private fun MediaCenterImageViewer(
                     Icon(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.media_center_open_message), tint = LocalChatPalette.current.textSecondary)
                 }
             }
-            HorizontalDivider(color = Outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 62.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 62.dp))
         }
     }
 }
@@ -865,7 +865,7 @@ private fun VoiceList(
                     )
                 }
             }
-            HorizontalDivider(color = Outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 62.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 62.dp))
         }
     }
 }
@@ -922,7 +922,7 @@ private fun LocationList(
                     )
                 }
             }
-            HorizontalDivider(color = Outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 62.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 62.dp))
         }
     }
 }
@@ -958,7 +958,7 @@ private fun LinkList(items: List<MediaCenterItem>, onOpenMessage: (String) -> Un
                 }
                 Icon(Icons.AutoMirrored.Outlined.OpenInNew, stringResource(R.string.media_center_open_link), tint = LocalChatPalette.current.textHint, modifier = Modifier.size(18.dp))
             }
-            HorizontalDivider(color = Outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 56.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 56.dp))
         }
     }
 }

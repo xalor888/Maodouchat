@@ -1720,7 +1720,7 @@ fun GroupDetailScreen(
                             // 1.295：成员搜索关键词高亮
                             highlightQuery = memberSearch
                         )
-                        HorizontalDivider(color = Outline.copy(alpha = 0.35f), modifier = Modifier.padding(start = 68.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), modifier = Modifier.padding(start = 68.dp))
                     }
                 }
                 if (!membersExpanded && filteredMembers.size > MEMBER_PAGE_SIZE) {
@@ -1764,7 +1764,7 @@ fun GroupDetailScreen(
                     } else {
                         items(visibleCandidates, key = { it.id }, contentType = { "group_candidate" }) { user ->
                             CandidateRow(user = user, enabled = !state.isUpdating, onAdd = { viewModel.addMember(user.id) })
-                            HorizontalDivider(color = Outline.copy(alpha = 0.35f), modifier = Modifier.padding(start = 68.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), modifier = Modifier.padding(start = 68.dp))
                         }
                         if (filteredCandidates.size > CANDIDATE_PAGE_SIZE) {
                             item(key = "candidates_toggle", contentType = "toggle") {
@@ -1814,7 +1814,7 @@ fun GroupDetailScreen(
                 } else {
                     items(visibleAuditLogs, key = { it.id }, contentType = { "audit_log" }) { audit ->
                         GroupAuditRow(audit)
-                        HorizontalDivider(color = Outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 52.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 52.dp))
                     }
                     if (filteredAuditLogs.size > AUDIT_PAGE_SIZE || state.hasMoreAudit) {
                         item(key = "audit_toggle", contentType = "toggle") {
@@ -1925,7 +1925,7 @@ private fun GroupInviteDialog(
                             remainingUses
                         ),
                         style = MaterialTheme.typography.bodySmall,
-                        color = Secondary
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
                 Text(stringResource(R.string.group_detail_invite_expiry), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
@@ -2084,14 +2084,14 @@ private fun GroupHeader(
                     Icons.Outlined.CameraAlt,
                     contentDescription = stringResource(R.string.group_detail_change_avatar),
                     tint = Color.White,
-                    modifier = Modifier.align(Alignment.BottomEnd).size(24.dp).background(Primary, MaterialTheme.shapes.small).padding(4.dp)
+                    modifier = Modifier.align(Alignment.BottomEnd).size(24.dp).background(MaterialTheme.colorScheme.primary, MaterialTheme.shapes.small).padding(4.dp)
                 )
             }
         }
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(groupName, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(stringResource(R.string.group_detail_header_summary, memberCount, roleLabel(myRole)), style = MaterialTheme.typography.bodySmall, color = Secondary)
+            Text(stringResource(R.string.group_detail_header_summary, memberCount, roleLabel(myRole)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
         }
     }
 }
@@ -2368,7 +2368,7 @@ private fun SectionTitle(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelLarge,
-        color = Secondary,
+        color = MaterialTheme.colorScheme.secondary,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
     )
 }
@@ -2413,7 +2413,7 @@ private fun AnnouncementRow(
         modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(16.dp, 10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(stringResource(R.string.group_detail_announcement), style = MaterialTheme.typography.labelLarge, color = Secondary)
+        Text(stringResource(R.string.group_detail_announcement), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
         TextField(
             value = value,
             onValueChange = onValueChange,

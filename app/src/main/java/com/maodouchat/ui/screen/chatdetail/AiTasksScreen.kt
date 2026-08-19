@@ -576,7 +576,7 @@ fun AiTasksScreen(
                                 onAddToCalendar = { openTaskInCalendar(context, task) },
                                 onDelete = { taskToDelete = task }
                             )
-                            HorizontalDivider(color = Outline.copy(alpha = 0.55f))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
                         }
                     }
                 }
@@ -617,7 +617,7 @@ private fun AiTaskSummary(pendingCount: Int, completedCount: Int) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Primary.copy(alpha = 0.08f))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(20.dp)
     ) {
