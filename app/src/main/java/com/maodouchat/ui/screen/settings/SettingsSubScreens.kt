@@ -3035,8 +3035,10 @@ private fun ThemeStyleCard(
 /** 迷你聊天预览条：主题背景 + 收/发气泡，直观展示配色。 */
 @Composable
 private fun ThemePreviewStrip(paint: com.maodouchat.ui.theme.ThemePaint) {
+    // maodou 家族无专属发送气泡：深色变体用深色系品牌蓝，与聊天页一致
     val sentColor = paint.sentBubbleSpec?.color
-        ?: com.maodouchat.ui.theme.ChatBubbleSent
+        ?: if (paint.chatPalette === com.maodouchat.ui.theme.DarkChatPalette) Color(0xFF0A84FF)
+        else com.maodouchat.ui.theme.ChatBubbleSent
     Row(
         modifier = Modifier
             .fillMaxWidth()
