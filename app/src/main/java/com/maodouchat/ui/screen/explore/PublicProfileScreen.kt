@@ -153,7 +153,7 @@ fun PublicProfileScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Background)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(padding)
         ) {
             when {

@@ -692,7 +692,7 @@ private fun ComposerCard(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(Surface)
+                                    .background(MaterialTheme.colorScheme.surface)
                                     // 1.207：点击预览大图
                                     .then(if (!draft.isUploading) Modifier.clickable { previewDraftUri = draft.uri.toString() } else Modifier)
                             )
@@ -960,7 +960,7 @@ internal fun ImageGrid(imageUrls: List<String>) {
                     .then(if (imageUrls.size == 1) Modifier.fillMaxWidth(0.7f) else Modifier.fillMaxWidth(eachWeight))
                     .aspectRatio(if (imageUrls.size == 1) 16f / 9f else 1f)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Surface)
+                    .background(MaterialTheme.colorScheme.surface)
                     .clickable { galleryIndex = index }
             )
         }

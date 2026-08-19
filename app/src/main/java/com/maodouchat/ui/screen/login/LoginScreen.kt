@@ -199,7 +199,7 @@ fun LoginScreen(
                             scaleY = if (motion.animationsEnabled) 0.94f + (0.06f * enterProgress) else 1f
                         }
                         .shadow(2.dp, CircleShape)
-                        .background(Surface, CircleShape)
+                        .background(MaterialTheme.colorScheme.surface, CircleShape)
                         .border(1.dp, Color(0xFFE7E8E9), CircleShape)
                 ) {
                     Image(

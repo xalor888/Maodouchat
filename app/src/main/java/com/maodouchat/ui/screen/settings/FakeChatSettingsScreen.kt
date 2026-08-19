@@ -81,7 +81,7 @@ fun FakeChatSettingsScreen(
     var showUnhideConfirm by remember { mutableStateOf(false) }
     val pinMsg = stringResource(R.string.fake_chat_pin_required)
 
-    Column(modifier = Modifier.fillMaxSize().background(Background)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text(stringResource(R.string.fake_chat_settings_title), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
             navigationIcon = {

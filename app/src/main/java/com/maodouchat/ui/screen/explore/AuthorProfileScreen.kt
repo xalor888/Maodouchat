@@ -604,7 +604,7 @@ fun AuthorProfileScreen(
                                         ),
                                         contentDescription = stringResource(R.string.explore_post_image),
                                         contentScale = ContentScale.FillWidth,
-                                        modifier = Modifier.fillMaxWidth().height(180.dp).background(Surface, RoundedCornerShape(8.dp))
+                                        modifier = Modifier.fillMaxWidth().height(180.dp).background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))

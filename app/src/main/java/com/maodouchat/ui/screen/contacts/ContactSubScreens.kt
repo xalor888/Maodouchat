@@ -131,7 +131,7 @@ fun MyQrCodeScreen(
     val qrSavedMsg = stringResource(R.string.contacts_qr_saved)
     val qrSaveFailedMsg = stringResource(R.string.contacts_qr_save_failed)
 
-    Column(modifier = Modifier.fillMaxSize().background(Background)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text(stringResource(R.string.profile_my_qr), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
             navigationIcon = {
@@ -540,7 +540,7 @@ fun ScanScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(Background)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text(stringResource(R.string.contacts_scan), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
             navigationIcon = {

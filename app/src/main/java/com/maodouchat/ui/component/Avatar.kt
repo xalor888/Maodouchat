@@ -80,7 +80,7 @@ fun Avatar(
                 modifier = Modifier
                     .size(size.dp)
                     .clip(CircleShape)
-                    .background(Surface, CircleShape)
+                    .background(MaterialTheme.colorScheme.surface, CircleShape)
             )
         } else {
             // 无头像，显示首字母渐变背景
@@ -159,7 +159,7 @@ fun Avatar(
                     .align(Alignment.BottomEnd)
                     .offset(x = (-1).dp, y = (-1).dp)
                     .size(12.dp)
-                    .background(Surface, CircleShape)
+                    .background(MaterialTheme.colorScheme.surface, CircleShape)
                     .border(1.5.dp, Surface, CircleShape)
                     .background(OnlineGreen, CircleShape)
             )

@@ -146,7 +146,7 @@ fun ContactsScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Background)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(modifier = Modifier.fillMaxSize()) {
             TopAppBar(
                 title = { Text(stringResource(R.string.nav_contacts), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },

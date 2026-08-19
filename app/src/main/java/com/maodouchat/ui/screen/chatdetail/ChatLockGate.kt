@@ -60,7 +60,7 @@ fun ChatLockGate(
     val wrongPinText = stringResource(R.string.chat_lock_wrong_pin)
     val pinLengthText = stringResource(R.string.chat_lock_pin_length)
 
-    Box(modifier = Modifier.fillMaxSize().background(Background), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(32.dp)
@@ -150,7 +150,7 @@ private fun NumberPad(
                     when (key) {
                         "" -> Spacer(modifier = Modifier.size(72.dp))
                         "DEL" -> Box(
-                            modifier = Modifier.size(72.dp).clip(CircleShape).background(Surface),
+                            modifier = Modifier.size(72.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface),
                             contentAlignment = Alignment.Center
                         ) {
                             IconButton(onClick = onBackspace) {
@@ -161,7 +161,7 @@ private fun NumberPad(
                             modifier = Modifier
                                 .size(72.dp)
                                 .clip(CircleShape)
-                                .background(Surface)
+                                .background(MaterialTheme.colorScheme.surface)
                                 .clickableNumber { onDigit(key) },
                             contentAlignment = Alignment.Center
                         ) {

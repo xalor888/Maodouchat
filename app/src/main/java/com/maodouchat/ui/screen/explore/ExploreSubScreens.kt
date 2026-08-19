@@ -491,7 +491,7 @@ fun NearbyScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .animateContentSize()
-                    .background(Surface)
+                    .background(MaterialTheme.colorScheme.surface)
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -535,7 +535,7 @@ fun NearbyScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Surface)
+                        .background(MaterialTheme.colorScheme.surface)
                         .padding(start = 16.dp, end = 16.dp, bottom = 10.dp)
                 ) {
                     Text(

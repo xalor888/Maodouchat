@@ -52,7 +52,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.0" }.getOrDefault("1.0.0")
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(Background)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text(stringResource(R.string.about_title), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
             navigationIcon = {
@@ -96,7 +96,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
             Spacer(modifier = Modifier.height(32.dp))
 
             Column(
-                modifier = Modifier.fillMaxWidth().background(Surface, RoundedCornerShape(14.dp))
+                modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
             ) {
                 AboutRow(label = stringResource(R.string.about_version), value = versionName)
                 HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
@@ -109,7 +109,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Surface, RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 Text(

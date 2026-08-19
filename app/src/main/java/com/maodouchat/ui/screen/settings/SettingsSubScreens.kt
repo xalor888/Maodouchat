@@ -258,7 +258,7 @@ fun AccountSecurityScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(Background)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text(stringResource(R.string.security_center_title), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
             navigationIcon = {
@@ -1261,7 +1261,7 @@ private fun SecurityStatusCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .background(Surface, RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
             .padding(16.dp)
     ) {
         Text(
@@ -1319,7 +1319,7 @@ private fun SecurityStatusCard(
 private fun SecurityGroup(content: @Composable () -> Unit) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-            .background(Surface, RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
     ) { content() }
 }
 
@@ -1343,7 +1343,7 @@ private fun InfoRow(label: String, value: String) {
 private fun ActionRow(label: String, subtitle: String? = null, enabled: Boolean = true, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth()
-            .background(Surface)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 16.dp, vertical = 14.dp)
             .clickableRow(enabled = enabled, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically
@@ -1534,7 +1534,7 @@ fun AiPrivacySettingsScreen(
     val context = LocalContext.current
     var imageOcrEnabled by remember { mutableStateOf(com.maodouchat.ai.ImageOcrPreferences.isEnabled(context)) }
 
-    Column(modifier = Modifier.fillMaxSize().background(Background)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text(stringResource(R.string.settings_ai_privacy), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
             navigationIcon = {
@@ -2392,7 +2392,7 @@ fun NotificationSettingsScreen(
         com.maodouchat.util.AppNotifier.ensureChannels(context)
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(Background)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text(stringResource(R.string.settings_notifications), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
             navigationIcon = {
@@ -2420,7 +2420,7 @@ fun NotificationSettingsScreen(
             }
             Column(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                    .background(Surface, RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
             ) {
                 val pushSubtitle = when {
                     state.pushReady -> stringResource(R.string.notifications_push_ready)
@@ -2515,7 +2515,7 @@ fun NotificationSettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
             Column(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                    .background(Surface, RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
             ) {
                 ActionRow(label = stringResource(R.string.notifications_ringtone_title), subtitle = stringResource(R.string.notifications_ringtone_subtitle), enabled = state.enableNotifications, onClick = { viewModel.setRingtoneEnabled(!state.ringtoneEnabled) })
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
@@ -2713,7 +2713,7 @@ fun GeneralSettingsScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(Background)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text(stringResource(R.string.settings_general), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
             navigationIcon = {
@@ -2728,7 +2728,7 @@ fun GeneralSettingsScreen(
             Spacer(modifier = Modifier.height(8.dp))
             Column(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                    .background(Surface, RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
             ) {
                 ThemeRow(currentTheme = state.themeMode, onThemeChange = viewModel::setThemeMode)
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
@@ -3498,7 +3498,7 @@ fun ServerSettingsScreen(
     val serverTestFailedText = stringResource(R.string.settings_server_test_failed)
     val serverResetDoneText = stringResource(R.string.settings_server_reset_done)
 
-    Column(modifier = Modifier.fillMaxSize().background(Background)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text(stringResource(R.string.settings_server), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
             navigationIcon = {
@@ -3518,7 +3518,7 @@ fun ServerSettingsScreen(
             }
             Column(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                    .background(Surface, RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
             ) {
                 Text(
                     text = stringResource(R.string.settings_server_hint),
@@ -3640,7 +3640,7 @@ fun ServerSettingsScreen(
 
             Column(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                    .background(Surface, RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
             ) {
                 ActionRow(label = stringResource(R.string.settings_server_reset), subtitle = stringResource(R.string.settings_server_reset_subtitle)) {
                     showResetConfirm = true
@@ -3706,7 +3706,7 @@ private fun ThirdPartyServerCard() {
     }
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-            .background(Surface, RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -3988,7 +3988,7 @@ fun MyReportsScreen(onBack: () -> Unit = {}) {
     }
     LaunchedEffect(Unit) { load() }
 
-    Column(modifier = Modifier.fillMaxSize().background(Background)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text(stringResource(com.maodouchat.R.string.settings_my_reports), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
             navigationIcon = {
@@ -4107,7 +4107,7 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
     }
     LaunchedEffect(Unit) { load() }
 
-    Column(modifier = Modifier.fillMaxSize().background(Background)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text(stringResource(com.maodouchat.R.string.settings_blocked_users), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
             navigationIcon = {

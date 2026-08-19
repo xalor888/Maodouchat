@@ -2082,12 +2082,12 @@ if (showGroupCallTypeDialog) {
     }
 
     if (chatLockPending) {
-        Box(modifier = Modifier.fillMaxSize().background(Background), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = Primary)
         }
     } else if (deviceRiskLocked) {
         // B2 新设备风控（ndz）：设备未登记 → 密聊内容锁定，仅保留重新登记入口
-        Box(modifier = Modifier.fillMaxSize().background(Background), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Icon(Icons.Outlined.Security, contentDescription = null, tint = Primary, modifier = Modifier.size(40.dp))
                 Text(
