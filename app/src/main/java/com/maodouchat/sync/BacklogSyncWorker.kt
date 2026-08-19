@@ -132,8 +132,10 @@ class BacklogSyncWorker(
                     // 9.136：activeChatId 是进程级全局值（无账号归属），按迭代快照一次，
                     // 供未读抑制与通知抑制两处共用，避免跨账号会话状态污染本批决策
                     val activeChatId = MaodouchatApp.activeChatId
+                    // 9.213：批量查重替代逐条 SELECT（每页可达 100 条）
+                    val existingIds = messageRepo.getExistingMessageIds(messages.map { it.id })
                     val newMessageIds = messages.mapNotNull { msg ->
-                        if (messageRepo.getMessageById(msg.id) == null) msg.id else null
+                        if (msg.id !in existingIds) msg.id else null
                     }.toSet()
                     messageRepo.insertMessages(messages)
                     val incomingUnread = messages.count { msg ->

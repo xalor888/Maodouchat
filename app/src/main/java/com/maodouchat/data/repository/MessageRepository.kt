@@ -3,6 +3,7 @@ package com.maodouchat.data.repository
 import androidx.room.withTransaction
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.dao.MessageDao
+import com.maodouchat.data.local.entity.MessageEntity
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.data.model.Message
@@ -78,17 +79,39 @@ class MessageRepository(
 
     /** 批量插入消息（逐条合并，保持投递状态单调）。整体包裹在单一事务中（若 [database] 已注入）。 */
     suspend fun insertMessages(messages: List<Message>) {
+        if (messages.isEmpty()) return
         if (database == null) {
             messages.forEach { insertMessage(it) }
             return
         }
         database.withTransaction {
+            // 9.213：批量预查消除 N+1（断线收敛热路径每页可达 100 条，原先逐条 SELECT）；
+            // 分批 500 条规避 SQLite 绑定变量上限。
+            val existingById = HashMap<String, MessageEntity>(messages.size)
+            messages.map { it.id }.chunked(500).forEach { chunk ->
+                messageDao.getMessagesByIds(chunk).forEach { existingById[it.id] = it }
+            }
             messages.forEach { msg ->
-                val existing = messageDao.getMessageById(msg.id)?.toDomain()
+                val existing = existingById[msg.id]?.toDomain()
                 val merged = if (existing == null) msg else mergeMessageForPersistence(existing, msg)
                 messageDao.insertMessage(merged.toEntity())
             }
         }
+    }
+
+    /** 9.213：批量查重——返回已存在于库中的消息 id 集合（断线收敛新消息判定，消除逐条 SELECT）。 */
+    suspend fun getExistingMessageIds(ids: List<String>): Set<String> {
+        if (ids.isEmpty()) return emptySet()
+        if (database != null) {
+            return database.withTransaction {
+                val found = HashSet<String>(ids.size)
+                ids.chunked(500).forEach { chunk ->
+                    messageDao.getMessagesByIds(chunk).forEach { found.add(it.id) }
+                }
+                found
+            }
+        }
+        return ids.filterTo(HashSet(ids.size)) { messageDao.getMessageById(it) != null }
     }
 
     /**

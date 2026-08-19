@@ -39,6 +39,10 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE id = :messageId")
     suspend fun getMessageById(messageId: String): MessageEntity?
 
+    /** 9.213：批量预查——消除批量插入路径的逐条 SELECT（N+1）。 */
+    @Query("SELECT * FROM messages WHERE id IN (:ids)")
+    suspend fun getMessagesByIds(ids: List<String>): List<MessageEntity>
+
     /** 目标时间点（含）之后的第一条消息，用于日历/日期跳转精确定位。 */
     @Query(
         """
