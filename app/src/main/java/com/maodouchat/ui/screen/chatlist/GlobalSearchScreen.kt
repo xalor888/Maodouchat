@@ -632,7 +632,7 @@ fun GlobalSearchScreen(
                 title = { Text(stringResource(R.string.global_search_title), color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.common_back), tint = Primary)
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -647,12 +647,12 @@ fun GlobalSearchScreen(
                 TextField(
                     value = state.query,
                     onValueChange = viewModel::onQueryChange,
-                    placeholder = { Text(stringResource(R.string.global_search_placeholder), color = TextHint) },
+                    placeholder = { Text(stringResource(R.string.global_search_placeholder), color = LocalChatPalette.current.textHint) },
                     leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, tint = Outline) },
                     trailingIcon = {
                         if (state.query.isNotEmpty()) {
                             IconButton(onClick = { viewModel.onQueryChange("") }) {
-                                Icon(Icons.Outlined.Close, stringResource(R.string.global_search_clear), tint = TextSecondary)
+                                Icon(Icons.Outlined.Close, stringResource(R.string.global_search_clear), tint = LocalChatPalette.current.textSecondary)
                             }
                         }
                     },
@@ -712,7 +712,7 @@ fun GlobalSearchScreen(
                     Text(
                         stringResource(R.string.global_search_ai_privacy),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextHint
+                        color = LocalChatPalette.current.textHint
                     )
                 } else {
                     // 关键词搜索模式：添加消息类型筛选
@@ -740,7 +740,7 @@ fun GlobalSearchScreen(
             }
 
             AnimatedVisibility(state.isIndexing, enter = fadeIn(), exit = fadeOut()) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Primary)
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primary)
             }
             state.error?.let { errorText ->
                 Row(
@@ -758,7 +758,7 @@ fun GlobalSearchScreen(
                     )
                     if (state.mode == GlobalSearchMode.AI && state.query.isNotBlank() && !state.isSearching) {
                         TextButton(onClick = viewModel::retryLastAiSearch) {
-                            Text(stringResource(R.string.global_search_ai_retry), color = Primary)
+                            Text(stringResource(R.string.global_search_ai_retry), color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -775,7 +775,7 @@ fun GlobalSearchScreen(
                     ),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextSecondary
+                    color = LocalChatPalette.current.textSecondary
                 )
             }
 
@@ -792,7 +792,7 @@ fun GlobalSearchScreen(
                     }
                 }
                 state.isIndexing || state.isSearching -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Primary)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
                 state.results.isEmpty() -> GlobalSearchEmpty(
                     stringResource(
@@ -850,11 +850,11 @@ fun GlobalSearchScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(R.string.global_search_ai_consent_data), color = MaterialTheme.colorScheme.onSurface)
-                    Text(stringResource(R.string.chat_ai_consent_privacy), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Text(stringResource(R.string.chat_ai_consent_privacy), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                 }
             },
             confirmButton = {
-                TextButton(onClick = viewModel::acceptAiConsent) { Text(stringResource(R.string.chat_ai_accept), color = Primary) }
+                TextButton(onClick = viewModel::acceptAiConsent) { Text(stringResource(R.string.chat_ai_accept), color = MaterialTheme.colorScheme.primary) }
             },
             dismissButton = {
                 TextButton(onClick = viewModel::dismissAiConsent) { Text(stringResource(R.string.chat_later)) }
@@ -895,13 +895,13 @@ private fun GlobalSearchResultRow(hit: GlobalSearchHit, query: String, onClick: 
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-                Text(time, style = MaterialTheme.typography.labelSmall, color = TextHint)
+                Text(time, style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
             }
-            Text(hit.senderName, style = MaterialTheme.typography.labelMedium, color = Primary)
+            Text(hit.senderName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             Text(
                 highlightedText(hit.text, query),
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary,
+                color = LocalChatPalette.current.textSecondary,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis
             )
@@ -921,7 +921,7 @@ private fun highlightedText(text: String, query: String) = buildAnnotatedString 
     var cursor = 0
     snippet.highlights.forEach { span ->
         if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-        pushStyle(SpanStyle(color = Primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+        pushStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
         append(snippet.text.substring(span.start, span.end))
         pop()
         cursor = span.end
@@ -933,9 +933,9 @@ private fun highlightedText(text: String, query: String) = buildAnnotatedString 
 private fun GlobalSearchEmpty(message: String) {
     Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Outlined.Search, contentDescription = null, tint = TextHint, modifier = Modifier.size(42.dp))
+            Icon(Icons.Outlined.Search, contentDescription = null, tint = LocalChatPalette.current.textHint, modifier = Modifier.size(42.dp))
             Spacer(modifier = Modifier.height(10.dp))
-            Text(message, style = MaterialTheme.typography.bodyMedium, color = TextHint)
+            Text(message, style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textHint)
         }
     }
 }
@@ -955,11 +955,11 @@ private fun RecentSearchesSection(
                 Text(
                     stringResource(R.string.global_search_recent_title),
                     style = MaterialTheme.typography.labelMedium,
-                    color = TextSecondary,
+                    color = LocalChatPalette.current.textSecondary,
                     modifier = Modifier.weight(1f)
                 )
                 TextButton(onClick = onClearAll) {
-                    Text(stringResource(R.string.global_search_recent_clear), color = TextSecondary)
+                    Text(stringResource(R.string.global_search_recent_clear), color = LocalChatPalette.current.textSecondary)
                 }
             }
         }
@@ -974,7 +974,7 @@ private fun RecentSearchesSection(
                 Icon(
                     Icons.Outlined.Search,
                     contentDescription = null,
-                    tint = TextHint,
+                    tint = LocalChatPalette.current.textHint,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))

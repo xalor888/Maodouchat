@@ -43,6 +43,7 @@ import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.SurfaceVariant
 import com.maodouchat.ui.theme.TextHint
+import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
  * Animated chat input area with smooth send button animation.
@@ -91,7 +92,7 @@ fun AnimatedChatInput(
             placeholder = {
                 Text(
                     text = placeholder,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             },
             modifier = Modifier

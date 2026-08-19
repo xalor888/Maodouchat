@@ -534,14 +534,14 @@ fun StarredMessagesScreen(
                 title = { Text(title, color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary)
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary)
                     }
                 },
                 actions = {
                     // 1.161：清空全部收藏
                     if (state.messages.isNotEmpty()) {
                         IconButton(onClick = { showClearStarredConfirm = true }) {
-                            Icon(Icons.Outlined.DeleteSweep, contentDescription = stringResource(R.string.starred_clear_all), tint = Primary)
+                            Icon(Icons.Outlined.DeleteSweep, contentDescription = stringResource(R.string.starred_clear_all), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 },
@@ -701,18 +701,18 @@ private fun StarredMessageRow(
                     onClick = onUnstar,
                     modifier = Modifier.size(24.dp)
                 ) {
-                    Icon(Icons.Filled.Star, contentDescription = stringResource(R.string.starred_unstar), tint = Primary, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.Star, contentDescription = stringResource(R.string.starred_unstar), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                 }
             }
             if (!chatTitle.isNullOrBlank()) {
-                Text(chatTitle, style = MaterialTheme.typography.labelSmall, color = TextHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(chatTitle, style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             // 1.232：搜索时高亮匹配关键词
             val previewText = message.starredPreview(context)
             Text(
                 if (searchQuery.isNotBlank()) highlightedText(previewText, searchQuery) else androidx.compose.ui.text.AnnotatedString(previewText),
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary,
+                color = LocalChatPalette.current.textSecondary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -768,7 +768,7 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
     var cursor = 0
     snippet.highlights.forEach { span ->
         if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-        pushStyle(SpanStyle(color = Primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+        pushStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
         append(snippet.text.substring(span.start, span.end))
         pop()
         cursor = span.end

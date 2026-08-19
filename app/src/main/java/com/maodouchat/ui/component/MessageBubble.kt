@@ -426,12 +426,12 @@ private fun LocationBubble(
                     Icon(
                         imageVector = Icons.Outlined.NotificationsOff,
                         contentDescription = null,
-                        tint = TextHint,
+                        tint = LocalChatPalette.current.textHint,
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                 }
-                Text(formatTime(message.timestamp), style = MaterialTheme.typography.labelSmall, color = TextHint)
+                Text(formatTime(message.timestamp), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
                 DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = isOwnMessage)
                 // 1.51：点击已读状态图标打开阅读详情（仅自己消息可看）
                 if (isOwnMessage) {
@@ -491,7 +491,7 @@ private fun StickerBubble(
                 modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
             )
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
-                Text(formatTime(message.timestamp), style = MaterialTheme.typography.labelSmall, color = TextHint)
+                Text(formatTime(message.timestamp), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
                 DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = isOwnMessage)
                 if (isOwnMessage) {
                     Spacer(modifier = Modifier.width(4.dp))
@@ -582,7 +582,7 @@ private fun TextBubble(
                     Text(
                         text = senderName,
                         style = MaterialTheme.typography.labelMedium,
-                        color = TextHint,
+                        color = LocalChatPalette.current.textHint,
                         modifier = Modifier
                             .padding(start = 4.dp, bottom = 2.dp)
                             .clickable(enabled = onSenderClick != null) {
@@ -603,7 +603,7 @@ private fun TextBubble(
                 Text(
                     text = stringResource(R.string.message_forwarded_from, forwardedFrom),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    color = Primary.copy(alpha = 0.85f),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
                     modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
                 )
             }
@@ -1036,7 +1036,7 @@ private fun TextBubble(
                             Text(
                                 text = stringResource(R.string.chat_safety_dismiss),
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                color = Primary,
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier
                                     .graphicsLayer { scaleX = dismissScale; scaleY = dismissScale }
                                     .clickable(
@@ -1056,7 +1056,7 @@ private fun TextBubble(
                 Text(
                     text = pluralStringResource(R.plurals.message_mentions_count, mentionedUserIds.size, mentionedUserIds.size),
                     style = MaterialTheme.typography.labelSmall,
-                    color = Primary
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
 
@@ -1972,7 +1972,7 @@ private fun FileBubble(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.size(38.dp).background(if (isOwnMessage) Color.White else Primary.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.InsertDriveFile, contentDescription = stringResource(R.string.message_file), tint = Primary, modifier = Modifier.size(24.dp))
+                        Icon(Icons.AutoMirrored.Filled.InsertDriveFile, contentDescription = stringResource(R.string.message_file), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -2571,11 +2571,11 @@ fun ReplyTargetBar(senderName: String, preview: String, onCancel: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.message_reply_to, senderName), style = MaterialTheme.typography.labelMedium, color = Primary)
-            Text(preview, style = MaterialTheme.typography.bodySmall, color = TextHint, maxLines = 1)
+            Text(stringResource(R.string.message_reply_to, senderName), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            Text(preview, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textHint, maxLines = 1)
         }
         androidx.compose.material3.TextButton(onClick = onCancel) {
-            Text(stringResource(R.string.common_cancel), color = TextHint)
+            Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textHint)
         }
     }
 }

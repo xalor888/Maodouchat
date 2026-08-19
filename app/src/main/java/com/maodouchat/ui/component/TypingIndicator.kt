@@ -65,7 +65,7 @@ fun TypingIndicator(
                     fontWeight = FontWeight.Medium,
                     fontSize = 11.sp
                 ),
-                color = Primary,
+                color = MaterialTheme.colorScheme.primary,
                 maxLines = 1
             )
             Spacer(modifier = Modifier.width(4.dp))

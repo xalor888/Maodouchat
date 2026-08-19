@@ -138,6 +138,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import com.maodouchat.ui.theme.LocalChatPalette
 
 /** 1.54：底部导航「会话」未读角标总计数（ChatListViewModel 推送，BottomNavBar 订阅）。 */
 object UnreadBadgeStore {
@@ -690,16 +691,16 @@ fun ChatListScreen(
                         .background(Primary.copy(alpha = 0.08f))
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    Icon(Icons.Outlined.Notifications, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Outlined.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         stringResource(R.string.chat_unread_priority_hint, state.unreadChatCount),
                         style = MaterialTheme.typography.labelMedium,
-                        color = TextSecondary,
+                        color = LocalChatPalette.current.textSecondary,
                         modifier = Modifier.weight(1f)
                     )
                     TextButton(onClick = { viewModel.setUnreadPriorityEnabled(false) }) {
-                        Text(stringResource(R.string.chat_unread_priority_hint_dismiss), color = Primary)
+                        Text(stringResource(R.string.chat_unread_priority_hint_dismiss), color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -737,7 +738,7 @@ fun ChatListScreen(
                         if (state.isLoading) {
                             LinearProgressIndicator(
                                 modifier = Modifier.fillMaxWidth().height(2.dp),
-                                color = Primary
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                         if (state.filteredChats.isEmpty()) {
@@ -1204,7 +1205,7 @@ private fun FolderChip(label: String, selected: Boolean, badge: Int, onClick: ()
                 Text(label)
                 if (badge > 0) {
                     Spacer(Modifier.width(6.dp))
-                    Text(if (badge > 99) "99+" else badge.toString(), style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                    Text(if (badge > 99) "99+" else badge.toString(), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textSecondary)
                 }
             }
         }
@@ -1390,14 +1391,14 @@ private fun ChatListItem(
                 } else {
                     Text(displayName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 }
-                Text(formatChatTime(chat.lastMessageTime), style = MaterialTheme.typography.labelSmall, color = TextHint)
+                Text(formatChatTime(chat.lastMessageTime), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
             }
             Spacer(modifier = Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // 1.151：单聊显示「在线/最后在线」（密聊/群聊不显示）
                 if (!chat.isGroup && !isSecret && otherUser != null) {
                     if (otherUser.isOnline) {
-                        Text(stringResource(R.string.chat_online), color = Primary, style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.chat_online), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                         Spacer(Modifier.width(4.dp))
                     } else if (otherUser.lastSeen > 0L) {
                         Text(
@@ -1407,22 +1408,22 @@ private fun ChatListItem(
                                     System.currentTimeMillis(),
                                     android.text.format.DateUtils.MINUTE_IN_MILLIS
                                 ),
-                            color = TextSecondary,
+                            color = LocalChatPalette.current.textSecondary,
                             style = MaterialTheme.typography.labelSmall
                         )
                         Spacer(Modifier.width(4.dp))
                     }
                 }
                 if (chat.pinnedAt > 0) {
-                    Icon(Icons.Outlined.PushPin, contentDescription = null, modifier = Modifier.size(14.dp), tint = TextSecondary)
+                    Icon(Icons.Outlined.PushPin, contentDescription = null, modifier = Modifier.size(14.dp), tint = LocalChatPalette.current.textSecondary)
                     Spacer(Modifier.width(4.dp))
                 }
                 if (chat.isChannel) {
-                    Icon(Icons.Outlined.Campaign, contentDescription = null, modifier = Modifier.size(14.dp), tint = Primary)
+                    Icon(Icons.Outlined.Campaign, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(4.dp))
                 }
                 if (isSecret) {
-                    Text(stringResource(R.string.secret_chat_list_indicator), color = Primary, style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.secret_chat_list_indicator), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                     Spacer(Modifier.width(4.dp))
                 }
                 // 1.165：身份密钥已变更（安全警告，红色）
@@ -1436,11 +1437,11 @@ private fun ChatListItem(
                     Spacer(Modifier.width(4.dp))
                 }
                 if (isLocked) {
-                    Text(stringResource(R.string.chat_lock_list_indicator), color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.chat_lock_list_indicator), color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.labelSmall)
                     Spacer(Modifier.width(4.dp))
                 }
                 if (chat.notificationsMuted) {
-                    Icon(Icons.Outlined.NotificationsOff, contentDescription = null, modifier = Modifier.size(14.dp), tint = TextSecondary)
+                    Icon(Icons.Outlined.NotificationsOff, contentDescription = null, modifier = Modifier.size(14.dp), tint = LocalChatPalette.current.textSecondary)
                     Spacer(Modifier.width(4.dp))
                 }
                 // 0.70：会话免打扰时段显示（如「22:00–07:00 免扰」，否则用户无法在列表得知静音到何时）
@@ -1453,7 +1454,7 @@ private fun ChatListItem(
                             R.string.chat_silent_until_badge,
                             formatMinuteClock(((silentUntilMs % 86400000L) / 60000L).toInt())
                         ),
-                        color = TextSecondary,
+                        color = LocalChatPalette.current.textSecondary,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(end = 4.dp)
                     )
@@ -1464,14 +1465,14 @@ private fun ChatListItem(
                             formatMinuteClock(quietWindow.startMinute),
                             formatMinuteClock(quietWindow.endMinute)
                         ),
-                        color = TextSecondary,
+                        color = LocalChatPalette.current.textSecondary,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(end = 4.dp)
                     )
                 }
                 // 1.227：草稿预览加铅笔图标
                 if (!draftText.isNullOrBlank() && scheduledLabel == null && typingPreview == null) {
-                    Icon(Icons.Outlined.EditNote, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Outlined.EditNote, contentDescription = null, tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(4.dp))
                 }
                 Text(
@@ -1501,7 +1502,7 @@ private fun ChatListItem(
                 Text(
                     text = stringResource(R.string.chat_list_group_announcement_prefix) + chat.groupAnnouncement.orEmpty().trim(),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint,
+                    color = LocalChatPalette.current.textHint,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 3.dp)
@@ -1530,7 +1531,7 @@ private fun MissedCallsCard(calls: List<MissedCall>, onOpen: () -> Unit) {
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, fontWeight = FontWeight.SemiBold)
-            Text(calls.firstOrNull()?.callerName.orEmpty(), style = MaterialTheme.typography.bodySmall, color = TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(calls.firstOrNull()?.callerName.orEmpty(), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         TextButton(onClick = onOpen) { Text(stringResource(R.string.schedule_view_all)) }
     }
@@ -1609,7 +1610,7 @@ private fun MissedCallsSheet(
                                         }
                                     },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
+                                color = LocalChatPalette.current.textSecondary
                             )
                         }
                     }
@@ -1744,13 +1745,13 @@ private fun ArchiveSuggestionsCard(
                 modifier = Modifier.weight(1f)
             )
             IconButton(onClick = onDismissAll, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.common_close), tint = TextSecondary, modifier = Modifier.size(16.dp))
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.common_close), tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(16.dp))
             }
         }
         Text(
             stringResource(R.string.ai_enhance_archive_hint),
             style = MaterialTheme.typography.bodySmall,
-            color = TextSecondary
+            color = LocalChatPalette.current.textSecondary
         )
         Spacer(modifier = Modifier.height(8.dp))
         suggestions.forEach { suggestion ->
@@ -1768,16 +1769,16 @@ private fun ArchiveSuggestionsCard(
                 Text(
                     text = suggestion.reason.take(40),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextSecondary,
+                    color = LocalChatPalette.current.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
                 TextButton(onClick = { onArchive(suggestion.chatId) }, contentPadding = PaddingValues(horizontal = 8.dp)) {
-                    Text(stringResource(R.string.chat_archive), color = Primary, style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.chat_archive), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
                 }
                 TextButton(onClick = { onDismissOne(suggestion.chatId) }, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                    Text(stringResource(R.string.common_later), color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.common_later), color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
@@ -1810,7 +1811,7 @@ private fun highlightedText(text: String, query: String) = buildAnnotatedString 
     var cursor = 0
     snippet.highlights.forEach { span ->
         if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-        pushStyle(SpanStyle(color = Primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+        pushStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
         append(snippet.text.substring(span.start, span.end))
         pop()
         cursor = span.end

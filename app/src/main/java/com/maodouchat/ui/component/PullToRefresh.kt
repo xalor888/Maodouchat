@@ -39,6 +39,7 @@ import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.SurfaceVariant
 import com.maodouchat.util.HapticGate
 import kotlin.math.roundToInt
+import androidx.compose.material3.MaterialTheme
 
 /**
  * A lightweight pull-to-refresh wrapper.
@@ -132,13 +133,13 @@ fun PullToRefreshLayout(
                     CircularProgressIndicator(
                         modifier = Modifier.size(28.dp),
                         strokeWidth = 2.5.dp,
-                        color = Primary
+                        color = MaterialTheme.colorScheme.primary
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Outlined.Refresh,
                         contentDescription = null,
-                        tint = Primary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .size(28.dp)
                             .graphicsLayer {

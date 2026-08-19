@@ -78,6 +78,7 @@ import com.maodouchat.ui.theme.Surface
 import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
+import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
  * 外部用户详情页 — 类似 t.me 的个人主页
@@ -159,7 +160,7 @@ fun PublicProfileScreen(
             when {
                 loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Primary)
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 error != null -> {
@@ -203,7 +204,7 @@ private fun ProfileErrorView(error: String, onRetry: () -> Unit) {
             Text(
                 error,
                 style = MaterialTheme.typography.bodyLarge,
-                color = TextSecondary,
+                color = LocalChatPalette.current.textSecondary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -250,7 +251,7 @@ private fun ProfileContentView(
                     profile.name.firstOrNull()?.toString() ?: "?",
                     fontSize = 36.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Primary
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -262,7 +263,7 @@ private fun ProfileContentView(
             Text(
                 "@$uname",
                 style = MaterialTheme.typography.titleSmall,
-                color = Primary,
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(4.dp))
@@ -284,7 +285,7 @@ private fun ProfileContentView(
             Text(
                 profile.status,
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary,
+                color = LocalChatPalette.current.textSecondary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(16.dp))

@@ -23,6 +23,7 @@ import com.maodouchat.R
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed
+import com.maodouchat.ui.theme.LocalChatPalette
 
 @Composable
 internal fun ChatSelectionToolbar(
@@ -66,7 +67,7 @@ internal fun ChatSelectionToolbar(
                 }
             }
             IconButton(onClick = onCancel) {
-                Icon(Icons.Outlined.Close, stringResource(R.string.common_cancel), tint = TextSecondary)
+                Icon(Icons.Outlined.Close, stringResource(R.string.common_cancel), tint = LocalChatPalette.current.textSecondary)
             }
         }
         // 1.13：动作增多后改横向滚动，避免窄屏裁切「取消置顶」等长标签（按钮按内容自适应宽度）

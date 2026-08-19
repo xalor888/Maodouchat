@@ -55,6 +55,7 @@ import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed
 import kotlinx.coroutines.launch
+import com.maodouchat.ui.theme.LocalChatPalette
 
 /** 1.29：通话记录页——展示本地 CallLogStore 全量历史，点击回拨，可清空。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -120,7 +121,7 @@ fun CallHistoryScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Text(stringResource(R.string.call_history_empty), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)            }
+                Text(stringResource(R.string.call_history_empty), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)            }
             return@Scaffold
         }
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -149,7 +150,7 @@ fun CallHistoryScreen(
             }
             if (filteredLogs.isEmpty() && searchQuery.isNotBlank()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.missed_calls_search_empty), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                    Text(stringResource(R.string.missed_calls_search_empty), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
                 }
                 return@Column
             }
@@ -206,7 +207,7 @@ fun CallHistoryScreen(
                         Spacer(modifier = Modifier.height(2.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (entry.isVideo) {
-                                Icon(Icons.Filled.Videocam, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(12.dp))
+                                Icon(Icons.Filled.Videocam, contentDescription = null, tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(12.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                             }
                             Text(
@@ -230,7 +231,7 @@ fun CallHistoryScreen(
                             )
                         }
                     }
-                    Icon(Icons.Filled.Call, contentDescription = stringResource(R.string.missed_calls_callback), tint = Primary, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Call, contentDescription = stringResource(R.string.missed_calls_callback), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                 }
             }
         }
@@ -321,7 +322,7 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
         var cursor = 0
         snippet.highlights.forEach { span ->
             if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-            pushStyle(androidx.compose.ui.text.SpanStyle(color = Primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
             append(snippet.text.substring(span.start, span.end))
             pop()
             cursor = span.end

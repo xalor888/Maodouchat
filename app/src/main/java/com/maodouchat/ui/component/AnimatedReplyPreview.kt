@@ -107,7 +107,7 @@ fun AnimatedReplyPreview(
                 Text(
                     text = senderName,
                     style = MaterialTheme.typography.labelMedium,
-                    color = Primary,
+                    color = MaterialTheme.colorScheme.primary,
                     maxLines = 1
                 )
                 Text(

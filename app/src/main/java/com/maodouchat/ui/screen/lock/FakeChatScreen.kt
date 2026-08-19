@@ -156,7 +156,7 @@ private fun FakeChatTopBar(onUnlockRequest: () -> Unit, modifier: Modifier = Mod
                     Text(
                         stringResource(R.string.fake_chat_peer_status),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                 }
             },
@@ -165,14 +165,14 @@ private fun FakeChatTopBar(onUnlockRequest: () -> Unit, modifier: Modifier = Mod
                     Icon(
                         Icons.AutoMirrored.Outlined.ArrowBack,
                         contentDescription = null,
-                        tint = Primary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
             },
             actions = {
                 IconButton(onClick = { /* 无操作 */ }) {
-                    Icon(Icons.Outlined.MoreVert, contentDescription = null, tint = TextSecondary)
+                    Icon(Icons.Outlined.MoreVert, contentDescription = null, tint = LocalChatPalette.current.textSecondary)
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -187,13 +187,13 @@ private fun FakeChatTopBar(onUnlockRequest: () -> Unit, modifier: Modifier = Mod
             Text(
                 stringResource(R.string.fake_chat_announcement),
                 style = MaterialTheme.typography.labelSmall,
-                color = Primary,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f).padding(vertical = 6.dp)
             )
             Icon(
                 Icons.Outlined.KeyboardArrowDown,
                 contentDescription = null,
-                tint = TextSecondary,
+                tint = LocalChatPalette.current.textSecondary,
                 modifier = Modifier.size(18.dp).padding(end = 12.dp)
             )
         }
@@ -262,7 +262,7 @@ private fun ColumnScope.FakeMessageList() {
                     Text(
                         text = message.time,
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary,
+                        color = LocalChatPalette.current.textSecondary,
                         fontSize = 10.sp
                     )
                 }
@@ -340,7 +340,7 @@ private fun FakePinDialog(
                 Text(
                     stringResource(R.string.fake_chat_pin_hint),
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary,
+                    color = LocalChatPalette.current.textSecondary,
                     textAlign = TextAlign.Center
                 )
                 OutlinedTextField(

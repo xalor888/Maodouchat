@@ -95,6 +95,7 @@ import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MotionTokens
+import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
  * 通讯录页面（接入 Room 数据库）
@@ -152,8 +153,8 @@ fun ContactsScreen(
                 title = { Text(stringResource(R.string.nav_contacts), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 actions = {
                     // 标题栏搜索图标：点击清空当前搜索框输入（已输入时），否则聚焦体验由下方 SearchBar 承担
-                    IconButton(onClick = { if (state.searchQuery.isNotBlank()) viewModel.onSearchQueryChange("") }) { Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.contacts_search), tint = TextSecondary) }
-                    IconButton(onClick = { showGroupDialog = true }) { Icon(Icons.Outlined.PersonAdd, contentDescription = stringResource(R.string.contacts_start_group), tint = TextSecondary) }
+                    IconButton(onClick = { if (state.searchQuery.isNotBlank()) viewModel.onSearchQueryChange("") }) { Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.contacts_search), tint = LocalChatPalette.current.textSecondary) }
+                    IconButton(onClick = { showGroupDialog = true }) { Icon(Icons.Outlined.PersonAdd, contentDescription = stringResource(R.string.contacts_start_group), tint = LocalChatPalette.current.textSecondary) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
             )
@@ -191,7 +192,7 @@ fun ContactsScreen(
                     Text(
                         stringResource(R.string.contacts_presence_note),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextHint,
+                        color = LocalChatPalette.current.textHint,
                         modifier = Modifier.padding(top = 2.dp, bottom = 2.dp)
                     )
                 }
@@ -249,7 +250,7 @@ fun ContactsScreen(
                                 // 8.49：好友申请批量操作（非搜索态显示）
                                 if (requestQuery.isBlank() && visibleIncoming.size > 1) {
                                     TextButton(onClick = { viewModel.acceptAllFriendRequests() }) {
-                                        Text(stringResource(R.string.contacts_friend_accept_all), color = Primary, style = MaterialTheme.typography.labelSmall)
+                                        Text(stringResource(R.string.contacts_friend_accept_all), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                                     }
                                     TextButton(onClick = { viewModel.rejectAllFriendRequests() }) {
                                         Text(stringResource(R.string.contacts_friend_reject_all), color = UnreadRed, style = MaterialTheme.typography.labelSmall)
@@ -326,7 +327,7 @@ fun ContactsScreen(
                                     .padding(horizontal = 16.dp, vertical = 12.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp).background(Primary.copy(alpha = 0.12f), CircleShape)) {
-                                    Icon(Icons.Outlined.Campaign, contentDescription = stringResource(R.string.chat_create_channel), tint = Primary, modifier = Modifier.size(22.dp))
+                                    Icon(Icons.Outlined.Campaign, contentDescription = stringResource(R.string.chat_create_channel), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Text(stringResource(R.string.chat_create_channel), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurface)
@@ -423,7 +424,7 @@ fun ContactsScreen(
 
         if (state.isCreatingChat) {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(modifier = Modifier.size(36.dp), strokeWidth = 3.dp, color = Primary)
+                CircularProgressIndicator(modifier = Modifier.size(36.dp), strokeWidth = 3.dp, color = MaterialTheme.colorScheme.primary)
             }
         }
 
@@ -482,7 +483,7 @@ fun ContactsScreen(
                         TextButton(
                             onClick = { contactActionTarget = null; removeFriendTarget = user },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.contacts_action_remove_friend), modifier = Modifier.fillMaxWidth(), color = TextSecondary) }
+                        ) { Text(stringResource(R.string.contacts_action_remove_friend), modifier = Modifier.fillMaxWidth(), color = LocalChatPalette.current.textSecondary) }
                         // 1.291：拉黑（隐私入口，与设置页黑名单管理配套）
                         TextButton(
                             onClick = { contactActionTarget = null; blockContactTarget = user },
@@ -540,7 +541,7 @@ fun ContactsScreen(
                 title = { Text(stringResource(R.string.contacts_nickname_title)) },
                 text = {
                     Column {
-                        Text(user.name, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(user.name, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                         Spacer(modifier = Modifier.height(8.dp))
                         TextField(
                             value = draft,
@@ -563,7 +564,7 @@ fun ContactsScreen(
                             TextButton(onClick = {
                                 viewModel.setContactNickname(user, "")
                                 nicknameTarget = null
-                            }) { Text(stringResource(R.string.contacts_nickname_clear), color = TextSecondary) }
+                            }) { Text(stringResource(R.string.contacts_nickname_clear), color = LocalChatPalette.current.textSecondary) }
                         }
                         TextButton(onClick = { nicknameTarget = null }) {
                             Text(stringResource(R.string.common_cancel))
@@ -620,12 +621,12 @@ private fun SearchResultList(
         Text(
             text = if (isSearching) stringResource(R.string.contacts_searching, query) else stringResource(R.string.contacts_search_results, query, results.size),
             style = MaterialTheme.typography.labelMedium,
-            color = TextSecondary,
+            color = LocalChatPalette.current.textSecondary,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
         if (isSearching && results.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.dp, color = Primary)
+                CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
             }
             return
         }
@@ -686,11 +687,11 @@ private fun SearchUserRow(
                 maxLines = 1
             )
             if (user.status.isNotBlank()) {
-                Text(user.status, style = MaterialTheme.typography.bodySmall, color = TextSecondary, maxLines = 1)
+                Text(user.status, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary, maxLines = 1)
             }
         }
         TextButton(onClick = onAddFriend) {
-            Text(stringResource(R.string.contacts_add_friend), color = Primary)
+            Text(stringResource(R.string.contacts_add_friend), color = MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -720,21 +721,21 @@ private fun FriendRequestRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(request.user.name, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
             if (request.message.isNotBlank()) {
-                Text(request.message, style = MaterialTheme.typography.bodySmall, color = TextSecondary, maxLines = 2)
+                Text(request.message, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary, maxLines = 2)
             } else if (request.outgoing) {
-                Text(stringResource(R.string.contacts_friend_request_pending), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                Text(stringResource(R.string.contacts_friend_request_pending), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
             }
         }
         if (onAccept != null && onReject != null) {
             TextButton(onClick = onReject) {
-                Text(stringResource(R.string.contacts_friend_reject), color = TextSecondary)
+                Text(stringResource(R.string.contacts_friend_reject), color = LocalChatPalette.current.textSecondary)
             }
             Button(onClick = onAccept, modifier = Modifier.padding(start = 4.dp)) {
                 Text(stringResource(R.string.contacts_friend_accept))
             }
         } else if (onCancel != null) {
             TextButton(onClick = onCancel) {
-                Text(stringResource(R.string.contacts_friend_cancel), color = TextSecondary)
+                Text(stringResource(R.string.contacts_friend_cancel), color = LocalChatPalette.current.textSecondary)
             }
         }
     }
@@ -785,7 +786,7 @@ private fun NewGroupDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(stringResource(R.string.contacts_select_members, selectedMembers.size), style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                Text(stringResource(R.string.contacts_select_members, selectedMembers.size), style = MaterialTheme.typography.labelLarge, color = LocalChatPalette.current.textSecondary)
                 Spacer(modifier = Modifier.height(8.dp))
                 // 群成员选择列表：可滚动，最大 50% 屏幕高度
                 if (filteredContacts.isEmpty()) {
@@ -795,7 +796,7 @@ private fun NewGroupDialog(
                             else R.string.contacts_empty
                         ),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextHint,
+                        color = LocalChatPalette.current.textHint,
                         modifier = Modifier.padding(vertical = 12.dp)
                     )
                 } else {
@@ -875,7 +876,7 @@ private fun NewChannelDialog(
         title = { Text(stringResource(R.string.chat_channel_create_title)) },
         text = {
             Column {
-                Text(stringResource(R.string.chat_channel_create_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                Text(stringResource(R.string.chat_channel_create_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                 Spacer(modifier = Modifier.height(10.dp))
                 TextField(
                     value = channelName,
@@ -893,7 +894,7 @@ private fun NewChannelDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(stringResource(R.string.contacts_select_members, selectedMembers.size), style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                Text(stringResource(R.string.contacts_select_members, selectedMembers.size), style = MaterialTheme.typography.labelLarge, color = LocalChatPalette.current.textSecondary)
                 Spacer(modifier = Modifier.height(8.dp))
                 if (filteredContacts.isEmpty()) {
                     Text(
@@ -902,7 +903,7 @@ private fun NewChannelDialog(
                             else R.string.contacts_empty
                         ),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextHint,
+                        color = LocalChatPalette.current.textHint,
                         modifier = Modifier.padding(vertical = 12.dp)
                     )
                 } else {
@@ -1003,7 +1004,7 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
         var cursor = 0
         snippet.highlights.forEach { span ->
             if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-            pushStyle(androidx.compose.ui.text.SpanStyle(color = Primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
             append(snippet.text.substring(span.start, span.end))
             pop()
             cursor = span.end

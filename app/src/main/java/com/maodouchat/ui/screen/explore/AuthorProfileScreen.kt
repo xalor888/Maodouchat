@@ -78,6 +78,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import com.maodouchat.ui.theme.LocalChatPalette
 
 data class AuthorProfileUiState(
     val currentUserId: String = "",
@@ -453,7 +454,7 @@ fun AuthorProfileScreen(
                 title = { Text(state.author?.name ?: stringResource(R.string.explore_author_home), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
@@ -516,16 +517,16 @@ fun AuthorProfileScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(author.name, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(author.id, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                Text(author.id, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                                 if (author.status.isNotBlank()) {
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Text(author.status, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                                    Text(author.status, style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
                                 }
                             }
                             if (author.id != state.currentUserId) {
                                 Column(horizontalAlignment = Alignment.End) {
                                     TextButton(onClick = { onOpenChat(author.id) }) {
-                                        Text(stringResource(R.string.explore_author_chat), color = Primary)
+                                        Text(stringResource(R.string.explore_author_chat), color = MaterialTheme.colorScheme.primary)
                                     }
                                     // 1.287：拉黑/解除拉黑（信息气泡复用 infoMessage 显示）
                                     TextButton(
@@ -547,7 +548,7 @@ fun AuthorProfileScreen(
             if (state.posts.isEmpty()) {
                 item(key = "empty", contentType = "empty") {
                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.explore_author_empty), color = TextSecondary)
+                        Text(stringResource(R.string.explore_author_empty), color = LocalChatPalette.current.textSecondary)
                     }
                 }
             } else {
@@ -556,7 +557,7 @@ fun AuthorProfileScreen(
                     Text(
                         stringResource(R.string.explore_author_post_count, state.posts.size),
                         style = MaterialTheme.typography.labelMedium,
-                        color = TextSecondary,
+                        color = LocalChatPalette.current.textSecondary,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp)
                     )
                 }
@@ -573,7 +574,7 @@ fun AuthorProfileScreen(
                 if (filteredAuthorPosts.isEmpty()) {
                     item(key = "author_post_search_empty", contentType = "empty") {
                         Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.explore_author_search_empty), color = TextSecondary)
+                            Text(stringResource(R.string.explore_author_search_empty), color = LocalChatPalette.current.textSecondary)
                         }
                     }
                 } else {
@@ -587,9 +588,9 @@ fun AuthorProfileScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(state.author?.name ?: stringResource(R.string.explore_other_person), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(Icons.Outlined.Public, contentDescription = stringResource(R.string.explore_visibility_public), tint = TextSecondary, modifier = Modifier.size(14.dp))
+                                    Icon(Icons.Outlined.Public, contentDescription = stringResource(R.string.explore_visibility_public), tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.weight(1f))
-                                    Text(relativeTimeFmt(post.createdAt), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                    Text(relativeTimeFmt(post.createdAt), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                                 }
                                 if (post.content.isNotBlank()) {
                                     Spacer(modifier = Modifier.height(8.dp))
@@ -620,7 +621,7 @@ fun AuthorProfileScreen(
                                         Text(post.likeCount.toString())
                                     }
                                     TextButton(onClick = { onOpenPost(post.id) }) {
-                                        Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = stringResource(R.string.explore_comment), tint = TextSecondary, modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = stringResource(R.string.explore_comment), tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(post.commentCount.toString())
                                     }

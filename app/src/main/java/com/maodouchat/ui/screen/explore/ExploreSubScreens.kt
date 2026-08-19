@@ -122,6 +122,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import kotlin.math.min
+import com.maodouchat.ui.theme.LocalChatPalette
 
 data class NearbyPerson(val user: User, val distanceMeters: Int, val locationUpdatedAt: Long)
 
@@ -473,12 +474,12 @@ fun NearbyScreen(
                 title = { Text(stringResource(R.string.explore_nearby), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                     }
                 },
                 actions = {
                     IconButton(onClick = viewModel::refresh, enabled = state.isSharing && !state.isLoading) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.common_refresh), tint = Primary)
+                        Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.common_refresh), tint = MaterialTheme.colorScheme.primary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
@@ -512,7 +513,7 @@ fun NearbyScreen(
                     Text(
                         remainingHint,
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                 }
                 Switch(
@@ -541,7 +542,7 @@ fun NearbyScreen(
                     Text(
                         stringResource(R.string.explore_nearby_radius_label),
                         style = MaterialTheme.typography.labelMedium,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
@@ -570,7 +571,7 @@ fun NearbyScreen(
                         Text(
                             stringResource(R.string.explore_nearby_count, state.items.size),
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextHint
+                            color = LocalChatPalette.current.textHint
                         )
                     }
                 }
@@ -625,7 +626,7 @@ fun NearbyScreen(
                                 Text(
                                     stringResource(R.string.explore_nearby_empty),
                                     modifier = Modifier.align(Alignment.Center),
-                                    color = TextHint
+                                    color = LocalChatPalette.current.textHint
                                 )
                             }
                         }
@@ -662,7 +663,7 @@ fun NearbyScreen(
                                         Text(
                                             stringResource(R.string.explore_nearby_search_empty),
                                             modifier = Modifier.align(Alignment.Center),
-                                            color = TextHint
+                                            color = LocalChatPalette.current.textHint
                                         )
                                     }
                                 } else {
@@ -724,11 +725,11 @@ private fun NearbyItem(person: NearbyPerson, onClick: () -> Unit) {
                     Text(
                         text = updatedText,
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextHint
+                        color = LocalChatPalette.current.textHint
                     )
                 }
             }
-            Icon(Icons.Outlined.NearMe, contentDescription = null, tint = TextHint, modifier = Modifier.size(18.dp))
+            Icon(Icons.Outlined.NearMe, contentDescription = null, tint = LocalChatPalette.current.textHint, modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -763,11 +764,11 @@ fun MomentsScreen(
                 title = { Text(stringResource(R.string.explore_moments), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                     }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::refresh) { Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.common_refresh), tint = Primary) }
+                    IconButton(onClick = viewModel::refresh) { Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.common_refresh), tint = MaterialTheme.colorScheme.primary) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
             )
@@ -813,7 +814,7 @@ fun MomentsScreen(
         }
         if (publicPosts.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.explore_moments_empty), color = TextHint)
+                Text(stringResource(R.string.explore_moments_empty), color = LocalChatPalette.current.textHint)
             }
             return@Scaffold
         }
@@ -846,7 +847,7 @@ fun MomentsScreen(
                 item(key = "moments_search_empty", contentType = "empty") {
                     Text(
                         stringResource(R.string.explore_feed_search_empty),
-                        color = TextHint,
+                        color = LocalChatPalette.current.textHint,
                         modifier = Modifier.padding(vertical = 24.dp)
                     )
                 }
@@ -869,9 +870,9 @@ fun MomentsScreen(
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
-                                Text(relativeTime(post.createdAt), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                Text(relativeTime(post.createdAt), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                             }
-                            Icon(Icons.Outlined.Public, contentDescription = stringResource(R.string.explore_visibility_public), tint = TextHint, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Outlined.Public, contentDescription = stringResource(R.string.explore_visibility_public), tint = LocalChatPalette.current.textHint, modifier = Modifier.size(16.dp))
                         }
                         if (post.content.isNotBlank()) {
                             Spacer(modifier = Modifier.height(8.dp))
@@ -894,11 +895,11 @@ fun MomentsScreen(
                                 )
                             }
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(post.likeCount.toString(), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                            Text(post.likeCount.toString(), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                             Spacer(modifier = Modifier.width(12.dp))
-                            Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = stringResource(R.string.explore_comment), tint = TextSecondary, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = stringResource(R.string.explore_comment), tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(post.commentCount.toString(), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                            Text(post.commentCount.toString(), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                             Spacer(modifier = Modifier.weight(1f))
                             TextButton(onClick = { onOpenAuthor(post.author.id) }) { Text(stringResource(R.string.explore_author_home)) }
                         }
@@ -998,7 +999,7 @@ fun PostDetailScreen(
                 title = { Text(stringResource(R.string.explore_post_details), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
@@ -1049,12 +1050,12 @@ fun PostDetailScreen(
                                     Text(
                                         post.author.status,
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = TextSecondary,
+                                        color = LocalChatPalette.current.textSecondary,
                                         maxLines = 1,
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
                                 }
-                                Text(relativeTime(post.createdAt), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                Text(relativeTime(post.createdAt), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                             }
                             // 1.173：详情页屏蔽该作者（他人动态）
                             if (post.author.id != currentUserId) {
@@ -1062,7 +1063,7 @@ fun PostDetailScreen(
                                     Icon(
                                         androidx.compose.material.icons.Icons.Outlined.Block,
                                         contentDescription = stringResource(R.string.explore_block_author),
-                                        tint = TextSecondary,
+                                        tint = LocalChatPalette.current.textSecondary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -1071,7 +1072,7 @@ fun PostDetailScreen(
                                     Icon(
                                         Icons.Outlined.Flag,
                                         contentDescription = stringResource(R.string.explore_report_post),
-                                        tint = TextSecondary,
+                                        tint = LocalChatPalette.current.textSecondary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -1082,7 +1083,7 @@ fun PostDetailScreen(
                             Text(
                                 stringResource(R.string.chat_online),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Primary
+                                color = MaterialTheme.colorScheme.primary
                             )
                         } else if (post.author.lastSeen > 0L) {
                             Text(
@@ -1093,7 +1094,7 @@ fun PostDetailScreen(
                                         android.text.format.DateUtils.MINUTE_IN_MILLIS
                                     ),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = TextSecondary
+                                color = LocalChatPalette.current.textSecondary
                             )
                         }
                         if (post.content.isNotBlank()) {
@@ -1120,15 +1121,15 @@ fun PostDetailScreen(
                             Text(
                                 ExploreFeedPolicy.formatCount(post.likeCount),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary,
+                                color = LocalChatPalette.current.textSecondary,
                                 modifier = Modifier
                                     .clickable(enabled = post.likeCount > 0) { viewModel.openLikers(post.id) }
                                     .padding(vertical = 4.dp)
                             )
                             Spacer(Modifier.width(16.dp))
-                            Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = stringResource(R.string.explore_comment), tint = TextSecondary, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = stringResource(R.string.explore_comment), tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text(ExploreFeedPolicy.formatCount(post.commentCount), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                            Text(ExploreFeedPolicy.formatCount(post.commentCount), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
                             Spacer(Modifier.width(16.dp))
                             // 1.181：详情页复制正文（纯图时复制 [图片]）
                             IconButton(onClick = {
@@ -1143,7 +1144,7 @@ fun PostDetailScreen(
                                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText("动态", textToCopy))
                                 Toast.makeText(context, context.getString(R.string.explore_copied), Toast.LENGTH_SHORT).show()
                             }) {
-                                Icon(Icons.Outlined.ContentCopy, contentDescription = stringResource(R.string.chat_copy), tint = TextSecondary, modifier = Modifier.size(20.dp))
+                                Icon(Icons.Outlined.ContentCopy, contentDescription = stringResource(R.string.chat_copy), tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(20.dp))
                             }
                             // 1.100：详情页分享（与动态流一致）
                             IconButton(onClick = {
@@ -1171,13 +1172,13 @@ fun PostDetailScreen(
                                     )
                                 }
                             }) {
-                                Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.chat_share), tint = TextSecondary, modifier = Modifier.size(20.dp))
+                                Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.chat_share), tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(20.dp))
                             }
                         }
                     }
                 }
             }
-            HorizontalDivider(color = TextHint, thickness = 0.5.dp)
+            HorizontalDivider(color = LocalChatPalette.current.textHint, thickness = 0.5.dp)
             Text(
                 stringResource(R.string.explore_comments_count, post?.commentCount ?: comments.size),
                 style = MaterialTheme.typography.titleSmall,
@@ -1192,7 +1193,7 @@ fun PostDetailScreen(
                 }
                 comments.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.explore_no_comments), color = TextHint)
+                        Text(stringResource(R.string.explore_no_comments), color = LocalChatPalette.current.textHint)
                     }
                 }
                 else -> {
@@ -1225,7 +1226,7 @@ fun PostDetailScreen(
             }
             if (filteredComments.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.explore_comment_search_empty), color = TextHint)
+                    Text(stringResource(R.string.explore_comment_search_empty), color = LocalChatPalette.current.textHint)
                 }
             } else {
                 LazyColumn(
@@ -1299,7 +1300,7 @@ fun PostDetailScreen(
                                             Text(
                                                 stringResource(R.string.explore_comment_author_badge),
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = Primary
+                                                color = MaterialTheme.colorScheme.primary
                                             )
                                         }
                                     }
@@ -1312,7 +1313,7 @@ fun PostDetailScreen(
                                         Text(
                                             stringResource(R.string.explore_reply_to, parentAuthor),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = Primary,
+                                            color = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier
                                                 .clickable(enabled = parentIndex >= 0) {
                                                     if (parentIndex >= 0) {
@@ -1336,7 +1337,7 @@ fun PostDetailScreen(
                                         onLongClick = { commentMenuFor = c }
                                     )
                                 )
-                                Text(relativeTime(c.createdAt), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                Text(relativeTime(c.createdAt), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                             }
                             // 1.95：详情页评论操作（点赞/删除自己评论）
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1345,7 +1346,7 @@ fun PostDetailScreen(
                                         Icon(
                                             Icons.Outlined.Delete,
                                             contentDescription = stringResource(R.string.explore_delete_comment),
-                                            tint = TextSecondary,
+                                            tint = LocalChatPalette.current.textSecondary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -1364,7 +1365,7 @@ fun PostDetailScreen(
                                         Icon(
                                             Icons.Outlined.Flag,
                                             contentDescription = stringResource(R.string.explore_report_comment),
-                                            tint = TextSecondary,
+                                            tint = LocalChatPalette.current.textSecondary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -1385,7 +1386,7 @@ fun PostDetailScreen(
                                     Text(
                                         stringResource(R.string.explore_comment_reply),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = Primary
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                                 // 1.115：复制评论文本（与评论弹窗一致）
@@ -1397,7 +1398,7 @@ fun PostDetailScreen(
                                     Text(
                                         stringResource(R.string.explore_comment_copy),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = TextSecondary
+                                        color = LocalChatPalette.current.textSecondary
                                     )
                                 }
                             }
@@ -1409,7 +1410,7 @@ fun PostDetailScreen(
             }
 
             // 1.97：评论输入条（始终可见；支持回复目标提示）
-            HorizontalDivider(color = TextHint, thickness = 0.5.dp)
+            HorizontalDivider(color = LocalChatPalette.current.textHint, thickness = 0.5.dp)
             CommentComposerBar(
                 text = state.commentText,
                 isSending = state.isSendingComment,
@@ -1535,18 +1536,18 @@ private fun CommentComposerBar(
                     Text(
                         stringResource(R.string.explore_reply_to, replyToComment.author.name),
                         style = MaterialTheme.typography.labelMedium,
-                        color = Primary
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Text(
                         replyToComment.content,
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary,
+                        color = LocalChatPalette.current.textSecondary,
                         maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
                 TextButton(onClick = onClearReply) {
-                    Text(stringResource(R.string.common_cancel), color = TextSecondary)
+                    Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary)
                 }
             }
         }
@@ -1561,7 +1562,7 @@ private fun CommentComposerBar(
             )
             IconButton(onClick = onSend, enabled = text.isNotBlank() && !isSending) {
                 if (isSending) CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                else Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = stringResource(R.string.explore_send), tint = Primary)
+                else Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = stringResource(R.string.explore_send), tint = MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -1581,7 +1582,7 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
         var cursor = 0
         snippet.highlights.forEach { span ->
             if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-            pushStyle(androidx.compose.ui.text.SpanStyle(color = Primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
             append(snippet.text.substring(span.start, span.end))
             pop()
             cursor = span.end

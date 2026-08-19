@@ -263,7 +263,7 @@ fun AccountSecurityScreen(
             title = { Text(stringResource(R.string.security_center_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
@@ -289,7 +289,7 @@ fun AccountSecurityScreen(
                     Text(
                         stringResource(R.string.security_scope_body),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                 }
             }
@@ -330,14 +330,14 @@ fun AccountSecurityScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Outlined.Smartphone, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Outlined.Smartphone, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.account_devices), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.account_devices_hint), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.account_devices_hint), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                     IconButton(onClick = viewModel::loadMyDevices, enabled = !state.isLoadingDevices) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.account_refresh_devices), tint = Primary)
+                        Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.account_refresh_devices), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
                 HorizontalDividerLite()
@@ -347,9 +347,9 @@ fun AccountSecurityScreen(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Primary)
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.account_loading_devices), color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.account_loading_devices), color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                     state.devices.isEmpty() -> {
@@ -357,7 +357,7 @@ fun AccountSecurityScreen(
                             stringResource(R.string.account_no_devices),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary
+                            color = LocalChatPalette.current.textSecondary
                         )
                     }
                     else -> {
@@ -390,7 +390,7 @@ fun AccountSecurityScreen(
                                 stringResource(R.string.account_devices_search_empty),
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary
+                                color = LocalChatPalette.current.textSecondary
                             )
                         } else {
                             val currentDeviceConfirmed = state.devices.any {
@@ -431,14 +431,14 @@ fun AccountSecurityScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (state.isLoggingOutAll) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Primary)
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                     } else {
                         Icon(Icons.Outlined.Warning, contentDescription = null, tint = Error, modifier = Modifier.size(20.dp))
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.account_logout_all), style = MaterialTheme.typography.bodyLarge, color = Error)
-                        Text(stringResource(R.string.account_logout_all_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.account_logout_all_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                 }
             }
@@ -454,7 +454,7 @@ fun AccountSecurityScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.account_delete), style = MaterialTheme.typography.bodyLarge, color = Error)
-                        Text(stringResource(R.string.account_delete_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.account_delete_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                 }
             }
@@ -469,11 +469,11 @@ fun AccountSecurityScreen(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Outlined.Lock, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Outlined.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.settings_app_lock), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                            Text(stringResource(R.string.settings_app_lock_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                            Text(stringResource(R.string.settings_app_lock_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                         }
                         Switch(
                             checked = appLockEnabled,
@@ -531,11 +531,11 @@ fun AccountSecurityScreen(
                         )
                     }
                     if (appLockEnabled) {
-                        HorizontalDivider(color = TextHint.copy(alpha = 0.25f))
+                        HorizontalDivider(color = LocalChatPalette.current.textHint.copy(alpha = 0.25f))
                         Text(
                             stringResource(R.string.settings_app_lock_timeout),
                             style = MaterialTheme.typography.labelLarge,
-                            color = TextSecondary,
+                            color = LocalChatPalette.current.textSecondary,
                             modifier = Modifier.padding(start = 16.dp, top = 10.dp, end = 16.dp)
                         )
                         val timeoutOptions = listOf(
@@ -568,7 +568,7 @@ fun AccountSecurityScreen(
                                 }
                             }
                         }
-                        HorizontalDivider(color = TextHint.copy(alpha = 0.25f))
+                        HorizontalDivider(color = LocalChatPalette.current.textHint.copy(alpha = 0.25f))
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -582,7 +582,7 @@ fun AccountSecurityScreen(
                                 Text(
                                     stringResource(R.string.settings_sensitive_gate_subtitle),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary
+                                    color = LocalChatPalette.current.textSecondary
                                 )
                             }
                             Switch(
@@ -603,7 +603,7 @@ fun AccountSecurityScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Outlined.Lock, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Outlined.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -614,7 +614,7 @@ fun AccountSecurityScreen(
                         Text(
                             stringResource(R.string.settings_screen_secure_subtitle),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = LocalChatPalette.current.textSecondary
                         )
                     }
                     Switch(
@@ -635,11 +635,11 @@ fun AccountSecurityScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Outlined.Security, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Outlined.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(stringResource(R.string.settings_secret_security), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.settings_secret_security_hint), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.settings_secret_security_hint), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                 }
                 HorizontalDividerLite()
@@ -649,7 +649,7 @@ fun AccountSecurityScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.secret_screenshot_burn_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.secret_screenshot_burn_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.secret_screenshot_burn_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                     Switch(
                         checked = secretScreenshotBurnEnabled,
@@ -671,7 +671,7 @@ fun AccountSecurityScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.secret_auto_destroy_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.secret_auto_destroy_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.secret_auto_destroy_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                     Switch(
                         checked = secretAutoDestroyEnabled,
@@ -693,7 +693,7 @@ fun AccountSecurityScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.secret_forward_whitelist_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.secret_forward_whitelist_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.secret_forward_whitelist_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                     Switch(
                         checked = secretForwardWhitelistEnabled,
@@ -715,7 +715,7 @@ fun AccountSecurityScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.secret_sim_change_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.secret_sim_change_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.secret_sim_change_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                     Switch(
                         checked = secretSimChangeEnabled,
@@ -737,7 +737,7 @@ fun AccountSecurityScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.secret_2fa_gate_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.secret_2fa_gate_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.secret_2fa_gate_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                     Switch(
                         checked = secret2faGateEnabled,
@@ -760,7 +760,7 @@ fun AccountSecurityScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.secret_new_device_risk_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.secret_new_device_risk_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.secret_new_device_risk_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                     Switch(
                         checked = secretNewDeviceRiskEnabled,
@@ -782,7 +782,7 @@ fun AccountSecurityScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.secret_device_verify_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.secret_device_verify_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.secret_device_verify_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                     Switch(
                         checked = secretDeviceVerifyEnabled,
@@ -804,7 +804,7 @@ fun AccountSecurityScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.secret_session_notice_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.secret_session_notice_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.secret_session_notice_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                     Switch(
                         checked = secretSessionNoticeEnabled,
@@ -833,13 +833,13 @@ fun AccountSecurityScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(stringResource(R.string.settings_totp_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                    Text(stringResource(R.string.settings_totp_desc), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Text(stringResource(R.string.settings_totp_desc), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     Text(
                         stringResource(if (totpEnabled) R.string.settings_totp_status_enabled else R.string.settings_totp_status_disabled),
                         style = MaterialTheme.typography.labelLarge,
                         color = if (totpEnabled) OnlineGreen else TextSecondary
                     )
-                    totpMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Primary) }
+                    totpMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) }
                     totpSecret?.let { secret ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -856,7 +856,7 @@ fun AccountSecurityScreen(
                                 Icon(
                                     Icons.Outlined.ContentCopy,
                                     contentDescription = stringResource(R.string.settings_totp_copy_secret),
-                                    tint = Primary
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -865,7 +865,7 @@ fun AccountSecurityScreen(
                                 Text(
                                     uri,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = TextHint,
+                                    color = LocalChatPalette.current.textHint,
                                     maxLines = 3,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f)
@@ -878,7 +878,7 @@ fun AccountSecurityScreen(
                                     Icon(
                                         Icons.Outlined.ContentCopy,
                                         contentDescription = stringResource(R.string.settings_totp_copy_uri),
-                                        tint = Primary
+                                        tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
@@ -1060,7 +1060,7 @@ fun AccountSecurityScreen(
             },
             dismissButton = {
                 TextButton(enabled = !state.isLoggingOutAll, onClick = { showLogoutAllConfirm = false }) {
-                    Text(stringResource(R.string.common_cancel), color = TextSecondary)
+                    Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary)
                 }
             }
         )
@@ -1131,7 +1131,7 @@ fun AccountSecurityScreen(
                     Text(if (isPendingDevice) stringResource(R.string.account_reject) else stringResource(R.string.chat_remove), color = Error)
                 }
             },
-            dismissButton = { TextButton(onClick = { pendingRemoveDeviceId = null }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) } }
+            dismissButton = { TextButton(onClick = { pendingRemoveDeviceId = null }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) } }
         )
     }
 
@@ -1162,10 +1162,10 @@ fun AccountSecurityScreen(
                     viewModel.renameMyDevice(device.deviceId, renameDraft)
                     renameDeviceId = null
                 }) {
-                    Text(stringResource(R.string.common_save), color = Primary)
+                    Text(stringResource(R.string.common_save), color = MaterialTheme.colorScheme.primary)
                 }
             },
-            dismissButton = { TextButton(onClick = { renameDeviceId = null }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) } }
+            dismissButton = { TextButton(onClick = { renameDeviceId = null }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) } }
         )
     }
 }
@@ -1203,7 +1203,7 @@ private fun DeviceRow(
                 )
                 if (isCurrent) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.account_current_device), style = MaterialTheme.typography.labelSmall, color = Primary)
+                    Text(stringResource(R.string.account_current_device), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 }
                 if (isPending) {
                     Spacer(modifier = Modifier.width(8.dp))
@@ -1213,7 +1213,7 @@ private fun DeviceRow(
             Text(
                 stringResource(R.string.account_device_fingerprint, device.deviceId, device.identityKey.take(8), device.identityKey.takeLast(6)),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary,
+                color = LocalChatPalette.current.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1226,13 +1226,13 @@ private fun DeviceRow(
             }
         }
         TextButton(onClick = onRename, enabled = !isMutationInProgress) {
-            if (isRenaming) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Primary)
-            else Text(stringResource(R.string.account_rename_device), color = Primary)
+            if (isRenaming) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+            else Text(stringResource(R.string.account_rename_device), color = MaterialTheme.colorScheme.primary)
         }
         if (isPending && !isCurrent) {
             TextButton(onClick = onConfirm, enabled = canConfirm && !isMutationInProgress) {
-                if (isConfirming) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Primary)
-                else Text(stringResource(R.string.account_approve_device), color = Primary)
+                if (isConfirming) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+                else Text(stringResource(R.string.account_approve_device), color = MaterialTheme.colorScheme.primary)
             }
         }
         if (!isCurrent) {
@@ -1267,7 +1267,7 @@ private fun SecurityStatusCard(
         Text(
             stringResource(R.string.security_center_subtitle),
             style = MaterialTheme.typography.bodySmall,
-            color = TextSecondary
+            color = LocalChatPalette.current.textSecondary
         )
         Spacer(modifier = Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1287,19 +1287,19 @@ private fun SecurityStatusCard(
         Text(
             stringResource(if (e2eeReady) R.string.security_e2ee_hint else R.string.security_e2ee_hint_degraded),
             style = MaterialTheme.typography.bodySmall,
-            color = TextSecondary
+            color = LocalChatPalette.current.textSecondary
         )
         Spacer(modifier = Modifier.height(10.dp))
         Text(
             stringResource(R.string.security_local_db_encrypted),
             style = MaterialTheme.typography.bodySmall,
-            color = TextSecondary
+            color = LocalChatPalette.current.textSecondary
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             stringResource(if (appLockOn) R.string.security_app_lock_on else R.string.security_app_lock_off),
             style = MaterialTheme.typography.bodySmall,
-            color = TextSecondary
+            color = LocalChatPalette.current.textSecondary
         )
         Spacer(modifier = Modifier.height(4.dp))
         val shortFp = fingerprint
@@ -1310,7 +1310,7 @@ private fun SecurityStatusCard(
         Text(
             stringResource(R.string.security_devices_confirmed, confirmedDeviceCount, shortFp),
             style = MaterialTheme.typography.bodySmall,
-            color = TextSecondary
+            color = LocalChatPalette.current.textSecondary
         )
     }
 }
@@ -1334,7 +1334,7 @@ private fun InfoRow(label: String, value: String) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.width(108.dp))
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary, modifier = Modifier.width(108.dp))
         Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
     }
 }
@@ -1377,7 +1377,7 @@ private fun DeleteAccountDialog(
                 Text(
                     stringResource(R.string.account_delete_description),
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = LocalChatPalette.current.textSecondary
                 )
                 PasswordField(label = stringResource(R.string.account_current_password), value = password, onValueChange = onPasswordChange)
                 if (!errorMessage.isNullOrBlank()) Text(errorMessage, color = Error, style = MaterialTheme.typography.bodySmall)
@@ -1389,7 +1389,7 @@ private fun DeleteAccountDialog(
                 else Text(stringResource(R.string.account_confirm_delete), color = Error)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !isDeleting) { Text(stringResource(R.string.common_cancel), color = TextSecondary) } }
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !isDeleting) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) } }
     )
 }
 
@@ -1423,11 +1423,11 @@ private fun ChangePasswordDialog(
         },
         confirmButton = {
             TextButton(onClick = onSubmit, enabled = !isSaving && strength.level != com.maodouchat.util.PasswordStrength.Level.WEAK) {
-                if (isSaving) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Primary)
-                else Text(stringResource(R.string.common_save), color = Primary)
+                if (isSaving) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+                else Text(stringResource(R.string.common_save), color = MaterialTheme.colorScheme.primary)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !isSaving) { Text(stringResource(R.string.common_cancel), color = TextSecondary) } }
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !isSaving) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) } }
     )
 }
 
@@ -1461,7 +1461,7 @@ private fun PasswordStrengthIndicator(strength: com.maodouchat.util.PasswordStre
     }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Text(stringResource(R.string.password_strength_label), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            Text(stringResource(R.string.password_strength_label), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
             Text(label, style = MaterialTheme.typography.bodySmall, color = color)
         }
         // 简易强度条
@@ -1485,7 +1485,7 @@ private fun PasswordStrengthIndicator(strength: com.maodouchat.util.PasswordStre
                     }
                 ),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextHint
+                color = LocalChatPalette.current.textHint
             )
         }
     }
@@ -1539,7 +1539,7 @@ fun AiPrivacySettingsScreen(
             title = { Text(stringResource(R.string.settings_ai_privacy), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
@@ -1668,7 +1668,7 @@ fun AiPrivacySettingsScreen(
                         Text(
                             stringResource(R.string.ai_privacy_writing_style_local_only),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = LocalChatPalette.current.textSecondary
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         TextButton(
@@ -1687,11 +1687,11 @@ fun AiPrivacySettingsScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.ai_privacy_recent_calls), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.ai_privacy_audit_hint), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.ai_privacy_audit_hint), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                     TextButton(onClick = { viewModel.refresh() }, enabled = !state.isLoading) {
                         Text(stringResource(R.string.common_refresh))
@@ -1704,9 +1704,9 @@ fun AiPrivacySettingsScreen(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Primary)
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.ai_privacy_loading), color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.ai_privacy_loading), color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                     state.auditLogs.isEmpty() -> {
@@ -1714,7 +1714,7 @@ fun AiPrivacySettingsScreen(
                             stringResource(R.string.ai_privacy_empty),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary
+                            color = LocalChatPalette.current.textSecondary
                         )
                     }
                     else -> {
@@ -1749,7 +1749,7 @@ fun AiPrivacySettingsScreen(
                                 stringResource(R.string.ai_privacy_audit_search_empty),
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary
+                                color = LocalChatPalette.current.textSecondary
                             )
                         } else {
                             filteredAuditLogs.forEachIndexed { index, log ->
@@ -1780,7 +1780,7 @@ fun AiPrivacySettingsScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.ai_privacy_reset_consent), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.ai_privacy_reset_consent_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.ai_privacy_reset_consent_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                     TextButton(
                         onClick = { showResetConsentDialog = true },
@@ -1835,13 +1835,13 @@ private fun AiAuditLogRow(log: AiAuditLogResponse) {
                     log.durationMs?.let { "${it}ms" }
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
+                color = LocalChatPalette.current.textSecondary
             )
             log.error?.takeIf { it.isNotBlank() }?.let { error ->
                 Text(error, style = MaterialTheme.typography.bodySmall, color = Error)
             }
         }
-        Text(formatAuditTime(log.createdAt), style = MaterialTheme.typography.labelSmall, color = TextHint)
+        Text(formatAuditTime(log.createdAt), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
     }
 }
 
@@ -1862,12 +1862,12 @@ fun ModerationScreen(
                 title = { Text(stringResource(R.string.settings_moderation), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                     }
                 },
                 actions = {
                     IconButton(onClick = viewModel::refreshAll, enabled = !state.isLoading) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.common_refresh), tint = Primary)
+                        Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.common_refresh), tint = MaterialTheme.colorScheme.primary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
@@ -1937,13 +1937,13 @@ fun ModerationScreen(
                 Text(it, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp), color = Error, style = MaterialTheme.typography.bodySmall)
             }
             state.infoMessage?.let {
-                Text(it, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp), color = Primary, style = MaterialTheme.typography.bodySmall)
+                Text(it, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
             }
             SecurityGroup {
                 when (state.section) {
                     "RISKS" -> {
                         if (state.riskEvents.isEmpty()) {
-                            Text(stringResource(R.string.moderation_empty_risks), modifier = Modifier.fillMaxWidth().padding(16.dp), color = TextSecondary)
+                            Text(stringResource(R.string.moderation_empty_risks), modifier = Modifier.fillMaxWidth().padding(16.dp), color = LocalChatPalette.current.textSecondary)
                         } else {
                             var riskSearch by rememberSaveable { mutableStateOf("") }
                             val filteredRisks = remember(state.riskEvents, riskSearch) {
@@ -1975,7 +1975,7 @@ fun ModerationScreen(
                                 Text(
                                     stringResource(R.string.moderation_risk_search_empty),
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    color = TextSecondary
+                                    color = LocalChatPalette.current.textSecondary
                                 )
                             } else {
                                 filteredRisks.forEachIndexed { index, event ->
@@ -1987,7 +1987,7 @@ fun ModerationScreen(
                     }
                     "RULES" -> {
                         if (state.rules.isEmpty()) {
-                            Text(stringResource(R.string.moderation_empty_rules), modifier = Modifier.fillMaxWidth().padding(16.dp), color = TextSecondary)
+                            Text(stringResource(R.string.moderation_empty_rules), modifier = Modifier.fillMaxWidth().padding(16.dp), color = LocalChatPalette.current.textSecondary)
                         } else {
                             var ruleSearch by rememberSaveable { mutableStateOf("") }
                             val filteredRules = remember(state.rules, ruleSearch) {
@@ -2019,7 +2019,7 @@ fun ModerationScreen(
                                 Text(
                                     stringResource(R.string.moderation_rule_search_empty),
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    color = TextSecondary
+                                    color = LocalChatPalette.current.textSecondary
                                 )
                             } else {
                                 filteredRules.forEachIndexed { index, rule ->
@@ -2039,14 +2039,14 @@ fun ModerationScreen(
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Primary)
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.moderation_loading_reports), color = TextSecondary)
+                            Text(stringResource(R.string.moderation_loading_reports), color = LocalChatPalette.current.textSecondary)
                         }
                         state.reports.isEmpty() -> Text(
                             stringResource(R.string.moderation_empty_reports),
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            color = TextSecondary,
+                            color = LocalChatPalette.current.textSecondary,
                             style = MaterialTheme.typography.bodyMedium
                         )
                         else -> {
@@ -2082,7 +2082,7 @@ fun ModerationScreen(
                                 Text(
                                     stringResource(R.string.moderation_report_search_empty),
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    color = TextSecondary,
+                                    color = LocalChatPalette.current.textSecondary,
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             } else {
@@ -2141,11 +2141,11 @@ private fun RiskEventRow(event: RiskEventResponse, enabled: Boolean, onAcknowled
             Text(
                 stringResource(R.string.moderation_risk_summary, reportTargetLabel(event.source), event.userId, formatAuditTime(event.createdAt)),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary,
+                color = LocalChatPalette.current.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            event.matched?.let { Text(stringResource(R.string.moderation_matched, it), style = MaterialTheme.typography.bodySmall, color = TextHint, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            event.matched?.let { Text(stringResource(R.string.moderation_matched, it), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textHint, maxLines = 2, overflow = TextOverflow.Ellipsis) }
         }
         TextButton(onClick = onAcknowledge, enabled = enabled) { Text(stringResource(R.string.moderation_acknowledge)) }
     }
@@ -2167,14 +2167,14 @@ private fun ModerationRuleRow(
             Text(
                 rule.description.orEmpty(),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary,
+                color = LocalChatPalette.current.textSecondary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 stringResource(R.string.moderation_rule_summary, reportTargetLabel(rule.scope), riskActionLabel(rule.action), rule.hitThreshold),
                 style = MaterialTheme.typography.labelSmall,
-                color = TextHint
+                color = LocalChatPalette.current.textHint
             )
         }
         Switch(checked = rule.enabled, onCheckedChange = onEnabledChange, enabled = enabled)
@@ -2197,7 +2197,7 @@ private fun ModerationRuleDialog(
         title = { Text(rule.name) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                rule.description?.let { Text(it, color = TextSecondary, style = MaterialTheme.typography.bodySmall) }
+                rule.description?.let { Text(it, color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.bodySmall) }
                 Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     actions.forEach { action ->
                         TextButton(
@@ -2231,9 +2231,9 @@ private fun ModerationRuleDialog(
             TextButton(
                 enabled = !isUpdating && threshold.toIntOrNull() != null && windowMinutes.toLongOrNull() != null,
                 onClick = { onSave(selectedAction, threshold.toIntOrNull() ?: 1, windowMinutes.toLongOrNull() ?: 1L) }
-            ) { Text(stringResource(R.string.common_save), color = Primary) }
+            ) { Text(stringResource(R.string.common_save), color = MaterialTheme.colorScheme.primary) }
         },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !isUpdating) { Text(stringResource(R.string.common_cancel), color = TextSecondary) } }
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !isUpdating) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) } }
     )
 }
 
@@ -2248,7 +2248,7 @@ private fun ReportModerationRow(report: ReportResponse, onClick: () -> Unit) {
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(reportTargetLabel(report.targetType), style = MaterialTheme.typography.labelMedium, color = Primary)
+                Text(reportTargetLabel(report.targetType), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(reportStatusLabel(report.status), style = MaterialTheme.typography.labelMedium, color = reportStatusColor(report.status))
             }
@@ -2256,7 +2256,7 @@ private fun ReportModerationRow(report: ReportResponse, onClick: () -> Unit) {
             Text(
                 "${report.targetId} · ${formatAuditTime(report.createdAt)}",
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary,
+                color = LocalChatPalette.current.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -2279,14 +2279,14 @@ private fun ReportReviewDialog(
         title = { Text(stringResource(R.string.moderation_report_details)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("${reportTargetLabel(report.targetType)} · ${reportStatusLabel(report.status)}", color = Primary, style = MaterialTheme.typography.labelLarge)
+                Text("${reportTargetLabel(report.targetType)} · ${reportStatusLabel(report.status)}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                 Text(stringResource(R.string.moderation_target, report.targetId), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
-                report.chatId?.let { Text(stringResource(R.string.moderation_chat, it), color = TextSecondary, style = MaterialTheme.typography.bodySmall) }
+                report.chatId?.let { Text(stringResource(R.string.moderation_chat, it), color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.bodySmall) }
                 Text(stringResource(R.string.moderation_reason, report.reason), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
-                report.description?.let { Text(stringResource(R.string.moderation_description, it), color = TextSecondary, style = MaterialTheme.typography.bodySmall) }
-                Text(stringResource(R.string.moderation_reporter, report.reporterId), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                report.description?.let { Text(stringResource(R.string.moderation_description, it), color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.bodySmall) }
+                Text(stringResource(R.string.moderation_reporter, report.reporterId), color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                 report.actionTaken?.let {
-                    Text(stringResource(R.string.moderation_action_taken, reportActionLabel(it)), color = Primary, style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.moderation_action_taken, reportActionLabel(it)), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
                 }
                 OutlinedTextField(
                     value = note,
@@ -2325,12 +2325,12 @@ private fun ReportReviewDialog(
                         Text(stringResource(R.string.moderation_suspend_account), color = Error)
                     }
                     TextButton(enabled = !isUpdating, onClick = { onAction("NO_ACTION", note.trim().takeIf { it.isNotBlank() }) }) {
-                        Text(stringResource(R.string.moderation_no_action), color = TextSecondary)
+                        Text(stringResource(R.string.moderation_no_action), color = LocalChatPalette.current.textSecondary)
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(enabled = !isUpdating, onClick = { onUpdate("IN_REVIEW", note.trim().takeIf { it.isNotBlank() }) }) {
-                        Text(stringResource(R.string.moderation_mark_in_review), color = Primary)
+                        Text(stringResource(R.string.moderation_mark_in_review), color = MaterialTheme.colorScheme.primary)
                     }
                     TextButton(enabled = !isUpdating, onClick = { onUpdate("REJECTED", note.trim().takeIf { it.isNotBlank() }) }) {
                         Text(stringResource(R.string.moderation_reject), color = Error)
@@ -2338,7 +2338,7 @@ private fun ReportReviewDialog(
                 }
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !isUpdating) { Text(stringResource(R.string.common_cancel), color = TextSecondary) } }
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !isUpdating) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) } }
     )
 }
 
@@ -2397,7 +2397,7 @@ fun NotificationSettingsScreen(
             title = { Text(stringResource(R.string.settings_notifications), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
@@ -2571,7 +2571,7 @@ fun NotificationSettingsScreen(
                 title = { Text(stringResource(R.string.notifications_dnd_title)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(stringResource(R.string.notifications_dnd_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.notifications_dnd_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(stringResource(R.string.notifications_dnd_schedule_title), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
                             Switch(checked = enabled, onCheckedChange = { enabled = it })
@@ -2627,7 +2627,7 @@ fun NotificationSettingsScreen(
                         Text(
                             stringResource(R.string.notifications_dnd_overnight_hint),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = LocalChatPalette.current.textSecondary
                         )
                     }
                 },
@@ -2635,9 +2635,9 @@ fun NotificationSettingsScreen(
                     TextButton(onClick = {
                         viewModel.setDndSchedule(enabled, startMinute, endMinute)
                         showDndDialog = false
-                    }) { Text(stringResource(R.string.common_save), color = Primary) }
+                    }) { Text(stringResource(R.string.common_save), color = MaterialTheme.colorScheme.primary) }
                 },
-                dismissButton = { TextButton(onClick = { showDndDialog = false }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) } }
+                dismissButton = { TextButton(onClick = { showDndDialog = false }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) } }
             )
         }
     }
@@ -2651,7 +2651,7 @@ private fun DndTimeRow(label: String, minute: Int, enabled: Boolean, onPick: () 
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
         Text(formatDndTime(minute), style = MaterialTheme.typography.bodyMedium, color = if (enabled) Primary else TextSecondary)
-        Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+        Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(16.dp))
     }
 }
 
@@ -2718,7 +2718,7 @@ fun GeneralSettingsScreen(
             title = { Text(stringResource(R.string.settings_general), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
@@ -2846,9 +2846,9 @@ fun GeneralSettingsScreen(
                 TextButton(onClick = {
                     showClearConfirm = false
                     viewModel.clearCache()
-                }) { Text(stringResource(R.string.common_clear), color = Primary) }
+                }) { Text(stringResource(R.string.common_clear), color = MaterialTheme.colorScheme.primary) }
             },
-            dismissButton = { TextButton(onClick = { showClearConfirm = false }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) } }
+            dismissButton = { TextButton(onClick = { showClearConfirm = false }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) } }
         )
     }
 
@@ -2895,7 +2895,7 @@ fun GeneralSettingsScreen(
             },
             confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { showLanguageDialog = false }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) }
+                TextButton(onClick = { showLanguageDialog = false }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
             }
         )
     }
@@ -2920,7 +2920,7 @@ private fun GlassBottomBarSwitchRow(
             Text(
                 stringResource(R.string.general_glass_bottom_bar_subtitle),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
+                color = LocalChatPalette.current.textSecondary
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
@@ -2966,7 +2966,7 @@ private fun ThemeStylePickerDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel), color = TextSecondary) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
         }
     )
 }
@@ -3123,7 +3123,7 @@ private fun LinkPreviewSwitchRow(
             Text(
                 stringResource(R.string.general_link_preview_subtitle),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
+                color = LocalChatPalette.current.textSecondary
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
@@ -3150,7 +3150,7 @@ private fun UnreadPrioritySwitchRow(
             Text(
                 stringResource(R.string.general_unread_priority_subtitle),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
+                color = LocalChatPalette.current.textSecondary
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
@@ -3178,7 +3178,7 @@ private fun EnterToSendSwitchRow(
             Text(
                 stringResource(R.string.general_enter_to_send_subtitle),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
+                color = LocalChatPalette.current.textSecondary
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
@@ -3202,7 +3202,7 @@ private fun MediaAutoDownloadRow(
         Text(
             stringResource(R.string.general_media_auto_download_subtitle),
             style = MaterialTheme.typography.bodySmall,
-            color = TextSecondary
+            color = LocalChatPalette.current.textSecondary
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -3254,7 +3254,7 @@ private fun ChatWallpaperRow(
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
         Text(stringResource(R.string.general_chat_wallpaper_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
         Spacer(modifier = Modifier.height(2.dp))
-        Text(stringResource(R.string.general_chat_wallpaper_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+        Text(stringResource(R.string.general_chat_wallpaper_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
         Spacer(modifier = Modifier.height(8.dp))
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -3280,7 +3280,7 @@ private fun ChatWallpaperRow(
         Text(
             stringResource(R.string.general_custom_wallpaper_hint),
             style = MaterialTheme.typography.labelSmall,
-            color = TextHint
+            color = LocalChatPalette.current.textHint
         )
     }
 }
@@ -3302,7 +3302,7 @@ private fun ChatBubbleColorRow(
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
         Text(stringResource(R.string.general_chat_bubble_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
         Spacer(modifier = Modifier.height(2.dp))
-        Text(stringResource(R.string.general_chat_bubble_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+        Text(stringResource(R.string.general_chat_bubble_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
         Spacer(modifier = Modifier.height(8.dp))
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -3343,7 +3343,7 @@ private fun ChatFontScaleRow(
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
         Text(stringResource(R.string.general_chat_font_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
         Spacer(modifier = Modifier.height(2.dp))
-        Text(stringResource(R.string.general_chat_font_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+        Text(stringResource(R.string.general_chat_font_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
         Spacer(modifier = Modifier.height(8.dp))
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -3503,7 +3503,7 @@ fun ServerSettingsScreen(
             title = { Text(stringResource(R.string.settings_server), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
@@ -3523,7 +3523,7 @@ fun ServerSettingsScreen(
                 Text(
                     text = stringResource(R.string.settings_server_hint),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary,
+                    color = LocalChatPalette.current.textSecondary,
                     modifier = Modifier.padding(16.dp)
                 )
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = Divider, modifier = Modifier.padding(start = 16.dp))
@@ -3713,7 +3713,7 @@ private fun ThirdPartyServerCard() {
             Icon(
                 imageVector = Icons.Outlined.Cloud,
                 contentDescription = null,
-                tint = Primary,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp)
             )
             Text(
@@ -3725,7 +3725,7 @@ private fun ThirdPartyServerCard() {
             Text(
                 text = stringResource(R.string.settings_server_third_party_badge),
                 style = MaterialTheme.typography.labelSmall,
-                color = Primary,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .background(Primary.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
                     .padding(horizontal = 6.dp, vertical = 2.dp)
@@ -3735,7 +3735,7 @@ private fun ThirdPartyServerCard() {
         Text(
             text = stringResource(R.string.settings_server_third_party_desc),
             style = MaterialTheme.typography.bodySmall,
-            color = TextSecondary
+            color = LocalChatPalette.current.textSecondary
         )
         val serverInfo = info
         if (serverInfo != null) {
@@ -3752,7 +3752,7 @@ private fun ThirdPartyServerCard() {
                 Text(
                     text = serverInfo.description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = LocalChatPalette.current.textSecondary
                 )
             }
             if (serverInfo.version.isNotBlank()) {
@@ -3760,7 +3760,7 @@ private fun ThirdPartyServerCard() {
                 Text(
                     text = stringResource(R.string.settings_server_info_version, serverInfo.version),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             }
             if (serverInfo.announcement.isNotBlank()) {
@@ -3774,7 +3774,7 @@ private fun ThirdPartyServerCard() {
                 Text(
                     text = serverInfo.announcement,
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = LocalChatPalette.current.textSecondary
                 )
             }
         }
@@ -3837,12 +3837,12 @@ private fun TotpSetupDialog(
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 error?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = UnreadRed) }
                 if (isWorking) {
-                    CircularProgressIndicator(modifier = Modifier.size(28.dp), color = Primary)
+                    CircularProgressIndicator(modifier = Modifier.size(28.dp), color = MaterialTheme.colorScheme.primary)
                 } else if (backupCodes != null) {
                     Text(
                         stringResource(com.maodouchat.R.string.totp_backup_codes_hint),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                     androidx.compose.foundation.lazy.LazyColumn(
                         modifier = Modifier.heightIn(max = 220.dp),
@@ -3862,7 +3862,7 @@ private fun TotpSetupDialog(
                     Text(
                         stringResource(com.maodouchat.R.string.totp_enabled_hint),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                     OutlinedTextField(
                         value = code,
@@ -3874,7 +3874,7 @@ private fun TotpSetupDialog(
                     )
                 } else {
                     secret?.let { s ->
-                        Text(stringResource(com.maodouchat.R.string.totp_setup_secret_label), style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                        Text(stringResource(com.maodouchat.R.string.totp_setup_secret_label), style = MaterialTheme.typography.labelMedium, color = LocalChatPalette.current.textSecondary)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = s,
@@ -3884,13 +3884,13 @@ private fun TotpSetupDialog(
                                 modifier = Modifier.weight(1f)
                             )
                             TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(s)) }) {
-                                Text(stringResource(com.maodouchat.R.string.common_copy), color = Primary)
+                                Text(stringResource(com.maodouchat.R.string.common_copy), color = MaterialTheme.colorScheme.primary)
                             }
                         }
                         Text(
                             stringResource(com.maodouchat.R.string.totp_setup_scan_hint),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = LocalChatPalette.current.textSecondary
                         )
                     }
                     OutlinedTextField(
@@ -3906,7 +3906,7 @@ private fun TotpSetupDialog(
         },
         confirmButton = {
             if (backupCodes != null) {
-                TextButton(onClick = onDismiss) { Text(stringResource(com.maodouchat.R.string.totp_backup_saved), color = Primary) }
+                TextButton(onClick = onDismiss) { Text(stringResource(com.maodouchat.R.string.totp_backup_saved), color = MaterialTheme.colorScheme.primary) }
             } else if (alreadyEnabled == true) {
                 // 0.77：重新生成恢复码（旧码作废）
                 TextButton(
@@ -3924,7 +3924,7 @@ private fun TotpSetupDialog(
                             isWorking = false
                         }
                     }
-                ) { Text(stringResource(com.maodouchat.R.string.totp_regenerate_codes), color = Primary) }
+                ) { Text(stringResource(com.maodouchat.R.string.totp_regenerate_codes), color = MaterialTheme.colorScheme.primary) }
             } else {
                 TextButton(
                     enabled = confirmEnabled,
@@ -3941,7 +3941,7 @@ private fun TotpSetupDialog(
                             isWorking = false
                         }
                     }
-                ) { Text(stringResource(com.maodouchat.R.string.totp_setup_confirm), color = Primary) }
+                ) { Text(stringResource(com.maodouchat.R.string.totp_setup_confirm), color = MaterialTheme.colorScheme.primary) }
             }
         },
         dismissButton = {
@@ -3960,7 +3960,7 @@ private fun TotpSetupDialog(
                         }
                     ) { Text(stringResource(com.maodouchat.R.string.totp_disable), color = UnreadRed) }
                 } else {
-                    TextButton(onClick = onDismiss) { Text(stringResource(com.maodouchat.R.string.common_cancel), color = TextSecondary) }
+                    TextButton(onClick = onDismiss) { Text(stringResource(com.maodouchat.R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
                 }
             }
         }
@@ -3993,14 +3993,14 @@ fun MyReportsScreen(onBack: () -> Unit = {}) {
             title = { Text(stringResource(com.maodouchat.R.string.settings_my_reports), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(com.maodouchat.R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(com.maodouchat.R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Background)
         )
         when {
             isLoading.value -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Primary)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
             error.value != null && reports.value.isEmpty() -> EmptyState(
                 type = EmptyStateType.NETWORK_ERROR,
@@ -4053,14 +4053,14 @@ private fun MyReportCard(report: com.maodouchat.network.ReportResponse) {
         Text(
             text = timeText,
             style = MaterialTheme.typography.labelSmall,
-            color = TextSecondary,
+            color = LocalChatPalette.current.textSecondary,
             modifier = Modifier.padding(top = 4.dp)
         )
         report.description?.takeIf { it.isNotBlank() }?.let { desc ->
             Text(
                 text = desc,
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary,
+                color = LocalChatPalette.current.textSecondary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 4.dp)
@@ -4070,7 +4070,7 @@ private fun MyReportCard(report: com.maodouchat.network.ReportResponse) {
             Text(
                 text = stringResource(com.maodouchat.R.string.my_reports_resolution, note),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextHint,
+                color = LocalChatPalette.current.textHint,
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
@@ -4112,14 +4112,14 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
             title = { Text(stringResource(com.maodouchat.R.string.settings_blocked_users), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(com.maodouchat.R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(com.maodouchat.R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Background)
         )
         when {
             isLoading.value -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Primary)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
             error.value != null && blocked.value.isEmpty() -> EmptyState(
                 type = EmptyStateType.NETWORK_ERROR,
@@ -4146,7 +4146,7 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
                     item(key = "blocked_search_empty", contentType = "empty") {
                         Text(
                             stringResource(com.maodouchat.R.string.blocked_search_empty),
-                            color = TextHint,
+                            color = LocalChatPalette.current.textHint,
                             modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
@@ -4192,7 +4192,7 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
                                     unblockingIds.value = unblockingIds.value - user.id
                                 }
                             }
-                        ) { Text(stringResource(com.maodouchat.R.string.blocked_unblock), color = Primary) }
+                        ) { Text(stringResource(com.maodouchat.R.string.blocked_unblock), color = MaterialTheme.colorScheme.primary) }
                     }
                     androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                     }

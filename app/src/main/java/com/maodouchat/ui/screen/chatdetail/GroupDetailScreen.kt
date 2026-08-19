@@ -1390,7 +1390,7 @@ fun GroupDetailScreen(
                             onClick = viewModel::retryLastMutation,
                             enabled = !state.isUpdating && !state.isLoading && !state.isUploadingAvatar && !state.isLoadingInvite
                         ) {
-                            Text(stringResource(R.string.group_detail_retry_action), color = Primary)
+                            Text(stringResource(R.string.group_detail_retry_action), color = MaterialTheme.colorScheme.primary)
                         }
                     }
                     feedback?.shouldReload == true -> {
@@ -1398,7 +1398,7 @@ fun GroupDetailScreen(
                             onClick = viewModel::dismissFeedbackAndReload,
                             enabled = !state.isLoading
                         ) {
-                            Text(stringResource(R.string.group_detail_reload_action), color = Primary)
+                            Text(stringResource(R.string.group_detail_reload_action), color = MaterialTheme.colorScheme.primary)
                         }
                     }
                     else -> {
@@ -1506,7 +1506,7 @@ fun GroupDetailScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showMuteAllConfirm = false }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) }
+                TextButton(onClick = { showMuteAllConfirm = false }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
             }
         )
     }
@@ -1569,7 +1569,7 @@ fun GroupDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary)
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -1579,7 +1579,7 @@ fun GroupDetailScreen(
     ) { padding ->
         if (state.isLoading) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Primary)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
             LazyColumn(
@@ -1606,7 +1606,7 @@ fun GroupDetailScreen(
                                 .background(MaterialTheme.colorScheme.surface)
                                 .padding(horizontal = 16.dp, vertical = 10.dp)
                         ) {
-                            Icon(Icons.Outlined.Campaign, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.Campaign, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 if (state.canManageGroup) {
@@ -1615,7 +1615,7 @@ fun GroupDetailScreen(
                                     stringResource(R.string.chat_channel_subscriber_hint)
                                 },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary,
+                                color = LocalChatPalette.current.textSecondary,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -1689,7 +1689,7 @@ fun GroupDetailScreen(
                                 Icon(
                                     Icons.Outlined.NotificationsOff,
                                     contentDescription = stringResource(R.string.group_detail_mute_all),
-                                    tint = Primary
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -1730,7 +1730,7 @@ fun GroupDetailScreen(
                             onClick = { membersExpanded = true },
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                         ) {
-                            Text(stringResource(R.string.group_detail_members_more, remaining), color = Primary)
+                            Text(stringResource(R.string.group_detail_members_more, remaining), color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -1891,17 +1891,17 @@ private fun GroupInviteDialog(
                     contentAlignment = Alignment.Center
                 ) {
                     when {
-                        isLoading -> CircularProgressIndicator(color = Primary)
+                        isLoading -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         bitmap != null -> Image(
                             bitmap = bitmap.asImageBitmap(),
                             contentDescription = stringResource(R.string.group_detail_invite_qr),
                             contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize()
                         )
-                        else -> Text(stringResource(R.string.group_detail_qr_failed), color = TextHint)
+                        else -> Text(stringResource(R.string.group_detail_qr_failed), color = LocalChatPalette.current.textHint)
                     }
                 }
-                Text(stringResource(R.string.group_detail_invite_hint), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                Text(stringResource(R.string.group_detail_invite_hint), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                 // 1.120：复制邀请链接（粘贴到聊天/群发）
                 if (payload.isNotBlank()) {
                     TextButton(onClick = {
@@ -1909,7 +1909,7 @@ private fun GroupInviteDialog(
                         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("group_invite", payload))
                         android.widget.Toast.makeText(context, context.getString(R.string.group_detail_invite_copied), android.widget.Toast.LENGTH_SHORT).show()
                     }) {
-                        Text(stringResource(R.string.group_detail_invite_copy), color = Primary)
+                        Text(stringResource(R.string.group_detail_invite_copy), color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 if (expiresAt > 0) {
@@ -1969,7 +1969,7 @@ private fun GroupInviteDialog(
                 Text(
                     stringResource(R.string.group_detail_invite_limit_note),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             }
         },
@@ -2026,7 +2026,7 @@ private fun MuteMemberDialog(
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(member.displayName, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 if (GroupMutePolicy.isActiveMute(member.mutedUntil, now)) {
-                    Text(stringResource(R.string.group_detail_current_mute_until, formatMuteTime(member.mutedUntil)), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Text(stringResource(R.string.group_detail_current_mute_until, formatMuteTime(member.mutedUntil)), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                 }
                 choices.forEach { (label, preset) ->
                     TextButton(
@@ -2041,7 +2041,7 @@ private fun MuteMemberDialog(
                         onClick = { onMuteUntil(GroupMutePolicy.clearMuteUntil()) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(R.string.group_detail_unmute), modifier = Modifier.fillMaxWidth(), color = Primary)
+                        Text(stringResource(R.string.group_detail_unmute), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -2078,7 +2078,7 @@ private fun GroupHeader(
                 else Modifier.clickable { onShowAvatarFull() }
             )
             if (isUploadingAvatar) {
-                CircularProgressIndicator(color = Primary, strokeWidth = 2.dp, modifier = Modifier.size(28.dp))
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 2.dp, modifier = Modifier.size(28.dp))
             } else if (canChangeAvatar) {
                 Icon(
                     Icons.Outlined.CameraAlt,
@@ -2102,11 +2102,11 @@ private fun GroupInviteRow(isLoading: Boolean, onOpen: () -> Unit) {
         modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(16.dp, 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Outlined.QrCode, contentDescription = null, tint = Primary, modifier = Modifier.size(24.dp))
+        Icon(Icons.Outlined.QrCode, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(stringResource(R.string.group_detail_invite_qr), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-            Text(stringResource(R.string.group_detail_invite_admin_hint), style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+            Text(stringResource(R.string.group_detail_invite_admin_hint), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textSecondary)
         }
         Button(onClick = onOpen, enabled = !isLoading) {
             Text(if (isLoading) stringResource(R.string.group_detail_generating) else stringResource(R.string.group_detail_open))
@@ -2143,12 +2143,12 @@ private fun GroupSenderKeyStatusSection(
             )
         }
         if (status == null || status.total == 0) {
-            Text(stringResource(R.string.group_detail_no_key_record), style = MaterialTheme.typography.bodyMedium, color = TextHint)
-            Text(stringResource(R.string.group_detail_key_auto_hint), style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+            Text(stringResource(R.string.group_detail_no_key_record), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textHint)
+            Text(stringResource(R.string.group_detail_key_auto_hint), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textSecondary)
             Text(
                 senderKeyReasonLabel(assessment.reason),
                 style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary
+                color = LocalChatPalette.current.textSecondary
             )
             Button(onClick = onRedistribute, enabled = !isUpdating) { Text(stringResource(R.string.group_detail_distribute_now)) }
             return@Column
@@ -2172,7 +2172,7 @@ private fun GroupSenderKeyStatusSection(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.group_detail_epoch, status.epoch), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                Text(stringResource(R.string.group_detail_device_stats, status.total, status.sent, status.failed, status.pending), style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                Text(stringResource(R.string.group_detail_device_stats, status.total, status.sent, status.failed, status.pending), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textSecondary)
                 Text(
                     senderKeyReasonLabel(assessment.reason),
                     style = MaterialTheme.typography.labelSmall,
@@ -2229,7 +2229,7 @@ private fun GroupSenderKeyStatusSection(
             Text(
                 stringResource(R.string.group_detail_key_filter_empty),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextHint
+                color = LocalChatPalette.current.textHint
             )
         } else {
             visibleTargets.forEach { target ->
@@ -2261,7 +2261,7 @@ private fun GroupSenderKeyStatusSection(
                         } else {
                             stringResource(R.string.group_detail_more_devices, filteredTargets.size - SENDER_KEY_TARGET_PAGE)
                         },
-                        color = Primary
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -2298,7 +2298,7 @@ private fun GroupAuditRow(audit: GroupAuditLogDto) {
         modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Outlined.History, contentDescription = null, tint = Primary, modifier = Modifier.size(24.dp))
+        Icon(Icons.Outlined.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
@@ -2316,7 +2316,7 @@ private fun GroupAuditRow(audit: GroupAuditLogDto) {
                     "MM-dd HH:mm",
                     LocalConfiguration.current.locales[0]
                 ).format(java.util.Date(audit.createdAt)),
-                color = TextHint,
+                color = LocalChatPalette.current.textHint,
                 style = MaterialTheme.typography.labelSmall
             )
         }
@@ -2425,7 +2425,7 @@ private fun AnnouncementRow(
             colors = groupTextFieldColors()
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${value.length}/1000", style = MaterialTheme.typography.labelSmall, color = TextHint, modifier = Modifier.weight(1f))
+            Text("${value.length}/1000", style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint, modifier = Modifier.weight(1f))
             if (canManage) {
                 TextButton(onClick = { onValueChange("") }, enabled = enabled && value.isNotBlank()) { Text(stringResource(R.string.common_clear)) }
                 Spacer(modifier = Modifier.width(6.dp))
@@ -2482,7 +2482,7 @@ private fun MemberRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
-                if (isMe) Text(stringResource(R.string.group_detail_me_marker), style = MaterialTheme.typography.labelSmall, color = Primary)
+                if (isMe) Text(stringResource(R.string.group_detail_me_marker), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             }
             Text(
                 listOfNotNull(
@@ -2504,7 +2504,7 @@ private fun MemberRow(
                     Icon(
                         Icons.Outlined.MoreVert,
                         contentDescription = stringResource(R.string.group_detail_member_actions, member.displayName),
-                        tint = TextSecondary
+                        tint = LocalChatPalette.current.textSecondary
                     )
                 }
                 DropdownMenu(expanded = actionsExpanded, onDismissRequest = { actionsExpanded = false }) {
@@ -2565,10 +2565,10 @@ private fun CandidateRow(user: User, enabled: Boolean, onAdd: () -> Unit) {
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(user.displayName, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (user.status.isNotBlank()) Text(user.status, style = MaterialTheme.typography.labelSmall, color = TextHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (user.status.isNotBlank()) Text(user.status, style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         TextButton(onClick = onAdd, enabled = enabled) {
-            Icon(Icons.Outlined.Add, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+            Icon(Icons.Outlined.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(4.dp))
             Text(stringResource(R.string.chat_add))
         }
@@ -2580,7 +2580,7 @@ private fun EmptyRow(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodyMedium,
-        color = TextHint,
+        color = LocalChatPalette.current.textHint,
         modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(16.dp)
     )
 }
@@ -2664,7 +2664,7 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
         var cursor = 0
         snippet.highlights.forEach { span ->
             if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-            pushStyle(androidx.compose.ui.text.SpanStyle(color = Primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
             append(snippet.text.substring(span.start, span.end))
             pop()
             cursor = span.end

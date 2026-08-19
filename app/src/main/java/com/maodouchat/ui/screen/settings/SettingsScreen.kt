@@ -188,7 +188,7 @@ fun SettingsScreen(
             },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
@@ -505,24 +505,24 @@ private fun ProfileCard(
                 Row {
                     TextButton(onClick = onSaveEdit, enabled = !isSaving) {
                         if (isSaving) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Primary)
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                         } else {
-                            Icon(Icons.Outlined.Check, null, tint = Primary, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                         }
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(if (isSaving) stringResource(R.string.profile_saving) else stringResource(R.string.common_save), color = Primary)
+                        Text(if (isSaving) stringResource(R.string.profile_saving) else stringResource(R.string.common_save), color = MaterialTheme.colorScheme.primary)
                     }
                     TextButton(onClick = onCancelEdit, enabled = !isSaving) {
-                        Icon(Icons.Outlined.Close, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Outlined.Close, null, tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(stringResource(R.string.common_cancel), color = TextSecondary)
+                        Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary)
                     }
                 }
             } else {
                 // 显示模式
                 Text(name, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp), color = MaterialTheme.colorScheme.onSurface)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(stringResource(R.string.profile_maodou_id, userId), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                Text(stringResource(R.string.profile_maodou_id, userId), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
                 // 用户名显示（可点击设置）
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -555,7 +555,7 @@ private fun ProfileCard(
 
         if (!isEditing) {
             IconButton(onClick = onOpenMyQr) {
-                Icon(Icons.Outlined.QrCode, contentDescription = stringResource(R.string.profile_my_qr), tint = TextSecondary, modifier = Modifier.size(24.dp))
+                Icon(Icons.Outlined.QrCode, contentDescription = stringResource(R.string.profile_my_qr), tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(24.dp))
             }
             Spacer(modifier = Modifier.width(4.dp))
             Icon(Icons.AutoMirrored.Outlined.ArrowForwardIos, contentDescription = null, tint = Outline, modifier = Modifier.size(16.dp))
@@ -579,7 +579,7 @@ private fun StatusEditorDialog(
         title = { Text(stringResource(R.string.status_title)) },
         text = {
             Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.status_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                Text(stringResource(R.string.status_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                 OutlinedTextField(
                     value = status,
                     onValueChange = onStatusChange,
@@ -605,7 +605,7 @@ private fun StatusEditorDialog(
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text(stringResource(R.string.status_presets), style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                Text(stringResource(R.string.status_presets), style = MaterialTheme.typography.labelLarge, color = LocalChatPalette.current.textSecondary)
                 Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
                     com.maodouchat.util.CustomStatusPolicy.PRESETS.chunked(3).forEach { row ->
                         Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
@@ -633,7 +633,7 @@ private fun StatusEditorDialog(
         dismissButton = {
             Row {
                 TextButton(onClick = onClear, enabled = !isSaving && status.isNotEmpty()) {
-                    Text(stringResource(R.string.status_clear), color = TextSecondary)
+                    Text(stringResource(R.string.status_clear), color = LocalChatPalette.current.textSecondary)
                 }
                 TextButton(onClick = onDismiss, enabled = !isSaving) {
                     Text(stringResource(R.string.common_cancel))
@@ -720,7 +720,7 @@ private fun PrivacySwitchRow(
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
         }
         Switch(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
     }
@@ -756,12 +756,12 @@ private fun BlockedUsersDialog(
                 when {
                     isLoading -> {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Primary)
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.blocked_loading), color = TextSecondary)
+                            Text(stringResource(R.string.blocked_loading), color = LocalChatPalette.current.textSecondary)
                         }
                     }
-                    blockedUsers.isEmpty() -> Text(stringResource(R.string.blocked_empty), color = TextSecondary)
+                    blockedUsers.isEmpty() -> Text(stringResource(R.string.blocked_empty), color = LocalChatPalette.current.textSecondary)
                     else -> {
                         OutlinedTextField(
                             value = query,
@@ -771,7 +771,7 @@ private fun BlockedUsersDialog(
                             modifier = Modifier.fillMaxWidth()
                         )
                         if (filtered.isEmpty()) {
-                            Text(stringResource(R.string.blocked_search_empty), color = TextSecondary)
+                            Text(stringResource(R.string.blocked_search_empty), color = LocalChatPalette.current.textSecondary)
                         } else {
                             filtered.forEach { user ->
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -782,7 +782,7 @@ private fun BlockedUsersDialog(
                                         Text(
                                             listOf(user.id, user.status.takeIf { it.isNotBlank() }).filterNotNull().joinToString(" · "),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = TextHint
+                                            color = LocalChatPalette.current.textHint
                                         )
                                     }
                                     TextButton(enabled = !isUpdating, onClick = { onUnblock(user.id) }) {
@@ -868,7 +868,7 @@ private fun SettingsItem(icon: ImageVector?, title: String, titleColor: Color = 
     ) {
         if (icon != null) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.size(32.dp).background(PrimaryFixed.copy(alpha = 0.2f), RoundedCornerShape(8.dp))) {
-                Icon(icon, contentDescription = title, tint = Primary, modifier = Modifier.size(20.dp))
+                Icon(icon, contentDescription = title, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             }
             Spacer(modifier = Modifier.width(12.dp))
         } else {
@@ -877,7 +877,7 @@ private fun SettingsItem(icon: ImageVector?, title: String, titleColor: Color = 
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge, color = titleColor)
             if (subtitle != null) {
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
             }
         }
         Icon(Icons.AutoMirrored.Outlined.ArrowForwardIos, contentDescription = null, tint = Outline, modifier = Modifier.size(16.dp))
@@ -902,14 +902,14 @@ private fun UsernameEditorDialog(
                 Text(
                     stringResource(R.string.settings_username_hint),
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = LocalChatPalette.current.textSecondary
                 )
                 OutlinedTextField(
                     value = username,
                     onValueChange = onUsernameChange,
                     placeholder = { Text(stringResource(R.string.settings_username_placeholder)) },
                     singleLine = true,
-                    leadingIcon = { Text("@", style = MaterialTheme.typography.bodyLarge, color = Primary) },
+                    leadingIcon = { Text("@", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary) },
                     shape = RoundedCornerShape(MaodouDimens.SmallRadius),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = LocalChatPalette.current.chatInputBackground,
@@ -942,7 +942,7 @@ private fun UsernameEditorDialog(
         confirmButton = {
             TextButton(onClick = onSave, enabled = username.length >= 3 && !isSaving) {
                 if (isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Primary)
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                 } else {
                     Text(stringResource(R.string.common_save))
                 }

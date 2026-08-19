@@ -344,7 +344,7 @@ fun MediaCenterScreen(
                 Icon(
                     Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = stringResource(R.string.common_back),
-                    tint = Primary
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -366,7 +366,7 @@ fun MediaCenterScreen(
                     title = { Text(stringResource(R.string.media_center_title), color = MaterialTheme.colorScheme.onSurface) },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.common_back), tint = Primary)
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -414,7 +414,7 @@ fun MediaCenterScreen(
                 if (query.isBlank()) inCategory else inCategory.filter { mediaCenterItemMatches(it, query) }
             }
             if (state.isLoading || state.isChatLocked == null) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Primary) }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
             } else if (selectedItems.isEmpty()) {
                 if (searchQuery.isNotBlank()) {
                     MediaCenterSearchEmpty()
@@ -620,7 +620,7 @@ private fun MediaGrid(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    Icon(Icons.Outlined.Image, stringResource(R.string.media_center_cache_missing), tint = TextHint, modifier = Modifier.size(42.dp).align(Alignment.Center))
+                    Icon(Icons.Outlined.Image, stringResource(R.string.media_center_cache_missing), tint = LocalChatPalette.current.textHint, modifier = Modifier.size(42.dp).align(Alignment.Center))
                 }
                 if (message.type == MessageType.VIDEO) {
                     Icon(Icons.Filled.PlayArrow, stringResource(R.string.message_preview_video), tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(34.dp).align(Alignment.Center).background(Primary.copy(alpha = 0.75f), RoundedCornerShape(18.dp)).padding(5.dp))
@@ -773,7 +773,7 @@ private fun MediaCenterImageViewer(
                     .padding(horizontal = 16.dp, vertical = 13.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Outlined.Description, stringResource(R.string.message_preview_file), tint = Primary, modifier = Modifier.size(34.dp))
+                Icon(Icons.Outlined.Description, stringResource(R.string.message_preview_file), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(34.dp))
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
@@ -787,18 +787,18 @@ private fun MediaCenterImageViewer(
                     )
                     Text(
                         listOfNotNull(meta.fileSizeBytes?.let(::formatBytes), formatDate(message.timestamp), if (localAvailable) stringResource(R.string.media_center_cached) else stringResource(R.string.media_center_cache_missing)).joinToString(" · "),
-                        color = TextSecondary,
+                        color = LocalChatPalette.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1
                     )
                 }
                 if (localAvailable) {
                     IconButton(onClick = { onExportActions(message) }) {
-                        Icon(Icons.Outlined.Share, stringResource(R.string.media_center_share_file), tint = TextSecondary)
+                        Icon(Icons.Outlined.Share, stringResource(R.string.media_center_share_file), tint = LocalChatPalette.current.textSecondary)
                     }
                 }
                 IconButton(onClick = { onOpenMessage(message.id) }) {
-                    Icon(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.media_center_open_message), tint = TextSecondary)
+                    Icon(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.media_center_open_message), tint = LocalChatPalette.current.textSecondary)
                 }
             }
             HorizontalDivider(color = Outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 62.dp))
@@ -830,7 +830,7 @@ private fun VoiceList(
                 Icon(
                     Icons.Outlined.Mic,
                     contentDescription = stringResource(R.string.message_preview_voice),
-                    tint = Primary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(34.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -852,7 +852,7 @@ private fun VoiceList(
                                 stringResource(R.string.media_center_cache_missing)
                             }
                         ).joinToString(" · "),
-                        color = TextSecondary,
+                        color = LocalChatPalette.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1
                     )
@@ -861,7 +861,7 @@ private fun VoiceList(
                     Icon(
                         Icons.Outlined.ChatBubbleOutline,
                         contentDescription = stringResource(R.string.media_center_open_message),
-                        tint = TextSecondary
+                        tint = LocalChatPalette.current.textSecondary
                     )
                 }
             }
@@ -894,7 +894,7 @@ private fun LocationList(
                 Icon(
                     Icons.Outlined.LocationOn,
                     contentDescription = stringResource(R.string.message_preview_location),
-                    tint = Primary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(34.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -908,7 +908,7 @@ private fun LocationList(
                     )
                     Text(
                         text = listOfNotNull(coord, formatDate(message.timestamp)).joinToString(" · "),
-                        color = TextSecondary,
+                        color = LocalChatPalette.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -918,7 +918,7 @@ private fun LocationList(
                     Icon(
                         Icons.Outlined.ChatBubbleOutline,
                         contentDescription = stringResource(R.string.media_center_open_message),
-                        tint = TextSecondary
+                        tint = LocalChatPalette.current.textSecondary
                     )
                 }
             }
@@ -937,7 +937,7 @@ private fun LinkList(items: List<MediaCenterItem>, onOpenMessage: (String) -> Un
                 modifier = Modifier.fillMaxWidth().clickable { openWebLink(context, url) }.padding(horizontal = 16.dp, vertical = 13.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Outlined.Link, stringResource(R.string.media_center_links), tint = Primary, modifier = Modifier.size(28.dp))
+                Icon(Icons.Outlined.Link, stringResource(R.string.media_center_links), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     // 1.320：搜索时高亮匹配域名/链接
@@ -949,14 +949,14 @@ private fun LinkList(items: List<MediaCenterItem>, onOpenMessage: (String) -> Un
                     Text(
                         if (highlightQuery.isBlank()) androidx.compose.ui.text.AnnotatedString(url)
                         else highlightedText(url, highlightQuery),
-                        color = TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis
+                        color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis
                     )
-                    Text(formatDate(item.message.timestamp), color = TextHint, style = MaterialTheme.typography.labelSmall)
+                    Text(formatDate(item.message.timestamp), color = LocalChatPalette.current.textHint, style = MaterialTheme.typography.labelSmall)
                 }
                 IconButton(onClick = { onOpenMessage(item.message.id) }) {
-                    Icon(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.media_center_open_message), tint = TextSecondary)
+                    Icon(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.media_center_open_message), tint = LocalChatPalette.current.textSecondary)
                 }
-                Icon(Icons.AutoMirrored.Outlined.OpenInNew, stringResource(R.string.media_center_open_link), tint = TextHint, modifier = Modifier.size(18.dp))
+                Icon(Icons.AutoMirrored.Outlined.OpenInNew, stringResource(R.string.media_center_open_link), tint = LocalChatPalette.current.textHint, modifier = Modifier.size(18.dp))
             }
             HorizontalDivider(color = Outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 56.dp))
         }
@@ -990,9 +990,9 @@ private fun mediaCenterItemMatches(item: MediaCenterItem, query: String): Boolea
 private fun MediaCenterSearchEmpty() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Outlined.Search, contentDescription = null, tint = TextHint, modifier = Modifier.size(40.dp))
+            Icon(Icons.Outlined.Search, contentDescription = null, tint = LocalChatPalette.current.textHint, modifier = Modifier.size(40.dp))
             Spacer(modifier = Modifier.height(8.dp))
-            Text(stringResource(R.string.media_center_search_empty), color = TextSecondary)
+            Text(stringResource(R.string.media_center_search_empty), color = LocalChatPalette.current.textSecondary)
         }
     }
 }
@@ -1010,11 +1010,11 @@ private fun MediaCenterEmpty(category: MediaCenterCategory) {
                     MediaCenterCategory.LOCATION -> Icons.Outlined.LocationOn
                 },
                 contentDescription = null,
-                tint = TextHint,
+                tint = LocalChatPalette.current.textHint,
                 modifier = Modifier.size(48.dp)
             )
             Spacer(modifier = Modifier.height(10.dp))
-            Text(stringResource(R.string.media_center_empty), color = TextHint)
+            Text(stringResource(R.string.media_center_empty), color = LocalChatPalette.current.textHint)
         }
     }
 }
@@ -1067,7 +1067,7 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
         var cursor = 0
         snippet.highlights.forEach { span ->
             if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-            pushStyle(androidx.compose.ui.text.SpanStyle(color = Primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
             append(snippet.text.substring(span.start, span.end))
             pop()
             cursor = span.end

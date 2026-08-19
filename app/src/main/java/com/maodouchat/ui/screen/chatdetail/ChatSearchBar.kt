@@ -82,7 +82,7 @@ internal fun ChatSearchBar(
                                 else -> R.string.chat_search_content
                             }
                         ),
-                        color = TextHint
+                        color = LocalChatPalette.current.textHint
                     )
                 },
                 singleLine = true,
@@ -101,7 +101,7 @@ internal fun ChatSearchBar(
                 Spacer(modifier = Modifier.width(4.dp))
                 if (isSemanticSearching) {
                     Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Primary)
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                     }
                 } else {
                     val canSearch = query.isNotBlank() && semanticCandidateCount > 0
@@ -140,7 +140,7 @@ internal fun ChatSearchBar(
                     stringResource(R.string.chat_semantic_search_candidates_empty)
                 },
                 style = MaterialTheme.typography.bodySmall,
-                color = TextHint
+                color = LocalChatPalette.current.textHint
             )
             semanticSearchError?.let { error ->
                 Text(error, style = MaterialTheme.typography.bodySmall, color = UnreadRed)
@@ -152,13 +152,13 @@ internal fun ChatSearchBar(
                 semanticSearchResultCount == 0 &&
                 semanticSearchError == null
             ) {
-                Text(stringResource(R.string.chat_semantic_search_no_results), style = MaterialTheme.typography.bodySmall, color = TextHint)
+                Text(stringResource(R.string.chat_semantic_search_no_results), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textHint)
             }
         }
         // 8.52 UX（8.49 修复生效）：关键词模式无匹配时明确提示（此前只有 "0/0" 计数器）——
         // 旧位置误放在 SEMANTIC 分支内，KEYWORD 条件恒为假，从未展示
         if (mode == ChatSearchMode.KEYWORD && query.trim().isNotBlank() && resultCount == 0) {
-            Text(stringResource(R.string.chat_search_no_results), style = MaterialTheme.typography.bodySmall, color = TextHint)
+            Text(stringResource(R.string.chat_search_no_results), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textHint)
         }
     }
 }

@@ -57,7 +57,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
             title = { Text(stringResource(R.string.about_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
@@ -91,7 +91,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
             Text(
                 text = stringResource(R.string.about_version_format, versionName),
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
+                color = LocalChatPalette.current.textSecondary
             )
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -121,7 +121,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 Text(
                     stringResource(R.string.about_limits_body),
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = LocalChatPalette.current.textSecondary
                 )
             }
 
@@ -142,6 +142,6 @@ private fun AboutRow(label: String, value: String) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.align(Alignment.CenterStart))
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.align(Alignment.CenterEnd))
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary, modifier = Modifier.align(Alignment.CenterEnd))
     }
 }

@@ -228,7 +228,7 @@ fun LoginScreen(
                 Text(
                     stringResource(R.string.login_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary,
+                    color = LocalChatPalette.current.textSecondary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .padding(horizontal = 12.dp)
@@ -272,7 +272,7 @@ fun LoginScreen(
                     indicator = {
                         PrimaryIndicator(
                             modifier = Modifier.tabIndicatorOffset(state.selectedTab, matchContentSize = false),
-                            color = Primary,
+                            color = MaterialTheme.colorScheme.primary,
                             height = 2.dp,
                         )
                     },
@@ -313,7 +313,7 @@ fun LoginScreen(
                     if (state.selectedTab == 1) {
                         OutlinedTextField(
                             value = state.name, onValueChange = { viewModel.onNameChange(it) },
-                            placeholder = { Text(stringResource(R.string.username), color = TextHint) },
+                            placeholder = { Text(stringResource(R.string.username), color = LocalChatPalette.current.textHint) },
                             leadingIcon = { Icon(Icons.Outlined.Person, null, tint = Outline) },
                             singleLine = true, shape = RoundedCornerShape(MaodouDimens.ControlRadius),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -327,7 +327,7 @@ fun LoginScreen(
                     // 邮箱
                     OutlinedTextField(
                         value = state.email, onValueChange = { viewModel.onEmailChange(it) },
-                        placeholder = { Text(stringResource(R.string.email_address), color = TextHint) },
+                        placeholder = { Text(stringResource(R.string.email_address), color = LocalChatPalette.current.textHint) },
                         leadingIcon = { Icon(Icons.Outlined.Email, null, tint = Outline) },
                         singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         shape = RoundedCornerShape(MaodouDimens.ControlRadius),
@@ -343,7 +343,7 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = state.totpCode,
                             onValueChange = { viewModel.onTotpCodeChange(it) },
-                            placeholder = { Text(stringResource(R.string.login_totp_label), color = TextHint) },
+                            placeholder = { Text(stringResource(R.string.login_totp_label), color = LocalChatPalette.current.textHint) },
                             leadingIcon = { Icon(Icons.Outlined.Lock, null, tint = Outline) },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
@@ -369,7 +369,7 @@ fun LoginScreen(
                         ) {
                             OutlinedTextField(
                                 value = state.code, onValueChange = { viewModel.onCodeChange(it) },
-                                placeholder = { Text(stringResource(R.string.verification_code), color = TextHint) },
+                                placeholder = { Text(stringResource(R.string.verification_code), color = LocalChatPalette.current.textHint) },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 shape = RoundedCornerShape(MaodouDimens.ControlRadius),
@@ -387,9 +387,9 @@ fun LoginScreen(
                                 if (state.isCodeSending) {
                                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                                 } else if (state.codeCountdown > 0) {
-                                    Text("${state.codeCountdown}s", color = TextSecondary)
+                                    Text("${state.codeCountdown}s", color = LocalChatPalette.current.textSecondary)
                                 } else {
-                                    Text(stringResource(R.string.send_verification_code), color = Primary)
+                                    Text(stringResource(R.string.send_verification_code), color = MaterialTheme.colorScheme.primary)
                                 }
                             }
                         }
@@ -401,7 +401,7 @@ fun LoginScreen(
                         placeholder = {
                             Text(
                                 if (state.selectedTab == 2) stringResource(R.string.new_password) else stringResource(R.string.password),
-                                color = TextHint
+                                color = LocalChatPalette.current.textHint
                             )
                         },
                         leadingIcon = { Icon(Icons.Outlined.Lock, null, tint = Outline) },
@@ -427,7 +427,7 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = state.passwordConfirm,
                             onValueChange = { viewModel.onPasswordConfirmChange(it) },
-                            placeholder = { Text(stringResource(R.string.login_confirm_password), color = TextHint) },
+                            placeholder = { Text(stringResource(R.string.login_confirm_password), color = LocalChatPalette.current.textHint) },
                             leadingIcon = { Icon(Icons.Outlined.Lock, null, tint = Outline) },
                             singleLine = true,
                             visualTransformation = if (state.passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -464,7 +464,7 @@ fun LoginScreen(
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.password_strength_label), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                Text(stringResource(R.string.password_strength_label), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                                 Text(strengthLabel, style = MaterialTheme.typography.bodySmall, color = strengthColor)
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
@@ -488,7 +488,7 @@ fun LoginScreen(
                             Text(msg, color = Error, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                     }
                     state.infoMessage?.let { msg ->
-                            Text(msg, color = Primary, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                            Text(msg, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -534,7 +534,7 @@ fun LoginScreen(
                         Text(
                             stringResource(R.string.settings_server),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Primary,
+                            color = MaterialTheme.colorScheme.primary,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -550,7 +550,7 @@ fun LoginScreen(
                         else -> stringResource(R.string.forgot_password_footer)
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary,
+                    color = LocalChatPalette.current.textSecondary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.graphicsLayer { alpha = enterProgress }
                 )

@@ -133,6 +133,7 @@ import com.maodouchat.ui.theme.Surface
 import com.maodouchat.ui.theme.TextSecondary
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import com.maodouchat.ui.theme.LocalChatPalette
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -284,7 +285,7 @@ fun ExploreScreen(
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = { viewModel.dismissComposerDraftHint() }) {
-                            Text(stringResource(R.string.common_close), color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.common_close), color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
@@ -588,12 +589,12 @@ private fun EntryGrid(onEntryClick: (String) -> Unit) {
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.size(42.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f), CircleShape)
                     ) {
-                        Icon(entry.icon, contentDescription = entry.title, tint = Primary)
+                        Icon(entry.icon, contentDescription = entry.title, tint = MaterialTheme.colorScheme.primary)
                     }
                     Spacer(Modifier.width(10.dp))
                     Column {
                         Text(entry.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                        Text(entry.subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(entry.subtitle, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -627,7 +628,7 @@ private fun ComposerCard(
                 Text(stringResource(R.string.explore_share_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 if (text.isNotBlank() || imageDrafts.isNotEmpty()) {
                     TextButton(onClick = onClear) {
-                        Text(stringResource(R.string.explore_composer_clear), color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.explore_composer_clear), color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
@@ -754,7 +755,7 @@ private fun VisibilitySelector(
     onVisibilitySelected: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(stringResource(R.string.explore_visibility_title), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+        Text(stringResource(R.string.explore_visibility_title), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             options.forEach { option ->
                 FilterChip(
@@ -799,20 +800,20 @@ private fun PostCard(
                         Text(
                             post.author.status,
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary,
+                            color = LocalChatPalette.current.textSecondary,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(relativeTime(post.createdAt), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(relativeTime(post.createdAt), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                         if (post.editedAt != null) {
-                            Text(stringResource(R.string.explore_edited), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                            Text(stringResource(R.string.explore_edited), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                         }
-                        Text(visibilityLabel(post.visibility), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(visibilityLabel(post.visibility), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                         // 1.147：作者在线/最后在线（与详情页一致）
                         if (post.author.isOnline) {
-                            Text(stringResource(R.string.chat_online), style = MaterialTheme.typography.bodySmall, color = Primary)
+                            Text(stringResource(R.string.chat_online), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                         } else if (post.author.lastSeen > 0L) {
                             Text(
                                 stringResource(R.string.user_last_seen_prefix) + " " +
@@ -822,26 +823,26 @@ private fun PostCard(
                                         android.text.format.DateUtils.MINUTE_IN_MILLIS
                                     ),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
+                                color = LocalChatPalette.current.textSecondary
                             )
                         }
                     }
                 }
                 if (post.isMine) {
                     IconButton(onClick = onEdit) {
-                        Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.explore_edit_post), tint = TextSecondary)
+                        Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.explore_edit_post), tint = LocalChatPalette.current.textSecondary)
                     }
                     IconButton(onClick = onDelete) {
-                        Icon(Icons.Outlined.DeleteOutline, contentDescription = stringResource(R.string.chat_delete), tint = TextSecondary)
+                        Icon(Icons.Outlined.DeleteOutline, contentDescription = stringResource(R.string.chat_delete), tint = LocalChatPalette.current.textSecondary)
                     }
                 } else {
                     // 1.06：举报他人动态
                     IconButton(onClick = onReport) {
-                        Icon(Icons.Outlined.Flag, contentDescription = stringResource(R.string.explore_report_post), tint = TextSecondary)
+                        Icon(Icons.Outlined.Flag, contentDescription = stringResource(R.string.explore_report_post), tint = LocalChatPalette.current.textSecondary)
                     }
                     // 1.172：屏蔽该作者（防骚扰）
                     IconButton(onClick = onBlock) {
-                        Icon(Icons.Outlined.Block, contentDescription = stringResource(R.string.explore_block_author), tint = TextSecondary)
+                        Icon(Icons.Outlined.Block, contentDescription = stringResource(R.string.explore_block_author), tint = LocalChatPalette.current.textSecondary)
                     }
                 }
             }
@@ -864,21 +865,21 @@ private fun PostCard(
                 Text(
                     ExploreFeedPolicy.formatCount(post.likeCount),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary,
+                    color = LocalChatPalette.current.textSecondary,
                     modifier = Modifier
                         .clickable(enabled = post.likeCount > 0, onClick = onShowLikers)
                         .padding(vertical = 4.dp)
                 )
                 Spacer(Modifier.width(16.dp))
                 TextButton(onClick = onComment) {
-                    Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = stringResource(R.string.explore_comment), tint = TextSecondary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = stringResource(R.string.explore_comment), tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(ExploreFeedPolicy.formatCount(post.commentCount))
                 }
                 Spacer(Modifier.width(16.dp))
                 // 1.01：动态分享到系统
                 IconButton(onClick = onShare) {
-                    Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.chat_share), tint = TextSecondary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.chat_share), tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(20.dp))
                 }
                 // 1.154：复制动态正文（评论可复制，正文此前不可）
                 IconButton(onClick = {
@@ -888,7 +889,7 @@ private fun PostCard(
                     clipboard.setPrimaryClip(android.content.ClipData.newPlainText("post", textToCopy))
                     android.widget.Toast.makeText(ctx, ctx.getString(R.string.explore_post_copied), android.widget.Toast.LENGTH_SHORT).show()
                 }) {
-                    Icon(Icons.Outlined.ContentCopy, contentDescription = stringResource(R.string.explore_copy_post), tint = TextSecondary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Outlined.ContentCopy, contentDescription = stringResource(R.string.explore_copy_post), tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(20.dp))
                 }
             }
         }
@@ -1185,7 +1186,7 @@ private fun CommentsDialog(
                         CircularProgressIndicator()
                     }
                 } else if (comments.isEmpty()) {
-                    Text(stringResource(R.string.explore_no_comments), color = TextSecondary)
+                    Text(stringResource(R.string.explore_no_comments), color = LocalChatPalette.current.textSecondary)
                 } else {
                     var commentSearch by rememberSaveable { mutableStateOf("") }
                     val filteredComments = remember(comments, commentSearch) {
@@ -1211,7 +1212,7 @@ private fun CommentsDialog(
                         )
                     }
                     if (filteredComments.isEmpty()) {
-                        Text(stringResource(R.string.explore_comment_search_empty), color = TextSecondary)
+                        Text(stringResource(R.string.explore_comment_search_empty), color = LocalChatPalette.current.textSecondary)
                     } else {
                         // 1.78：父评论作者索引（避免逐条 O(n²) 扫描）
                         val commentAuthorById = remember(comments) { comments.associateBy { it.id } }
@@ -1275,7 +1276,7 @@ private fun CommentsDialog(
                                                     Text(
                                                         stringResource(R.string.explore_comment_author_badge),
                                                         style = MaterialTheme.typography.labelSmall,
-                                                        color = Primary
+                                                        color = MaterialTheme.colorScheme.primary
                                                     )
                                                 }
                                             }
@@ -1288,7 +1289,7 @@ private fun CommentsDialog(
                                                 Text(
                                                     stringResource(R.string.explore_reply_to, parentAuthor),
                                                     style = MaterialTheme.typography.labelSmall,
-                                                    color = Primary,
+                                                    color = MaterialTheme.colorScheme.primary,
                                                     modifier = Modifier
                                                         .clickable(enabled = parentIndex >= 0) {
                                                             if (parentIndex >= 0) {
@@ -1310,7 +1311,7 @@ private fun CommentsDialog(
                                                 onDoubleClick = { onToggleLike(comment) }
                                             )
                                         )
-                                        Text(relativeTime(comment.createdAt), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                        Text(relativeTime(comment.createdAt), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                                     }
                                     // 1.00：删除自己的评论 + 1.52：评论点赞
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1319,7 +1320,7 @@ private fun CommentsDialog(
                                                 Icon(
                                                     Icons.Outlined.Delete,
                                                     contentDescription = stringResource(R.string.explore_delete_comment),
-                                                    tint = TextSecondary,
+                                                    tint = LocalChatPalette.current.textSecondary,
                                                     modifier = Modifier.size(18.dp)
                                                 )
                                             }
@@ -1345,7 +1346,7 @@ private fun CommentsDialog(
                                                 Icon(
                                                     Icons.Outlined.Flag,
                                                     contentDescription = stringResource(R.string.explore_report_comment),
-                                                    tint = TextSecondary,
+                                                    tint = LocalChatPalette.current.textSecondary,
                                                     modifier = Modifier.size(18.dp)
                                                 )
                                             }
@@ -1359,7 +1360,7 @@ private fun CommentsDialog(
                                             Text(
                                                 stringResource(R.string.explore_comment_reply),
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = Primary
+                                                color = MaterialTheme.colorScheme.primary
                                             )
                                         }
                                         // 1.92：复制评论文本
@@ -1371,7 +1372,7 @@ private fun CommentsDialog(
                                             Text(
                                                 stringResource(R.string.explore_comment_copy),
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = TextSecondary
+                                                color = LocalChatPalette.current.textSecondary
                                             )
                                         }
                                     }
@@ -1390,18 +1391,18 @@ private fun CommentsDialog(
                             Text(
                                 stringResource(R.string.explore_reply_to, replyToComment.author.name),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = Primary
+                                color = MaterialTheme.colorScheme.primary
                             )
                             Text(
                                 replyToComment.content,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = TextSecondary,
+                                color = LocalChatPalette.current.textSecondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
                         TextButton(onClick = onClearReply) {
-                            Text(stringResource(R.string.common_cancel), color = TextSecondary)
+                            Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary)
                         }
                     }
                 }
@@ -1421,7 +1422,7 @@ private fun CommentsDialog(
                     )
                     IconButton(onClick = onSend, enabled = commentText.isNotBlank() && !isSending) {
                         if (isSending) CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        else Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = stringResource(R.string.explore_send), tint = Primary)
+                        else Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = stringResource(R.string.explore_send), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -1448,7 +1449,7 @@ private fun CommentsDialog(
                     isLoading -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
-                    likers.isEmpty() -> Text(stringResource(R.string.explore_likers_empty), color = TextSecondary)
+                    likers.isEmpty() -> Text(stringResource(R.string.explore_likers_empty), color = LocalChatPalette.current.textSecondary)
                     else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(likers, key = { it.id }) { user ->
                             Row(
@@ -1461,7 +1462,7 @@ private fun CommentsDialog(
                                 Text(user.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                                 Spacer(Modifier.width(8.dp))
                                 if (user.isOnline) {
-                                    Text(stringResource(R.string.chat_online), style = MaterialTheme.typography.labelSmall, color = Primary)
+                                    Text(stringResource(R.string.chat_online), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                 }
                             }
                         }
@@ -1511,7 +1512,7 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
     var cursor = 0
     snippet.highlights.forEach { span ->
         if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-        pushStyle(SpanStyle(color = Primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+        pushStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
         append(snippet.text.substring(span.start, span.end))
         pop()
         cursor = span.end

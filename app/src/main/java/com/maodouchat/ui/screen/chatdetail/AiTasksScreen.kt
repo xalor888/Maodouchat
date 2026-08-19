@@ -434,7 +434,7 @@ fun AiTasksScreen(
                 Icon(
                     Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = stringResource(R.string.common_back),
-                    tint = Primary
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -459,7 +459,7 @@ fun AiTasksScreen(
                         Icon(
                             Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = stringResource(R.string.common_back),
-                            tint = Primary
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 },
@@ -470,7 +470,7 @@ fun AiTasksScreen(
                             Icon(
                                 Icons.Outlined.DeleteOutline,
                                 contentDescription = stringResource(R.string.ai_tasks_clear_completed),
-                                tint = Primary
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -485,7 +485,7 @@ fun AiTasksScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Primary)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
 
             // 8.52 UX：加载失败且无任务 → 错误空态 + 重试（此前落入误导性的「暂无 AI 任务」）
@@ -563,7 +563,7 @@ fun AiTasksScreen(
                                     else R.string.ai_tasks_filter_empty
                                 ),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary,
+                                color = LocalChatPalette.current.textSecondary,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
                             )
                         }
@@ -624,12 +624,12 @@ private fun AiTaskSummary(pendingCount: Int, completedCount: Int) {
         Text(
             stringResource(R.string.ai_tasks_pending_count, pendingCount),
             style = MaterialTheme.typography.labelLarge,
-            color = Primary
+            color = MaterialTheme.colorScheme.primary
         )
         Text(
             stringResource(R.string.ai_tasks_completed_count, completedCount),
             style = MaterialTheme.typography.labelLarge,
-            color = TextSecondary
+            color = LocalChatPalette.current.textSecondary
         )
     }
 }
@@ -730,7 +730,7 @@ private fun AiTaskRow(
                 AiTaskMetadata(
                     icon = { Icon(Icons.Outlined.PersonOutline, contentDescription = null, modifier = Modifier.size(15.dp)) },
                     text = stringResource(R.string.ai_tasks_owner, owner),
-                    color = TextSecondary
+                    color = LocalChatPalette.current.textSecondary
                 )
             }
             dueLabel?.let { due ->
@@ -743,7 +743,7 @@ private fun AiTaskRow(
         }
         if (isMutating) {
             Box(modifier = Modifier.size(if (task.dueAt != null) 80.dp else 40.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Primary)
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
             }
         } else {
             Row {
@@ -752,7 +752,7 @@ private fun AiTaskRow(
                         Icon(
                             Icons.Outlined.CalendarMonth,
                             contentDescription = stringResource(R.string.ai_tasks_add_to_calendar),
-                            tint = Primary
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -760,7 +760,7 @@ private fun AiTaskRow(
                     Icon(
                         Icons.Outlined.DeleteOutline,
                         contentDescription = stringResource(R.string.ai_tasks_delete),
-                        tint = TextHint
+                        tint = LocalChatPalette.current.textHint
                     )
                 }
             }
@@ -814,7 +814,7 @@ private fun AiTasksEmptyState(modifier: Modifier = Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(horizontal = 32.dp)
         ) {
-            Icon(Icons.Outlined.Checklist, contentDescription = null, tint = TextHint, modifier = Modifier.size(44.dp))
+            Icon(Icons.Outlined.Checklist, contentDescription = null, tint = LocalChatPalette.current.textHint, modifier = Modifier.size(44.dp))
             Spacer(modifier = Modifier.height(10.dp))
             Text(
                 stringResource(R.string.ai_tasks_empty_title),
@@ -825,7 +825,7 @@ private fun AiTasksEmptyState(modifier: Modifier = Modifier) {
             Text(
                 stringResource(R.string.ai_tasks_empty_body),
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextHint
+                color = LocalChatPalette.current.textHint
             )
         }
     }

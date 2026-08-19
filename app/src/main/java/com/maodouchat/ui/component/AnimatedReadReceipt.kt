@@ -22,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.OnlineGreen
+import androidx.compose.material3.MaterialTheme
 
 /**
  * Animated read receipt: single check → double check → blue double check.

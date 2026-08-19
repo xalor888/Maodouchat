@@ -86,7 +86,7 @@ fun FakeChatSettingsScreen(
             title = { Text(stringResource(R.string.fake_chat_settings_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
@@ -104,11 +104,11 @@ fun FakeChatSettingsScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.fake_chat_mode), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.fake_chat_mode_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(stringResource(R.string.fake_chat_mode_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                     Switch(
                         checked = fakeEnabled,
@@ -140,11 +140,11 @@ fun FakeChatSettingsScreen(
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Outlined.Lock, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Outlined.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.fake_chat_pin_change), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                            Text(stringResource(R.string.fake_chat_pin_change_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                            Text(stringResource(R.string.fake_chat_pin_change_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                         }
                     }
                     HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 44.dp))
@@ -155,7 +155,7 @@ fun FakeChatSettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.fake_chat_relock), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                            Text(stringResource(R.string.fake_chat_relock_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                            Text(stringResource(R.string.fake_chat_relock_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                         }
                         Switch(
                             checked = relockOnBackground,
@@ -179,14 +179,14 @@ fun FakeChatSettingsScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.fake_chat_hide_icon), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                         Text(
                             stringResource(R.string.fake_chat_hide_icon_subtitle),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = LocalChatPalette.current.textSecondary
                         )
                     }
                     Switch(
@@ -203,19 +203,19 @@ fun FakeChatSettingsScreen(
                 HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 44.dp))
                 // 拨号恢复码说明
                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
-                    Text(stringResource(R.string.fake_chat_restore_title), style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                    Text(stringResource(R.string.fake_chat_restore_title), style = MaterialTheme.typography.labelLarge, color = LocalChatPalette.current.textSecondary)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         stringResource(R.string.fake_chat_restore_code, "*#*#${FakeChatManager.SECRET_CODE}#*#*"),
                         style = MaterialTheme.typography.bodyLarge,
-                        color = Primary,
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         stringResource(R.string.fake_chat_restore_hint),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                 }
             }
@@ -230,9 +230,9 @@ fun FakeChatSettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(R.string.fake_chat_guide_title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-                    Text(stringResource(R.string.fake_chat_guide_1), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                    Text(stringResource(R.string.fake_chat_guide_2), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                    Text(stringResource(R.string.fake_chat_guide_3), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Text(stringResource(R.string.fake_chat_guide_1), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
+                    Text(stringResource(R.string.fake_chat_guide_2), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
+                    Text(stringResource(R.string.fake_chat_guide_3), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                 }
             }
 
@@ -301,7 +301,7 @@ fun FakeChatSettingsScreen(
                     if (!ok) {
                         Toast.makeText(context, hideIconFailedMessage, Toast.LENGTH_SHORT).show()
                     }
-                }) { Text(stringResource(R.string.common_confirm), color = Primary) }
+                }) { Text(stringResource(R.string.common_confirm), color = MaterialTheme.colorScheme.primary) }
             },
             dismissButton = {
                 TextButton(onClick = { showUnhideConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
@@ -331,7 +331,7 @@ private fun FakePinSetupDialog(
                 Text(
                     stringResource(R.string.fake_chat_pin_setup_hint),
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = LocalChatPalette.current.textSecondary
                 )
                 PinField(
                     value = pin,

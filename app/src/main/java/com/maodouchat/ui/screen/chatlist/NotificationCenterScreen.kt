@@ -91,6 +91,7 @@ import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import com.maodouchat.ui.theme.LocalChatPalette
 
 class NotificationCenterViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as MaodouchatApp
@@ -247,14 +248,14 @@ fun NotificationCenterScreen(
                             Text(
                                 stringResource(R.string.notif_center_unread_count, unreadCount),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = Primary
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary)
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary)
                     }
                 },
                 actions = {
@@ -301,7 +302,7 @@ fun NotificationCenterScreen(
                                 else R.string.notif_center_filter_empty
                             ),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary
+                            color = LocalChatPalette.current.textSecondary
                         )
                     }
                 } else {
@@ -335,7 +336,7 @@ fun NotificationCenterScreen(
                                         placementSpec = if (motion.animationsEnabled) spring(stiffness = 420f, dampingRatio = 0.88f) else null
                                     )
                                 )
-                                HorizontalDivider(color = TextHint.copy(alpha = 0.15f), modifier = Modifier.padding(start = 72.dp))
+                                HorizontalDivider(color = LocalChatPalette.current.textHint.copy(alpha = 0.15f), modifier = Modifier.padding(start = 72.dp))
                             }
                         }
                     }
@@ -437,7 +438,7 @@ private fun DayHeader(dayTitle: String) {
             .padding(horizontal = MaodouDimens.ScreenPadding, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(dayTitle, style = MaterialTheme.typography.labelMedium, color = TextSecondary, fontWeight = FontWeight.Medium)
+        Text(dayTitle, style = MaterialTheme.typography.labelMedium, color = LocalChatPalette.current.textSecondary, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -496,14 +497,14 @@ private fun NotificationRow(
                             .background(Primary.copy(alpha = 0.12f))
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
-                        Text("${item.count}", style = MaterialTheme.typography.labelSmall, color = Primary)
+                        Text("${item.count}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     relativeTime(item.updatedAt),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             }
             item.subtitle?.takeIf { it.isNotBlank() }?.let {
@@ -512,7 +513,7 @@ private fun NotificationRow(
                     if (highlightQuery.isBlank()) androidx.compose.ui.text.AnnotatedString(it)
                     else highlightedText(it, highlightQuery),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary,
+                    color = LocalChatPalette.current.textSecondary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -523,7 +524,7 @@ private fun NotificationRow(
                     if (highlightQuery.isBlank()) androidx.compose.ui.text.AnnotatedString(it)
                     else highlightedText(it, highlightQuery),
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextHint,
+                    color = LocalChatPalette.current.textHint,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -534,7 +535,7 @@ private fun NotificationRow(
         }
         Spacer(modifier = Modifier.width(0.dp))
         IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Outlined.DeleteSweep, contentDescription = null, tint = TextHint, modifier = Modifier.size(16.dp))
+            Icon(Icons.Outlined.DeleteSweep, contentDescription = null, tint = LocalChatPalette.current.textHint, modifier = Modifier.size(16.dp))
         }
     }
 }
@@ -543,11 +544,11 @@ private fun NotificationRow(
 private fun EmptyNotificationCenter(modifier: Modifier) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = TextHint, modifier = Modifier.size(72.dp))
+            Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = LocalChatPalette.current.textHint, modifier = Modifier.size(72.dp))
             Spacer(modifier = Modifier.height(12.dp))
             Text(stringResource(R.string.notif_center_empty_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(stringResource(R.string.notif_center_empty_subtitle), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+            Text(stringResource(R.string.notif_center_empty_subtitle), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
         }
     }
 }
@@ -695,7 +696,7 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
         var cursor = 0
         highlighted.highlights.forEach { span ->
             if (span.start > cursor) append(highlighted.text.substring(cursor, span.start))
-            pushStyle(androidx.compose.ui.text.SpanStyle(color = Primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
             append(highlighted.text.substring(span.start, span.end))
             pop()
             cursor = span.end

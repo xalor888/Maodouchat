@@ -88,6 +88,7 @@ import com.maodouchat.util.QrCodeGenerator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.ui.theme.LocalChatPalette
 
 private data class SafetyScanResult(
     val target: QrCodeGenerator.QrTarget.Safety,
@@ -136,15 +137,15 @@ fun MyQrCodeScreen(
             title = { Text(stringResource(R.string.profile_my_qr), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
             actions = {
                 IconButton(onClick = { viewModel.reload() }, enabled = !state.isLoading) {
-                    Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.common_refresh), tint = Primary, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.common_refresh), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                 }
                 IconButton(onClick = onOpenScan) {
-                    Icon(Icons.Outlined.QrCodeScanner, contentDescription = stringResource(R.string.contacts_scan), tint = Primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Outlined.QrCodeScanner, contentDescription = stringResource(R.string.contacts_scan), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
@@ -168,7 +169,7 @@ fun MyQrCodeScreen(
             Text(state.userName, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                Text(stringResource(R.string.profile_maodou_id, state.userId), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                Text(stringResource(R.string.profile_maodou_id, state.userId), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
                 if (state.userId.isNotBlank()) {
                     IconButton(
                         onClick = {
@@ -184,7 +185,7 @@ fun MyQrCodeScreen(
                         Icon(
                             Icons.Outlined.ContentCopy,
                             contentDescription = stringResource(R.string.contacts_copy_id),
-                            tint = Primary,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -212,7 +213,7 @@ fun MyQrCodeScreen(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Text(stringResource(R.string.contacts_my_qr_hint), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            Text(stringResource(R.string.contacts_my_qr_hint), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
             Spacer(modifier = Modifier.height(20.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
@@ -545,7 +546,7 @@ fun ScanScreen(
             title = { Text(stringResource(R.string.contacts_scan), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
@@ -554,7 +555,7 @@ fun ScanScreen(
         Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(stringResource(R.string.contacts_scan_align), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(12.dp))
-            Text(stringResource(R.string.contacts_scan_supports), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+            Text(stringResource(R.string.contacts_scan_supports), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
             Spacer(modifier = Modifier.height(32.dp))
             Button(
                 onClick = {
@@ -600,20 +601,20 @@ fun ScanScreen(
                     Text(user.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     if (user.status.isNotBlank()) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(user.status, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text(user.status, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(user.id, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Text(user.id, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
                     scannedTarget = null
                     onAddContact(user)
-                }) { Text(stringResource(R.string.contacts_start_chat), color = Primary) }
+                }) { Text(stringResource(R.string.contacts_start_chat), color = MaterialTheme.colorScheme.primary) }
             },
             dismissButton = {
-                TextButton(onClick = { scannedTarget = null; scannedUser = null }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) }
+                TextButton(onClick = { scannedTarget = null; scannedUser = null }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
             }
         )
     } else if (scannedTarget is QrCodeGenerator.QrTarget.User && loading) {
@@ -653,7 +654,7 @@ fun ScanScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(chat.groupName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_group))
-                    Text(stringResource(R.string.chat_members_count, chat.participants.size), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Text(stringResource(R.string.chat_members_count, chat.participants.size), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                 }
             },
             confirmButton = {
@@ -661,10 +662,10 @@ fun ScanScreen(
                     scannedTarget = null
                     joinedChat = null
                     onOpenChat(chat.id)
-                }) { Text(stringResource(R.string.contacts_enter_group), color = Primary) }
+                }) { Text(stringResource(R.string.contacts_enter_group), color = MaterialTheme.colorScheme.primary) }
             },
             dismissButton = {
-                TextButton(onClick = { scannedTarget = null; joinedChat = null }) { Text(stringResource(R.string.chat_later), color = TextSecondary) }
+                TextButton(onClick = { scannedTarget = null; joinedChat = null }) { Text(stringResource(R.string.chat_later), color = LocalChatPalette.current.textSecondary) }
             }
         )
     } else if (scannedTarget is QrCodeGenerator.QrTarget.ChatInvite && inviteError != null) {
@@ -687,7 +688,7 @@ fun ScanScreen(
                     Text(
                         stringResource(R.string.contacts_safety_peer_device, result.target.ownerUserId, result.target.ownerDeviceId),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                 }
             },
@@ -711,14 +712,14 @@ fun ScanScreen(
                             safetyScanResult = null
                             scannedTarget = null
                         }
-                    }) { Text(stringResource(R.string.contacts_safety_mark_trusted), color = Primary) }
+                    }) { Text(stringResource(R.string.contacts_safety_mark_trusted), color = MaterialTheme.colorScheme.primary) }
                 } else {
                     TextButton(onClick = { safetyScanResult = null; scannedTarget = null }) { Text(stringResource(R.string.chat_acknowledge)) }
                 }
             },
             dismissButton = {
                 if (result.matched) {
-                    TextButton(onClick = { safetyScanResult = null; scannedTarget = null }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) }
+                    TextButton(onClick = { safetyScanResult = null; scannedTarget = null }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
                 }
             }
         )

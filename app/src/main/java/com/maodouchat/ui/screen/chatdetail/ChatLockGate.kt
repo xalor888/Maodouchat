@@ -44,6 +44,7 @@ import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.Surface
 import com.maodouchat.ui.theme.TextSecondary
+import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
  * 会话 PIN 锁屏：4-8 位数字 PIN，解锁后才能进入 ChatDetail
@@ -69,12 +70,12 @@ fun ChatLockGate(
                 modifier = Modifier.size(80.dp).clip(CircleShape).background(Primary.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Outlined.Lock, contentDescription = null, tint = Primary, modifier = Modifier.size(36.dp))
+                Icon(Icons.Outlined.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(stringResource(R.string.chat_lock_title), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(stringResource(R.string.chat_lock_enter_pin, chatName), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+            Text(stringResource(R.string.chat_lock_enter_pin, chatName), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
             Spacer(modifier = Modifier.height(28.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -126,7 +127,7 @@ fun ChatLockGate(
                 }
             )
             Spacer(modifier = Modifier.height(12.dp))
-            TextButton(onClick = onForgotPin) { Text(stringResource(R.string.chat_lock_forgot_pin), color = TextSecondary) }
+            TextButton(onClick = onForgotPin) { Text(stringResource(R.string.chat_lock_forgot_pin), color = LocalChatPalette.current.textSecondary) }
         }
     }
 }

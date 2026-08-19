@@ -44,6 +44,7 @@ import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Outline
 import com.maodouchat.ui.theme.SurfaceVariant
 import com.maodouchat.ui.theme.TextHint
+import com.maodouchat.ui.theme.LocalChatPalette
 
 @Composable
 fun SearchBar(
@@ -74,7 +75,7 @@ fun SearchBar(
                 Text(
                     text = resolvedPlaceholder,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             },
             leadingIcon = {
@@ -101,7 +102,7 @@ fun SearchBar(
                         Icon(
                             imageVector = Icons.Filled.Clear,
                             contentDescription = stringResource(R.string.common_clear),
-                            tint = TextHint,
+                            tint = LocalChatPalette.current.textHint,
                             modifier = Modifier.size(18.dp)
                         )
                     }

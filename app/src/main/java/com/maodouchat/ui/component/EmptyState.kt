@@ -119,7 +119,7 @@ fun EmptyState(
                 Icon(
                     imageVector = resolvedIcon,
                     contentDescription = null,
-                    tint = Primary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(36.dp)
                 )
             }
@@ -156,12 +156,12 @@ fun EmptyState(
                             }
                             Spacer(modifier = Modifier.width(10.dp))
                             OutlinedButton(onClick = onSecondaryAction) {
-                                Text(secondaryActionText, color = Primary)
+                                Text(secondaryActionText, color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     } else {
                         TextButton(onClick = onAction) {
-                            Text(actionText, color = Primary)
+                            Text(actionText, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }

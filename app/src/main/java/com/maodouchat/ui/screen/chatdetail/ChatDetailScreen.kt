@@ -1181,7 +1181,7 @@ fun ChatDetailScreen(
                         onClick = { viewModel.renameGroup(groupNameDraft) },
                         enabled = !state.isUpdatingGroup && groupNameDraft.trim().isNotBlank() && groupNameDraft.trim() != chat?.groupName.orEmpty()
                     ) {
-                        if (state.isUpdatingGroup) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Primary)
+                        if (state.isUpdatingGroup) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                         else Text(stringResource(R.string.chat_save_group_name))
                     }
                     if (members.size + state.groupCandidates.size >= 4) {
@@ -1208,7 +1208,7 @@ fun ChatDetailScreen(
                         Text(
                             stringResource(R.string.chat_group_info_search_empty),
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextHint
+                            color = LocalChatPalette.current.textHint
                         )
                     } else {
                         filteredMembers.forEach { member ->
@@ -1217,9 +1217,9 @@ fun ChatDetailScreen(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(member.displayName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    if (member.status.isNotBlank()) Text(member.status, style = MaterialTheme.typography.labelSmall, color = TextHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    if (member.status.isNotBlank()) Text(member.status, style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
-                                if (member.id == state.currentUserId) Text(stringResource(R.string.chat_me), style = MaterialTheme.typography.labelSmall, color = Primary)
+                                if (member.id == state.currentUserId) Text(stringResource(R.string.chat_me), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                 else TextButton(
                                     enabled = !state.isUpdatingGroup,
                                     onClick = { viewModel.removeGroupMember(member.id) }
@@ -1233,7 +1233,7 @@ fun ChatDetailScreen(
                             Text(
                                 stringResource(R.string.chat_group_info_search_empty),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = TextHint
+                                color = LocalChatPalette.current.textHint
                             )
                         } else {
                             visibleCandidates.forEach { user ->
@@ -1257,19 +1257,19 @@ fun ChatDetailScreen(
                                             R.string.chat_candidates_more,
                                             filteredCandidates.size - groupInfoCandidatePage
                                         ),
-                                        color = Primary
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             } else if (groupInfoCandidatesExpanded && filteredCandidates.size > groupInfoCandidatePage) {
                                 Text(
                                     stringResource(R.string.chat_candidates_showing_all, filteredCandidates.size),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = TextHint
+                                    color = LocalChatPalette.current.textHint
                                 )
                             }
                         }
                     } else {
-                        Text(stringResource(R.string.chat_no_candidates), style = MaterialTheme.typography.labelSmall, color = TextHint)
+                        Text(stringResource(R.string.chat_no_candidates), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
                     }
                 }
             },
@@ -1547,7 +1547,7 @@ fun ChatDetailScreen(
             },
             confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { showSilentUntilDialog = false }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) }
+                TextButton(onClick = { showSilentUntilDialog = false }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
             }
         )
     }
@@ -1565,7 +1565,7 @@ fun ChatDetailScreen(
                     Text(
                         stringResource(R.string.message_reminder_list_empty),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                 } else {
                     Column(
@@ -1589,7 +1589,7 @@ fun ChatDetailScreen(
                                             android.text.format.DateUtils.MINUTE_IN_MILLIS
                                         ).toString(),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = TextSecondary
+                                        color = LocalChatPalette.current.textSecondary
                                     )
                                 }
                                 TextButton(onClick = {
@@ -1731,7 +1731,7 @@ fun ChatDetailScreen(
                         }
                     }
                 }) {
-                    Text(stringResource(R.string.common_save), color = Primary)
+                    Text(stringResource(R.string.common_save), color = MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {
@@ -1770,7 +1770,7 @@ fun ChatDetailScreen(
                     showDisableChatLock = false
                     disableLockPinDraft = ""
                 }) {
-                    Text(stringResource(R.string.chat_lock_menu_disable), color = Primary)
+                    Text(stringResource(R.string.chat_lock_menu_disable), color = MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {
@@ -1812,7 +1812,7 @@ fun ChatDetailScreen(
                     Text(
                         text = stringResource(if (state.isContactBlocked) R.string.chat_blocked_description else R.string.chat_block_description),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                     TextButton(
                         onClick = {
@@ -1821,7 +1821,7 @@ fun ChatDetailScreen(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(R.string.chat_view_profile), color = Primary)
+                        Text(stringResource(R.string.chat_view_profile), color = MaterialTheme.colorScheme.primary)
                     }
                     TextButton(
                         enabled = !state.isBlockingContact,
@@ -1831,7 +1831,7 @@ fun ChatDetailScreen(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        if (state.isBlockingContact) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Primary)
+                        if (state.isBlockingContact) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                         else Text(stringResource(if (state.isContactBlocked) R.string.chat_unblock_user else R.string.chat_block_user), color = if (state.isContactBlocked) Primary else UnreadRed)
                     }
                     TextButton(
@@ -1900,14 +1900,14 @@ if (showGroupCallTypeDialog) {
                             com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS
                         ),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                     if (needsMemberPick) {
                         Spacer(Modifier.height(4.dp))
                         Text(
                             stringResource(R.string.call_select_members_needed_hint),
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextHint
+                            color = LocalChatPalette.current.textHint
                         )
                     }
                     Spacer(Modifier.height(8.dp))
@@ -1991,7 +1991,7 @@ if (showGroupCallTypeDialog) {
                             com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS
                         ),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                     if (candidates.size >= 4) {
                         Spacer(Modifier.height(8.dp))
@@ -2008,7 +2008,7 @@ if (showGroupCallTypeDialog) {
                         Text(
                             stringResource(R.string.call_select_members_search_empty),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextHint,
+                            color = LocalChatPalette.current.textHint,
                             modifier = Modifier.padding(vertical = 12.dp)
                         )
                     } else {
@@ -2083,22 +2083,22 @@ if (showGroupCallTypeDialog) {
 
     if (chatLockPending) {
         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = Primary)
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         }
     } else if (deviceRiskLocked) {
         // B2 新设备风控（ndz）：设备未登记 → 密聊内容锁定，仅保留重新登记入口
         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Icon(Icons.Outlined.Security, contentDescription = null, tint = Primary, modifier = Modifier.size(40.dp))
+                Icon(Icons.Outlined.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
                 Text(
                     stringResource(R.string.secret_new_device_risk_locked),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary,
+                    color = LocalChatPalette.current.textSecondary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 32.dp)
                 )
                 TextButton(onClick = { showDeviceRiskDialog = true }) {
-                    Text(stringResource(R.string.secret_new_device_risk_register), color = Primary)
+                    Text(stringResource(R.string.secret_new_device_risk_register), color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -2276,7 +2276,7 @@ if (showGroupCallTypeDialog) {
                                     Icon(
                                         Icons.Outlined.VisibilityOff,
                                         contentDescription = stringResource(R.string.secret_chat_indicator),
-                                        tint = Primary,
+                                        tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     if (state.sealedSenderReady) {
@@ -2287,7 +2287,7 @@ if (showGroupCallTypeDialog) {
                                                 R.string.secret_chat_sealed_ready_ttl,
                                                 (state.sealedSenderExpiresInSec / 3600L).coerceAtLeast(0L)
                                             ),
-                                            tint = Primary,
+                                            tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(14.dp)
                                         )
                                     }
@@ -2298,7 +2298,7 @@ if (showGroupCallTypeDialog) {
                                     Icon(
                                         Icons.Outlined.NotificationsOff,
                                         contentDescription = stringResource(R.string.chat_mute_notifications),
-                                        tint = TextSecondary,
+                                        tint = LocalChatPalette.current.textSecondary,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -2315,14 +2315,14 @@ if (showGroupCallTypeDialog) {
                                             ?.let { stringResource(R.string.chat_typing_user, it) }
                                             ?: stringResource(R.string.chat_typing),
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = Primary,
+                                        color = MaterialTheme.colorScheme.primary,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                 }
-                                ChatHeaderStatus.Online -> Text(stringResource(R.string.chat_online), style = MaterialTheme.typography.labelMedium, color = Primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                is ChatHeaderStatus.LastSeen -> Text(stringResource(R.string.user_last_seen_prefix) + " " + android.text.format.DateUtils.getRelativeTimeSpanString(status.timestamp, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS), style = MaterialTheme.typography.labelMedium, color = TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                ChatHeaderStatus.Offline -> Text(stringResource(R.string.chat_offline), style = MaterialTheme.typography.labelMedium, color = TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                ChatHeaderStatus.Online -> Text(stringResource(R.string.chat_online), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                is ChatHeaderStatus.LastSeen -> Text(stringResource(R.string.user_last_seen_prefix) + " " + android.text.format.DateUtils.getRelativeTimeSpanString(status.timestamp, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS), style = MaterialTheme.typography.labelMedium, color = LocalChatPalette.current.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                ChatHeaderStatus.Offline -> Text(stringResource(R.string.chat_offline), style = MaterialTheme.typography.labelMedium, color = LocalChatPalette.current.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 is ChatHeaderStatus.Custom -> Text(status.text, style = MaterialTheme.typography.labelMedium, color = Secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 ChatHeaderStatus.None -> Unit
                             }
@@ -2331,30 +2331,30 @@ if (showGroupCallTypeDialog) {
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                     }
                 },
                 actions = {
                     if (RuntimeFlags.isEnabled(context, RuntimeFlags.NUDGE)) {
-                        IconButton(onClick = { viewModel.sendNudge() }) { Icon(Icons.Outlined.Pets, contentDescription = stringResource(R.string.chat_nudge), tint = Primary, modifier = Modifier.size(24.dp)) }
+                        IconButton(onClick = { viewModel.sendNudge() }) { Icon(Icons.Outlined.Pets, contentDescription = stringResource(R.string.chat_nudge), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp)) }
                     }
                     if (state.chatIsGroup) {
                         IconButton(onClick = { state.chat?.id?.let(onOpenGroupDetail) ?: run { showGroupInfo = true } }) {
-                            Icon(Icons.Outlined.Group, contentDescription = stringResource(R.string.chat_group_info), tint = Primary, modifier = Modifier.size(28.dp))
+                            Icon(Icons.Outlined.Group, contentDescription = stringResource(R.string.chat_group_info), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                         }
                         IconButton(onClick = { showGroupCallTypeDialog = true }) {
-                            Icon(Icons.Outlined.Videocam, contentDescription = stringResource(R.string.chat_group_call), tint = Primary, modifier = Modifier.size(28.dp))
+                            Icon(Icons.Outlined.Videocam, contentDescription = stringResource(R.string.chat_group_call), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                         }
                     } else {
                         if (RuntimeFlags.isEnabled(context, RuntimeFlags.SAFETY_CODE)) {
                             IconButton(onClick = { viewModel.showSafetyCodeDialog() }) { Icon(Icons.Outlined.Security, contentDescription = stringResource(R.string.chat_safety_code), tint = if (state.identityWarning == null) Primary else UnreadRed, modifier = Modifier.size(26.dp)) }
                         }
-                        IconButton(onClick = { requestVoiceCallPermission(context, voiceCallPermissionLauncher::launch, state.contact.id, state.contact.name, onVoiceCall) }) { Icon(Icons.Outlined.Call, contentDescription = stringResource(R.string.chat_voice_call), tint = Primary, modifier = Modifier.size(26.dp)) }
-                        IconButton(onClick = { requestVideoCallPermissions(context, videoCallPermissionLauncher::launch, state.contact.id, state.contact.name, onVideoCall) }) { Icon(Icons.Outlined.Videocam, contentDescription = stringResource(R.string.chat_video_call), tint = Primary, modifier = Modifier.size(28.dp)) }
+                        IconButton(onClick = { requestVoiceCallPermission(context, voiceCallPermissionLauncher::launch, state.contact.id, state.contact.name, onVoiceCall) }) { Icon(Icons.Outlined.Call, contentDescription = stringResource(R.string.chat_voice_call), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp)) }
+                        IconButton(onClick = { requestVideoCallPermissions(context, videoCallPermissionLauncher::launch, state.contact.id, state.contact.name, onVideoCall) }) { Icon(Icons.Outlined.Videocam, contentDescription = stringResource(R.string.chat_video_call), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp)) }
                     }
                     Box {
                         IconButton(onClick = { showChatOverflow = true }) {
-                            Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.chat_more), tint = Primary, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.chat_more), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                         }
                         DropdownMenu(expanded = showChatOverflow, onDismissRequest = { showChatOverflow = false }) {
                             // 1.155：会话内置顶/取消置顶
@@ -3759,7 +3759,7 @@ DropdownMenuItem(
                                             viewModel.loadReadReceipts(message.id)
                                         }
                                 ) {
-                                    Text(groupReadLabel, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                                    Text(groupReadLabel, style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textSecondary)
                                 }
                             }
                             }
@@ -3846,7 +3846,7 @@ DropdownMenuItem(
             // 加载指示器
             if (state.isLoading) {
                 Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = Primary)
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -3899,7 +3899,7 @@ DropdownMenuItem(
             // 发送中指示器
             if (state.isSending) {
                 Box(modifier = Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = Primary)
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -3981,7 +3981,7 @@ DropdownMenuItem(
                     TextButton(onClick = {
                         viewModel.onInputChange("")
                         viewModel.clearDraftPersistence()
-                    }) { Text(stringResource(R.string.chat_clear_draft), color = TextSecondary, style = MaterialTheme.typography.labelMedium) }
+                    }) { Text(stringResource(R.string.chat_clear_draft), color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.labelMedium) }
                 }
             }
 
@@ -4156,7 +4156,7 @@ DropdownMenuItem(
                         Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
                     }
                     showAnnouncementDialog = false
-                }) { Text(stringResource(R.string.group_announcement_copy), color = Primary) }
+                }) { Text(stringResource(R.string.group_announcement_copy), color = MaterialTheme.colorScheme.primary) }
             }
         )
     }
@@ -4182,7 +4182,7 @@ DropdownMenuItem(
                         Text(
                             stringResource(R.string.chat_batch_delete_skipped_others, skippedCount),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary,
+                            color = LocalChatPalette.current.textSecondary,
                             modifier = Modifier.padding(top = 6.dp)
                         )
                     }
@@ -4190,7 +4190,7 @@ DropdownMenuItem(
                         Text(
                             stringResource(R.string.chat_batch_delete_capped, cappedOut),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary,
+                            color = LocalChatPalette.current.textSecondary,
                             modifier = Modifier.padding(top = 6.dp)
                         )
                     }
@@ -4436,7 +4436,7 @@ DropdownMenuItem(
                         Text(
                             stringResource(R.string.chat_ai_section_context),
                             style = MaterialTheme.typography.labelMedium,
-                            color = Primary,
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                         )
                         contextAiActions.forEach { action ->
@@ -4458,7 +4458,7 @@ DropdownMenuItem(
                                         Text(
                                             stringResource(if (busy) R.string.chat_translating else R.string.chat_translate),
                                             modifier = Modifier.fillMaxWidth(),
-                                            color = Primary
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                 }
@@ -4479,7 +4479,7 @@ DropdownMenuItem(
                                         Text(
                                             stringResource(if (busy) R.string.chat_transcribing else R.string.chat_transcribe),
                                             modifier = Modifier.fillMaxWidth(),
-                                            color = Primary
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                 }
@@ -4500,7 +4500,7 @@ DropdownMenuItem(
                                         Text(
                                             stringResource(if (busy) R.string.chat_ai_image_analyzing else R.string.chat_ai_image_action),
                                             modifier = Modifier.fillMaxWidth(),
-                                            color = Primary
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                 }
@@ -4521,7 +4521,7 @@ DropdownMenuItem(
                                         Text(
                                             stringResource(if (busy) R.string.chat_ai_file_analyzing else R.string.chat_ai_file_action),
                                             modifier = Modifier.fillMaxWidth(),
-                                            color = Primary
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                 }
@@ -4632,7 +4632,7 @@ DropdownMenuItem(
                         modifier = Modifier.fillMaxWidth()
                     ) { Text(stringResource(R.string.chat_delete), modifier = Modifier.fillMaxWidth(), color = UnreadRed) }
                     TextButton(onClick = { messageToActions = null }, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.common_cancel), modifier = Modifier.fillMaxWidth(), color = TextSecondary)
+                        Text(stringResource(R.string.common_cancel), modifier = Modifier.fillMaxWidth(), color = LocalChatPalette.current.textSecondary)
                     }
                     Spacer(modifier = Modifier.navigationBarsPadding())
             }
@@ -4685,7 +4685,7 @@ DropdownMenuItem(
                             imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                         },
                         modifier = Modifier.align(Alignment.End)
-                    ) { Text(stringResource(R.string.chat_rechoose), color = Primary) }
+                    ) { Text(stringResource(R.string.chat_rechoose), color = MaterialTheme.colorScheme.primary) }
                 }
             },
             confirmButton = {
@@ -4694,10 +4694,10 @@ DropdownMenuItem(
                     if (pending.viewOnce) viewModel.sendViewOnceImage(pending.uri)
                     else if (pending.spoiler) viewModel.sendSpoilerImage(pending.uri)
                     else viewModel.sendImage(pending.uri)
-                }) { Text(stringResource(R.string.chat_send), color = Primary) }
+                }) { Text(stringResource(R.string.chat_send), color = MaterialTheme.colorScheme.primary) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingImageConfirm = null }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) }
+                TextButton(onClick = { pendingImageConfirm = null }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
             }
         )
     }
@@ -4712,7 +4712,7 @@ DropdownMenuItem(
                     Icon(
                         Icons.Outlined.Videocam,
                         contentDescription = null,
-                        tint = Primary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(48.dp).padding(bottom = 8.dp)
                     )
                     val fileName = pending.uri.lastPathSegment?.substringAfterLast('/')
@@ -4732,10 +4732,10 @@ DropdownMenuItem(
                     if (pending.viewOnce) viewModel.sendViewOnceVideo(pending.uri)
                     else if (pending.spoiler) viewModel.sendSpoilerVideo(pending.uri)
                     else viewModel.sendVideo(pending.uri)
-                }) { Text(stringResource(R.string.chat_send), color = Primary) }
+                }) { Text(stringResource(R.string.chat_send), color = MaterialTheme.colorScheme.primary) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingVideoConfirm = null }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) }
+                TextButton(onClick = { pendingVideoConfirm = null }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
             }
         )
     }
@@ -4835,13 +4835,13 @@ DropdownMenuItem(
                     if (totalCount > 0 && !state.isLoadingReadReceipts) {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = Primary.copy(alpha = 0.10f),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
                             modifier = Modifier.padding(start = 8.dp)
                         ) {
                             Text(
                                 stringResource(R.string.chat_read_details_ratio, readCount, totalCount),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = Primary,
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }
@@ -4878,7 +4878,7 @@ DropdownMenuItem(
                         LinearProgressIndicator(
                             progress = { progressAnim.coerceIn(0f, 1f) },
                             modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                            color = Primary,
+                            color = MaterialTheme.colorScheme.primary,
                             trackColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
                         )
                     }
@@ -4903,7 +4903,7 @@ DropdownMenuItem(
                     }
                     if (state.isLoadingReadReceipts) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Primary)
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(stringResource(R.string.chat_loading), color = Secondary)
                         }
@@ -5193,7 +5193,7 @@ DropdownMenuItem(
                             Text(
                                 stringResource(R.string.chat_forward_more_previews, forwardMessages.size - 3),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = TextHint
+                                color = LocalChatPalette.current.textHint
                             )
                         }
                         OutlinedTextField(
@@ -5221,7 +5221,7 @@ DropdownMenuItem(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(stringResource(R.string.chat_forward_merge_title), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                                    Text(stringResource(R.string.chat_forward_merge_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                    Text(stringResource(R.string.chat_forward_merge_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                                 }
                                 Switch(checked = forwardMerged, onCheckedChange = { forwardMerged = it })
                             }
@@ -5230,7 +5230,7 @@ DropdownMenuItem(
                             Text(
                                 stringResource(R.string.chat_forward_search_empty),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TextHint
+                                color = LocalChatPalette.current.textHint
                             )
                         } else {
                             // 1.159：最近会话快捷选择（顶部 6 个，点击勾选/取消）
@@ -5273,7 +5273,7 @@ DropdownMenuItem(
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                                         if (selectedForwardChatIds.contains(chat.id)) {
-                                            Icon(Icons.Filled.Check, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+                                            Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
                                         }
                                         Text(forwardTargetName(context, chat, state.currentUserId), modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
@@ -5283,7 +5283,7 @@ DropdownMenuItem(
                                                 com.maodouchat.util.SecretForwardWhitelistPrefs.setWhitelist(context, whitelist)
                                                 Toast.makeText(context, context.getString(R.string.secret_forward_whitelist_added, forwardTargetName(context, chat, state.currentUserId)), Toast.LENGTH_SHORT).show()
                                             }) {
-                                                Text(stringResource(R.string.secret_forward_whitelist_add), color = Primary)
+                                                Text(stringResource(R.string.secret_forward_whitelist_add), color = MaterialTheme.colorScheme.primary)
                                             }
                                         }
                                     }
@@ -5296,14 +5296,14 @@ DropdownMenuItem(
                                             R.string.chat_forward_targets_more,
                                             filteredForwardTargets.size - forwardPageSize
                                         ),
-                                        color = Primary
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             } else if (forwardExpanded && filteredForwardTargets.size > forwardPageSize) {
                                 Text(
                                     stringResource(R.string.chat_forward_targets_showing_all, filteredForwardTargets.size),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = TextHint
+                                    color = LocalChatPalette.current.textHint
                                 )
                             }
                         }
@@ -5512,7 +5512,7 @@ DropdownMenuItem(
                 }) { Text(stringResource(R.string.chat_clear_history_yes), color = UnreadRed) }
             },
             dismissButton = {
-                TextButton(onClick = { showClearHistoryConfirm = false }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) }
+                TextButton(onClick = { showClearHistoryConfirm = false }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
             }
         )
     }
@@ -5697,39 +5697,39 @@ private fun AiOperationStatusBar(
             Icon(
                 imageVector = Icons.Outlined.AutoAwesome,
                 contentDescription = null,
-                tint = Primary,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(22.dp)
             )
         } else {
             CircularProgressIndicator(
                 modifier = Modifier.size(22.dp),
                 strokeWidth = 2.dp,
-                color = Primary
+                color = MaterialTheme.colorScheme.primary
             )
         }
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
-            Text(status, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            Text(status, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
             if (showRetryBillHint) {
                 Text(
                     stringResource(R.string.chat_ai_operation_retry_may_bill),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             }
             if (operation.attempts > 0) {
                 Text(
                     stringResource(R.string.chat_ai_operation_attempts, operation.attempts),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             }
             if (operations.size > 1) {
                 Text(
                     stringResource(R.string.chat_ai_operation_more, operations.size - 1),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             }
         }
@@ -5738,7 +5738,7 @@ private fun AiOperationStatusBar(
                 Icon(
                     imageVector = Icons.Outlined.Refresh,
                     contentDescription = stringResource(R.string.chat_ai_operation_retry),
-                    tint = Primary
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -5753,7 +5753,7 @@ private fun AiOperationStatusBar(
                 contentDescription = stringResource(
                     if (isFailed) R.string.chat_ai_operation_dismiss else R.string.chat_ai_operation_cancel
                 ),
-                tint = TextSecondary
+                tint = LocalChatPalette.current.textSecondary
             )
         }
     }
@@ -5780,7 +5780,7 @@ private fun AiDraftStreamBar(
         Icon(
             imageVector = Icons.Outlined.AutoAwesome,
             contentDescription = null,
-            tint = Primary,
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(22.dp)
         )
         Spacer(modifier = Modifier.width(10.dp))
@@ -5793,7 +5793,7 @@ private fun AiDraftStreamBar(
                 )
                 if (isStreaming) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    CircularProgressIndicator(modifier = Modifier.size(13.dp), strokeWidth = 2.dp, color = Primary)
+                    CircularProgressIndicator(modifier = Modifier.size(13.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                 }
             }
             if (isStreaming || errorCode != null) {
@@ -5817,28 +5817,28 @@ private fun AiDraftStreamBar(
         when {
             isStreaming -> {
                 IconButton(onClick = onCancel, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Outlined.Close, stringResource(R.string.chat_ai_stream_cancel), tint = TextSecondary)
+                    Icon(Icons.Outlined.Close, stringResource(R.string.chat_ai_stream_cancel), tint = LocalChatPalette.current.textSecondary)
                 }
             }
             errorCode == null -> {
                 IconButton(onClick = onApply, enabled = preview.isNotBlank(), modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Filled.Check, stringResource(R.string.chat_ai_stream_apply), tint = Primary)
+                    Icon(Icons.Filled.Check, stringResource(R.string.chat_ai_stream_apply), tint = MaterialTheme.colorScheme.primary)
                 }
                 IconButton(onClick = onDiscard, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Outlined.Close, stringResource(R.string.chat_ai_stream_discard), tint = TextSecondary)
+                    Icon(Icons.Outlined.Close, stringResource(R.string.chat_ai_stream_discard), tint = LocalChatPalette.current.textSecondary)
                 }
             }
             else -> {
                 if (isCancelled && preview.isNotBlank()) {
                     IconButton(onClick = onApply, modifier = Modifier.size(40.dp)) {
-                        Icon(Icons.Filled.Check, stringResource(R.string.chat_ai_stream_apply), tint = Primary)
+                        Icon(Icons.Filled.Check, stringResource(R.string.chat_ai_stream_apply), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
                 IconButton(onClick = onRetry, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Outlined.Refresh, stringResource(R.string.chat_ai_stream_retry), tint = Primary)
+                    Icon(Icons.Outlined.Refresh, stringResource(R.string.chat_ai_stream_retry), tint = MaterialTheme.colorScheme.primary)
                 }
                 IconButton(onClick = onDiscard, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Outlined.Close, stringResource(R.string.chat_ai_stream_discard), tint = TextSecondary)
+                    Icon(Icons.Outlined.Close, stringResource(R.string.chat_ai_stream_discard), tint = LocalChatPalette.current.textSecondary)
                 }
             }
         }
@@ -5962,7 +5962,7 @@ private fun ContactProfileSheet(
             Text(
                 contact.id,
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
+                color = LocalChatPalette.current.textSecondary
             )
             Spacer(modifier = Modifier.height(6.dp))
             if (contact.status.isNotBlank()) {
@@ -5986,7 +5986,7 @@ private fun ContactProfileSheet(
                     else -> stringResource(R.string.chat_offline)
                 },
                 style = MaterialTheme.typography.labelMedium,
-                color = TextSecondary
+                color = LocalChatPalette.current.textSecondary
             )
             Spacer(modifier = Modifier.height(16.dp))
             Row(
@@ -6064,7 +6064,7 @@ private fun GroupEncryptionWarningBanner(warning: String) {
             .background(Primary.copy(alpha = 0.08f))
             .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
-        Icon(Icons.Outlined.Security, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
+        Icon(Icons.Outlined.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text(warning, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
     }
@@ -6114,7 +6114,7 @@ private fun GifSearchDialog(
                 Text(
                     text = stringResource(R.string.gif_search_local_note),
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = LocalChatPalette.current.textSecondary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 if (!granted) {
@@ -6144,12 +6144,12 @@ private fun GifSearchDialog(
                     when {
                         loading -> {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Primary)
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = stringResource(R.string.gif_search_loading),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary
+                                    color = LocalChatPalette.current.textSecondary
                                 )
                             }
                         }
@@ -6160,14 +6160,14 @@ private fun GifSearchDialog(
                                     else R.string.gif_search_empty_query
                                 ),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
+                                color = LocalChatPalette.current.textSecondary
                             )
                         }
                         else -> {
                             Text(
                                 text = stringResource(R.string.gif_search_count, filtered.size),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = TextHint,
+                                color = LocalChatPalette.current.textHint,
                                 modifier = Modifier.padding(bottom = 4.dp)
                             )
                             Column(
@@ -6246,14 +6246,14 @@ private fun ScheduledMessagesBanner(
             Text(
                 text = stringResource(R.string.schedule_pending_title, items.size),
                 style = MaterialTheme.typography.labelLarge,
-                color = Primary,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f)
             )
             if (items.size > 3) {
                 Text(
                     text = stringResource(R.string.schedule_view_all),
                     style = MaterialTheme.typography.labelMedium,
-                    color = Primary
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -6267,7 +6267,7 @@ private fun ScheduledMessagesBanner(
                 Icon(
                     Icons.Outlined.Schedule,
                     contentDescription = null,
-                    tint = TextSecondary,
+                    tint = LocalChatPalette.current.textSecondary,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -6282,19 +6282,19 @@ private fun ScheduledMessagesBanner(
                     Text(
                         text = formatScheduleTime(item.sendAtMillis),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                     // 1.15：重复定时消息显示重复标识（1.21：含次数上限）
                                 scheduleRepeatLabel(context, item.repeatIntervalMs, item.repeatCount, item.occurrencesSent, item.weekdaysOnly)?.let { repeatLabel ->
                         Text(
                             text = repeatLabel,
                             style = MaterialTheme.typography.labelSmall,
-                            color = Primary
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
                 TextButton(onClick = { onReschedule(item.id) }) {
-                    Text(stringResource(R.string.schedule_reschedule), color = Primary)
+                    Text(stringResource(R.string.schedule_reschedule), color = MaterialTheme.colorScheme.primary)
                 }
                 TextButton(onClick = { onCancel(item.id) }) {
                     Text(stringResource(R.string.schedule_cancel_one), color = UnreadRed)
@@ -6359,7 +6359,7 @@ private fun ScheduledMessagesListSheet(
             if (filteredItems.isEmpty()) {
                 Text(
                     text = stringResource(R.string.schedule_search_empty),
-                    color = TextSecondary,
+                    color = LocalChatPalette.current.textSecondary,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
@@ -6380,7 +6380,7 @@ private fun ScheduledMessagesListSheet(
                             Icon(
                                 Icons.Outlined.Schedule,
                                 contentDescription = null,
-                                tint = Primary,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
@@ -6395,23 +6395,23 @@ private fun ScheduledMessagesListSheet(
                                 Text(
                                     text = formatScheduleTime(item.sendAtMillis),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = TextSecondary
+                                    color = LocalChatPalette.current.textSecondary
                                 )
                                 // 1.15：重复定时消息显示重复标识（1.21：含次数上限）
                     scheduleRepeatLabel(context, item.repeatIntervalMs, item.repeatCount, item.occurrencesSent, item.weekdaysOnly)?.let { repeatLabel ->
                                     Text(
                                         text = repeatLabel,
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = Primary
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
                             TextButton(onClick = { onReschedule(item.id) }) {
-                                Text(stringResource(R.string.schedule_reschedule), color = Primary)
+                                Text(stringResource(R.string.schedule_reschedule), color = MaterialTheme.colorScheme.primary)
                             }
                             // 1.168：立即发送
                             TextButton(onClick = { onSendNow(item.id) }) {
-                                Text(stringResource(R.string.schedule_send_now), color = Primary)
+                                Text(stringResource(R.string.schedule_send_now), color = MaterialTheme.colorScheme.primary)
                             }
                             TextButton(onClick = { onCancel(item.id) }) {
                                 Text(stringResource(R.string.schedule_cancel_one), color = UnreadRed)
@@ -6506,7 +6506,7 @@ private fun ScheduleSendDialog(
                         onClick = { onPickDelay(delay) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(label), color = Primary)
+                        Text(stringResource(label), color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 TextButton(
@@ -6532,32 +6532,32 @@ private fun ScheduleSendDialog(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(stringResource(R.string.schedule_custom), color = Primary)
+                    Text(stringResource(R.string.schedule_custom), color = MaterialTheme.colorScheme.primary)
                 }
-                androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = TextHint.copy(alpha = 0.3f), modifier = Modifier.padding(vertical = 4.dp))
+                androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.textHint.copy(alpha = 0.3f), modifier = Modifier.padding(vertical = 4.dp))
                 Text(
                     stringResource(R.string.schedule_repeat_title),
                     style = MaterialTheme.typography.labelMedium,
-                    color = TextSecondary,
+                    color = LocalChatPalette.current.textSecondary,
                     modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                 )
                 // 1.07：重复定时（每日/每周）；1.21：应用所选次数；1.62：工作日重复
                 TextButton(
                     onClick = { onPickRepeat(24L * 3600_000L, repeatCountChoice, false) },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.schedule_repeat_daily), color = Primary) }
+                ) { Text(stringResource(R.string.schedule_repeat_daily), color = MaterialTheme.colorScheme.primary) }
                 TextButton(
                     onClick = { onPickRepeat(7L * 24 * 3600_000L, repeatCountChoice, false) },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.schedule_repeat_weekly), color = Primary) }
+                ) { Text(stringResource(R.string.schedule_repeat_weekly), color = MaterialTheme.colorScheme.primary) }
                 TextButton(
                     onClick = { onPickRepeat(24L * 3600_000L, repeatCountChoice, true) },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.schedule_repeat_weekdays), color = Primary) }
+                ) { Text(stringResource(R.string.schedule_repeat_weekdays), color = MaterialTheme.colorScheme.primary) }
                 Text(
                     stringResource(R.string.schedule_repeat_count_title),
                     style = MaterialTheme.typography.labelMedium,
-                    color = TextSecondary,
+                    color = LocalChatPalette.current.textSecondary,
                     modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -6716,7 +6716,7 @@ private fun SecretChatBanner(
         Icon(
             Icons.Outlined.VisibilityOff,
             contentDescription = null,
-            tint = Primary,
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(16.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -6731,14 +6731,14 @@ private fun SecretChatBanner(
             Text(
                 text = stringResource(R.string.secret_chat_banner_limit),
                 style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary,
+                color = LocalChatPalette.current.textSecondary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = stringResource(R.string.secret_chat_safety_hint),
                 style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary,
+                color = LocalChatPalette.current.textSecondary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -6772,7 +6772,7 @@ private fun SecretChatBanner(
         Text(
             text = stringResource(R.string.secret_chat_menu_disable),
             style = MaterialTheme.typography.labelMedium,
-            color = Primary
+            color = MaterialTheme.colorScheme.primary
         )
     }
 }
@@ -6805,7 +6805,7 @@ private fun LiveLocationSharingBanner(
         Icon(
             Icons.Outlined.NearMe,
             contentDescription = null,
-            tint = Primary,
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(16.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -6820,7 +6820,7 @@ private fun LiveLocationSharingBanner(
         Text(
             text = stringResource(R.string.live_location_stop),
             style = MaterialTheme.typography.labelMedium,
-            color = Primary,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.clickable(onClick = onStop)
         )
     }
@@ -6842,7 +6842,7 @@ private fun DisappearingMessagesBanner(
         Icon(
             Icons.Outlined.VisibilityOff,
             contentDescription = null,
-            tint = Primary,
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(16.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -6857,7 +6857,7 @@ private fun DisappearingMessagesBanner(
         Text(
             text = stringResource(R.string.disappear_banner_change),
             style = MaterialTheme.typography.labelMedium,
-            color = Primary
+            color = MaterialTheme.colorScheme.primary
         )
     }
 }
@@ -6887,7 +6887,7 @@ private fun ChatQuietHoursDialog(
                         else R.string.chat_quiet_hours_inactive_summary
                     ),
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = LocalChatPalette.current.textSecondary
                 )
                 presets.forEach { (start, end, labelRes) ->
                     val selected = enabled && current.startMinute == start && current.endMinute == end
@@ -6924,7 +6924,7 @@ private fun ChatQuietHoursDialog(
                 Text(
                     stringResource(R.string.chat_quiet_hours_hint),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             }
         },
@@ -6951,12 +6951,12 @@ private fun DisappearingMessagesDialog(
                 Text(
                     text = stringResource(R.string.disappear_desc),
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = LocalChatPalette.current.textSecondary
                 )
                 Text(
                     text = stringResource(R.string.disappear_limit_note),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 options.forEach { seconds ->
@@ -6985,7 +6985,7 @@ private fun DisappearingMessagesDialog(
                             Icon(
                                 Icons.Filled.Check,
                                 contentDescription = null,
-                                tint = Primary,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -6997,7 +6997,7 @@ private fun DisappearingMessagesDialog(
                             .padding(top = 4.dp)
                             .size(16.dp),
                         strokeWidth = 2.dp,
-                        color = Primary
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -7061,7 +7061,7 @@ private fun PinnedMessagesBanner(
         Icon(
             Icons.Outlined.PushPin,
             contentDescription = null,
-            tint = Primary,
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(16.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -7074,7 +7074,7 @@ private fun PinnedMessagesBanner(
                     stringResource(R.string.chat_pinned_banner_title)
                 },
                 style = MaterialTheme.typography.labelMedium,
-                color = Primary,
+                color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -7102,7 +7102,7 @@ private fun PinnedMessagesBanner(
                         stringResource(R.string.chat_pinned_by, resolvePinnerName(current.pinnedBy))
                     },
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextSecondary,
+                    color = LocalChatPalette.current.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     // 1.53：点击置顶者名称打开其资料
@@ -7116,7 +7116,7 @@ private fun PinnedMessagesBanner(
         }
         if (canManage) {
             TextButton(onClick = { onUnpin(current.messageId) }) {
-                Text(stringResource(R.string.chat_message_unpin), color = Primary)
+                Text(stringResource(R.string.chat_message_unpin), color = MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -7139,7 +7139,7 @@ private fun GroupAnnouncementBanner(
         Icon(
             Icons.Outlined.Info,
             contentDescription = null,
-            tint = Primary,
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(16.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -7147,7 +7147,7 @@ private fun GroupAnnouncementBanner(
             Text(
                 text = stringResource(R.string.group_announcement_banner_title),
                 style = MaterialTheme.typography.labelMedium,
-                color = Primary,
+                color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -7163,7 +7163,7 @@ private fun GroupAnnouncementBanner(
             Icon(
                 Icons.Filled.Close,
                 contentDescription = stringResource(R.string.common_close),
-                tint = TextSecondary,
+                tint = LocalChatPalette.current.textSecondary,
                 modifier = Modifier.size(16.dp)
             )
         }
@@ -7300,7 +7300,7 @@ private fun UnreadSummaryBanner(
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
         if (isLoading) {
-            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Primary)
+            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
         } else {
             Box(
                 contentAlignment = Alignment.Center,
@@ -7309,7 +7309,7 @@ private fun UnreadSummaryBanner(
                     .graphicsLayer { alpha = pulse }
                     .background(Primary.copy(alpha = 0.18f), CircleShape)
             ) {
-                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp))
+                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
             }
         }
         Spacer(modifier = Modifier.width(10.dp))
@@ -7317,7 +7317,7 @@ private fun UnreadSummaryBanner(
             Text(
                 text = if (messageCount > 0) stringResource(R.string.chat_unread_summary_count, messageCount) else stringResource(R.string.chat_unread_summary),
                 style = MaterialTheme.typography.labelMedium,
-                color = Primary
+                color = MaterialTheme.colorScheme.primary
             )
             Text(
                 text = summary ?: stringResource(R.string.chat_generating),
@@ -7331,10 +7331,10 @@ private fun UnreadSummaryBanner(
             TextButton(onClick = onOpen) { Text(stringResource(R.string.chat_view)) }
             // 1.194：复制未读摘要
             IconButton(onClick = onCopy, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Outlined.ContentCopy, contentDescription = stringResource(R.string.chat_copy), tint = TextHint, modifier = Modifier.size(18.dp))
+                Icon(Icons.Outlined.ContentCopy, contentDescription = stringResource(R.string.chat_copy), tint = LocalChatPalette.current.textHint, modifier = Modifier.size(18.dp))
             }
             IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.chat_close_unread_summary), tint = TextHint, modifier = Modifier.size(18.dp))
+                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.chat_close_unread_summary), tint = LocalChatPalette.current.textHint, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -7379,7 +7379,7 @@ private fun SafetyCodeDialog(
                 deviceSafetyWarning?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = UnreadRed) }
                 if (isLoadingDeviceSafety) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Primary)
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(stringResource(R.string.chat_safety_loading), style = MaterialTheme.typography.bodySmall, color = Secondary)
                     }
@@ -7455,7 +7455,7 @@ private fun SafetyCodeDialog(
                         Text(
                             stringResource(R.string.chat_safety_devices_search_empty),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextHint
+                            color = LocalChatPalette.current.textHint
                         )
                     } else {
                         Column(
@@ -7482,7 +7482,7 @@ private fun SafetyCodeDialog(
                 Text(
                     stringResource(R.string.chat_safety_format_note),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             }
         },
@@ -7621,7 +7621,7 @@ private fun AiImageAnalysisModeDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(22.dp))
+                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.chat_ai_image_title))
             }
@@ -7644,14 +7644,14 @@ private fun AiImageAnalysisModeDialog(
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
                     ) {
-                        Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(21.dp))
+                        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(21.dp))
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(mode.localizedLabel(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                             Text(
                                 description,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = TextHint,
+                                color = LocalChatPalette.current.textHint,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -7663,7 +7663,7 @@ private fun AiImageAnalysisModeDialog(
                     stringResource(R.string.chat_ai_image_privacy),
                     modifier = Modifier.padding(top = 10.dp, start = 8.dp, end = 8.dp),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             }
         },
@@ -7683,11 +7683,11 @@ private fun AiImageAnalysisResultDialog(
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.chat_ai_image_result_title))
                 }
-                Text(mode.localizedLabel(), style = MaterialTheme.typography.labelSmall, color = TextHint)
+                Text(mode.localizedLabel(), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
             }
         },
         text = {
@@ -7700,7 +7700,7 @@ private fun AiImageAnalysisResultDialog(
                 Text(
                     stringResource(R.string.chat_ai_image_disclaimer),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             }
         },
@@ -7719,7 +7719,7 @@ private fun AiFileAnalysisModeDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Description, contentDescription = null, tint = Primary, modifier = Modifier.size(22.dp))
+                Icon(Icons.Outlined.Description, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.chat_ai_file_title))
             }
@@ -7727,7 +7727,7 @@ private fun AiFileAnalysisModeDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (fileName.isNotBlank()) {
-                    Text(fileName, style = MaterialTheme.typography.labelMedium, color = TextSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(fileName, style = MaterialTheme.typography.labelMedium, color = LocalChatPalette.current.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     HorizontalDivider(color = Outline.copy(alpha = 0.6f))
                 }
                 AiFileAnalysisMode.entries.forEach { mode ->
@@ -7738,11 +7738,11 @@ private fun AiFileAnalysisModeDialog(
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
                     ) {
-                        Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(21.dp))
+                        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(21.dp))
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(mode.localizedLabel(), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface)
-                            Text(description, style = MaterialTheme.typography.labelSmall, color = TextHint, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(description, style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
@@ -7751,7 +7751,7 @@ private fun AiFileAnalysisModeDialog(
                     stringResource(R.string.chat_ai_file_privacy),
                     modifier = Modifier.padding(top = 10.dp, start = 8.dp, end = 8.dp),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             }
         },
@@ -7773,7 +7773,7 @@ private fun AiFileQuestionDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (fileName.isNotBlank()) {
-                    Text(fileName, style = MaterialTheme.typography.labelMedium, color = TextSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(fileName, style = MaterialTheme.typography.labelMedium, color = LocalChatPalette.current.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 TextField(
                     value = question,
@@ -7808,14 +7808,14 @@ private fun AiFileAnalysisResultDialog(
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.chat_ai_file_result_title))
                 }
                 Text(
                     listOf(fileName.takeIf(String::isNotBlank), mode.localizedLabel()).filterNotNull().joinToString(" · "),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint,
+                    color = LocalChatPalette.current.textHint,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -7828,7 +7828,7 @@ private fun AiFileAnalysisResultDialog(
             ) {
                 Text(result, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 HorizontalDivider(color = Outline.copy(alpha = 0.6f))
-                Text(stringResource(R.string.chat_ai_file_disclaimer), style = MaterialTheme.typography.labelSmall, color = TextHint)
+                Text(stringResource(R.string.chat_ai_file_disclaimer), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_done)) } },
@@ -7862,7 +7862,7 @@ private fun AiSummaryScopeDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(22.dp))
+                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.chat_ai_summary_scope_title))
             }
@@ -7934,7 +7934,7 @@ private fun AiSummaryScopeDialog(
                             Text(
                                 description,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = TextHint,
+                                color = LocalChatPalette.current.textHint,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -7946,7 +7946,7 @@ private fun AiSummaryScopeDialog(
                     stringResource(R.string.chat_ai_summary_scope_privacy),
                     modifier = Modifier.padding(top = 10.dp, start = 8.dp, end = 8.dp),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             }
         },
@@ -7981,7 +7981,7 @@ private fun AiSummaryHistoryDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.History, contentDescription = null, tint = Primary, modifier = Modifier.size(22.dp))
+                Icon(Icons.Outlined.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.chat_ai_summary_history_title))
             }
@@ -7992,13 +7992,13 @@ private fun AiSummaryHistoryDialog(
                     modifier = Modifier.fillMaxWidth().height(96.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = Primary)
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                 }
                 summaries.isEmpty() -> Text(
                     stringResource(R.string.chat_ai_summary_history_empty),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextHint,
+                    color = LocalChatPalette.current.textHint,
                     textAlign = TextAlign.Center
                 )
                 else -> Column(
@@ -8029,7 +8029,7 @@ private fun AiSummaryHistoryDialog(
                             stringResource(R.string.chat_ai_summary_history_search_empty),
                             modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextHint,
+                            color = LocalChatPalette.current.textHint,
                             textAlign = TextAlign.Center
                         )
                     } else {
@@ -8044,19 +8044,19 @@ private fun AiSummaryHistoryDialog(
                                         Text(
                                             item.scope.localizedLabel(),
                                             style = MaterialTheme.typography.labelMedium,
-                                            color = Primary,
+                                            color = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.weight(1f)
                                         )
                                         Text(
                                             dateFormat.format(Date(item.createdAt)),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = TextHint
+                                            color = LocalChatPalette.current.textHint
                                         )
                                     }
                                     Text(
                                         pluralStringResource(R.plurals.chat_ai_summary_messages, item.messageCount, item.messageCount),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = TextSecondary
+                                        color = LocalChatPalette.current.textSecondary
                                     )
                                     Text(
                                         item.summary,
@@ -8097,7 +8097,7 @@ private fun AiConsentDialog(
                 Text(
                     stringResource(R.string.chat_ai_consent_privacy),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
+                    color = LocalChatPalette.current.textSecondary
                 )
             }
         },
@@ -8122,7 +8122,7 @@ private fun AiSummaryDialog(
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(21.dp))
+                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(21.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.chat_ai_summary_title))
                 }
@@ -8130,7 +8130,7 @@ private fun AiSummaryDialog(
                     Text(
                         "${scope.localizedLabel()} · ${pluralStringResource(R.plurals.chat_ai_summary_messages, messageCount, messageCount)}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextHint
+                        color = LocalChatPalette.current.textHint
                     )
                 }
             }
@@ -8141,7 +8141,7 @@ private fun AiSummaryDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                Text(stringResource(R.string.chat_ai_summary_disclaimer), style = MaterialTheme.typography.labelSmall, color = TextHint)
+                Text(stringResource(R.string.chat_ai_summary_disclaimer), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
             }
         },
         confirmButton = {
@@ -8165,16 +8165,16 @@ private fun ConversationProfileDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(22.dp))
+                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.chat_ai_conversation_profile_title))
             }
         },
         text = {
             when {
-                loading -> Text(stringResource(R.string.chat_ai_conversation_profile_loading), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                loading -> Text(stringResource(R.string.chat_ai_conversation_profile_loading), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
                 failed -> Text(stringResource(R.string.chat_ai_conversation_profile_failed), style = MaterialTheme.typography.bodyMedium, color = UnreadRed)
-                profile == null -> Text(stringResource(R.string.chat_ai_profile_no_data), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                profile == null -> Text(stringResource(R.string.chat_ai_profile_no_data), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
                 else -> Column(
                     modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -8186,7 +8186,7 @@ private fun ConversationProfileDialog(
                             profile.local.activeDays
                         ),
                         style = MaterialTheme.typography.labelMedium,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                     Text(
                         stringResource(
@@ -8195,7 +8195,7 @@ private fun ConversationProfileDialog(
                             profile.local.evening, profile.local.night
                         ),
                         style = MaterialTheme.typography.labelMedium,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                     if (profile.local.topTerms.isNotEmpty()) {
                         Text(
@@ -8204,7 +8204,7 @@ private fun ConversationProfileDialog(
                                 profile.local.topTerms.take(8).joinToString(" · ")
                             ),
                             style = MaterialTheme.typography.labelMedium,
-                            color = TextSecondary
+                            color = LocalChatPalette.current.textSecondary
                         )
                     }
                     HorizontalDivider(color = Outline.copy(alpha = 0.5f))
@@ -8223,7 +8223,7 @@ private fun ConversationProfileDialog(
         dismissButton = {
             if (profile != null && !failed && !loading) {
                 TextButton(onClick = { onCopyProfile(profileText(context, profile)) }) {
-                    Text(stringResource(R.string.chat_copy), color = Primary)
+                    Text(stringResource(R.string.chat_copy), color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -8276,14 +8276,14 @@ private fun WeeklyReportDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(22.dp))
+                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.chat_ai_weekly_report_title))
             }
         },
         text = {
             when {
-                loading -> Text(stringResource(R.string.chat_ai_weekly_report_loading), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                loading -> Text(stringResource(R.string.chat_ai_weekly_report_loading), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
                 failed -> Text(stringResource(R.string.chat_ai_weekly_report_failed), style = MaterialTheme.typography.bodyMedium, color = UnreadRed)
                 report == null -> Text(stringResource(R.string.chat_ai_weekly_report_failed), style = MaterialTheme.typography.bodyMedium, color = UnreadRed)
                 else -> Column(
@@ -8294,7 +8294,7 @@ private fun WeeklyReportDialog(
                     Text(
                         stringResource(R.string.chat_ai_summary_disclaimer),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextHint
+                        color = LocalChatPalette.current.textHint
                     )
                 }
             }
@@ -8306,7 +8306,7 @@ private fun WeeklyReportDialog(
         dismissButton = {
             if (report != null && !failed && !loading) {
                 TextButton(onClick = { onCopyReport(report.report) }) {
-                    Text(stringResource(R.string.chat_copy), color = Primary)
+                    Text(stringResource(R.string.chat_copy), color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -8328,16 +8328,16 @@ private fun MessageClassifyDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(22.dp))
+                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.ai_enhance_classify_title))
             }
         },
         text = {
             when {
-                loading -> Text(stringResource(R.string.ai_enhance_classify_hint), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                loading -> Text(stringResource(R.string.ai_enhance_classify_hint), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
                 failed -> Text(stringResource(R.string.ai_enhance_classify_failed), style = MaterialTheme.typography.bodyMedium, color = UnreadRed)
-                categories.isEmpty() -> Text(stringResource(R.string.ai_enhance_classify_empty), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                categories.isEmpty() -> Text(stringResource(R.string.ai_enhance_classify_empty), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
                 else -> Column(
                     modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -8345,7 +8345,7 @@ private fun MessageClassifyDialog(
                     Text(
                         stringResource(R.string.ai_enhance_classify_hint),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextHint
+                        color = LocalChatPalette.current.textHint
                     )
                     categories.forEach { row ->
                         val label = when (row.category) {
@@ -8366,19 +8366,19 @@ private fun MessageClassifyDialog(
                             Text(
                                 stringResource(R.string.ai_enhance_classify_count, row.count),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary
+                                color = LocalChatPalette.current.textSecondary
                             )
                         }
                         androidx.compose.material3.LinearProgressIndicator(
                             progress = { (row.count.toFloat() / (categories.maxOfOrNull { it.count }?.takeIf { it > 0 } ?: 1).toFloat()).coerceIn(0f, 1f) },
                             modifier = Modifier.fillMaxWidth().height(6.dp),
-                            color = Primary
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                     Text(
                         stringResource(R.string.ai_enhance_classify_disclaimer),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextHint
+                        color = LocalChatPalette.current.textHint
                     )
                 }
             }
@@ -8391,7 +8391,7 @@ private fun MessageClassifyDialog(
             if (categories.isNotEmpty() && !failed && !loading) {
                 val classifyCopyText = classifyText(context, categories)
                 TextButton(onClick = { onCopyClassify(classifyCopyText) }) {
-                    Text(stringResource(R.string.chat_copy), color = Primary)
+                    Text(stringResource(R.string.chat_copy), color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -8437,19 +8437,19 @@ private fun GroupAiAssistantDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(22.dp))
+                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.chat_group_ai_title))
                 Spacer(modifier = Modifier.weight(1f))
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = Primary.copy(alpha = 0.10f),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
                     modifier = Modifier.padding(start = 8.dp)
                 ) {
                     Text(
                         stringResource(R.string.chat_group_ai_private_preview),
                         style = MaterialTheme.typography.labelSmall,
-                        color = Primary,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                     )
                 }
@@ -8460,7 +8460,7 @@ private fun GroupAiAssistantDialog(
                 modifier = Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(stringResource(R.string.chat_group_ai_question, question), style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                Text(stringResource(R.string.chat_group_ai_question, question), style = MaterialTheme.typography.labelMedium, color = LocalChatPalette.current.textSecondary)
                 // 回答带渐入
                 AnimatedContent(
                     targetState = answer,
@@ -8508,7 +8508,7 @@ private fun GroupAiAssistantDialog(
                                 Icon(
                                     Icons.Outlined.CheckBoxOutlineBlank,
                                     contentDescription = null,
-                                    tint = Primary,
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -8521,7 +8521,7 @@ private fun GroupAiAssistantDialog(
                                         Text(
                                             stringResource(R.string.ai_tasks_owner, owner),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = TextSecondary
+                                            color = LocalChatPalette.current.textSecondary
                                         )
                                     }
                                     val due = task.dueText?.takeIf(String::isNotBlank)
@@ -8532,7 +8532,7 @@ private fun GroupAiAssistantDialog(
                                         Text(
                                             stringResource(R.string.ai_tasks_due, it),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = TextSecondary
+                                            color = LocalChatPalette.current.textSecondary
                                         )
                                     }
                                 }
@@ -8564,11 +8564,11 @@ private fun GroupAiAssistantDialog(
                     Text(
                         stringResource(R.string.ai_tasks_local_private),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextHint
+                        color = LocalChatPalette.current.textHint
                     )
                 }
-                Text(stringResource(R.string.chat_group_ai_private_result), style = MaterialTheme.typography.labelSmall, color = Primary)
-                Text(stringResource(R.string.chat_group_ai_disclaimer), style = MaterialTheme.typography.labelSmall, color = TextHint)
+                Text(stringResource(R.string.chat_group_ai_private_result), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.chat_group_ai_disclaimer), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
                 TextButton(onClick = onCopy) { Text(stringResource(R.string.chat_group_ai_copy)) }
             }
         },
@@ -8683,7 +8683,7 @@ private fun VoicePreviewBar(
             Icon(
                 Icons.Outlined.Close,
                 contentDescription = stringResource(R.string.chat_voice_preview_discard),
-                tint = TextHint
+                tint = LocalChatPalette.current.textHint
             )
         }
         IconButton(
@@ -8714,7 +8714,7 @@ private fun VoicePreviewBar(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Text(durationLabel, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+            Text(durationLabel, style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textSecondary)
             if (isPreviewPlaying) {
                 LinearProgressIndicator(
                     progress = { playerState.progress.coerceIn(0f, 1f) },
@@ -8723,13 +8723,13 @@ private fun VoicePreviewBar(
                         .padding(top = 4.dp)
                         .height(3.dp)
                         .clip(RoundedCornerShape(2.dp)),
-                    color = Primary,
+                    color = MaterialTheme.colorScheme.primary,
                     trackColor = Primary.copy(alpha = 0.15f),
                 )
             }
         }
         TextButton(onClick = onSend) {
-            Text(stringResource(R.string.chat_voice_preview_send), color = Primary)
+            Text(stringResource(R.string.chat_voice_preview_send), color = MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -8840,12 +8840,12 @@ private fun ChatInputBar(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp)
             ) {
-                Icon(Icons.Outlined.Campaign, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+                Icon(Icons.Outlined.Campaign, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     readOnlyMessage ?: stringResource(R.string.chat_channel_read_only),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary,
+                    color = LocalChatPalette.current.textSecondary,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -8862,7 +8862,7 @@ private fun ChatInputBar(
             ) {
                 when {
                     isAiReplyStreaming -> {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Primary)
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
                         if (aiSuggestions.isEmpty()) {
                             Text(
@@ -8887,16 +8887,16 @@ private fun ChatInputBar(
                             }
                         }
                         IconButton(onClick = onCancelAiReplyStream, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Outlined.Close, stringResource(R.string.chat_ai_stream_cancel), tint = TextHint, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.Close, stringResource(R.string.chat_ai_stream_cancel), tint = LocalChatPalette.current.textHint, modifier = Modifier.size(18.dp))
                         }
                     }
                     isAiWorking -> {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Primary)
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.chat_ai_working), style = MaterialTheme.typography.labelMedium, color = Secondary)
                     }
                     aiSuggestions.isNotEmpty() -> {
-                        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Row(
                             modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
@@ -8913,11 +8913,11 @@ private fun ChatInputBar(
                         }
                         if (aiReplyStreamErrorCode != null) {
                             IconButton(onClick = onRetryAiReplyStream, modifier = Modifier.size(36.dp)) {
-                                Icon(Icons.Outlined.Refresh, stringResource(R.string.chat_ai_stream_retry), tint = Primary, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Outlined.Refresh, stringResource(R.string.chat_ai_stream_retry), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             }
                         }
                         IconButton(onClick = onClearAiSuggestions, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.chat_clear_ai_suggestions), tint = TextHint, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.chat_clear_ai_suggestions), tint = LocalChatPalette.current.textHint, modifier = Modifier.size(18.dp))
                         }
                     }
                     else -> {
@@ -8930,10 +8930,10 @@ private fun ChatInputBar(
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(onClick = onRetryAiReplyStream, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Outlined.Refresh, stringResource(R.string.chat_ai_stream_retry), tint = Primary, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.Refresh, stringResource(R.string.chat_ai_stream_retry), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                         }
                         IconButton(onClick = onClearAiSuggestions, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Outlined.Close, stringResource(R.string.chat_clear_ai_suggestions), tint = TextHint, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.Close, stringResource(R.string.chat_clear_ai_suggestions), tint = LocalChatPalette.current.textHint, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -9128,7 +9128,7 @@ private fun ChatInputBar(
                     Text(
                         stringResource(R.string.chat_mention_picker_title),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary,
+                        color = LocalChatPalette.current.textSecondary,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                     )
                     Column(
@@ -9155,7 +9155,7 @@ private fun ChatInputBar(
                             ) {
                                 Text(
                                     text = if (candidate.isEveryone) "@$everyoneLabel" else "@$label",
-                                    color = Primary,
+                                    color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.fillMaxWidth(),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -9167,7 +9167,7 @@ private fun ChatInputBar(
                         Text(
                             stringResource(R.string.chat_mention_picker_count, mentionCandidates.size),
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextHint,
+                            color = LocalChatPalette.current.textHint,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
                         )
                     }
@@ -9190,12 +9190,12 @@ private fun ChatInputBar(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 stringResource(R.string.chat_group_ai_input_hint),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = Primary,
+                                color = MaterialTheme.colorScheme.primary,
                                 maxLines = 1,
                                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
@@ -9282,7 +9282,7 @@ private fun ChatInputBar(
                 val enterToSend = com.maodouchat.util.ComposerPreferences.enterToSend(context)
                 TextField(
                     value = value, onValueChange = onValueChange,
-                    placeholder = { Text(stringResource(R.string.chat_message_placeholder), style = MaterialTheme.typography.bodyLarge, color = TextHint) },
+                    placeholder = { Text(stringResource(R.string.chat_message_placeholder), style = MaterialTheme.typography.bodyLarge, color = LocalChatPalette.current.textHint) },
                     singleLine = enterToSend,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         imeAction = if (enterToSend) androidx.compose.ui.text.input.ImeAction.Send else androidx.compose.ui.text.input.ImeAction.Default
@@ -9327,7 +9327,7 @@ private fun ChatInputBar(
                         )
                 ) {
                     if (isAiWorking || isUpdatingAiSetting) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Primary)
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                     } else {
                         Icon(
                             Icons.Outlined.AutoAwesome,
@@ -9341,7 +9341,7 @@ private fun ChatInputBar(
                     Text(
                         stringResource(R.string.chat_ai_entry_primary_hint),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextHint,
+                        color = LocalChatPalette.current.textHint,
                         modifier = Modifier
                             .widthIn(max = 280.dp)
                             .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -9350,7 +9350,7 @@ private fun ChatInputBar(
                     Text(
                         stringResource(R.string.chat_ai_section_draft),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary,
+                        color = LocalChatPalette.current.textSecondary,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                     )
                     DropdownMenuItem(
@@ -9406,18 +9406,18 @@ private fun ChatInputBar(
                             showDraftTranslationLanguages = true
                         }
                     )
-                    HorizontalDivider(color = TextHint.copy(alpha = 0.25f))
+                    HorizontalDivider(color = LocalChatPalette.current.textHint.copy(alpha = 0.25f))
                     // 聊天辅助：读上下文
                     Text(
                         stringResource(R.string.chat_ai_section_chat),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary,
+                        color = LocalChatPalette.current.textSecondary,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                     )
                     Text(
                         stringResource(R.string.chat_ai_smart_replies),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary,
+                        color = LocalChatPalette.current.textSecondary,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                     )
                     listOf(
@@ -9486,11 +9486,11 @@ private fun ChatInputBar(
                         enabled = !isSecretChat,
                         onClick = { showAiMenu = false; onOpenMessageClassify() }
                     )
-                    HorizontalDivider(color = TextHint.copy(alpha = 0.25f))
+                    HorizontalDivider(color = LocalChatPalette.current.textHint.copy(alpha = 0.25f))
                     Text(
                         stringResource(R.string.chat_ai_section_settings),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary,
+                        color = LocalChatPalette.current.textSecondary,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                     )
                     DropdownMenuItem(
@@ -9500,7 +9500,7 @@ private fun ChatInputBar(
                     Text(
                         stringResource(R.string.chat_ai_entry_context_hint),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextHint,
+                        color = LocalChatPalette.current.textHint,
                         modifier = Modifier
                             .widthIn(max = 280.dp)
                             .padding(start = 16.dp, end = 16.dp, top = 4.dp)
@@ -9508,7 +9508,7 @@ private fun ChatInputBar(
                     Text(
                         stringResource(R.string.chat_ai_menu_footer),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextHint,
+                        color = LocalChatPalette.current.textHint,
                         modifier = Modifier
                             .widthIn(max = 280.dp)
                             .padding(horizontal = 16.dp, vertical = 10.dp)
@@ -9720,7 +9720,7 @@ private fun TranslationLanguageDialog(
                     Text(
                         stringResource(R.string.chat_translation_language_search_empty),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextHint,
+                        color = LocalChatPalette.current.textHint,
                         modifier = Modifier.padding(vertical = 12.dp)
                     )
                 } else {
@@ -9742,7 +9742,7 @@ private fun TranslationLanguageDialog(
                                     Icon(
                                         imageVector = Icons.Filled.Check,
                                         contentDescription = stringResource(R.string.chat_translation_available),
-                                        tint = Primary,
+                                        tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -9795,7 +9795,7 @@ private fun ReportDialog(
                 TextField(
                     value = description,
                     onValueChange = { description = it.take(800) },
-                    placeholder = { Text(stringResource(R.string.chat_report_description), color = TextHint) },
+                    placeholder = { Text(stringResource(R.string.chat_report_description), color = LocalChatPalette.current.textHint) },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = LocalChatPalette.current.chatInputBackground,
                         unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
@@ -9917,7 +9917,7 @@ private fun QuickPhrasesDialog(
                                     Icon(
                                         Icons.Outlined.Delete,
                                         contentDescription = stringResource(R.string.common_delete),
-                                        tint = TextSecondary
+                                        tint = LocalChatPalette.current.textSecondary
                                     )
                                 }
                             }
@@ -9927,7 +9927,7 @@ private fun QuickPhrasesDialog(
                 Text(
                     stringResource(R.string.chat_quick_phrases_hint),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextHint
+                    color = LocalChatPalette.current.textHint
                 )
             }
         },
@@ -9986,7 +9986,7 @@ private fun ExpressionPanel(
             }
             if (mode == "STICKER") {
                 IconButton(onClick = { showPackManager = true }) {
-                    Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.sticker_pack_manage), tint = Primary)
+                    Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.sticker_pack_manage), tint = MaterialTheme.colorScheme.primary)
                 }
             }
             IconButton(onClick = onGifClick, enabled = stickersEnabled) {
@@ -10054,7 +10054,7 @@ private fun ExpressionPanel(
                             }
                         ),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                 }
             } else {
@@ -10122,7 +10122,7 @@ private fun ExpressionPanel(
                     Text(
                         text = stringResource(R.string.chat_emoji_search_empty),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                 }
             } else {
@@ -10138,7 +10138,7 @@ private fun ExpressionPanel(
                         Text(
                             text = stringResource(R.string.chat_emoji_recent),
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary,
+                            color = LocalChatPalette.current.textSecondary,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
                         )
                         Row(
@@ -10245,12 +10245,12 @@ private fun ExpressionPanel(
                             )
                         }
                     }
-                    androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = TextHint.copy(alpha = 0.25f), modifier = Modifier.padding(vertical = 6.dp))
+                    androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.textHint.copy(alpha = 0.25f), modifier = Modifier.padding(vertical = 6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         Text(
                             stringResource(R.string.sticker_store_remote_title),
                             style = MaterialTheme.typography.labelMedium,
-                            color = TextSecondary,
+                            color = LocalChatPalette.current.textSecondary,
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = { refreshRemotePacks() }) {
@@ -10261,14 +10261,14 @@ private fun ExpressionPanel(
                         Text(
                             remoteStatus.orEmpty(),
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary
+                            color = LocalChatPalette.current.textSecondary
                         )
                     }
                     if (remotePacks.isEmpty() && remoteStatus == null) {
                         Text(
                             stringResource(R.string.sticker_store_remote_empty),
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextHint,
+                            color = LocalChatPalette.current.textHint,
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
@@ -10284,7 +10284,7 @@ private fun ExpressionPanel(
                                 modifier = Modifier.weight(1f)
                             )
                             if (remoteDownloading == packId) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Primary)
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                                 Spacer(modifier = Modifier.width(8.dp))
                             } else {
                                 TextButton(onClick = { downloadRemotePack(packId) }) {
@@ -10532,7 +10532,7 @@ private fun ContactCardPickerDialog(
                     Text(
                         stringResource(if (contacts.isEmpty()) R.string.contact_card_picker_empty else R.string.contact_card_picker_no_match),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = LocalChatPalette.current.textSecondary
                     )
                 } else {
                     Column(
@@ -10562,7 +10562,7 @@ private fun ContactCardPickerDialog(
                                     Text(
                                         "@${user.name}",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = TextSecondary,
+                                        color = LocalChatPalette.current.textSecondary,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
