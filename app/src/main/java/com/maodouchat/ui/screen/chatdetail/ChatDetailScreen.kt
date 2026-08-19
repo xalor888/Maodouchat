@@ -9860,7 +9860,7 @@ private fun QuickPhrasesDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text(stringResource(R.string.chat_quick_phrases_add_hint)) },
+                    placeholder = { Text(stringResource(R.string.chat_quick_phrases_add_hint, com.maodouchat.util.QuickPhrasePolicy.MAX_PHRASE_LENGTH)) },
                     textStyle = MaterialTheme.typography.bodyMedium,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Primary,
