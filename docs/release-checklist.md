@@ -15,6 +15,8 @@
 - [ ] `:app:assembleRelease` 成功，R8 + 资源收缩开启
 - [ ] 包体 ≤ `docs/size-baseline.md` 基线 + 10%
 
+> **已知 R8 警告（可忽略）**：`R8: An error occurred when parsing kotlin metadata` —— Kotlin 2.4.0 元数据新于 AGP 8.13.2 自带 R8 的支持版本，仅影响元数据优化提示，不影响正确性（2026-08-19 确认：全量单测/E2E/包体护栏通过）。升级 AGP 9.x 前不处理。
+
 ## 2. 安全门禁
 
 - [ ] 生产配置校验全部通过（JWT/HTTPS/DB/SMTP/TURN）
