@@ -127,9 +127,19 @@ fun Route.configureHealthRoutes() {
         val description = System.getenv("SERVER_DESCRIPTION").orEmpty().take(500)
         val contactUrl = System.getenv("SERVER_CONTACT_URL").orEmpty().take(300)
         val announcement = run {
-            val file = Paths.get(ServerConfig.storageDir).resolve("server-announcement.txt").toFile()
-            val fromFile = if (file.isFile) runCatching { file.readText().trim() }.getOrNull() else null
-            (fromFile?.takeIf { it.isNotBlank() } ?: System.getenv("SERVER_ANNOUNCEMENT").orEmpty()).take(1000)
+            // 9.210：优先级——管理后台运行时公告 > 存储目录文件 > 环境变量，
+            // 运营方无需重启即可更新公告
+            val runtime = runCatching {
+                com.maodouchat.server.service.RuntimeConfigService
+                    .get(com.maodouchat.server.service.RuntimeConfigService.KEY_PUBLIC_ANNOUNCEMENT)
+            }.getOrDefault("").trim()
+            if (runtime.isNotBlank()) {
+                runtime.take(1000)
+            } else {
+                val file = Paths.get(ServerConfig.storageDir).resolve("server-announcement.txt").toFile()
+                val fromFile = if (file.isFile) runCatching { file.readText().trim() }.getOrNull() else null
+                (fromFile?.takeIf { it.isNotBlank() } ?: System.getenv("SERVER_ANNOUNCEMENT").orEmpty()).take(1000)
+            }
         }
         val body = buildJsonObject {
             put("name", name)

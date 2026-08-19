@@ -74,8 +74,9 @@ curl https://chat.example.com/health/ready
 ## 第三方服务器玩法
 
 - **品牌化**：`SERVER_NAME` / `SERVER_DESCRIPTION` / `SERVER_CONTACT_URL` 让客户端展示你的服务器身份
-- **运营公告**：写入 `SERVER_ANNOUNCEMENT` 环境变量，或把内容放进存储目录的
-  `server-announcement.txt`（免重启即时生效），所有连接此服务器的用户可见
+- **运营公告**：管理后台「系统设置 → Public announcement」可直接编辑（免重启即时生效）；
+  也可写入 `SERVER_ANNOUNCEMENT` 环境变量或存储目录 `server-announcement.txt`。
+  优先级：后台设置 > 文件 > 环境变量；公告会推送给所有连接此服务器的 App 用户
 - **邀请制小站**：`ALLOW_REGISTRATION=false` 关闭公开注册
 - **去掉官网**：`PUBLIC_SITE=false` 后首页只显示你的服务器名片，不再展示毛豆官网
 - **AI 能力**：配置 `OPENAI_API_KEY` / `OPENAI_BASE_URL`（兼容任意 OpenAI 协议中转站）
