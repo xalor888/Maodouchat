@@ -342,6 +342,19 @@ class HealthCheckRouteTest {
         assertTrue(ready.bodyAsText().contains("\"storage\":\"ok\""), ready.bodyAsText())
         assertEquals(HttpStatusCode.OK, client.get("/api/health").status)
     }
+
+    @Test
+    fun `server info endpoint exposes branding without auth`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = false) }
+        val info = client.get("/api/server/info")
+        assertEquals(HttpStatusCode.OK, info.status)
+        val body = info.bodyAsText()
+        // 第三方服务器模式：客户端靠此端点展示服务器名称/公告，字段缺失会破坏身份卡
+        assertTrue(body.contains("\"name\""), body)
+        assertTrue(body.contains("\"announcement\""), body)
+        assertTrue(body.contains("\"registrationOpen\""), body)
+        assertTrue(body.contains("\"version\""), body)
+    }
 }
 
 class PublicWebsiteRouteTest {
