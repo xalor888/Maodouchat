@@ -2,6 +2,9 @@ package com.maodouchat.util
 
 import android.content.Context
 import com.maodouchat.network.TokenManager
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * 聊天壁纸 / 字体档位：按账号隔离本地偏好。
@@ -13,6 +16,13 @@ object ChatAppearancePreferences {
     private const val KEY_FONT = "font_scale"
     private const val KEY_BUBBLE_COLOR = "bubble_color"
     private const val KEY_BUBBLE_SHAPE = "bubble_shape"
+
+    /**
+     * 9.207：外观变更版本号——气泡色/气泡形状在 NavGraph 层 remember，
+     * 设置页修改后以此驱动重算，无需重进会话。
+     */
+    private val _appearanceVersion = MutableStateFlow(0L)
+    val appearanceVersion: StateFlow<Long> = _appearanceVersion.asStateFlow()
 
     fun getWallpaper(context: Context): ChatWallpaperPreset {
         val userId = currentUserId(context) ?: return ChatWallpaperPreset.DEFAULT
@@ -87,6 +97,7 @@ object ChatAppearancePreferences {
         val userId = currentUserId(context) ?: return
         val normalized = com.maodouchat.ui.theme.ChatBubbleColorPalette.normalize(colorId)
         prefs(context).edit().putString(key(KEY_BUBBLE_COLOR, userId), normalized).apply()
+        _appearanceVersion.value++
     }
 
     /** 气泡圆角风格 id（default / tg / round）。 */
@@ -99,6 +110,7 @@ object ChatAppearancePreferences {
     fun setBubbleShape(context: Context, shapeId: String) {
         val userId = currentUserId(context) ?: return
         prefs(context).edit().putString(key(KEY_BUBBLE_SHAPE, userId), normalizeBubbleShape(shapeId)).apply()
+        _appearanceVersion.value++
     }
 
     fun normalizeBubbleShape(raw: String?): String {

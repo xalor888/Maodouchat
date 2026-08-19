@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -353,14 +354,16 @@ fun MaodouchatNavGraph(
             val bubbleCtx = LocalContext.current
             val bubbleIsDark = com.maodouchat.ui.theme.LocalDarkTheme.current
             val themeSentSpec = com.maodouchat.ui.theme.LocalSentBubbleSpec.current
-            val sentColors = remember(chatIdArg, themeSentSpec, bubbleIsDark) {
+            // 9.207：外观版本号驱动重算——设置页改气泡色/圆角后返回聊天页即时生效
+            val appearanceVersion by com.maodouchat.util.ChatAppearancePreferences.appearanceVersion.collectAsState()
+            val sentColors = remember(chatIdArg, themeSentSpec, bubbleIsDark, appearanceVersion) {
                 val id = com.maodouchat.util.ChatAppearancePreferences.getBubbleColor(bubbleCtx)
                 val userColor = if (bubbleIsDark) com.maodouchat.ui.theme.ChatBubbleColorPalette.dark(id)
                 else com.maodouchat.ui.theme.ChatBubbleColorPalette.light(id)
                 val customized = com.maodouchat.util.ChatAppearancePreferences.hasCustomBubbleColor(bubbleCtx)
                 com.maodouchat.ui.theme.resolveSentBubble(themeSentSpec, customized, userColor)
             }
-            val bubbleShapes = remember(chatIdArg) {
+            val bubbleShapes = remember(chatIdArg, appearanceVersion) {
                 com.maodouchat.ui.theme.bubbleShapesFor(
                     com.maodouchat.util.ChatAppearancePreferences.getBubbleShape(bubbleCtx)
                 )
@@ -1618,14 +1621,15 @@ private fun ChatDetailListPaneRoute(navController: NavHostController) {
                         val bubbleCtx = LocalContext.current
                         val bubbleIsDark = com.maodouchat.ui.theme.LocalDarkTheme.current
                         val themeSentSpec = com.maodouchat.ui.theme.LocalSentBubbleSpec.current
-                        val sentColors = remember(chatId, themeSentSpec, bubbleIsDark) {
+                        val appearanceVersion by com.maodouchat.util.ChatAppearancePreferences.appearanceVersion.collectAsState()
+                        val sentColors = remember(chatId, themeSentSpec, bubbleIsDark, appearanceVersion) {
                             val id = com.maodouchat.util.ChatAppearancePreferences.getBubbleColor(bubbleCtx)
                             val userColor = if (bubbleIsDark) com.maodouchat.ui.theme.ChatBubbleColorPalette.dark(id)
                             else com.maodouchat.ui.theme.ChatBubbleColorPalette.light(id)
                             val customized = com.maodouchat.util.ChatAppearancePreferences.hasCustomBubbleColor(bubbleCtx)
                             com.maodouchat.ui.theme.resolveSentBubble(themeSentSpec, customized, userColor)
                         }
-                        val bubbleShapes = remember(chatId) {
+                        val bubbleShapes = remember(chatId, appearanceVersion) {
                             com.maodouchat.ui.theme.bubbleShapesFor(
                                 com.maodouchat.util.ChatAppearancePreferences.getBubbleShape(bubbleCtx)
                             )
