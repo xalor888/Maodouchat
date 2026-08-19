@@ -1201,7 +1201,7 @@ fun ChatDetailScreen(
                             )
                         )
                     }
-                    Text(stringResource(R.string.chat_members_count, members.size), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+                    Text(pluralStringResource(R.plurals.chat_members_count, members.size, members.size), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
                     if (filteredMembers.isEmpty() && q.isNotEmpty()) {
                         Text(
                             stringResource(R.string.chat_group_info_search_empty),
@@ -4207,7 +4207,7 @@ DropdownMenuItem(
                     selectedMessageIds = emptySet()
                     showBatchDeleteConfirm = false
                     // 1.50：删除完成提示
-                    Toast.makeText(context, context.getString(R.string.chat_batch_delete_done, cappedBatch.size), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.resources.getQuantityString(R.plurals.chat_batch_delete_done, cappedBatch.size, cappedBatch.size), Toast.LENGTH_SHORT).show()
                 }) { Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed) }
             },
             dismissButton = {
@@ -5196,7 +5196,7 @@ DropdownMenuItem(
                         }
                         if (forwardMessages.size > 3) {
                             Text(
-                                stringResource(R.string.chat_forward_more_previews, forwardMessages.size - 3),
+                                pluralStringResource(R.plurals.chat_forward_more_previews, forwardMessages.size - 3, forwardMessages.size - 3),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = LocalChatPalette.current.textHint
                             )
@@ -7320,7 +7320,7 @@ private fun UnreadSummaryBanner(
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
-                text = if (messageCount > 0) stringResource(R.string.chat_unread_summary_count, messageCount) else stringResource(R.string.chat_unread_summary),
+                text = if (messageCount > 0) pluralStringResource(R.plurals.chat_unread_summary_count, messageCount, messageCount) else stringResource(R.string.chat_unread_summary),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -8484,7 +8484,7 @@ private fun GroupAiAssistantDialog(
                 if (tasks.isNotEmpty()) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.7f))
                     Text(
-                        stringResource(R.string.ai_tasks_preview_count, tasks.size),
+                        pluralStringResource(R.plurals.ai_tasks_preview_count, tasks.size, tasks.size),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )

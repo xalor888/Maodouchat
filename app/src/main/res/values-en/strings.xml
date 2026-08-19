@@ -351,7 +351,10 @@
     <string name="contacts_friend_blocked">Blocked %1$s</string>
 
     <string name="chat_exported">Exported</string>
-    <string name="chat_export_success">Exported %1$d messages</string>
+    <plurals name="chat_export_success">
+        <item quantity="one">Exported %1$d message</item>
+        <item quantity="other">Exported %1$d messages</item>
+    </plurals>
     <string name="chat_export_empty">No messages to export in this chat</string>
     <string name="chat_clear_history_title">Clear local messages?</string>
     <string name="chat_clear_history_body">Deletes local messages and media cache for this chat. This cannot be undone. Server ciphertext may resync when you reopen. Chat PIN, drafts, and group settings are kept.</string>
@@ -362,7 +365,10 @@
     <string name="chat_permission_location">Location access is required to share your location</string>
     <string name="chat_group_name">Group name</string>
     <string name="chat_save_group_name">Save group name</string>
-    <string name="chat_members_count">%1$d members</string>
+    <plurals name="chat_members_count">
+        <item quantity="one">%1$d member</item>
+        <item quantity="other">%1$d members</item>
+    </plurals>
     <string name="chat_me">Me</string>
     <string name="chat_remove">Remove</string>
     <string name="chat_add_member">Add members</string>
@@ -423,9 +429,15 @@
     <string name="chat_mark_read">Mark as read</string>
     <string name="chat_settings_sync_failed">Could not sync conversation settings. The previous state was restored.</string>
     <string name="chat_batch_manage">Manage multiple</string>
-    <string name="chat_selected_count">%1$d selected</string>
+    <plurals name="chat_selected_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
     <string name="chat_select_message">Select message</string>
-    <string name="chat_messages_selected">%1$d messages selected</string>
+    <plurals name="chat_messages_selected">
+        <item quantity="one">%1$d message selected</item>
+        <item quantity="other">%1$d messages selected</item>
+    </plurals>
     <string name="chat_select_all_loaded">Select all loaded</string>
     <string name="chat_clear_selection">Clear selection</string>
     <string name="chat_quick_react">Quick react with a heart</string>
@@ -434,7 +446,10 @@
     <string name="chat_delete_selected_message">Delete the selected %1$d messages from this device? This will not recall them from other devices.</string>
     <string name="chat_batch_delete_skipped_others">%1$d messages from others will not be deleted</string>
     <string name="chat_batch_delete_capped">Over 60 messages; only 60 deleted now, delete the remaining %1$d again</string>
-    <string name="chat_batch_delete_done">Deleted %1$d messages</string>
+    <plurals name="chat_batch_delete_done">
+        <item quantity="one">Deleted %1$d message</item>
+        <item quantity="other">Deleted %1$d messages</item>
+    </plurals>
     <string name="chat_export_history">Export as text</string>
     <string name="chat_export_share_title">Share chat history</string>
     <string name="chat_export_done">Chat history exported</string>
@@ -637,7 +652,10 @@
     <string name="chat_forward_note_hint">Add a note (optional, max 500 chars)</string>
     <string name="chat_forward_merge_title">Merge forward</string>
     <string name="chat_forward_merge_subtitle">Combine the selected text messages into one</string>
-    <string name="chat_forward_more_previews">%1$d more messages</string>
+    <plurals name="chat_forward_more_previews">
+        <item quantity="one">%1$d more message</item>
+        <item quantity="other">%1$d more messages</item>
+    </plurals>
     <string name="chat_forward_search_empty">No matching chats</string>
     <string name="chat_send_failed">Send failed</string>
     <string name="chat_send_failed_retry">This message failed to send. Try again?</string>
@@ -646,7 +664,10 @@
     <string name="chat_close">Close</string>
     <string name="chat_no_file_app">No app can open this file</string>
     <string name="chat_open_file_failed">Could not open the file</string>
-    <string name="chat_unread_summary_count">Unread summary · %1$d messages</string>
+    <plurals name="chat_unread_summary_count">
+        <item quantity="one">Unread summary · %1$d message</item>
+        <item quantity="other">Unread summary · %1$d messages</item>
+    </plurals>
     <string name="chat_unread_summary">Unread summary</string>
     <string name="chat_generating">Generating…</string>
     <string name="chat_view">View</string>
@@ -877,7 +898,10 @@
     <string name="sticker_search_empty">No matching stickers</string>
     <string name="sticker_recent_empty">No stickers used yet</string>
     <string name="chat_group_member">Group member</string>
-    <string name="chat_group_summary">Group chat (%1$d people)</string>
+    <plurals name="chat_group_summary">
+        <item quantity="one">Group chat (%1$d person)</item>
+        <item quantity="other">Group chat (%1$d people)</item>
+    </plurals>
     <string name="chat_private">Private chat</string>
     <string name="chat_today">Today</string>
     <string name="chat_yesterday">Yesterday</string>
@@ -2076,7 +2100,10 @@
     <string name="notification_friend_accepted_body">Your friend request was accepted</string>
     <string name="ai_tasks_title">AI Tasks</string>
     <string name="ai_tasks_menu">View AI tasks</string>
-    <string name="ai_tasks_preview_count">%1$d tasks found</string>
+    <plurals name="ai_tasks_preview_count">
+        <item quantity="one">%1$d task found</item>
+        <item quantity="other">%1$d tasks found</item>
+    </plurals>
     <string name="ai_tasks_save">Save to AI Tasks</string>
     <string name="ai_tasks_saved">Saved</string>
     <string name="ai_tasks_save_failed">Couldn\'t save tasks. Try again.</string>
@@ -2767,7 +2794,10 @@
     <string name="group_play_checkin_title">Check-in</string>
     <string name="group_play_checkin_now">Check in</string>
     <string name="group_play_checkin_done">Checked in today</string>
-    <string name="group_play_checkin_streak">%1$d-day streak</string>
+    <plurals name="group_play_checkin_streak">
+        <item quantity="one">%1$d-day streak</item>
+        <item quantity="other">%1$d-day streak</item>
+    </plurals>
     <plurals name="group_play_checkin_total">
         <item quantity="one">%1$d total</item>
         <item quantity="other">%1$d total</item>

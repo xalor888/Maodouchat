@@ -169,7 +169,7 @@ fun GroupCheckinScreen(
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                         Text(
-                            stringResource(R.string.group_play_checkin_streak, state.streak),
+                            pluralStringResource(R.plurals.group_play_checkin_streak, state.streak, state.streak),
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
@@ -211,7 +211,7 @@ fun GroupCheckinScreen(
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = stringResource(R.string.group_play_checkin_streak, entry.streak),
+                        text = pluralStringResource(R.plurals.group_play_checkin_streak, entry.streak, entry.streak),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline
                     )

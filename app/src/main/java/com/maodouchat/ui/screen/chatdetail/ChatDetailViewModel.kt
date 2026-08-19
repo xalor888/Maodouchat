@@ -161,6 +161,10 @@ class ChatDetailViewModel(
     internal val aiMessageResultStore = AiMessageResultStore(app.database)
     internal fun text(id: Int, vararg args: Any): String = getApplication<Application>().getString(id, *args)
 
+    /** 9.217：复数串助手（ViewModel 非 Compose 路径）。 */
+    internal fun quantityText(id: Int, quantity: Int, vararg args: Any): String =
+        getApplication<Application>().resources.getQuantityString(id, quantity, *args)
+
     /** List/sync preview for NUDGE: rewrite sender-centric wire body for local POV. */
     private fun detailNudgePreview(message: Message): String {
         val chat = _uiState.value.chat
@@ -1197,7 +1201,7 @@ class ChatDetailViewModel(
                             id = chat.id,
                             name = chat.groupName ?: text(R.string.chat_group),
                             avatar = chat.groupAvatar,
-                            status = text(R.string.chat_members_count, chat.participants.size)
+                            status = quantityText(R.plurals.chat_members_count, chat.participants.size, chat.participants.size)
                         )
                         val revisionWarning = if (shouldInvalidateSenderKey) text(R.string.chat_group_members_changed_key) else null
                         _uiState.update {
@@ -1235,7 +1239,7 @@ class ChatDetailViewModel(
                                 id = cachedChat.id,
                                 name = cachedChat.groupName ?: text(R.string.chat_group),
                                 avatar = cachedChat.groupAvatar,
-                                status = text(R.string.chat_members_count, cachedChat.participants.size)
+                                status = quantityText(R.plurals.chat_members_count, cachedChat.participants.size, cachedChat.participants.size)
                             )
                             _uiState.update {
                                 it.copy(
@@ -5266,7 +5270,7 @@ class ChatDetailViewModel(
                         id = updated.id,
                         name = updated.groupName ?: text(R.string.chat_group),
                         avatar = updated.groupAvatar,
-                        status = text(R.string.chat_members_count, updated.participants.size)
+                        status = quantityText(R.plurals.chat_members_count, updated.participants.size, updated.participants.size)
                     )
                     _uiState.update { it.copy(chat = updated, contact = groupContact, isUpdatingGroup = false, groupEncryptionWarning = successMessage) }
                     loadGroupCandidates()
@@ -8922,7 +8926,7 @@ fun sendCurrentLocation() {
                 } ?: false
                 if (written) {
                     _uiState.update {
-                        it.copy(exportInfoMessage = text(R.string.chat_export_success, state.messages.size))
+                        it.copy(exportInfoMessage = quantityText(R.plurals.chat_export_success, state.messages.size, state.messages.size))
                     }
                 } else {
                     Log.w("ChatDetailViewModel", "exportToUri: openOutputStream returned null")

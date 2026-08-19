@@ -49,7 +49,7 @@ internal fun senderDisplayName(
 
 internal fun forwardTargetName(context: Context, chat: Chat, currentUserId: String): String {
     return if (chat.isGroup) {
-        chat.groupName ?: context.getString(R.string.chat_group_summary, chat.participants.size)
+        chat.groupName ?: context.resources.getQuantityString(R.plurals.chat_group_summary, chat.participants.size, chat.participants.size)
     } else {
         chat.participants.firstOrNull { it.id != currentUserId }?.displayName ?: context.getString(R.string.chat_private)
     }

@@ -60,6 +60,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -654,7 +655,7 @@ fun ScanScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(chat.groupName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_group))
-                    Text(stringResource(R.string.chat_members_count, chat.participants.size), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
+                    Text(pluralStringResource(R.plurals.chat_members_count, chat.participants.size, chat.participants.size), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                 }
             },
             confirmButton = {
