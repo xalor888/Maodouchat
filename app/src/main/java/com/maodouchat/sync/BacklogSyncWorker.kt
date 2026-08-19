@@ -161,7 +161,9 @@ class BacklogSyncWorker(
                     }?.let { hit ->
                         shouldNotify = true
                         notifySenderId = hit.senderId
-                        notifyMessageId = last.id
+                        // 9.203 修复：通知应指向实际触发通知的消息；此前用批次内最后一条
+                        //（可能是自己发的/控制消息），点击通知会定位错消息
+                        notifyMessageId = hit.id
                     }
                     if (messages.size < SYNC_PAGE_SIZE) break
                     pageCursor = com.maodouchat.network.TokenManager.SyncCursor(timestampMs = last.timestamp, messageId = last.id)

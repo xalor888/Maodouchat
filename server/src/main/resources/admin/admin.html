@@ -22,7 +22,7 @@
         <circle cx="22" cy="18" r="1.2" fill="#6366f1"/>
       </svg>
       <div>
-        <div class="login-title">毛豆聊天</div>
+        <div class="login-title" id="login-brand-name">毛豆聊天</div>
         <div class="login-subtitle">管理控制台</div>
       </div>
     </div>
@@ -56,7 +56,7 @@
         <circle cx="17" cy="18" r="1.2" fill="#6366f1"/>
         <circle cx="22" cy="18" r="1.2" fill="#6366f1"/>
       </svg>
-      <span class="sidebar-title">毛豆聊天后台</span>
+      <span class="sidebar-title" id="admin-server-name">毛豆聊天后台</span>
     </div>
     <nav class="sidebar-nav" id="nav">
       <div class="nav-group">
@@ -257,5 +257,22 @@
 </div>
 
 <script src="/admin/assets/admin.js" defer></script>
+<script>
+// 9.203：第三方服务器品牌化——拉取公开 /api/server/info，将运营方自定义名称
+// 展示到登录页/侧边栏/页面标题；拉取失败静默回退默认品牌。
+(function () {
+  try {
+    fetch('/api/server/info').then(function (r) { return r.ok ? r.json() : null; }).then(function (info) {
+      if (!info || !info.name) return;
+      var name = String(info.name).slice(0, 60);
+      var sidebar = document.getElementById('admin-server-name');
+      if (sidebar) sidebar.textContent = name + ' 后台';
+      var login = document.getElementById('login-brand-name');
+      if (login) login.textContent = name;
+      document.title = name + ' 管理后台';
+    }).catch(function () {});
+  } catch (e) {}
+})();
+</script>
 </body>
 </html>
