@@ -50,12 +50,14 @@ async function main() {
   }
 
   // 1. Adaptive Icon Foregrounds (Safe zone ~62.5% of total canvas, centered on transparent background)
+  // Logo occupies ~55% of the canvas so it sits comfortably inside the safe zone
+  // and doesn't look oversized/cropped under launcher icon masks.
   const foregroundDensities = [
-    { name: 'drawable-mdpi', size: 108, logoSize: 68 },
-    { name: 'drawable-hdpi', size: 162, logoSize: 102 },
-    { name: 'drawable-xhdpi', size: 216, logoSize: 136 },
-    { name: 'drawable-xxhdpi', size: 324, logoSize: 204 },
-    { name: 'drawable-xxxhdpi', size: 432, logoSize: 272 },
+    { name: 'drawable-mdpi', size: 108, logoSize: 60 },
+    { name: 'drawable-hdpi', size: 162, logoSize: 90 },
+    { name: 'drawable-xhdpi', size: 216, logoSize: 120 },
+    { name: 'drawable-xxhdpi', size: 324, logoSize: 180 },
+    { name: 'drawable-xxxhdpi', size: 432, logoSize: 240 },
   ];
 
   for (const item of foregroundDensities) {
