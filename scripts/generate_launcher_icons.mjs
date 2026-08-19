@@ -3,6 +3,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 
+// ⚠️ 警告：仓库中的启动图标 PNG（ic_launcher_foreground / ic_launcher / ic_launcher_round）
+// 是手工定稿构图，与 logo.svg 的原始渲染结果不同（留白、居中、比例都不同）。
+// 直接运行本脚本会用 SVG 渲染结果覆盖定稿图标，导致安装后图标观感变化。
+// 调整图标大小请使用 scripts/shrink_launcher_foreground.py（对定稿图等比缩放）。
+// 本脚本仅用于更新 web/PWA logo 资源（第 4 部分）。
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
