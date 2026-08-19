@@ -1917,6 +1917,10 @@
     <string name="general_theme_style_tg_midnight">TG Daybreak &amp; Midnight</string>
     <string name="general_theme_style_tg_graphite">TG Ice &amp; Graphite</string>
     <string name="general_theme_style_tg_badge">1:1 Replica</string>
+    <string name="general_bubble_shape_title">Bubble Corners</string>
+    <string name="general_bubble_shape_default">Classic Tail</string>
+    <string name="general_bubble_shape_tg">TG Rounded</string>
+    <string name="general_bubble_shape_round">Extra Round</string>
     <string name="general_accent_title">Accent Color</string>
     <string name="general_accent_subtitle">Theme color for buttons, links and selection</string>
     <string name="general_accent_default_short">Auto</string>

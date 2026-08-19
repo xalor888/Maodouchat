@@ -1920,6 +1920,10 @@
     <string name="general_theme_style_tg_midnight">TG 朝霞·午夜</string>
     <string name="general_theme_style_tg_graphite">TG 冰蓝·石墨</string>
     <string name="general_theme_style_tg_badge">1:1 还原</string>
+    <string name="general_bubble_shape_title">气泡圆角</string>
+    <string name="general_bubble_shape_default">经典尾角</string>
+    <string name="general_bubble_shape_tg">TG 全圆角</string>
+    <string name="general_bubble_shape_round">大圆角</string>
     <string name="general_accent_title">强调色</string>
     <string name="general_accent_subtitle">按钮、链接与选中态的主题色</string>
     <string name="general_accent_default_short">默认</string>

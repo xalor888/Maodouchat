@@ -6,6 +6,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.dp
 
 /**
  * 主题风格家族（Telegram 级可切换主题）。
@@ -65,6 +66,30 @@ fun normalizeAccentId(raw: String?): String {
 
 fun accentFor(id: String, dark: Boolean): Color? =
     ACCENT_OPTIONS.firstOrNull { it.id == id }?.let { if (dark) it.dark else it.light }
+
+/** 气泡圆角风格（TG 式自定义）：尾角小圆角 / TG 全圆 / 大圆角。 */
+data class BubbleShapes(val sent: androidx.compose.ui.graphics.Shape, val received: androidx.compose.ui.graphics.Shape)
+
+val BUBBLE_SHAPE_DEFAULT = BubbleShapes(
+    sent = androidx.compose.foundation.shape.RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp),
+    received = androidx.compose.foundation.shape.RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp)
+)
+val BUBBLE_SHAPE_TG = BubbleShapes(
+    sent = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+    received = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
+)
+val BUBBLE_SHAPE_ROUND = BubbleShapes(
+    sent = androidx.compose.foundation.shape.RoundedCornerShape(22.dp),
+    received = androidx.compose.foundation.shape.RoundedCornerShape(22.dp)
+)
+
+fun bubbleShapesFor(styleId: String): BubbleShapes = when (styleId) {
+    "tg" -> BUBBLE_SHAPE_TG
+    "round" -> BUBBLE_SHAPE_ROUND
+    else -> BUBBLE_SHAPE_DEFAULT
+}
+
+val LocalBubbleShapes = compositionLocalOf { BUBBLE_SHAPE_DEFAULT }
 
 /** 当前主题对发送气泡的接管（maodou 家族为 null）。 */
 val LocalSentBubbleSpec = compositionLocalOf<SentBubbleSpec?> { null }

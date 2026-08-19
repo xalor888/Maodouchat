@@ -360,10 +360,16 @@ fun MaodouchatNavGraph(
                 val customized = com.maodouchat.util.ChatAppearancePreferences.hasCustomBubbleColor(bubbleCtx)
                 com.maodouchat.ui.theme.resolveSentBubble(themeSentSpec, customized, userColor)
             }
+            val bubbleShapes = remember(chatIdArg) {
+                com.maodouchat.ui.theme.bubbleShapesFor(
+                    com.maodouchat.util.ChatAppearancePreferences.getBubbleShape(bubbleCtx)
+                )
+            }
             androidx.compose.runtime.CompositionLocalProvider(
                 com.maodouchat.ui.theme.LocalChatBubbleColor provides sentColors.bubble,
                 com.maodouchat.ui.theme.LocalSentBubbleContent provides sentColors.content,
-                com.maodouchat.ui.theme.LocalSentBubbleContentSecondary provides sentColors.contentSecondary
+                com.maodouchat.ui.theme.LocalSentBubbleContentSecondary provides sentColors.contentSecondary,
+                com.maodouchat.ui.theme.LocalBubbleShapes provides bubbleShapes
             ) {
                 ChatDetailScreen(
                     onBack = { navController.popBackStack() },
@@ -1619,10 +1625,16 @@ private fun ChatDetailListPaneRoute(navController: NavHostController) {
                             val customized = com.maodouchat.util.ChatAppearancePreferences.hasCustomBubbleColor(bubbleCtx)
                             com.maodouchat.ui.theme.resolveSentBubble(themeSentSpec, customized, userColor)
                         }
+                        val bubbleShapes = remember(chatId) {
+                            com.maodouchat.ui.theme.bubbleShapesFor(
+                                com.maodouchat.util.ChatAppearancePreferences.getBubbleShape(bubbleCtx)
+                            )
+                        }
                         androidx.compose.runtime.CompositionLocalProvider(
                             com.maodouchat.ui.theme.LocalChatBubbleColor provides sentColors.bubble,
                             com.maodouchat.ui.theme.LocalSentBubbleContent provides sentColors.content,
-                            com.maodouchat.ui.theme.LocalSentBubbleContentSecondary provides sentColors.contentSecondary
+                            com.maodouchat.ui.theme.LocalSentBubbleContentSecondary provides sentColors.contentSecondary,
+                            com.maodouchat.ui.theme.LocalBubbleShapes provides bubbleShapes
                         ) {
                             ChatDetailScreen(
                                 onBack = { detailNavController.popBackStack() },

@@ -12,6 +12,7 @@ object ChatAppearancePreferences {
     private const val KEY_CUSTOM_WALLPAPER = "custom_wallpaper_uri"
     private const val KEY_FONT = "font_scale"
     private const val KEY_BUBBLE_COLOR = "bubble_color"
+    private const val KEY_BUBBLE_SHAPE = "bubble_shape"
 
     fun getWallpaper(context: Context): ChatWallpaperPreset {
         val userId = currentUserId(context) ?: return ChatWallpaperPreset.DEFAULT
@@ -88,6 +89,23 @@ object ChatAppearancePreferences {
         prefs(context).edit().putString(key(KEY_BUBBLE_COLOR, userId), normalized).apply()
     }
 
+    /** 气泡圆角风格 id（default / tg / round）。 */
+    fun getBubbleShape(context: Context): String {
+        val userId = currentUserId(context) ?: return "default"
+        val raw = prefs(context).getString(key(KEY_BUBBLE_SHAPE, userId), null)
+        return normalizeBubbleShape(raw)
+    }
+
+    fun setBubbleShape(context: Context, shapeId: String) {
+        val userId = currentUserId(context) ?: return
+        prefs(context).edit().putString(key(KEY_BUBBLE_SHAPE, userId), normalizeBubbleShape(shapeId)).apply()
+    }
+
+    fun normalizeBubbleShape(raw: String?): String {
+        val id = raw?.trim()?.lowercase().orEmpty()
+        return if (id == "tg" || id == "round") id else "default"
+    }
+
     fun clearForUser(context: Context, userId: String) {
         if (userId.isBlank()) return
         prefs(context).edit()
@@ -95,6 +113,7 @@ object ChatAppearancePreferences {
             .remove(key(KEY_CUSTOM_WALLPAPER, userId))
             .remove(key(KEY_FONT, userId))
             .remove(key(KEY_BUBBLE_COLOR, userId))
+            .remove(key(KEY_BUBBLE_SHAPE, userId))
             .apply()
         runCatching {
             java.io.File(context.filesDir, "wallpapers/custom_$userId.jpg").delete()

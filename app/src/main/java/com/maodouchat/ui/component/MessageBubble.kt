@@ -115,8 +115,9 @@ import com.maodouchat.ui.theme.UnreadRed
 import java.util.Locale
 
 // 气泡形状
-private val SentBubbleShape = RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp)
-private val ReceivedBubbleShape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp)
+// 9.205：气泡形状改为 LocalBubbleShapes 提供（设置页可自定义），以下保留为旧引用兼容常量
+private val SentBubbleShape = com.maodouchat.ui.theme.BUBBLE_SHAPE_DEFAULT.sent
+private val ReceivedBubbleShape = com.maodouchat.ui.theme.BUBBLE_SHAPE_DEFAULT.received
 private val SystemBubbleShape = RoundedCornerShape(16.dp)
 
 // 语音波形高度常量
@@ -392,7 +393,7 @@ private fun LocationBubble(
                 modifier = Modifier
                     .captureBubbleBounds(onBoundsMeasured)
                     .widthIn(max = 260.dp)
-                    .clip(if (isOwnMessage) SentBubbleShape else ReceivedBubbleShape)
+                    .clip(if (isOwnMessage) com.maodouchat.ui.theme.LocalBubbleShapes.current.sent else com.maodouchat.ui.theme.LocalBubbleShapes.current.received)
                     .background(if (isOwnMessage) LocalChatBubbleColor.current else palette.chatBubbleReceived)
                     .clickable {
                         val label = android.net.Uri.encode(payload.label)
@@ -631,13 +632,13 @@ private fun TextBubble(
             Column(
                 modifier = Modifier
                     .captureBubbleBounds(onBoundsMeasured)
-                    .clip(if (isOwnMessage) SentBubbleShape else ReceivedBubbleShape)
+                    .clip(if (isOwnMessage) com.maodouchat.ui.theme.LocalBubbleShapes.current.sent else com.maodouchat.ui.theme.LocalBubbleShapes.current.received)
                     .background(if (isOwnMessage) Brush.linearGradient(com.maodouchat.ui.theme.ChatBubbleColorPalette.gradient(LocalChatBubbleColor.current)) else Brush.linearGradient(listOf(palette.chatBubbleReceived, palette.chatBubbleReceived)))
                     .then(
                         if (!isOwnMessage) Modifier.border(
                             1.dp,
                             palette.chatBubbleReceivedBorder,
-                            ReceivedBubbleShape
+                            com.maodouchat.ui.theme.LocalBubbleShapes.current.received
                         ) else Modifier
                     )
                     .padding(horizontal = 14.dp, vertical = 10.dp)
@@ -1193,13 +1194,13 @@ private fun ImageBubble(
                 modifier = Modifier
                     .captureBubbleBounds(onBoundsMeasured)
                     .widthIn(max = 260.dp)
-                    .clip(if (isOwnMessage) SentBubbleShape else ReceivedBubbleShape)
+                    .clip(if (isOwnMessage) com.maodouchat.ui.theme.LocalBubbleShapes.current.sent else com.maodouchat.ui.theme.LocalBubbleShapes.current.received)
                     .background(if (isOwnMessage) LocalChatBubbleColor.current else palette.chatBubbleReceived)
                     .then(
                         if (!isOwnMessage) Modifier.border(
                             1.dp,
                             palette.chatBubbleReceivedBorder,
-                            ReceivedBubbleShape
+                            com.maodouchat.ui.theme.LocalBubbleShapes.current.received
                         ) else Modifier
                     )
                     .padding(4.dp)
@@ -1403,13 +1404,13 @@ private fun VoiceBubble(
                 modifier = Modifier
                     .captureBubbleBounds(onBoundsMeasured)
                     .width(240.dp)
-                    .clip(if (isOwnMessage) SentBubbleShape else ReceivedBubbleShape)
+                    .clip(if (isOwnMessage) com.maodouchat.ui.theme.LocalBubbleShapes.current.sent else com.maodouchat.ui.theme.LocalBubbleShapes.current.received)
                     .background(if (isOwnMessage) Brush.linearGradient(com.maodouchat.ui.theme.ChatBubbleColorPalette.gradient(LocalChatBubbleColor.current)) else Brush.linearGradient(listOf(palette.chatBubbleReceived, palette.chatBubbleReceived)))
                     .then(
                         if (!isOwnMessage) Modifier.border(
                             1.dp,
                             palette.chatBubbleReceivedBorder,
-                            ReceivedBubbleShape
+                            com.maodouchat.ui.theme.LocalBubbleShapes.current.received
                         ) else Modifier
                     )
                     .padding(horizontal = 14.dp, vertical = 10.dp)
@@ -1785,9 +1786,9 @@ private fun VideoBubble(
                 modifier = Modifier
                     .captureBubbleBounds(onBoundsMeasured)
                     .widthIn(max = 260.dp)
-                    .clip(if (isOwnMessage) SentBubbleShape else ReceivedBubbleShape)
+                    .clip(if (isOwnMessage) com.maodouchat.ui.theme.LocalBubbleShapes.current.sent else com.maodouchat.ui.theme.LocalBubbleShapes.current.received)
                     .background(if (isOwnMessage) LocalChatBubbleColor.current else palette.chatBubbleReceived)
-                    .then(if (!isOwnMessage) Modifier.border(1.dp, palette.chatBubbleReceivedBorder, ReceivedBubbleShape) else Modifier)
+                    .then(if (!isOwnMessage) Modifier.border(1.dp, palette.chatBubbleReceivedBorder, com.maodouchat.ui.theme.LocalBubbleShapes.current.received) else Modifier)
                     .padding(4.dp)
                     .then(
                         // 9.146：与 ImageBubble 同构——阅后即焚锁定不可点；防剧透点击揭示；
@@ -1961,9 +1962,9 @@ private fun FileBubble(
                 modifier = Modifier
                     .captureBubbleBounds(onBoundsMeasured)
                     .widthIn(max = 260.dp)
-                    .clip(if (isOwnMessage) SentBubbleShape else ReceivedBubbleShape)
+                    .clip(if (isOwnMessage) com.maodouchat.ui.theme.LocalBubbleShapes.current.sent else com.maodouchat.ui.theme.LocalBubbleShapes.current.received)
                     .background(if (isOwnMessage) LocalChatBubbleColor.current else palette.chatBubbleReceived)
-                    .then(if (!isOwnMessage) Modifier.border(1.dp, palette.chatBubbleReceivedBorder, ReceivedBubbleShape) else Modifier)
+                    .then(if (!isOwnMessage) Modifier.border(1.dp, palette.chatBubbleReceivedBorder, com.maodouchat.ui.theme.LocalBubbleShapes.current.received) else Modifier)
                     .then(if (onFileClick != null && transferState == null) Modifier.clickable { onFileClick(message) } else Modifier)
                     .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {

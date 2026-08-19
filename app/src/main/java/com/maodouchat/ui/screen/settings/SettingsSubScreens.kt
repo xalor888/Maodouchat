@@ -2808,6 +2808,13 @@ fun GeneralSettingsScreen(
                     }
                 )
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
+                ChatBubbleShapeRow(
+                    current = com.maodouchat.util.ChatAppearancePreferences.getBubbleShape(context),
+                    onChange = { id ->
+                        com.maodouchat.util.ChatAppearancePreferences.setBubbleShape(context, id)
+                    }
+                )
+                androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 ChatFontScaleRow(
                     current = state.chatFontScale,
                     onChange = viewModel::setChatFontScale
@@ -2960,6 +2967,25 @@ private fun AccentColorRow(
                         .clickable { onChange(option.id) }
                 )
             }
+        }
+    }
+}
+
+/**
+ * 9.205：气泡圆角风格选择（默认尾角小圆角 / TG 全圆 / 大圆角），按账号本地存储。
+ */
+@Composable
+private fun ChatBubbleShapeRow(
+    current: String,
+    onChange: (String) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
+        Text(stringResource(R.string.general_bubble_shape_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ThemeChoiceChip(stringResource(R.string.general_bubble_shape_default), selected = current == "default", onClick = { onChange("default") })
+            ThemeChoiceChip(stringResource(R.string.general_bubble_shape_tg), selected = current == "tg", onClick = { onChange("tg") })
+            ThemeChoiceChip(stringResource(R.string.general_bubble_shape_round), selected = current == "round", onClick = { onChange("round") })
         }
     }
 }
