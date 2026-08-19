@@ -1604,4 +1604,12 @@ tbody td {
   .chart-row {
     grid-template-columns: 1fr;
   }
+
+  /* 9.212：窄屏下无 .table-wrap 包裹的表格也允许横向滚动，避免撑破布局 */
+  table,
+  .table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
