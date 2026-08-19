@@ -4,9 +4,12 @@ import androidx.compose.ui.graphics.Color
 import com.maodouchat.ui.theme.ThemeFamily
 import com.maodouchat.ui.theme.resolveSentBubble
 import com.maodouchat.ui.theme.resolveThemePaint
+import com.maodouchat.util.ThemePreferences
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ThemeStyleTest {
@@ -74,5 +77,30 @@ class ThemeStyleTest {
         val dark = Color(0xFF007AFF)
         val resolved = resolveSentBubble(null, userCustomized = true, userColor = dark)
         assertEquals(Color(0xFFFFFFFF), resolved.content)
+    }
+
+    @Test
+    fun `night window crossing midnight covers both sides`() {
+        // 21:00 → 07:00 跨午夜窗口
+        assertTrue(ThemePreferences.isWithinNightWindow(22 * 60, 21 * 60, 7 * 60))
+        assertTrue(ThemePreferences.isWithinNightWindow(2 * 60, 21 * 60, 7 * 60))
+        assertTrue(ThemePreferences.isWithinNightWindow(21 * 60, 21 * 60, 7 * 60))
+        assertFalse(ThemePreferences.isWithinNightWindow(7 * 60, 21 * 60, 7 * 60))
+        assertFalse(ThemePreferences.isWithinNightWindow(12 * 60, 21 * 60, 7 * 60))
+    }
+
+    @Test
+    fun `night window within same day`() {
+        // 09:00 → 17:00 同天窗口
+        assertTrue(ThemePreferences.isWithinNightWindow(10 * 60, 9 * 60, 17 * 60))
+        assertFalse(ThemePreferences.isWithinNightWindow(17 * 60, 9 * 60, 17 * 60))
+        assertFalse(ThemePreferences.isWithinNightWindow(8 * 60, 9 * 60, 17 * 60))
+    }
+
+    @Test
+    fun `theme mode normalize supports scheduled`() {
+        assertEquals("scheduled", ThemePreferences.normalize("scheduled"))
+        assertEquals("scheduled", ThemePreferences.normalize(" Scheduled "))
+        assertEquals("system", ThemePreferences.normalize("unknown"))
     }
 }

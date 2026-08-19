@@ -3171,7 +3171,78 @@ private fun ThemeRow(currentTheme: String, onThemeChange: (String) -> Unit) {
             ThemeChoiceChip(stringResource(R.string.general_theme_system), selected = currentTheme == "system", onClick = { onThemeChange("system") })
             ThemeChoiceChip(stringResource(R.string.general_theme_light), selected = currentTheme == "light", onClick = { onThemeChange("light") })
             ThemeChoiceChip(stringResource(R.string.general_theme_dark), selected = currentTheme == "dark", onClick = { onThemeChange("dark") })
+            ThemeChoiceChip(stringResource(R.string.general_theme_scheduled), selected = currentTheme == "scheduled", onClick = { onThemeChange("scheduled") })
         }
+        // 9.211：定时深色（TG 式）——仅 scheduled 模式显示时段设置
+        if (currentTheme == "scheduled") {
+            Spacer(modifier = Modifier.height(10.dp))
+            NightWindowRow()
+        }
+    }
+}
+
+/**
+ * 9.211：夜间时段选择行（开始/结束整点，支持跨午夜）。设备本地存储。
+ */
+@Composable
+private fun NightWindowRow() {
+    val context = LocalContext.current
+    val nightStart by com.maodouchat.util.ThemePreferences.nightStart.collectAsState()
+    val nightEnd by com.maodouchat.util.ThemePreferences.nightEnd.collectAsState()
+    var editing by remember { mutableStateOf<String?>(null) }
+    fun formatMinutes(minutes: Int): String = String.format("%02d:00", minutes / 60)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            stringResource(R.string.general_night_window_title),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        TextButton(onClick = { editing = "start" }) {
+            Text(formatMinutes(nightStart), color = MaterialTheme.colorScheme.primary)
+        }
+        Text("→", style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
+        TextButton(onClick = { editing = "end" }) {
+            Text(formatMinutes(nightEnd), color = MaterialTheme.colorScheme.primary)
+        }
+    }
+    if (editing != null) {
+        val isStart = editing == "start"
+        AlertDialog(
+            onDismissRequest = { editing = null },
+            title = {
+                Text(
+                    stringResource(if (isStart) R.string.general_night_start else R.string.general_night_end),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
+            text = {
+                Column(modifier = Modifier.height(280.dp).verticalScroll(rememberScrollState())) {
+                    for (hour in 0..23) {
+                        TextButton(
+                            onClick = {
+                                if (isStart) {
+                                    com.maodouchat.util.ThemePreferences.setNightWindow(context, hour * 60, nightEnd)
+                                } else {
+                                    com.maodouchat.util.ThemePreferences.setNightWindow(context, nightStart, hour * 60)
+                                }
+                                editing = null
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                String.format("%02d:00", hour),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { editing = null }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
+            }
+        )
     }
 }
 

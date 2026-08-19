@@ -160,6 +160,8 @@ class ClientPrefsRepository {
     private fun normalizeTheme(raw: String): String = when (raw.trim().lowercase()) {
         "light" -> "light"
         "dark" -> "dark"
+        // 9.211：定时深色模式透传（具体时段为设备本地设置，不随云端同步）
+        "scheduled" -> "scheduled"
         else -> "system"
     }
 

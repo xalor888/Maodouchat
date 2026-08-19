@@ -20,6 +20,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -69,6 +70,12 @@ val MaodouchatTypography = Typography(
 
 val MaodouchatShapes = Shapes(small = RoundedCornerShape(4.dp), medium = RoundedCornerShape(12.dp), large = RoundedCornerShape(18.dp), extraLarge = RoundedCornerShape(24.dp))
 
+/** 当前时刻的当日分钟数（0..1439）。 */
+private fun currentMinuteOfDay(): Int {
+    val cal = java.util.Calendar.getInstance()
+    return cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+}
+
 @Composable
 fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     // 用户主题偏好（general_settings + 云同步）：system / light / dark；可响应多端拉取
@@ -77,7 +84,24 @@ fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
     val themePref by ThemePreferences.mode.collectAsState()
     val themeStylePref by ThemePreferences.family.collectAsState()
     val accentPref by ThemePreferences.accent.collectAsState()
-    val useDark = when (themePref) { "dark" -> true; "light" -> false; else -> darkTheme }
+    // 9.211：定时深色——分钟级 ticker 驱动窗口边界自动切换（仅 scheduled 模式活跃）
+    val nightStart by ThemePreferences.nightStart.collectAsState()
+    val nightEnd by ThemePreferences.nightEnd.collectAsState()
+    var currentMinute by remember { mutableIntStateOf(currentMinuteOfDay()) }
+    LaunchedEffect(themePref) {
+        if (themePref == "scheduled") {
+            while (true) {
+                currentMinute = currentMinuteOfDay()
+                kotlinx.coroutines.delay(30_000L)
+            }
+        }
+    }
+    val useDark = when (themePref) {
+        "dark" -> true
+        "light" -> false
+        "scheduled" -> ThemePreferences.isWithinNightWindow(currentMinute, nightStart, nightEnd)
+        else -> darkTheme
+    }
     // Telegram 级主题风格：按家族 + 深浅解析完整绘制参数；强调色可覆盖主题默认 primary
     val paint = remember(themeStylePref, accentPref, useDark) {
         val base = resolveThemePaint(com.maodouchat.ui.theme.ThemeFamily.normalize(themeStylePref), useDark)

@@ -16,6 +16,11 @@ object ThemePreferences {
     private const val KEY_THEME = "theme_mode"
     private const val KEY_THEME_STYLE = "theme_style"
     private const val KEY_ACCENT = "accent_color"
+    // 9.211：定时深色（TG 式）——本地分钟数时段，默认 21:00 → 07:00
+    private const val KEY_NIGHT_START = "night_start_minutes"
+    private const val KEY_NIGHT_END = "night_end_minutes"
+    const val NIGHT_START_DEFAULT = 21 * 60
+    const val NIGHT_END_DEFAULT = 7 * 60
 
     @Volatile
     private var seeded = false
@@ -25,6 +30,10 @@ object ThemePreferences {
     val family: StateFlow<String> = _family.asStateFlow()
     private val _accent = MutableStateFlow("none")
     val accent: StateFlow<String> = _accent.asStateFlow()
+    private val _nightStart = MutableStateFlow(NIGHT_START_DEFAULT)
+    val nightStart: StateFlow<Int> = _nightStart.asStateFlow()
+    private val _nightEnd = MutableStateFlow(NIGHT_END_DEFAULT)
+    val nightEnd: StateFlow<Int> = _nightEnd.asStateFlow()
 
     private val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         if (key == null || key == KEY_THEME) {
@@ -36,6 +45,12 @@ object ThemePreferences {
         if (key == null || key == KEY_ACCENT) {
             _accent.value = normalizeAccent(prefs.getString(KEY_ACCENT, "none"))
         }
+        if (key == null || key == KEY_NIGHT_START) {
+            _nightStart.value = prefs.getInt(KEY_NIGHT_START, NIGHT_START_DEFAULT).coerceIn(0, 23 * 60 + 59)
+        }
+        if (key == null || key == KEY_NIGHT_END) {
+            _nightEnd.value = prefs.getInt(KEY_NIGHT_END, NIGHT_END_DEFAULT).coerceIn(0, 23 * 60 + 59)
+        }
     }
 
     fun ensureSeeded(context: Context) {
@@ -46,6 +61,8 @@ object ThemePreferences {
             _mode.value = normalize(prefs.getString(KEY_THEME, "system"))
             _family.value = normalizeStyle(prefs.getString(KEY_THEME_STYLE, "maodou"))
             _accent.value = normalizeAccent(prefs.getString(KEY_ACCENT, "none"))
+            _nightStart.value = prefs.getInt(KEY_NIGHT_START, NIGHT_START_DEFAULT).coerceIn(0, 23 * 60 + 59)
+            _nightEnd.value = prefs.getInt(KEY_NIGHT_END, NIGHT_END_DEFAULT).coerceIn(0, 23 * 60 + 59)
             prefs.registerOnSharedPreferenceChangeListener(listener)
             seeded = true
         }
@@ -70,6 +87,7 @@ object ThemePreferences {
     fun normalize(raw: String?): String = when (raw?.trim()?.lowercase()) {
         "light" -> "light"
         "dark" -> "dark"
+        "scheduled" -> "scheduled"
         else -> "system"
     }
 
@@ -114,4 +132,22 @@ object ThemePreferences {
         val id = raw?.trim()?.lowercase().orEmpty()
         return if (id == "none" || id == "blue" || id == "green" || id == "purple" || id == "orange" || id == "pink" || id == "red" || id == "teal") id else "none"
     }
+
+    fun setNightWindow(context: Context, startMinutes: Int, endMinutes: Int) {
+        ensureSeeded(context)
+        val s = startMinutes.coerceIn(0, 23 * 60 + 59)
+        val e = endMinutes.coerceIn(0, 23 * 60 + 59)
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_NIGHT_START, s)
+            .putInt(KEY_NIGHT_END, e)
+            .apply()
+        _nightStart.value = s
+        _nightEnd.value = e
+    }
+
+    /** 当前分钟数是否落在夜间窗口内（支持跨午夜窗口，如 21:00→07:00）。 */
+    fun isWithinNightWindow(currentMinute: Int, start: Int, end: Int): Boolean =
+        if (start <= end) currentMinute in start until end
+        else currentMinute >= start || currentMinute < end
 }

@@ -1916,6 +1916,10 @@
     <string name="general_theme_system">跟随系统</string>
     <string name="general_theme_light">浅色</string>
     <string name="general_theme_dark">深色</string>
+    <string name="general_theme_scheduled">定时</string>
+    <string name="general_night_window_title">夜间模式时段</string>
+    <string name="general_night_start">开始时间</string>
+    <string name="general_night_end">结束时间</string>
     <string name="general_theme_style_title">主题风格</string>
     <string name="general_theme_style_summary">当前：%1$s</string>
     <string name="general_theme_style_maodou">毛豆（默认）</string>
