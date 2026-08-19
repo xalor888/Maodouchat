@@ -50,6 +50,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.getValue
@@ -527,15 +528,26 @@ fun LoginScreen(
                         }
                     }
 
+                    // 9.204：第三方服务器模式下登录前明示当前服务器身份，避免误登
+                    val serverIdentity by com.maodouchat.network.ServerIdentity.current.collectAsState()
+                    val serverLabel = if (com.maodouchat.network.ApiConfig.isUsingRuntimeServer) {
+                        val host = runCatching { java.net.URI(com.maodouchat.network.ApiConfig.BASE_URL).host }
+                            .getOrNull() ?: com.maodouchat.network.ApiConfig.BASE_URL
+                        serverIdentity?.name?.takeIf(String::isNotBlank)?.let { "$it · $host" } ?: host
+                    } else {
+                        stringResource(R.string.settings_server)
+                    }
                     TextButton(
                         onClick = onOpenServer,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            stringResource(R.string.settings_server),
+                            serverLabel,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                     }
                 }
