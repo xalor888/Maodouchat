@@ -77,6 +77,7 @@ curl https://chat.example.com/health/ready
 - **运营公告**：写入 `SERVER_ANNOUNCEMENT` 环境变量，或把内容放进存储目录的
   `server-announcement.txt`（免重启即时生效），所有连接此服务器的用户可见
 - **邀请制小站**：`ALLOW_REGISTRATION=false` 关闭公开注册
+- **去掉官网**：`PUBLIC_SITE=false` 后首页只显示你的服务器名片，不再展示毛豆官网
 - **AI 能力**：配置 `OPENAI_API_KEY` / `OPENAI_BASE_URL`（兼容任意 OpenAI 协议中转站）
   即可开启翻译、总结、语义搜索等 AI 功能
 - **管理后台**：`https://chat.example.com/<ADMIN_PATH>/` 内容审核、风控、审计导出

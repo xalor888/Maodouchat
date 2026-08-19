@@ -1143,6 +1143,19 @@ put("status", "ok")
         // ─── 官网静态页面（无需认证） ─────────────
 
         get("/") {
+            // 9.206：第三方部署可关闭官网（PUBLIC_SITE=false）——首页改为极简服务器名片
+            if (!com.maodouchat.server.config.ServerConfig.publicSiteEnabled) {
+                fun esc(value: String): String = value
+                    .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                    .replace("\"", "&quot;").replace("'", "&#39;")
+                val name = esc(System.getenv("SERVER_NAME")?.takeIf { it.isNotBlank() } ?: "Maodouchat Server")
+                val desc = esc(System.getenv("SERVER_DESCRIPTION").orEmpty())
+                call.respondText(
+                    """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="robots" content="noindex"/><title>$name</title></head><body style="font-family:system-ui,sans-serif;display:flex;min-height:100vh;margin:0;align-items:center;justify-content:center;background:#0f1419;color:#e8eaed"><div style="text-align:center;max-width:520px;padding:24px"><h1 style="font-size:26px;margin:0 0 8px">$name</h1><p style="color:#9aa1ab;margin:0 0 16px">$desc</p><p style="color:#6b7077;font-size:13px">Powered by Maodouchat Server</p></div></body></html>""",
+                    ContentType.Text.Html
+                )
+                return@get
+            }
             call.respondPublicHtml("index")
         }
         get("/assets/site.css") {

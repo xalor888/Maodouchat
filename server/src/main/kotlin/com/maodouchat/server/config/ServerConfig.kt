@@ -83,6 +83,12 @@ object ServerConfig {
     /** Whether to allow new user registration. Set to false for invite-only deployments. */
     val allowRegistration: Boolean get() = env("ALLOW_REGISTRATION", "true").toBooleanStrictOrNull() ?: true
 
+    /**
+     * 9.206：第三方部署可关闭官网首页（PUBLIC_SITE=false）——“/” 改为展示极简服务器名片，
+     * 自建服务器无需也不应替运营方展示毛豆官网。
+     */
+    val publicSiteEnabled: Boolean get() = env("PUBLIC_SITE", "true").toBooleanStrictOrNull() ?: true
+
     val openAiApiKey: String get() = env("OPENAI_API_KEY", "")
     val openAiBaseUrl: String get() = normalizeHttpScheme(env("OPENAI_BASE_URL", "https://api.openai.com/v1"))
     /**
