@@ -569,7 +569,7 @@ fun NearbyScreen(
                     if (state.items.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            stringResource(R.string.explore_nearby_count, state.items.size),
+                            pluralStringResource(R.plurals.explore_nearby_count, state.items.size, state.items.size),
                             style = MaterialTheme.typography.labelSmall,
                             color = LocalChatPalette.current.textHint
                         )

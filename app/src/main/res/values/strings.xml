@@ -105,7 +105,9 @@
     <string name="chat_load_failed_retry">重试</string>
     <string name="chat_search_no_results">未找到匹配消息</string>
     <string name="missed_calls_with_unread">%1$d 个未接来电（%2$d 未读）</string>
-    <string name="missed_calls">%1$d 个未接来电</string>
+    <plurals name="missed_calls">
+        <item quantity="other">%1$d 个未接来电</item>
+    </plurals>
     <string name="call_video">视频通话</string>
     <string name="call_audio">语音通话</string>
     <string name="time_just_now">刚刚</string>
@@ -120,7 +122,9 @@
     <string name="contacts_new_group_search_empty">无匹配联系人（可按姓名/ID/邮箱搜索）</string>
     <string name="contacts_notice">提示</string>
     <string name="contacts_searching">正在搜索“%1$s”…</string>
-    <string name="contacts_search_results">搜索“%1$s”：%2$d 个结果</string>
+    <plurals name="contacts_search_results">
+        <item quantity="other">搜索“%1$s”：%2$d 个结果</item>
+    </plurals>
     <string name="contacts_no_matching_users">没有找到匹配的用户</string>
     <string name="contacts_group_name">群聊名称</string>
     <string name="contacts_select_members">选择群成员（%1$d）</string>
@@ -233,7 +237,9 @@
     <string name="explore_nearby_remaining">约 %1$d 分钟后自动隐藏</string>
     <string name="explore_nearby_remaining_soon">即将自动隐藏</string>
     <string name="explore_nearby_updated">位置更新 · %1$s</string>
-    <string name="explore_nearby_count">附近 %1$d 人</string>
+    <plurals name="explore_nearby_count">
+        <item quantity="other">附近 %1$d 人</item>
+    </plurals>
     <string name="disappear_list_indicator">阅后即焚已开启</string>
     <string name="explore_moments_empty">还没有公开动态，先去发现页发一条吧</string>
     <string name="explore_author_home">主页</string>
@@ -261,7 +267,9 @@
     <string name="public_profile_share_chooser">分享个人主页</string>
     <string name="public_profile_share_text">来毛豆聊天找我！\n%1$s (%2$s)</string>
     <string name="public_profile_retry">重试</string>
-    <string name="explore_author_post_count">共 %1$d 条动态</string>
+    <plurals name="explore_author_post_count">
+        <item quantity="other">共 %1$d 条动态</item>
+    </plurals>
     <string name="explore_author_search_hint">搜索作者动态正文</string>
     <string name="explore_author_search_empty">没有匹配的动态</string>
     <string name="explore_other_person">TA</string>

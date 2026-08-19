@@ -107,7 +107,10 @@
     <string name="chat_load_failed_retry">Retry</string>
     <string name="chat_search_no_results">No matching messages</string>
     <string name="missed_calls_with_unread">%1$d missed calls (%2$d unread)</string>
-    <string name="missed_calls">%1$d missed calls</string>
+    <plurals name="missed_calls">
+        <item quantity="one">%1$d missed call</item>
+        <item quantity="other">%1$d missed calls</item>
+    </plurals>
     <string name="call_video">Video call</string>
     <string name="call_audio">Voice call</string>
     <string name="time_just_now">Just now</string>
@@ -122,7 +125,10 @@
     <string name="contacts_new_group_search_empty">No matching contacts (search name / ID / email)</string>
     <string name="contacts_notice">Notice</string>
     <string name="contacts_searching">Searching for “%1$s”…</string>
-    <string name="contacts_search_results">%2$d results for “%1$s”</string>
+    <plurals name="contacts_search_results">
+        <item quantity="one">%2$d result for “%1$s”</item>
+        <item quantity="other">%2$d results for “%1$s”</item>
+    </plurals>
     <string name="contacts_no_matching_users">No matching users</string>
     <string name="contacts_group_name">Group name</string>
     <string name="contacts_select_members">Select members (%1$d)</string>
@@ -235,7 +241,10 @@
     <string name="explore_nearby_remaining">Hides in about %1$d min</string>
     <string name="explore_nearby_remaining_soon">Hiding soon</string>
     <string name="explore_nearby_updated">Updated · %1$s</string>
-    <string name="explore_nearby_count">%1$d nearby</string>
+    <plurals name="explore_nearby_count">
+        <item quantity="one">%1$d nearby</item>
+        <item quantity="other">%1$d nearby</item>
+    </plurals>
     <string name="disappear_list_indicator">Disappearing messages on</string>
     <string name="explore_moments_empty">No public posts yet. Create one from Explore.</string>
     <string name="explore_author_home">Profile</string>
@@ -263,7 +272,10 @@
     <string name="public_profile_share_chooser">Share profile</string>
     <string name="public_profile_share_text">Say hi on Maodouchat!\n%1$s (%2$s)</string>
     <string name="public_profile_retry">Retry</string>
-    <string name="explore_author_post_count">%1$d posts</string>
+    <plurals name="explore_author_post_count">
+        <item quantity="one">%1$d post</item>
+        <item quantity="other">%1$d posts</item>
+    </plurals>
     <string name="explore_author_search_hint">Search this author\u2019s posts</string>
     <string name="explore_author_search_empty">No matching posts</string>
     <string name="explore_other_person">User</string>

@@ -68,6 +68,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -619,7 +620,7 @@ private fun SearchResultList(
     val motion = LocalMotionSettings.current
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = if (isSearching) stringResource(R.string.contacts_searching, query) else stringResource(R.string.contacts_search_results, query, results.size),
+            text = if (isSearching) stringResource(R.string.contacts_searching, query) else pluralStringResource(R.plurals.contacts_search_results, results.size, query, results.size),
             style = MaterialTheme.typography.labelMedium,
             color = LocalChatPalette.current.textSecondary,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)

@@ -555,7 +555,7 @@ fun AuthorProfileScreen(
                 // 1.204：动态总数
                 item(key = "author_post_count", contentType = "count") {
                     Text(
-                        stringResource(R.string.explore_author_post_count, state.posts.size),
+                        pluralStringResource(R.plurals.explore_author_post_count, state.posts.size, state.posts.size),
                         style = MaterialTheme.typography.labelMedium,
                         color = LocalChatPalette.current.textSecondary,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp)
