@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F8F9FA"
+    android:background="@color/widget_bg"
     android:padding="10dp">
 
     <!-- 头部：应用名 + 未读总数 -->
@@ -25,7 +25,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:text="@string/widget_header_title"
-            android:textColor="#FF191C1D"
+            android:textColor="@color/widget_text_primary"
             android:textSize="15sp"
             android:textStyle="bold" />
 
@@ -39,8 +39,8 @@
             android:paddingEnd="7dp"
             android:paddingTop="2dp"
             android:paddingBottom="2dp"
-            android:background="#FFE53935"
-            android:textColor="#FFFFFFFF"
+            android:background="@color/widget_badge"
+            android:textColor="@color/widget_on_badge"
             android:textSize="11sp"
             android:textStyle="bold"
             android:visibility="gone" />
@@ -63,6 +63,6 @@
         android:paddingTop="10dp"
         android:paddingBottom="10dp"
         android:text="@string/widget_empty"
-        android:textColor="#FF8A8F99"
+        android:textColor="@color/widget_text_secondary"
         android:textSize="12sp" />
 </LinearLayout>

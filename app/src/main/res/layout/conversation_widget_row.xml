@@ -8,7 +8,7 @@
     android:layout_height="wrap_content"
     android:layout_marginTop="2dp"
     android:layout_marginBottom="2dp"
-    android:background="#FFFFFFFF"
+    android:background="@color/widget_row_bg"
     android:clickable="true"
     android:focusable="true"
     android:paddingStart="8dp"
@@ -35,7 +35,7 @@
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="#FF191C1D"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="14sp"
                 android:textStyle="bold" />
 
@@ -46,8 +46,8 @@
                 android:layout_marginStart="6dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="#FF8A8F99"
-                android:textSize="10sp" />
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="11sp" />
         </LinearLayout>
 
         <TextView
@@ -57,7 +57,7 @@
             android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="#FF5C5F66"
+            android:textColor="@color/widget_text_tertiary"
             android:textSize="12sp" />
     </LinearLayout>
 
@@ -77,7 +77,7 @@
             android:paddingTop="3dp"
             android:paddingBottom="3dp"
             android:text="@string/widget_reply"
-            android:textColor="#FF007AFF"
+            android:textColor="@color/widget_accent"
             android:textSize="11sp"
             android:clickable="true"
             android:focusable="true" />
@@ -91,7 +91,7 @@
             android:paddingTop="3dp"
             android:paddingBottom="3dp"
             android:text="@string/widget_mark_read"
-            android:textColor="#FF8A8F99"
+            android:textColor="@color/widget_text_secondary"
             android:textSize="11sp"
             android:clickable="true"
             android:focusable="true" />
@@ -111,9 +111,9 @@
         android:paddingEnd="5dp"
         android:paddingTop="1dp"
         android:paddingBottom="1dp"
-        android:background="#FFE53935"
-        android:textColor="#FFFFFFFF"
-        android:textSize="10sp"
+        android:background="@color/widget_badge"
+        android:textColor="@color/widget_on_badge"
+        android:textSize="11sp"
         android:textStyle="bold"
         android:visibility="gone" />
 </FrameLayout>

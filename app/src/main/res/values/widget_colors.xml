@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 9.214：会话小组件日夜色资源（此前布局硬编码浅色，深色模式下小组件不适配） -->
+<resources>
+    <color name="widget_bg">#F8F9FA</color>
+    <color name="widget_row_bg">#FFFFFF</color>
+    <color name="widget_text_primary">#191C1D</color>
+    <color name="widget_text_secondary">#8A8F99</color>
+    <color name="widget_text_tertiary">#5C5F66</color>
+    <color name="widget_accent">#007AFF</color>
+    <color name="widget_badge">#E53935</color>
+    <color name="widget_on_badge">#FFFFFF</color>
+</resources>

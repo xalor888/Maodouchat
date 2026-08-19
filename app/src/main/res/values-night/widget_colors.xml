@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 9.214：会话小组件深色变体（values-night 自动切换） -->
+<resources>
+    <color name="widget_bg">#1C1C1E</color>
+    <color name="widget_row_bg">#2C2C2E</color>
+    <color name="widget_text_primary">#E4E6EA</color>
+    <color name="widget_text_secondary">#9AA1AB</color>
+    <color name="widget_text_tertiary">#B0B4BB</color>
+    <color name="widget_accent">#0A84FF</color>
+    <color name="widget_badge">#FF453A</color>
+    <color name="widget_on_badge">#FFFFFF</color>
+</resources>
