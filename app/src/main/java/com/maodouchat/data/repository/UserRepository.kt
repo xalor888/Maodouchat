@@ -36,8 +36,13 @@ class UserRepository(private val userDao: UserDao) {
         // 合并时保留本地已有的 avatar/email/在线态/状态：聊天列表同步下发的参与者
         // UserDto 通常不含这些字段（null/空），若直接覆盖会把已缓存的头像、实时在线态清掉。
         // 仅当入站确实携带非空值时才更新（全量资料刷新路径不受影响）。
+        // 9.213：批量预查替代逐条 getUserById（N+1），分批 500 规避绑定变量上限。
+        val existingById = HashMap<String, com.maodouchat.data.local.entity.UserEntity>(users.size)
+        users.map { it.id }.chunked(500).forEach { chunk ->
+            userDao.getUsersByIds(chunk).forEach { existingById[it.id] = it }
+        }
         val merged = users.map { incoming ->
-            val existing = userDao.getUserById(incoming.id)
+            val existing = existingById[incoming.id]
             val nick = incoming.nickname?.takeIf { it.isNotBlank() } ?: existing?.nickname
             incoming.copy(
                 nickname = nick,
