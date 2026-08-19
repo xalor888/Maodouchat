@@ -583,7 +583,7 @@ fun NearbyScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
-                    color = UnreadRed,
+                    color = LocalChatPalette.current.unreadRed,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -1459,11 +1459,11 @@ fun PostDetailScreen(
                             Text(stringResource(R.string.explore_edit_comment), modifier = Modifier.fillMaxWidth())
                         }
                         TextButton(onClick = { viewModel.deleteComment(target); commentMenuFor = null }, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(R.string.explore_delete_comment), modifier = Modifier.fillMaxWidth(), color = UnreadRed)
+                            Text(stringResource(R.string.explore_delete_comment), modifier = Modifier.fillMaxWidth(), color = LocalChatPalette.current.unreadRed)
                         }
                     } else {
                         TextButton(onClick = { viewModel.reportComment(target); commentMenuFor = null }, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(R.string.explore_report_comment), modifier = Modifier.fillMaxWidth(), color = UnreadRed)
+                            Text(stringResource(R.string.explore_report_comment), modifier = Modifier.fillMaxWidth(), color = LocalChatPalette.current.unreadRed)
                         }
                     }
                 }

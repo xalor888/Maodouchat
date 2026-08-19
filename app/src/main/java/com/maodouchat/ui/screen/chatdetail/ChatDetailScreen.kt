@@ -1223,7 +1223,7 @@ fun ChatDetailScreen(
                                 else TextButton(
                                     enabled = !state.isUpdatingGroup,
                                     onClick = { viewModel.removeGroupMember(member.id) }
-                                ) { Text(stringResource(R.string.chat_remove), color = UnreadRed) }
+                                ) { Text(stringResource(R.string.chat_remove), color = LocalChatPalette.current.unreadRed) }
                             }
                         }
                     }
@@ -1541,7 +1541,7 @@ fun ChatDetailScreen(
                                 Toast.makeText(context, context.getString(R.string.chat_silent_until_cleared), Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.chat_silent_until_clear), color = UnreadRed) }
+                        ) { Text(stringResource(R.string.chat_silent_until_clear), color = LocalChatPalette.current.unreadRed) }
                     }
                 }
             },
@@ -1596,7 +1596,7 @@ fun ChatDetailScreen(
                                     viewModel.cancelReminder(reminder.id)
                                     reminders = reminders.filterNot { it.id == reminder.id }
                                 }) {
-                                    Text(stringResource(R.string.common_delete), color = UnreadRed)
+                                    Text(stringResource(R.string.common_delete), color = LocalChatPalette.current.unreadRed)
                                 }
                             }
                         }
@@ -1608,7 +1608,7 @@ fun ChatDetailScreen(
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(stringResource(R.string.message_reminder_clear_all), color = UnreadRed, modifier = Modifier.fillMaxWidth())
+                            Text(stringResource(R.string.message_reminder_clear_all), color = LocalChatPalette.current.unreadRed, modifier = Modifier.fillMaxWidth())
                         }
                     }
                 }
@@ -1711,7 +1711,7 @@ fun ChatDetailScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     setLockError?.let {
-                        Text(it, color = UnreadRed, style = MaterialTheme.typography.bodySmall)
+                        Text(it, color = LocalChatPalette.current.unreadRed, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             },
@@ -1841,7 +1841,7 @@ fun ChatDetailScreen(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(R.string.chat_report_user), color = UnreadRed)
+                        Text(stringResource(R.string.chat_report_user), color = LocalChatPalette.current.unreadRed)
                     }
                 }
             },
@@ -2120,7 +2120,7 @@ if (showGroupCallTypeDialog) {
                         showForgotChatLockConfirm = false
                         viewModel.forgotChatLockAndClearLocal()
                     }) {
-                        Text(stringResource(R.string.common_clear), color = UnreadRed)
+                        Text(stringResource(R.string.common_clear), color = LocalChatPalette.current.unreadRed)
                     }
                 },
                 dismissButton = {
@@ -2165,7 +2165,7 @@ if (showGroupCallTypeDialog) {
                         }
                     )
                 }) {
-                    Text(stringResource(R.string.common_clear), color = UnreadRed)
+                    Text(stringResource(R.string.common_clear), color = LocalChatPalette.current.unreadRed)
                 }
             },
             dismissButton = {
@@ -2433,7 +2433,7 @@ if (showGroupCallTypeDialog) {
                             )
                             // 0.83：清空本机聊天记录
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.chat_clear_history), color = UnreadRed) },
+                                text = { Text(stringResource(R.string.chat_clear_history), color = LocalChatPalette.current.unreadRed) },
                                 onClick = { showChatOverflow = false; showClearHistoryConfirm = true }
                             )
                             if (state.chatIsGroup) {
@@ -3604,7 +3604,7 @@ DropdownMenuItem(
                                     Text(
                                         stringResource(R.string.chat_unread_divider),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = UnreadRed,
+                                        color = LocalChatPalette.current.unreadRed,
                                         modifier = Modifier.padding(horizontal = 8.dp)
                                     )
                                     Box(modifier = Modifier.width(24.dp).height(1.dp).background(UnreadRed.copy(alpha = 0.6f)))
@@ -4203,7 +4203,7 @@ DropdownMenuItem(
                     showBatchDeleteConfirm = false
                     // 1.50：删除完成提示
                     Toast.makeText(context, context.getString(R.string.chat_batch_delete_done, cappedBatch.size), Toast.LENGTH_SHORT).show()
-                }) { Text(stringResource(R.string.chat_delete), color = UnreadRed) }
+                }) { Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed) }
             },
             dismissButton = {
                 TextButton(onClick = { showBatchDeleteConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
@@ -4613,7 +4613,7 @@ DropdownMenuItem(
                                 messageToActions = null
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.chat_revoke_with_limit, revokeRemainingMin), modifier = Modifier.fillMaxWidth(), color = UnreadRed) }
+                        ) { Text(stringResource(R.string.chat_revoke_with_limit, revokeRemainingMin), modifier = Modifier.fillMaxWidth(), color = LocalChatPalette.current.unreadRed) }
                     }
                     if (!isOwn && msg.type !in setOf(MessageType.SK_DIST, MessageType.SYSTEM, MessageType.REVOKED)) {
                         TextButton(
@@ -4622,7 +4622,7 @@ DropdownMenuItem(
                                 messageToActions = null
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.chat_report), modifier = Modifier.fillMaxWidth(), color = UnreadRed) }
+                        ) { Text(stringResource(R.string.chat_report), modifier = Modifier.fillMaxWidth(), color = LocalChatPalette.current.unreadRed) }
                     }
                     TextButton(
                         onClick = {
@@ -4630,7 +4630,7 @@ DropdownMenuItem(
                             messageToActions = null
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text(stringResource(R.string.chat_delete), modifier = Modifier.fillMaxWidth(), color = UnreadRed) }
+                    ) { Text(stringResource(R.string.chat_delete), modifier = Modifier.fillMaxWidth(), color = LocalChatPalette.current.unreadRed) }
                     TextButton(onClick = { messageToActions = null }, modifier = Modifier.fillMaxWidth()) {
                         Text(stringResource(R.string.common_cancel), modifier = Modifier.fillMaxWidth(), color = LocalChatPalette.current.textSecondary)
                     }
@@ -4849,13 +4849,13 @@ DropdownMenuItem(
                         if (totalCount > readCount) {
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = UnreadRed.copy(alpha = 0.10f),
+                                color = LocalChatPalette.current.unreadRed.copy(alpha = 0.10f),
                                 modifier = Modifier.padding(start = 6.dp)
                             ) {
                                 Text(
                                     stringResource(R.string.chat_read_details_unread, totalCount - readCount),
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = UnreadRed,
+                                    color = LocalChatPalette.current.unreadRed,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
@@ -4985,7 +4985,7 @@ DropdownMenuItem(
                 TextButton(onClick = {
                     startParticleEffect(msg, ParticleAction.REVOKE)
                     messageToRevoke = null
-                }) { Text(stringResource(R.string.chat_revoke_with_limit, revokeConfirmRemainingMin), color = UnreadRed) }
+                }) { Text(stringResource(R.string.chat_revoke_with_limit, revokeConfirmRemainingMin), color = LocalChatPalette.current.unreadRed) }
             },
             dismissButton = { TextButton(onClick = { messageToRevoke = null }) { Text(stringResource(R.string.common_cancel)) } }
         )
@@ -5007,7 +5007,7 @@ DropdownMenuItem(
                     TextButton(onClick = {
                         startParticleEffect(msg, ParticleAction.DELETE)
                         messageToDelete = null
-                    }) { Text(stringResource(R.string.chat_delete), color = UnreadRed) }
+                    }) { Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed) }
                 } else {
                     TextButton(onClick = { messageToDelete = null }) { Text(stringResource(R.string.chat_acknowledge)) }
                 }
@@ -5075,12 +5075,12 @@ DropdownMenuItem(
                             TextButton(onClick = {
                                 messageToRevoke = msg
                                 messageToCopy = null
-                            }) { Text(stringResource(R.string.chat_revoke), color = UnreadRed) }
+                            }) { Text(stringResource(R.string.chat_revoke), color = LocalChatPalette.current.unreadRed) }
                         }
                         TextButton(onClick = {
                             startParticleEffect(msg, ParticleAction.DELETE)
                             messageToCopy = null
-                        }) { Text(stringResource(R.string.chat_delete), color = UnreadRed) }
+                        }) { Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed) }
                     }
                 } else {
                     TextButton(onClick = { messageToCopy = null }) { Text(stringResource(R.string.common_cancel)) }
@@ -5376,7 +5376,7 @@ DropdownMenuItem(
                 TextButton(onClick = {
                     startParticleEffect(msg, ParticleAction.DELETE)
                     messageToRetry = null
-                }) { Text(stringResource(R.string.chat_delete), color = UnreadRed) }
+                }) { Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed) }
             }
         )
     }
@@ -5509,7 +5509,7 @@ DropdownMenuItem(
                 TextButton(onClick = {
                     showClearHistoryConfirm = false
                     viewModel.clearLocalChatHistory()
-                }) { Text(stringResource(R.string.chat_clear_history_yes), color = UnreadRed) }
+                }) { Text(stringResource(R.string.chat_clear_history_yes), color = LocalChatPalette.current.unreadRed) }
             },
             dismissButton = {
                 TextButton(onClick = { showClearHistoryConfirm = false }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
@@ -6297,7 +6297,7 @@ private fun ScheduledMessagesBanner(
                     Text(stringResource(R.string.schedule_reschedule), color = MaterialTheme.colorScheme.primary)
                 }
                 TextButton(onClick = { onCancel(item.id) }) {
-                    Text(stringResource(R.string.schedule_cancel_one), color = UnreadRed)
+                    Text(stringResource(R.string.schedule_cancel_one), color = LocalChatPalette.current.unreadRed)
                 }
             }
         }
@@ -6342,7 +6342,7 @@ private fun ScheduledMessagesListSheet(
             // 1.174：全部取消
             if (items.isNotEmpty()) {
                 TextButton(onClick = { showCancelAllConfirm = true }) {
-                    Text(stringResource(R.string.schedule_cancel_all), color = UnreadRed)
+                    Text(stringResource(R.string.schedule_cancel_all), color = LocalChatPalette.current.unreadRed)
                 }
             }
             if (items.size >= 4) {
@@ -6414,10 +6414,10 @@ private fun ScheduledMessagesListSheet(
                                 Text(stringResource(R.string.schedule_send_now), color = MaterialTheme.colorScheme.primary)
                             }
                             TextButton(onClick = { onCancel(item.id) }) {
-                                Text(stringResource(R.string.schedule_cancel_one), color = UnreadRed)
+                                Text(stringResource(R.string.schedule_cancel_one), color = LocalChatPalette.current.unreadRed)
                             }
                         }
-                        HorizontalDivider(thickness = 0.5.dp, color = Divider)
+                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider)
                     }
                 }
             }
@@ -6439,7 +6439,7 @@ private fun ScheduledMessagesListSheet(
                 TextButton(onClick = {
                     showCancelAllConfirm = false
                     onCancelAll()
-                }) { Text(stringResource(R.string.chat_clear_history_yes), color = UnreadRed) }
+                }) { Text(stringResource(R.string.chat_clear_history_yes), color = LocalChatPalette.current.unreadRed) }
             },
             dismissButton = {
                 TextButton(onClick = { showCancelAllConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
@@ -6918,7 +6918,7 @@ private fun ChatQuietHoursDialog(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(R.string.chat_quiet_hours_clear), color = UnreadRed, modifier = Modifier.fillMaxWidth())
+                        Text(stringResource(R.string.chat_quiet_hours_clear), color = LocalChatPalette.current.unreadRed, modifier = Modifier.fillMaxWidth())
                     }
                 }
                 Text(
@@ -7206,11 +7206,11 @@ private fun SecurityWarningBanner(
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
-        Icon(Icons.Outlined.Security, contentDescription = null, tint = UnreadRed, modifier = Modifier.size(20.dp))
+        Icon(Icons.Outlined.Security, contentDescription = null, tint = LocalChatPalette.current.unreadRed, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             warning,
-            color = UnreadRed,
+            color = LocalChatPalette.current.unreadRed,
             style = if (sticky) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
             modifier = Modifier.weight(1f)
         )
@@ -7368,15 +7368,15 @@ private fun SafetyCodeDialog(
         title = { Text(stringResource(R.string.chat_safety_title, contactName)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                warning?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = UnreadRed) }
+                warning?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.unreadRed) }
                 if (sticky) {
                     Text(
                         stringResource(R.string.chat_safety_changed_sticky_hint),
                         style = MaterialTheme.typography.bodySmall,
-                        color = UnreadRed
+                        color = LocalChatPalette.current.unreadRed
                     )
                 }
-                deviceSafetyWarning?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = UnreadRed) }
+                deviceSafetyWarning?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.unreadRed) }
                 if (isLoadingDeviceSafety) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
@@ -8173,7 +8173,7 @@ private fun ConversationProfileDialog(
         text = {
             when {
                 loading -> Text(stringResource(R.string.chat_ai_conversation_profile_loading), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
-                failed -> Text(stringResource(R.string.chat_ai_conversation_profile_failed), style = MaterialTheme.typography.bodyMedium, color = UnreadRed)
+                failed -> Text(stringResource(R.string.chat_ai_conversation_profile_failed), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.unreadRed)
                 profile == null -> Text(stringResource(R.string.chat_ai_profile_no_data), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
                 else -> Column(
                     modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
@@ -8284,8 +8284,8 @@ private fun WeeklyReportDialog(
         text = {
             when {
                 loading -> Text(stringResource(R.string.chat_ai_weekly_report_loading), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
-                failed -> Text(stringResource(R.string.chat_ai_weekly_report_failed), style = MaterialTheme.typography.bodyMedium, color = UnreadRed)
-                report == null -> Text(stringResource(R.string.chat_ai_weekly_report_failed), style = MaterialTheme.typography.bodyMedium, color = UnreadRed)
+                failed -> Text(stringResource(R.string.chat_ai_weekly_report_failed), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.unreadRed)
+                report == null -> Text(stringResource(R.string.chat_ai_weekly_report_failed), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.unreadRed)
                 else -> Column(
                     modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -8336,7 +8336,7 @@ private fun MessageClassifyDialog(
         text = {
             when {
                 loading -> Text(stringResource(R.string.ai_enhance_classify_hint), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
-                failed -> Text(stringResource(R.string.ai_enhance_classify_failed), style = MaterialTheme.typography.bodyMedium, color = UnreadRed)
+                failed -> Text(stringResource(R.string.ai_enhance_classify_failed), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.unreadRed)
                 categories.isEmpty() -> Text(stringResource(R.string.ai_enhance_classify_empty), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
                 else -> Column(
                     modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
@@ -8608,9 +8608,9 @@ private fun RecordingIndicator(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(8.dp).graphicsLayer { this.alpha = alpha }.background(UnreadRed, CircleShape))
             Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.chat_recording), color = UnreadRed, style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.chat_recording), color = LocalChatPalette.current.unreadRed, style = MaterialTheme.typography.bodyMedium)
             Spacer(modifier = Modifier.weight(1f))
-            Text(durationLabel, color = UnreadRed, style = MaterialTheme.typography.labelLarge)
+            Text(durationLabel, color = LocalChatPalette.current.unreadRed, style = MaterialTheme.typography.labelLarge)
         }
         Spacer(modifier = Modifier.height(8.dp))
         RecordingWaveformRow(waveform = waveform, liveAmplitude = amplitude)
@@ -8921,12 +8921,12 @@ private fun ChatInputBar(
                         }
                     }
                     else -> {
-                        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = UnreadRed, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = LocalChatPalette.current.unreadRed, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             aiStreamStatusText(aiReplyStreamErrorCode),
                             style = MaterialTheme.typography.labelMedium,
-                            color = UnreadRed,
+                            color = LocalChatPalette.current.unreadRed,
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(onClick = onRetryAiReplyStream, modifier = Modifier.size(36.dp)) {
@@ -9864,7 +9864,7 @@ private fun QuickPhrasesDialog(
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (error != null) {
-                        Text(error.orEmpty(), color = UnreadRed, style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+                        Text(error.orEmpty(), color = LocalChatPalette.current.unreadRed, style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
                     } else {
                         Spacer(modifier = Modifier.weight(1f))
                     }

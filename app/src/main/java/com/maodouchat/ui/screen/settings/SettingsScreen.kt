@@ -240,38 +240,38 @@ fun SettingsScreen(
                 AnimatedVisibility(visible = animPlayed, enter = slideInVertically(tween(motion.duration(MotionTokens.Emphasized), motion.duration(80))) + fadeIn(tween(motion.duration(MotionTokens.Emphasized), motion.duration(80)))) {
                     SettingsGroup {
                         SettingsItem(icon = Icons.Outlined.Notifications, title = stringResource(R.string.settings_notifications), onClick = onOpenNotifications)
-                        HorizontalDivider(thickness = 0.5.dp, color = Divider, modifier = Modifier.padding(start = 56.dp))
+                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
                         SettingsItem(icon = Icons.Outlined.PrivacyTip, title = stringResource(R.string.settings_privacy), onClick = { viewModel.openPrivacy() })
-                        HorizontalDivider(thickness = 0.5.dp, color = Divider, modifier = Modifier.padding(start = 56.dp))
+                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
                         SettingsItem(icon = Icons.Outlined.Security, title = stringResource(R.string.settings_blocked_users), onClick = { viewModel.openBlockedUsers() })
-                        HorizontalDivider(thickness = 0.5.dp, color = Divider, modifier = Modifier.padding(start = 56.dp))
+                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
                         SettingsItem(icon = Icons.Outlined.AutoAwesome, title = stringResource(R.string.settings_ai_privacy), onClick = onOpenAiPrivacy)
-                        HorizontalDivider(thickness = 0.5.dp, color = Divider, modifier = Modifier.padding(start = 56.dp))
+                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
                         if (state.isModerator) {
                             SettingsItem(icon = Icons.Outlined.Security, title = stringResource(R.string.settings_moderation), onClick = onOpenModeration)
-                            HorizontalDivider(thickness = 0.5.dp, color = Divider, modifier = Modifier.padding(start = 56.dp))
+                            HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
                         }
                         SettingsItem(icon = Icons.Outlined.Brightness6, title = stringResource(R.string.settings_general), onClick = onOpenGeneral)
-                        HorizontalDivider(thickness = 0.5.dp, color = Divider, modifier = Modifier.padding(start = 56.dp))
+                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
                         SettingsItem(
                             icon = Icons.Outlined.StarOutline,
                             title = stringResource(R.string.settings_starred_messages),
                             onClick = onOpenStarredMessages
                         )
-                        HorizontalDivider(thickness = 0.5.dp, color = Divider, modifier = Modifier.padding(start = 56.dp))
+                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
                         SettingsItem(
                             icon = Icons.Outlined.VisibilityOff,
                             title = stringResource(R.string.settings_fake_chat),
                             onClick = onOpenFakeChat
                         )
-                        HorizontalDivider(thickness = 0.5.dp, color = Divider, modifier = Modifier.padding(start = 56.dp))
+                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
                         SettingsItem(
                             icon = Icons.Outlined.ChatBubbleOutline,
                             title = stringResource(R.string.settings_floating_ball),
                             subtitle = stringResource(R.string.settings_floating_ball_subtitle),
                             onClick = { viewModel.toggleFloatingBall() }
                         )
-                        HorizontalDivider(thickness = 0.5.dp, color = Divider, modifier = Modifier.padding(start = 56.dp))
+                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
                         SettingsItem(
                             icon = Icons.Outlined.Public,
                             title = stringResource(R.string.settings_server),
@@ -286,7 +286,7 @@ fun SettingsScreen(
                 AnimatedVisibility(visible = animPlayed, enter = slideInVertically(tween(motion.duration(MotionTokens.Emphasized), motion.duration(100))) + fadeIn(tween(motion.duration(MotionTokens.Emphasized), motion.duration(100)))) {
                     SettingsGroup {
                         SettingsItem(icon = Icons.Outlined.QrCode, title = stringResource(R.string.profile_my_qr), onClick = onOpenMyQrCode)
-                        HorizontalDivider(thickness = 0.5.dp, color = Divider, modifier = Modifier.padding(start = 56.dp))
+                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
                         SettingsItem(icon = Icons.Outlined.Share, title = stringResource(R.string.settings_share_profile),
                             onClick = {
                                 val url = state.publicProfileUrl ?: "https://chat.mdou.me"
@@ -343,7 +343,7 @@ fun SettingsScreen(
                             ).show()
                         }
                     )
-                }) { Text(stringResource(R.string.settings_logout_confirm), color = Error) }
+                }) { Text(stringResource(R.string.settings_logout_confirm), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { showLogoutConfirm = false }) { Text(stringResource(R.string.common_cancel)) } }
         )
@@ -462,8 +462,8 @@ private fun ProfileCard(
                 )
                 if (!avatarUrl.isNullOrBlank()) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.profile_remove_avatar), color = Error) },
-                        leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = Error) },
+                        text = { Text(stringResource(R.string.profile_remove_avatar), color = MaterialTheme.colorScheme.error) },
+                        leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                         onClick = {
                             showAvatarMenu = false
                             onRemoveAvatar()
@@ -620,7 +620,7 @@ private fun StatusEditorDialog(
                     }
                 }
                 if (!errorMessage.isNullOrBlank()) {
-                    Text(errorMessage, color = Error, style = MaterialTheme.typography.bodySmall)
+                    Text(errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
             }
         },
@@ -930,7 +930,7 @@ private fun UsernameEditorDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 errorMessage?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = Error)
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 }
                 Text(
                     stringResource(R.string.settings_username_profile_url, "chat.mdou.me/u/$username"),

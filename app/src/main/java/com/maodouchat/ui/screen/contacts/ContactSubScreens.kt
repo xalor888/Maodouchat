@@ -208,7 +208,7 @@ fun MyQrCodeScreen(
                     )
                 } else {
                     Box(modifier = Modifier.size(260.dp), contentAlignment = Alignment.Center) {
-                        Text(state.errorMessage ?: stringResource(R.string.contacts_qr_generation_failed), color = Error)
+                        Text(state.errorMessage ?: stringResource(R.string.contacts_qr_generation_failed), color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -323,7 +323,7 @@ fun MyQrCodeScreen(
 
             state.errorMessage?.let { msg ->
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(msg, color = Error, style = MaterialTheme.typography.bodySmall)
+                Text(msg, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
         }
     }

@@ -352,7 +352,7 @@ fun NotificationCenterScreen(
             text = { Text(stringResource(R.string.notif_center_clear_confirm)) },
             confirmButton = {
                 TextButton(onClick = { viewModel.clearAll(); showClearConfirm = false }) {
-                    Text(stringResource(R.string.notif_center_clear_confirm_ok), color = Error)
+                    Text(stringResource(R.string.notif_center_clear_confirm_ok), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -374,7 +374,7 @@ fun NotificationCenterScreen(
                     viewModel.removeChat(chatId)
                     clearChatId = null
                 }) {
-                    Text(stringResource(R.string.notif_center_clear_chat_ok), color = Error)
+                    Text(stringResource(R.string.notif_center_clear_chat_ok), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -411,7 +411,7 @@ fun NotificationCenterScreen(
                         notifyMenuFor = null
                         clearChatId = chatId
                     }, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.notif_center_clear_chat_title), modifier = Modifier.fillMaxWidth(), color = Error)
+                        Text(stringResource(R.string.notif_center_clear_chat_title), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.error)
                     }
                     if (item.read) {
                         TextButton(onClick = {

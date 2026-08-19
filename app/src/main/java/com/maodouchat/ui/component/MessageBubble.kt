@@ -1021,7 +1021,7 @@ private fun TextBubble(
                     Icon(
                         imageVector = Icons.Default.Warning,
                         contentDescription = null,
-                        tint = Error,
+                        tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -2225,7 +2225,7 @@ private fun MessageStatusIcon(status: MessageStatus) {
                 Icon(
                     imageVector = Icons.Default.ErrorOutline,
                     contentDescription = stringResource(R.string.message_status_failed),
-                    tint = UnreadRed,
+                    tint = LocalChatPalette.current.unreadRed,
                     modifier = Modifier.size(14.dp)
                 )
             }

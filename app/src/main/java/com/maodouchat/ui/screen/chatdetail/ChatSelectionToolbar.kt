@@ -93,7 +93,7 @@ internal fun ChatSelectionToolbar(
                 }
             }
             TextButton(onClick = onDelete) {
-                Text(stringResource(R.string.chat_delete), color = UnreadRed)
+                Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed)
             }
         }
     }

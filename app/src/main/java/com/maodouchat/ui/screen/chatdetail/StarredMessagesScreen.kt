@@ -650,7 +650,7 @@ fun StarredMessagesScreen(
                 TextButton(onClick = {
                     showClearStarredConfirm = false
                     viewModel.clearAllStarred()
-                }) { Text(stringResource(R.string.common_clear), color = UnreadRed) }
+                }) { Text(stringResource(R.string.common_clear), color = LocalChatPalette.current.unreadRed) }
             },
             dismissButton = {
                 TextButton(onClick = { showClearStarredConfirm = false }) { Text(stringResource(R.string.common_cancel)) }

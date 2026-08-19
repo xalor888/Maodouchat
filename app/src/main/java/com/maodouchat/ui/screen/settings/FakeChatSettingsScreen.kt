@@ -280,7 +280,7 @@ fun FakeChatSettingsScreen(
                     if (!ok) {
                         Toast.makeText(context, hideIconFailedMessage, Toast.LENGTH_SHORT).show()
                     }
-                }) { Text(stringResource(R.string.common_confirm), color = Error) }
+                }) { Text(stringResource(R.string.common_confirm), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
                 TextButton(onClick = { showHideIconConfirm = false }) { Text(stringResource(R.string.common_cancel)) }

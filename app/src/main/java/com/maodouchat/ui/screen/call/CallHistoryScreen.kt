@@ -109,7 +109,7 @@ fun CallHistoryScreen(
                             CallLogStore.clear(context)
                             revision++
                         }) {
-                            Text(stringResource(R.string.missed_calls_clear_all), color = UnreadRed)
+                            Text(stringResource(R.string.missed_calls_clear_all), color = LocalChatPalette.current.unreadRed)
                         }
                     }
                 }
@@ -265,7 +265,7 @@ fun CallHistoryScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(stringResource(R.string.call_history_delete, displayName), modifier = Modifier.fillMaxWidth(), color = UnreadRed)
+                Text(stringResource(R.string.call_history_delete, displayName), modifier = Modifier.fillMaxWidth(), color = LocalChatPalette.current.unreadRed)
             }
             TextButton(
                 onClick = {

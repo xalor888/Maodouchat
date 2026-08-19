@@ -94,7 +94,7 @@ fun ChatLockGate(
             }
             error?.let {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(it, color = Error, style = MaterialTheme.typography.bodySmall)
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
 
             Spacer(modifier = Modifier.height(28.dp))

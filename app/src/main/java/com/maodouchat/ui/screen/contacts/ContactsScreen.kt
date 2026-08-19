@@ -253,7 +253,7 @@ fun ContactsScreen(
                                         Text(stringResource(R.string.contacts_friend_accept_all), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                                     }
                                     TextButton(onClick = { viewModel.rejectAllFriendRequests() }) {
-                                        Text(stringResource(R.string.contacts_friend_reject_all), color = UnreadRed, style = MaterialTheme.typography.labelSmall)
+                                        Text(stringResource(R.string.contacts_friend_reject_all), color = LocalChatPalette.current.unreadRed, style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
                             }
@@ -399,7 +399,7 @@ fun ContactsScreen(
                                     if (index < users.lastIndex) {
                                         HorizontalDivider(
                                             thickness = 0.5.dp,
-                                            color = Divider,
+                                            color = LocalChatPalette.current.divider,
                                             modifier = Modifier.padding(start = 64.dp)
                                         )
                                     }
@@ -488,7 +488,7 @@ fun ContactsScreen(
                         TextButton(
                             onClick = { contactActionTarget = null; blockContactTarget = user },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.contacts_action_block), modifier = Modifier.fillMaxWidth(), color = UnreadRed) }
+                        ) { Text(stringResource(R.string.contacts_action_block), modifier = Modifier.fillMaxWidth(), color = LocalChatPalette.current.unreadRed) }
                     }
                 },
                 confirmButton = { TextButton(onClick = { contactActionTarget = null }) { Text(stringResource(R.string.common_cancel)) } }
@@ -505,7 +505,7 @@ fun ContactsScreen(
                     TextButton(onClick = {
                         viewModel.blockUser(user)
                         blockContactTarget = null
-                    }) { Text(stringResource(R.string.contacts_action_block), color = UnreadRed) }
+                    }) { Text(stringResource(R.string.contacts_action_block), color = LocalChatPalette.current.unreadRed) }
                 },
                 dismissButton = {
                     TextButton(onClick = { blockContactTarget = null }) {
@@ -653,7 +653,7 @@ private fun SearchResultList(
                     onOpenChat = { onOpenChat(user) },
                     onAddFriend = { onAddFriend(user) }
                 )
-                HorizontalDivider(thickness = 0.5.dp, color = Divider, modifier = Modifier.padding(start = 80.dp))
+                HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 80.dp))
                 }
             }
             item(key = "search_footer", contentType = "footer") { Spacer(modifier = Modifier.height(16.dp)) }

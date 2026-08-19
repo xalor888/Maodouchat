@@ -498,7 +498,7 @@ fun ExploreScreen(
             onDismissRequest = viewModel::cancelDeletePost,
             title = { Text(stringResource(R.string.explore_delete_post)) },
             text = { Text(stringResource(R.string.explore_delete_post_message)) },
-            confirmButton = { TextButton(onClick = viewModel::confirmDeletePost) { Text(stringResource(R.string.chat_delete), color = Error) } },
+            confirmButton = { TextButton(onClick = viewModel::confirmDeletePost) { Text(stringResource(R.string.chat_delete), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = viewModel::cancelDeletePost) { Text(stringResource(R.string.common_cancel)) } }
         )
     }

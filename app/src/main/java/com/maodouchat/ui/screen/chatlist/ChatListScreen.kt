@@ -837,7 +837,7 @@ fun ChatListScreen(
             }
             // 1.171：清空本地聊天记录（保留会话）
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.chat_clear_local_history), color = UnreadRed) },
+                text = { Text(stringResource(R.string.chat_clear_local_history), color = LocalChatPalette.current.unreadRed) },
                 onClick = { clearHistoryChat = chat; menuChat = null }
             )
             // 1.185：查看共享媒体
@@ -914,7 +914,7 @@ fun ChatListScreen(
                 TextButton(onClick = {
                     showBatchDeleteConfirm = false
                     viewModel.batchDeleteSelected()
-                }) { Text(stringResource(R.string.chat_delete), color = UnreadRed) }
+                }) { Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed) }
             },
             dismissButton = {
                 TextButton(onClick = { showBatchDeleteConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
@@ -966,7 +966,7 @@ fun ChatListScreen(
                 TextButton(onClick = {
                     viewModel.clearLocalChatHistory(chat.id)
                     clearHistoryChat = null
-                }) { Text(stringResource(R.string.chat_clear_history_yes), color = UnreadRed) }
+                }) { Text(stringResource(R.string.chat_clear_history_yes), color = LocalChatPalette.current.unreadRed) }
             },
             dismissButton = {
                 TextButton(onClick = { clearHistoryChat = null }) { Text(stringResource(R.string.common_cancel)) }
@@ -1432,7 +1432,7 @@ private fun ChatListItem(
                         Icons.Outlined.WarningAmber,
                         contentDescription = stringResource(R.string.chat_identity_changed_warning_short),
                         modifier = Modifier.size(14.dp),
-                        tint = UnreadRed
+                        tint = LocalChatPalette.current.unreadRed
                     )
                     Spacer(Modifier.width(4.dp))
                 }

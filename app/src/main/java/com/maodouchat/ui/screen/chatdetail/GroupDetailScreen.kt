@@ -1453,7 +1453,7 @@ fun GroupDetailScreen(
                 TextButton(onClick = {
                     viewModel.removeMember(member.userId)
                     removeTarget = null
-                }) { Text(stringResource(R.string.chat_remove), color = UnreadRed) }
+                }) { Text(stringResource(R.string.chat_remove), color = LocalChatPalette.current.unreadRed) }
             },
             dismissButton = { TextButton(onClick = { removeTarget = null }) { Text(stringResource(R.string.common_cancel)) } }
         )
@@ -1468,7 +1468,7 @@ fun GroupDetailScreen(
                 TextButton(onClick = {
                     viewModel.transferOwnership(member.userId)
                     ownershipTarget = null
-                }) { Text(stringResource(R.string.group_detail_transfer_confirm_action), color = UnreadRed) }
+                }) { Text(stringResource(R.string.group_detail_transfer_confirm_action), color = LocalChatPalette.current.unreadRed) }
             },
             dismissButton = {
                 TextButton(onClick = { ownershipTarget = null }) { Text(stringResource(R.string.common_cancel)) }
@@ -1502,7 +1502,7 @@ fun GroupDetailScreen(
                     TextButton(onClick = {
                         showMuteAllConfirm = false
                         viewModel.muteAllMembers(System.currentTimeMillis() + 24L * 3600_000L)
-                    }) { Text(stringResource(R.string.group_detail_mute_all), color = UnreadRed) }
+                    }) { Text(stringResource(R.string.group_detail_mute_all), color = LocalChatPalette.current.unreadRed) }
                 }
             },
             dismissButton = {
@@ -2527,9 +2527,9 @@ private fun MemberRow(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.group_detail_transfer_owner), color = UnreadRed) },
+                            text = { Text(stringResource(R.string.group_detail_transfer_owner), color = LocalChatPalette.current.unreadRed) },
                             onClick = { actionsExpanded = false; onTransferOwnership() },
-                            leadingIcon = { Icon(Icons.Outlined.SwapHoriz, contentDescription = null, tint = UnreadRed) }
+                            leadingIcon = { Icon(Icons.Outlined.SwapHoriz, contentDescription = null, tint = LocalChatPalette.current.unreadRed) }
                         )
                     }
                     if (!isMe && member.role != "OWNER" && (isOwner || member.role != "ADMIN")) {
@@ -2545,7 +2545,7 @@ private fun MemberRow(
                     }
                     if (!isMe && member.role != "OWNER" && (isOwner || member.role != "ADMIN")) {
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_remove), color = UnreadRed) },
+                            text = { Text(stringResource(R.string.chat_remove), color = LocalChatPalette.current.unreadRed) },
                             onClick = { actionsExpanded = false; onRemove() }
                         )
                     }

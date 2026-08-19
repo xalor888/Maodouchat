@@ -485,7 +485,7 @@ fun LoginScreen(
 
                     // 错误 / 成功提示
                     state.errorMessage?.let { msg ->
-                            Text(msg, color = Error, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                            Text(msg, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                     }
                     state.infoMessage?.let { msg ->
                             Text(msg, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())

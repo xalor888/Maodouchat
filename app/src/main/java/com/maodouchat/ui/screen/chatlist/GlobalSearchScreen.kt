@@ -754,7 +754,7 @@ fun GlobalSearchScreen(
                         errorText,
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodySmall,
-                        color = UnreadRed
+                        color = LocalChatPalette.current.unreadRed
                     )
                     if (state.mode == GlobalSearchMode.AI && state.query.isNotBlank() && !state.isSearching) {
                         TextButton(onClick = viewModel::retryLastAiSearch) {

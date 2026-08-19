@@ -143,7 +143,7 @@ internal fun ChatSearchBar(
                 color = LocalChatPalette.current.textHint
             )
             semanticSearchError?.let { error ->
-                Text(error, style = MaterialTheme.typography.bodySmall, color = UnreadRed)
+                Text(error, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.unreadRed)
             }
             if (
                 !isSemanticSearching &&
