@@ -1,7 +1,13 @@
 package com.maodouchat.ui.theme
 
 import android.app.Activity
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
@@ -11,9 +17,14 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -23,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowInsetsControllerCompat
 import com.maodouchat.util.ThemePreferences
+import kotlinx.coroutines.launch
 
 val MaodouLightScheme = lightColorScheme(
     primary = Primary, onPrimary = OnPrimary, primaryContainer = PrimaryContainer, onPrimaryContainer = OnPrimaryContainer,
@@ -64,12 +76,34 @@ fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
     ThemePreferences.ensureSeeded(ctx)
     val themePref by ThemePreferences.mode.collectAsState()
     val themeStylePref by ThemePreferences.family.collectAsState()
+    val accentPref by ThemePreferences.accent.collectAsState()
     val useDark = when (themePref) { "dark" -> true; "light" -> false; else -> darkTheme }
-    // Telegram 级主题风格：按家族 + 深浅解析完整绘制参数
-    val paint = remember(themeStylePref, useDark) {
-        resolveThemePaint(com.maodouchat.ui.theme.ThemeFamily.normalize(themeStylePref), useDark)
+    // Telegram 级主题风格：按家族 + 深浅解析完整绘制参数；强调色可覆盖主题默认 primary
+    val paint = remember(themeStylePref, accentPref, useDark) {
+        val base = resolveThemePaint(com.maodouchat.ui.theme.ThemeFamily.normalize(themeStylePref), useDark)
+        val accent = com.maodouchat.ui.theme.accentFor(accentPref, useDark)
+        if (accent == null) base else base.copy(
+            colorScheme = base.colorScheme.copy(primary = accent, onPrimary = Color.White)
+        )
     }
     val motionSettings = rememberSystemMotionSettings()
+
+    // 9.205：主题切换帷幕过渡——颜色瞬时切换会生硬，用与新主题同色的帷幕快进快出遮一下
+    val themeKey = "$themeStylePref|$themePref|$accentPref"
+    val veilAlpha = remember { Animatable(0f) }
+    var lastThemeKey by remember { mutableStateOf(themeKey) }
+    val veilScope = rememberCoroutineScope()
+    LaunchedEffect(themeKey) {
+        if (lastThemeKey != themeKey) {
+            lastThemeKey = themeKey
+            if (motionSettings.animationsEnabled) {
+                veilScope.launch {
+                    veilAlpha.snapTo(1f)
+                    veilAlpha.animateTo(0f, tween(durationMillis = 340, easing = FastOutSlowInEasing))
+                }
+            }
+        }
+    }
 
     val view = LocalView.current
     DisposableEffect(useDark) {
@@ -83,8 +117,20 @@ fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
     CompositionLocalProvider(
         LocalChatPalette provides paint.chatPalette,
         LocalSentBubbleSpec provides paint.sentBubbleSpec,
+        LocalDarkTheme provides useDark,
         LocalMotionSettings provides motionSettings
     ) {
-        MaterialTheme(colorScheme = paint.colorScheme, typography = MaodouchatTypography, shapes = MaodouchatShapes, content = content)
+        MaterialTheme(colorScheme = paint.colorScheme, typography = MaodouchatTypography, shapes = MaodouchatShapes) {
+            Box {
+                content()
+                if (veilAlpha.value > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(paint.colorScheme.background.copy(alpha = veilAlpha.value))
+                    )
+                }
+            }
+        }
     }
 }

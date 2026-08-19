@@ -2740,6 +2740,11 @@ fun GeneralSettingsScreen(
                     )
                 ) { showThemeStyleDialog = true }
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
+                AccentColorRow(
+                    current = state.accentColor,
+                    onChange = viewModel::setAccentColor
+                )
+                androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 GlassBottomBarSwitchRow(
                     enabled = state.glassBottomBar,
                     onEnabledChange = viewModel::setGlassBottomBar
@@ -2898,6 +2903,64 @@ fun GeneralSettingsScreen(
                 TextButton(onClick = { showLanguageDialog = false }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
             }
         )
+    }
+}
+
+/**
+ * 9.205：强调色选择行（TG 式）：默认（跟随主题）+ 7 色圆点，选中态带描边环。
+ */
+@Composable
+private fun AccentColorRow(
+    current: String,
+    onChange: (String) -> Unit
+) {
+    val isDark = com.maodouchat.ui.theme.LocalDarkTheme.current
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
+        Text(stringResource(R.string.general_accent_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(stringResource(R.string.general_accent_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 默认（跟随主题）选项
+            val defaultSelected = current == "none"
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .then(
+                        if (defaultSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                        else Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                    )
+                    .clickable { onChange("none") },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    stringResource(R.string.general_accent_default_short),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            com.maodouchat.ui.theme.ACCENT_OPTIONS.forEach { option ->
+                val selected = current == option.id
+                val color = if (isDark) option.dark else option.light
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                        .then(
+                            if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                            else Modifier
+                        )
+                        .clickable { onChange(option.id) }
+                )
+            }
+        }
     }
 }
 
@@ -3298,7 +3361,7 @@ private fun ChatBubbleColorRow(
         com.maodouchat.ui.theme.ChatBubbleColorPalette.PINK to stringResource(R.string.general_chat_bubble_pink),
         com.maodouchat.ui.theme.ChatBubbleColorPalette.TEAL to stringResource(R.string.general_chat_bubble_teal)
     )
-    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDark = com.maodouchat.ui.theme.LocalDarkTheme.current
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
         Text(stringResource(R.string.general_chat_bubble_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
         Spacer(modifier = Modifier.height(2.dp))

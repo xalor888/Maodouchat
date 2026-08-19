@@ -42,6 +42,30 @@ data class SentBubbleSpec(
     val contentSecondary: Color
 )
 
+/** 当前主题的深浅（由主题模式解析后的真实值，非系统深浅）。 */
+val LocalDarkTheme = compositionLocalOf { false }
+
+/** 可选强调色（TG 式自定义）：none 表示跟随当前主题默认强调色。 */
+data class AccentOption(val id: String, val light: Color, val dark: Color)
+
+val ACCENT_OPTIONS = listOf(
+    AccentOption("blue", Color(0xFF007AFF), Color(0xFF0A84FF)),
+    AccentOption("green", Color(0xFF34C759), Color(0xFF30D158)),
+    AccentOption("purple", Color(0xFF8B5CF6), Color(0xFFA78BFA)),
+    AccentOption("orange", Color(0xFFF97316), Color(0xFFFF9F0A)),
+    AccentOption("pink", Color(0xFFEC4899), Color(0xFFF472B6)),
+    AccentOption("red", Color(0xFFFF3B30), Color(0xFFFF453A)),
+    AccentOption("teal", Color(0xFF06B6D4), Color(0xFF22D3EE))
+)
+
+fun normalizeAccentId(raw: String?): String {
+    val id = raw?.trim()?.lowercase().orEmpty()
+    return if (ACCENT_OPTIONS.any { it.id == id }) id else "none"
+}
+
+fun accentFor(id: String, dark: Boolean): Color? =
+    ACCENT_OPTIONS.firstOrNull { it.id == id }?.let { if (dark) it.dark else it.light }
+
 /** 当前主题对发送气泡的接管（maodou 家族为 null）。 */
 val LocalSentBubbleSpec = compositionLocalOf<SentBubbleSpec?> { null }
 

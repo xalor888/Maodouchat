@@ -472,16 +472,14 @@ fun ChatDetailScreen(
     var navigationHighlightMessageId by remember { mutableStateOf<String?>(null) }
     val bubbleBounds = remember { mutableMapOf<String, BubbleBounds>() }
     val configuration = LocalConfiguration.current
-    val isDarkChat = LocalChatPalette.current === com.maodouchat.ui.theme.DarkChatPalette
-    val chatBackgroundColor = remember(chatWallpaperPreset, isDarkChat) {
+    // 9.205：用主题真实深浅替代系统深浅/palette 身份比较（TG 主题与强制模式下不再误判）
+    val isDarkChat = com.maodouchat.ui.theme.LocalDarkTheme.current
+    val themeChatPalette = LocalChatPalette.current
+    val chatBackgroundColor = remember(chatWallpaperPreset, isDarkChat, themeChatPalette) {
         com.maodouchat.util.ChatAppearancePolicy.resolveBackground(
             preset = chatWallpaperPreset,
             isDark = isDarkChat,
-            fallback = if (isDarkChat) {
-                com.maodouchat.ui.theme.DarkChatPalette.chatBackground
-            } else {
-                com.maodouchat.ui.theme.LightChatPalette.chatBackground
-            }
+            fallback = themeChatPalette.chatBackground
         )
     }
     val baseDensity = LocalDensity.current
@@ -3317,6 +3315,13 @@ DropdownMenuItem(
                     contentDescription = null,
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
+                )
+            }
+            // 9.205：TG 风格涂鸦纹理——仅默认壁纸且无自定义图片时叠加，不盖住用户自选壁纸
+            if (customWallpaperUri == null && chatWallpaperPreset == com.maodouchat.util.ChatWallpaperPreset.DEFAULT) {
+                com.maodouchat.ui.component.ChatBackgroundPattern(
+                    modifier = Modifier.fillMaxSize(),
+                    tint = LocalChatPalette.current.textSecondary.copy(alpha = if (isDarkChat) 0.07f else 0.09f)
                 )
             }
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues).imePadding()) {

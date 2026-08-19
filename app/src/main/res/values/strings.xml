@@ -1920,6 +1920,9 @@
     <string name="general_theme_style_tg_midnight">TG 朝霞·午夜</string>
     <string name="general_theme_style_tg_graphite">TG 冰蓝·石墨</string>
     <string name="general_theme_style_tg_badge">1:1 还原</string>
+    <string name="general_accent_title">强调色</string>
+    <string name="general_accent_subtitle">按钮、链接与选中态的主题色</string>
+    <string name="general_accent_default_short">默认</string>
     <string name="general_glass_bottom_bar_title">玻璃悬浮底栏</string>
     <string name="general_glass_bottom_bar_subtitle">半透明圆角悬浮底栏，更沉浸的视觉体验</string>
     <string name="general_language_title">语言</string>

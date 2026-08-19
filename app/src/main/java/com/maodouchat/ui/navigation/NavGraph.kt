@@ -351,7 +351,7 @@ fun MaodouchatNavGraph(
         ) { entry ->
             val chatIdArg = Uri.decode(entry.arguments?.getString("chatId") ?: "")
             val bubbleCtx = LocalContext.current
-            val bubbleIsDark = androidx.compose.foundation.isSystemInDarkTheme()
+            val bubbleIsDark = com.maodouchat.ui.theme.LocalDarkTheme.current
             val themeSentSpec = com.maodouchat.ui.theme.LocalSentBubbleSpec.current
             val sentColors = remember(chatIdArg, themeSentSpec, bubbleIsDark) {
                 val id = com.maodouchat.util.ChatAppearancePreferences.getBubbleColor(bubbleCtx)
@@ -1610,7 +1610,7 @@ private fun ChatDetailListPaneRoute(navController: NavHostController) {
                     val chatId = Uri.decode(entry.arguments?.getString("chatId") ?: "")
                     if (chatId.isNotBlank()) {
                         val bubbleCtx = LocalContext.current
-                        val bubbleIsDark = androidx.compose.foundation.isSystemInDarkTheme()
+                        val bubbleIsDark = com.maodouchat.ui.theme.LocalDarkTheme.current
                         val themeSentSpec = com.maodouchat.ui.theme.LocalSentBubbleSpec.current
                         val sentColors = remember(chatId, themeSentSpec, bubbleIsDark) {
                             val id = com.maodouchat.util.ChatAppearancePreferences.getBubbleColor(bubbleCtx)

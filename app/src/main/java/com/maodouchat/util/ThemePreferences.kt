@@ -15,6 +15,7 @@ object ThemePreferences {
     private const val PREFS = "general_settings"
     private const val KEY_THEME = "theme_mode"
     private const val KEY_THEME_STYLE = "theme_style"
+    private const val KEY_ACCENT = "accent_color"
 
     @Volatile
     private var seeded = false
@@ -22,6 +23,8 @@ object ThemePreferences {
     val mode: StateFlow<String> = _mode.asStateFlow()
     private val _family = MutableStateFlow("maodou")
     val family: StateFlow<String> = _family.asStateFlow()
+    private val _accent = MutableStateFlow("none")
+    val accent: StateFlow<String> = _accent.asStateFlow()
 
     private val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         if (key == null || key == KEY_THEME) {
@@ -29,6 +32,9 @@ object ThemePreferences {
         }
         if (key == null || key == KEY_THEME_STYLE) {
             _family.value = normalizeStyle(prefs.getString(KEY_THEME_STYLE, "maodou"))
+        }
+        if (key == null || key == KEY_ACCENT) {
+            _accent.value = normalizeAccent(prefs.getString(KEY_ACCENT, "none"))
         }
     }
 
@@ -39,6 +45,7 @@ object ThemePreferences {
             val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             _mode.value = normalize(prefs.getString(KEY_THEME, "system"))
             _family.value = normalizeStyle(prefs.getString(KEY_THEME_STYLE, "maodou"))
+            _accent.value = normalizeAccent(prefs.getString(KEY_ACCENT, "none"))
             prefs.registerOnSharedPreferenceChangeListener(listener)
             seeded = true
         }
@@ -85,5 +92,26 @@ object ThemePreferences {
     fun normalizeStyle(raw: String?): String {
         val id = raw?.trim()?.lowercase().orEmpty()
         return if (id in setOf("maodou", "tg_classic", "tg_midnight", "tg_graphite")) id else "maodou"
+    }
+
+    fun getAccent(context: Context): String {
+        ensureSeeded(context)
+        return _accent.value
+    }
+
+    fun setAccent(context: Context, accentId: String) {
+        val normalized = normalizeAccent(accentId)
+        ensureSeeded(context)
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_ACCENT, normalized)
+            .apply()
+        _accent.value = normalized
+    }
+
+    /** 强调色 id（none 或 ACCENT_OPTIONS 中的颜色）。 */
+    fun normalizeAccent(raw: String?): String {
+        val id = raw?.trim()?.lowercase().orEmpty()
+        return if (id == "none" || id == "blue" || id == "green" || id == "purple" || id == "orange" || id == "pink" || id == "red" || id == "teal") id else "none"
     }
 }

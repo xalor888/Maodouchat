@@ -180,6 +180,7 @@ data class ChatFoldersSyncResponse(
 data class ClientPrefsDto(
     val themeMode: String = "system",
     val themeStyle: String = "maodou",
+    val accentColor: String = "none",
     val languageMode: String = "system",
     val chatWallpaper: String = "default",
     val chatFontScale: String = "normal",
@@ -198,6 +199,7 @@ data class ClientPrefsDto(
 data class ClientPrefsUpdateRequest(
     val themeMode: String? = null,
     val themeStyle: String? = null,
+    val accentColor: String? = null,
     val languageMode: String? = null,
     val chatWallpaper: String? = null,
     val chatFontScale: String? = null,

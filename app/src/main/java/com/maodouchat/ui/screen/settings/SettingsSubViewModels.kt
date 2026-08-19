@@ -1371,6 +1371,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
 data class GeneralSettingsUiState(
     val themeMode: String = "system", // system / light / dark
     val themeStyle: String = "maodou", // maodou / tg_classic / tg_midnight / tg_graphite
+    val accentColor: String = "none", // none / blue / green / purple / orange / pink / red / teal
     val glassBottomBar: Boolean = true,
     val languageMode: String = AppLocaleManager.MODE_SYSTEM,
     val linkPreviewEnabled: Boolean = true,
@@ -1398,6 +1399,7 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
         GeneralSettingsUiState(
             themeMode = prefs.getString(KEY_THEME, "system") ?: "system",
             themeStyle = com.maodouchat.util.ThemePreferences.getStyle(application),
+            accentColor = com.maodouchat.util.ThemePreferences.getAccent(application),
             glassBottomBar = com.maodouchat.util.GlassBottomBarPreferences.isEnabled(application),
             languageMode = AppLocaleManager.getMode(application),
             linkPreviewEnabled = com.maodouchat.util.LinkPreviewPreferences.isEnabled(application),
@@ -1442,6 +1444,17 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
         prefsRevision++
         com.maodouchat.util.ThemePreferences.setStyle(context, normalized)
         _uiState.update { it.copy(themeStyle = normalized) }
+        pushClientPrefs()
+    }
+
+    /** 自定义强调色（TG 式），随客户端偏好云同步。 */
+    fun setAccentColor(accentId: String) {
+        val context = getApplication<Application>()
+        val normalized = com.maodouchat.util.ThemePreferences.normalizeAccent(accentId)
+        if (_uiState.value.accentColor == normalized) return
+        prefsRevision++
+        com.maodouchat.util.ThemePreferences.setAccent(context, normalized)
+        _uiState.update { it.copy(accentColor = normalized) }
         pushClientPrefs()
     }
 
@@ -1573,6 +1586,8 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
         // 9.204：主题风格云端拉取——写入本地偏好（ThemePreferences 的 StateFlow 驱动全局重组）
         val themeStyle = com.maodouchat.util.ThemePreferences.normalizeStyle(remote.themeStyle)
         com.maodouchat.util.ThemePreferences.setStyle(context, themeStyle)
+        val accentColor = com.maodouchat.util.ThemePreferences.normalizeAccent(remote.accentColor)
+        com.maodouchat.util.ThemePreferences.setAccent(context, accentColor)
         val language = when (remote.languageMode.lowercase()) {
             AppLocaleManager.MODE_CHINESE, "zh-cn", "chinese" -> AppLocaleManager.MODE_CHINESE
             AppLocaleManager.MODE_ENGLISH, "english" -> AppLocaleManager.MODE_ENGLISH
@@ -1584,6 +1599,7 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
             it.copy(
                 themeMode = theme,
                 themeStyle = themeStyle,
+                accentColor = accentColor,
                 languageMode = language,
                 linkPreviewEnabled = remote.linkPreviewEnabled,
                 unreadPriorityEnabled = remote.unreadPriorityEnabled,
@@ -1608,6 +1624,7 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
                     val request = ClientPrefsUpdateRequest(
                         themeMode = state.themeMode,
                         themeStyle = state.themeStyle,
+                        accentColor = state.accentColor,
                         languageMode = state.languageMode,
                         chatWallpaper = state.chatWallpaper,
                         chatFontScale = state.chatFontScale,
