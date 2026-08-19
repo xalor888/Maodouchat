@@ -4,7 +4,7 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- 单色版本用于 Android 13+ 主题图标：直接采用 logo.svg 的真实轮廓
+    <!-- 单色版本用于 Android 13+ 主题图标：采用品牌 logo 的真实轮廓
          （M 外轮廓 + 豆荚气泡镂空 + 三个圆点），整体缩放居中于安全区内（约 55% 画布） -->
     <group
         android:scaleX="0.136"

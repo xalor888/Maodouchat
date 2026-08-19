@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """将精调版启动图标前景等比缩小到自适应图标安全区内。
 
-背景：仓库中的 ic_launcher_foreground.png 是手工定稿构图（与 logo.svg 原始
-渲染不同），不能通过 generate_launcher_icons.mjs 重新渲染覆盖。
+背景：仓库中的 ic_launcher_foreground.png 是手工定稿构图，不能用浏览器
+渲染等方式重新生成（会改变构图与观感）。
 此脚本只做一件事：把定稿前景图整体等比缩小，使内容宽度占画布约 55%
 （安全区为 66/108 ≈ 61%），构图、配色、抗锯齿全部保留原样。
 """

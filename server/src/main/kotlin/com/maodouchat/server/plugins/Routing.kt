@@ -1211,14 +1211,6 @@ put("status", "ok")
                 call.respond(HttpStatusCode.NotFound)
             }
         }
-        get("/assets/logo.svg") {
-            val bytes = this::class.java.classLoader.getResourceAsStream("public/assets/logo.svg")?.use { it.readBytes() }
-            if (bytes != null) {
-                call.respondBytes(bytes, io.ktor.http.ContentType.Image.SVG)
-            } else {
-                call.respond(HttpStatusCode.NotFound)
-            }
-        }
         get("/assets/icon-192.png") {
             val bytes = this::class.java.classLoader.getResourceAsStream("public/assets/icon-192.png")?.use { it.readBytes() }
             if (bytes != null) {
