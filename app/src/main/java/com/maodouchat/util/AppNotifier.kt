@@ -142,7 +142,7 @@ object AppNotifier {
         }
         // 0.72：群聊消息走独立渠道（独立铃声）
         val channelId = if (isGroup) CHANNEL_GROUP_MESSAGES else CHANNEL_MESSAGES
-        val notification = NotificationCompat.Builder(context, channelId)
+        val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(displayTitle)
             .setContentText(displayPreview)
@@ -153,7 +153,14 @@ object AppNotifier {
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setSilent(!soundEnabled)
-            .build()
+        // 9.209：第三方服务器模式标注服务器名——服务器身份非隐私内容，脱敏模式下也展示，
+        // 避免同时连多个自建服务器的用户分不清通知来自哪台
+        if (com.maodouchat.network.ServerIdentity.isThirdPartyServer) {
+            com.maodouchat.network.ServerIdentity.current.value?.name
+                ?.takeIf(String::isNotBlank)
+                ?.let { builder.setSubText(it) }
+        }
+        val notification = builder.build()
         if (!notificationOwnerMatches(context, expectedUserId)) return
         // tag 用真实 chatId（而非其 hashCode），id 固定 0：每个会话独立通知槽位，彻底避免
         // (maodouchat_<chatId>).hashCode() 跨会话碰撞导致后到通知覆盖先到、点击跳错会话。
