@@ -1778,7 +1778,7 @@ fun GroupDetailScreen(
                                         if (candidatesExpanded) {
                                             stringResource(R.string.chat_transcript_collapse)
                                         } else {
-                                            stringResource(R.string.group_detail_candidates_more, remaining)
+                                            pluralStringResource(R.plurals.group_detail_candidates_more, remaining, remaining)
                                         }
                                     )
                                 }
@@ -2092,7 +2092,7 @@ private fun GroupHeader(
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(groupName, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(stringResource(R.string.group_detail_header_summary, memberCount, roleLabel(myRole)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+            Text(pluralStringResource(R.plurals.group_detail_header_summary, memberCount, memberCount, roleLabel(myRole)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
         }
     }
 }
@@ -2173,7 +2173,7 @@ private fun GroupSenderKeyStatusSection(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.group_detail_epoch, status.epoch), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                Text(stringResource(R.string.group_detail_device_stats, status.total, status.sent, status.failed, status.pending), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textSecondary)
+                Text(pluralStringResource(R.plurals.group_detail_device_stats, status.total, status.total, status.sent, status.failed, status.pending), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textSecondary)
                 Text(
                     senderKeyReasonLabel(assessment.reason),
                     style = MaterialTheme.typography.labelSmall,

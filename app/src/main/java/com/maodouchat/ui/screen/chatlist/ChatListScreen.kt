@@ -1518,7 +1518,7 @@ private fun ChatListItem(
 private fun MissedCallsCard(calls: List<MissedCall>, onOpen: () -> Unit) {
     val unread = calls.count { !it.isRead }
     // 9.215 修复：missed_calls 原调用未传数量参数，%1$d 会原样显示；转 plurals 并传入计数
-    val title = if (unread > 0) stringResource(R.string.missed_calls_with_unread, calls.size, unread) else pluralStringResource(R.plurals.missed_calls, calls.size, calls.size)
+    val title = if (unread > 0) pluralStringResource(R.plurals.missed_calls_with_unread, calls.size, calls.size, unread) else pluralStringResource(R.plurals.missed_calls, calls.size, calls.size)
     Row(
         modifier = Modifier
             .fillMaxWidth()

@@ -106,7 +106,10 @@
     <string name="chat_load_failed_title">Could not load chats</string>
     <string name="chat_load_failed_retry">Retry</string>
     <string name="chat_search_no_results">No matching messages</string>
-    <string name="missed_calls_with_unread">%1$d missed calls (%2$d unread)</string>
+    <plurals name="missed_calls_with_unread">
+        <item quantity="one">%1$d missed call (%2$d unread)</item>
+        <item quantity="other">%1$d missed calls (%2$d unread)</item>
+    </plurals>
     <plurals name="missed_calls">
         <item quantity="one">%1$d missed call</item>
         <item quantity="other">%1$d missed calls</item>
@@ -483,7 +486,10 @@
     </plurals>
     <string name="group_detail_audit_load_more">Load older records</string>
     <string name="group_detail_audit_loading">Loading…</string>
-    <string name="group_detail_candidates_more">%1$d more contacts to add</string>
+    <plurals name="group_detail_candidates_more">
+        <item quantity="one">%1$d more contact to add</item>
+        <item quantity="other">%1$d more contacts to add</item>
+    </plurals>
     <string name="group_detail_search_candidates">Search contacts to add</string>
     <string name="group_detail_no_candidate_results">No matching contacts to add</string>
     <string name="group_detail_audit_event">%1$s · %2$s %3$s</string>
@@ -1281,7 +1287,10 @@
     <string name="group_detail_set_mute">Mute member</string>
     <string name="group_detail_current_mute_until">Muted until %1$s</string>
     <string name="group_detail_unmute">Unmute</string>
-    <string name="group_detail_header_summary">%1$d members · %2$s</string>
+    <plurals name="group_detail_header_summary">
+        <item quantity="one">%1$d member · %2$s</item>
+        <item quantity="other">%1$d members · %2$s</item>
+    </plurals>
     <string name="group_detail_invite_admin_hint">Owners and admins can generate a QR code to invite members</string>
     <string name="group_detail_generating">Generating</string>
     <string name="group_detail_open">Open</string>
@@ -1290,7 +1299,10 @@
     <string name="group_detail_key_auto_hint">A Sender Key will be distributed when the next group message is sent</string>
     <string name="group_detail_distribute_now">Distribute now</string>
     <string name="group_detail_epoch">epoch %1$d</string>
-    <string name="group_detail_device_stats">%1$d devices · %2$d sent · %3$d failed · %4$d pending</string>
+    <plurals name="group_detail_device_stats">
+        <item quantity="one">%1$d device · %2$d sent · %3$d failed · %4$d pending</item>
+        <item quantity="other">%1$d devices · %2$d sent · %3$d failed · %4$d pending</item>
+    </plurals>
     <string name="group_detail_retry_needed">Retry needed</string>
     <string name="group_detail_status_normal">Normal</string>
     <string name="group_detail_retry_failed_devices">Retry failed devices</string>
@@ -2733,7 +2745,10 @@
     <string name="sticker_store_basic">Basic emoji</string>
     <string name="sticker_store_downloaded">Sticker pack ready</string>
     <string name="sticker_store_download_failed">Sticker pack download failed. Try again later</string>
-    <string name="sticker_store_partial">Sticker pack downloaded: %1$d ok, %2$d failed</string>
+    <plurals name="sticker_store_partial">
+        <item quantity="one">Sticker pack downloaded: %1$d ok, %2$d failed</item>
+        <item quantity="other">Sticker pack downloaded: %1$d ok, %2$d failed</item>
+    </plurals>
     <string name="sticker_store_remote_title">Remote sticker packs (on demand)</string>
     <string name="sticker_store_remote_refresh">Refresh</string>
     <string name="sticker_store_remote_empty">No remote sticker packs available</string>
@@ -2806,7 +2821,10 @@
     <string name="widget_config_subtitle">Choose conversations to show on the widget (up to %1$d)</string>
     <string name="widget_config_loading">Loading conversations…</string>
     <string name="widget_config_save">Save</string>
-    <string name="widget_config_unread">%1$d unread</string>
+    <plurals name="widget_config_unread">
+        <item quantity="one">%1$d unread</item>
+        <item quantity="other">%1$d unread</item>
+    </plurals>
     <string name="widget_config_badge_label">Show total unread badge</string>
     <string name="widget_config_compact_label">Compact layout (up to 3 rows)</string>
     <string name="widget_config_requires_login">Sign in before configuring the widget</string>

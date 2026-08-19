@@ -257,7 +257,7 @@ object OnDemandStickerStore {
         val message = if (failed == 0) {
             context.getString(R.string.sticker_store_downloaded)
         } else if (downloaded > 0) {
-            context.getString(R.string.sticker_store_partial, downloaded, failed)
+            context.resources.getQuantityString(R.plurals.sticker_store_partial, downloaded, downloaded, failed)
         } else {
             context.getString(R.string.sticker_store_download_failed)
         }
