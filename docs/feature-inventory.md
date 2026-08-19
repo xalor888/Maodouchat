@@ -1,6 +1,6 @@
 # Maodouchat 功能全景与完整度盘点
   
-**更新时间**：2026-07-20（按代码现状重写附录；主体表继承盘点）  
+**更新时间**：2026-08-19（9.2 系列调优：TG 级主题系统/玻璃底栏/第三方服务器玩法/plurals 治理/N+1 消除；主体表继承盘点）  
 **完整度标签**：
 
 | 标签 | 含义 |
@@ -172,7 +172,7 @@
 | 安全范围说明卡片 | 完整 | E2EE/安全码格式/密聊本机边界/FCM/AI/备份文案 | 设置安全中心 |
 | 通知设置 | 完整 | 声音/预览/DND/AI 任务；DND 快捷时段（夜间/午休/睡眠/晚间/工作日/专注/上午/午后/晚间尾声/深夜/清晨）+ 滑条；预览文案明示 FCM 占位与密聊/锁脱敏 | |
 | AI 隐私设置 | 完整 | 总开关/同意/风格；调用元数据列表 ≥5 条可搜索 | |
-| 主题 / 壁纸 / 字号 / 语言 | 完整 | 本地 + `/api/client-prefs` 多端同步；壁纸 16 档（含靛蓝/琥珀/青绿/石墨）+ **自定义图片壁纸**（本地 URI，复制进应用私有目录防授权失效，仅本机）；**聊天气泡颜色** 6 档（蓝/绿/紫/橙/粉/青，CompositionLocal 注入发送气泡/链接预览，按账号本机）；字号 5 档（small→xxlarge） | General + `ChatAppearancePolicy` / `AppLocaleManager` + `ChatBubbleColorPalette` |
+| 主题 / 壁纸 / 字号 / 语言 | 完整 | 本地 + `/api/client-prefs` 多端同步；**主题风格家族** 4 套（毛豆默认 + TG 经典/TG 朝霞午夜/TG 冰蓝石墨 1:1 还原，TG 系接管发送气泡配色）+ 定时深色（自定义夜间时段）+ **强调色** 7 色自定义 + **气泡圆角** 3 档（经典尾角/TG 全圆/大圆角）+ **玻璃悬浮底栏**（可开关）+ 主题切换帷幕过渡 + 聊天背景涂鸦纹理；壁纸 16 档 + **自定义图片壁纸**（本地 URI，仅本机）；**聊天气泡颜色** 6 档（按账号本机）；字号 5 档（small→xxlarge）；全站 UI 颜色 Material 令牌化（深浅/TG 主题自动适配，含小组件 values-night） | General + `ThemePreferences` / `ThemeStyle` / `ChatAppearancePolicy` / `AppLocaleManager` |
 | 链接预览 / 未读优先 | 完整 | 同上云同步 | `LinkPreviewPreferences` / `UnreadPriorityPreferences` |
 | 内容审核（版主） | 完整 | 需 isModerator；设置入口 + 规则/事件/举报；风险/规则/举报列表可搜索 | `ModerationScreen` |
 | 关于页 | 完整 | 版本/安全摘要 + 产品边界（mesh/FCM/密聊/安全码） | `AboutScreen` |
@@ -252,7 +252,8 @@
 | 认证 | 完整 | register/login/refresh/logout、验证码、reset-password |
 | 好友 | 完整 | requests incoming/outgoing、accept/reject/cancel、list/delete |
 | 会话文件夹云同步 | 完整 | GET/PUT `/api/chat-folders` |
-| 客户端外观/语言/写作风格/安全 UX 偏好 | 完整 | GET/PUT `/api/client-prefs`（主题/语言/壁纸/字号/链接预览/未读优先/AI 写作风格/应用锁超时/防截屏/敏感操作门闩） |
+| 客户端外观/语言/写作风格/安全 UX 偏好 | 完整 | GET/PUT `/api/client-prefs`（主题模式含定时/主题风格/语言/壁纸/字号/链接预览/未读优先/AI 写作风格/应用锁超时/防截屏/敏感操作门闩）；强调色/气泡圆角/玻璃底栏/夜间时段为设备本地 |
+| 第三方服务器 / 自托管 | 完整 | 运行时服务器切换（信任域切换前清理本地数据）；Release 提供预构建服务端运行包 + 自托管套件（compose/Caddy/env 模板，`docs/self-host-quickstart.md` 5 分钟部署）；`GET /api/server/info` 服务器身份端点（名称/简介/公告/版本，公告三级优先：后台运行时设置 > 文件 > 环境变量）；客户端第三方模式展示（登录页/设置身份卡/会话列表名牌/通知 subText/关于页/主界面公告弹窗）；`PUBLIC_SITE=false` 关闭官网首页 |
 | 用户/隐私/拉黑 | 完整 | profile、blocks、自删 |
 | 附近的人 | 完整 | nearby-location / nearby |
 | 通知偏好 / Push Token | 完整 | notification-settings、push-tokens |
