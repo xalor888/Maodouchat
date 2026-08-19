@@ -1731,7 +1731,7 @@ fun GroupDetailScreen(
                             onClick = { membersExpanded = true },
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                         ) {
-                            Text(stringResource(R.string.group_detail_members_more, remaining), color = MaterialTheme.colorScheme.primary)
+                            Text(pluralStringResource(R.plurals.group_detail_members_more, remaining, remaining), color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }

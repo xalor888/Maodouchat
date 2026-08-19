@@ -457,7 +457,9 @@
     <string name="group_detail_avatar_failed">群头像上传失败</string>
     <string name="group_detail_search_members">搜索成员、群昵称或头衔</string>
     <string name="group_detail_no_member_results">没有匹配的群成员</string>
-    <string name="group_detail_members_more">还有 %1$d 位成员</string>
+    <plurals name="group_detail_members_more">
+        <item quantity="other">还有 %1$d 位成员</item>
+    </plurals>
     <string name="group_detail_invite_status">有效至 %1$s · 已使用 %2$d/%3$d · 剩余 %4$d 次</string>
     <string name="group_detail_invite_expiry">邀请有效期</string>
     <string name="group_detail_invite_max_uses">最多使用次数</string>
@@ -839,7 +841,9 @@
     <string name="gif_search_hint">搜索本机 GIF 文件名</string>
     <string name="gif_search_empty">没有找到匹配的 GIF</string>
     <string name="gif_search_empty_query">没有匹配该关键词的 GIF</string>
-    <string name="gif_search_count">%1$d 个本机 GIF</string>
+    <plurals name="gif_search_count">
+        <item quantity="other">%1$d 个本机 GIF</item>
+    </plurals>
     <string name="gif_search_permission">需要相册权限才能浏览本机 GIF</string>
     <string name="gif_search_grant">授予权限</string>
     <string name="gif_search_browse">从文件选择</string>
@@ -1453,7 +1457,9 @@
     <string name="security_local_db_encrypted">本地数据库已加密（SQLCipher）</string>
     <string name="security_app_lock_on">应用锁已开启</string>
     <string name="security_app_lock_off">应用锁未开启</string>
-    <string name="security_devices_confirmed">%1$d 台已确认设备 · 本机指纹 %2$s</string>
+    <plurals name="security_devices_confirmed">
+        <item quantity="other">%1$d 台已确认设备 · 本机指纹 %2$s</item>
+    </plurals>
     <string name="security_fingerprint_unavailable">—</string>
     <string name="security_scope_title">加密与隐私范围</string>
     <string name="security_scope_body">• 私聊/群聊正文与加密附件：端到端加密，服务端只存密文与路由元数据\n• 安全码：本应用自研 5 位分组格式，用于人工核对身份；变更时会在聊天内提示\n• 密聊：本机防截屏（FLAG_SECURE）+ 盲水印 + 通知/导出脱敏；非双端协议，无法对抗外置相机\n• 本地库：SQLCipher 加密；退出登录会按策略清理本机会话\n• 推送：当前仅 FCM；消息预览多为加密占位，无厂商通道\n• AI：默认不读密文；需你主动触发且可在设置关闭；管理端审计不含 prompt/正文\n• 备份：若启用服务端备份，范围以备份说明为准，不等于明文可读</string>
@@ -2104,7 +2110,9 @@
     <string name="global_search_ai_consent_data">AI 跨聊天搜索会处理本机召回的少量消息片段，用于语义排序。</string>
     <string name="ai_feature_global_semantic_search">跨聊天语义搜索</string>
     <string name="notif_center_title">通知中心</string>
-    <string name="notif_center_unread_count">%1$d 条未读</string>
+    <plurals name="notif_center_unread_count">
+        <item quantity="other">%1$d 条未读</item>
+    </plurals>
     <string name="notif_center_mark_all_read">全部已读</string>
     <string name="notif_center_clear_all">清空全部</string>
     <string name="notif_center_clear_confirm">确认清空所有通知？此操作不可撤销。</string>
@@ -2278,7 +2286,9 @@
     <string name="group_play_pk_titles_invalid">PK 双方标题无效</string>
     <string name="group_play_checkin_failed">签到失败</string>
     <string name="group_play_poll_invalid">投票问题或选项无效</string>
-    <string name="group_play_voters_count">%1$d 人参与</string>
+    <plurals name="group_play_voters_count">
+        <item quantity="other">%1$d 人参与</item>
+    </plurals>
     <string name="group_play_voted_choice">已投 %1$s</string>
     <string name="developer_bots_entry">我的机器人</string>
     <string name="developer_bots_desc">创建 Token、配置 Webhook，接入自定义机器人</string>

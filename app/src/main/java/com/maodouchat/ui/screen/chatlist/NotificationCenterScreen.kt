@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -246,7 +247,7 @@ fun NotificationCenterScreen(
                         Text(stringResource(R.string.notif_center_title), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
                         if (unreadCount > 0) {
                             Text(
-                                stringResource(R.string.notif_center_unread_count, unreadCount),
+                                pluralStringResource(R.plurals.notif_center_unread_count, unreadCount, unreadCount),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )

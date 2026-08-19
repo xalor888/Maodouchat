@@ -6170,7 +6170,7 @@ private fun GifSearchDialog(
                         }
                         else -> {
                             Text(
-                                text = stringResource(R.string.gif_search_count, filtered.size),
+                                text = pluralStringResource(R.plurals.gif_search_count, filtered.size, filtered.size),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = LocalChatPalette.current.textHint,
                                 modifier = Modifier.padding(bottom = 4.dp)

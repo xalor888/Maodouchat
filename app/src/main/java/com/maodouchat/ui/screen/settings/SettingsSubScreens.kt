@@ -83,6 +83,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
@@ -1308,7 +1309,7 @@ private fun SecurityStatusCard(
             ?.uppercase(Locale.US)
             ?: stringResource(R.string.security_fingerprint_unavailable)
         Text(
-            stringResource(R.string.security_devices_confirmed, confirmedDeviceCount, shortFp),
+            pluralStringResource(R.plurals.security_devices_confirmed, confirmedDeviceCount, confirmedDeviceCount, shortFp),
             style = MaterialTheme.typography.bodySmall,
             color = LocalChatPalette.current.textSecondary
         )

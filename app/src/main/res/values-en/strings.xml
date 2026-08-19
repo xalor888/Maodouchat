@@ -463,7 +463,10 @@
     <string name="group_detail_avatar_failed">Could not upload the group photo</string>
     <string name="group_detail_search_members">Search members, nicknames or titles</string>
     <string name="group_detail_no_member_results">No matching group members</string>
-    <string name="group_detail_members_more">%1$d more members</string>
+    <plurals name="group_detail_members_more">
+        <item quantity="one">%1$d more member</item>
+        <item quantity="other">%1$d more members</item>
+    </plurals>
     <string name="group_detail_invite_status">Valid until %1$s · Used %2$d/%3$d · %4$d remaining</string>
     <string name="group_detail_invite_expiry">Invite expiration</string>
     <string name="group_detail_invite_max_uses">Maximum uses</string>
@@ -845,7 +848,10 @@
     <string name="gif_search_hint">Search local GIF file names</string>
     <string name="gif_search_empty">No matching GIFs</string>
     <string name="gif_search_empty_query">No GIFs match this search</string>
-    <string name="gif_search_count">%1$d local GIFs</string>
+    <plurals name="gif_search_count">
+        <item quantity="one">%1$d local GIF</item>
+        <item quantity="other">%1$d local GIFs</item>
+    </plurals>
     <string name="gif_search_permission">Photo access is needed to browse local GIFs</string>
     <string name="gif_search_grant">Grant access</string>
     <string name="gif_search_browse">Pick from files</string>
@@ -1458,7 +1464,10 @@
     <string name="security_local_db_encrypted">Local database encrypted (SQLCipher)</string>
     <string name="security_app_lock_on">App lock is on</string>
     <string name="security_app_lock_off">App lock is off</string>
-    <string name="security_devices_confirmed">%1$d confirmed device(s) · this device %2$s</string>
+    <plurals name="security_devices_confirmed">
+        <item quantity="one">%1$d confirmed device · this device %2$s</item>
+        <item quantity="other">%1$d confirmed devices · this device %2$s</item>
+    </plurals>
     <string name="security_fingerprint_unavailable">—</string>
     <string name="security_scope_title">Encryption and privacy scope</string>
     <string name="security_scope_body">• 1:1 / group bodies and encrypted attachments: E2EE; the server stores ciphertext and routing metadata only\n• Safety codes: Maodouchat\u2019s own 5-digit groups for out-of-band checks; changes surface as in-chat warnings\n• Secret chat: local FLAG_SECURE + blind watermark + redacted notify/export; device-local only, not a two-party protocol; cannot stop external cameras\n• Local DB: SQLCipher; sign-out purges this device session per policy\n• Push: FCM only; message previews are mostly encrypted placeholders; no vendor push channels\n• AI: never reads ciphertext by default; user-triggered and can be disabled; admin audit has no prompts/bodies\n• Backups: if server backup is enabled, scope follows the backup notice — not plaintext access</string>
@@ -2107,7 +2116,10 @@
     <string name="search_filter_link">Links</string>
     <string name="ai_feature_global_semantic_search">Cross-chat semantic search</string>
     <string name="notif_center_title">Notification Center</string>
-    <string name="notif_center_unread_count">%1$d unread</string>
+    <plurals name="notif_center_unread_count">
+        <item quantity="one">%1$d unread</item>
+        <item quantity="other">%1$d unread</item>
+    </plurals>
     <string name="notif_center_mark_all_read">Mark all read</string>
     <string name="notif_center_clear_all">Clear all</string>
     <string name="notif_center_clear_confirm">Clear every notification? This cannot be undone.</string>
@@ -2281,7 +2293,10 @@
     <string name="group_play_pk_titles_invalid">Invalid PK titles</string>
     <string name="group_play_checkin_failed">Check-in failed</string>
     <string name="group_play_poll_invalid">Invalid question or options</string>
-    <string name="group_play_voters_count">%1$d votes</string>
+    <plurals name="group_play_voters_count">
+        <item quantity="one">%1$d vote</item>
+        <item quantity="other">%1$d votes</item>
+    </plurals>
     <string name="group_play_voted_choice">Voted for %1$s</string>
     <string name="developer_bots_entry">My bots</string>
     <string name="developer_bots_desc">Create tokens and webhooks for custom bots</string>

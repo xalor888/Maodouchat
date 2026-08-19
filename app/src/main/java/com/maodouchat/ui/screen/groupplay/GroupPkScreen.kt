@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
@@ -262,7 +263,7 @@ private fun PkCard(pk: PkListItem, voting: Boolean, onVote: (String) -> Unit) {
         }
         Text(
             buildString {
-                append(stringResource(R.string.group_play_voters_count, pk.totalVoters))
+                append(pluralStringResource(R.plurals.group_play_voters_count, pk.totalVoters, pk.totalVoters))
                 pk.myChoice?.let {
                     append(" · ")
                     append(stringResource(R.string.group_play_voted_choice, if (it == "left") pk.leftTitle else pk.rightTitle))
