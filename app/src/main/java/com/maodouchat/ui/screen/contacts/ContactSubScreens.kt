@@ -133,7 +133,7 @@ fun MyQrCodeScreen(
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
-            title = { Text(stringResource(R.string.profile_my_qr), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
+            title = { Text(stringResource(R.string.profile_my_qr), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
@@ -165,7 +165,7 @@ fun MyQrCodeScreen(
             }
             Avatar(name = state.userName, avatarUrl = state.userAvatar, size = AvatarSize.LG)
             Spacer(modifier = Modifier.height(12.dp))
-            Text(state.userName, style = MaterialTheme.typography.titleLarge, color = OnSurface)
+            Text(state.userName, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                 Text(stringResource(R.string.profile_maodou_id, state.userId), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
@@ -542,7 +542,7 @@ fun ScanScreen(
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
-            title = { Text(stringResource(R.string.contacts_scan), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
+            title = { Text(stringResource(R.string.contacts_scan), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
@@ -552,7 +552,7 @@ fun ScanScreen(
         )
 
         Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(stringResource(R.string.contacts_scan_align), style = MaterialTheme.typography.titleMedium, color = OnSurface)
+            Text(stringResource(R.string.contacts_scan_align), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(12.dp))
             Text(stringResource(R.string.contacts_scan_supports), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
             Spacer(modifier = Modifier.height(32.dp))
@@ -597,7 +597,7 @@ fun ScanScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Avatar(name = user.name, avatarUrl = user.avatar, size = AvatarSize.LG, isOnline = user.isOnline)
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(user.name, style = MaterialTheme.typography.titleMedium, color = OnSurface)
+                    Text(user.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     if (user.status.isNotBlank()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(user.status, style = MaterialTheme.typography.bodySmall, color = TextSecondary)

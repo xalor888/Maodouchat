@@ -199,7 +199,7 @@ fun CallHistoryScreen(
                             if (searchQuery.isBlank()) androidx.compose.ui.text.AnnotatedString(entry.peerName.ifBlank { entry.peerId })
                             else highlightedText(entry.peerName.ifBlank { entry.peerId }, searchQuery),
                             style = MaterialTheme.typography.bodyLarge,
-                            color = OnSurface,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -273,7 +273,7 @@ fun CallHistoryScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(stringResource(R.string.call_history_open_profile), modifier = Modifier.fillMaxWidth(), color = OnSurface)
+                Text(stringResource(R.string.call_history_open_profile), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface)
             }
             Spacer(modifier = Modifier.height(12.dp))
         }

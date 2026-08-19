@@ -150,7 +150,7 @@ private fun FakeChatTopBar(onUnlockRequest: () -> Unit, modifier: Modifier = Mod
                     Text(
                         stringResource(R.string.fake_chat_peer_name),
                         style = MaterialTheme.typography.titleMedium,
-                        color = OnSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(

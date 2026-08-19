@@ -242,7 +242,7 @@ fun NotificationCenterScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(stringResource(R.string.notif_center_title), style = MaterialTheme.typography.headlineSmall, color = OnSurface)
+                        Text(stringResource(R.string.notif_center_title), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
                         if (unreadCount > 0) {
                             Text(
                                 stringResource(R.string.notif_center_unread_count, unreadCount),
@@ -481,7 +481,7 @@ private fun NotificationRow(
                     if (highlightQuery.isBlank()) androidx.compose.ui.text.AnnotatedString(item.title)
                     else highlightedText(item.title, highlightQuery),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = OnSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = if (item.read) FontWeight.Normal else FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -545,7 +545,7 @@ private fun EmptyNotificationCenter(modifier: Modifier) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = TextHint, modifier = Modifier.size(72.dp))
             Spacer(modifier = Modifier.height(12.dp))
-            Text(stringResource(R.string.notif_center_empty_title), style = MaterialTheme.typography.titleMedium, color = OnSurface)
+            Text(stringResource(R.string.notif_center_empty_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(4.dp))
             Text(stringResource(R.string.notif_center_empty_subtitle), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
         }

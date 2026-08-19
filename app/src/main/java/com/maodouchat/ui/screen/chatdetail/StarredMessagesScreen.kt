@@ -531,7 +531,7 @@ fun StarredMessagesScreen(
         containerColor = LocalChatPalette.current.chatBackground,
         topBar = {
             TopAppBar(
-                title = { Text(title, color = OnSurface) },
+                title = { Text(title, color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary)
@@ -696,7 +696,7 @@ private fun StarredMessageRow(
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(senderName, style = MaterialTheme.typography.bodyMedium, color = OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Text(senderName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 IconButton(
                     onClick = onUnstar,
                     modifier = Modifier.size(24.dp)

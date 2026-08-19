@@ -629,7 +629,7 @@ fun GlobalSearchScreen(
         containerColor = Background,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.global_search_title), color = OnSurface) },
+                title = { Text(stringResource(R.string.global_search_title), color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.common_back), tint = Primary)
@@ -849,7 +849,7 @@ fun GlobalSearchScreen(
             title = { Text(stringResource(R.string.chat_ai_consent_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.global_search_ai_consent_data), color = OnSurface)
+                    Text(stringResource(R.string.global_search_ai_consent_data), color = MaterialTheme.colorScheme.onSurface)
                     Text(stringResource(R.string.chat_ai_consent_privacy), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                 }
             },
@@ -890,7 +890,7 @@ private fun GlobalSearchResultRow(hit: GlobalSearchHit, query: String, onClick: 
                     hit.chatName,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = OnSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
@@ -981,7 +981,7 @@ private fun RecentSearchesSection(
                 Text(
                     query,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = OnSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)

@@ -149,7 +149,7 @@ fun ContactsScreen(
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(modifier = Modifier.fillMaxSize()) {
             TopAppBar(
-                title = { Text(stringResource(R.string.nav_contacts), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
+                title = { Text(stringResource(R.string.nav_contacts), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 actions = {
                     // 标题栏搜索图标：点击清空当前搜索框输入（已输入时），否则聚焦体验由下方 SearchBar 承担
                     IconButton(onClick = { if (state.searchQuery.isNotBlank()) viewModel.onSearchQueryChange("") }) { Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.contacts_search), tint = TextSecondary) }
@@ -306,7 +306,7 @@ fun ContactsScreen(
                                     Icon(Icons.Filled.GroupAdd, contentDescription = stringResource(R.string.contacts_new_group), tint = Color.White, modifier = Modifier.size(22.dp))
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
-                                Text(stringResource(R.string.contacts_new_group), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = OnSurface)
+                                Text(stringResource(R.string.contacts_new_group), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurface)
                             }
                         }
                     }
@@ -329,7 +329,7 @@ fun ContactsScreen(
                                     Icon(Icons.Outlined.Campaign, contentDescription = stringResource(R.string.chat_create_channel), tint = Primary, modifier = Modifier.size(22.dp))
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
-                                Text(stringResource(R.string.chat_create_channel), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = OnSurface)
+                                Text(stringResource(R.string.chat_create_channel), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurface)
                             }
                         }
                     }
@@ -580,7 +580,7 @@ fun ContactsScreen(
                 title = { Text(stringResource(R.string.contacts_friend_request_message_title)) },
                 text = {
                     Column {
-                        Text(user.displayName, style = MaterialTheme.typography.bodyMedium, color = OnSurface)
+                        Text(user.displayName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                         Spacer(modifier = Modifier.height(8.dp))
                         TextField(
                             value = message,
@@ -682,7 +682,7 @@ private fun SearchUserRow(
                 if (highlightQuery.isBlank()) androidx.compose.ui.text.AnnotatedString(user.displayName)
                 else highlightedText(user.displayName, highlightQuery),
                 style = MaterialTheme.typography.bodyLarge,
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1
             )
             if (user.status.isNotBlank()) {
@@ -718,7 +718,7 @@ private fun FriendRequestRow(
         Avatar(name = request.user.name, avatarUrl = request.user.avatar, size = AvatarSize.MD, isOnline = request.user.isOnline)
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(request.user.name, style = MaterialTheme.typography.bodyLarge, color = OnSurface, maxLines = 1)
+            Text(request.user.name, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
             if (request.message.isNotBlank()) {
                 Text(request.message, style = MaterialTheme.typography.bodySmall, color = TextSecondary, maxLines = 2)
             } else if (request.outgoing) {
@@ -817,7 +817,7 @@ private fun NewGroupDialog(
                                 Avatar(name = user.displayName, avatarUrl = user.avatar, size = AvatarSize.SM, isOnline = user.isOnline)
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(user.displayName, style = MaterialTheme.typography.bodyMedium, color = OnSurface, maxLines = 1)
+                                    Text(user.displayName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
                                     val subtitle = when {
                                         user.isOnline -> stringResource(R.string.contacts_online)
                                         user.email.isNotBlank() -> user.email
@@ -924,7 +924,7 @@ private fun NewChannelDialog(
                                 Avatar(name = user.displayName, avatarUrl = user.avatar, size = AvatarSize.SM, isOnline = user.isOnline)
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(user.displayName, style = MaterialTheme.typography.bodyMedium, color = OnSurface, maxLines = 1)
+                                    Text(user.displayName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
                                     val subtitle = if (user.isOnline) stringResource(R.string.contacts_online) else stringResource(R.string.contacts_offline)
                                     Text(subtitle, style = MaterialTheme.typography.labelSmall, color = if (user.isOnline) Primary else TextSecondary, maxLines = 1)
                                 }
@@ -972,7 +972,7 @@ private fun ContactItem(user: User, onClick: () -> Unit, onLongClick: (() -> Uni
         Avatar(name = user.displayName, avatarUrl = user.avatar, size = AvatarSize.MD, isOnline = user.isOnline)
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(user.displayName, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = OnSurface, maxLines = 1)
+            Text(user.displayName, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
             val subtitle = when {
                 !user.nickname.isNullOrBlank() && user.nickname != user.name -> user.name
                 user.isOnline -> stringResource(R.string.contacts_online)

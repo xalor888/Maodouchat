@@ -863,8 +863,8 @@ fun ChatDetailScreen(
     if (showDeviceRiskDialog) {
         AlertDialog(
             onDismissRequest = { /* 未登记设备必须决策 */ },
-            title = { Text(stringResource(R.string.secret_new_device_risk_prompt_title), style = MaterialTheme.typography.titleMedium, color = OnSurface) },
-            text = { Text(stringResource(R.string.secret_new_device_risk_prompt_body), style = MaterialTheme.typography.bodyMedium, color = OnSurface) },
+            title = { Text(stringResource(R.string.secret_new_device_risk_prompt_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
+            text = { Text(stringResource(R.string.secret_new_device_risk_prompt_body), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface) },
             confirmButton = {
                 TextButton(onClick = {
                     showDeviceRiskDialog = false
@@ -1216,7 +1216,7 @@ fun ChatDetailScreen(
                                 Avatar(name = member.name, size = AvatarSize.SM)
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(member.displayName, style = MaterialTheme.typography.bodyMedium, color = OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(member.displayName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     if (member.status.isNotBlank()) Text(member.status, style = MaterialTheme.typography.labelSmall, color = TextHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 if (member.id == state.currentUserId) Text(stringResource(R.string.chat_me), style = MaterialTheme.typography.labelSmall, color = Primary)
@@ -1240,7 +1240,7 @@ fun ChatDetailScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                                     Avatar(name = user.name, avatarUrl = user.avatar, size = AvatarSize.SM)
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Text(user.displayName, style = MaterialTheme.typography.bodyMedium, color = OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                    Text(user.displayName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                                     TextButton(
                                         enabled = !state.isUpdatingGroup,
                                         onClick = { viewModel.addGroupMember(user.id) }
@@ -1511,7 +1511,7 @@ fun ChatDetailScreen(
         val hasActiveSilent = com.maodouchat.notification.ChatQuietHoursStore.silentUntil(context, chatIdForSilent) > System.currentTimeMillis()
         AlertDialog(
             onDismissRequest = { showSilentUntilDialog = false },
-            title = { Text(stringResource(R.string.chat_silent_until_title), style = MaterialTheme.typography.titleMedium, color = OnSurface) },
+            title = { Text(stringResource(R.string.chat_silent_until_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Column {
                     listOf(
@@ -1530,7 +1530,7 @@ fun ChatDetailScreen(
                                 Toast.makeText(context, context.getString(R.string.chat_silent_until_set), Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(labelRes), color = OnSurface) }
+                        ) { Text(stringResource(labelRes), color = MaterialTheme.colorScheme.onSurface) }
                     }
                     // 1.41：已有生效静音时可一键取消
                     if (hasActiveSilent) {
@@ -1559,7 +1559,7 @@ fun ChatDetailScreen(
         }
         AlertDialog(
             onDismissRequest = { showReminderList = false },
-            title = { Text(stringResource(R.string.message_reminder_list_title), style = MaterialTheme.typography.titleMedium, color = OnSurface) },
+            title = { Text(stringResource(R.string.message_reminder_list_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 if (reminders.isEmpty()) {
                     Text(
@@ -1578,7 +1578,7 @@ fun ChatDetailScreen(
                                     Text(
                                         reminder.messagePreview.ifBlank { stringResource(R.string.message_reminder_list_media) },
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = OnSurface,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -2266,7 +2266,7 @@ if (showGroupCallTypeDialog) {
                                 Text(
                                     state.contact.displayName,
                                     style = MaterialTheme.typography.headlineSmall.copy(fontSize = 17.sp),
-                                    color = OnSurface,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f, fill = false)
@@ -4230,7 +4230,7 @@ DropdownMenuItem(
                     Text(
                         stringResource(R.string.chat_message_actions),
                         style = MaterialTheme.typography.titleLarge,
-                        color = OnSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                     ReactionPickerRow(
@@ -4245,7 +4245,7 @@ DropdownMenuItem(
                             messageToActions = null
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text(stringResource(R.string.chat_select_message), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                    ) { Text(stringResource(R.string.chat_select_message), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                     if (isMessageReplyable(msg.type)) {
                         TextButton(
                             onClick = {
@@ -4253,7 +4253,7 @@ DropdownMenuItem(
                                 messageToActions = null
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.message_reply), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                        ) { Text(stringResource(R.string.message_reply), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                     }
                     if (isMessageCopyable(msg.type, isSecretChat = state.isSecretChat == true, copyBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_COPY_BLOCK))) {
                         TextButton(
@@ -4264,7 +4264,7 @@ DropdownMenuItem(
                                 messageToActions = null
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.chat_copy), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                        ) { Text(stringResource(R.string.chat_copy), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                         // 1.73：复制带发送者（引用/记录用，格式「发送者: 内容」）
                         TextButton(
                             onClick = {
@@ -4276,7 +4276,7 @@ DropdownMenuItem(
                                 messageToActions = null
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.chat_copy_with_sender), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                        ) { Text(stringResource(R.string.chat_copy_with_sender), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                         // 1.160：复制带发送者与时间（格式「MM-dd HH:mm 发送者: 内容」）
                         TextButton(
                             onClick = {
@@ -4294,7 +4294,7 @@ DropdownMenuItem(
                                 messageToActions = null
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.chat_copy_with_sender_time), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                        ) { Text(stringResource(R.string.chat_copy_with_sender_time), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                         // 1.169：分享消息到系统其他应用（密聊与复制同款门控，防外泄）
                         if (isMessageCopyable(msg.type, isSecretChat = state.isSecretChat == true, copyBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_COPY_BLOCK))) {
                         val chatShareMessageTitle = stringResource(R.string.chat_share_message_title)
@@ -4345,7 +4345,7 @@ DropdownMenuItem(
                                 messageToActions = null
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.chat_share_message), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                        ) { Text(stringResource(R.string.chat_share_message), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                         }
                         // 0.71：Markdown 消息提供「复制为纯文本」（剥离 **、# 等标记）
                         if (msg.type == MessageType.MARKDOWN) {
@@ -4362,7 +4362,7 @@ DropdownMenuItem(
                                     messageToActions = null
                                 },
                                 modifier = Modifier.fillMaxWidth()
-                            ) { Text(stringResource(R.string.chat_copy_plain), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                            ) { Text(stringResource(R.string.chat_copy_plain), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                         }
                         // 1.84：名片消息复制干净文本（不含 [contactUser:...] 标记）
                         if (msg.parsedContent().contains("[contactUser:")) {
@@ -4375,7 +4375,7 @@ DropdownMenuItem(
                                     messageToActions = null
                                 },
                                 modifier = Modifier.fillMaxWidth()
-                            ) { Text(stringResource(R.string.chat_copy_contact_card), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                            ) { Text(stringResource(R.string.chat_copy_contact_card), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                         }
                         // 0.97：消息分享到系统（ACTION_SEND 文本分享）
                         TextButton(
@@ -4393,7 +4393,7 @@ DropdownMenuItem(
                                 messageToActions = null
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.chat_share), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                        ) { Text(stringResource(R.string.chat_share), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                         if (!displayedTranslation.isNullOrBlank()) {
                             TextButton(
                                 onClick = {
@@ -4403,7 +4403,7 @@ DropdownMenuItem(
                                     messageToActions = null
                                 },
                                 modifier = Modifier.fillMaxWidth()
-                            ) { Text(stringResource(R.string.chat_copy_translation), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                            ) { Text(stringResource(R.string.chat_copy_translation), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                         }
                     }
                     if (msg.type == MessageType.VOICE && !voiceTranscript.isNullOrBlank()) {
@@ -4415,7 +4415,7 @@ DropdownMenuItem(
                                 messageToActions = null
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.chat_copy_transcript), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                        ) { Text(stringResource(R.string.chat_copy_transcript), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                     }
                     // 1.299：复制消息 ID（反查排障；ID 本身不涉密，密聊也可用）
                     TextButton(
@@ -4426,7 +4426,7 @@ DropdownMenuItem(
                             messageToActions = null
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text(stringResource(R.string.chat_copy_message_id), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                    ) { Text(stringResource(R.string.chat_copy_message_id), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                     // AI 场景入口（与输入栏主入口分区视觉统一）；密聊会话不提供（防解密明文送 AI）
                     val contextAiActions = com.maodouchat.ai.AiEntryPolicy.contextActionsFor(
                         messageType = msg.type.name,
@@ -4536,7 +4536,7 @@ DropdownMenuItem(
                                 messageToActions = null
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.chat_forward), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                        ) { Text(stringResource(R.string.chat_forward), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                     }
                     TextButton(
                         onClick = {
@@ -4544,7 +4544,7 @@ DropdownMenuItem(
                             messageToActions = null
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text(stringResource(if (msg.starred) R.string.chat_unstar else R.string.chat_star), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                    ) { Text(stringResource(if (msg.starred) R.string.chat_unstar else R.string.chat_star), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                     val canPinMessage = MessagePinPolicy.canPin(
                         isGroup = state.chatIsGroup,
                         myRole = state.myMemberRole,
@@ -4563,7 +4563,7 @@ DropdownMenuItem(
                             Text(
                                 stringResource(if (isPinned) R.string.chat_message_unpin else R.string.chat_message_pin),
                                 modifier = Modifier.fillMaxWidth(),
-                                color = OnSurface
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -4574,7 +4574,7 @@ DropdownMenuItem(
                             messageToActions = null
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text(stringResource(R.string.message_reminder_menu), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                    ) { Text(stringResource(R.string.message_reminder_menu), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                     if (isOwn && msg.status == com.maodouchat.data.model.MessageStatus.FAILED) {
                         TextButton(
                             onClick = {
@@ -4582,7 +4582,7 @@ DropdownMenuItem(
                                 messageToActions = null
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.chat_retry), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                        ) { Text(stringResource(R.string.chat_retry), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                     }
                     if (isOwn) {
                         TextButton(
@@ -4592,7 +4592,7 @@ DropdownMenuItem(
                                 messageToActions = null
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.chat_read_details), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                        ) { Text(stringResource(R.string.chat_read_details), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                     }
                     if (isOwn && withinEditWindow && (msg.type == MessageType.TEXT || msg.type == MessageType.MARKDOWN)) {
                         TextButton(
@@ -4602,7 +4602,7 @@ DropdownMenuItem(
                                 messageToActions = null
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.chat_edit), modifier = Modifier.fillMaxWidth(), color = OnSurface) }
+                        ) { Text(stringResource(R.string.chat_edit), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                     }
                     if (isOwn && withinEditWindow && msg.type != MessageType.REVOKED) {
                         // 1.152：撤回倒计时（5 分钟窗口，向上取整分钟）
@@ -4664,7 +4664,7 @@ DropdownMenuItem(
     pendingImageConfirm?.let { pending ->
         AlertDialog(
             onDismissRequest = { pendingImageConfirm = null },
-            title = { Text(stringResource(R.string.chat_image_send_preview), style = MaterialTheme.typography.titleMedium, color = OnSurface) },
+            title = { Text(stringResource(R.string.chat_image_send_preview), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Column {
                     coil.compose.AsyncImage(
@@ -4706,7 +4706,7 @@ DropdownMenuItem(
     pendingVideoConfirm?.let { pending ->
         AlertDialog(
             onDismissRequest = { pendingVideoConfirm = null },
-            title = { Text(stringResource(R.string.chat_video_send_preview), style = MaterialTheme.typography.titleMedium, color = OnSurface) },
+            title = { Text(stringResource(R.string.chat_video_send_preview), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Icon(
@@ -4720,7 +4720,7 @@ DropdownMenuItem(
                     Text(
                         text = fileName,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = OnSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -4932,7 +4932,7 @@ DropdownMenuItem(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(receipt.name, style = MaterialTheme.typography.bodyMedium, color = OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                                        Text(receipt.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                                         // 1.65：在线状态小绿点
                                         if (receipt.isOnline) {
                                             Spacer(modifier = Modifier.width(5.dp))
@@ -5182,7 +5182,7 @@ DropdownMenuItem(
                                 Text(
                                     previewText,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = OnSurface,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f)
@@ -5220,7 +5220,7 @@ DropdownMenuItem(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(stringResource(R.string.chat_forward_merge_title), style = MaterialTheme.typography.bodyMedium, color = OnSurface)
+                                    Text(stringResource(R.string.chat_forward_merge_title), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                                     Text(stringResource(R.string.chat_forward_merge_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                                 }
                                 Switch(checked = forwardMerged, onCheckedChange = { forwardMerged = it })
@@ -5276,7 +5276,7 @@ DropdownMenuItem(
                                             Icon(Icons.Filled.Check, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
                                         }
-                                        Text(forwardTargetName(context, chat, state.currentUserId), modifier = Modifier.weight(1f), color = OnSurface)
+                                        Text(forwardTargetName(context, chat, state.currentUserId), modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
                                         if (secretSource && fwlEnabled && !whitelisted) {
                                             TextButton(onClick = {
                                                 val whitelist = com.maodouchat.util.SecretForwardWhitelistPrefs.whitelist(context) + chat.id
@@ -5503,8 +5503,8 @@ DropdownMenuItem(
     if (showClearHistoryConfirm) {
         AlertDialog(
             onDismissRequest = { showClearHistoryConfirm = false },
-            title = { Text(stringResource(R.string.chat_clear_history), style = MaterialTheme.typography.titleMedium, color = OnSurface) },
-            text = { Text(stringResource(R.string.chat_clear_history_confirm), style = MaterialTheme.typography.bodyMedium, color = OnSurface) },
+            title = { Text(stringResource(R.string.chat_clear_history), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
+            text = { Text(stringResource(R.string.chat_clear_history_confirm), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface) },
             confirmButton = {
                 TextButton(onClick = {
                     showClearHistoryConfirm = false
@@ -5709,7 +5709,7 @@ private fun AiOperationStatusBar(
         }
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.labelLarge, color = OnSurface)
+            Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
             Text(status, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
             if (showRetryBillHint) {
                 Text(
@@ -5789,7 +5789,7 @@ private fun AiDraftStreamBar(
                 Text(
                     stringResource(R.string.chat_ai_draft_preview),
                     style = MaterialTheme.typography.labelLarge,
-                    color = OnSurface
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 if (isStreaming) {
                     Spacer(modifier = Modifier.width(8.dp))
@@ -5808,7 +5808,7 @@ private fun AiDraftStreamBar(
                 Text(
                     preview,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = OnSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 6,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -5955,7 +5955,7 @@ private fun ContactProfileSheet(
             Text(
                 contact.displayName,
                 style = MaterialTheme.typography.titleLarge,
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -6066,7 +6066,7 @@ private fun GroupEncryptionWarningBanner(warning: String) {
     ) {
         Icon(Icons.Outlined.Security, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(8.dp))
-        Text(warning, color = OnSurface, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+        Text(warning, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
     }
 }
 
@@ -6121,7 +6121,7 @@ private fun GifSearchDialog(
                     Text(
                         text = stringResource(R.string.gif_search_permission),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = OnSurface
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     TextButton(onClick = onRequestPermission) {
@@ -6275,7 +6275,7 @@ private fun ScheduledMessagesBanner(
                     Text(
                         text = item.text,
                         style = MaterialTheme.typography.bodySmall,
-                        color = OnSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -6336,7 +6336,7 @@ private fun ScheduledMessagesListSheet(
             Text(
                 text = stringResource(R.string.schedule_pending_title, items.size),
                 style = MaterialTheme.typography.titleMedium,
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             // 1.174：全部取消
@@ -6388,7 +6388,7 @@ private fun ScheduledMessagesListSheet(
                                 Text(
                                     text = item.text,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = OnSurface,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 3,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -6592,7 +6592,7 @@ private fun MessageReminderTimeDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.message_reminder_menu), style = MaterialTheme.typography.titleMedium, color = OnSurface) },
+        title = { Text(stringResource(R.string.message_reminder_menu), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
         text = {
             val delays = com.maodouchat.util.MessageReminderPolicy.QUICK_DELAYS_MS
             val labels = listOf(
@@ -6607,7 +6607,7 @@ private fun MessageReminderTimeDialog(
                     TextButton(
                         onClick = { onPick(delayMs) },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text(stringResource(labelRes), color = OnSurface, modifier = Modifier.fillMaxWidth()) }
+                    ) { Text(stringResource(labelRes), color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.fillMaxWidth()) }
                 }
             }
         },
@@ -6724,7 +6724,7 @@ private fun SecretChatBanner(
             Text(
                 text = stringResource(R.string.secret_chat_banner),
                 style = MaterialTheme.typography.bodySmall,
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -6812,7 +6812,7 @@ private fun LiveLocationSharingBanner(
         Text(
             text = stringResource(R.string.live_location_sharing_banner, label),
             style = MaterialTheme.typography.bodySmall,
-            color = OnSurface,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
@@ -6849,7 +6849,7 @@ private fun DisappearingMessagesBanner(
         Text(
             text = stringResource(R.string.disappear_banner_on, disappearSecondsLabel(seconds)),
             style = MaterialTheme.typography.bodySmall,
-            color = OnSurface,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
@@ -6878,7 +6878,7 @@ private fun ChatQuietHoursDialog(
     val enabled = current.enabled
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.chat_quiet_hours_title), style = MaterialTheme.typography.titleMedium, color = OnSurface) },
+        title = { Text(stringResource(R.string.chat_quiet_hours_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
@@ -7081,7 +7081,7 @@ private fun PinnedMessagesBanner(
             Text(
                 text = preview,
                 style = MaterialTheme.typography.bodySmall,
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -7154,7 +7154,7 @@ private fun GroupAnnouncementBanner(
             Text(
                 text = announcement,
                 style = MaterialTheme.typography.bodySmall,
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -7322,7 +7322,7 @@ private fun UnreadSummaryBanner(
             Text(
                 text = summary ?: stringResource(R.string.chat_generating),
                 style = MaterialTheme.typography.bodySmall,
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis
             )
@@ -7401,11 +7401,11 @@ private fun SafetyCodeDialog(
                     }
                 }
                 if (devices.isEmpty()) {
-                    Text(stringResource(R.string.chat_safety_status, if (isGroup) stringResource(R.string.chat_group_sender_key_enabled) else trustState.toLabel()), style = MaterialTheme.typography.bodyMedium, color = OnSurface)
+                    Text(stringResource(R.string.chat_safety_status, if (isGroup) stringResource(R.string.chat_group_sender_key_enabled) else trustState.toLabel()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                     Text(
                         displayCode ?: stringResource(R.string.chat_safety_not_ready),
                         style = MaterialTheme.typography.titleMedium,
-                        color = OnSurface
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     displayCode?.let { code ->
                         TextButton(
@@ -7526,7 +7526,7 @@ private fun DeviceSafetyRow(
             Text(
                 stringResource(if (device.isCurrent) R.string.chat_device_current else R.string.chat_device_number, device.deviceId),
                 style = MaterialTheme.typography.bodyMedium,
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
             Text(device.trustState.toLabel(), style = MaterialTheme.typography.labelMedium, color = if (device.trustState == SignalProtocol.IdentityTrustState.CHANGED) UnreadRed else Primary)
@@ -7534,7 +7534,7 @@ private fun DeviceSafetyRow(
         Text(
             displayCode ?: stringResource(R.string.chat_device_session_missing),
             style = MaterialTheme.typography.titleSmall,
-            color = OnSurface
+            color = MaterialTheme.colorScheme.onSurface
         )
         if (displayCode == null) {
             Text(stringResource(R.string.chat_identity_fingerprint, device.identityKey.take(16)), style = MaterialTheme.typography.bodySmall, color = Secondary)
@@ -7647,7 +7647,7 @@ private fun AiImageAnalysisModeDialog(
                         Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(21.dp))
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(mode.localizedLabel(), style = MaterialTheme.typography.bodyMedium, color = OnSurface)
+                            Text(mode.localizedLabel(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                             Text(
                                 description,
                                 style = MaterialTheme.typography.labelSmall,
@@ -7695,7 +7695,7 @@ private fun AiImageAnalysisResultDialog(
                 modifier = Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(result, style = MaterialTheme.typography.bodyMedium, color = OnSurface)
+                Text(result, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 HorizontalDivider(color = Outline.copy(alpha = 0.6f))
                 Text(
                     stringResource(R.string.chat_ai_image_disclaimer),
@@ -7741,7 +7741,7 @@ private fun AiFileAnalysisModeDialog(
                         Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(21.dp))
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(mode.localizedLabel(), modifier = Modifier.fillMaxWidth(), color = OnSurface)
+                            Text(mode.localizedLabel(), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface)
                             Text(description, style = MaterialTheme.typography.labelSmall, color = TextHint, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
@@ -7826,7 +7826,7 @@ private fun AiFileAnalysisResultDialog(
                 modifier = Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(result, style = MaterialTheme.typography.bodyMedium, color = OnSurface)
+                Text(result, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 HorizontalDivider(color = Outline.copy(alpha = 0.6f))
                 Text(stringResource(R.string.chat_ai_file_disclaimer), style = MaterialTheme.typography.labelSmall, color = TextHint)
             }
@@ -7872,7 +7872,7 @@ private fun AiSummaryScopeDialog(
                 Text(
                     stringResource(R.string.chat_ai_summary_style_title),
                     style = MaterialTheme.typography.labelLarge,
-                    color = OnSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
                 Row(
@@ -8061,7 +8061,7 @@ private fun AiSummaryHistoryDialog(
                                     Text(
                                         item.summary,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = OnSurface,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -8092,7 +8092,7 @@ private fun AiConsentDialog(
                 Text(
                     stringResource(R.string.chat_ai_consent_data),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = OnSurface
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     stringResource(R.string.chat_ai_consent_privacy),
@@ -8140,7 +8140,7 @@ private fun AiSummaryDialog(
                 modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(summary, style = MaterialTheme.typography.bodyMedium, color = OnSurface)
+                Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 Text(stringResource(R.string.chat_ai_summary_disclaimer), style = MaterialTheme.typography.labelSmall, color = TextHint)
             }
         },
@@ -8211,7 +8211,7 @@ private fun ConversationProfileDialog(
                     Text(
                         profile.narrative?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_ai_profile_no_narrative),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = OnSurface
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -8290,7 +8290,7 @@ private fun WeeklyReportDialog(
                     modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(report.report, style = MaterialTheme.typography.bodyMedium, color = OnSurface)
+                    Text(report.report, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                     Text(
                         stringResource(R.string.chat_ai_summary_disclaimer),
                         style = MaterialTheme.typography.labelSmall,
@@ -8362,7 +8362,7 @@ private fun MessageClassifyDialog(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(label, style = MaterialTheme.typography.bodyMedium, color = OnSurface)
+                            Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                             Text(
                                 stringResource(R.string.ai_enhance_classify_count, row.count),
                                 style = MaterialTheme.typography.bodyMedium,
@@ -8474,14 +8474,14 @@ private fun GroupAiAssistantDialog(
                     },
                     label = "groupAiAnswer"
                 ) { animatedAnswer ->
-                    Text(animatedAnswer, style = MaterialTheme.typography.bodyMedium, color = OnSurface)
+                    Text(animatedAnswer, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
                 if (tasks.isNotEmpty()) {
                     HorizontalDivider(color = Outline.copy(alpha = 0.7f))
                     Text(
                         stringResource(R.string.ai_tasks_preview_count, tasks.size),
                         style = MaterialTheme.typography.titleSmall,
-                        color = OnSurface
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     tasks.forEachIndexed { index, task ->
                         val animateInitialEntry = MotionPolicy.shouldAnimateInitialListEntry(index, motion)
@@ -8516,7 +8516,7 @@ private fun GroupAiAssistantDialog(
                                     modifier = Modifier.weight(1f),
                                     verticalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
-                                    Text(task.title, style = MaterialTheme.typography.bodyMedium, color = OnSurface)
+                                    Text(task.title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                                     task.owner?.takeIf(String::isNotBlank)?.let { owner ->
                                         Text(
                                             stringResource(R.string.ai_tasks_owner, owner),
@@ -8712,7 +8712,7 @@ private fun VoicePreviewBar(
             Text(
                 stringResource(R.string.chat_voice_preview_title),
                 style = MaterialTheme.typography.labelMedium,
-                color = OnSurface
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(durationLabel, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
             if (isPreviewPlaying) {
@@ -8881,7 +8881,7 @@ private fun ChatInputBar(
                                         onClick = { onAiSuggestionClick(suggestion) },
                                         modifier = Modifier.background(Primary.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
                                     ) {
-                                        Text(suggestion, color = OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(suggestion, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                             }
@@ -8907,7 +8907,7 @@ private fun ChatInputBar(
                                     onClick = { onAiSuggestionClick(suggestion) },
                                     modifier = Modifier.background(Primary.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
                                 ) {
-                                    Text(suggestion, color = OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(suggestion, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
@@ -9735,7 +9735,7 @@ private fun TranslationLanguageDialog(
                             ) {
                                 Text(
                                     text = label,
-                                    color = OnSurface,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.weight(1f)
                                 )
                                 if (language.wireValue in translatedLanguages) {
@@ -9844,7 +9844,7 @@ private fun QuickPhrasesDialog(
     var error by remember { mutableStateOf<String?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.chat_quick_phrases), style = MaterialTheme.typography.titleMedium, color = OnSurface) },
+        title = { Text(stringResource(R.string.chat_quick_phrases), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 OutlinedTextField(
@@ -9901,7 +9901,7 @@ private fun QuickPhrasesDialog(
                             ) {
                                 Text(
                                     phrase,
-                                    color = OnSurface,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                     textAlign = TextAlign.Start,
@@ -10235,7 +10235,7 @@ private fun ExpressionPanel(
                             Text(
                                 text = stickerPackLabel(pack.nameKey),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = OnSurface,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
@@ -10280,7 +10280,7 @@ private fun ExpressionPanel(
                             Text(
                                 packId,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = OnSurface,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.weight(1f)
                             )
                             if (remoteDownloading == packId) {
@@ -10555,7 +10555,7 @@ private fun ContactCardPickerDialog(
                                     Text(
                                         user.displayName,
                                         style = MaterialTheme.typography.bodyLarge,
-                                        color = OnSurface,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )

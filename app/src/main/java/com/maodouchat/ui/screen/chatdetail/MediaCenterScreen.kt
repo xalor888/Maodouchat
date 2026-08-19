@@ -363,7 +363,7 @@ fun MediaCenterScreen(
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text(stringResource(R.string.media_center_title), color = OnSurface) },
+                    title = { Text(stringResource(R.string.media_center_title), color = MaterialTheme.colorScheme.onSurface) },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.common_back), tint = Primary)
@@ -780,7 +780,7 @@ private fun MediaCenterImageViewer(
                         // 1.320：搜索时高亮匹配文件名
                         if (highlightQuery.isBlank()) androidx.compose.ui.text.AnnotatedString(meta.fileName?.takeIf(String::isNotBlank) ?: stringResource(R.string.message_preview_file))
                         else highlightedText(meta.fileName?.takeIf(String::isNotBlank) ?: stringResource(R.string.message_preview_file), highlightQuery),
-                        color = OnSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -837,7 +837,7 @@ private fun VoiceList(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.message_preview_voice),
-                        color = OnSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -901,7 +901,7 @@ private fun LocationList(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = label,
-                        color = OnSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -944,7 +944,7 @@ private fun LinkList(items: List<MediaCenterItem>, onOpenMessage: (String) -> Un
                     Text(
                         if (highlightQuery.isBlank()) androidx.compose.ui.text.AnnotatedString(Uri.parse(url).host ?: url)
                         else highlightedText(Uri.parse(url).host ?: url, highlightQuery),
-                        color = OnSurface, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis
+                        color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         if (highlightQuery.isBlank()) androidx.compose.ui.text.AnnotatedString(url)

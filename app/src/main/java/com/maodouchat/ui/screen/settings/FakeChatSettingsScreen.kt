@@ -83,7 +83,7 @@ fun FakeChatSettingsScreen(
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
-            title = { Text(stringResource(R.string.fake_chat_settings_title), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
+            title = { Text(stringResource(R.string.fake_chat_settings_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
@@ -107,7 +107,7 @@ fun FakeChatSettingsScreen(
                     Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.fake_chat_mode), style = MaterialTheme.typography.bodyLarge, color = OnSurface)
+                        Text(stringResource(R.string.fake_chat_mode), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                         Text(stringResource(R.string.fake_chat_mode_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                     }
                     Switch(
@@ -143,7 +143,7 @@ fun FakeChatSettingsScreen(
                         Icon(Icons.Outlined.Lock, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.fake_chat_pin_change), style = MaterialTheme.typography.bodyLarge, color = OnSurface)
+                            Text(stringResource(R.string.fake_chat_pin_change), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                             Text(stringResource(R.string.fake_chat_pin_change_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                         }
                     }
@@ -154,7 +154,7 @@ fun FakeChatSettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.fake_chat_relock), style = MaterialTheme.typography.bodyLarge, color = OnSurface)
+                            Text(stringResource(R.string.fake_chat_relock), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                             Text(stringResource(R.string.fake_chat_relock_subtitle), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                         }
                         Switch(
@@ -182,7 +182,7 @@ fun FakeChatSettingsScreen(
                     Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.fake_chat_hide_icon), style = MaterialTheme.typography.bodyLarge, color = OnSurface)
+                        Text(stringResource(R.string.fake_chat_hide_icon), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                         Text(
                             stringResource(R.string.fake_chat_hide_icon_subtitle),
                             style = MaterialTheme.typography.bodySmall,
@@ -229,7 +229,7 @@ fun FakeChatSettingsScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.fake_chat_guide_title), style = MaterialTheme.typography.titleSmall, color = OnSurface)
+                    Text(stringResource(R.string.fake_chat_guide_title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                     Text(stringResource(R.string.fake_chat_guide_1), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                     Text(stringResource(R.string.fake_chat_guide_2), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                     Text(stringResource(R.string.fake_chat_guide_3), style = MaterialTheme.typography.bodySmall, color = TextSecondary)

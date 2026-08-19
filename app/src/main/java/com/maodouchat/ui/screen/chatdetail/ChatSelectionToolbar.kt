@@ -52,7 +52,7 @@ internal fun ChatSelectionToolbar(
             Text(
                 stringResource(R.string.chat_messages_selected, selectedCount),
                 style = MaterialTheme.typography.labelLarge,
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
             if (onSelectAll != null) {

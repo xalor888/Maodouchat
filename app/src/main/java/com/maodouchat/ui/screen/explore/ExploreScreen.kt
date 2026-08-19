@@ -226,7 +226,7 @@ fun ExploreScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.nav_explore), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
+                title = { Text(stringResource(R.string.nav_explore), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 actions = {
                     IconButton(onClick = viewModel::refresh) {
                         Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.explore_refresh))
@@ -592,7 +592,7 @@ private fun EntryGrid(onEntryClick: (String) -> Unit) {
                     }
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text(entry.title, style = MaterialTheme.typography.titleMedium, color = OnSurface, fontWeight = FontWeight.SemiBold)
+                        Text(entry.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                         Text(entry.subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
@@ -624,7 +624,7 @@ private fun ComposerCard(
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(22.dp)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.explore_share_title), style = MaterialTheme.typography.titleMedium, color = OnSurface, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.explore_share_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 if (text.isNotBlank() || imageDrafts.isNotEmpty()) {
                     TextButton(onClick = onClear) {
                         Text(stringResource(R.string.explore_composer_clear), color = TextSecondary, style = MaterialTheme.typography.labelMedium)
@@ -793,7 +793,7 @@ private fun PostCard(
                 Avatar(name = post.author.name, avatarUrl = post.author.avatar, size = AvatarSize.MD, isOnline = post.author.isOnline)
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(post.author.name, style = MaterialTheme.typography.titleMedium, color = OnSurface, fontWeight = FontWeight.SemiBold)
+                    Text(post.author.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                     // 1.150：作者个性签名（与详情页/作者主页一致）
                     if (post.author.status.isNotBlank()) {
                         Text(
@@ -849,7 +849,7 @@ private fun PostCard(
                 Text(
                     post.content,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = OnSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 6,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     modifier = Modifier.clickable(onClick = onOpenPost)
@@ -1258,7 +1258,7 @@ private fun CommentsDialog(
                                             Text(
                                                 comment.author.name,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = OnSurface,
+                                                color = MaterialTheme.colorScheme.onSurface,
                                                 maxLines = 1,
                                                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                                 modifier = Modifier.weight(1f, fill = false).clickable { onOpenAuthor(comment.author.id) }
@@ -1304,7 +1304,7 @@ private fun CommentsDialog(
                                         // 1.250：双击评论内容点赞（与详情页 1.235 一致）；1.270：搜索时高亮关键词
                                         Text(
                                             if (commentSearch.isNotBlank()) highlightedText(comment.content, commentSearch) else androidx.compose.ui.text.AnnotatedString(comment.content),
-                                            color = OnSurface,
+                                            color = MaterialTheme.colorScheme.onSurface,
                                             modifier = Modifier.combinedClickable(
                                                 onClick = {},
                                                 onDoubleClick = { onToggleLike(comment) }
@@ -1458,7 +1458,7 @@ private fun CommentsDialog(
                                 // 1.190：点赞者在线绿点
                                 Avatar(name = user.name, avatarUrl = user.avatar, size = AvatarSize.SM, isOnline = user.isOnline)
                                 Spacer(Modifier.width(8.dp))
-                                Text(user.name, style = MaterialTheme.typography.bodyMedium, color = OnSurface)
+                                Text(user.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                                 Spacer(Modifier.width(8.dp))
                                 if (user.isOnline) {
                                     Text(stringResource(R.string.chat_online), style = MaterialTheme.typography.labelSmall, color = Primary)

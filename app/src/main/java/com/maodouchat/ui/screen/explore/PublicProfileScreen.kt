@@ -273,7 +273,7 @@ private fun ProfileContentView(
             profile.name,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
-            color = OnSurface,
+            color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
         )
 

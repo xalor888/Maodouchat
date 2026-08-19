@@ -450,7 +450,7 @@ fun AuthorProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(state.author?.name ?: stringResource(R.string.explore_author_home), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
+                title = { Text(state.author?.name ?: stringResource(R.string.explore_author_home), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
@@ -514,7 +514,7 @@ fun AuthorProfileScreen(
                             Avatar(name = author.name, avatarUrl = author.avatar, size = AvatarSize.LG, isOnline = author.isOnline)
                             Spacer(modifier = Modifier.width(14.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(author.name, style = MaterialTheme.typography.titleLarge, color = OnSurface)
+                                Text(author.name, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(author.id, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                                 if (author.status.isNotBlank()) {
@@ -585,7 +585,7 @@ fun AuthorProfileScreen(
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(state.author?.name ?: stringResource(R.string.explore_other_person), style = MaterialTheme.typography.titleSmall, color = OnSurface)
+                                    Text(state.author?.name ?: stringResource(R.string.explore_other_person), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Icon(Icons.Outlined.Public, contentDescription = stringResource(R.string.explore_visibility_public), tint = TextSecondary, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.weight(1f))
@@ -593,7 +593,7 @@ fun AuthorProfileScreen(
                                 }
                                 if (post.content.isNotBlank()) {
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text(post.content, style = MaterialTheme.typography.bodyLarge, color = OnSurface)
+                                    Text(post.content, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                                 }
                                 if (post.imageUrls.isNotEmpty()) {
                                     Spacer(modifier = Modifier.height(8.dp))

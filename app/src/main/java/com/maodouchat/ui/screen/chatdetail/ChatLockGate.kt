@@ -72,7 +72,7 @@ fun ChatLockGate(
                 Icon(Icons.Outlined.Lock, contentDescription = null, tint = Primary, modifier = Modifier.size(36.dp))
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Text(stringResource(R.string.chat_lock_title), style = MaterialTheme.typography.titleLarge, color = OnSurface)
+            Text(stringResource(R.string.chat_lock_title), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(4.dp))
             Text(stringResource(R.string.chat_lock_enter_pin, chatName), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
             Spacer(modifier = Modifier.height(28.dp))
@@ -165,7 +165,7 @@ private fun NumberPad(
                                 .clickableNumber { onDigit(key) },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(key, color = OnSurface, fontSize = 26.sp, fontWeight = FontWeight.Medium)
+                            Text(key, color = MaterialTheme.colorScheme.onSurface, fontSize = 26.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }

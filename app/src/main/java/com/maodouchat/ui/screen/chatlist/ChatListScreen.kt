@@ -496,7 +496,7 @@ fun ChatListScreen(
     if (priorityAnnouncement != null) {
         AlertDialog(
             onDismissRequest = { /* 高优先级公告不可跳过，必须确认 */ },
-            title = { Text(priorityAnnouncement.title.ifBlank { stringResource(R.string.announcement_title_default) }, style = MaterialTheme.typography.titleMedium, color = OnSurface) },
+            title = { Text(priorityAnnouncement.title.ifBlank { stringResource(R.string.announcement_title_default) }, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -510,7 +510,7 @@ fun ChatListScreen(
                     Text(
                         priorityAnnouncement.content,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = OnSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
                             .heightIn(max = 320.dp)
                             .verticalScroll(rememberScrollState())
@@ -907,7 +907,7 @@ fun ChatListScreen(
     if (showBatchDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showBatchDeleteConfirm = false },
-            title = { Text(stringResource(R.string.chat_delete_title), color = OnSurface) },
+            title = { Text(stringResource(R.string.chat_delete_title), color = MaterialTheme.colorScheme.onSurface) },
             text = { Text(stringResource(R.string.chat_list_batch_delete_confirm, state.selectedChatIds.size)) },
             confirmButton = {
                 TextButton(onClick = {
@@ -1740,7 +1740,7 @@ private fun ArchiveSuggestionsCard(
             Text(
                 stringResource(R.string.ai_enhance_archive_title),
                 style = MaterialTheme.typography.titleSmall,
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
             IconButton(onClick = onDismissAll, modifier = Modifier.size(24.dp)) {
@@ -1759,7 +1759,7 @@ private fun ArchiveSuggestionsCard(
                 Text(
                     text = chatNameForSuggestion(chat) ?: suggestion.chatId,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = OnSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)

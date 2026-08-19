@@ -183,7 +183,7 @@ fun SettingsScreen(
         TopAppBar(
             title = {
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium, color = OnSurface)
+                    Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
             },
             navigationIcon = {
@@ -520,7 +520,7 @@ private fun ProfileCard(
                 }
             } else {
                 // 显示模式
-                Text(name, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp), color = OnSurface)
+                Text(name, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp), color = MaterialTheme.colorScheme.onSurface)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(stringResource(R.string.profile_maodou_id, userId), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
                 // 用户名显示（可点击设置）
@@ -685,7 +685,7 @@ private fun PrivacyDialog(
                     onCheckedChange = onSearchableChange
                 )
                 Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.privacy_default_post_visibility), style = MaterialTheme.typography.titleSmall, color = OnSurface)
+                    Text(stringResource(R.string.privacy_default_post_visibility), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                     Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
                         visibilityOptions.forEach { (value, _) ->
                             FilterChip(
@@ -719,7 +719,7 @@ private fun PrivacySwitchRow(
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, color = OnSurface)
+            Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
         }
         Switch(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
@@ -778,7 +778,7 @@ private fun BlockedUsersDialog(
                                     Avatar(name = user.name, avatarUrl = user.avatar, size = AvatarSize.SM, isOnline = user.isOnline)
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(user.name.ifBlank { user.id }, style = MaterialTheme.typography.bodyMedium, color = OnSurface, fontWeight = FontWeight.SemiBold)
+                                        Text(user.name.ifBlank { user.id }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                                         Text(
                                             listOf(user.id, user.status.takeIf { it.isNotBlank() }).filterNotNull().joinToString(" · "),
                                             style = MaterialTheme.typography.labelSmall,

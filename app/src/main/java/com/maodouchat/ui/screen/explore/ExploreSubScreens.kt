@@ -470,7 +470,7 @@ fun NearbyScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.explore_nearby), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
+                title = { Text(stringResource(R.string.explore_nearby), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
@@ -507,7 +507,7 @@ fun NearbyScreen(
                         if (state.isSharing) stringResource(R.string.explore_nearby_visible)
                         else stringResource(R.string.explore_nearby_disabled),
                         style = MaterialTheme.typography.bodyLarge,
-                        color = OnSurface
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         remainingHint,
@@ -712,7 +712,7 @@ private fun NearbyItem(person: NearbyPerson, onClick: () -> Unit) {
             Avatar(name = user.name, avatarUrl = user.avatar, size = AvatarSize.MD, isOnline = user.isOnline)
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(user.name, style = MaterialTheme.typography.titleMedium, color = OnSurface)
+                Text(user.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = distanceText,
@@ -760,7 +760,7 @@ fun MomentsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.explore_moments), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
+                title = { Text(stringResource(R.string.explore_moments), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
@@ -867,7 +867,7 @@ fun MomentsScreen(
                                     if (momentsSearch.isBlank()) androidx.compose.ui.text.AnnotatedString(post.author.name)
                                     else highlightedText(post.author.name, momentsSearch),
                                     style = MaterialTheme.typography.titleSmall,
-                                    color = OnSurface
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(relativeTime(post.createdAt), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                             }
@@ -880,7 +880,7 @@ fun MomentsScreen(
                                 if (momentsSearch.isBlank()) androidx.compose.ui.text.AnnotatedString(post.content)
                                 else highlightedText(post.content, momentsSearch),
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = OnSurface
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         Spacer(modifier = Modifier.height(6.dp))
@@ -995,7 +995,7 @@ fun PostDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.explore_post_details), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
+                title = { Text(stringResource(R.string.explore_post_details), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
@@ -1043,7 +1043,7 @@ fun PostDetailScreen(
                             Avatar(name = post.author.name, avatarUrl = post.author.avatar, size = AvatarSize.SM, isOnline = post.author.isOnline)
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(post.author.name, style = MaterialTheme.typography.titleSmall, color = OnSurface)
+                                Text(post.author.name, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                                 // 1.123：作者状态（个性签名，非空时显示，一行省略）
                                 if (post.author.status.isNotBlank()) {
                                     Text(
@@ -1098,7 +1098,7 @@ fun PostDetailScreen(
                         }
                         if (post.content.isNotBlank()) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(post.content, style = MaterialTheme.typography.bodyLarge, color = OnSurface)
+                            Text(post.content, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                         }
                         // 1.99：详情页展示图片网格（点击全屏查看）
                         if (post.imageUrls.isNotEmpty()) {
@@ -1181,7 +1181,7 @@ fun PostDetailScreen(
             Text(
                 stringResource(R.string.explore_comments_count, post?.commentCount ?: comments.size),
                 style = MaterialTheme.typography.titleSmall,
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp)
             )
             when {
@@ -1282,7 +1282,7 @@ fun PostDetailScreen(
                                     Text(
                                         c.author.name,
                                         style = MaterialTheme.typography.titleSmall,
-                                        color = OnSurface,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                         // 1.213：点击作者名打开主页
@@ -1329,7 +1329,7 @@ fun PostDetailScreen(
                                 Text(
                                     c.content,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = OnSurface,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.combinedClickable(
                                         onClick = {},
                                         onDoubleClick = { viewModel.toggleCommentLike(c) },

@@ -1491,14 +1491,14 @@ fun GroupDetailScreen(
     if (showMuteAllConfirm) {
         AlertDialog(
             onDismissRequest = { showMuteAllConfirm = false },
-            title = { Text(stringResource(R.string.group_detail_mute_all_title), style = MaterialTheme.typography.titleMedium, color = OnSurface) },
-            text = { Text(stringResource(R.string.group_detail_mute_all_confirm), style = MaterialTheme.typography.bodyMedium, color = OnSurface) },
+            title = { Text(stringResource(R.string.group_detail_mute_all_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
+            text = { Text(stringResource(R.string.group_detail_mute_all_confirm), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface) },
             confirmButton = {
                 Row {
                     TextButton(onClick = {
                         showMuteAllConfirm = false
                         viewModel.muteAllMembers(0L)
-                    }) { Text(stringResource(R.string.group_detail_mute_all_clear), color = OnSurface) }
+                    }) { Text(stringResource(R.string.group_detail_mute_all_clear), color = MaterialTheme.colorScheme.onSurface) }
                     TextButton(onClick = {
                         showMuteAllConfirm = false
                         viewModel.muteAllMembers(System.currentTimeMillis() + 24L * 3600_000L)
@@ -1564,7 +1564,7 @@ fun GroupDetailScreen(
                 title = {
                     Text(
                         stringResource(if (state.isChannel) R.string.chat_detail_channel_header else R.string.group_detail_title),
-                        color = OnSurface
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 navigationIcon = {
@@ -1928,7 +1928,7 @@ private fun GroupInviteDialog(
                         color = Secondary
                     )
                 }
-                Text(stringResource(R.string.group_detail_invite_expiry), style = MaterialTheme.typography.labelLarge, color = OnSurface)
+                Text(stringResource(R.string.group_detail_invite_expiry), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1946,7 +1946,7 @@ private fun GroupInviteDialog(
                         }
                     }
                 }
-                Text(stringResource(R.string.group_detail_invite_max_uses), style = MaterialTheme.typography.labelLarge, color = OnSurface)
+                Text(stringResource(R.string.group_detail_invite_max_uses), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2024,7 +2024,7 @@ private fun MuteMemberDialog(
         title = { Text(stringResource(R.string.group_detail_set_mute)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(member.displayName, style = MaterialTheme.typography.titleMedium, color = OnSurface)
+                Text(member.displayName, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 if (GroupMutePolicy.isActiveMute(member.mutedUntil, now)) {
                     Text(stringResource(R.string.group_detail_current_mute_until, formatMuteTime(member.mutedUntil)), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                 }
@@ -2033,7 +2033,7 @@ private fun MuteMemberDialog(
                         onClick = { onMuteUntil(GroupMutePolicy.mutedUntil(now, preset)) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(label, modifier = Modifier.fillMaxWidth(), color = OnSurface)
+                        Text(label, modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
                 if (GroupMutePolicy.isActiveMute(member.mutedUntil, now)) {
@@ -2090,7 +2090,7 @@ private fun GroupHeader(
         }
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(groupName, style = MaterialTheme.typography.titleLarge, color = OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(groupName, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(stringResource(R.string.group_detail_header_summary, memberCount, roleLabel(myRole)), style = MaterialTheme.typography.bodySmall, color = Secondary)
         }
     }
@@ -2105,7 +2105,7 @@ private fun GroupInviteRow(isLoading: Boolean, onOpen: () -> Unit) {
         Icon(Icons.Outlined.QrCode, contentDescription = null, tint = Primary, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.group_detail_invite_qr), style = MaterialTheme.typography.bodyLarge, color = OnSurface)
+            Text(stringResource(R.string.group_detail_invite_qr), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
             Text(stringResource(R.string.group_detail_invite_admin_hint), style = MaterialTheme.typography.labelSmall, color = TextSecondary)
         }
         Button(onClick = onOpen, enabled = !isLoading) {
@@ -2171,7 +2171,7 @@ private fun GroupSenderKeyStatusSection(
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.group_detail_epoch, status.epoch), style = MaterialTheme.typography.titleMedium, color = OnSurface, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.group_detail_epoch, status.epoch), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 Text(stringResource(R.string.group_detail_device_stats, status.total, status.sent, status.failed, status.pending), style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                 Text(
                     senderKeyReasonLabel(assessment.reason),
@@ -2238,7 +2238,7 @@ private fun GroupSenderKeyStatusSection(
                     Text(
                         stringResource(R.string.group_detail_device, memberName, target.deviceId),
                         style = MaterialTheme.typography.bodySmall,
-                        color = OnSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
@@ -2308,7 +2308,7 @@ private fun GroupAuditRow(audit: GroupAuditLogDto) {
                     groupAuditActionLabel(audit.action),
                     audit.targetUserName?.takeIf(String::isNotBlank) ?: audit.targetUserId.orEmpty()
                 ),
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
@@ -2477,7 +2477,7 @@ private fun MemberRow(
                     if (highlightQuery.isBlank()) androidx.compose.ui.text.AnnotatedString(member.displayName)
                     else highlightedText(member.displayName, highlightQuery),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = OnSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
@@ -2564,7 +2564,7 @@ private fun CandidateRow(user: User, enabled: Boolean, onAdd: () -> Unit) {
         Avatar(name = user.name, avatarUrl = user.avatar, size = AvatarSize.SM, isOnline = user.isOnline)
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(user.displayName, style = MaterialTheme.typography.bodyLarge, color = OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(user.displayName, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (user.status.isNotBlank()) Text(user.status, style = MaterialTheme.typography.labelSmall, color = TextHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         TextButton(onClick = onAdd, enabled = enabled) {

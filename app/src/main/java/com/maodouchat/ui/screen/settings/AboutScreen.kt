@@ -54,7 +54,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
-            title = { Text(stringResource(R.string.about_title), style = MaterialTheme.typography.headlineMedium, color = OnSurface) },
+            title = { Text(stringResource(R.string.about_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Primary, modifier = Modifier.size(28.dp))
@@ -85,7 +85,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
             Text(
                 text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = OnSurface
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -115,7 +115,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 Text(
                     stringResource(R.string.about_limits_title),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = OnSurface
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -141,7 +141,7 @@ private fun AboutRow(label: String, value: String) {
     Box(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, color = OnSurface, modifier = Modifier.align(Alignment.CenterStart))
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.align(Alignment.CenterStart))
         Text(value, style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.align(Alignment.CenterEnd))
     }
 }

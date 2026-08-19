@@ -215,7 +215,7 @@ fun LoginScreen(
                 Text(
                     stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.SemiBold, fontSize = 20.sp),
-                    color = OnSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.graphicsLayer {
                         alpha = enterProgress
                         translationY = if (motion.animationsEnabled) (1f - enterProgress) * 12.dp.toPx() else 0f

@@ -453,7 +453,7 @@ fun AiTasksScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.ai_tasks_title), color = OnSurface) },
+                title = { Text(stringResource(R.string.ai_tasks_title), color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -819,7 +819,7 @@ private fun AiTasksEmptyState(modifier: Modifier = Modifier) {
             Text(
                 stringResource(R.string.ai_tasks_empty_title),
                 style = MaterialTheme.typography.titleMedium,
-                color = OnSurface
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
