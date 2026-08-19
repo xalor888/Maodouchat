@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Maodouchat</string>
     <string name="common_back">Back</string>
     <string name="common_cancel">Cancel</string>
@@ -53,7 +53,7 @@
         <item quantity="one">%1$d selected</item>
         <item quantity="other">%1$d selected</item>
     </plurals>
-    <string name="chat_list_batch_delete_confirm">Delete the %1$d selected chats? Their chat histories will be cleared.</string>
+    <string name="chat_list_batch_delete_confirm" tools:ignore="PluralsCandidate">Delete the %1$d selected chats? Their chat histories will be cleared.</string>
     <string name="chat_multi_select">Select multiple</string>
     <string name="chat_empty_search_title">No matching chats</string>
     <string name="chat_empty_title">No chats yet</string>
@@ -236,12 +236,12 @@
     <string name="explore_nearby_empty">No visible users nearby</string>
     <string name="explore_nearby_search_hint">Search people nearby</string>
     <string name="explore_nearby_search_empty">No matching nearby users</string>
-    <string name="explore_nearby_distance_meters">About %1$d m away</string>
+    <string name="explore_nearby_distance_meters" tools:ignore="PluralsCandidate">About %1$d m away</string>
     <string name="explore_nearby_distance_km">About %1$s km away</string>
     <string name="explore_nearby_distance_online">%1$s · Online</string>
     <string name="explore_nearby_radius_label">Search radius</string>
     <string name="explore_nearby_radius_km">%1$s km</string>
-    <string name="explore_nearby_remaining">Hides in about %1$d min</string>
+    <string name="explore_nearby_remaining" tools:ignore="PluralsCandidate">Hides in about %1$d min</string>
     <string name="explore_nearby_remaining_soon">Hiding soon</string>
     <string name="explore_nearby_updated">Updated · %1$s</string>
     <plurals name="explore_nearby_count">
@@ -328,7 +328,7 @@
     <string name="contacts_friend_reject_all">Ignore all</string>
     <string name="contacts_friend_accepted_all">All friend requests accepted</string>
     <string name="contacts_friend_rejected_all">All friend requests ignored</string>
-    <string name="contacts_friend_batch_partial">Done: %1$d succeeded, %2$d failed</string>
+    <string name="contacts_friend_batch_partial" tools:ignore="PluralsCandidate">Done: %1$d succeeded, %2$d failed</string>
     <string name="contacts_friend_rejected">Request declined</string>
     <string name="contacts_friend_removed">Removed from friends</string>
     <string name="contacts_remove_friend_title">Remove friend</string>
@@ -374,8 +374,8 @@
     <string name="chat_add_member">Add members</string>
     <string name="chat_add">Add</string>
     <string name="chat_candidates_limit">Showing the first 20 available users</string>
-    <string name="chat_candidates_more">Show %1$d more people to add</string>
-    <string name="chat_candidates_showing_all">Showing all %1$d people available to add</string>
+    <string name="chat_candidates_more" tools:ignore="PluralsCandidate">Show %1$d more people to add</string>
+    <string name="chat_candidates_showing_all" tools:ignore="PluralsCandidate">Showing all %1$d people available to add</string>
     <string name="chat_group_info_search_hint">Search members or people to add</string>
     <string name="chat_group_info_search_empty">No matching members or candidates</string>
     <string name="chat_no_candidates">No users available to add</string>
@@ -391,7 +391,7 @@
     <string name="chat_offline">Offline</string>
     <string name="chat_scroll_to_latest">Jump to latest</string>
     <string name="chat_draft_prefix">Draft</string>
-    <string name="chat_scheduled_list_preview">%1$d scheduled to send</string>
+    <string name="chat_scheduled_list_preview" tools:ignore="PluralsCandidate">%1$d scheduled to send</string>
     <string name="chat_clear_draft">Clear draft</string>
     <string name="chat_draft_restored">Restored your previous draft</string>
     <string name="chat_pin">Pin</string>
@@ -403,11 +403,11 @@
     <string name="chat_unpin_success">Message unpinned</string>
     <string name="chat_pin_failed">Could not pin message</string>
     <string name="chat_pin_forbidden">Only group owners or admins can pin</string>
-    <string name="chat_pin_limit">You can pin up to %1$d messages</string>
-    <string name="chat_batch_pin_success">Pinned %1$d messages</string>
-    <string name="chat_batch_unpin_success">Unpinned %1$d messages</string>
-    <string name="chat_batch_pin_partial">Some messages could not be pinned (%1$d succeeded, %2$d failed)</string>
-    <string name="chat_batch_unpin_partial">Some messages could not be unpinned (%1$d succeeded, %2$d failed)</string>
+    <string name="chat_pin_limit" tools:ignore="PluralsCandidate">You can pin up to %1$d messages</string>
+    <string name="chat_batch_pin_success" tools:ignore="PluralsCandidate">Pinned %1$d messages</string>
+    <string name="chat_batch_unpin_success" tools:ignore="PluralsCandidate">Unpinned %1$d messages</string>
+    <string name="chat_batch_pin_partial" tools:ignore="PluralsCandidate">Some messages could not be pinned (%1$d succeeded, %2$d failed)</string>
+    <string name="chat_batch_unpin_partial" tools:ignore="PluralsCandidate">Some messages could not be unpinned (%1$d succeeded, %2$d failed)</string>
     <string name="chat_pinned_banner_title">Pinned</string>
     <string name="chat_pinned_by_time">Pinned by %1$s · %2$s</string>
     <string name="chat_pinned_by">Pinned by %1$s</string>
@@ -441,11 +441,11 @@
     <string name="chat_select_all_loaded">Select all loaded</string>
     <string name="chat_clear_selection">Clear selection</string>
     <string name="chat_quick_react">Quick react with a heart</string>
-    <string name="chat_forward_selected">Forward %1$d messages to</string>
+    <string name="chat_forward_selected" tools:ignore="PluralsCandidate">Forward %1$d messages to</string>
     <string name="chat_delete_selected_title">Delete selected messages</string>
-    <string name="chat_delete_selected_message">Delete the selected %1$d messages from this device? This will not recall them from other devices.</string>
-    <string name="chat_batch_delete_skipped_others">%1$d messages from others will not be deleted</string>
-    <string name="chat_batch_delete_capped">Over 60 messages; only 60 deleted now, delete the remaining %1$d again</string>
+    <string name="chat_delete_selected_message" tools:ignore="PluralsCandidate">Delete the selected %1$d messages from this device? This will not recall them from other devices.</string>
+    <string name="chat_batch_delete_skipped_others" tools:ignore="PluralsCandidate">%1$d messages from others will not be deleted</string>
+    <string name="chat_batch_delete_capped" tools:ignore="PluralsCandidate">Over 60 messages; only 60 deleted now, delete the remaining %1$d again</string>
     <plurals name="chat_batch_delete_done">
         <item quantity="one">Deleted %1$d message</item>
         <item quantity="other">Deleted %1$d messages</item>
@@ -457,7 +457,7 @@
     <string name="media_center_media">Media</string>
     <string name="media_center_files">Files</string>
     <string name="media_center_voice">Voice</string>
-    <string name="media_center_voice_duration">%1$d s</string>
+    <string name="media_center_voice_duration" tools:ignore="PluralsCandidate">%1$d s</string>
     <string name="media_center_location">Places</string>
     <string name="media_center_location_coords">%1$.5f, %2$.5f</string>
     <string name="media_center_links">Links</string>
@@ -485,7 +485,7 @@
         <item quantity="one">%1$d more member</item>
         <item quantity="other">%1$d more members</item>
     </plurals>
-    <string name="group_detail_invite_status">Valid until %1$s · Used %2$d/%3$d · %4$d remaining</string>
+    <string name="group_detail_invite_status" tools:ignore="PluralsCandidate">Valid until %1$s · Used %2$d/%3$d · %4$d remaining</string>
     <string name="group_detail_invite_expiry">Invite expiration</string>
     <string name="group_detail_invite_max_uses">Maximum uses</string>
     <string name="group_detail_invite_one_day">1 day</string>
@@ -569,9 +569,9 @@
     <string name="disappear_update_failed">Could not update disappearing messages</string>
     <string name="disappear_group_unsupported">Disappearing messages are not available in groups</string>
     <string name="disappear_invalid_timer">Unsupported timer value</string>
-    <string name="disappear_countdown_s">%1$ds</string>
+    <string name="disappear_countdown_s" tools:ignore="PluralsCandidate">%1$ds</string>
     <string name="disappear_countdown_m">%1$d:%2$02d</string>
-    <string name="disappear_countdown_h">%1$dh %2$dm</string>
+    <string name="disappear_countdown_h" tools:ignore="PluralsCandidate">%1$dh %2$dm</string>
     <string name="chat_search_starred">Search starred messages</string>
     <string name="chat_search_content">Search this chat</string>
     <string name="chat_search_next">Next</string>
@@ -595,7 +595,7 @@
     <string name="chat_semantic_search_no_context">No searchable text in the current filters</string>
     <string name="chat_semantic_search_failed">AI semantic search failed</string>
     <string name="chat_semantic_search_no_results">No semantically related messages found</string>
-    <string name="chat_semantic_search_candidates">Uploads up to the latest %1$d searchable messages in this filter (not full-library vectors)</string>
+    <string name="chat_semantic_search_candidates" tools:ignore="PluralsCandidate">Uploads up to the latest %1$d searchable messages in this filter (not full-library vectors)</string>
     <string name="chat_semantic_search_candidates_empty">No candidate messages in the current filter to upload</string>
     <string name="chat_message_actions">Message actions</string>
     <string name="chat_ai_section_context">AI</string>
@@ -628,7 +628,7 @@
     <string name="chat_read_details">Read details</string>
     <string name="chat_edit">Edit</string>
     <string name="chat_revoke">Unsend</string>
-    <string name="chat_revoke_with_limit">Unsend (%1$d min left)</string>
+    <string name="chat_revoke_with_limit" tools:ignore="PluralsCandidate">Unsend (%1$d min left)</string>
     <string name="chat_report">Report</string>
     <string name="chat_loading">Loading</string>
     <string name="chat_no_read_receipts">No read receipts yet</string>
@@ -642,12 +642,12 @@
     <string name="chat_edit_message">Edit message</string>
     <string name="chat_forward_to">Forward to</string>
     <string name="chat_forward_confirm">Forward</string>
-    <string name="chat_forward_to_selected">Forward to %1$d chats</string>
+    <string name="chat_forward_to_selected" tools:ignore="PluralsCandidate">Forward to %1$d chats</string>
     <string name="chat_no_forward_targets">No conversations available</string>
     <string name="chat_forwarded">Forwarded</string>
     <string name="chat_forward_targets_limit">Showing up to 20 matching chats</string>
-    <string name="chat_forward_targets_more">Show %1$d more chats</string>
-    <string name="chat_forward_targets_showing_all">Showing all %1$d matching chats</string>
+    <string name="chat_forward_targets_more" tools:ignore="PluralsCandidate">Show %1$d more chats</string>
+    <string name="chat_forward_targets_showing_all" tools:ignore="PluralsCandidate">Showing all %1$d matching chats</string>
     <string name="chat_forward_search_hint">Search chats</string>
     <string name="chat_forward_note_hint">Add a note (optional, max 500 chars)</string>
     <string name="chat_forward_merge_title">Merge forward</string>
@@ -726,7 +726,7 @@
     <string name="chat_ai_summary_scope_today_description">Up to 36 most recent messages from today</string>
     <string name="chat_ai_summary_scope_week_description">Up to 36 most recent messages from the last 7 days</string>
     <string name="chat_ai_summary_scope_month_description">Up to 36 most recent messages from the last 30 days</string>
-    <string name="chat_ai_summary_scope_search_count">%1$d matches found, up to 36 will be summarized</string>
+    <string name="chat_ai_summary_scope_search_count" tools:ignore="PluralsCandidate">%1$d matches found, up to 36 will be summarized</string>
     <string name="chat_ai_summary_scope_search_empty">Search this chat first</string>
     <string name="chat_ai_summary_scope_privacy">Only the necessary decrypted excerpts are sent after you confirm. Summaries are stored in SQLCipher and synced to confirmed devices with Signal end-to-end encryption.</string>
     <string name="chat_ai_summary_history_menu">Summary history</string>
@@ -802,7 +802,7 @@
     <string name="chat_emoji_search_hint">Search emoji (keywords)</string>
     <string name="chat_emoji_recent">Recent</string>
     <string name="chat_quick_phrases">Quick phrases</string>
-    <string name="chat_quick_phrases_add_hint">Type a phrase (max %1$d chars)</string>
+    <string name="chat_quick_phrases_add_hint" tools:ignore="PluralsCandidate">Type a phrase (max %1$d chars)</string>
     <string name="chat_quick_phrases_add">Add</string>
     <string name="chat_quick_phrases_add_invalid">Duplicate, empty, or over the size/length limit</string>
     <string name="chat_quick_phrases_added">Phrase added</string>
@@ -853,7 +853,7 @@
     <string name="chat_mention_everyone">Everyone</string>
     <string name="chat_mention_everyone_restricted">Only group owners or admins can @everyone</string>
     <string name="chat_mention_picker_title">Mention someone</string>
-    <string name="chat_mention_picker_count">%1$d matches (scrollable)</string>
+    <string name="chat_mention_picker_count" tools:ignore="PluralsCandidate">%1$d matches (scrollable)</string>
     <string name="notification_mentioned_you">%1$s mentioned you</string>
     <string name="notification_mentioned_everyone">%1$s mentioned everyone</string>
     <string name="chat_send">Send</string>
@@ -1117,20 +1117,20 @@
     <string name="chat_ai_operation_interrupted">The previous run was interrupted</string>
     <string name="chat_ai_operation_outcome_unknown">The AI service may have processed this request. To avoid duplicate charges, it was not retried automatically. Confirm before retrying.</string>
     <string name="chat_ai_operation_retry_scheduled">Could not connect. Automatic retry is scheduled for %1$s.</string>
-    <string name="chat_ai_operation_attempts">%1$d attempt(s)</string>
+    <string name="chat_ai_operation_attempts" tools:ignore="PluralsCandidate">%1$d attempt(s)</string>
     <string name="chat_ai_operation_context_missing">The source message or context is no longer available</string>
     <string name="chat_ai_operation_network_failed">No network connection. Check your connection and retry.</string>
     <string name="chat_ai_operation_timeout">Processing timed out. Try again later.</string>
     <string name="chat_ai_operation_server_failed">The AI service is temporarily unavailable</string>
     <string name="chat_ai_operation_invalid_result">The AI service returned no usable result</string>
-    <string name="chat_ai_operation_rate_limited">Too many AI requests. Wait about %1$d seconds, then retry. This run did not finish; retries may be billed again.</string>
+    <string name="chat_ai_operation_rate_limited" tools:ignore="PluralsCandidate">Too many AI requests. Wait about %1$d seconds, then retry. This run did not finish; retries may be billed again.</string>
     <string name="chat_ai_operation_quota_exceeded">AI quota or budget is exhausted. Try again later and reduce frequency to limit charges.</string>
     <string name="chat_ai_operation_running_billing">Processing. You can cancel anytime. Stopping does not undo upstream work that may already be billed.</string>
     <string name="chat_ai_operation_retry_may_bill">Retrying may be billed again</string>
     <string name="chat_ai_operation_retry">Retry AI task</string>
     <string name="chat_ai_operation_cancel">Cancel AI task</string>
     <string name="chat_ai_operation_dismiss">Dismiss AI task status</string>
-    <string name="chat_ai_operation_more">%1$d more AI tasks</string>
+    <string name="chat_ai_operation_more" tools:ignore="PluralsCandidate">%1$d more AI tasks</string>
     <string name="chat_ai_draft_preview">AI rewrite preview</string>
     <string name="chat_ai_stream_generating">Generating. Stop anytime. Partial upstream work may still be billed.</string>
     <string name="chat_ai_stream_cancelled">Stopped. Generated text may already be billed. Use it, or retry (retries may bill again).</string>
@@ -1138,7 +1138,7 @@
     <string name="chat_ai_stream_discard">Discard AI rewrite</string>
     <string name="chat_ai_stream_retry">Retry generation</string>
     <string name="chat_ai_stream_cancel">Stop generation</string>
-    <string name="chat_ai_stream_rate_limited">Generation was rate-limited. Wait about %1$d seconds. Retries may be billed again.</string>
+    <string name="chat_ai_stream_rate_limited" tools:ignore="PluralsCandidate">Generation was rate-limited. Wait about %1$d seconds. Retries may be billed again.</string>
     <string name="chat_ai_stream_quota_exceeded">Generation failed due to quota limits. Try later; retries may be billed again.</string>
     <string name="chat_group_ai_title">Group AI assistant</string>
     <string name="chat_group_ai_empty_query">Enter a question after @AI</string>
@@ -1206,7 +1206,7 @@
     <string name="chat_group_e2ee_send_failed">Group end-to-end encryption failed. Retry later or check member key status.</string>
     <string name="chat_group_key_rotated">Group keys rotated and are being redistributed</string>
     <string name="chat_group_key_distributing">Distributing group key epoch %1$d</string>
-    <string name="chat_group_key_distribution_failed">Group key epoch %1$d failed to distribute and will retry with the next message</string>
+    <string name="chat_group_key_distribution_failed" tools:ignore="PluralsCandidate">Group key epoch %1$d failed to distribute and will retry with the next message</string>
     <string name="chat_group_key_newer">A newer group key epoch arrived. Refresh group info and retry.</string>
     <string name="chat_group_key_unusable">This group key could not be applied. Refresh group info and retry.</string>
     <string name="chat_group_key_session_missing">Waiting for the sender to redistribute the missing group key session</string>
@@ -1232,7 +1232,7 @@
     <string name="chat_cannot_send_self">You cannot send a message to yourself</string>
     <string name="message_location_invalid">[Invalid location message]</string>
     <string name="message_location_current">Current location</string>
-    <string name="message_location_accuracy">Accuracy about %1$d m</string>
+    <string name="message_location_accuracy" tools:ignore="PluralsCandidate">Accuracy about %1$d m</string>
     <string name="location_error_permission">Location permission is required</string>
     <string name="location_error_services_disabled">Turn on system location services first</string>
     <string name="location_error_unavailable">Your location is temporarily unavailable. Try again in an open area.</string>
@@ -1340,7 +1340,7 @@
     <string name="group_detail_key_reason_no_record">No server distribution record yet</string>
     <string name="group_detail_key_reason_complete">All known devices are covered</string>
     <string name="group_detail_device">%1$s · Device %2$d</string>
-    <string name="group_detail_more_devices">%1$d more devices not shown</string>
+    <string name="group_detail_more_devices" tools:ignore="PluralsCandidate">%1$d more devices not shown</string>
     <string name="group_detail_key_filter_all">All</string>
     <string name="group_detail_key_filter_failed">Failed</string>
     <string name="group_detail_key_filter_pending">Pending</string>
@@ -1447,15 +1447,15 @@
     <string name="call_group_name">Group call (%1$d)</string>
     <string name="call_group_start_failed">Could not start group call: %1$s</string>
     <string name="call_group_no_active_members">Everyone has left or did not answer</string>
-    <string name="call_group_mesh_limit">Lightweight group calls support up to %1$d people; larger meetings still require an SFU</string>
+    <string name="call_group_mesh_limit" tools:ignore="PluralsCandidate">Lightweight group calls support up to %1$d people; larger meetings still require an SFU</string>
     <string name="call_group_mesh_capacity">Group call %1$d / %2$d (mesh)</string>
     <string name="call_select_members_title">Choose call members</string>
-    <string name="call_select_members_count">Selected %1$d of %2$d</string>
+    <string name="call_select_members_count" tools:ignore="PluralsCandidate">Selected %1$d of %2$d</string>
     <string name="call_select_members_search_hint">Search by name or ID</string>
     <string name="call_select_members_search_empty">No matching members</string>
     <string name="call_select_members_needed_hint">This group exceeds the mesh limit — next step is picking participants.</string>
     <string name="call_start_selected_members">Start call</string>
-    <string name="call_rate_limited">Too many call attempts. Try again in about %1$d seconds</string>
+    <string name="call_rate_limited" tools:ignore="PluralsCandidate">Too many call attempts. Try again in about %1$d seconds</string>
     <string name="call_group_member_connecting">Connecting</string>
     <string name="call_group_member_connected">Joined</string>
     <string name="call_group_member_reconnecting">Reconnecting</string>
@@ -1673,8 +1673,8 @@
     <string name="settings_logout_all_failed">Failed to log out of all devices, please retry</string>
     <string name="account_reject_device">Reject new device</string>
     <string name="account_remove_device">Remove device</string>
-    <string name="account_reject_device_confirm">Device #%1$d will not be allowed to join your encrypted device list.</string>
-    <string name="account_remove_device_confirm">Device #%1$d will stop receiving multi-device key distributions. This device is not affected.</string>
+    <string name="account_reject_device_confirm" tools:ignore="PluralsCandidate">Device #%1$d will not be allowed to join your encrypted device list.</string>
+    <string name="account_remove_device_confirm" tools:ignore="PluralsCandidate">Device #%1$d will stop receiving multi-device key distributions. This device is not affected.</string>
     <string name="account_reject">Reject</string>
     <string name="account_device_name_title">Device name</string>
     <string name="account_device_name">Name</string>
@@ -1822,8 +1822,8 @@
     <string name="ai_privacy_empty">No AI request history</string>
     <string name="ai_privacy_audit_search_hint">Search feature, status, model or error</string>
     <string name="ai_privacy_audit_search_empty">No matching AI request history</string>
-    <string name="ai_privacy_input_chars">%1$d characters</string>
-    <string name="ai_privacy_context_messages">%1$d context messages</string>
+    <string name="ai_privacy_input_chars" tools:ignore="PluralsCandidate">%1$d characters</string>
+    <string name="ai_privacy_context_messages" tools:ignore="PluralsCandidate">%1$d context messages</string>
     <string name="ai_feature_rewrite">Message rewrite</string>
     <string name="ai_feature_suggest_replies">Smart replies</string>
     <string name="ai_feature_summarize">Chat summary</string>
@@ -1955,7 +1955,7 @@
     <string name="contacts_cannot_join_group">Unable to join group</string>
     <string name="contacts_online">Online</string>
     <string name="contacts_filter_online_only">Online only</string>
-    <string name="contacts_online_count">%1$d online</string>
+    <string name="contacts_online_count" tools:ignore="PluralsCandidate">%1$d online</string>
     <string name="contacts_presence_note">Presence is a live binary indicator — no last-seen time</string>
     <string name="contacts_online_empty">No contacts are online right now</string>
     <string name="contacts_show_all">Show all contacts</string>
@@ -1968,10 +1968,10 @@
     <string name="contacts_safety_use_device">Scan this safety code with device #%1$d</string>
     <string name="contacts_safety_no_session">No encrypted session exists for this device. Exchange an encrypted message before verifying.</string>
     <string name="contacts_safety_wrong_device_qr">This QR code was generated for another device. Ask the other user to reopen the safety code.</string>
-    <string name="contacts_safety_fingerprint_match">Identity fingerprint matches. Device #%1$d can be trusted.</string>
+    <string name="contacts_safety_fingerprint_match" tools:ignore="PluralsCandidate">Identity fingerprint matches. Device #%1$d can be trusted.</string>
     <string name="contacts_safety_fingerprint_mismatch">Identity fingerprint does not match. Do not trust this device.</string>
     <string name="contacts_safety_invalid_code">Invalid safety code QR format</string>
-    <string name="contacts_safety_code_match">Safety code matches. Device #%1$d can be trusted.</string>
+    <string name="contacts_safety_code_match" tools:ignore="PluralsCandidate">Safety code matches. Device #%1$d can be trusted.</string>
     <string name="contacts_safety_code_mismatch">Safety code does not match. Do not trust this device.</string>
     <string name="contacts_safety_verified">Identity verified</string>
     <string name="contacts_safety_failed">Identity verification failed</string>
@@ -2021,7 +2021,7 @@
     <string name="general_enter_to_send_title">Enter to send</string>
     <string name="general_enter_to_send_subtitle">Send directly with Enter; disable to use Enter for a new line</string>
     <string name="general_unread_priority_subtitle">Chats with unread messages float higher (muted excluded). Never auto-reads; preference can sync across devices</string>
-    <string name="chat_unread_priority_hint">Unread first · %1$d chats</string>
+    <string name="chat_unread_priority_hint" tools:ignore="PluralsCandidate">Unread first · %1$d chats</string>
     <string name="chat_unread_priority_hint_dismiss">Got it</string>
     <string name="general_media_auto_download_title">Auto-download media</string>
     <string name="general_media_auto_download_subtitle">When a chat is open, whether new photos/videos/files auto-download (subject to admin toggle; never in secret chats)</string>
@@ -2151,7 +2151,7 @@
         <item quantity="one">Excluded %1$d chat with AI disabled or unverified access</item>
         <item quantity="other">Excluded %1$d chats with AI disabled or unverified access</item>
     </plurals>
-    <string name="global_search_redacted_chats">Excluded body hits from %1$d PIN-locked or secret chats</string>
+    <string name="global_search_redacted_chats" tools:ignore="PluralsCandidate">Excluded body hits from %1$d PIN-locked or secret chats</string>
     <string name="global_search_empty_initial">Search decrypted messages on this device</string>
     <string name="global_search_ai_ready">Enter a natural-language query, then run AI search</string>
     <string name="global_search_empty_results">No relevant messages found</string>
@@ -2186,9 +2186,9 @@
     <string name="notif_center_bucket_yesterday">Yesterday</string>
     <string name="notif_center_bucket_week">This week</string>
     <string name="notif_center_bucket_earlier">Earlier</string>
-    <string name="notif_center_minutes_ago">%1$d min ago</string>
-    <string name="notif_center_hours_ago">%1$d h ago</string>
-    <string name="notif_center_days_ago">%1$d d ago</string>
+    <string name="notif_center_minutes_ago" tools:ignore="PluralsCandidate">%1$d min ago</string>
+    <string name="notif_center_hours_ago" tools:ignore="PluralsCandidate">%1$d h ago</string>
+    <string name="notif_center_days_ago" tools:ignore="PluralsCandidate">%1$d d ago</string>
     <string name="notif_center_message_preview">New message</string>
     <string name="notif_center_group_invite_title">Group invitation</string>
     <string name="notif_center_security_login">Account security notice</string>
@@ -2209,9 +2209,9 @@
     <string name="ai_privacy_reset_confirm">Revoke local AI authorization? Existing cached summaries will stay on this device.</string>
     <string name="ai_privacy_reset_confirm_ok">Revoke</string>
     <string name="ai_privacy_reset_done">Local AI authorization revoked</string>
-    <string name="chat_read_details_ratio">%1$d / %2$d read</string>
+    <string name="chat_read_details_ratio" tools:ignore="PluralsCandidate">%1$d / %2$d read</string>
     <string name="chat_group_read_status">Read %1$d/%2$d</string>
-    <string name="chat_read_details_unread">%1$d unread</string>
+    <string name="chat_read_details_unread" tools:ignore="PluralsCandidate">%1$d unread</string>
     <string name="chat_read_details_search_hint">Search by name or ID</string>
     <string name="chat_read_details_search_empty">No matching read receipts</string>
     <string name="chat_group_ai_private_preview">Private preview</string>
@@ -2240,12 +2240,12 @@
     <string name="call_active_private_subtitle">Encrypted call in progress</string>
     <string name="call_channel_name">Calls</string>
     <string name="call_channel_description">Shows the call currently in progress</string>
-    <string name="chat_attachment_summary_failed">Attachments: %1$d failed, %2$d in progress</string>
-    <string name="chat_attachment_summary_active">Attachments: %1$d transferring, %2$d queued</string>
-    <string name="chat_attachment_summary_complete">Attachments: %1$d uploaded</string>
+    <string name="chat_attachment_summary_failed" tools:ignore="PluralsCandidate">Attachments: %1$d failed, %2$d in progress</string>
+    <string name="chat_attachment_summary_active" tools:ignore="PluralsCandidate">Attachments: %1$d transferring, %2$d queued</string>
+    <string name="chat_attachment_summary_complete" tools:ignore="PluralsCandidate">Attachments: %1$d uploaded</string>
     <string name="chat_attachment_retry_all">Retry all</string>
     <string name="chat_attachment_clear_all">Clear</string>
-    <string name="chat_ai_too_soon">AI rate limit reached, please wait %1$d seconds and retry</string>
+    <string name="chat_ai_too_soon" tools:ignore="PluralsCandidate">AI rate limit reached, please wait %1$d seconds and retry</string>
 
     <!-- Swipe Actions -->
     <string name="swipe_pin">Pin</string>
@@ -2443,8 +2443,8 @@
     <string name="group_play_coinflip">Coin flip</string>
     <string name="group_play_redpacket">Fun red packet</string>
     <string name="secret_chat_sealed_ready">Sealed-sender certificate ready</string>
-    <string name="secret_chat_sealed_ready_ttl">Sealed-sender ready (~%1$d h left)</string>
-    <string name="secret_chat_sealed_chip">Sealed · ~%1$dh</string>
+    <string name="secret_chat_sealed_ready_ttl" tools:ignore="PluralsCandidate">Sealed-sender ready (~%1$d h left)</string>
+    <string name="secret_chat_sealed_chip" tools:ignore="PluralsCandidate">Sealed · ~%1$dh</string>
     <string name="secret_chat_sealed_chip_ready">Sealed sender active</string>
     <string name="secret_chat_sealed_chip_pending">Sealed cert refreshing…</string>
     <string name="group_play_debate">Debate</string>
@@ -2802,7 +2802,7 @@
         <item quantity="one">%1$d total</item>
         <item quantity="other">%1$d total</item>
     </plurals>
-    <string name="group_play_checkin_rank">#%1$d of %2$d today</string>
+    <string name="group_play_checkin_rank" tools:ignore="PluralsCandidate">#%1$d of %2$d today</string>
     <string name="group_play_checkin_leaderboard">Leaderboard</string>
     <string name="group_play_chain_title">Group chain</string>
     <string name="group_play_chain_title_hint">Chain title (≤200 chars)</string>
@@ -2965,7 +2965,7 @@
     <string name="chat_ai_conversation_profile">Conversation profile</string>
     <string name="chat_ai_conversation_profile_failed">Profile generation failed, please try again later</string>
     <string name="chat_ai_conversation_profile_loading">Generating conversation profile…</string>
-    <string name="chat_ai_conversation_profile_stats">%1$d messages · %2$d active days</string>
+    <string name="chat_ai_conversation_profile_stats" tools:ignore="PluralsCandidate">%1$d messages · %2$d active days</string>
     <string name="chat_ai_conversation_profile_title">Conversation profile</string>
     <string name="chat_ai_emotion_reply">Emotion reply</string>
     <string name="chat_ai_emotion_reply_failed">Failed to generate an emotion reply</string>
@@ -2998,22 +2998,22 @@
     <string name="ai_enhance_classify_empty">No classified messages in this conversation</string>
     <string name="ai_enhance_classify_disclaimer">Stats use a local rule lexicon; results stay on this device (SQLCipher)</string>
 
-    <string name="ai_enhance_classify_count">%1$d messages</string>
+    <string name="ai_enhance_classify_count" tools:ignore="PluralsCandidate">%1$d messages</string>
 
     <string name="chat_attachment_paste">Paste image</string>
     <string name="chat_clipboard_no_image">No image in clipboard to send</string>
 
     <string name="chat_group_muted_until">You are muted in this group, about %1$s left</string>
-    <string name="chat_mute_minutes">%1$d min</string>
-    <string name="chat_mute_hours">%1$d hr</string>
-    <string name="chat_mute_days">%1$d days</string>
+    <string name="chat_mute_minutes" tools:ignore="PluralsCandidate">%1$d min</string>
+    <string name="chat_mute_hours" tools:ignore="PluralsCandidate">%1$d hr</string>
+    <string name="chat_mute_days" tools:ignore="PluralsCandidate">%1$d days</string>
 
     <string name="notifications_ringtone_default">System default</string>
 
     <string name="scheduled_message_failed_title">Scheduled message failed to send</string>
     <string name="scheduled_message_failed_body">A scheduled message could not be sent and was removed from the list</string>
 
-    <string name="ai_archive_reason_idle60">Idle for %1$d days, only %2$d messages in the last 30 days</string>
+    <string name="ai_archive_reason_idle60" tools:ignore="PluralsCandidate">Idle for %1$d days, only %2$d messages in the last 30 days</string>
     <string name="ai_archive_reason_idle21">Idle for about 3 weeks, activity dropped noticeably</string>
     <string name="ai_archive_reason_low30">Almost no new messages in the last 30 days</string>
     <string name="ai_archive_reason_decline">Activity declined, archiving keeps your chat list tidy</string>
