@@ -1042,3 +1042,23 @@
   }
 
 })();
+
+// 9.206：第三方服务器品牌化——开发者中心展示运营方自定义服务器名称
+(function () {
+  try {
+    fetch('/api/server/info').then(function (r) { return r.ok ? r.json() : null; }).then(function (info) {
+      if (!info || !info.name) return;
+      var name = String(info.name).slice(0, 60);
+      var header = document.getElementById('dev-header-brand-name');
+      if (header) {
+        header.textContent = name;
+        var small = document.createElement('small');
+        small.textContent = '开发者中心';
+        header.appendChild(small);
+      }
+      var login = document.getElementById('dev-login-brand-name');
+      if (login) login.textContent = name;
+      document.title = name + ' 开发者中心';
+    }).catch(function () {});
+  } catch (e) {}
+})();

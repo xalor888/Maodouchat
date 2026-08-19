@@ -76,6 +76,9 @@ fun Application.configureAdminRouting(
         get("/admin/assets/admin-theme.js") {
             call.respondAdminAsset(adminDashboardThemeJs, io.ktor.http.ContentType.Application.JavaScript)
         }
+        get("/admin/assets/admin-branding.js") {
+            call.respondAdminAsset(adminDashboardBrandingJs, io.ktor.http.ContentType.Application.JavaScript)
+        }
         get("/admin/assets/admin.js") {
             call.respondAdminAsset(adminDashboardJs, io.ktor.http.ContentType.Application.JavaScript)
         }
@@ -4428,6 +4431,7 @@ private fun org.jetbrains.exposed.sql.ResultRow.toPostAdminResponse(authorName: 
 private val adminDashboardHtml: String by lazy { loadAdminResource("admin/admin.html") }
 private val adminDashboardCss: String by lazy { loadAdminResource("admin/admin.css") }
 private val adminDashboardThemeJs: String by lazy { loadAdminResource("admin/admin-theme.js") }
+private val adminDashboardBrandingJs: String by lazy { loadAdminResource("admin/admin-branding.js") }
 private val adminDashboardJs: String by lazy { loadAdminResource("admin/admin.js") }
 
 private fun loadAdminResource(path: String): String =
