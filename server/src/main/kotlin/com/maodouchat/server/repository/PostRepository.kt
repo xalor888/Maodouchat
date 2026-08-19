@@ -377,7 +377,7 @@ class PostRepository {
      * 内存映射为热路径缓存；miss 时回查 DB（进程重启 / 多实例后仍可用）。
      */
     fun findPostIdByImageFilename(filename: String): String? {
-        if (filename.isBlank() || !filename.startsWith("post_")) return null
+        if (filename.isBlank() || !filename.matches(Regex("^[A-Za-z0-9_.-]+$")) || !filename.startsWith("post_")) return null
         imageFilenameToPostId[filename]?.let { cachedPostId ->
             val stillClaimed = transaction {
                 Posts.select(Posts.imageUrls).where { Posts.id eq cachedPostId }.limit(1).firstOrNull()
@@ -949,6 +949,7 @@ class PostRepository {
     }
 
     private fun isImageFilenameClaimedInTx(filename: String): Boolean {
+        if (!filename.matches(Regex("^[A-Za-z0-9_.-]+$"))) return true
         if (imageFilenameToPostId[filename] != null) return true
         if (PostImageClaims.select(PostImageClaims.postId)
                 .where { PostImageClaims.filename eq filename }

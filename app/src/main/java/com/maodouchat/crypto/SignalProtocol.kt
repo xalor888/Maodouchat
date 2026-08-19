@@ -26,6 +26,7 @@ import org.signal.libsignal.protocol.message.PreKeySignalMessage
 import org.signal.libsignal.protocol.message.SenderKeyDistributionMessage
 import org.signal.libsignal.protocol.message.SignalMessage
 import org.signal.libsignal.protocol.ecc.Curve
+import org.signal.libsignal.protocol.fingerprint.NumericFingerprintGenerator
 import org.signal.libsignal.protocol.state.PreKeyBundle
 import org.signal.libsignal.protocol.state.PreKeyRecord
 import org.signal.libsignal.protocol.state.SignalProtocolStore
@@ -51,6 +52,8 @@ class SignalProtocol(
      * Concurrent encrypt/decrypt on the same session corrupts ratchet state permanently.
      */
     private val cryptoLock = java.util.concurrent.locks.ReentrantLock()
+    /** Signal 标准安全码生成器（5200 次迭代，产生 60 位数字指纹）。 */
+    private val numericFingerprintGenerator = NumericFingerprintGenerator(5200)
     /** Per peer-device: serialize "check session → fetch OTPK → establish" to avoid double-consume. */
     private class SessionSetupLock(val mutex: Mutex = Mutex(), var users: Int = 0)
     private val sessionSetupLocks = java.util.concurrent.ConcurrentHashMap<String, SessionSetupLock>()
@@ -1015,21 +1018,23 @@ class SignalProtocol(
     }
 
     fun getSafetyCode(remoteUserId: String, deviceId: Int = DEFAULT_DEVICE_ID): String? {
+        val localUserId = currentUserId?.takeIf { it.isNotBlank() } ?: return null
         val remoteIdentity = (protocolStore as? PersistentSignalProtocolStore)
             ?.getIdentity(SignalProtocolAddress(remoteUserId, deviceId))
             ?: return null
-        val localPart = identityKeyPair.publicKey.serialize()
-        val remotePart = remoteIdentity.serialize()
-        val firstId = currentUserId.orEmpty()
-        val secondId = remoteUserId
-        val digest = MessageDigest.getInstance("SHA-256").digest(
-            if (firstId <= secondId) localPart + remotePart + firstId.toByteArray() + secondId.toByteArray()
-            else remotePart + localPart + secondId.toByteArray() + firstId.toByteArray()
-        )
-        return digest.take(15)
-            .joinToString("") { byte -> "%03d".format(byte.toInt() and 0xFF) }
-            .chunked(5)
-            .joinToString(" ")
+        // 使用 libsignal 标准 NumericFingerprintGenerator 生成迭代式安全码，
+        // 替代自研 SHA-256 截断 15 字节的弱化实现；二维码与屏幕显示使用同一标准指纹。
+        val localStableId = "$localUserId:$DEFAULT_DEVICE_ID".toByteArray(Charsets.UTF_8)
+        val remoteStableId = "$remoteUserId:$deviceId".toByteArray(Charsets.UTF_8)
+        return runCatching {
+            numericFingerprintGenerator.createFor(
+                /* version = */ 2,
+                localStableId,
+                identityKeyPair.publicKey,
+                remoteStableId,
+                remoteIdentity
+            ).displayableFingerprint.displayText
+        }.getOrNull()
     }
 
     fun markIdentityVerified(remoteUserId: String, deviceId: Int = DEFAULT_DEVICE_ID): Boolean {

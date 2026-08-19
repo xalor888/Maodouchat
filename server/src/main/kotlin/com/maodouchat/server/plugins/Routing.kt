@@ -17055,7 +17055,7 @@ private fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: Strin
             </div>
             """
         } else if (user != null) {
-            val initial = user.name.firstOrNull()?.toString() ?: "?"
+            val initial = escapeHtml(user.name.firstOrNull()?.toString() ?: "?")
             val onlineLabel = if (user.isOnline) "🟢 在线" else "💤 离线"
             val onlineClass = if (user.isOnline) "online" else "offline"
             // safeName/safeStatus/safeUsername/safeAvatarUrl 已在函数头完整转义（含 " '）

@@ -6,16 +6,7 @@
 <meta name="robots" content="noindex,nofollow"/>
 <link rel="icon" href="data:,"/>
 <title>毛豆聊天管理后台</title>
-<script>
-  (function () {
-    var theme = 'dark';
-    try {
-      theme = localStorage.getItem('admin-theme') ||
-        (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-    } catch (e) {}
-    document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
-  })();
-</script>
+<script src="/admin/assets/admin-theme.js"></script>
 <link rel="stylesheet" href="/admin/assets/admin.css"/>
 </head>
 <body>
@@ -266,25 +257,5 @@
 </div>
 
 <script src="/admin/assets/admin.js" defer></script>
-<script>
-  (function () {
-    var root = document.documentElement;
-    var btn = document.getElementById('theme-toggle');
-    var sun = document.getElementById('icon-sun');
-    var moon = document.getElementById('icon-moon');
-    function syncIcons() {
-      var light = root.getAttribute('data-theme') === 'light';
-      if (sun) sun.hidden = light;
-      if (moon) moon.hidden = !light;
-    }
-    syncIcons();
-    if (btn) btn.addEventListener('click', function () {
-      var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-      root.setAttribute('data-theme', next);
-      try { localStorage.setItem('admin-theme', next); } catch (e) {}
-      syncIcons();
-    });
-  })();
-</script>
 </body>
 </html>

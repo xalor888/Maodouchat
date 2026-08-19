@@ -114,7 +114,7 @@ gradle run
 - 普通 App Access Token 不能直接访问完整管理 API。
 - 后台登录会再次校验主管理员密码，并换取用途限定的 5 分钟 `admin_session` Token。
 - 管理 Token 只保存在页面内存，不写入 `localStorage`，不能使用自身续签；到期后页面强制退出。
-- 后台 HTML、CSS 和 JavaScript 使用同源独立资源，CSP 不允许 `unsafe-inline`，静态资源禁止跨源复用。
+- 后台 HTML、CSS 和 JavaScript 使用同源独立资源，CSP 禁止内联脚本（`script-src 'self'`），静态资源禁止跨源复用；样式因历史内联 `style` 仍允许 `style-src 'unsafe-inline'`。
 - 用户、举报、动态、评论、风控规则和审计均可在后台处理；审计页支持防表格公式注入的 UTF-8 CSV 导出。
 - `MODERATOR_EMAILS` 仅授予 App 内内容审核能力，不等于完整后台权限。
 

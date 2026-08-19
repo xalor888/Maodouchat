@@ -139,6 +139,7 @@ object MessageSafetyScanner {
     )
     private val TRUSTED_HOSTS = setOf(
         "maodouchat.com",
+        "chat.mdou.me",
         "github.com",
         "google.com",
         "youtube.com",

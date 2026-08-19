@@ -108,8 +108,10 @@ class NearbyRepository {
     fun getStatus(userId: String): NearbyLocationStatusResponse = transaction {
         val now = System.currentTimeMillis()
         val row = UserLocations.selectAll().where { UserLocations.userId eq userId }.firstOrNull()
-        val sharing = row != null && row[UserLocations.visible] && row[UserLocations.expiresAt] > now
-        NearbyLocationStatusResponse(sharing, if (sharing) row!![UserLocations.expiresAt] else 0)
+        val expiresAt = row
+            ?.takeIf { it[UserLocations.visible] && it[UserLocations.expiresAt] > now }
+            ?.get(UserLocations.expiresAt) ?: 0
+        NearbyLocationStatusResponse(expiresAt > 0, expiresAt)
     }
 
     fun getNearby(userId: String, radiusKm: Double = 10.0, limit: Int = 50): List<NearbyUserResponse> = transaction {

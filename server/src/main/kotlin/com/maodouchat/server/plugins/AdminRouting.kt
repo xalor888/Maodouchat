@@ -73,6 +73,9 @@ fun Application.configureAdminRouting(
         get("/admin/assets/admin.css") {
             call.respondAdminAsset(adminDashboardCss, io.ktor.http.ContentType.Text.CSS)
         }
+        get("/admin/assets/admin-theme.js") {
+            call.respondAdminAsset(adminDashboardThemeJs, io.ktor.http.ContentType.Application.JavaScript)
+        }
         get("/admin/assets/admin.js") {
             call.respondAdminAsset(adminDashboardJs, io.ktor.http.ContentType.Application.JavaScript)
         }
@@ -4373,11 +4376,10 @@ private suspend fun ApplicationCall.respondAdminDashboardPage() {
     response.headers.append("Referrer-Policy", "no-referrer")
     response.headers.append(
         "Content-Security-Policy",
-        // 8.47 修复：admin.js 广泛使用内联 style="..."（54 处）与内联 onclick 按钮
-        //（广播/强制登出/撤销会话等 8 处）——此前 style-src/script-src 禁 unsafe-inline
-        // 导致管理后台布局损坏、高危操作按钮全部失效。放开内联前已确认：管理后台
-        // 无用户可控内容注入到这些内联 handler（参数均为服务端 UUID），admin token 只存内存。
-        "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; " +
+        // 8.47 修复：admin.js 广泛使用内联 style="..."——此前 style-src 禁 unsafe-inline
+        // 导致管理后台布局损坏。样式内联已放开，但内联脚本已全部移除（事件改为
+        // .onclick / addEventListener / data-action 委托），保留 script-src 'self'。
+        "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; " +
             "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
     )
     respondText(adminDashboardHtml, contentType = io.ktor.http.ContentType.Text.Html)
@@ -4425,6 +4427,7 @@ private fun org.jetbrains.exposed.sql.ResultRow.toPostAdminResponse(authorName: 
 
 private val adminDashboardHtml: String by lazy { loadAdminResource("admin/admin.html") }
 private val adminDashboardCss: String by lazy { loadAdminResource("admin/admin.css") }
+private val adminDashboardThemeJs: String by lazy { loadAdminResource("admin/admin-theme.js") }
 private val adminDashboardJs: String by lazy { loadAdminResource("admin/admin.js") }
 
 private fun loadAdminResource(path: String): String =

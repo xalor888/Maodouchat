@@ -91,11 +91,13 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.Brush
@@ -114,6 +116,29 @@ fun LoginScreen(
 
     var animationPlayed by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { animationPlayed = true }
+
+    val enterProgress by animateFloatAsState(
+        targetValue = if (animationPlayed) 1f else 0f,
+        animationSpec = if (!motion.animationsEnabled) snap() else tween(
+            durationMillis = motion.duration(MotionTokens.Emphasized),
+            easing = FastOutSlowInEasing
+        ),
+        label = "loginEnterProgress"
+    )
+
+    val infiniteTransition = rememberInfiniteTransition(label = "logoFloat")
+    val floatY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = -4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = motion.duration(2400),
+                easing = FastOutSlowInEasing
+            ),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "logoFloatY"
+    )
 
     // 服务端全局状态（注册开关 / 邀请提示 / 维护模式）——登录页横幅与 tab 禁用依据
     val context = LocalContext.current
@@ -160,23 +185,19 @@ fun LoginScreen(
                 verticalArrangement = Arrangement.Top,
                 modifier = Modifier.fillMaxWidth().widthIn(max = 400.dp)
             ) {
-                        // Logo
-            AnimatedVisibility(visible = animationPlayed, enter = fadeIn(tween(motion.duration(MotionTokens.Emphasized))) + slideInVertically(tween(motion.duration(MotionTokens.Emphasized)) { it / 3 })) {
-                val infiniteTransition = rememberInfiniteTransition(label = "logoFloat")
-                val floatY by infiniteTransition.animateFloat(
-                    initialValue = 0f,
-                    targetValue = -6f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(motion.duration(2000), delayMillis = motion.duration(500)),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "logoFloatY"
-                )
+                // Logo
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .size(96.dp)
-                        .graphicsLayer { translationY = if (motion.animationsEnabled) floatY else 0f }
+                        .graphicsLayer {
+                            alpha = enterProgress
+                            translationY = if (motion.animationsEnabled) {
+                                floatY.dp.toPx() + (1f - enterProgress) * 16.dp.toPx()
+                            } else 0f
+                            scaleX = if (motion.animationsEnabled) 0.94f + (0.06f * enterProgress) else 1f
+                            scaleY = if (motion.animationsEnabled) 0.94f + (0.06f * enterProgress) else 1f
+                        }
                         .shadow(2.dp, CircleShape)
                         .background(Surface, CircleShape)
                         .border(1.dp, Color(0xFFE7E8E9), CircleShape)
@@ -184,38 +205,51 @@ fun LoginScreen(
                     Image(
                         painter = painterResource(R.drawable.logo),
                         contentDescription = stringResource(R.string.app_name),
-                        modifier = Modifier.size(76.dp)
+                        modifier = Modifier.size(72.dp)
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // Brand
-            AnimatedVisibility(visible = animationPlayed, enter = fadeIn(tween(motion.duration(MotionTokens.Emphasized), motion.duration(32))) + slideInVertically(tween(motion.duration(MotionTokens.Emphasized), motion.duration(32)) { it / 3 })) {
-                Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.SemiBold, fontSize = 20.sp), color = OnSurface)
-            }
+                // Brand
+                Text(
+                    stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.SemiBold, fontSize = 20.sp),
+                    color = OnSurface,
+                    modifier = Modifier.graphicsLayer {
+                        alpha = enterProgress
+                        translationY = if (motion.animationsEnabled) (1f - enterProgress) * 12.dp.toPx() else 0f
+                    }
+                )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            // Subtitle
-            AnimatedVisibility(visible = animationPlayed, enter = fadeIn(tween(motion.duration(MotionTokens.Emphasized), motion.duration(64))) + slideInVertically(tween(motion.duration(MotionTokens.Emphasized), motion.duration(64)) { it / 3 })) {
-                Text(stringResource(R.string.login_subtitle), style = MaterialTheme.typography.bodyMedium, color = TextSecondary, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 12.dp))
-            }
+                // Subtitle
+                Text(
+                    stringResource(R.string.login_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp)
+                        .graphicsLayer {
+                            alpha = enterProgress
+                            translationY = if (motion.animationsEnabled) (1f - enterProgress) * 10.dp.toPx() else 0f
+                        }
+                )
 
-            // 服务器横幅（维护模式 / 邀请制提示）
-            val serverBanner = when {
-                serverMaintenance -> buildString {
-                    append(context.getString(R.string.login_maintenance_mode))
-                    serverMaintMsg?.takeIf { it.isNotBlank() }?.let { append("：").append(it) }
+                // 服务器横幅（维护模式 / 邀请制提示）
+                val serverBanner = when {
+                    serverMaintenance -> buildString {
+                        append(context.getString(R.string.login_maintenance_mode))
+                        serverMaintMsg?.takeIf { it.isNotBlank() }?.let { append("：").append(it) }
+                    }
+                    serverRegistrationOpen == false && !serverInviteHint.isNullOrBlank() -> serverInviteHint
+                    serverRegistrationOpen == false -> stringResource(R.string.login_register_closed)
+                    else -> serverInviteHint
                 }
-                serverRegistrationOpen == false && !serverInviteHint.isNullOrBlank() -> serverInviteHint
-                serverRegistrationOpen == false -> stringResource(R.string.login_register_closed)
-                else -> serverInviteHint
-            }
-            if (serverBanner != null) {
-                Spacer(modifier = Modifier.height(12.dp))
-                AnimatedVisibility(visible = animationPlayed, enter = fadeIn(tween(motion.duration(MotionTokens.Emphasized)))) {
+                if (serverBanner != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = serverBanner,
                         style = MaterialTheme.typography.bodySmall,
@@ -224,14 +258,13 @@ fun LoginScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp)
+                            .graphicsLayer { alpha = enterProgress }
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-            // Tab Row
-            AnimatedVisibility(visible = animationPlayed, enter = fadeIn(tween(motion.duration(MotionTokens.Emphasized), motion.duration(96))) + slideInVertically(tween(motion.duration(MotionTokens.Emphasized), motion.duration(96)) { it / 3 })) {
+                // Tab Row
                 PrimaryTabRow(
                     selectedTabIndex = state.selectedTab,
                     containerColor = Color.Transparent,
@@ -244,7 +277,12 @@ fun LoginScreen(
                         )
                     },
                     divider = { HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant) },
-                    modifier = Modifier.padding(bottom = 24.dp)
+                    modifier = Modifier
+                        .padding(bottom = 24.dp)
+                        .graphicsLayer {
+                            alpha = enterProgress
+                            translationY = if (motion.animationsEnabled) (1f - enterProgress) * 8.dp.toPx() else 0f
+                        }
                 ) {
                     Tab(selected = state.selectedTab == 0, onClick = { viewModel.onTabSelected(0) },
                         text = { Text(stringResource(R.string.login_tab), fontWeight = if (state.selectedTab == 0) FontWeight.SemiBold else FontWeight.Normal) },
@@ -262,11 +300,15 @@ fun LoginScreen(
                         text = { Text(stringResource(R.string.forgot_password_tab), fontWeight = if (state.selectedTab == 2) FontWeight.SemiBold else FontWeight.Normal) },
                         selectedContentColor = Primary, unselectedContentColor = TextSecondary)
                 }
-            }
 
-            // Form
-            AnimatedVisibility(visible = animationPlayed, enter = fadeIn(tween(motion.duration(MotionTokens.Emphasized), motion.duration(128))) + slideInVertically(tween(motion.duration(MotionTokens.Emphasized), motion.duration(128)) { it / 3 })) {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Form
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.graphicsLayer {
+                        alpha = enterProgress
+                        translationY = if (motion.animationsEnabled) (1f - enterProgress) * 8.dp.toPx() else 0f
+                    }
+                ) {
                     // 注册模式：用户名
                     if (state.selectedTab == 1) {
                         OutlinedTextField(
@@ -497,21 +539,21 @@ fun LoginScreen(
                         )
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // Footer
-            AnimatedVisibility(visible = animationPlayed, enter = fadeIn(tween(motion.duration(MotionTokens.Emphasized), motion.duration(160)))) {
+                // Footer
                 Text(
                     text = when (state.selectedTab) {
                         0 -> stringResource(R.string.login_footer)
                         1 -> stringResource(R.string.register_footer)
                         else -> stringResource(R.string.forgot_password_footer)
                     },
-                    style = MaterialTheme.typography.bodySmall, color = TextSecondary, textAlign = TextAlign.Center
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.graphicsLayer { alpha = enterProgress }
                 )
-            }
             }
         }
     }

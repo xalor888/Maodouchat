@@ -117,18 +117,24 @@ fun Avatar(
                 val infiniteTransition = rememberInfiniteTransition(label = "onlinePulse")
                 val pulseScale by infiniteTransition.animateFloat(
                     initialValue = 1f,
-                    targetValue = 1.5f,
+                    targetValue = 1.7f,
                     animationSpec = infiniteRepeatable(
-                        animation = tween(motion.duration(1200)),
-                        repeatMode = RepeatMode.Reverse
+                        animation = tween(
+                            durationMillis = motion.duration(1400),
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing
+                        ),
+                        repeatMode = RepeatMode.Restart
                     ),
                     label = "pulseScale"
                 )
                 val pulseAlpha by infiniteTransition.animateFloat(
-                    initialValue = 0.5f,
+                    initialValue = 0.55f,
                     targetValue = 0f,
                     animationSpec = infiniteRepeatable(
-                        animation = tween(motion.duration(1200)),
+                        animation = tween(
+                            durationMillis = motion.duration(1400),
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing
+                        ),
                         repeatMode = RepeatMode.Restart
                     ),
                     label = "pulseAlpha"

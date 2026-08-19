@@ -126,6 +126,8 @@ fun Application.configureSockets(
         pingPeriod = Duration.ofSeconds(pingPeriodSec)
         timeout = Duration.ofSeconds(timeoutSec)
         maxFrameSize = MAX_FRAME_SIZE
+        // RFC 6455：服务端→客户端帧 MUST NOT be masked；Ktor 此开关控制「出站帧」是否
+        // mask，保持 false 才符合协议。客户端→服务端帧仍由 Ktor 按协议校验并解掩码。
         masking = false
     }
 

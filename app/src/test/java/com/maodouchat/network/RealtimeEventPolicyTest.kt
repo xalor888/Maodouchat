@@ -13,6 +13,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class RealtimeEventPolicyTest {
     @Test
     fun `new subscriber does not receive an old business event`() = runTest {

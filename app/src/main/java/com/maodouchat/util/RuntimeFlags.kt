@@ -90,7 +90,7 @@ object RuntimeFlags {
     val SECRET_CHAT_EXPORT_BLOCK: Flag = Flag("secret_chat_export_block_enabled", true)
     val SECRET_CHAT: Flag = Flag("secret_chat_enabled", true)
     val SECRET_COPY_BLOCK: Flag = Flag("secret_copy_block_enabled", true)
-    val SECRET_EXTERNAL_LINK_BLOCK: Flag = Flag("secret_external_link_block_enabled", false)
+    val SECRET_EXTERNAL_LINK_BLOCK: Flag = Flag("secret_external_link_block_enabled", true)
     val SECRET_FORWARD_BLOCK: Flag = Flag("secret_forward_block_enabled", true)
     val SECRET_LAST_SEEN_BLOCK: Flag = Flag("secret_last_seen_block_enabled", true)
     val SECRET_LINK_PREVIEW_BLOCK: Flag = Flag("secret_link_preview_block_enabled", true)

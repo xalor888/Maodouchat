@@ -76,30 +76,30 @@ fun TypingIndicator(
         ) {
             if (motion.animationsEnabled) {
                 val transition = rememberInfiniteTransition(label = "typing")
-                val scales = (0 until 3).map { index ->
-                    transition.animateFloat(
-                        initialValue = 0.4f,
-                        targetValue = 1f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(
-                                durationMillis = motion.duration(500),
-                                delayMillis = motion.duration(index * 130)
-                            ),
-                            repeatMode = RepeatMode.Reverse
+                val phase by transition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = (2 * Math.PI).toFloat(),
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(
+                            durationMillis = motion.duration(1000),
+                            easing = androidx.compose.animation.core.LinearEasing
                         ),
-                        label = "typingDot_$index"
-                    )
-                }
-                scales.forEach { scale ->
-                    val s by scale
+                        repeatMode = RepeatMode.Restart
+                    ),
+                    label = "typingPhase"
+                )
+                repeat(3) { index ->
+                    val sinVal = kotlin.math.sin(phase - index * 0.85f).coerceIn(-1f, 1f)
+                    val norm = (sinVal + 1f) / 2f
+                    val s = 0.45f + 0.55f * norm
                     Box(
                         modifier = Modifier
                             .size(6.dp)
                             .graphicsLayer {
                                 scaleX = s
                                 scaleY = s
-                                alpha = 0.4f + (s - 0.4f) / 0.6f * 0.6f
-                                translationY = -(s - 0.4f) / 0.6f * 3f
+                                alpha = 0.4f + 0.6f * norm
+                                translationY = -norm * 3.5f
                             }
                             .background(dotColor, CircleShape)
                     )
@@ -137,30 +137,30 @@ fun InlineTypingDots(
     ) {
         if (motion.animationsEnabled) {
             val transition = rememberInfiniteTransition(label = "inlineTyping")
-            val scales = (0 until 3).map { index ->
-                transition.animateFloat(
-                    initialValue = 0.5f,
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(
-                            durationMillis = motion.duration(500),
-                            delayMillis = motion.duration(index * 130)
-                        ),
-                        repeatMode = RepeatMode.Reverse
+            val phase by transition.animateFloat(
+                initialValue = 0f,
+                targetValue = (2 * Math.PI).toFloat(),
+                animationSpec = infiniteRepeatable(
+                    animation = tween(
+                        durationMillis = motion.duration(1000),
+                        easing = androidx.compose.animation.core.LinearEasing
                     ),
-                    label = "inlineDot_$index"
-                )
-            }
-            scales.forEach { scale ->
-                val s by scale
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "inlineTypingPhase"
+            )
+            repeat(3) { index ->
+                val sinVal = kotlin.math.sin(phase - index * 0.85f).coerceIn(-1f, 1f)
+                val norm = (sinVal + 1f) / 2f
+                val s = 0.5f + 0.5f * norm
                 Box(
                     modifier = Modifier
                         .size(4.dp)
                         .graphicsLayer {
                             scaleX = s
                             scaleY = s
-                            alpha = 0.4f + (s - 0.5f) / 0.5f * 0.6f
-                            translationY = -(s - 0.5f) / 0.5f * 2f
+                            alpha = 0.4f + 0.6f * norm
+                            translationY = -norm * 2f
                         }
                         .background(dotColor, CircleShape)
                 )

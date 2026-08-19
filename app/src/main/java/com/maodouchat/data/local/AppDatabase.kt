@@ -130,9 +130,9 @@ import com.maodouchat.data.local.entity.UserEntity
                 // passphrases, or corrupt encrypted files are handled before app UI starts.
                 database.openHelper.writableDatabase.query("SELECT count(*) FROM sqlite_master").close()
                 return database
-            } catch (error: Throwable) {
+            } finally {
+                // 密钥材料卫生：无论成功或失败都清除本方法内的口令副本。
                 passphrase.fill(0)
-                throw error
             }
         }
 

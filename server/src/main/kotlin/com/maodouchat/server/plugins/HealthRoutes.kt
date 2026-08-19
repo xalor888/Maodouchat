@@ -97,7 +97,6 @@ fun Route.configureHealthRoutes() {
         }
         val body = buildJsonObject {
             put("timestamp", System.currentTimeMillis())
-            put("env", ServerConfig.appEnv)
             put("runtime", runtime)
             put("rateLimit", rateLimit)
             put("cache", cache)

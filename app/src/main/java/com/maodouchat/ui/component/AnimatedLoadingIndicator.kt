@@ -106,18 +106,15 @@ fun PulsingDotIndicator(
     }
 
     val infiniteTransition = rememberInfiniteTransition(label = "pulsingDot")
-
-    val scales = (0 until 3).map { index ->
-        infiniteTransition.animateFloat(
-            initialValue = 0.4f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 600, delayMillis = index * 200, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "scale$index"
-        )
-    }
+    val phase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = motion.duration(1200), easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "pulsingPhase"
+    )
 
     Canvas(
         modifier = modifier.size(
@@ -126,13 +123,15 @@ fun PulsingDotIndicator(
         )
     ) {
         repeat(3) { index ->
-            val scale = scales[index].value
+            val sinVal = kotlin.math.sin(phase - index * 0.85f).coerceIn(-1f, 1f)
+            val norm = (sinVal + 1f) / 2f
+            val scale = 0.4f + 0.6f * norm
             val x = index * (dotSize.toPx() + spacing.toPx()) + dotSize.toPx() / 2
             drawCircle(
                 color = color,
                 radius = dotSize.toPx() / 2 * scale,
                 center = Offset(x, size.height / 2),
-                alpha = 0.4f + 0.6f * scale
+                alpha = 0.35f + 0.65f * norm
             )
         }
     }
@@ -165,22 +164,15 @@ fun WaveLoadingIndicator(
     }
 
     val infiniteTransition = rememberInfiniteTransition(label = "waveLoading")
-
-    val heights = (0 until barCount).map { index ->
-        infiniteTransition.animateFloat(
-            initialValue = 0.2f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(
-                    durationMillis = 500,
-                    delayMillis = index * 80,
-                    easing = LinearEasing
-                ),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "height$index"
-        )
-    }
+    val phase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = motion.duration(1000), easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "wavePhase"
+    )
 
     Canvas(
         modifier = modifier.size(
@@ -189,17 +181,20 @@ fun WaveLoadingIndicator(
         )
     ) {
         val maxBarHeight = waveHeight.toPx()
+        val minBarHeight = maxBarHeight * 0.25f
 
         repeat(barCount) { index ->
-            val heightFraction = heights[index].value
-            val barHeight = maxBarHeight * heightFraction
+            val sinVal = kotlin.math.sin(phase - index * 0.7f).coerceIn(-1f, 1f)
+            val norm = (sinVal + 1f) / 2f
+            val barHeight = minBarHeight + (maxBarHeight - minBarHeight) * norm
             val x = index * barWidth.toPx() * 2
 
             drawRoundRect(
                 color = color,
                 topLeft = Offset(x, (maxBarHeight - barHeight) / 2),
                 size = androidx.compose.ui.geometry.Size(barWidth.toPx(), barHeight),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(barWidth.toPx() / 2)
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(barWidth.toPx() / 2),
+                alpha = 0.5f + 0.5f * norm
             )
         }
     }

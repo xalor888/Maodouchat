@@ -221,13 +221,10 @@ class MaodouFirebaseMessagingService : FirebaseMessagingService() {
      * @return true = 通过校验（或应当 fail-open 放行）；false = 签名缺失/失效/过期，拒绝该推送。
      */
     private fun verifyPushSignature(data: Map<String, String>): Boolean {
-        // 密钥缺失时：普通消息类推送兼容旧安装/未拉取密钥的场景 fail-open；
-        // 高风险的来电/公告类推送 fail-closed —— 无密钥即拒绝，防止伪造来电或公告注入。
-        val key = PushVerifyPrefs.getKey(this)
-        if (key == null) {
-            val type = data["type"]
-            return type != "INCOMING_CALL" && type != "ANNOUNCEMENT"
-        }
+        // 密钥缺失时一律 fail-closed：签名是防伪造推送的唯一防线，
+        // 未取得 /api/public/status 下发的密钥前绝不信任任何 FCM data 消息。
+        // 应用启动会先拉取 public/status 写入 PushVerifyPrefs，正常推送不受影响。
+        val key = PushVerifyPrefs.getKey(this) ?: return false
         val sig = data["sig"] ?: return false
         val ts = data["ts"]?.toLongOrNull() ?: return false
         // 重放/过期保护：签名时间戳须在有效窗口内。窗口与服务端 FCM TTL（24h）对齐——

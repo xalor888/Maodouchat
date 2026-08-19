@@ -34,6 +34,9 @@ import org.json.JSONObject
  * 实现，可直接使用，无需改 Gradle。
  */
 object SealedSenderSupport {
+    private const val MAX_CERT_CHARS = 16_000
+    private const val MAX_CERT_TTL_MS = 7L * 24L * 60L * 60L * 1000L
+
     /**
      * 显式标记：libsignal `SealedSessionCipher` 加解密路径是否已实现。
      *
@@ -99,7 +102,8 @@ object SealedSenderSupport {
             val expiresAt = o.optLong("expiresAt")
             val uid = o.optString("userId")
             val dev = o.optInt("deviceId", deviceId)
-            if (cert.isBlank() || expiresAt <= 0L) error("invalid sealed sender certificate")
+            if (cert.isBlank() || cert.length > MAX_CERT_CHARS || expiresAt <= 0L) error("invalid sealed sender certificate")
+            if (expiresAt > System.currentTimeMillis() + MAX_CERT_TTL_MS) error("sealed sender certificate TTL too long")
             if (uid != userId || dev != deviceId) error("sealed sender certificate owner mismatch")
             val certificate = Certificate(cert, expiresAt, dev, uid)
             synchronized(cacheLock) {

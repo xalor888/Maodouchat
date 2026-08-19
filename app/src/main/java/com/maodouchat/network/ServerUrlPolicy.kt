@@ -1,5 +1,6 @@
 package com.maodouchat.network
 
+import com.maodouchat.BuildConfig
 import java.net.URI
 import java.net.URISyntaxException
 
@@ -38,6 +39,9 @@ internal object ServerUrlPolicy {
 
         val scheme = uri.scheme?.lowercase()
         if (scheme != "http" && scheme != "https") return Problem.SCHEME
+        // 发布版禁止明文服务器地址：运行时地址会用于 JWT/加密消息与 WebSocket，
+        // 局域网内明文 HTTP/WS 可被中间人窃取令牌与元数据。Debug 保留 http 以支持本机联调。
+        if (scheme == "http" && !BuildConfig.DEBUG) return Problem.SCHEME
 
         val host = uri.host
             ?.trim()

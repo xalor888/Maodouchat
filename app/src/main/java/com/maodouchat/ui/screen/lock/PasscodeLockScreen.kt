@@ -3,9 +3,9 @@ package com.maodouchat.ui.screen.lock
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.biometric.BiometricPrompt
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.keyframes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,12 +28,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -63,12 +65,28 @@ fun PasscodeLockScreen(
     val lockCredentialSubtitle = stringResource(R.string.lock_credential_subtitle)
     var isAuthenticating by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var failedPulse by remember { mutableStateOf(false) }
-    val shakeScale by animateFloatAsState(
-        targetValue = if (failedPulse) 0.94f else 1f,
-        animationSpec = if (motion.animationsEnabled) spring(dampingRatio = 0.45f, stiffness = 520f) else snap(),
-        label = "lockFailurePulse"
-    )
+    val shakeOffset = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+
+    fun triggerErrorShake() {
+        if (motion.animationsEnabled) {
+            coroutineScope.launch {
+                shakeOffset.snapTo(0f)
+                shakeOffset.animateTo(
+                    targetValue = 0f,
+                    animationSpec = androidx.compose.animation.core.keyframes {
+                        durationMillis = motion.duration(360)
+                        -12f at 45 using androidx.compose.animation.core.FastOutSlowInEasing
+                        12f at 110 using androidx.compose.animation.core.FastOutSlowInEasing
+                        -8f at 180 using androidx.compose.animation.core.FastOutSlowInEasing
+                        8f at 250 using androidx.compose.animation.core.FastOutSlowInEasing
+                        -3f at 310 using androidx.compose.animation.core.FastOutSlowInEasing
+                        0f at 360 using androidx.compose.animation.core.FastOutSlowInEasing
+                    }
+                )
+            }
+        }
+    }
 
     val executor = remember(context) { ContextCompat.getMainExecutor(context) }
     val biometricPrompt = remember(activity, executor, lockAuthFailedMsg, lockAuthCancelledMsg) {
@@ -81,19 +99,20 @@ fun PasscodeLockScreen(
                 }
 
                 override fun onAuthenticationFailed() {
-                    failedPulse = !failedPulse
                     errorMessage = lockAuthFailedMsg
+                    triggerErrorShake()
                     currentOnFailed()
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     isAuthenticating = false
-                    failedPulse = !failedPulse
                     errorMessage = when (errorCode) {
                         BiometricPrompt.ERROR_USER_CANCELED,
                         BiometricPrompt.ERROR_NEGATIVE_BUTTON -> lockAuthCancelledMsg
-                        else -> errString.toString().takeIf(String::isNotBlank)
-                            ?: lockAuthFailedMsg
+                        else -> {
+                            triggerErrorShake()
+                            errString.toString().takeIf(String::isNotBlank) ?: lockAuthFailedMsg
+                        }
                     }
                     currentOnFailed()
                 }
@@ -113,7 +132,7 @@ fun PasscodeLockScreen(
         if (isAuthenticating) return
         if (activity == null || biometricPrompt == null || !AppLockManager.isAuthenticationAvailable(context)) {
             errorMessage = lockAuthUnavailableMsg
-            failedPulse = !failedPulse
+            triggerErrorShake()
             currentOnFailed()
             return
         }
@@ -123,7 +142,7 @@ fun PasscodeLockScreen(
             .onFailure {
                 isAuthenticating = false
                 errorMessage = lockAuthFailedMsg
-                failedPulse = !failedPulse
+                triggerErrorShake()
                 currentOnFailed()
             }
     }
@@ -140,7 +159,9 @@ fun PasscodeLockScreen(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.scale(shakeScale)
+            modifier = Modifier.graphicsLayer {
+                translationX = shakeOffset.value.dp.toPx()
+            }
         ) {
             Box(
                 contentAlignment = Alignment.Center,

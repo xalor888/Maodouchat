@@ -408,7 +408,7 @@
 
     var memPct = s.jvmMaxMemoryBytes > 0 ? Math.round(s.jvmUsedMemoryBytes / s.jvmMaxMemoryBytes * 100) : 0;
 
-    var statsHtml = '<div style="margin:0 0 12px 0"><button class="btn primary" onclick="adminBroadcast()">Broadcast to online</button></div>' +
+    var statsHtml = '<div style="margin:0 0 12px 0"><button class="btn primary" data-action="admin-broadcast">Broadcast to online</button></div>' +
       '<div class="stats-grid">' +
       statCard('users', '总用户数', d.totalUsers, d.activeUsers24h + ' 人 24h 活跃', 'green') +
       statCard('posts', '动态总数', d.totalPosts, s.totalComments + ' 条评论', 'blue') +
@@ -462,6 +462,8 @@
 
     if (staleTab(seq)) return;
     el('content').innerHTML = statsHtml + chartHtml + healthHtml;
+    var broadcastBtn = el('content').querySelector('[data-action="admin-broadcast"]');
+    if (broadcastBtn) broadcastBtn.onclick = adminBroadcast;
   }
 
   function statCard(icon, label, value, sub, color) {
@@ -2828,4 +2830,24 @@ async function adminSetModerator(userId, enabled) {
       .then(function () { b2SettingsBusy = false; });
   });
   b2SettingsObserver.observe(document.body, { childList: true, subtree: true });
+
+  // 主题切换逻辑（原 admin.html 内联脚本移入外部 JS，满足 script-src 'self' CSP）
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('theme-toggle');
+    var sun = document.getElementById('icon-sun');
+    var moon = document.getElementById('icon-moon');
+    function syncIcons() {
+      var light = root.getAttribute('data-theme') === 'light';
+      if (sun) sun.hidden = light;
+      if (moon) moon.hidden = !light;
+    }
+    syncIcons();
+    if (btn) btn.addEventListener('click', function () {
+      var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('admin-theme', next); } catch (e) {}
+      syncIcons();
+    });
+  })();
 })();

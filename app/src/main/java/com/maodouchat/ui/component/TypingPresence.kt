@@ -82,55 +82,50 @@ fun TypingPresence(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            repeat(3) { index ->
-                TypingDot(
-                    index = index,
-                    animationsEnabled = motion.animationsEnabled
+            if (motion.animationsEnabled) {
+                val transition = rememberInfiniteTransition(label = "typingPresence")
+                val phase by transition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = (2 * Math.PI).toFloat(),
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(
+                            durationMillis = motion.duration(1000),
+                            easing = androidx.compose.animation.core.LinearEasing
+                        ),
+                        repeatMode = RepeatMode.Restart
+                    ),
+                    label = "typingPresencePhase"
                 )
+                repeat(3) { index ->
+                    val sinVal = kotlin.math.sin(phase - index * 0.85f).coerceIn(-1f, 1f)
+                    val norm = (sinVal + 1f) / 2f
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .graphicsLayer {
+                                translationY = -norm * 6.dp.toPx()
+                                val s = 0.8f + 0.35f * norm
+                                scaleX = s
+                                scaleY = s
+                                alpha = 0.45f + 0.55f * norm
+                            }
+                            .clip(RoundedCornerShape(3.5.dp))
+                            .background(Primary)
+                    )
+                }
+            } else {
+                repeat(3) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .graphicsLayer { alpha = 0.7f }
+                            .clip(RoundedCornerShape(3.5.dp))
+                            .background(Primary)
+                    )
+                }
             }
         }
     }
-}
-
-@Composable
-private fun TypingDot(index: Int, animationsEnabled: Boolean) {
-    val infiniteTransition = rememberInfiniteTransition(label = "typingDot$index")
-
-    val offsetY by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = -6f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 500),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "dotOffset$index"
-    )
-
-    val dotAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 500),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "dotAlpha$index"
-    )
-
-    // offset/scale/alpha 延后到放置与绘制阶段读取动画状态：组合期不读 offsetY/dotAlpha，
-    // 动画每帧只触发 placement/draw，不再重组整个 TypingDot。
-    Box(
-        modifier = Modifier
-            .size(7.dp)
-            .offset { IntOffset(0, if (animationsEnabled) offsetY.dp.roundToPx() else 0) }
-            .graphicsLayer {
-                val s = if (animationsEnabled) 1f + offsetY / 12f else 1f
-                scaleX = s
-                scaleY = s
-                alpha = if (animationsEnabled) dotAlpha else 0.7f
-            }
-            .clip(RoundedCornerShape(3.5.dp))
-            .background(Primary)
-    )
 }
 
 private fun <T> snap() = androidx.compose.animation.core.snap<T>()
