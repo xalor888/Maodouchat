@@ -79,6 +79,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -1610,7 +1611,7 @@ fun GroupDetailScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 if (state.canManageGroup) {
-                                    stringResource(R.string.chat_channel_member_count, state.members.size)
+                                    pluralStringResource(R.plurals.chat_channel_member_count, state.members.size, state.members.size)
                                 } else {
                                     stringResource(R.string.chat_channel_subscriber_hint)
                                 },

@@ -31,7 +31,9 @@
     <string name="chat_channel_name_hint">频道名称</string>
     <string name="chat_channel_create_button">创建频道</string>
     <string name="chat_channel_subscribers">订阅者</string>
-    <string name="chat_channel_member_count">%1$d 位订阅者</string>
+    <plurals name="chat_channel_member_count">
+        <item quantity="other">%1$d 位订阅者</item>
+    </plurals>
     <string name="chat_channel_subscriber_hint">仅创建者可发送消息，订阅者只读</string>
     <string name="chat_channel_created">频道已创建</string>
     <string name="chat_create_channel">新建频道</string>
@@ -46,7 +48,9 @@
     <string name="chat_delete_title">删除聊天</string>
     <string name="chat_delete_message">确定要删除与「%1$s」的聊天吗？聊天记录将被清除。</string>
     <string name="chat_delete">删除</string>
-    <string name="chat_list_selected_count">已选 %1$d</string>
+    <plurals name="chat_list_selected_count">
+        <item quantity="other">已选 %1$d</item>
+    </plurals>
     <string name="chat_list_batch_delete_confirm">确定删除选中的 %1$d 个会话吗？聊天记录将被清除。</string>
     <string name="chat_multi_select">多选</string>
     <string name="chat_empty_search_title">没有找到相关聊天</string>

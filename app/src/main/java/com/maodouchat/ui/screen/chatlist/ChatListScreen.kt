@@ -97,6 +97,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -537,7 +538,7 @@ fun ChatListScreen(
                 title = {
                     if (state.selectionMode) {
                         Text(
-                            stringResource(R.string.chat_list_selected_count, state.selectedChatIds.size),
+                            pluralStringResource(R.plurals.chat_list_selected_count, state.selectedChatIds.size, state.selectedChatIds.size),
                             style = MaterialTheme.typography.titleLarge
                         )
                     } else {

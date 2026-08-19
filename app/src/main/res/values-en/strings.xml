@@ -31,7 +31,10 @@
     <string name="chat_channel_name_hint">Channel name</string>
     <string name="chat_channel_create_button">Create channel</string>
     <string name="chat_channel_subscribers">Subscribers</string>
-    <string name="chat_channel_member_count">%1$d subscribers</string>
+    <plurals name="chat_channel_member_count">
+        <item quantity="one">%1$d subscriber</item>
+        <item quantity="other">%1$d subscribers</item>
+    </plurals>
     <string name="chat_channel_subscriber_hint">Only the creator can send messages; subscribers are read-only</string>
     <string name="chat_channel_created">Channel created</string>
     <string name="chat_create_channel">New channel</string>
@@ -46,7 +49,10 @@
     <string name="chat_delete_title">Delete chat</string>
     <string name="chat_delete_message">Delete your chat with “%1$s”? Its local history will be cleared.</string>
     <string name="chat_delete">Delete</string>
-    <string name="chat_list_selected_count">%1$d selected</string>
+    <plurals name="chat_list_selected_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
     <string name="chat_list_batch_delete_confirm">Delete the %1$d selected chats? Their chat histories will be cleared.</string>
     <string name="chat_multi_select">Select multiple</string>
     <string name="chat_empty_search_title">No matching chats</string>
