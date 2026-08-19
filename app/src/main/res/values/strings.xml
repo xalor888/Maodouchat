@@ -989,6 +989,9 @@
     <string name="sensitive_auth_failed">身份验证失败，操作已取消</string>
     <string name="about_title">关于</string>
     <string name="about_version_format">版本 %1$s</string>
+    <string name="about_server">连接服务器</string>
+    <string name="about_server_official">官方默认</string>
+    <string name="about_server_third_party">第三方服务器</string>
     <string name="about_version">版本号</string>
     <string name="about_privacy">隐私政策</string>
     <string name="about_privacy_value">E2EE 端到端加密</string>

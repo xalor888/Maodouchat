@@ -20,6 +20,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -51,6 +53,8 @@ fun AboutScreen(onBack: () -> Unit = {}) {
     val versionName = remember {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.0" }.getOrDefault("1.0.0")
     }
+    // 9.209：关于页展示当前连接的服务器身份（第三方模式显示运营方名称）
+    val serverIdentity by com.maodouchat.network.ServerIdentity.current.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
@@ -73,7 +77,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
             Spacer(modifier = Modifier.height(32.dp))
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.size(88.dp).clip(RoundedCornerShape(22.dp)).background(Primary)
+                modifier = Modifier.size(88.dp).clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.primary)
             ) {
                 Text(
                     text = "M",
@@ -99,6 +103,16 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
             ) {
                 AboutRow(label = stringResource(R.string.about_version), value = versionName)
+                HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
+                AboutRow(
+                    label = stringResource(R.string.about_server),
+                    value = if (com.maodouchat.network.ApiConfig.isUsingRuntimeServer) {
+                        serverIdentity?.name?.takeIf(String::isNotBlank)
+                            ?: stringResource(R.string.about_server_third_party)
+                    } else {
+                        stringResource(R.string.about_server_official)
+                    }
+                )
                 HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 AboutRow(label = stringResource(R.string.about_privacy), value = stringResource(R.string.about_privacy_value))
                 HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))

@@ -989,6 +989,9 @@
     <string name="sensitive_auth_failed">Verification failed. The action was canceled</string>
     <string name="about_title">About</string>
     <string name="about_version_format">Version %1$s</string>
+    <string name="about_server">Connected Server</string>
+    <string name="about_server_official">Official</string>
+    <string name="about_server_third_party">Third-Party Server</string>
     <string name="about_version">Version</string>
     <string name="about_privacy">Privacy</string>
     <string name="about_privacy_value">E2EE End-to-End Encrypted</string>
