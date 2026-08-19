@@ -90,6 +90,15 @@ tasks.withType<Test> {
     // 同进程下互相串台；强制每个测试方法跑在独立 JVM 进程 → 消除 flake。
     forkEvery = 1
     maxParallelForks = 1
+    // 9.218：测试环境隔离——开发者 shell 中导出的服务器 env（如 E2E 起服务时 export 的
+    // JWT_SECRET/MASTER_ADMINS/DATABASE_URL）会泄漏进测试 JVM：ServerConfig.env() 优先取真实
+    // 环境变量，压过测试的 System.setProperty 覆盖，导致 secret 切换/角色断言等用例失败。
+    // 这里统一剥离已知干扰键（2026-08-20 实测复现并验证修复）。
+    listOf(
+        "JWT_SECRET", "MASTER_ADMINS", "MODERATOR_EMAILS", "DATABASE_URL", "DATABASE_DRIVER",
+        "APP_ENV", "BASE_URL", "SEED_DEMO_USERS", "HOST", "PORT", "SMTP_HOST",
+        "ADMIN_E2E_BASE_URL", "SERVER_NAME", "PUBLIC_SITE", "ALLOW_REGISTRATION"
+    ).forEach { environment.remove(it) }
 }
 
 tasks.named<Test>("test") {
