@@ -1917,6 +1917,8 @@
     <string name="general_theme_style_tg_midnight">TG Daybreak &amp; Midnight</string>
     <string name="general_theme_style_tg_graphite">TG Ice &amp; Graphite</string>
     <string name="general_theme_style_tg_badge">1:1 Replica</string>
+    <string name="general_glass_bottom_bar_title">Glass Floating Tab Bar</string>
+    <string name="general_glass_bottom_bar_subtitle">Translucent floating tab bar for a more immersive look</string>
     <string name="general_language_title">Language</string>
     <string name="general_language_system">System</string>
     <string name="general_language_chinese">简体中文</string>

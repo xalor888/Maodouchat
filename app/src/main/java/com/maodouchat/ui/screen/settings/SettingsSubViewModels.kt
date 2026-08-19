@@ -1371,6 +1371,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
 data class GeneralSettingsUiState(
     val themeMode: String = "system", // system / light / dark
     val themeStyle: String = "maodou", // maodou / tg_classic / tg_midnight / tg_graphite
+    val glassBottomBar: Boolean = true,
     val languageMode: String = AppLocaleManager.MODE_SYSTEM,
     val linkPreviewEnabled: Boolean = true,
     val unreadPriorityEnabled: Boolean = true,
@@ -1397,6 +1398,7 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
         GeneralSettingsUiState(
             themeMode = prefs.getString(KEY_THEME, "system") ?: "system",
             themeStyle = com.maodouchat.util.ThemePreferences.getStyle(application),
+            glassBottomBar = com.maodouchat.util.GlassBottomBarPreferences.isEnabled(application),
             languageMode = AppLocaleManager.getMode(application),
             linkPreviewEnabled = com.maodouchat.util.LinkPreviewPreferences.isEnabled(application),
             unreadPriorityEnabled = com.maodouchat.util.UnreadPriorityPreferences.isEnabled(application),
@@ -1439,6 +1441,14 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
         if (_uiState.value.themeStyle == normalized) return
         com.maodouchat.util.ThemePreferences.setStyle(context, normalized)
         _uiState.update { it.copy(themeStyle = normalized) }
+    }
+
+    /** 玻璃悬浮底栏开关（仅本地）。 */
+    fun setGlassBottomBar(enabled: Boolean) {
+        val context = getApplication<Application>()
+        if (_uiState.value.glassBottomBar == enabled) return
+        com.maodouchat.util.GlassBottomBarPreferences.setEnabled(context, enabled)
+        _uiState.update { it.copy(glassBottomBar = enabled) }
     }
 
     fun setLanguageMode(mode: String) {

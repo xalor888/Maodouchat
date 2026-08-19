@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -71,6 +72,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -89,6 +91,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -1601,40 +1604,76 @@ private fun MissedCallsSheet(
 
 @Composable
 fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
+    // 9.201：玻璃悬浮底栏（可开关）——半透明圆角悬浮卡片，关闭则回退传统贴底样式
+    val glassEnabled by com.maodouchat.util.GlassBottomBarPreferences.enabled.collectAsState()
+    if (glassEnabled) {
+        val surface = MaterialTheme.colorScheme.surface
+        val isLightSurface = (surface.red + surface.green + surface.blue) / 3f > 0.5f
+        val glassColor = surface.copy(alpha = if (isLightSurface) 0.82f else 0.72f)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(26.dp),
+                color = glassColor,
+                border = BorderStroke(
+                    0.5.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+                ),
+                shadowElevation = 14.dp,
+                tonalElevation = 0.dp
+            ) {
+                NavigationBar(containerColor = Color.Transparent) {
+                    BottomNavBarItems(selectedTab = selectedTab, onTabSelected = onTabSelected)
+                }
+            }
+        }
+    } else {
+        NavigationBar {
+            BottomNavBarItems(selectedTab = selectedTab, onTabSelected = onTabSelected)
+        }
+    }
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.RowScope.BottomNavBarItems(
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit
+) {
     // 1.54：会话未读角标（ChatListViewModel 推送）
     val unreadTotal by UnreadBadgeStore.totalUnread.collectAsState()
-    NavigationBar {
-        NavigationBarItem(
-            selected = selectedTab == MainTab.CHATS,
-            onClick = { onTabSelected(MainTab.CHATS) },
-            icon = {
-                Box {
-                    Icon(Icons.Outlined.ChatBubbleOutline, null)
-                    if (unreadTotal > 0) {
-                        Badge(modifier = Modifier.align(Alignment.TopEnd)) { Text(if (unreadTotal > 99) "99+" else unreadTotal.toString()) }
-                    }
+    NavigationBarItem(
+        selected = selectedTab == MainTab.CHATS,
+        onClick = { onTabSelected(MainTab.CHATS) },
+        icon = {
+            Box {
+                Icon(Icons.Outlined.ChatBubbleOutline, null)
+                if (unreadTotal > 0) {
+                    Badge(modifier = Modifier.align(Alignment.TopEnd)) { Text(if (unreadTotal > 99) "99+" else unreadTotal.toString()) }
                 }
-            },
-            label = { Text(stringResource(R.string.nav_chats)) }
-        )
-        NavigationBarItem(selected = selectedTab == MainTab.CONTACTS, onClick = { onTabSelected(MainTab.CONTACTS) }, icon = { Icon(Icons.Outlined.Group, null) }, label = { Text(stringResource(R.string.nav_contacts)) })
-        // 1.112：动态未读互动角标
-        val exploreBadge by ExploreBadgeStore.count.collectAsState()
-        NavigationBarItem(
-            selected = selectedTab == MainTab.EXPLORE,
-            onClick = { onTabSelected(MainTab.EXPLORE) },
-            icon = {
-                Box {
-                    Icon(Icons.Outlined.Explore, null)
-                    if (exploreBadge > 0) {
-                        Badge(modifier = Modifier.align(Alignment.TopEnd)) { Text(if (exploreBadge > 99) "99+" else exploreBadge.toString()) }
-                    }
+            }
+        },
+        label = { Text(stringResource(R.string.nav_chats)) }
+    )
+    NavigationBarItem(selected = selectedTab == MainTab.CONTACTS, onClick = { onTabSelected(MainTab.CONTACTS) }, icon = { Icon(Icons.Outlined.Group, null) }, label = { Text(stringResource(R.string.nav_contacts)) })
+    // 1.112：动态未读互动角标
+    val exploreBadge by ExploreBadgeStore.count.collectAsState()
+    NavigationBarItem(
+        selected = selectedTab == MainTab.EXPLORE,
+        onClick = { onTabSelected(MainTab.EXPLORE) },
+        icon = {
+            Box {
+                Icon(Icons.Outlined.Explore, null)
+                if (exploreBadge > 0) {
+                    Badge(modifier = Modifier.align(Alignment.TopEnd)) { Text(if (exploreBadge > 99) "99+" else exploreBadge.toString()) }
                 }
-            },
-            label = { Text(stringResource(R.string.nav_explore)) }
-        )
-        NavigationBarItem(selected = selectedTab == MainTab.SETTINGS, onClick = { onTabSelected(MainTab.SETTINGS) }, icon = { Icon(Icons.Outlined.Settings, null) }, label = { Text(stringResource(R.string.nav_settings)) })
-    }
+            }
+        },
+        label = { Text(stringResource(R.string.nav_explore)) }
+    )
+    NavigationBarItem(selected = selectedTab == MainTab.SETTINGS, onClick = { onTabSelected(MainTab.SETTINGS) }, icon = { Icon(Icons.Outlined.Settings, null) }, label = { Text(stringResource(R.string.nav_settings)) })
 }
 
 private fun relativeTime(ts: Long): String {

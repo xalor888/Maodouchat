@@ -2739,6 +2739,11 @@ fun GeneralSettingsScreen(
                     )
                 ) { showThemeStyleDialog = true }
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
+                GlassBottomBarSwitchRow(
+                    enabled = state.glassBottomBar,
+                    onEnabledChange = viewModel::setGlassBottomBar
+                )
+                androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 LanguageRow(
                     currentLanguage = state.languageMode,
                     onLanguageChange = { mode ->
@@ -2892,6 +2897,33 @@ fun GeneralSettingsScreen(
                 TextButton(onClick = { showLanguageDialog = false }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) }
             }
         )
+    }
+}
+
+@Composable
+private fun GlassBottomBarSwitchRow(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.general_glass_bottom_bar_title),
+                style = MaterialTheme.typography.bodyLarge,
+                color = OnSurface
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                stringResource(R.string.general_glass_bottom_bar_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Switch(checked = enabled, onCheckedChange = onEnabledChange)
     }
 }
 
