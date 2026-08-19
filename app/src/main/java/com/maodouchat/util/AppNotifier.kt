@@ -55,12 +55,27 @@ object AppNotifier {
             .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
             .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
+        // 9.216：渠道配置指纹——Android 通知渠道的铃声/振动只在创建时生效，
+        // 用户改设置后必须删除重建渠道才能生效（重建会重置系统侧对渠道的手动调整，预期内）。
+        val vibrationOn = com.maodouchat.notification.NotificationPreferences.vibrationEnabled(context)
+        val fingerprint = listOf(ringtoneUri, groupRingtoneUri, vibrationOn).joinToString("|")
+        val configPrefs = context.applicationContext.getSharedPreferences("notif_channel_config", Context.MODE_PRIVATE)
+        val storedFingerprint = configPrefs.getString("channel_fingerprint", null)
+        if (storedFingerprint != null && storedFingerprint != fingerprint) {
+            nm.deleteNotificationChannel(CHANNEL_MESSAGES)
+            nm.deleteNotificationChannel(CHANNEL_GROUP_MESSAGES)
+            nm.deleteNotificationChannel(CHANNEL_CALLS)
+            nm.deleteNotificationChannel(CHANNEL_AI_TASKS)
+        }
+        if (storedFingerprint != fingerprint) {
+            configPrefs.edit().putString("channel_fingerprint", fingerprint).apply()
+        }
         fun applySound(channel: NotificationChannel, uri: android.net.Uri?) {
             if (uri != null) channel.setSound(uri, attrs)
         }
         // 1.133：震动开关（渠道级）
         fun applyVibration(channel: NotificationChannel) {
-            channel.enableVibration(com.maodouchat.notification.NotificationPreferences.vibrationEnabled(context))
+            channel.enableVibration(vibrationOn)
         }
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_MESSAGES, context.getString(R.string.notification_channel_messages), NotificationManager.IMPORTANCE_HIGH)
