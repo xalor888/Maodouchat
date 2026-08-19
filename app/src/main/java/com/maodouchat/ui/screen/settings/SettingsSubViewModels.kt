@@ -1434,13 +1434,15 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
         pushClientPrefs()
     }
 
-    /** 主题风格家族（含 TG 1:1 还原主题）；目前仅本地生效，不随客户端偏好云同步。 */
+    /** 主题风格家族（含 TG 1:1 还原主题），随客户端偏好云同步。 */
     fun setThemeStyle(style: String) {
         val context = getApplication<Application>()
         val normalized = com.maodouchat.util.ThemePreferences.normalizeStyle(style)
         if (_uiState.value.themeStyle == normalized) return
+        prefsRevision++
         com.maodouchat.util.ThemePreferences.setStyle(context, normalized)
         _uiState.update { it.copy(themeStyle = normalized) }
+        pushClientPrefs()
     }
 
     /** 玻璃悬浮底栏开关（仅本地）。 */
@@ -1568,6 +1570,9 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
         val context = getApplication<Application>()
         com.maodouchat.util.ClientPrefsSync.apply(context, remote)
         val theme = com.maodouchat.util.ThemePreferences.normalize(remote.themeMode)
+        // 9.204：主题风格云端拉取——写入本地偏好（ThemePreferences 的 StateFlow 驱动全局重组）
+        val themeStyle = com.maodouchat.util.ThemePreferences.normalizeStyle(remote.themeStyle)
+        com.maodouchat.util.ThemePreferences.setStyle(context, themeStyle)
         val language = when (remote.languageMode.lowercase()) {
             AppLocaleManager.MODE_CHINESE, "zh-cn", "chinese" -> AppLocaleManager.MODE_CHINESE
             AppLocaleManager.MODE_ENGLISH, "english" -> AppLocaleManager.MODE_ENGLISH
@@ -1578,6 +1583,7 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
         _uiState.update {
             it.copy(
                 themeMode = theme,
+                themeStyle = themeStyle,
                 languageMode = language,
                 linkPreviewEnabled = remote.linkPreviewEnabled,
                 unreadPriorityEnabled = remote.unreadPriorityEnabled,
@@ -1601,6 +1607,7 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
                     val state = _uiState.value
                     val request = ClientPrefsUpdateRequest(
                         themeMode = state.themeMode,
+                        themeStyle = state.themeStyle,
                         languageMode = state.languageMode,
                         chatWallpaper = state.chatWallpaper,
                         chatFontScale = state.chatFontScale,

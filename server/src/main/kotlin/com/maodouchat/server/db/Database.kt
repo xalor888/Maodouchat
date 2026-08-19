@@ -321,6 +321,8 @@ object ChatFolders : Table("chat_folders") {
 object ClientPrefs : Table("client_prefs") {
     val userId = varchar("user_id", 50) references Users.id
     val themeMode = varchar("theme_mode", 16).default("system")
+    // 9.204：主题风格家族（maodou / tg_classic / tg_midnight / tg_graphite），新列启动期自动补齐
+    val themeStyle = varchar("theme_style", 24).default("maodou")
     val languageMode = varchar("language_mode", 16).default("system")
     val chatWallpaper = varchar("chat_wallpaper", 32).default("default")
     val chatFontScale = varchar("chat_font_scale", 16).default("normal")

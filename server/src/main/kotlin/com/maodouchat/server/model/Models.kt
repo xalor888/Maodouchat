@@ -818,6 +818,7 @@ data class ChatFoldersSyncResponse(
 @Serializable
 data class ClientPrefsDto(
     val themeMode: String = "system",
+    val themeStyle: String = "maodou",
     val languageMode: String = "system",
     val chatWallpaper: String = "default",
     val chatFontScale: String = "normal",
@@ -835,6 +836,7 @@ data class ClientPrefsDto(
 @Serializable
 data class ClientPrefsUpdateRequest(
     val themeMode: String? = null,
+    val themeStyle: String? = null,
     val languageMode: String? = null,
     val chatWallpaper: String? = null,
     val chatFontScale: String? = null,

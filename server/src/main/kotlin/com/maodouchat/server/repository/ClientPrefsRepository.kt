@@ -24,6 +24,7 @@ class ClientPrefsRepository {
             ?.let { row ->
                 ClientPrefsDto(
                     themeMode = row[ClientPrefs.themeMode],
+                    themeStyle = row[ClientPrefs.themeStyle],
                     languageMode = row[ClientPrefs.languageMode],
                     chatWallpaper = row[ClientPrefs.chatWallpaper],
                     chatFontScale = row[ClientPrefs.chatFontScale],
@@ -55,6 +56,9 @@ class ClientPrefsRepository {
         val theme = request.themeMode?.let { normalizeTheme(it) }
             ?: existing?.get(ClientPrefs.themeMode)
             ?: "system"
+        val themeStyle = request.themeStyle?.let { normalizeThemeStyle(it) }
+            ?: existing?.get(ClientPrefs.themeStyle)
+            ?: "maodou"
         val language = request.languageMode?.let { normalizeLanguage(it) }
             ?: existing?.get(ClientPrefs.languageMode)
             ?: "system"
@@ -96,6 +100,7 @@ class ClientPrefsRepository {
             ClientPrefs.insert {
                 it[ClientPrefs.userId] = userId
                 it[ClientPrefs.themeMode] = theme
+                it[ClientPrefs.themeStyle] = themeStyle
                 it[ClientPrefs.languageMode] = language
                 it[ClientPrefs.chatWallpaper] = wallpaper
                 it[ClientPrefs.chatFontScale] = font
@@ -112,6 +117,7 @@ class ClientPrefsRepository {
         } else {
             ClientPrefs.update({ ClientPrefs.userId eq userId }) {
                 it[ClientPrefs.themeMode] = theme
+                it[ClientPrefs.themeStyle] = themeStyle
                 it[ClientPrefs.languageMode] = language
                 it[ClientPrefs.chatWallpaper] = wallpaper
                 it[ClientPrefs.chatFontScale] = font
@@ -128,6 +134,7 @@ class ClientPrefsRepository {
         }
         ClientPrefsDto(
             themeMode = theme,
+            themeStyle = themeStyle,
             languageMode = language,
             chatWallpaper = wallpaper,
             chatFontScale = font,
@@ -147,6 +154,11 @@ class ClientPrefsRepository {
         "light" -> "light"
         "dark" -> "dark"
         else -> "system"
+    }
+
+    private fun normalizeThemeStyle(raw: String): String {
+        val id = raw.trim().lowercase().take(24)
+        return if (id in ALLOWED_THEME_STYLES) id else "maodou"
     }
 
     private fun normalizeLanguage(raw: String): String = when (raw.trim().lowercase()) {
@@ -183,6 +195,7 @@ class ClientPrefsRepository {
             "indigo", "amber", "teal", "graphite"
         )
         private val ALLOWED_FONTS = setOf("small", "normal", "large", "xlarge", "xxlarge")
+        private val ALLOWED_THEME_STYLES = setOf("maodou", "tg_classic", "tg_midnight", "tg_graphite")
         private val ALLOWED_WRITING_PRESETS = setOf(
             "none", "concise", "formal", "warm", "professional", "casual", "witty", "empathetic",
             "direct", "enthusiastic"
