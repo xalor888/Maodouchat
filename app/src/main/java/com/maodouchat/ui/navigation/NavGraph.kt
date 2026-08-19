@@ -186,7 +186,13 @@ fun MaodouchatNavGraph(
     LaunchedEffect(Unit) {
         ApiService.tokenExpired.collectLatest { event ->
             val app = context.applicationContext as? com.maodouchat.MaodouchatApp
-            if (TokenManager.getInstance(context).getUserId() != event.ownerUserId) return@collectLatest
+            if (!com.maodouchat.network.TokenExpiredEventPolicy.shouldHandle(
+                    eventOwnerUserId = event.ownerUserId,
+                    eventSessionGeneration = event.sessionGeneration,
+                    currentOwnerUserId = TokenManager.getInstance(context).getUserId(),
+                    currentSessionGeneration = com.maodouchat.MaodouchatApp.currentSessionGeneration(),
+                )
+            ) return@collectLatest
             val purged = try {
                 app?.secureSessionManager?.purgeLocalSession(
                     destroyEncryptedDatabase = true,
@@ -724,7 +730,14 @@ fun MaodouchatNavGraph(
             com.maodouchat.ui.screen.settings.AboutScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.SETTINGS_SERVER) {
-            com.maodouchat.ui.screen.settings.ServerSettingsScreen(onBack = { navController.popBackStack() })
+            com.maodouchat.ui.screen.settings.ServerSettingsScreen(
+                onBack = { navController.popBackStack() },
+                onServerChanged = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
         }
         composable(Routes.WATERMARK_FORENSIC) {
             com.maodouchat.ui.screen.settings.WatermarkForensicScreen(

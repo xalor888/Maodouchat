@@ -771,11 +771,7 @@ put("user", Json.parseToJsonElement(Json.encodeToString(user)))
                 return@post
             }
             // 0.74：一次性/垃圾邮箱域名黑名单（反垃圾注册）
-            val regEmailDomain = runCatching { req.email.normalizedEmail() }
-                .getOrDefault(req.email)
-                .substringAfterLast('@', "")
-                .lowercase()
-            if (regEmailDomain.isNotBlank() && regEmailDomain in com.maodouchat.server.config.ServerConfig.emailDomainBlocklist) {
+            if (isRegistrationEmailDomainBlocked(req.email)) {
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("该邮箱域名已被禁止注册", code = "EMAIL_DOMAIN_BLOCKED"))
                 return@post
             }
@@ -879,6 +875,15 @@ put("user", Json.parseToJsonElement(Json.encodeToString(user)))
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("邮件格式无效"))
                     return@post
                 }
+                // Reject blocked registration domains before consuming limiter capacity or
+                // sending mail. Password-reset requests remain intentionally unaffected.
+                if (!isReset && isRegistrationEmailDomainBlocked(email)) {
+                    call.respond(
+                        HttpStatusCode.Forbidden,
+                        ErrorResponse("该邮箱域名已被禁止注册", code = "EMAIL_DOMAIN_BLOCKED")
+                    )
+                    return@post
+                }
                 // 频率限制：先检查 IP 级限制（防邮件轰炸），再检查邮箱级限制
                 // 顺序很重要：如果先消费邮箱配额再被 IP 拒绝，共享 IP 下的用户会被误伤
                 if (!sendCodeIpRateLimiter.acquireSendCodeIp(call.remoteHost())) {
@@ -954,6 +959,10 @@ return@post
             }
             if (userRepo.getByEmail(req.email) != null) {
                 call.respond(HttpStatusCode.Conflict, ErrorResponse("邮箱已注册"))
+                return@post
+            }
+            if (isRegistrationEmailDomainBlocked(req.email)) {
+                call.respond(HttpStatusCode.Forbidden, ErrorResponse("该邮箱域名已被禁止注册", code = "EMAIL_DOMAIN_BLOCKED"))
                 return@post
             }
             // 用 try-catch 捕获并发注册时的唯一约束冲突，与 /api/auth/register 保持一致
@@ -2757,7 +2766,11 @@ put("status", "ok")
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
                     return@post
                 }
-                val updated = messageRepo.markAllAsRead(chatId, userId)
+                // 空请求体兼容旧客户端；新客户端传 throughId 钳制已读边界。
+                val markReadThroughId = call.receiveBoundedTextOrEmpty()
+                    .takeIf { it.isNotBlank() }
+                    ?.let { parseJson<MarkReadRequest>(it)?.throughId }
+                val updated = messageRepo.markAllAsRead(chatId, userId, markReadThroughId)
                 // 跨设备已读同步：广播给同账号所有活跃连接（含本设备，客户端幂等），
                 // 其他设备的本地未读角标立即收敛，无需等下一次 getChats 刷新。
                 runCatching {
@@ -14569,7 +14582,9 @@ put("status", "ok")
             }
 
             post("/api/ai/summary-sync") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val principal = call.principal<JWTPrincipal>()!!
+                val userId = principal.payload.subject
+                val authSessionId = JwtConfig.authSessionId(principal.payload)!!
                 if (!aiRateLimiter.acquire("summary_sync:$userId", maxPerMinute = 60)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("摘要同步请求过于频繁"))
                     return@post
@@ -14582,6 +14597,10 @@ put("status", "ok")
                 }
                 if (!signalKeyRepo.isDeviceConfirmed(userId, request.senderDeviceId)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("发送设备尚未确认"))
+                    return@post
+                }
+                if (!signalKeyRepo.isAuthSessionBoundToDevice(userId, authSessionId, request.senderDeviceId)) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("当前登录会话与发送设备不匹配"))
                     return@post
                 }
                 if (request.targetDeviceIds.any { !signalKeyRepo.isDeviceConfirmed(userId, it) }) {
@@ -14599,10 +14618,16 @@ put("status", "ok")
             }
 
             get("/api/ai/summary-sync") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val principal = call.principal<JWTPrincipal>()!!
+                val userId = principal.payload.subject
+                val authSessionId = JwtConfig.authSessionId(principal.payload)!!
                 val deviceId = call.request.queryParameters["deviceId"]?.toIntOrNull()
                 if (deviceId == null || !signalKeyRepo.isDeviceConfirmed(userId, deviceId)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("设备无效或尚未确认"))
+                    return@get
+                }
+                if (!signalKeyRepo.isAuthSessionBoundToDevice(userId, authSessionId, deviceId)) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("当前登录会话与设备不匹配"))
                     return@get
                 }
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
@@ -14610,7 +14635,9 @@ put("status", "ok")
             }
 
             post("/api/ai/summary-sync/ack") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val principal = call.principal<JWTPrincipal>()!!
+                val userId = principal.payload.subject
+                val authSessionId = JwtConfig.authSessionId(principal.payload)!!
                 val request = call.receiveBoundedText()?.let { parseJson<AiSummarySyncAckRequest>(it) }
                 if (request == null || !isValidAiSummarySyncAck(request)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("确认参数无效"))
@@ -14618,6 +14645,10 @@ put("status", "ok")
                 }
                 if (!signalKeyRepo.isDeviceConfirmed(userId, request.deviceId)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("设备无效或尚未确认"))
+                    return@post
+                }
+                if (!signalKeyRepo.isAuthSessionBoundToDevice(userId, authSessionId, request.deviceId)) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("当前登录会话与设备不匹配"))
                     return@post
                 }
                 val removed = aiSummarySyncRepo.acknowledge(userId, request.deviceId, request.envelopeIds)

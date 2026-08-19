@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.maodouchat.data.local.entity.MessageEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -169,13 +170,15 @@ interface MessageDao {
     )
     suspend fun searchChatIdsByMessageContent(keyword: String, limit: Int = 50): List<String>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // Preserve message_search_documents children. SQLite REPLACE deletes the message row
+    // first, which cascades through documents and tokens on routine status/reaction edits.
+    @Upsert
     suspend fun insertMessage(message: MessageEntity)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMessageIfAbsent(message: MessageEntity): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertMessages(messages: List<MessageEntity>)
 
     /** Unconditional status write — prefer [updateMessageStatusIfAdvanced] for delivery receipts. */

@@ -309,10 +309,11 @@ class TokenManager private constructor(private val context: Context) {
 
     /** @return true if the preferences were successfully cleared */
     fun clear(): Boolean = synchronized(sessionLock) {
-        val ok = runCatching { prefs.edit().clear().commit() }
+        runCatching { prefs.edit().clear().commit() }
             .onFailure { Log.w(TAG, "clear failed", it) }
-            .isSuccess
-        ok
+            // commit() may fail by returning false without throwing. isSuccess would turn
+            // that storage failure into a false-positive logout and revive old JWTs on restart.
+            .getOrDefault(false)
     }
 
     companion object {

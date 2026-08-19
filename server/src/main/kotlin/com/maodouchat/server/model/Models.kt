@@ -754,6 +754,11 @@ data class IceConfigResponse(
 @Serializable
 data class MarkReadResponse(val status: String, val updated: Int)
 
+// 会话级标记已读请求；throughId 用于把"已读"边界钳到客户端实际加载到的最后一条消息，
+// 防止 getUnreadWindow/getMessages 快照之后新到消息被越界标读。
+@Serializable
+data class MarkReadRequest(val throughId: String? = null)
+
 // 邮箱验证码
 @Serializable
 data class SendCodeRequest(val email: String, val purpose: String = "register")

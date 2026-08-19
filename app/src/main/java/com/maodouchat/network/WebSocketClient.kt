@@ -117,6 +117,9 @@ internal fun resolveUserVisibility(
     }
 )
 
+internal fun isNonRecoverableWebSocketNetworkError(error: Throwable): Boolean =
+    generateSequence(error) { it.cause }.any { it is javax.net.ssl.SSLException }
+
 enum class WebSocketErrorKind {
     CONNECTION,
     ENVELOPE_PARSE,
@@ -473,8 +476,8 @@ object WebSocketClient {
                         return
                     }
                 }
-                // SSL 握手失败、DNS 解析失败等不会自动恢复的错误，停止重连避免持续耗电
-                if (isNonRecoverableNetworkError(t)) {
+                // SSL certificate/handshake failures require user or server intervention.
+                if (isNonRecoverableWebSocketNetworkError(t)) {
                     shouldReconnect = false
                     return
                 }
@@ -486,24 +489,12 @@ object WebSocketClient {
             connecting.set(false)
             isConnected = false
             emitError(WebSocketErrorKind.CONNECTION, e)
-            if (isNonRecoverableNetworkError(e)) {
+            if (isNonRecoverableWebSocketNetworkError(e)) {
                 shouldReconnect = false
             } else if (shouldReconnect) {
                 scheduleReconnect()
             }
         }
-    }
-
-    /**
-     * 判断是否为不可自动恢复的网络错误：SSL 握手/证书问题、连接被拒（ConnectException）。
-     * 这些问题不会在重试中自动好转，持续重连只会耗电，应让用户介入。
-     * 注意：UnknownHostException（DNS 解析失败）常为暂时性故障（网络切换、DNS 抖动），
-     * 网络恢复后会自动好转，必须保持可恢复以自动重连，不应在此拦截。
-     */
-    private fun isNonRecoverableNetworkError(t: Throwable): Boolean {
-        return t is javax.net.ssl.SSLException ||
-            t is javax.net.ssl.SSLHandshakeException ||
-            t is java.net.ConnectException
     }
 
     /**

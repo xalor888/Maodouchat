@@ -50,7 +50,8 @@ data class MessageSearchTokenEntity(
 
 data class MessageSearchFingerprint(
     val messageId: String,
-    val contentHash: String
+    val contentHash: String,
+    val messageType: String
 )
 
 data class MessageSearchMatchRow(

@@ -58,6 +58,9 @@ dependencies {
     // BCrypt
     implementation("at.favre.lib:bcrypt:0.10.2")
 
+    // Linear-time regular expressions for user-configurable moderation rules.
+    implementation("com.google.re2j:re2j:1.8")
+
     // JavaMail
     implementation("com.sun.mail:jakarta.mail:2.0.1")
 

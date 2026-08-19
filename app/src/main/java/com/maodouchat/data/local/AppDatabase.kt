@@ -489,10 +489,20 @@ import com.maodouchat.data.local.entity.UserEntity
         val MIGRATION_25_26 = object : Migration(25, 26) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // v25→v26: message_search_documents 加入 messageType 列，支持全局搜索按消息类型过滤。
-                // 存量行默认 TEXT（迁移前只有可搜索类型入索引，类型归类以重建索引后为准）。
+                // 先用 TEXT 满足 NOT NULL，再从父消息回填真实类型。不能只依赖后续索引重建：
+                // contentHash 未变化时增量索引会走快速路径，旧 IMAGE/FILE/VOICE 会永久冒充 TEXT。
                 db.execSQL(
                     "ALTER TABLE message_search_documents " +
                         "ADD COLUMN messageType TEXT NOT NULL DEFAULT 'TEXT'"
+                )
+                db.execSQL(
+                    """
+                    UPDATE message_search_documents
+                    SET messageType = COALESCE(
+                        (SELECT messages.type FROM messages WHERE messages.id = message_search_documents.messageId),
+                        messageType
+                    )
+                    """.trimIndent()
                 )
             }
         }

@@ -461,7 +461,7 @@ class MessageRepository {
      * @return triples of (messageId, senderId, newlySetExpiresAt?)；
      * newlySetExpiresAt 非空时客户端应启动倒计时（仅 1:1 阅后即焚）。
      */
-    fun markAllAsRead(chatId: String, readerId: String): List<Triple<String, String, Long?>> {
+    fun markAllAsRead(chatId: String, readerId: String, throughId: String? = null): List<Triple<String, String, Long?>> {
         return transaction {
             val chatRow = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
                 ?: return@transaction emptyList()
@@ -489,6 +489,22 @@ class MessageRepository {
             val notExpired = (Messages.expiresAt.isNull()) or
                 (Messages.expiresAt eq 0L) or
                 (Messages.expiresAt greater readAt)
+            // throughId 把已读边界钳到客户端实际加载到的最后一条消息：
+            // getUnreadWindow/getMessages 快照之后新到的消息不能越界标读。
+            val boundaryId = throughId?.takeIf { it.isNotBlank() }
+            val throughTimestamp = boundaryId?.let { id ->
+                Messages.select(Messages.timestamp)
+                    .where { Messages.id eq id }
+                    .limit(1)
+                    .firstOrNull()
+                    ?.get(Messages.timestamp)
+            }
+            val throughCondition = if (throughTimestamp == null) {
+                org.jetbrains.exposed.sql.Op.TRUE
+            } else {
+                (Messages.timestamp less throughTimestamp) or
+                    ((Messages.timestamp eq throughTimestamp) and (Messages.id lessEq boundaryId))
+            }
             val results = mutableListOf<Triple<String, String, Long?>>()
             // 8.30 性能优化 B1：分批处理（每批 500 行），避免活跃大群一次"全部已读"
             // 把全部未读消息拉进内存 + 逐行 upsert；1:1 全局状态 UPDATE 与阅后即焚
@@ -506,6 +522,7 @@ class MessageRepository {
                             senderCondition and
                             (Messages.type neq "SK_DIST") and (Messages.type neq "REVOKED") and
                             notExpired and
+                            throughCondition and
                             (Messages.id notInSubQuery readByUser)
                     }
                     .limit(MARK_READ_BATCH_SIZE)

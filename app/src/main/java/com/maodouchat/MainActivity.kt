@@ -523,6 +523,12 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    private fun callLockScreenFlagsNeeded(): Boolean =
+        com.maodouchat.call.CallLockScreenFlagPolicy.shouldEnable(
+            activeCallId = com.maodouchat.service.CallForegroundService.getActiveCallId(),
+            hasPendingIncomingCall = com.maodouchat.call.IncomingCallCoordinator.peekPending() != null,
+        )
+
     /**
      * Keep keyguard-bypass while an incoming ring or active call is present.
      * Drop flags when both coordinator pending and foreground service are idle
@@ -533,22 +539,13 @@ class MainActivity : FragmentActivity() {
             private var pollJob: kotlinx.coroutines.Job? = null
             override fun onStart(owner: LifecycleOwner) {
                 pollJob?.cancel()
+                // Always overwrite intent-carried flags from the current source of truth. In
+                // particular, a stale full-screen intent may have enabled them before onStart,
+                // and a call may have ended while this activity was stopped.
+                applyCallLockScreenFlags(callLockScreenFlagsNeeded())
                 pollJob = lifecycleScope.launch {
-                    var heldForCall = false
                     while (true) {
-                        val activeService = com.maodouchat.service.CallForegroundService
-                            .getActiveCallId()
-                            .isNotBlank()
-                        val pendingRing = com.maodouchat.call.IncomingCallCoordinator
-                            .peekPending() != null
-                        val needFlags = activeService || pendingRing
-                        if (needFlags) {
-                            applyCallLockScreenFlags(true)
-                            heldForCall = true
-                        } else if (heldForCall) {
-                            applyCallLockScreenFlags(false)
-                            heldForCall = false
-                        }
+                        applyCallLockScreenFlags(callLockScreenFlagsNeeded())
                         delay(500)
                     }
                 }
@@ -556,15 +553,17 @@ class MainActivity : FragmentActivity() {
             override fun onStop(owner: LifecycleOwner) {
                 pollJob?.cancel()
                 pollJob = null
-                val activeService = com.maodouchat.service.CallForegroundService
-                    .getActiveCallId()
-                    .isNotBlank()
-                val pendingRing = com.maodouchat.call.IncomingCallCoordinator.peekPending() != null
-                if (!activeService && !pendingRing) {
-                    applyCallLockScreenFlags(false)
-                }
+                // Keep only flags still justified by a real call. This is also the no-call
+                // fallback if stop races with an expired/consumed incoming-call intent.
+                applyCallLockScreenFlags(callLockScreenFlagsNeeded())
             }
         })
+    }
+
+    override fun onDestroy() {
+        // Activity instances must never hand lock-screen visibility to a later instance.
+        applyCallLockScreenFlags(false)
+        super.onDestroy()
     }
 
     /**

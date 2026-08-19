@@ -44,7 +44,6 @@ class SecureSessionManager(
                 purgeInProgress.set(true)
                 try {
                     purgeLocalSessionLocked(destroyEncryptedDatabase)
-                    true
                 } finally {
                     purgeInProgress.set(false)
                 }
@@ -52,7 +51,7 @@ class SecureSessionManager(
         }
     }
 
-    private suspend fun purgeLocalSessionLocked(destroyEncryptedDatabase: Boolean) {
+    private suspend fun purgeLocalSessionLocked(destroyEncryptedDatabase: Boolean): Boolean {
             AppLockManager.clearAuthenticatedSession()
             // 假聊天解锁标记同样是进程内状态，注销/换号后必须失效，
             // 否则同账号重新登录可能直接绕过假聊天前置页。
@@ -100,6 +99,7 @@ class SecureSessionManager(
             // Registration state is process-local UI state; do not let the next account
             // inherit the previous account's "registered / healthy" push status.
             PushRegistrationManager.resetRegistrationStateForAccountChange(context)
+            var authCleared = false
             try {
                 AttachmentTransferCoordinator.deleteAll(context)
             } catch (error: kotlinx.coroutines.CancellationException) {
@@ -320,48 +320,47 @@ class SecureSessionManager(
 
             try {
                 if (destroyEncryptedDatabase) {
-                    runCatching { tokenManager.clear() }
                     refreshNotificationAccount()
                     signalProtocol.invalidateInMemoryAccountState()
                     AppDatabase.destroyDatabase(context.applicationContext)
                     onEncryptedDatabaseDestroyed?.invoke()
-                    return
+                } else {
+                    // Soft purge keeps SQLCipher file but must wipe every privacy table
+                    // (search index / missed calls / locks / AI summary were previously orphaned).
+                    database.withTransaction {
+                        database.messageDao().deleteAllMessages()
+                        database.chatDao().deleteAllChats()
+                        database.chatDraftDao().deleteAll()
+                        database.userDao().deleteAllUsers()
+                        database.senderKeyRetryDao().deleteAll()
+                        database.aiTaskDao().deleteAll()
+                        database.aiOperationDao().deleteAll()
+                        database.attachmentTransferDao().deleteAll()
+                        database.messageSearchDao().deleteAll()
+                        database.missedCallDao().deleteAll()
+                        database.chatLockDao().deleteAll()
+                        database.secretChatDao().deleteAll()
+                        database.aiSummaryCacheDao().deleteAll()
+                    }
+                    // 8.49 修复：clearLocalState 内部会先取 cryptoLock，而任意解密线程持 cryptoLock
+                    // 期间会阻塞等待 DB 写锁——在 withTransaction（持有唯一写锁）内调用它构成
+                    // 锁序倒置死锁。移到事务提交后执行，统一全链路锁序 cryptoLock -> DB。
+                    signalProtocol.clearLocalState()
+                    com.maodouchat.security.SecretChatSession.clearAllSurfaces()
                 }
-
-                // Soft purge keeps SQLCipher file but must wipe every privacy table
-                // (search index / missed calls / locks / AI summary were previously orphaned).
-                database.withTransaction {
-                    database.messageDao().deleteAllMessages()
-                    database.chatDao().deleteAllChats()
-                    database.chatDraftDao().deleteAll()
-                    database.userDao().deleteAllUsers()
-                    database.senderKeyRetryDao().deleteAll()
-                    database.aiTaskDao().deleteAll()
-                    database.aiOperationDao().deleteAll()
-                    database.attachmentTransferDao().deleteAll()
-                    database.messageSearchDao().deleteAll()
-                    database.missedCallDao().deleteAll()
-                    database.chatLockDao().deleteAll()
-                    database.secretChatDao().deleteAll()
-                    database.aiSummaryCacheDao().deleteAll()
-                }
-                // 8.49 修复：clearLocalState 内部会先取 cryptoLock，而任意解密线程持 cryptoLock
-                // 期间会阻塞等待 DB 写锁——在 withTransaction（持有唯一写锁）内调用它构成
-                // 锁序倒置死锁。移到事务提交后执行，统一全链路锁序 cryptoLock -> DB。
-                signalProtocol.clearLocalState()
-                com.maodouchat.security.SecretChatSession.clearAllSurfaces()
             } catch (error: Throwable) {
                 Log.w(TAG, "Local database purge failed; destroying encrypted storage", error)
                 AppDatabase.destroyDatabase(context.applicationContext)
                 onEncryptedDatabaseDestroyed?.invoke()
             } finally {
-                runCatching { tokenManager.clear() }
-                    .onFailure { Log.w(TAG, "Failed to clear auth token during local purge", it) }
+                authCleared = tokenManager.clear()
+                if (!authCleared) Log.e(TAG, "Failed to persist auth-token clear during local purge")
                 // Ensure memory JWT cannot outlive disk clear on either soft or hard purge path.
                 runCatching { com.maodouchat.network.ApiService.clearSessionTokens() }
                 runCatching { SealedSenderSupport.clearCache() }
                 refreshNotificationAccount()
             }
+            return authCleared
     }
 
     suspend fun purgeIfAccountChanged(nextUserId: String) {

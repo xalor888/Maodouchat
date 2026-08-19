@@ -3273,13 +3273,14 @@ private fun SettingsSubScreensPreview() {
 /**
  * 「服务器」页 — 运行时配置 API 服务器地址（8.45，免重新构建 APK）。
  *
- * 部署方安装通用 APK 后，在此填写自建服务器地址即可使用；切换服务器不影响本机数据，
- * 但各服务器账号相互独立，需用对应服务器的账号重新登录。
+ * 部署方安装通用 APK 后，在此填写自建服务器地址即可使用。服务器属于独立信任域；
+ * 切换时会清理当前账号凭据和本机加密数据，再要求使用目标服务器账号登录。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServerSettingsScreen(
     onBack: () -> Unit = {},
+    onServerChanged: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val currentBase = remember { com.maodouchat.network.ApiConfig.BASE_URL }
@@ -3392,14 +3393,20 @@ fun ServerSettingsScreen(
                                 result = serverTestFailedText
                                 isWorking = false
                             } else {
-                                val applyError = com.maodouchat.network.ApiConfig.setServer(input, context)
-                                if (applyError != null) {
-                                    result = applyError
-                                } else {
-                                    result = serverTestSuccessText
-                                    com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
-                                    com.maodouchat.network.WebSocketClient.disconnect()
-                                    com.maodouchat.slim.OnDemandStickerStore.invalidateServerState()
+                                when (val change = com.maodouchat.network.ApiConfig.switchServer(input, context)) {
+                                    is com.maodouchat.network.ApiConfig.ServerChangeResult.Failed -> {
+                                        result = change.message
+                                    }
+                                    com.maodouchat.network.ApiConfig.ServerChangeResult.Unchanged -> {
+                                        result = serverTestSuccessText
+                                    }
+                                    com.maodouchat.network.ApiConfig.ServerChangeResult.Changed -> {
+                                        result = serverSavedText
+                                        com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
+                                        com.maodouchat.network.WebSocketClient.disconnect()
+                                        com.maodouchat.slim.OnDemandStickerStore.invalidateServerState()
+                                        onServerChanged()
+                                    }
                                 }
                                 isWorking = false
                             }
@@ -3442,14 +3449,29 @@ fun ServerSettingsScreen(
             title = { Text(stringResource(R.string.settings_server_reset)) },
             text = { Text(stringResource(R.string.settings_server_reset_confirm)) },
             confirmButton = {
-                TextButton(onClick = {
-                    com.maodouchat.network.ApiConfig.resetToDefault(context)
-                    com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
-                    com.maodouchat.network.WebSocketClient.disconnect()
-                    com.maodouchat.slim.OnDemandStickerStore.invalidateServerState()
+                TextButton(enabled = !isWorking, onClick = {
                     showResetConfirm = false
-                    input = com.maodouchat.network.ApiConfig.BASE_URL
-                    result = serverResetDoneText
+                    isWorking = true
+                    scope.launch {
+                        when (val change = com.maodouchat.network.ApiConfig.resetToDefault(context)) {
+                            is com.maodouchat.network.ApiConfig.ServerChangeResult.Failed -> {
+                                result = change.message
+                            }
+                            com.maodouchat.network.ApiConfig.ServerChangeResult.Unchanged -> {
+                                input = com.maodouchat.network.ApiConfig.BASE_URL
+                                result = serverResetDoneText
+                            }
+                            com.maodouchat.network.ApiConfig.ServerChangeResult.Changed -> {
+                                input = com.maodouchat.network.ApiConfig.BASE_URL
+                                result = serverResetDoneText
+                                com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
+                                com.maodouchat.network.WebSocketClient.disconnect()
+                                com.maodouchat.slim.OnDemandStickerStore.invalidateServerState()
+                                onServerChanged()
+                            }
+                        }
+                        isWorking = false
+                    }
                 }) {
                     Text(stringResource(R.string.common_confirm))
                 }

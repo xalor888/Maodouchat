@@ -2,6 +2,7 @@ package com.maodouchat.data.repository
 
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.MessageSearchDocumentEntity
+import com.maodouchat.data.local.entity.MessageSearchFingerprint
 import com.maodouchat.data.local.entity.MessageSearchMatchRow
 import com.maodouchat.data.local.entity.MessageSearchTokenEntity
 import com.maodouchat.data.local.entity.toDomain
@@ -35,7 +36,9 @@ class MessageSearchRepository(private val database: AppDatabase) {
         if (docCount > 0) {
             val drift = kotlin.math.abs(msgCount - docCount)
             if (drift < (msgCount.toDouble() * STALE_DRIFT_RATIO).toInt().coerceAtLeast(MIN_STALE_DRIFT)) {
-                return 0
+                // v25→v26 initialized every existing document as TEXT. The counts still match,
+                // so also verify type metadata before taking the fast path.
+                if (!searchDao.hasMessageTypeMismatch()) return 0
             }
         }
         return refreshIndex()
@@ -64,11 +67,11 @@ class MessageSearchRepository(private val database: AppDatabase) {
             val batch = messageDao.getSearchableMessagesAfterCursor(lastTs, lastId, pageSize)
             if (batch.isEmpty()) break
             val batchFingerprints = searchDao.getFingerprintsForIds(batch.map { it.id })
-                .associate { it.messageId to it.contentHash }
+                .associateBy { it.messageId }
             batch.forEach { entity ->
                 if (indexMessage(
                         entity.toDomain(),
-                        knownHash = batchFingerprints[entity.id],
+                        knownFingerprint = batchFingerprints[entity.id],
                         secretChatIds = secretChatIds
                     )
                 ) changed++
@@ -87,7 +90,7 @@ class MessageSearchRepository(private val database: AppDatabase) {
      */
     suspend fun indexMessage(
         message: Message,
-        knownHash: String? = null,
+        knownFingerprint: MessageSearchFingerprint? = null,
         secretChatIds: Set<String>? = null
     ): Boolean {
         // 密聊明文永不进全局搜索：任何入口都先删除该会话已有索引，再拒绝写入。
@@ -95,26 +98,26 @@ class MessageSearchRepository(private val database: AppDatabase) {
             ?: (message.chatId.isNotBlank() && secretChatDao.isSecret(message.chatId))
         if (isSecretChat) {
             searchDao.deleteDocument(message.id)
-            return knownHash != null
+            return knownFingerprint != null
         }
         // REVOKED/SK_DIST must drop any prior index even if the caller only re-indexes.
         if (message.type !in SEARCHABLE_TYPES) {
             if (message.type == MessageType.REVOKED || message.type == MessageType.SK_DIST) {
                 searchDao.deleteDocument(message.id)
-                return knownHash != null
+                return knownFingerprint != null
             }
             return false
         }
         val text = message.semanticSearchText(maxLength = MAX_DOCUMENT_CHARS)
         if (text.isBlank()) {
             searchDao.deleteDocument(message.id)
-            return knownHash != null
+            return knownFingerprint != null
         }
         // Never index ciphertext / multi-device JSON as searchable body.
         if (ChatListPreviewPolicy.looksLikeWireEnvelope(text)) return false
         val hash = contentHash(message.chatId, message.senderId, message.timestamp, text)
-        val previousHash = knownHash ?: searchDao.getContentHash(message.id)
-        if (previousHash == hash) return false
+        val previous = knownFingerprint ?: searchDao.getFingerprint(message.id)
+        if (previous?.contentHash == hash && previous.messageType == message.type.name) return false
         val document = MessageSearchDocumentEntity(
             messageId = message.id,
             chatId = message.chatId,

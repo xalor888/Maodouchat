@@ -17,16 +17,24 @@ object SecretSessionTtl {
 
     /**
      * 计算剩余存活秒数（基于最后活动时间）。
-     * @return 剩余秒数；<=0 表示已过期；未开启自动销毁或最后活动未知时返回 [Long.MAX_VALUE]（不销毁）。
+     * @return 剩余秒数；<=0 表示已过期；未开启自动销毁时返回 [Long.MAX_VALUE]（不销毁）。
+     * 活动时间未知（迁移前旧密聊 lastActivityAt 默认为 0）时 fail-closed：按已过期处理，
+     * 由周期清扫清除本地解密缓存，避免旧密聊明文无限期残留。
      */
     fun remainingSeconds(context: Context, chatId: String, lastActivityAt: Long): Long {
         if (chatId.isBlank()) return Long.MAX_VALUE
         if (!SecretAutoDestroyPrefs.isEnabled(context)) return Long.MAX_VALUE
-        if (lastActivityAt <= 0L) return Long.MAX_VALUE
-        val ttl = SecretAutoDestroyPrefs.ttlSeconds(context)
-        val expiredAt = lastActivityAt + ttl * 1000L
-        val remainingMs = expiredAt - System.currentTimeMillis()
-        return remainingMs / 1000L
+        return remainingSecondsFor(
+            ttlSeconds = SecretAutoDestroyPrefs.ttlSeconds(context),
+            lastActivityAt = lastActivityAt,
+            nowMs = System.currentTimeMillis(),
+        )
+    }
+
+    /** 纯计算：活动时间未知（<=0）时 fail-closed，按已过期处理。 */
+    internal fun remainingSecondsFor(ttlSeconds: Long, lastActivityAt: Long, nowMs: Long): Long {
+        if (lastActivityAt <= 0L) return 0L
+        return (lastActivityAt + ttlSeconds * 1000L - nowMs) / 1000L
     }
 
     fun isExpired(context: Context, chatId: String, lastActivityAt: Long): Boolean =

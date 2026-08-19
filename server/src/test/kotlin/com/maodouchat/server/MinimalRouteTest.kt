@@ -1435,6 +1435,118 @@ class AiRouteTest {
     }
 }
 
+class AiSummarySyncSessionIsolationRouteTest {
+    @Test
+    fun `summary sync is isolated to the signal device bound to the jwt session`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+
+        suspend fun login(): String {
+            val response = client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"alex@example.com","password":"password123"}""")
+            }
+            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+            return extractToken(response.bodyAsText())
+        }
+
+        fun authSessionId(token: String): String {
+            val jwt = checkNotNull(com.maodouchat.server.auth.JwtConfig.verifyToken(token))
+            return checkNotNull(com.maodouchat.server.auth.JwtConfig.authSessionId(jwt))
+        }
+
+        val deviceOneToken = login()
+        val deviceTwoToken = login()
+        val deviceOneSession = authSessionId(deviceOneToken)
+        val deviceTwoSession = authSessionId(deviceTwoToken)
+        val signalKeyRepo = SignalKeyRepository()
+        val deviceOneKeyPair = Curve.generateKeyPair()
+        val deviceOneIdentity = Base64.getEncoder().encodeToString(deviceOneKeyPair.publicKey.serialize())
+        val deviceTwoIdentity = "summary-sync-device-two-identity"
+
+        fun uploadDevice(sessionId: String, deviceId: Int, identityKey: String) {
+            assertEquals(
+                SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+                signalKeyRepo.uploadKeyPackage(
+                    userId = "u1",
+                    authSessionId = sessionId,
+                    deviceId = deviceId,
+                    identityKey = identityKey,
+                    registrationId = 20_000 + deviceId,
+                    signedPreKeyId = deviceId,
+                    signedPreKey = "summary-sync-signed-pre-key-$deviceId",
+                    signedPreKeySignature = "summary-sync-signature-$deviceId",
+                    preKeys = emptyList()
+                )
+            )
+        }
+
+        uploadDevice(deviceOneSession, 1, deviceOneIdentity)
+        uploadDevice(deviceTwoSession, 2, deviceTwoIdentity)
+        val confirmationPayload = "maodouchat-device-confirm:v1\nu1\n1\n2\n$deviceTwoIdentity".toByteArray()
+        val confirmationProof = Base64.getEncoder().encodeToString(
+            Curve.calculateSignature(deviceOneKeyPair.privateKey, confirmationPayload)
+        )
+        assertEquals(
+            SignalKeyRepository.ConfirmDeviceResult.CONFIRMED,
+            signalKeyRepo.confirmDevice("u1", 2, 1, confirmationProof)
+        )
+        assertTrue(signalKeyRepo.isDeviceConfirmed("u1", 1))
+        assertTrue(signalKeyRepo.isDeviceConfirmed("u1", 2))
+        assertTrue(signalKeyRepo.isAuthSessionBoundToDevice("u1", deviceOneSession, 1))
+        assertTrue(signalKeyRepo.isAuthSessionBoundToDevice("u1", deviceTwoSession, 2))
+        assertFalse(signalKeyRepo.isAuthSessionBoundToDevice("u1", deviceOneSession, 2))
+        assertFalse(signalKeyRepo.isAuthSessionBoundToDevice("u1", deviceTwoSession, 1))
+
+        val initialUpload = client.post("/api/ai/summary-sync") {
+            header(HttpHeaders.Authorization, "Bearer $deviceOneToken")
+            contentType(ContentType.Application.Json)
+            setBody(
+                """{"syncId":"sync_session_1","senderDeviceId":1,"targetDeviceIds":[2],"envelope":"original-envelope"}"""
+            )
+        }
+        assertEquals(HttpStatusCode.OK, initialUpload.status, initialUpload.bodyAsText())
+
+        val crossDeviceGet = client.get("/api/ai/summary-sync?deviceId=2") {
+            header(HttpHeaders.Authorization, "Bearer $deviceOneToken")
+        }
+        assertEquals(HttpStatusCode.Forbidden, crossDeviceGet.status, crossDeviceGet.bodyAsText())
+
+        val legitimateGet = client.get("/api/ai/summary-sync?deviceId=2") {
+            header(HttpHeaders.Authorization, "Bearer $deviceTwoToken")
+        }
+        assertEquals(HttpStatusCode.OK, legitimateGet.status, legitimateGet.bodyAsText())
+        val initialPending = Json.parseToJsonElement(legitimateGet.bodyAsText()).jsonArray
+        assertEquals(1, initialPending.size)
+        val envelopeId = initialPending.single().jsonObject["id"]!!.jsonPrimitive.content
+        assertEquals("original-envelope", initialPending.single().jsonObject["envelope"]!!.jsonPrimitive.content)
+
+        val forgedSender = client.post("/api/ai/summary-sync") {
+            header(HttpHeaders.Authorization, "Bearer $deviceTwoToken")
+            contentType(ContentType.Application.Json)
+            setBody(
+                """{"syncId":"sync_session_1","senderDeviceId":1,"targetDeviceIds":[2],"envelope":"forged-envelope"}"""
+            )
+        }
+        assertEquals(HttpStatusCode.Forbidden, forgedSender.status, forgedSender.bodyAsText())
+
+        val crossDeviceAck = client.post("/api/ai/summary-sync/ack") {
+            header(HttpHeaders.Authorization, "Bearer $deviceOneToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"deviceId":2,"envelopeIds":["$envelopeId"]}""")
+        }
+        assertEquals(HttpStatusCode.Forbidden, crossDeviceAck.status, crossDeviceAck.bodyAsText())
+
+        val stillPendingResponse = client.get("/api/ai/summary-sync?deviceId=2") {
+            header(HttpHeaders.Authorization, "Bearer $deviceTwoToken")
+        }
+        assertEquals(HttpStatusCode.OK, stillPendingResponse.status, stillPendingResponse.bodyAsText())
+        val stillPending = Json.parseToJsonElement(stillPendingResponse.bodyAsText()).jsonArray
+        assertEquals(1, stillPending.size)
+        assertEquals(envelopeId, stillPending.single().jsonObject["id"]!!.jsonPrimitive.content)
+        assertEquals("original-envelope", stillPending.single().jsonObject["envelope"]!!.jsonPrimitive.content)
+    }
+}
+
 class NewFeaturesRouteTest {
     @Test
     fun `test message editing and read receipts and starring`() = testApplication {

@@ -13,15 +13,35 @@ import com.maodouchat.data.local.entity.MessageSearchTokenEntity
 @Dao
 interface MessageSearchDao {
 
-    @Query("SELECT messageId, contentHash FROM message_search_documents")
+    @Query("SELECT messageId, contentHash, messageType FROM message_search_documents")
     suspend fun getFingerprints(): List<MessageSearchFingerprint>
 
-    @Query("SELECT messageId, contentHash FROM message_search_documents WHERE messageId IN (:ids)")
+    @Query("SELECT messageId, contentHash, messageType FROM message_search_documents WHERE messageId IN (:ids)")
     suspend fun getFingerprintsForIds(ids: List<String>): List<MessageSearchFingerprint>
+
+    @Query("SELECT messageId, contentHash, messageType FROM message_search_documents WHERE messageId = :messageId LIMIT 1")
+    suspend fun getFingerprint(messageId: String): MessageSearchFingerprint?
 
     /** 索引文档总数（全量刷新新鲜度判断用）。 */
     @Query("SELECT COUNT(*) FROM message_search_documents")
     suspend fun countDocuments(): Int
+
+    /**
+     * Detect v25→v26 rows whose newly added messageType defaulted to TEXT. Counts can be
+     * perfectly aligned while the type metadata is stale, so count drift alone is insufficient.
+     */
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1
+            FROM message_search_documents AS document
+            INNER JOIN messages AS message ON message.id = document.messageId
+            WHERE document.messageType != message.type
+            LIMIT 1
+        )
+        """
+    )
+    suspend fun hasMessageTypeMismatch(): Boolean
 
     @Query("SELECT contentHash FROM message_search_documents WHERE messageId = :messageId LIMIT 1")
     suspend fun getContentHash(messageId: String): String?

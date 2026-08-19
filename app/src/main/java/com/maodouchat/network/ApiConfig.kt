@@ -4,6 +4,8 @@ import android.content.Context
 import com.maodouchat.BuildConfig
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * API 配置
@@ -31,6 +33,12 @@ object ApiConfig {
     /** 当前是否使用运行时配置的服务器（区别于编译期默认）。 */
     val isUsingRuntimeServer: Boolean get() = runtimeBaseUrl != null
 
+    sealed interface ServerChangeResult {
+        data object Changed : ServerChangeResult
+        data object Unchanged : ServerChangeResult
+        data class Failed(val message: String) : ServerChangeResult
+    }
+
     /** 启动时加载运行时服务器配置（在一切网络调用前调用）。 */
     fun init(context: Context) {
         val prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -39,21 +47,35 @@ object ApiConfig {
     }
 
     /**
-     * 设置运行时服务器地址。
-     * @param baseUrl 形如 https://chat.example.com 或 http://192.168.1.10:8080
-     * @return 校验失败时返回错误文案，成功返回 null 并立即生效
+     * Safely switch trust domains. The previous account and encrypted local data must be
+     * purged while the old server is still active; otherwise its access/refresh credentials
+     * would be attached to requests sent to the newly configured host.
      */
-    fun setServer(baseUrl: String, context: Context): String? {
+    suspend fun switchServer(baseUrl: String, context: Context): ServerChangeResult = withContext(Dispatchers.IO) {
         val trimmed = baseUrl.trim()
         val validationError = validateBaseUrl(trimmed, context)
-        if (validationError != null) return validationError
+        if (validationError != null) return@withContext ServerChangeResult.Failed(validationError)
         val normalized = normalizeBaseUrl(trimmed)
         val wsUrl = wsUrlFor(normalized)
+        val changed = normalized != BASE_URL
+        if (changed && !purgeBeforeTrustDomainChange(context)) {
+            return@withContext ServerChangeResult.Failed(
+                context.getString(com.maodouchat.R.string.settings_server_session_clear_failed)
+            )
+        }
         val prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putString(PREF_KEY_BASE_URL, normalized).putString(PREF_KEY_WS_URL, wsUrl).apply()
+        val persisted = prefs.edit()
+            .putString(PREF_KEY_BASE_URL, normalized)
+            .putString(PREF_KEY_WS_URL, wsUrl)
+            .commit()
+        if (!persisted) {
+            return@withContext ServerChangeResult.Failed(
+                context.getString(com.maodouchat.R.string.settings_server_save_failed)
+            )
+        }
         runtimeBaseUrl = normalized
         runtimeWsUrl = wsUrl
-        return null
+        if (changed) ServerChangeResult.Changed else ServerChangeResult.Unchanged
     }
 
     /** 校验但暂不写入，供保存前测试连接。 */
@@ -76,12 +98,35 @@ object ApiConfig {
         }.getOrDefault(false)
     }
 
-    /** 恢复为编译期默认服务器。 */
-    fun resetToDefault(context: Context) {
+    /** Restore the build-time server with the same cross-domain session isolation. */
+    suspend fun resetToDefault(context: Context): ServerChangeResult = withContext(Dispatchers.IO) {
+        val changed = BASE_URL != normalizeBaseUrl(BuildConfig.API_BASE_URL)
+        if (changed && !purgeBeforeTrustDomainChange(context)) {
+            return@withContext ServerChangeResult.Failed(
+                context.getString(com.maodouchat.R.string.settings_server_session_clear_failed)
+            )
+        }
         val prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        prefs.edit().remove(PREF_KEY_BASE_URL).remove(PREF_KEY_WS_URL).apply()
+        val persisted = prefs.edit().remove(PREF_KEY_BASE_URL).remove(PREF_KEY_WS_URL).commit()
+        if (!persisted) {
+            return@withContext ServerChangeResult.Failed(
+                context.getString(com.maodouchat.R.string.settings_server_save_failed)
+            )
+        }
         runtimeBaseUrl = null
         runtimeWsUrl = null
+        if (changed) ServerChangeResult.Changed else ServerChangeResult.Unchanged
+    }
+
+    private suspend fun purgeBeforeTrustDomainChange(context: Context): Boolean {
+        val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return false
+        return try {
+            app.secureSessionManager.purgeLocalSession(destroyEncryptedDatabase = true)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            false
+        }
     }
 
     /** 由 HTTP(S) 服务器地址推导 WebSocket 地址（http→ws，https→wss，路径 /ws）。 */

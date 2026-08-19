@@ -163,6 +163,19 @@ class SignalKeyRepository {
         }.firstOrNull() != null
     }
 
+    /** Whether the active JWT auth session is the session bound to this Signal device. */
+    fun isAuthSessionBoundToDevice(userId: String, authSessionId: String, deviceId: Int): Boolean {
+        if (userId.isBlank() || authSessionId.isBlank() || deviceId !in 1..255) return false
+        return transaction {
+            AuthSessions.selectAll().where {
+                (AuthSessions.id eq authSessionId) and
+                    (AuthSessions.userId eq userId) and
+                    (AuthSessions.signalDeviceId eq deviceId) and
+                    AuthSessions.revokedAt.isNull()
+            }.firstOrNull() != null
+        }
+    }
+
     fun getDeviceIds(userId: String, confirmedOnly: Boolean = true): List<Int> {
         val keyDeviceIds = transaction {
             SignalKeys.select(SignalKeys.deviceId)

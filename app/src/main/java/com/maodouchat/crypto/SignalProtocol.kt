@@ -95,6 +95,12 @@ class SignalProtocol(
     suspend fun initialize(token: String? = null, userId: String? = null): Boolean = initializationMutex.withLock {
         try {
             val accountId = userId?.takeIf { it.isNotBlank() }
+            // Login and Application cold-start restoration can race to initialize the same
+            // account. Once the first call completes, the queued call must not replace the live
+            // protocolStore and reload it while encrypt/decrypt are already using that store.
+            if (SignalInitializationPolicy.canReuse(currentUserId, initializationSucceeded, accountId)) {
+                return@withLock true
+            }
             if (currentUserId != accountId) {
                 currentUserId = accountId
                 initializationSucceeded = false

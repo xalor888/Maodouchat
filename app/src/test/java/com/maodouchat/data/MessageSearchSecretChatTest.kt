@@ -72,7 +72,7 @@ class MessageSearchSecretChatTest {
         every { database.messageSearchDao() } returns searchDao
         every { database.secretChatDao() } returns secretChatDao
         coEvery { secretChatDao.isSecret("normal-chat") } returns false
-        coEvery { searchDao.getContentHash("m2") } returns null
+        coEvery { searchDao.getFingerprint("m2") } returns null
         coEvery { searchDao.replaceDocument(any(), any()) } returns Unit
 
         val repo = MessageSearchRepository(database)

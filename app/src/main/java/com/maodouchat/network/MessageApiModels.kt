@@ -112,4 +112,7 @@ data class UpdateStatusRequest(val messageId: String, val status: String)
 data class MarkReadResponse(val status: String, val updated: Int)
 
 @Serializable
+data class MarkReadRequest(val throughId: String? = null)
+
+@Serializable
 data class BatchReadRequest(val chatIds: List<String> = emptyList())

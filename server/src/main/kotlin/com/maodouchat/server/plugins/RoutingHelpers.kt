@@ -611,6 +611,15 @@ internal fun UploadKeysRequest.isValid(): Boolean {
 
 internal fun String.normalizedEmail(): String = trim().lowercase()
 
+/** Returns whether [email]'s normalized domain is forbidden for new registrations. */
+internal fun isRegistrationEmailDomainBlocked(
+    email: String,
+    blocklist: Set<String> = ServerConfig.emailDomainBlocklist,
+): Boolean {
+    val domain = email.normalizedEmail().substringAfterLast('@', "")
+    return domain.isNotBlank() && domain in blocklist
+}
+
 internal fun hasContentModerationAccess(userRepo: com.maodouchat.server.repository.UserRepository, userId: String): Boolean =
     AdminAccess.isAdmin(userId) || userRepo.isModerator(userId)
 

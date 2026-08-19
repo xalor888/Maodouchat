@@ -254,6 +254,8 @@ class ChatDetailViewModel(
     private val readMessagesTracker = mutableSetOf<String>()
     /** 已乐观标读、尚待服务端 ACK 的 id；失败/取消 debounce 时回灌 tracker 重试 */
     private val pendingServerReadIds = mutableSetOf<String>()
+    /** 已读边界：当前会话已加载并可见的最后一条消息 (timestamp,id)，用于钳制服务端 mark-read 不越界。 */
+    private var pendingServerReadWatermark: Pair<Long, String>? = null
     private var lastMessagesSeen: List<Pair<String, MessageStatus>>? = null
     private var markReadJob: kotlinx.coroutines.Job? = null
     internal var pendingAiAction: PendingAiAction? = null
@@ -928,6 +930,8 @@ class ChatDetailViewModel(
                 }
                 val unreadIds = unread.map { it.id }.toSet()
                 pendingServerReadIds.addAll(unreadIds)
+                unread.maxWithOrNull(compareBy<Message> { it.timestamp }.thenBy { it.id })
+                    ?.let { pendingServerReadWatermark = it.timestamp to it.id }
                 _uiState.update { st ->
                     st.copy(messages = st.messages.map { m -> if (m.id in unreadIds) m.copy(status = MessageStatus.READ) else m })
                 }
@@ -976,7 +980,7 @@ class ChatDetailViewModel(
                         val batch = pendingServerReadIds.toSet()
                         val liveTok = tokenManager.getToken().orEmpty().ifBlank { token }
                         val result = withContext(Dispatchers.IO + NonCancellable) {
-                            ApiService.markAllAsRead(liveTok, effectiveChatId)
+                            ApiService.markAllAsRead(liveTok, effectiveChatId, pendingServerReadWatermark?.second)
                         }
                         if (result.isSuccess) {
                             pendingServerReadIds.removeAll(batch)
@@ -1015,7 +1019,7 @@ class ChatDetailViewModel(
                         val batch = pendingServerReadIds.toSet()
                         val liveTok = tokenManager.getToken().orEmpty().ifBlank { token }
                         val result = withContext(Dispatchers.IO + NonCancellable) {
-                            ApiService.markAllAsRead(liveTok, effectiveChatId)
+                            ApiService.markAllAsRead(liveTok, effectiveChatId, pendingServerReadWatermark?.second)
                         }
                         if (result.isSuccess) {
                             pendingServerReadIds.removeAll(batch)
@@ -1357,6 +1361,9 @@ class ChatDetailViewModel(
                                 if (_uiState.value.isSecretChat == true && RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_READ_RECEIPT_BLOCK)) {
                                     return@onSuccess
                                 }
+                                val loadedWatermarkId = messages
+                                    .maxWithOrNull(compareBy<Message> { it.timestamp }.thenBy { it.id })
+                                    ?.id
                                 // 会话级 mark-read：带退避重试，不 fire-and-forget
                                 var attempt = 0
                                 while (attempt < 3) {
@@ -1371,7 +1378,7 @@ class ChatDetailViewModel(
                                     }
                                     val readToken = tokenManager.getToken().orEmpty().ifBlank { msgToken }
                                     val result = withContext(Dispatchers.IO + NonCancellable) {
-                                        ApiService.markAllAsRead(readToken, effectiveChatId)
+                                        ApiService.markAllAsRead(readToken, effectiveChatId, loadedWatermarkId)
                                     }
                                     if (result.isSuccess) break
                                     if (attempt < 3) {
@@ -2766,7 +2773,7 @@ class ChatDetailViewModel(
         val batch = pendingServerReadIds.toSet()
         val liveTok = tokenManager.getToken().orEmpty().ifBlank { token }
         val result = withContext(Dispatchers.IO + NonCancellable) {
-            ApiService.markAllAsRead(liveTok, readChatId)
+            ApiService.markAllAsRead(liveTok, readChatId, pendingServerReadWatermark?.second)
         }
         if (result.isSuccess) {
             pendingServerReadIds.removeAll(batch)
@@ -9233,6 +9240,7 @@ fun sendCurrentLocation() {
         }
         readMessagesTracker.clear()
         pendingServerReadIds.clear()
+        pendingServerReadWatermark = null
         markReadJob?.cancel()
         markReadJob = null
         // 清除全局活跃聊天标记，ChatListViewModel 恢复正常未读数递增。

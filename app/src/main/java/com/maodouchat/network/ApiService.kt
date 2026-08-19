@@ -66,6 +66,17 @@ internal fun apiExceptionForIOException(error: java.io.IOException): ApiExceptio
     )
 }
 
+internal object TokenExpiredEventPolicy {
+    fun shouldHandle(
+        eventOwnerUserId: String,
+        eventSessionGeneration: Long,
+        currentOwnerUserId: String?,
+        currentSessionGeneration: Long,
+    ): Boolean = eventOwnerUserId.isNotBlank() &&
+        eventOwnerUserId == currentOwnerUserId &&
+        eventSessionGeneration == currentSessionGeneration
+}
+
 /**
  * REST API 客户端
  */
@@ -94,7 +105,10 @@ object ApiService {
     /**
      * Token 过期事件 — 当 API 返回 401 时发射，UI 层监听后清除 Token 并跳转登录页
      */
-    data class TokenExpiredEvent(val ownerUserId: String)
+    data class TokenExpiredEvent(
+        val ownerUserId: String,
+        val sessionGeneration: Long,
+    )
 
     // 8.49：replay=1——NavGraph 收集器随 Activity 重建（旋转/深色切换）时无收集器窗口内
     // tryEmit 的 401 事件会被直接丢弃，用户停留在已失效会话直到下一次 401
@@ -106,7 +120,16 @@ object ApiService {
      * 复用同一事件流，UI 层走与 401 相同的 purge + 跳登录路径。
      */
     fun notifyTokenExpired(ownerUserId: String) {
-        _tokenExpired.tryEmit(TokenExpiredEvent(ownerUserId))
+        emitTokenExpired(ownerUserId)
+    }
+
+    private fun emitTokenExpired(ownerUserId: String) {
+        _tokenExpired.tryEmit(
+            TokenExpiredEvent(
+                ownerUserId = ownerUserId,
+                sessionGeneration = com.maodouchat.MaodouchatApp.currentSessionGeneration(),
+            )
+        )
     }
 
     /**
@@ -253,13 +276,13 @@ object ApiService {
                 val retryResult = executeRequest(retryRequest)
                 if (manager.getUserId() != expectedUserId) return sessionChangedResult()
                 if (retryResult.code == 401) {
-                    _tokenExpired.tryEmit(TokenExpiredEvent(expectedUserId))
+                    emitTokenExpired(expectedUserId)
                 }
                 return retryResult
             }
             RefreshOutcome.SessionDead -> {
                 if (manager.getUserId() != expectedUserId) return sessionChangedResult()
-                _tokenExpired.tryEmit(TokenExpiredEvent(expectedUserId))
+                emitTokenExpired(expectedUserId)
                 return firstResult
             }
             RefreshOutcome.TransientFailure -> {
@@ -547,11 +570,11 @@ object ApiService {
                             guardedOnEvent
                         )
                         if (session.manager.getUserId() != session.userId) return Result.failure(sessionChangedException())
-                        if (attempt.code == 401) _tokenExpired.tryEmit(TokenExpiredEvent(session.userId))
+                        if (attempt.code == 401) emitTokenExpired(session.userId)
                     }
                     RefreshOutcome.SessionDead -> {
                         if (session.manager.getUserId() != session.userId) return Result.failure(sessionChangedException())
-                        _tokenExpired.tryEmit(TokenExpiredEvent(session.userId))
+                        emitTokenExpired(session.userId)
                         return Result.failure(ApiException(ApiFailureKind.HTTP, 401, parseError(attempt.errorBody)))
                     }
                     RefreshOutcome.TransientFailure -> {
@@ -656,7 +679,7 @@ object ApiService {
                     response.close()
                     throw sessionChangedException()
                 }
-                if (response.code == 401) _tokenExpired.tryEmit(TokenExpiredEvent(session.userId))
+                if (response.code == 401) emitTokenExpired(session.userId)
                 response
             }
             RefreshOutcome.SessionDead -> {
@@ -664,7 +687,7 @@ object ApiService {
                     response.close()
                     throw sessionChangedException()
                 }
-                _tokenExpired.tryEmit(TokenExpiredEvent(session.userId))
+                emitTokenExpired(session.userId)
                 response
             }
             RefreshOutcome.TransientFailure -> response
@@ -881,8 +904,21 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
             DisappearingMessagesResponse.serializer()
         )
 
-    suspend fun markAllAsRead(token: String, chatId: String): Result<MarkReadResponse> =
-        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/chats/$chatId/mark-read").addHeader("Authorization", "Bearer $token").post(ByteArray(0).toRequestBody(null)).build(), MarkReadResponse.serializer())
+    suspend fun markAllAsRead(token: String, chatId: String, throughId: String? = null): Result<MarkReadResponse> {
+        val body = if (throughId.isNullOrBlank()) {
+            ByteArray(0).toRequestBody(null)
+        } else {
+            jsonBody(json.encodeToString(MarkReadRequest.serializer(), MarkReadRequest(throughId)))
+        }
+        return send(
+            Request.Builder()
+                .url("${ApiConfig.BASE_URL}/api/chats/$chatId/mark-read")
+                .addHeader("Authorization", "Bearer $token")
+                .post(body)
+                .build(),
+            MarkReadResponse.serializer()
+        )
+    }
 
     suspend fun getUnreadWindow(token: String, chatId: String, limit: Int = 36): Result<UnreadWindowDto> =
         send(Request.Builder().url("${ApiConfig.BASE_URL}/api/chats/$chatId/unread-window?limit=${limit.coerceIn(1, 50)}").addHeader("Authorization", "Bearer $token").get().build(), UnreadWindowDto.serializer())

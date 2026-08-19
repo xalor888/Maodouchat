@@ -1,9 +1,8 @@
 package com.maodouchat.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.maodouchat.data.local.entity.ChatEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -39,7 +38,10 @@ interface ChatDao {
     @Query("SELECT * FROM chats WHERE id = :chatId")
     suspend fun getChatById(chatId: String): ChatEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // SQLite REPLACE deletes the existing parent row before inserting it again. Because
+    // messages.chatId has ON DELETE CASCADE, REPLACE here used to erase the complete local
+    // message history (and its search index) whenever a cached chat was refreshed.
+    @Upsert
     suspend fun insertChats(chats: List<ChatEntity>)
 
     @Query("DELETE FROM chats WHERE id = :chatId")
