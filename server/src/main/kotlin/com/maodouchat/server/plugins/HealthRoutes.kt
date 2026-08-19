@@ -119,6 +119,31 @@ fun Route.configureHealthRoutes() {
         call.respondText(info.toString(), contentType = ContentType.Application.Json)
     }
 
+    // 服务器身份/品牌信息（第三方服务器模式）：无需 JWT，供客户端展示服务器名称、
+    // 简介与公告。均环境变量驱动；公告可放到 STORAGE_DIR/server-announcement.txt 免重启更新。
+    get("/api/server/info") {
+        val version = System.getenv("APP_VERSION")?.takeIf { it.isNotBlank() } ?: "dev"
+        val name = System.getenv("SERVER_NAME")?.takeIf { it.isNotBlank() } ?: "Maodouchat Server"
+        val description = System.getenv("SERVER_DESCRIPTION").orEmpty().take(500)
+        val contactUrl = System.getenv("SERVER_CONTACT_URL").orEmpty().take(300)
+        val announcement = run {
+            val file = Paths.get(ServerConfig.storageDir).resolve("server-announcement.txt").toFile()
+            val fromFile = if (file.isFile) runCatching { file.readText().trim() }.getOrNull() else null
+            (fromFile?.takeIf { it.isNotBlank() } ?: System.getenv("SERVER_ANNOUNCEMENT").orEmpty()).take(1000)
+        }
+        val body = buildJsonObject {
+            put("name", name)
+            put("description", description)
+            put("announcement", announcement)
+            put("contactUrl", contactUrl)
+            put("version", version)
+            put("registrationOpen", ServerConfig.allowRegistration)
+            put("timestamp", System.currentTimeMillis())
+        }
+        call.response.headers.append(HttpHeaders.CacheControl, "public, max-age=60")
+        call.respondText(body.toString(), contentType = ContentType.Application.Json)
+    }
+
     // 按需贴纸包清单（客户端 slim/OnDemandStickerStore，B1 包体瘦身）。
     // 运营商可在 STORAGE_DIR/stickers-manifest.json 放置贴纸包清单（格式：
     // {"version":1,"packs":[{"id":"...","stickers":[{"name":"...","url":"/static/...","sha256":"..."}]}]}，

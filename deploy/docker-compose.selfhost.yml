@@ -1,3 +1,10 @@
+# Maodouchat 自托管简化部署（Release 预构建运行包，免源码编译）
+#
+# 适用场景：从 GitHub Release 下载 maodouchat-server-<版本>.tar.gz 与
+# maodouchat-selfhost-<版本>.tar.gz，解压后即可一键启动完整服务栈
+# （Caddy 自动 HTTPS + PostgreSQL 16 + Maodouchat Server）。
+#
+# 使用方法见 docs/self-host-quickstart.md。
 services:
   proxy:
     image: caddy:2.10.2-alpine
@@ -9,10 +16,9 @@ services:
       PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST to the public API hostname}
       ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL for TLS certificate notices}
       ADMIN_PATH: ${ADMIN_PATH:?Set ADMIN_PATH in .env}
-      # 8.48：代理层请求体上限与 server 的 MAX_ATTACHMENT_BYTES 联动（默认 140MB 覆盖 100MB 附件 + base64 膨胀）
       MAX_BODY_BYTES: ${MAX_BODY_BYTES:-146800640}
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     networks:
@@ -21,7 +27,6 @@ services:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"
       - "${HTTPS_PORT:-443}:443/udp"
-    # 1.288：proxy 健康检查——Caddy 进程存活即视为健康（admin API 已关闭，不能再用 2019 探测）
     healthcheck:
       test: ["CMD-SHELL", "pidof caddy >/dev/null || exit 1"]
       interval: 15s
@@ -47,22 +52,21 @@ services:
       - data
 
   server:
-    build:
-      context: .
-      dockerfile: server/Dockerfile
+    # 直接运行 Release 预构建的运行包（解压到 ./maodouchat-server），无需源码编译
+    image: eclipse-temurin:21-jre-jammy
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+    working_dir: /app
+    command: ["./bin/maodouchat-server"]
     environment:
       APP_ENV: ${APP_ENV:-production}
       HOST: 0.0.0.0
       PORT: 8080
       BASE_URL: ${BASE_URL:?Set BASE_URL in .env}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
-      # Push 签名密钥：生产模式必填（relaxed 模式可留空，推送校验降级 fail-open）。
       PUSH_HMAC_SECRET: ${PUSH_HMAC_SECRET:-}
-      # 自托管宽松模式：允许无 SMTP / TURN 启动（验证码打日志、通话仅 STUN）。
       RELAXED_VERIFICATION: ${RELAXED_VERIFICATION:-false}
       DEV_LOG_CODES: ${DEV_LOG_CODES:-false}
       DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-maodouchat}?user=${POSTGRES_USER:-maodouchat}&password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
@@ -99,28 +103,24 @@ services:
       USER_STORAGE_QUOTA_BYTES: ${USER_STORAGE_QUOTA_BYTES:-1073741824}
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
-      # 9.202：第三方服务器品牌信息（客户端设置页/会话列表展示）
+      # 第三方服务器品牌信息（客户端「第三方服务器模式」展示）
       SERVER_NAME: ${SERVER_NAME:-}
       SERVER_DESCRIPTION: ${SERVER_DESCRIPTION:-}
       SERVER_ANNOUNCEMENT: ${SERVER_ANNOUNCEMENT:-}
       SERVER_CONTACT_URL: ${SERVER_CONTACT_URL:-}
       APP_VERSION: ${APP_VERSION:-}
     volumes:
+      - ./maodouchat-server:/app
       - server_uploads:/app/uploads
-    read_only: true
-    tmpfs:
-      - /tmp:size=64m,mode=1777
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
-    # 1.261：日志轮转，防止容器日志写满磁盘
     logging:
       driver: json-file
       options:
         max-size: "20m"
         max-file: "4"
-    # 1.263：init 进程回收僵尸（长驻 server 更稳）
     init: true
     healthcheck:
       test: ["CMD-SHELL", "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/8080; printf \"GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; IFS= read -r status <&3; [[ \"$$status\" == *\" 200 \"* ]]'"]
@@ -134,40 +134,15 @@ services:
       - edge
       - data
 
-  turn:
-    image: coturn/coturn:4.6.3
-    restart: unless-stopped
-    # STUN 始终可用；TURN 仅在配置了 TURN_SHARED_SECRET 时对外可用。
-    # 8.48 修复：留空时改为每次容器启动随机生成密钥（旧实现是仓库里的固定默认值，
-    # 知道该字符串的任何人都能算出 REST 凭据把本机当开放中继）；
-    # 随机密钥不下发凭据，对客户端等效纯 STUN，行为不变。
-    environment:
-      TURN_SHARED_SECRET: ${TURN_SHARED_SECRET:-}
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        TURN_SECRET="$${TURN_SHARED_SECRET:-}"
-        if [ -z "$$TURN_SECRET" ]; then
-          TURN_SECRET="$$(head -c 24 /dev/urandom | base64 | tr -d '=+/')"
-        fi
-        exec turnserver --fingerprint --use-auth-secret --static-auth-secret="$$TURN_SECRET" \
-          --realm=${TURN_REALM:-${PUBLIC_HOST}} \
-          --min-port=49160 --max-port=49200 --no-tls --no-dtls --log-file=stdout
-    ports:
-      - "3478:3478/tcp"
-      - "3478:3478/udp"
-      - "49160-49200:49160-49200/udp"
-    networks:
-      - turn_net
-
 volumes:
-  postgres_data:
-  server_uploads:
   caddy_data:
   caddy_config:
+  postgres_data:
+  server_uploads:
 
 networks:
   edge:
+    driver: bridge
   data:
+    driver: bridge
     internal: true
-  turn_net:

@@ -540,10 +540,29 @@ fun ChatListScreen(
                             style = MaterialTheme.typography.titleLarge
                         )
                     } else {
-                        Text(
-                            if (state.showArchived) stringResource(R.string.chat_archived_title)
-                            else stringResource(R.string.nav_chats)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                if (state.showArchived) stringResource(R.string.chat_archived_title)
+                                else stringResource(R.string.nav_chats)
+                            )
+                            // 9.202：第三方服务器模式角标（服务器名称）
+                            if (com.maodouchat.network.ServerIdentity.isThirdPartyServer) {
+                                val serverInfo by com.maodouchat.network.ServerIdentity.current.collectAsState()
+                                Text(
+                                    text = serverInfo?.name?.take(12)
+                                        ?: stringResource(R.string.settings_server_third_party_badge),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    modifier = Modifier
+                                        .background(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
                     }
                 },
                 navigationIcon = {

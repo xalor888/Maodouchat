@@ -133,6 +133,8 @@ class MaodouchatApp : Application() {
         // 8.45：启动即加载运行时服务器配置（设置页可配置，免重新构建 APK），
         // 必须在任何网络调用（含 ImageLoader 的 apiHost 解析）之前完成
         ApiConfig.init(this)
+        // 9.202：第三方服务器模式——后台拉取服务器身份（名称/公告），失败静默
+        com.maodouchat.network.ServerIdentity.refreshAsync()
         // TokenManager is a process singleton; initialize it before any network worker may read tokens.
         TokenManager.getInstance(this)
         PushRegistrationManager.initialize(this)

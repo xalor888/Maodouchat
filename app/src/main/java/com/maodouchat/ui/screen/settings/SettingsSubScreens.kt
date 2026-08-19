@@ -37,6 +37,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Warning
@@ -3508,6 +3509,11 @@ fun ServerSettingsScreen(
 
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             Spacer(modifier = Modifier.height(8.dp))
+            // 9.202：第三方服务器模式身份卡（名称/简介/公告/版本）
+            if (com.maodouchat.network.ApiConfig.isUsingRuntimeServer) {
+                ThirdPartyServerCard()
+                Spacer(modifier = Modifier.height(12.dp))
+            }
             Column(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                     .background(Surface, RoundedCornerShape(14.dp))
@@ -3604,6 +3610,7 @@ fun ServerSettingsScreen(
                                         com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
                                         com.maodouchat.network.WebSocketClient.disconnect()
                                         com.maodouchat.slim.OnDemandStickerStore.invalidateServerState()
+                                        com.maodouchat.network.ServerIdentity.refreshAsync()
                                         onServerChanged()
                                     }
                                 }
@@ -3666,6 +3673,7 @@ fun ServerSettingsScreen(
                                 com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
                                 com.maodouchat.network.WebSocketClient.disconnect()
                                 com.maodouchat.slim.OnDemandStickerStore.invalidateServerState()
+                                com.maodouchat.network.ServerIdentity.clear()
                                 onServerChanged()
                             }
                         }
@@ -3681,6 +3689,93 @@ fun ServerSettingsScreen(
                 }
             }
         )
+    }
+}
+
+/**
+ * 9.202：第三方服务器身份卡：展示当前连接服务器的名称/简介/版本与运营方公告。
+ * 官方默认服务器不展示此卡片。
+ */
+@Composable
+private fun ThirdPartyServerCard() {
+    val info by com.maodouchat.network.ServerIdentity.current.collectAsState()
+    LaunchedEffect(Unit) {
+        com.maodouchat.network.ServerIdentity.refresh()
+    }
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            .background(Surface, RoundedCornerShape(14.dp))
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(
+                imageVector = Icons.Outlined.Cloud,
+                contentDescription = null,
+                tint = Primary,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = stringResource(R.string.settings_server_third_party_title),
+                style = MaterialTheme.typography.bodyLarge,
+                color = OnSurface,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = stringResource(R.string.settings_server_third_party_badge),
+                style = MaterialTheme.typography.labelSmall,
+                color = Primary,
+                modifier = Modifier
+                    .background(Primary.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = stringResource(R.string.settings_server_third_party_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = TextSecondary
+        )
+        val serverInfo = info
+        if (serverInfo != null) {
+            Spacer(modifier = Modifier.height(10.dp))
+            androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = Divider)
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = serverInfo.name,
+                style = MaterialTheme.typography.bodyLarge,
+                color = OnSurface
+            )
+            if (serverInfo.description.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = serverInfo.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+            if (serverInfo.version.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.settings_server_info_version, serverInfo.version),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextHint
+                )
+            }
+            if (serverInfo.announcement.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.settings_server_info_announcement),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = OnSurface
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = serverInfo.announcement,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+        }
     }
 }
 @Composable

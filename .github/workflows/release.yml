@@ -156,7 +156,7 @@ jobs:
 
       - name: Package release assets + checksums
         run: |
-          mkdir -p release-assets
+          mkdir -p release-assets selfhost-kit
           APK_FILE="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print -quit)"
           if [ -z "$APK_FILE" ]; then
             echo "::error::Release APK not found under app/build/outputs/apk/release" >&2
@@ -164,6 +164,12 @@ jobs:
           fi
           cp "$APK_FILE" "release-assets/maodouchat-${{ steps.version.outputs.version }}.apk"
           tar -czf "release-assets/maodouchat-server-${{ steps.version.outputs.version }}.tar.gz" -C server/build/install maodouchat-server
+          # 自托管套件：免源码编译的一键部署文件（配合服务端运行包使用）
+          cp deploy/docker-compose.selfhost.yml selfhost-kit/docker-compose.yml
+          cp deploy/Caddyfile selfhost-kit/Caddyfile
+          cp .env.docker.example selfhost-kit/.env.example
+          cp docs/self-host-quickstart.md selfhost-kit/README.md
+          tar -czf "release-assets/maodouchat-selfhost-${{ steps.version.outputs.version }}.tar.gz" -C selfhost-kit .
           cd release-assets
           sha256sum * > SHA256SUMS.txt
           ls -la
@@ -177,11 +183,13 @@ jobs:
             echo "由 GitHub Actions 自动构建（commit \`${GITHUB_SHA:0:7}\`）"
             echo ""
             echo "### 安装包"
-            echo "- \`maodouchat-${{ steps.version.outputs.version }}.apk\` — Android 应用"
-            echo "- \`maodouchat-server-${{ steps.version.outputs.version }}.tar.gz\` — Ktor 服务端发行包"
+            echo "- \`maodouchat-${{ steps.version.outputs.version }}.apk\` — Android 应用（通用包，可连接任意服务器）"
+            echo "- \`maodouchat-server-${{ steps.version.outputs.version }}.tar.gz\` — Ktor 服务端运行包（预构建）"
+            echo "- \`maodouchat-selfhost-${{ steps.version.outputs.version }}.tar.gz\` — 自托管套件（compose + Caddy + 环境模板）"
             echo "- \`SHA256SUMS.txt\` — 各文件 SHA-256 校验和"
             echo ""
-            echo "> 部署服务端见 \`docs/docker-deployment.md\`（或直接用 Docker 镜像方式部署）。"
+            echo "> 自建服务器：下载服务端运行包 + 自托管套件，按 \`docs/self-host-quickstart.md\` 5 分钟部署；"
+            echo "> App 内「设置 → 服务器」填入你的地址即可切换为第三方服务器模式。"
             echo ""
             echo "### 本次变更"
             if [ -n "$PREV_TAG" ]; then
