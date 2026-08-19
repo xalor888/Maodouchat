@@ -2868,6 +2868,7 @@
     <string name="settings_server_current">当前服务器</string>
     <string name="settings_server_input_label">服务器地址</string>
     <string name="settings_server_save">保存并应用</string>
+    <string name="server_announcement_title">服务器公告</string>
     <string name="settings_server_third_party_title">第三方服务器模式</string>
     <string name="settings_server_third_party_badge">第三方</string>
     <string name="settings_server_third_party_desc">当前连接的是自定义服务器地址，账号与数据由该服务器运营方管理，请注意甄别其可信度。</string>

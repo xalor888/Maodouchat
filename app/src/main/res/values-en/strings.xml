@@ -2839,6 +2839,7 @@
     <string name="settings_server_current">Current server</string>
     <string name="settings_server_input_label">Server address</string>
     <string name="settings_server_save">Save &amp; apply</string>
+    <string name="server_announcement_title">Server Announcement</string>
     <string name="settings_server_third_party_title">Third-Party Server</string>
     <string name="settings_server_third_party_badge">Third-Party</string>
     <string name="settings_server_third_party_desc">You are connected to a custom server. Accounts and data are managed by its operator — verify its trustworthiness.</string>

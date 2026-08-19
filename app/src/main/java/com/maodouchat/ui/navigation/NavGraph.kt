@@ -1463,6 +1463,26 @@ private fun MainContainer(navController: NavHostController) {
         }
     }
 
+    // 9.208：第三方服务器运营公告——同一内容只弹一次，更新后再弹
+    val serverIdentity by com.maodouchat.network.ServerIdentity.current.collectAsState()
+    var pendingAnnouncement by remember(serverIdentity) {
+        mutableStateOf(com.maodouchat.util.ServerAnnouncementNotice.pendingAnnouncement(context))
+    }
+    if (pendingAnnouncement != null) {
+        val announcementText = pendingAnnouncement.orEmpty()
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pendingAnnouncement = null },
+            title = { Text(stringResource(com.maodouchat.R.string.server_announcement_title)) },
+            text = { Text(announcementText) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    com.maodouchat.util.ServerAnnouncementNotice.markShown(context, announcementText)
+                    pendingAnnouncement = null
+                }) { Text(stringResource(com.maodouchat.R.string.common_confirm)) }
+            }
+        )
+    }
+
     Scaffold(
         bottomBar = { BottomNavBar(selectedTab = selectedTab, onTabSelected = { selectedTab = it }) }
     ) { paddingValues ->
