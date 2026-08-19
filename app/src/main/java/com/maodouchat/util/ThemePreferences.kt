@@ -14,15 +14,21 @@ import kotlinx.coroutines.flow.asStateFlow
 object ThemePreferences {
     private const val PREFS = "general_settings"
     private const val KEY_THEME = "theme_mode"
+    private const val KEY_THEME_STYLE = "theme_style"
 
     @Volatile
     private var seeded = false
     private val _mode = MutableStateFlow("system")
     val mode: StateFlow<String> = _mode.asStateFlow()
+    private val _family = MutableStateFlow("maodou")
+    val family: StateFlow<String> = _family.asStateFlow()
 
     private val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         if (key == null || key == KEY_THEME) {
             _mode.value = normalize(prefs.getString(KEY_THEME, "system"))
+        }
+        if (key == null || key == KEY_THEME_STYLE) {
+            _family.value = normalizeStyle(prefs.getString(KEY_THEME_STYLE, "maodou"))
         }
     }
 
@@ -32,6 +38,7 @@ object ThemePreferences {
             if (seeded) return
             val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             _mode.value = normalize(prefs.getString(KEY_THEME, "system"))
+            _family.value = normalizeStyle(prefs.getString(KEY_THEME_STYLE, "maodou"))
             prefs.registerOnSharedPreferenceChangeListener(listener)
             seeded = true
         }
@@ -57,5 +64,26 @@ object ThemePreferences {
         "light" -> "light"
         "dark" -> "dark"
         else -> "system"
+    }
+
+    fun getStyle(context: Context): String {
+        ensureSeeded(context)
+        return _family.value
+    }
+
+    fun setStyle(context: Context, style: String) {
+        val normalized = normalizeStyle(style)
+        ensureSeeded(context)
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_THEME_STYLE, normalized)
+            .apply()
+        _family.value = normalized
+    }
+
+    /** 主题风格家族 id（maodou / tg_classic / tg_midnight / tg_graphite）。 */
+    fun normalizeStyle(raw: String?): String {
+        val id = raw?.trim()?.lowercase().orEmpty()
+        return if (id in setOf("maodou", "tg_classic", "tg_midnight", "tg_graphite")) id else "maodou"
     }
 }

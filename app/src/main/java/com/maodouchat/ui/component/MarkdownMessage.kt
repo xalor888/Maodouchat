@@ -25,6 +25,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.ui.theme.OnSurface
+import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.TextWhite
 
 /** Pre-compiled, hot-path Markdown matchers — avoid recompiling Regex on every message render. */
@@ -172,8 +173,8 @@ fun MarkdownMessageContent(
     /** 点击消息内 URL 时回调（scheme 白名单与密聊外链拦截由调用方负责）。 */
     onLinkClick: (String) -> Unit = {}
 ) {
-    val bodyColor = if (isOwnMessage) TextWhite else OnSurface
-    val codeBg = if (isOwnMessage) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.08f)
+    val bodyColor = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
+    val codeBg = if (isOwnMessage) LocalSentBubbleContent.current.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.08f)
     val blocks = remember(text) { parseMarkdownBlocks(text) }
     Column(modifier = modifier) {
         blocks.forEach { block ->

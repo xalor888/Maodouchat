@@ -1913,6 +1913,13 @@
     <string name="general_theme_system">跟随系统</string>
     <string name="general_theme_light">浅色</string>
     <string name="general_theme_dark">深色</string>
+    <string name="general_theme_style_title">主题风格</string>
+    <string name="general_theme_style_summary">当前：%1$s</string>
+    <string name="general_theme_style_maodou">毛豆（默认）</string>
+    <string name="general_theme_style_tg_classic">TG 经典</string>
+    <string name="general_theme_style_tg_midnight">TG 朝霞·午夜</string>
+    <string name="general_theme_style_tg_graphite">TG 冰蓝·石墨</string>
+    <string name="general_theme_style_tg_badge">1:1 还原</string>
     <string name="general_language_title">语言</string>
     <string name="general_language_system">跟随系统</string>
     <string name="general_language_chinese">简体中文</string>

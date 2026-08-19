@@ -704,13 +704,14 @@ fun ChatDetailScreen(
 
     // 粒子动效入口：提前在 @Composable 上下文中抓取 palette，避免在本地函数里调用
     val palette = LocalChatPalette.current
+    val ownBubbleColor = com.maodouchat.ui.theme.LocalChatBubbleColor.current
     fun startParticleEffect(message: Message, action: ParticleAction) {
         val isOwn = message.senderId == state.currentUserId
         val bounds = bubbleBounds[message.id] ?: BubbleBounds(
             androidx.compose.ui.unit.IntOffset(if (isOwn) 280 else 80, 220),
             androidx.compose.ui.unit.IntSize(220, 56)
         )
-        val bubbleColor = if (isOwn) com.maodouchat.ui.theme.ChatBubbleSent else palette.chatBubbleReceived
+        val bubbleColor = if (isOwn) ownBubbleColor else palette.chatBubbleReceived
         animatingMessageId = message.id
         particleAction = action
         particleStates = listOf(ParticleState(message.id, bounds.offset, bounds.size, bubbleColor))

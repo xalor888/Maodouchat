@@ -13,6 +13,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -23,7 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowInsetsControllerCompat
 import com.maodouchat.util.ThemePreferences
 
-private val LightColorScheme = lightColorScheme(
+val MaodouLightScheme = lightColorScheme(
     primary = Primary, onPrimary = OnPrimary, primaryContainer = PrimaryContainer, onPrimaryContainer = OnPrimaryContainer,
     secondary = Secondary, onSecondary = OnSecondary, secondaryContainer = SecondaryContainer, onSecondaryContainer = OnSecondaryContainer,
     background = Background, onBackground = OnBackground, surface = Surface, onSurface = OnSurface,
@@ -31,12 +32,16 @@ private val LightColorScheme = lightColorScheme(
     errorContainer = ErrorContainer, onErrorContainer = OnErrorContainer, outline = Outline, outlineVariant = OutlineVariant
 )
 
-private val DarkColorScheme = darkColorScheme(
+private val LightColorScheme = MaodouLightScheme
+
+val MaodouDarkScheme = darkColorScheme(
     primary = Color(0xFF0A84FF), onPrimary = Color(0xFFFFFFFF), primaryContainer = Color(0xFF004880), onPrimaryContainer = Color(0xFFD1E4FF),
     secondary = Color(0xFF8E8E93), onSecondary = Color(0xFFFFFFFF), background = Color(0xFF1C1C1E), onBackground = Color(0xFFF2F2F7),
     surface = Color(0xFF2C2C2E), onSurface = Color(0xFFF2F2F7), surfaceVariant = Color(0xFF3A3A3C), onSurfaceVariant = Color(0xFFEBEBF5),
     error = Color(0xFFFF453A), outline = Color(0xFF48484A), outlineVariant = Color(0xFF636366)
 )
+
+private val DarkColorScheme = MaodouDarkScheme
 
 val MaodouchatTypography = Typography(
     headlineLarge = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 32.sp, letterSpacing = (-0.02).sp),
@@ -58,7 +63,12 @@ fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
     val ctx = LocalContext.current
     ThemePreferences.ensureSeeded(ctx)
     val themePref by ThemePreferences.mode.collectAsState()
+    val themeStylePref by ThemePreferences.family.collectAsState()
     val useDark = when (themePref) { "dark" -> true; "light" -> false; else -> darkTheme }
+    // Telegram 级主题风格：按家族 + 深浅解析完整绘制参数
+    val paint = remember(themeStylePref, useDark) {
+        resolveThemePaint(com.maodouchat.ui.theme.ThemeFamily.normalize(themeStylePref), useDark)
+    }
     val motionSettings = rememberSystemMotionSettings()
 
     val view = LocalView.current
@@ -71,9 +81,10 @@ fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
         onDispose {}
     }
     CompositionLocalProvider(
-        LocalChatPalette provides (if (useDark) DarkChatPalette else LightChatPalette),
+        LocalChatPalette provides paint.chatPalette,
+        LocalSentBubbleSpec provides paint.sentBubbleSpec,
         LocalMotionSettings provides motionSettings
     ) {
-        MaterialTheme(colorScheme = if (useDark) DarkColorScheme else LightColorScheme, typography = MaodouchatTypography, shapes = MaodouchatShapes, content = content)
+        MaterialTheme(colorScheme = paint.colorScheme, typography = MaodouchatTypography, shapes = MaodouchatShapes, content = content)
     }
 }

@@ -107,6 +107,8 @@ import com.maodouchat.ui.theme.OnlineGreen
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.TextSecondary
+import com.maodouchat.ui.theme.LocalSentBubbleContent
+import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.ui.theme.TextWhite
 import com.maodouchat.ui.theme.TextWhiteSecondary
 import com.maodouchat.ui.theme.UnreadRed
@@ -288,7 +290,7 @@ private fun ReactionSummaryRow(
             Text(
                 text = "$emoji ${reactions.size}",
                 style = MaterialTheme.typography.labelMedium,
-                color = if (reactedByMe) Primary else if (isOwnMessage) TextWhite else OnSurface,
+                color = if (reactedByMe) Primary else if (isOwnMessage) LocalSentBubbleContent.current else OnSurface,
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
                     .background(
@@ -312,7 +314,7 @@ private fun ReactionSummaryRow(
             Text(
                 text = "+$overflow",
                 style = MaterialTheme.typography.labelMedium,
-                color = if (isOwnMessage) TextWhite else TextHint,
+                color = if (isOwnMessage) LocalSentBubbleContent.current else TextHint,
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
                     .background(
@@ -408,14 +410,14 @@ private fun LocationBubble(
                     Icon(Icons.Default.LocationOn, contentDescription = null, tint = if (isOwnMessage) Color.White else Primary, modifier = Modifier.size(42.dp))
                 }
                 Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
-                    Text(displayLocationLabel, style = MaterialTheme.typography.bodyLarge, color = if (isOwnMessage) TextWhite else OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(displayLocationLabel, style = MaterialTheme.typography.bodyLarge, color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
                         String.format(Locale.US, "%.5f, %.5f", payload.latitude, payload.longitude),
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (isOwnMessage) TextWhiteSecondary else TextHint
+                        color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
                     )
                     payload.accuracyMeters?.let {
-                        Text(stringResource(R.string.message_location_accuracy, it.toInt().coerceAtLeast(1)), style = MaterialTheme.typography.labelSmall, color = if (isOwnMessage) TextWhiteSecondary else TextHint)
+                        Text(stringResource(R.string.message_location_accuracy, it.toInt().coerceAtLeast(1)), style = MaterialTheme.typography.labelSmall, color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint)
                     }
                 }
             }
@@ -619,7 +621,7 @@ private fun TextBubble(
                     Text(
                         text = stringResource(R.string.message_reply_preview, replyToPreview.senderName, replyToPreview.preview),
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (isOwnMessage) TextWhiteSecondary else TextHint,
+                        color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint,
                         maxLines = 1
                     )
                 }
@@ -645,14 +647,14 @@ private fun TextBubble(
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = null,
-                            tint = if (isOwnMessage) TextWhiteSecondary else Primary,
+                            tint = if (isOwnMessage) LocalSentBubbleContentSecondary.current else Primary,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
                             text = stringResource(R.string.message_ai_assisted_shared),
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isOwnMessage) TextWhiteSecondary else Primary
+                            color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else Primary
                         )
                     }
                     Spacer(modifier = Modifier.height(6.dp))
@@ -664,7 +666,7 @@ private fun TextBubble(
                     Text(
                         text = "🎲 $value / $sides",
                         style = MaterialTheme.typography.headlineSmall,
-                        color = if (isOwnMessage) TextWhite else OnSurface
+                        color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
                     )
                     return@Column
                 }
@@ -674,7 +676,7 @@ private fun TextBubble(
                     Text(
                         text = "🎉 $picker → $target",
                         style = MaterialTheme.typography.titleMedium,
-                        color = if (isOwnMessage) TextWhite else OnSurface
+                        color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
                     )
                     return@Column
                 }
@@ -686,7 +688,7 @@ private fun TextBubble(
                     Text(
                         text = "ALERT: $detail",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (isOwnMessage) TextWhite else Error,
+                        color = if (isOwnMessage) LocalSentBubbleContent.current else Error,
                         fontWeight = FontWeight.SemiBold
                     )
                     return@Column
@@ -874,7 +876,7 @@ private fun TextBubble(
                     Text(
                         text = playLabel,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (isOwnMessage) TextWhite else OnSurface,
+                        color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface,
                         fontWeight = FontWeight.Medium
                     )
                     return@Column
@@ -988,13 +990,13 @@ private fun TextBubble(
                         .padding(horizontal = 10.dp, vertical = 7.dp)
                 ) {
                     if (isTranslating) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = if (isOwnMessage) TextWhite else Primary)
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = if (isOwnMessage) LocalSentBubbleContent.current else Primary)
                         Spacer(modifier = Modifier.width(6.dp))
                     }
                     Text(
                         text = translationText?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_translating),
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (isOwnMessage) TextWhite else OnSurface
+                        color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
                     )
                 }
             }
@@ -1027,7 +1029,7 @@ private fun TextBubble(
                         Text(
                             text = safetyWarning,
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (isOwnMessage) TextWhite else OnSurface
+                            color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
                         )
                         if (onDismissSafety != null) {
                             Spacer(modifier = Modifier.height(4.dp))
@@ -1077,7 +1079,7 @@ private fun TextBubble(
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = stringResource(R.string.chat_starred_status),
-                        tint = if (isOwnMessage) TextWhiteSecondary else Primary,
+                        tint = if (isOwnMessage) LocalSentBubbleContentSecondary.current else Primary,
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(modifier = Modifier.width(3.dp))
@@ -1086,7 +1088,7 @@ private fun TextBubble(
                     Icon(
                         imageVector = Icons.Outlined.NotificationsOff,
                         contentDescription = null,
-                        tint = if (isOwnMessage) TextWhiteSecondary else TextHint,
+                        tint = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint,
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(modifier = Modifier.width(3.dp))
@@ -1094,7 +1096,7 @@ private fun TextBubble(
                 Text(
                     text = formatTime(message.timestamp),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (isOwnMessage) TextWhiteSecondary else TextHint
+                    color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
                 )
                 DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = isOwnMessage)
                 if (message.editedAt != null) {
@@ -1102,7 +1104,7 @@ private fun TextBubble(
                     Text(
                         text = stringResource(R.string.message_edited),
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (isOwnMessage) TextWhiteSecondary else TextHint
+                        color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
                     )
                 }
                 if (isOwnMessage) {
@@ -1118,7 +1120,7 @@ private fun TextBubble(
                 if (onReply != null && message.type != MessageType.SYSTEM) {
                     Spacer(modifier = Modifier.width(4.dp))
                     androidx.compose.material3.TextButton(onClick = { onReply(message) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp)) {
-                        Text(stringResource(R.string.message_reply), style = MaterialTheme.typography.labelSmall, color = if (isOwnMessage) TextWhiteSecondary else TextHint)
+                        Text(stringResource(R.string.message_reply), style = MaterialTheme.typography.labelSmall, color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint)
                     }
                 }
             }
@@ -1529,12 +1531,12 @@ private fun VoiceBubble(
                         Text(
                             text = displayText,
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (isOwnMessage) TextWhite else OnSurface
+                            color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
                         )
                         Text(
                             text = formatTime(message.timestamp),
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isOwnMessage) TextWhiteSecondary else TextHint
+                            color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
                         )
                         DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = isOwnMessage)
                         // 1.176：未播语音红点（他人消息、未播放且未在播放中）
@@ -1546,7 +1548,7 @@ private fun VoiceBubble(
                             Text(
                                 text = speedLabel,
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = if (isOwnMessage) TextWhite else Primary,
+                                color = if (isOwnMessage) LocalSentBubbleContent.current else Primary,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
                                     .clickable {
@@ -1565,7 +1567,7 @@ private fun VoiceBubble(
                             Text(
                                 text = if (earpiece) "T" else "S",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = if (isOwnMessage) TextWhite else Primary,
+                                color = if (isOwnMessage) LocalSentBubbleContent.current else Primary,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
                                     .clickable(
@@ -1639,7 +1641,7 @@ private fun VoiceBubble(
                     Text(
                         text = stringResource(R.string.chat_transcribe),
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = if (isOwnMessage) TextWhite else Primary
+                        color = if (isOwnMessage) LocalSentBubbleContent.current else Primary
                     )
                 }
             } else if (isTranscribing || com.maodouchat.util.VoiceTranscriptPolicy.hasTranscript(voiceTranscript)) {
@@ -1669,14 +1671,14 @@ private fun VoiceBubble(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(14.dp).graphicsLayer { alpha = pulseAlpha },
                                 strokeWidth = 2.dp,
-                                color = if (isOwnMessage) TextWhite else Primary
+                                color = if (isOwnMessage) LocalSentBubbleContent.current else Primary
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                         }
                         Text(
                             text = body,
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (isOwnMessage) TextWhite else OnSurface,
+                            color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -1693,7 +1695,7 @@ private fun VoiceBubble(
                                         else R.string.chat_transcript_expand
                                     ),
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    color = if (isOwnMessage) TextWhite else Primary,
+                                    color = if (isOwnMessage) LocalSentBubbleContent.current else Primary,
                                     modifier = Modifier.clickable { expanded = !expanded }
                                 )
                             }
@@ -1701,7 +1703,7 @@ private fun VoiceBubble(
                                 Text(
                                     text = stringResource(R.string.chat_copy_transcript),
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    color = if (isOwnMessage) TextWhite else Primary,
+                                    color = if (isOwnMessage) LocalSentBubbleContent.current else Primary,
                                     modifier = Modifier.clickable {
                                         onCopyVoiceTranscript.invoke(
                                             com.maodouchat.util.VoiceTranscriptPolicy.normalize(voiceTranscript)
@@ -1974,15 +1976,15 @@ private fun FileBubble(
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(fileName, style = MaterialTheme.typography.bodyMedium, color = if (isOwnMessage) TextWhite else OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(fileDetails, style = MaterialTheme.typography.labelSmall, color = if (isOwnMessage) TextWhiteSecondary else TextHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(fileName, style = MaterialTheme.typography.bodyMedium, color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(fileDetails, style = MaterialTheme.typography.labelSmall, color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         transferStatus?.let { status ->
                             Text(
                                 status,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (transferState == AttachmentTransferState.FAILED) {
                                     if (isOwnMessage) Color.White else UnreadRed
-                                } else if (isOwnMessage) TextWhiteSecondary else TextHint,
+                                } else if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -2192,14 +2194,14 @@ private fun MessageStatusIcon(status: MessageStatus) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(12.dp),
                     strokeWidth = 1.5.dp,
-                    color = TextWhiteSecondary
+                    color = LocalSentBubbleContentSecondary.current
                 )
             }
             MessageStatus.SENT -> {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = stringResource(R.string.message_status_sent),
-                    tint = TextWhiteSecondary,
+                    tint = LocalSentBubbleContentSecondary.current,
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -2207,7 +2209,7 @@ private fun MessageStatusIcon(status: MessageStatus) {
                 Icon(
                     imageVector = Icons.Default.DoneAll,
                     contentDescription = stringResource(R.string.message_status_delivered),
-                    tint = TextWhiteSecondary,
+                    tint = LocalSentBubbleContentSecondary.current,
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -2289,7 +2291,7 @@ private fun DisappearCountdownLabel(
     Text(
         text = label,
         style = MaterialTheme.typography.labelSmall,
-        color = if (isOwnMessage) TextWhiteSecondary else Primary,
+        color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else Primary,
         modifier = modifier
     )
 }
@@ -2365,9 +2367,9 @@ private fun LinkPreviewCard(
     } else {
         palette.chatInputBackground
     }
-    val titleColor = if (isOwnMessage) TextWhite else OnSurface
-    val descColor = if (isOwnMessage) TextWhiteSecondary else TextSecondary
-    val hostColor = if (isOwnMessage) TextWhiteSecondary else TextHint
+    val titleColor = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
+    val descColor = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextSecondary
+    val hostColor = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
     val site = preview.siteName?.takeIf { it.isNotBlank() }
         ?: LinkPreviewPolicy.displayHost(preview.url)
 
@@ -2453,7 +2455,7 @@ private fun RichTextContent(
             ) {
                 withStyle(
                     androidx.compose.ui.text.SpanStyle(
-                        color = if (isOwnMessage) TextWhite else androidx.compose.ui.graphics.Color(0xFF4CAF50),
+                        color = if (isOwnMessage) LocalSentBubbleContent.current else androidx.compose.ui.graphics.Color(0xFF4CAF50),
                         fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
                     )
                 ) {
@@ -2464,7 +2466,7 @@ private fun RichTextContent(
         Text(
             text = annotatedCard,
             style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp),
-            color = if (isOwnMessage) TextWhite else OnSurface
+            color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
         )
         return
     }
@@ -2475,7 +2477,7 @@ private fun RichTextContent(
         Text(
             text = cleanText,
             style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp),
-            color = if (isOwnMessage) TextWhite else OnSurface
+            color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
         )
         return
     }
@@ -2533,7 +2535,7 @@ private fun RichTextContent(
     Text(
         text = annotated,
         style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp),
-        color = if (isOwnMessage) TextWhite else OnSurface
+        color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
     )
 }
 
@@ -2664,8 +2666,8 @@ private fun InteractivePollCard(
         loading = false
     }
 
-    val titleColor = if (isOwnMessage) TextWhite else OnSurface
-    val subColor = if (isOwnMessage) TextWhiteSecondary else TextHint
+    val titleColor = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
+    val subColor = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
     val chipBg = if (isOwnMessage) Color.White.copy(alpha = 0.14f) else Color.Black.copy(alpha = 0.06f)
     val selectedBg = if (isOwnMessage) Color.White.copy(alpha = 0.28f) else Primary.copy(alpha = 0.16f)
     val maxCount = (counts.maxOrNull() ?: 0).coerceAtLeast(1)

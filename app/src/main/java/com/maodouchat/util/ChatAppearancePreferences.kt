@@ -76,6 +76,12 @@ object ChatAppearancePreferences {
         return com.maodouchat.ui.theme.ChatBubbleColorPalette.normalize(raw)
     }
 
+    /** 用户是否显式自定义过气泡色（主题接管发送气泡配色时用于判断优先级）。 */
+    fun hasCustomBubbleColor(context: Context): Boolean {
+        val userId = currentUserId(context) ?: return false
+        return prefs(context).getString(key(KEY_BUBBLE_COLOR, userId), null) != null
+    }
+
     fun setBubbleColor(context: Context, colorId: String) {
         val userId = currentUserId(context) ?: return
         val normalized = com.maodouchat.ui.theme.ChatBubbleColorPalette.normalize(colorId)

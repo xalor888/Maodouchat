@@ -352,13 +352,18 @@ fun MaodouchatNavGraph(
             val chatIdArg = Uri.decode(entry.arguments?.getString("chatId") ?: "")
             val bubbleCtx = LocalContext.current
             val bubbleIsDark = androidx.compose.foundation.isSystemInDarkTheme()
-            val bubbleColor = remember(chatIdArg) {
+            val themeSentSpec = com.maodouchat.ui.theme.LocalSentBubbleSpec.current
+            val sentColors = remember(chatIdArg, themeSentSpec, bubbleIsDark) {
                 val id = com.maodouchat.util.ChatAppearancePreferences.getBubbleColor(bubbleCtx)
-                if (bubbleIsDark) com.maodouchat.ui.theme.ChatBubbleColorPalette.dark(id)
+                val userColor = if (bubbleIsDark) com.maodouchat.ui.theme.ChatBubbleColorPalette.dark(id)
                 else com.maodouchat.ui.theme.ChatBubbleColorPalette.light(id)
+                val customized = com.maodouchat.util.ChatAppearancePreferences.hasCustomBubbleColor(bubbleCtx)
+                com.maodouchat.ui.theme.resolveSentBubble(themeSentSpec, customized, userColor)
             }
             androidx.compose.runtime.CompositionLocalProvider(
-                com.maodouchat.ui.theme.LocalChatBubbleColor provides bubbleColor
+                com.maodouchat.ui.theme.LocalChatBubbleColor provides sentColors.bubble,
+                com.maodouchat.ui.theme.LocalSentBubbleContent provides sentColors.content,
+                com.maodouchat.ui.theme.LocalSentBubbleContentSecondary provides sentColors.contentSecondary
             ) {
                 ChatDetailScreen(
                     onBack = { navController.popBackStack() },
@@ -1606,13 +1611,18 @@ private fun ChatDetailListPaneRoute(navController: NavHostController) {
                     if (chatId.isNotBlank()) {
                         val bubbleCtx = LocalContext.current
                         val bubbleIsDark = androidx.compose.foundation.isSystemInDarkTheme()
-                        val bubbleColor = remember(chatId) {
+                        val themeSentSpec = com.maodouchat.ui.theme.LocalSentBubbleSpec.current
+                        val sentColors = remember(chatId, themeSentSpec, bubbleIsDark) {
                             val id = com.maodouchat.util.ChatAppearancePreferences.getBubbleColor(bubbleCtx)
-                            if (bubbleIsDark) com.maodouchat.ui.theme.ChatBubbleColorPalette.dark(id)
+                            val userColor = if (bubbleIsDark) com.maodouchat.ui.theme.ChatBubbleColorPalette.dark(id)
                             else com.maodouchat.ui.theme.ChatBubbleColorPalette.light(id)
+                            val customized = com.maodouchat.util.ChatAppearancePreferences.hasCustomBubbleColor(bubbleCtx)
+                            com.maodouchat.ui.theme.resolveSentBubble(themeSentSpec, customized, userColor)
                         }
                         androidx.compose.runtime.CompositionLocalProvider(
-                            com.maodouchat.ui.theme.LocalChatBubbleColor provides bubbleColor
+                            com.maodouchat.ui.theme.LocalChatBubbleColor provides sentColors.bubble,
+                            com.maodouchat.ui.theme.LocalSentBubbleContent provides sentColors.content,
+                            com.maodouchat.ui.theme.LocalSentBubbleContentSecondary provides sentColors.contentSecondary
                         ) {
                             ChatDetailScreen(
                                 onBack = { detailNavController.popBackStack() },

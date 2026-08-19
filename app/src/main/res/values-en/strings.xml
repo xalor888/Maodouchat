@@ -1910,6 +1910,13 @@
     <string name="general_theme_system">System</string>
     <string name="general_theme_light">Light</string>
     <string name="general_theme_dark">Dark</string>
+    <string name="general_theme_style_title">Theme Style</string>
+    <string name="general_theme_style_summary">Current: %1$s</string>
+    <string name="general_theme_style_maodou">Maodou (Default)</string>
+    <string name="general_theme_style_tg_classic">TG Classic</string>
+    <string name="general_theme_style_tg_midnight">TG Daybreak &amp; Midnight</string>
+    <string name="general_theme_style_tg_graphite">TG Ice &amp; Graphite</string>
+    <string name="general_theme_style_tg_badge">1:1 Replica</string>
     <string name="general_language_title">Language</string>
     <string name="general_language_system">System</string>
     <string name="general_language_chinese">简体中文</string>

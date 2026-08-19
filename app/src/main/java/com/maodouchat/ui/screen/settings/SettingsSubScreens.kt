@@ -8,6 +8,7 @@ import android.annotation.SuppressLint
 import android.content.ContextWrapper
 import android.os.Build
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +35,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Lock
@@ -2691,6 +2693,8 @@ fun GeneralSettingsScreen(
     var showClearConfirm by remember { mutableStateOf(false) }
     // 1.04：语言选择
     var showLanguageDialog by remember { mutableStateOf(false) }
+    // 9.200：主题风格选择（TG 1:1 还原主题）
+    var showThemeStyleDialog by remember { mutableStateOf(false) }
     var customWallpaperUri by remember {
         mutableStateOf(com.maodouchat.util.ChatAppearancePreferences.getCustomWallpaperUri(context))
     }
@@ -2726,6 +2730,14 @@ fun GeneralSettingsScreen(
                     .background(Surface, RoundedCornerShape(14.dp))
             ) {
                 ThemeRow(currentTheme = state.themeMode, onThemeChange = viewModel::setThemeMode)
+                androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
+                ActionRow(
+                    label = stringResource(R.string.general_theme_style_title),
+                    subtitle = stringResource(
+                        R.string.general_theme_style_summary,
+                        themeStyleName(state.themeStyle)
+                    )
+                ) { showThemeStyleDialog = true }
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 LanguageRow(
                     currentLanguage = state.languageMode,
@@ -2834,6 +2846,18 @@ fun GeneralSettingsScreen(
         )
     }
 
+    // 9.200：主题风格选择（含 TG 1:1 还原主题，浅/深双变体预览）
+    if (showThemeStyleDialog) {
+        ThemeStylePickerDialog(
+            currentStyle = state.themeStyle,
+            onSelect = { style ->
+                viewModel.setThemeStyle(style)
+                showThemeStyleDialog = false
+            },
+            onDismiss = { showThemeStyleDialog = false }
+        )
+    }
+
     // 1.04：语言选择（系统/中文/English）
     if (showLanguageDialog) {
         AlertDialog(
@@ -2867,6 +2891,149 @@ fun GeneralSettingsScreen(
             dismissButton = {
                 TextButton(onClick = { showLanguageDialog = false }) { Text(stringResource(R.string.common_cancel), color = TextSecondary) }
             }
+        )
+    }
+}
+
+@Composable
+private fun themeStyleName(style: String): String = when (com.maodouchat.ui.theme.ThemeFamily.normalize(style)) {
+    com.maodouchat.ui.theme.ThemeFamily.MAODOU -> stringResource(R.string.general_theme_style_maodou)
+    com.maodouchat.ui.theme.ThemeFamily.TG_CLASSIC -> stringResource(R.string.general_theme_style_tg_classic)
+    com.maodouchat.ui.theme.ThemeFamily.TG_MIDNIGHT -> stringResource(R.string.general_theme_style_tg_midnight)
+    com.maodouchat.ui.theme.ThemeFamily.TG_GRAPHITE -> stringResource(R.string.general_theme_style_tg_graphite)
+}
+
+/**
+ * 主题风格选择对话框：每个家族展示浅/深双变体的迷你聊天预览（背景 + 收发气泡），
+ * TG 系列附「1:1 还原」标记。
+ */
+@Composable
+private fun ThemeStylePickerDialog(
+    currentStyle: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val currentFamily = com.maodouchat.ui.theme.ThemeFamily.normalize(currentStyle)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.general_theme_style_title), style = MaterialTheme.typography.titleMedium) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                com.maodouchat.ui.theme.ThemeFamily.ALL.forEach { family ->
+                    ThemeStyleCard(
+                        family = family,
+                        selected = family == currentFamily,
+                        onClick = { onSelect(family.id) }
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel), color = TextSecondary) }
+        }
+    )
+}
+
+@Composable
+private fun ThemeStyleCard(
+    family: com.maodouchat.ui.theme.ThemeFamily,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val lightPaint = remember(family) { com.maodouchat.ui.theme.resolveThemePaint(family, dark = false) }
+    val darkPaint = remember(family) { com.maodouchat.ui.theme.resolveThemePaint(family, dark = true) }
+    val name = when (family) {
+        com.maodouchat.ui.theme.ThemeFamily.MAODOU -> stringResource(R.string.general_theme_style_maodou)
+        com.maodouchat.ui.theme.ThemeFamily.TG_CLASSIC -> stringResource(R.string.general_theme_style_tg_classic)
+        com.maodouchat.ui.theme.ThemeFamily.TG_MIDNIGHT -> stringResource(R.string.general_theme_style_tg_midnight)
+        com.maodouchat.ui.theme.ThemeFamily.TG_GRAPHITE -> stringResource(R.string.general_theme_style_tg_graphite)
+    }
+    val isTg = family != com.maodouchat.ui.theme.ThemeFamily.MAODOU
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            )
+            .then(
+                if (selected) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                else Modifier.border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+            )
+            .clickable(onClick = onClick)
+            .padding(10.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            if (isTg) {
+                Text(
+                    stringResource(R.string.general_theme_style_tg_badge),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        listOf(lightPaint, darkPaint).forEach { paint ->
+            ThemePreviewStrip(paint = paint)
+            Spacer(modifier = Modifier.height(6.dp))
+        }
+    }
+}
+
+/** 迷你聊天预览条：主题背景 + 收/发气泡，直观展示配色。 */
+@Composable
+private fun ThemePreviewStrip(paint: com.maodouchat.ui.theme.ThemePaint) {
+    val sentColor = paint.sentBubbleSpec?.color
+        ?: com.maodouchat.ui.theme.ChatBubbleSent
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(34.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(paint.chatPalette.chatBackground)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .width(64.dp)
+                .height(18.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(paint.chatPalette.chatBubbleReceived)
+                .then(
+                    Modifier.border(
+                        0.5.dp,
+                        paint.chatPalette.chatBubbleReceivedBorder,
+                        RoundedCornerShape(9.dp)
+                    )
+                )
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Box(
+            modifier = Modifier
+                .width(52.dp)
+                .height(18.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(sentColor)
         )
     }
 }
