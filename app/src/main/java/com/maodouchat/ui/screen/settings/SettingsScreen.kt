@@ -98,6 +98,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.widget.Toast
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.UserDto
@@ -426,6 +427,7 @@ private fun ProfileCard(
     onSetUsername: () -> Unit = {}
 ) {
     var showAvatarMenu by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         // clickable 放在最后一个 padding 之后，使卡片整体可点击
@@ -522,7 +524,20 @@ private fun ProfileCard(
                 // 显示模式
                 Text(name, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp), color = MaterialTheme.colorScheme.onSurface)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(stringResource(R.string.profile_maodou_id, userId), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
+                // 9.281：ID 视觉减重——完整 u_uuid 太长，展示缩写（前段+…+尾段），
+                // 点按复制完整 ID（加好友/客服排查仍可用全值）
+                val clipboard = LocalClipboardManager.current
+                val idCopiedMsg = stringResource(R.string.profile_id_copied)
+                val shortId = if (userId.length > 16) userId.take(10) + "…" + userId.takeLast(4) else userId
+                Text(
+                    stringResource(R.string.profile_maodou_id, shortId),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalChatPalette.current.textHint,
+                    modifier = Modifier.clickable {
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(userId))
+                        Toast.makeText(context, idCopiedMsg, Toast.LENGTH_SHORT).show()
+                    }
+                )
                 // 用户名显示（可点击设置）
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

@@ -1470,6 +1470,7 @@
     <string name="profile_remove_avatar">Remove profile photo</string>
     <string name="profile_saving">Saving</string>
     <string name="profile_maodou_id">Maodouchat ID: %1$s</string>
+    <string name="profile_id_copied">Full ID copied</string>
     <string name="profile_my_qr">My QR code</string>
     <string name="settings_set_username">Set username</string>
     <string name="settings_username_title">Set username</string>
@@ -2629,9 +2630,9 @@
     <string name="fake_chat_guide_1">1. With fake chat mode on, opening or returning to the app always shows the harmless chat screen; your real chats stay fully hidden</string>
     <string name="fake_chat_guide_2">2. Long-press the title on the fake chat screen and enter the PIN to reach the real app</string>
     <string name="fake_chat_guide_3">3. Pair it with “Re-lock when returning” so the app re-hides itself after every background cycle</string>
-    <string name="fake_chat_peer_name">Maodou Store Support</string>
-    <string name="fake_chat_peer_status">Online · 3G</string>
-    <string name="fake_chat_announcement" formatted="false">Maodou Store Summer Sale — up to 50% off everything</string>
+    <string name="fake_chat_peer_name">Alex</string>
+    <string name="fake_chat_peer_status">last seen 5 minutes ago</string>
+    <string name="fake_chat_announcement"></string>
     <string name="fake_chat_input_hint">Type a message…</string>
     <string name="fake_chat_send">Send</string>
     <string name="fake_chat_pin_title">Verify</string>

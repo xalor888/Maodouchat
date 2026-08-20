@@ -179,43 +179,44 @@ private fun FakeChatTopBar(onUnlockRequest: () -> Unit, modifier: Modifier = Mod
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
             )
         )
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
-        ) {
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                stringResource(R.string.fake_chat_announcement),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f).padding(vertical = 6.dp)
-            )
-            Icon(
-                Icons.Outlined.KeyboardArrowDown,
-                contentDescription = null,
-                tint = LocalChatPalette.current.textSecondary,
-                modifier = Modifier.size(18.dp).padding(end = 12.dp)
-            )
+        // 9.282：公告条仅在有内容时渲染（朋友单聊人设下空公告不再占位）
+        val announcement = stringResource(R.string.fake_chat_announcement)
+        if (announcement.isNotBlank()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
+            ) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    announcement,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f).padding(vertical = 6.dp)
+                )
+                Icon(
+                    Icons.Outlined.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = LocalChatPalette.current.textSecondary,
+                    modifier = Modifier.size(18.dp).padding(end = 12.dp)
+                )
+            }
         }
     }
 }
 
 private data class FakeMessage(val text: String, val isMine: Boolean, val time: String)
 
+// 9.282：示例对话去客服腔——改为真实朋友间的日常对话，降低「一眼假」感
 private val fakeMessages = listOf(
-    FakeMessage("您好，这里是毛豆商城客服小助手，请问有什么可以帮您？", false, "09:12"),
-    FakeMessage("你好，我想查一下我的快递到哪了", true, "09:13"),
-    FakeMessage("好的，请提供一下您的订单号哦～", false, "09:13"),
-    FakeMessage("订单号 MD202608014236", true, "09:14"),
-    FakeMessage("查询到您的包裹正在派送中，预计今天 18:00 前送达，请保持电话畅通～", false, "09:15"),
-    FakeMessage("好的，谢谢", true, "09:16"),
-    FakeMessage("不客气～还有其他需要帮助的吗？", false, "09:16"),
-    FakeMessage("明天天气怎么样？", true, "09:17"),
-    FakeMessage("明天多云转晴，气温 24~31℃，适合出门散步哦 🌤️", false, "09:18"),
-    FakeMessage("对了，周三开会要用的资料麻烦你帮我记一下", true, "09:20"),
-    FakeMessage("已经帮您记到备忘录了：周三 14:00 会议室 B，产品迭代评审。", false, "09:21"),
-    FakeMessage("好的没问题！", true, "09:22"),
-    FakeMessage("温馨提示：本月账单已出，记得及时查看哦～", false, "09:25"),
+    FakeMessage("晚上打球不？老地方", false, "18:02"),
+    FakeMessage("几点", true, "18:05"),
+    FakeMessage("七点半，老周说他也能来", false, "18:05"),
+    FakeMessage("行，那我下班直接过去", true, "18:06"),
+    FakeMessage("带瓶水就行，场地我订好了", false, "18:07"),
+    FakeMessage("对了上次那个视频你存了吗", true, "18:09"),
+    FakeMessage("存了，回去发你", false, "18:10"),
+    FakeMessage("ok", true, "18:10"),
+    FakeMessage("晚上见", false, "18:11"),
 )
 
 @Composable

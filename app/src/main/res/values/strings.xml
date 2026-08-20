@@ -1450,6 +1450,7 @@
     <string name="profile_remove_avatar">移除头像</string>
     <string name="profile_saving">保存中</string>
     <string name="profile_maodou_id">毛豆聊天号：%1$s</string>
+    <string name="profile_id_copied">已复制完整 ID</string>
     <string name="profile_my_qr">我的二维码</string>
     <!-- 用户名设置 -->
     <string name="settings_set_username">设置用户名</string>
@@ -2603,9 +2604,9 @@
     <string name="fake_chat_guide_1">1. 开启假聊天模式后，每次进入或回到 App 都会先展示普通聊天界面，真实聊天内容完全隐藏</string>
     <string name="fake_chat_guide_2">2. 长按假聊天界面顶部标题，输入解锁密码进入真实 App</string>
     <string name="fake_chat_guide_3">3. 建议配合「返回时重新锁定」使用，退到后台后自动重新隐藏</string>
-    <string name="fake_chat_peer_name">毛豆商城客服</string>
-    <string name="fake_chat_peer_status">在线 · 3G</string>
-    <string name="fake_chat_announcement" formatted="false">毛豆商城 618 大促火热进行中，全场 5 折起</string>
+    <string name="fake_chat_peer_name">阿凯</string>
+    <string name="fake_chat_peer_status">最近在线 5 分钟前</string>
+    <string name="fake_chat_announcement"></string>
     <string name="fake_chat_input_hint">请输入内容…</string>
     <string name="fake_chat_send">发送</string>
     <string name="fake_chat_pin_title">验证</string>
