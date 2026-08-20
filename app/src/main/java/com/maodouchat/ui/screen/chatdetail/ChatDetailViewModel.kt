@@ -4568,6 +4568,77 @@ class ChatDetailViewModel(
         }
     }
 
+    /**
+     * 9.227：批量收藏/取消收藏——单协程内串行逐条执行。旧多选实现对每条并发触发
+     * [toggleStarMessage]，选 20 条即 20 个并发 REST（限流/服务端放大风险）且警告互相覆盖；
+     * 现批量乐观更新后串行确认，单条失败仅回滚该条，末尾统一汇总提示。
+     */
+    fun toggleStarMessagesBatch(messageIds: List<String>, shouldStar: Boolean) {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_STARRING)) {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.message_starring_disabled)) }
+            return
+        }
+        // Surface #70: 密聊 star 门控 - 防止通过 star 留存密聊内容索引
+        if (_uiState.value.isSecretChat == true && RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_STAR_BLOCK)) {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_star_blocked)) }
+            return
+        }
+        val starOwnerUserId = currentUserId
+        if (token.isBlank() || starOwnerUserId.isBlank()) {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
+            return
+        }
+        val idSet = messageIds.toSet()
+        val targets = _uiState.value.messages.filter { it.id in idSet && it.starred != shouldStar }
+        if (targets.isEmpty()) return
+        // 批量乐观更新，列表/气泡立即翻转；失败逐条回滚
+        val targetIds = targets.map { it.id }.toSet()
+        _uiState.update { state ->
+            state.copy(messages = state.messages.map { if (it.id in targetIds) it.copy(starred = shouldStar) else it })
+        }
+        viewModelScope.launch {
+            var failed = 0
+            try {
+                for (msg in targets) {
+                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                            expectedUserId = starOwnerUserId,
+                            liveToken = tokenManager.getToken(),
+                            liveUserId = tokenManager.getUserId(),
+                        )
+                    ) {
+                        _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
+                        return@launch
+                    }
+                    val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+                    ApiService.toggleStarMessage(liveToken, msg.id).fold(
+                        onSuccess = { response ->
+                            val updated = msg.copy(starred = response.starred)
+                            _uiState.update { state ->
+                                state.copy(messages = state.messages.map { if (it.id == msg.id) updated else it })
+                            }
+                            withContext(Dispatchers.IO) { messageRepo.insertMessage(updated) }
+                        },
+                        onFailure = { _ ->
+                            failed++
+                            _uiState.update { state ->
+                                state.copy(messages = state.messages.map { if (it.id == msg.id) msg else it })
+                            }
+                        }
+                    )
+                }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            }
+            _uiState.update {
+                it.copy(
+                    groupEncryptionWarning = if (failed == 0) {
+                        if (shouldStar) text(R.string.chat_starred_status) else text(R.string.chat_unstarred_status)
+                    } else text(R.string.chat_star_failed)
+                )
+            }
+        }
+    }
+
     private class ReactionLock(val mutex: kotlinx.coroutines.sync.Mutex = kotlinx.coroutines.sync.Mutex(), var users: Int = 0)
     private val reactionLocks = java.util.concurrent.ConcurrentHashMap<String, ReactionLock>()
 

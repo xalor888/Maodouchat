@@ -3524,9 +3524,8 @@ DropdownMenuItem(
                         viewModel.loadForwardTargets()
                     },
                     onToggleStar = {
-                        selectedMessages
-                            .filter { it.starred != shouldStar }
-                            .forEach { viewModel.toggleStarMessage(it.id) }
+                        // 9.227：改串行批量，避免逐条并发触发 toggleStarMessage 扇出 N 个 REST
+                        viewModel.toggleStarMessagesBatch(selectedMessages.map { it.id }, shouldStar)
                         selectedMessageIds = emptySet()
                     },
                     onDelete = { showBatchDeleteConfirm = true },
