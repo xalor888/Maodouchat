@@ -178,6 +178,11 @@ jobs:
       - name: Validate Docker Compose config
         run: docker compose --env-file .env.docker.example config
 
+      - name: Validate selfhost Compose config (release-shipped artifact)
+        # 9.245：自部署套件随 Release 分发到用户手里，语法/变量错误只能在用户
+        # 部署时才暴露——CI 预先用示例变量验证（与主 compose 同等待遇）
+        run: docker compose -f deploy/docker-compose.selfhost.yml --env-file .env.docker.example config
+
       - name: Verify production network isolation
         run: |
           docker compose --env-file .env.docker.example config --format json > /tmp/maodouchat-compose.json
