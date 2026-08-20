@@ -1859,8 +1859,21 @@ private fun formatChatTime(ts: Long): String {
     return if (cal.get(Calendar.YEAR) == msg.get(Calendar.YEAR) && cal.get(Calendar.DAY_OF_YEAR) == msg.get(Calendar.DAY_OF_YEAR)) {
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ts))
     } else {
-        SimpleDateFormat("MM/dd", Locale.getDefault()).format(Date(ts))
+        // 9.278：TG 式时间分段——近一周内显示星期缩写（如「周一」/Mon），更早才显示日期
+        val dayDiff = daysBetween(msg, cal)
+        if (dayDiff in 1..6) {
+            SimpleDateFormat("EEE", Locale.getDefault()).format(Date(ts))
+        } else {
+            SimpleDateFormat("MM/dd", Locale.getDefault()).format(Date(ts))
+        }
     }
+}
+
+/** 两个日历之间的自然日差（按零点对齐）。 */
+private fun daysBetween(earlier: Calendar, later: Calendar): Int {
+    val e = Calendar.getInstance().apply { timeInMillis = earlier.timeInMillis; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
+    val l = Calendar.getInstance().apply { timeInMillis = later.timeInMillis; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
+    return ((l.timeInMillis - e.timeInMillis) / 86400000L).toInt()
 }
 
 /**
