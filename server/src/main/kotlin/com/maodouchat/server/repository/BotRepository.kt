@@ -46,6 +46,8 @@ object BotRepository {
     // 8.48 修复 L1：收件箱事件 JSON 上限——超过即拒写（take 截断会从多字节字符/JSON token
     // 中间切断产生损坏行，bot 轮询解析抛异常）。正常事件远小于该值。
     private const val MAX_UPDATE_JSON_CHARS = 16_000
+    // 9.237：单 bot 收件箱积压上限（超限 FIFO 淘汰最旧，见 evictOldestInboxLocked）
+    private const val MAX_INBOX_PENDING_PER_BOT = 500L
     private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
     private val logger = org.slf4j.LoggerFactory.getLogger(BotRepository::class.java)
 
@@ -393,11 +395,31 @@ object BotRepository {
                 .forUpdate()
                 .firstOrNull() ?: return@transaction
             if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction
+            evictOldestInboxLocked(botId)
             BotUpdateInbox.insert {
                 it[BotUpdateInbox.botId] = botId
                 it[BotUpdateInbox.updateJson] = updateJson
                 it[createdAt] = now
             }
+        }
+    }
+
+    /**
+     * 9.237：每 bot 积压封顶——停止轮询的 bot 不得让 bot_update_inbox 无限增长
+     * （否则其所在群聊的消息洪泛可廉价放大 DB 写入）；超限按 FIFO 淘汰最旧，
+     * 保留最近事件。须在事务内调用。
+     */
+    private fun evictOldestInboxLocked(botId: String) {
+        val pending = BotUpdateInbox.selectAll().where { BotUpdateInbox.botId eq botId }.count()
+        if (pending < MAX_INBOX_PENDING_PER_BOT) return
+        val overflow = (pending - MAX_INBOX_PENDING_PER_BOT + 1L).coerceAtLeast(1L).toInt()
+        val oldestIds = BotUpdateInbox.selectAll()
+            .where { BotUpdateInbox.botId eq botId }
+            .orderBy(BotUpdateInbox.id to org.jetbrains.exposed.sql.SortOrder.ASC)
+            .limit(overflow)
+            .map { it[BotUpdateInbox.id] }
+        if (oldestIds.isNotEmpty()) {
+            BotUpdateInbox.deleteWhere { BotUpdateInbox.id inList oldestIds }
         }
     }
 
@@ -459,6 +481,7 @@ object BotRepository {
             ?: return@transaction false
         if (message[Messages.chatId] != chatId || message[Messages.senderId] != botId) return@transaction false
         if (!containsCallbackData(message[Messages.content], callbackData)) return@transaction false
+        evictOldestInboxLocked(botId)
         BotUpdateInbox.insert {
             it[BotUpdateInbox.botId] = botId
             it[BotUpdateInbox.updateJson] = updateJson
