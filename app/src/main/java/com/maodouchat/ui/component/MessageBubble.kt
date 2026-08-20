@@ -69,6 +69,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -554,6 +555,9 @@ private fun TextBubble(
     memberRole: String? = null
 ) {
     val palette = LocalChatPalette.current
+    // 9.252：TG 式动态气泡宽度——此前固定 280dp，大屏上气泡偏窄、长文本折行过多
+    // 观感拥挤；参考 TG ChatMessageCell 按屏宽比例（平板封顶 480dp）
+    val bubbleMaxWidth = (LocalConfiguration.current.screenWidthDp * 0.78f).coerceAtMost(480f).dp
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start,
@@ -575,7 +579,7 @@ private fun TextBubble(
 
         Column(
             horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start,
-            modifier = Modifier.widthIn(max = 280.dp)
+            modifier = Modifier.widthIn(max = bubbleMaxWidth)
         ) {
             // 发送者名称（接收方）——1.44：点击打开发送者资料
             if (!isOwnMessage && senderName != null && showAvatar) {
@@ -979,7 +983,7 @@ private fun TextBubble(
                 secretChat = !secretChatId.isNullOrBlank(),
                 modifier = Modifier
                     .padding(top = 4.dp)
-                    .widthIn(max = 280.dp)
+                    .widthIn(max = bubbleMaxWidth)
             )
 
             if (isTranslating || !translationText.isNullOrBlank()) {
@@ -987,7 +991,7 @@ private fun TextBubble(
                 Row(
                     verticalAlignment = Alignment.Top,
                     modifier = Modifier
-                        .widthIn(max = 280.dp)
+                        .widthIn(max = bubbleMaxWidth)
                         .clip(RoundedCornerShape(10.dp))
                         .background(if (isOwnMessage) LocalChatBubbleColor.current.copy(alpha = 0.58f) else palette.chatInputBackground)
                         .padding(horizontal = 10.dp, vertical = 7.dp)
@@ -1016,7 +1020,7 @@ private fun TextBubble(
                 Row(
                     verticalAlignment = Alignment.Top,
                     modifier = Modifier
-                        .widthIn(max = 280.dp)
+                        .widthIn(max = bubbleMaxWidth)
                         .clip(RoundedCornerShape(10.dp))
                         .background(Error.copy(alpha = if (isOwnMessage) 0.18f else 0.10f))
                         .padding(horizontal = 10.dp, vertical = 7.dp)
