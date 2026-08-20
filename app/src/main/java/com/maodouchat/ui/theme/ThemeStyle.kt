@@ -126,12 +126,15 @@ private val TgClassicPalette = ChatPalette(
     chatBubbleReceivedBorder = Color(0xFFE1E5EA),
     chatInputBackground = Color(0xFFF4F4F5),
     chatInputBorder = Color(0xFFD9DCE0),
-    chatInputPlaceholder = Color(0xFF9BA1A6),
+    // 9.263：TG 浅色文字对比度校准——TG 官方 #9BA1A6 时间戳仅 2.18:1，
+    // 保持同色相提亮到 #6D7378（浅背景 4.3:1 / 白气泡 4.8:1）
+    chatInputPlaceholder = Color(0xFF6D7378),
     systemMessageBackground = Color(0x26FFFFFF),
     systemMessageText = Color(0xFF60666B),
-    textHint = Color(0xFF9BA1A6),
+    textHint = Color(0xFF6D7378),
     textPrimary = Color(0xFF000000),
-    textSecondary = Color(0xFF707579),
+    // #707579→#5F6574（浅背景 3.88→5.2 达标）
+    textSecondary = Color(0xFF5F6574),
     divider = Color(0xFFE4E6EA),
     unreadRed = Color(0xFFDF3828),
     onlineGreen = Color(0xFF34C759),
@@ -188,12 +191,15 @@ private val TgDaybreakPalette = ChatPalette(
     chatBubbleReceivedBorder = Color(0xFFEFDCCC),
     chatInputBackground = Color(0xFFFAF0E7),
     chatInputBorder = Color(0xFFE8D5C4),
-    chatInputPlaceholder = Color(0xFFAD9684),
+    chatInputPlaceholder = Color(0xFF75635A),
     systemMessageBackground = Color(0x26FFFFFF),
     systemMessageText = Color(0xFF8A7468),
-    textHint = Color(0xFFAD9684),
+    // 9.263：Daybreak 对比度校准——#AD9684 仅 2.38:1，同色相加深到 #75635A
+    //（暖背景 4.8:1 / 白气泡 5.7:1）
+    textHint = Color(0xFF75635A),
     textPrimary = Color(0xFF2B1D14),
-    textSecondary = Color(0xFF8A7468),
+    // #8A7468→#6E5C50（3.72→5.38）
+    textSecondary = Color(0xFF6E5C50),
     divider = Color(0xFFF0E2D5),
     unreadRed = Color(0xFFE85D4A),
     onlineGreen = Color(0xFF34C759),
@@ -250,12 +256,15 @@ private val TgIcePalette = ChatPalette(
     chatBubbleReceivedBorder = Color(0xFFDDE6EE),
     chatInputBackground = Color(0xFFEFF4F9),
     chatInputBorder = Color(0xFFD8E2EB),
-    chatInputPlaceholder = Color(0xFF98A6B4),
+    chatInputPlaceholder = Color(0xFF62707D),
     systemMessageBackground = Color(0x26FFFFFF),
     systemMessageText = Color(0xFF6F7C8A),
-    textHint = Color(0xFF98A6B4),
+    // 9.263：Ice 对比度校准——#98A6B4 仅 2.16:1，同色相加深到 #62707D
+    //（冷背景 4.4:1 / 白气泡 5.1:1）
+    textHint = Color(0xFF62707D),
     textPrimary = Color(0xFF14202B),
-    textSecondary = Color(0xFF6F7C8A),
+    // #6F7C8A→#576470（3.71→5.27）
+    textSecondary = Color(0xFF576470),
     divider = Color(0xFFE3E9EF),
     unreadRed = Color(0xFFDF3828),
     onlineGreen = Color(0xFF34C759),
