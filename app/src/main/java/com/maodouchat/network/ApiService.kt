@@ -392,9 +392,12 @@ object ApiService {
         memoryAccessToken = auth.token
         memoryAccessTokenExpiresAt = auth.expiresAt
         memoryAccessTokenOwnerUserId = expectedUserId
-        // REST 刷新后立刻让 WS 用新 JWT 重连，避免 scheduleReconnect 继续用过期 token
+        // REST 刷新后立刻让 WS 用新 JWT 重连，避免 scheduleReconnect 继续用过期 token。
+        // 9.234：传 isReconnect=true + 当前会话代号——此前默认 isReconnect=false 走「手动连接」
+        // 语义，绕过 disconnect() 的 shouldReconnect 守卫，登出瞬间晚到的 refresh 会拿旧账号
+        // 新 token 复活连接（旧账号持续在线污染事件流）；重连预算也得以继承而非被清零。
         runCatching {
-            WebSocketClient.connect(ApiConfig.WS_URL, auth.token)
+            WebSocketClient.connect(ApiConfig.WS_URL, auth.token, isReconnect = true)
         }
         RefreshOutcome.Success(auth.token)
         }
