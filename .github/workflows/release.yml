@@ -208,3 +208,123 @@ jobs:
           prerelease: ${{ github.event.inputs.prerelease == 'true' }}
           files: |
             release-assets/*
+
+      - name: Notify Yunhu about release
+        if: success()
+        continue-on-error: true
+        env:
+          BOT_SEND_TOKEN_VAR: ${{ vars.YHCHAT_BOT_SEND_TOKEN }}
+          BOT_SEND_TOKEN_SECRET: ${{ secrets.YHCHAT_BOT_SEND_TOKEN }}
+          BOT_RECV_ID_VAR: ${{ vars.YHCHAT_BOT_RECV_ID }}
+          BOT_RECV_ID_SECRET: ${{ secrets.YHCHAT_BOT_RECV_ID }}
+          BOT_RECV_TYPE_VAR: ${{ vars.YHCHAT_BOT_RECV_TYPE }}
+          BOT_RECV_TYPE_SECRET: ${{ secrets.YHCHAT_BOT_RECV_TYPE }}
+        run: |
+          BOT_SEND_TOKEN="${BOT_SEND_TOKEN_VAR:-$BOT_SEND_TOKEN_SECRET}"
+          BOT_RECV_ID="${BOT_RECV_ID_VAR:-$BOT_RECV_ID_SECRET}"
+          BOT_RECV_TYPE="${BOT_RECV_TYPE_VAR:-${BOT_RECV_TYPE_SECRET:-user}}"
+
+          if [ -z "$BOT_SEND_TOKEN" ] || [ -z "$BOT_RECV_ID" ]; then
+            echo "Skip Yunhu notify (YHCHAT_BOT_SEND_TOKEN / YHCHAT_BOT_RECV_ID not set)"
+            exit 0
+          fi
+
+          SEND_URL="https://chat-go.jwzhd.com/open-apis/v1/bot/send?token=${BOT_SEND_TOKEN}"
+          UPLOAD_URL="https://chat-go.jwzhd.com/open-apis/v1/file/upload?token=${BOT_SEND_TOKEN}"
+
+          send_markdown() {
+            local text="$1"
+            local payload
+            payload=$(jq -n \
+              --arg recvId "$BOT_RECV_ID" \
+              --arg recvType "$BOT_RECV_TYPE" \
+              --arg text "$text" \
+              '{recvId: $recvId, recvType: $recvType, contentType: "markdown", content: {text: $text}}')
+            curl --fail-with-body -sS -X POST "$SEND_URL" -H "Content-Type: application/json" -d "$payload"
+          }
+
+          # 上传文件拿 fileKey（云湖限制单文件 ≤20MB），再以 file 消息发出
+          send_file() {
+            local file_path="$1"
+            local file_name upload_response file_key payload
+            file_name=$(basename "$file_path")
+            upload_response=$(curl --fail-with-body -sS \
+              -X POST "$UPLOAD_URL" \
+              -F "file=@${file_path};filename=${file_name}") || return 1
+            file_key=$(printf '%s' "$upload_response" | jq -r '.data.fileKey // empty')
+            if [ -z "$file_key" ]; then
+              echo "Upload did not return fileKey for ${file_name}"
+              return 1
+            fi
+            payload=$(jq -n \
+              --arg recvId "$BOT_RECV_ID" \
+              --arg recvType "$BOT_RECV_TYPE" \
+              --arg fileKey "$file_key" \
+              '{recvId: $recvId, recvType: $recvType, contentType: "file", content: {fileKey: $fileKey}}')
+            curl --fail-with-body -sS -X POST "$SEND_URL" -H "Content-Type: application/json" -d "$payload"
+          }
+
+          VERSION="${{ steps.version.outputs.version }}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.tag }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          cat > build-body.md <<EOF
+          ### 🎉 Maodouchat v${VERSION} 发布成功
+
+          **commit**: \`${GITHUB_SHA:0:7}\`
+          **触发者**: ${{ github.actor }}
+          **构建时间**: $(date +'%Y-%m-%d %H:%M:%S')
+
+          ### 产物
+          - APK 安装包（已随本消息发送文件）
+          - selfhost 套件（已随本消息发送文件）
+          - 服务端包 53MB 超云湖 20MB 上传限制，见下载链接
+
+          ### 链接
+          [Release 下载页](${RELEASE_URL}) · [构建详情](${RUN_URL})
+          EOF
+
+          if ! send_markdown "$(cat build-body.md)"; then
+            echo "Yunhu markdown notification failed"
+            exit 0
+          fi
+
+          # 直传 ≤20MB 的产物：APK + selfhost 套件
+          for f in "release-assets/maodouchat-${VERSION}.apk" "release-assets/maodouchat-selfhost-${VERSION}.tar.gz"; do
+            if [ -f "$f" ]; then
+              SIZE=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
+              if [ "$SIZE" -lt 20971520 ]; then
+                send_file "$f" || echo "Bot file send failed: $f"
+              else
+                echo "$(basename "$f") is $(($SIZE / 1048576))MB >= 20MB, sent link only"
+              fi
+            fi
+          done
+
+      - name: Notify Yunhu about failure
+        if: failure()
+        continue-on-error: true
+        env:
+          BOT_SEND_TOKEN_VAR: ${{ vars.YHCHAT_BOT_SEND_TOKEN }}
+          BOT_SEND_TOKEN_SECRET: ${{ secrets.YHCHAT_BOT_SEND_TOKEN }}
+          BOT_RECV_ID_VAR: ${{ vars.YHCHAT_BOT_RECV_ID }}
+          BOT_RECV_ID_SECRET: ${{ secrets.YHCHAT_BOT_RECV_ID }}
+          BOT_RECV_TYPE_VAR: ${{ vars.YHCHAT_BOT_RECV_TYPE }}
+          BOT_RECV_TYPE_SECRET: ${{ secrets.YHCHAT_BOT_RECV_TYPE }}
+        run: |
+          BOT_SEND_TOKEN="${BOT_SEND_TOKEN_VAR:-$BOT_SEND_TOKEN_SECRET}"
+          BOT_RECV_ID="${BOT_RECV_ID_VAR:-$BOT_RECV_ID_SECRET}"
+          BOT_RECV_TYPE="${BOT_RECV_TYPE_VAR:-${BOT_RECV_TYPE_SECRET:-user}}"
+
+          if [ -z "$BOT_SEND_TOKEN" ] || [ -z "$BOT_RECV_ID" ]; then
+            exit 0
+          fi
+
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          payload=$(jq -n \
+            --arg recvId "$BOT_RECV_ID" \
+            --arg recvType "$BOT_RECV_TYPE" \
+            --arg text "### ❌ Maodouchat Release 构建失败\n\n**版本**: ${{ steps.version.outputs.version || github.ref_name }}\n\n[查看失败日志](${RUN_URL})" \
+            '{recvId: $recvId, recvType: $recvType, contentType: "markdown", content: {text: $text}}')
+          curl --fail-with-body -sS -X POST "https://chat-go.jwzhd.com/open-apis/v1/bot/send?token=${BOT_SEND_TOKEN}" \
+            -H "Content-Type: application/json" -d "$payload"
