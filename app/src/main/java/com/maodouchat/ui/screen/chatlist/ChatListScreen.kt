@@ -1722,9 +1722,17 @@ fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             Surface(
                 shape = RoundedCornerShape(26.dp),
                 color = glassColor,
+                // 9.256：玻璃质感增强——顶边高光渐变描边（借鉴 Murexide 液态玻璃
+                // highlight 思路）：上缘亮、两侧渐淡，比普通细描边更接近真实玻璃观感
                 border = BorderStroke(
-                    0.5.dp,
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+                    1.dp,
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(
+                            Color.White.copy(alpha = if (isLightSurface) 0.55f else 0.28f),
+                            Color.White.copy(alpha = 0.10f),
+                            Color.White.copy(alpha = if (isLightSurface) 0.22f else 0.10f)
+                        )
+                    )
                 ),
                 shadowElevation = 14.dp,
                 tonalElevation = 0.dp

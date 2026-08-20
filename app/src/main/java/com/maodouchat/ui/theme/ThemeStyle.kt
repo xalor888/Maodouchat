@@ -304,18 +304,40 @@ data class SentBubbleColors(
 /**
  * 计算生效的发送气泡配色：
  * - 当前主题有专属发送气泡（TG 系列）且用户未自定义过气泡色 → 主题接管（1:1 还原）；
- * - 否则沿用用户自选气泡色，按亮度自动选择深/浅文字（高亮气泡用深色墨字）。
+ * - 否则沿用用户自选气泡色，按 WCAG 4.5:1 对比度自动选深/浅文字
+ *   （9.255：借鉴 Murexide 对比度保证机制——旧 0.6 亮度阈值在中灰气泡上
+ *   两种文字都不够清晰，现直接算对比度达标性）。
  */
 fun resolveSentBubble(spec: SentBubbleSpec?, userCustomized: Boolean, userColor: Color): SentBubbleColors {
     if (spec != null && !userCustomized) {
         return SentBubbleColors(spec.color, spec.content, spec.contentSecondary)
     }
-    val luminance = relativeLuminance(userColor)
-    return if (luminance > 0.6f) {
+    val darkTextContrast = contrastRatio(Color(0xFF212121), userColor)
+    val whiteTextContrast = contrastRatio(TextWhite, userColor)
+    return if (darkTextContrast >= whiteTextContrast && darkTextContrast >= MIN_TEXT_CONTRAST) {
         SentBubbleColors(userColor, Color(0xFF212121), Color(0x99212121))
-    } else {
+    } else if (whiteTextContrast >= MIN_TEXT_CONTRAST) {
         SentBubbleColors(userColor, TextWhite, TextWhiteSecondary)
+    } else {
+        // 两边都不达标时取对比度更高的一侧（兜底，实际中灰以上必有一侧达标）
+        if (darkTextContrast >= whiteTextContrast) {
+            SentBubbleColors(userColor, Color(0xFF212121), Color(0x99212121))
+        } else {
+            SentBubbleColors(userColor, TextWhite, TextWhiteSecondary)
+        }
     }
+}
+
+/** WCAG AA 正文最低对比度（与 Murexide DEFAULT_MINIMUM_TEXT_CONTRAST 同值）。 */
+const val MIN_TEXT_CONTRAST = 4.5f
+
+/** WCAG 对比度（(L1+0.05)/(L2+0.05)，1..21）。 */
+fun contrastRatio(foreground: Color, background: Color): Float {
+    val l1 = relativeLuminance(foreground)
+    val l2 = relativeLuminance(background)
+    val lighter = maxOf(l1, l2)
+    val darker = minOf(l1, l2)
+    return (lighter + 0.05f) / (darker + 0.05f)
 }
 
 /** WCAG 相对亮度（0=黑，1=白），用于自动选择气泡内文字深浅。 */
