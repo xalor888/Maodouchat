@@ -2866,4 +2866,13 @@
     <string name="general_oled_black_title">纯黑深色（OLED）</string>
     <string name="general_oled_black_subtitle">深色模式下背景纯黑，OLED 屏幕更省电</string>
     <string name="general_theme_style_longpress_hint">点按选择主题；长按可临时预览，松手恢复</string>
+    <string name="theme_preset_tg_green">TG 绿</string>
+    <string name="theme_preset_tg_blue">TG 蓝</string>
+    <string name="theme_preset_sakura">樱花粉</string>
+    <string name="theme_preset_mint">薄荷绿</string>
+    <string name="theme_preset_cream">奶油黄</string>
+    <string name="theme_preset_tg_night">TG 夜蓝</string>
+    <string name="theme_preset_amoled">纯黑</string>
+    <string name="theme_preset_dark_violet">暗紫夜</string>
+    <string name="theme_preset_dark_forest">暗夜森林</string>
 </resources>

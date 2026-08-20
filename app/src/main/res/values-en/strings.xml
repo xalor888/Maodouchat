@@ -2900,4 +2900,13 @@
     <string name="general_oled_black_title">Pure black (OLED)</string>
     <string name="general_oled_black_subtitle">Pure black background in dark mode, saves battery on OLED</string>
     <string name="general_theme_style_longpress_hint">Tap to select; long-press to preview, release to restore</string>
+    <string name="theme_preset_tg_green">TG Green</string>
+    <string name="theme_preset_tg_blue">TG Blue</string>
+    <string name="theme_preset_sakura">Sakura</string>
+    <string name="theme_preset_mint">Mint</string>
+    <string name="theme_preset_cream">Cream</string>
+    <string name="theme_preset_tg_night">TG Night</string>
+    <string name="theme_preset_amoled">Amoled</string>
+    <string name="theme_preset_dark_violet">Dark Violet</string>
+    <string name="theme_preset_dark_forest">Dark Forest</string>
 </resources>

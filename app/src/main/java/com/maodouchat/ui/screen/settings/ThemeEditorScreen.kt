@@ -6,6 +6,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +56,122 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.util.CustomThemeStore
+
+/**
+ * 9.260：快速配色预设（TG 社区热门配色一键应用）——每个预设是一组 槽位→颜色，
+ * 浅色/深色各一套，点按应用到当前变体。
+ */
+private data class ThemeQuickPreset(
+    val nameRes: Int,
+    val swatches: List<Color>,
+    val slots: Map<String, Color>
+)
+
+private val LIGHT_QUICK_PRESETS = listOf(
+    ThemeQuickPreset(
+        R.string.theme_preset_tg_green,
+        listOf(Color(0xFFEFFDDE), Color(0xFFE7EBEE), Color(0xFF3390EC)),
+        mapOf(
+            "chat_outBubble" to Color(0xFFEFFDDE),
+            "chat_outText" to Color(0xFF212121),
+            "chat_inBubble" to Color(0xFFFFFFFF),
+            "chat_background" to Color(0xFFE7EBEE),
+            "accent" to Color(0xFF3390EC)
+        )
+    ),
+    ThemeQuickPreset(
+        R.string.theme_preset_tg_blue,
+        listOf(Color(0xFF2D7ED5), Color(0xFFF0F0F0), Color(0xFFFFFFFF)),
+        mapOf(
+            "chat_outBubble" to Color(0xFF2D7ED5),
+            "chat_outText" to Color(0xFFFFFFFF),
+            "chat_inBubble" to Color(0xFFF0F0F0),
+            "chat_background" to Color(0xFFFFFFFF),
+            "accent" to Color(0xFF2D7ED5)
+        )
+    ),
+    ThemeQuickPreset(
+        R.string.theme_preset_sakura,
+        listOf(Color(0xFFFFE1E8), Color(0xFFFFF5F7), Color(0xFFE8608A)),
+        mapOf(
+            "chat_outBubble" to Color(0xFFFFE1E8),
+            "chat_outText" to Color(0xFF7A2E42),
+            "chat_inBubble" to Color(0xFFFFFFFF),
+            "chat_background" to Color(0xFFFFF5F7),
+            "accent" to Color(0xFFE8608A)
+        )
+    ),
+    ThemeQuickPreset(
+        R.string.theme_preset_mint,
+        listOf(Color(0xFFD8F5E3), Color(0xFFF0FAF4), Color(0xFF2FA36B)),
+        mapOf(
+            "chat_outBubble" to Color(0xFFD8F5E3),
+            "chat_outText" to Color(0xFF1F5C3D),
+            "chat_inBubble" to Color(0xFFFFFFFF),
+            "chat_background" to Color(0xFFF0FAF4),
+            "accent" to Color(0xFF2FA36B)
+        )
+    ),
+    ThemeQuickPreset(
+        R.string.theme_preset_cream,
+        listOf(Color(0xFFFFF3D6), Color(0xFFFFFBF0), Color(0xFFD9A441)),
+        mapOf(
+            "chat_outBubble" to Color(0xFFFFF3D6),
+            "chat_outText" to Color(0xFF7A5C1E),
+            "chat_inBubble" to Color(0xFFFFFFFF),
+            "chat_background" to Color(0xFFFFFBF0),
+            "accent" to Color(0xFFD9A441)
+        )
+    )
+)
+
+private val DARK_QUICK_PRESETS = listOf(
+    ThemeQuickPreset(
+        R.string.theme_preset_tg_night,
+        listOf(Color(0xFF2B5278), Color(0xFF182533), Color(0xFF0E1621)),
+        mapOf(
+            "chat_outBubble" to Color(0xFF2B5278),
+            "chat_outText" to Color(0xFFF5F8FA),
+            "chat_inBubble" to Color(0xFF182533),
+            "chat_background" to Color(0xFF0E1621),
+            "accent" to Color(0xFF5288C1)
+        )
+    ),
+    ThemeQuickPreset(
+        R.string.theme_preset_amoled,
+        listOf(Color(0xFF0A84FF), Color(0xFF1C1C1E), Color(0xFF000000)),
+        mapOf(
+            "chat_outBubble" to Color(0xFF0A84FF),
+            "chat_outText" to Color(0xFFFFFFFF),
+            "chat_inBubble" to Color(0xFF1C1C1E),
+            "chat_background" to Color(0xFF000000),
+            "window_background" to Color(0xFF000000),
+            "accent" to Color(0xFF0A84FF)
+        )
+    ),
+    ThemeQuickPreset(
+        R.string.theme_preset_dark_violet,
+        listOf(Color(0xFF5B3E8F), Color(0xFF2A2138), Color(0xFF16121F)),
+        mapOf(
+            "chat_outBubble" to Color(0xFF5B3E8F),
+            "chat_outText" to Color(0xFFF2ECFA),
+            "chat_inBubble" to Color(0xFF2A2138),
+            "chat_background" to Color(0xFF16121F),
+            "accent" to Color(0xFF9B6FD0)
+        )
+    ),
+    ThemeQuickPreset(
+        R.string.theme_preset_dark_forest,
+        listOf(Color(0xFF1F5C3D), Color(0xFF17241C), Color(0xFF0D1512)),
+        mapOf(
+            "chat_outBubble" to Color(0xFF1F5C3D),
+            "chat_outText" to Color(0xFFE4F5E9),
+            "chat_inBubble" to Color(0xFF17241C),
+            "chat_background" to Color(0xFF0D1512),
+            "accent" to Color(0xFF4CAF7D)
+        )
+    )
+)
 
 /**
  * 9.253：主题编辑器（TG 式高自定义）——逐槽位调色 + 单槽重置 + .attheme 导入/导出。
@@ -148,6 +266,50 @@ fun ThemeEditorScreen(onBack: () -> Unit = {}) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
         )
+
+        // 9.260：快速配色预设（TG 社区热门配色一键应用，浅/深变体各一套）
+        val presets = if (variant == "dark") DARK_QUICK_PRESETS else LIGHT_QUICK_PRESETS
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            presets.forEach { preset ->
+                Column(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                        .clickable {
+                            preset.slots.forEach { (slot, color) ->
+                                CustomThemeStore.setColor(context, variant, slot, color)
+                            }
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                        preset.swatches.forEach { c ->
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clip(CircleShape)
+                                    .background(c)
+                                    .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), CircleShape)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(
+                        stringResource(preset.nameRes),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
 
         // 颜色槽位列表（revision 驱动重绘）
         LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 4.dp)) {
