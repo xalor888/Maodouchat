@@ -206,7 +206,8 @@ fun LoginScreen(
                         }
                         .shadow(2.dp, CircleShape)
                         .background(MaterialTheme.colorScheme.surface, CircleShape)
-                        .border(1.dp, Color(0xFFE7E8E9), CircleShape)
+                        // 9.248：硬编码浅灰边框在深色模式下生硬——改主题 token 自动适配
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
                 ) {
                     Image(
                         painter = painterResource(R.drawable.logo),

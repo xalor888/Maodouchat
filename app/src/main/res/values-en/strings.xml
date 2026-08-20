@@ -1562,6 +1562,7 @@
     <string name="explore_copy_post">Copy post</string>
     <string name="explore_post_copied">Post copied</string>
     <string name="explore_post_copied_image">[Image]</string>
+    <string name="explore_post_fallback">Post</string>
     <string name="explore_likers_title">Likes</string>
     <string name="explore_self_like_denied">You can\'t like your own post</string>
     <string name="explore_likers_empty">No likes yet</string>

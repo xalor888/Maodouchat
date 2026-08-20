@@ -1543,6 +1543,7 @@
     <string name="explore_copy_post">复制动态</string>
     <string name="explore_post_copied">动态已复制</string>
     <string name="explore_post_copied_image">[图片]</string>
+    <string name="explore_post_fallback">动态</string>
     <string name="explore_likers_title">点赞者</string>
     <string name="explore_self_like_denied">不能给自己的动态点赞</string>
     <string name="explore_likers_empty">还没有人点赞</string>

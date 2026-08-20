@@ -1137,11 +1137,12 @@ fun PostDetailScreen(
                                     append(post.content)
                                     if (post.imageUrls.isNotEmpty()) {
                                         if (isNotBlank()) append("\n")
-                                        append("[图片]")
+                                        // 9.248：硬编码中文改字符串资源（英文界面复制不再中英混杂）
+                                        append(context.getString(R.string.explore_post_copied_image))
                                     }
-                                }.ifBlank { "动态" }
+                                }.ifBlank { context.getString(R.string.explore_post_fallback) }
                                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("动态", textToCopy))
+                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.explore_post_fallback), textToCopy))
                                 Toast.makeText(context, context.getString(R.string.explore_copied), Toast.LENGTH_SHORT).show()
                             }) {
                                 Icon(Icons.Outlined.ContentCopy, contentDescription = stringResource(R.string.chat_copy), tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(20.dp))
