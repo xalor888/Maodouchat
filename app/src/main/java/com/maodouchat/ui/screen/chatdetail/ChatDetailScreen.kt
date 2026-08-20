@@ -3323,6 +3323,21 @@ DropdownMenuItem(
             }
             // 9.205：TG 风格涂鸦纹理——仅默认壁纸且无自定义图片时叠加，不盖住用户自选壁纸
             if (customWallpaperUri == null && chatWallpaperPreset == com.maodouchat.util.ChatWallpaperPreset.DEFAULT) {
+                // 9.254：TG 式背景纵深——单色底上叠一层自上而下的微暗渐变，平面背景立刻有
+                // 空间感（从当前背景色派生，自定义主题/深浅模式自动跟随）
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                listOf(
+                                    chatBackgroundColor.copy(alpha = 0f),
+                                    chatBackgroundColor.copy(alpha = 0f),
+                                    Color.Black.copy(alpha = if (isDarkChat) 0.10f else 0.045f)
+                                )
+                            )
+                        )
+                )
                 com.maodouchat.ui.component.ChatBackgroundPattern(
                     modifier = Modifier.fillMaxSize(),
                     tint = LocalChatPalette.current.textSecondary.copy(alpha = if (isDarkChat) 0.07f else 0.09f)
