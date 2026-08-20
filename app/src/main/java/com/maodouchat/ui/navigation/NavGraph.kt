@@ -24,7 +24,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -37,12 +36,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -1495,26 +1491,12 @@ private fun MainContainer(navController: NavHostController) {
     }
 
     Scaffold(
-        // 9.294：Liquid Glass 模式——底栏不再占 Scaffold 底槽，改为悬浮 overlay（内容从其下方穿过被实时模糊）
-        bottomBar = {
-            if (!com.maodouchat.util.GlassBottomBarPreferences.enabled.collectAsState().value) {
-                BottomNavBar(selectedTab = selectedTab, onTabSelected = { selectedTab = it })
-            }
-        }
+        bottomBar = { BottomNavBar(selectedTab = selectedTab, onTabSelected = { selectedTab = it }) }
     ) { paddingValues ->
         // 9.249：关键适配修复——padding(paddingValues) 只加边距不声明消费，内层每个 tab 的
         // Scaffold/TopAppBar 会把状态栏 insets 再加一遍，顶部出现双倍状态栏留白（错位/遮挡感）；
         // consumeWindowInsets 后内层不再重复应用，全机型顶部对齐
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues).consumeWindowInsets(paddingValues)) {
-        val liquidBackdrop = com.maodouchat.ui.theme.LocalLiquidGlassBackdrop.current
-        val glassActive = liquidBackdrop != null
-        Box(
-            modifier = if (glassActive) {
-                Modifier.fillMaxSize().layerBackdrop(liquidBackdrop!!).padding(bottom = 60.dp)
-            } else {
-                Modifier.fillMaxSize()
-            }
-        ) {
         AnimatedContent(
             targetState = selectedTab,
             transitionSpec = {
@@ -1602,15 +1584,6 @@ private fun MainContainer(navController: NavHostController) {
                     )
                 }
             }
-        }
-        // 9.294：Liquid Glass 悬浮底栏 overlay——浮在内容层之上，实时模糊其下穿过的内容
-        if (glassActive) {
-            Box(
-                modifier = Modifier.align(Alignment.BottomCenter).imePadding()
-            ) {
-                BottomNavBar(selectedTab = selectedTab, onTabSelected = { selectedTab = it })
-            }
-        }
         }
     }
 }

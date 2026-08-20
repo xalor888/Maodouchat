@@ -237,10 +237,6 @@ dependencies {
     // Compose BOM
     val composeBom = platform("androidx.compose:compose-bom:2026.05.00")
     implementation(composeBom)
-    // 9.294：Liquid Glass 真实实现（Murexide 同款）——backdrop 实时采样模糊 + lens +
-    // highlight + innerShadow，用于主界面玻璃悬浮底栏。
-    // 用 alpha03：正式版 2.0.0 要求 compileSdk 37，项目锁定 36（AGP 8.13 最高支持）
-    implementation("io.github.kyant0:backdrop:2.0.0-alpha03")
 
     // Core
     implementation("androidx.core:core-ktx:1.12.0")

@@ -134,7 +134,6 @@ import com.maodouchat.ui.component.SearchBar
 import com.maodouchat.ui.component.ShimmerChatRow
 import com.maodouchat.ui.navigation.MainTab
 import com.maodouchat.ui.theme.LocalMotionSettings
-import com.maodouchat.ui.theme.liquidGlass
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.Secondary
@@ -1758,28 +1757,74 @@ fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
     if (glassEnabled) {
         val surface = MaterialTheme.colorScheme.surface
         val isLightSurface = (surface.red + surface.green + surface.blue) / 3f > 0.5f
-        // 9.294：Liquid Glass 真实实现（Murexide 同款 kyant backdrop）——实时采样下方内容
-        // 模糊 + 高光 + 内外阴影，替代此前的静态渐变模拟
-        val liquidBackdrop = com.maodouchat.ui.theme.LocalLiquidGlassBackdrop.current
+        // 9.293：悬浮感重做——白底上纯白半透明等于隐形，改为带轻微主色调的磨砂色，
+        // 配合大留白 + 强投影让底栏真正「飘」起来（此前 12dp 留白 + 白透明，视觉与普通贴底栏无差）
+        val tint = MaterialTheme.colorScheme.primary
+        val glassColor = if (isLightSurface) {
+            androidx.compose.ui.graphics.lerp(Color.White, tint, 0.05f).copy(alpha = 0.94f)
+        } else {
+            androidx.compose.ui.graphics.lerp(surface, tint, 0.12f).copy(alpha = 0.82f)
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .liquidGlass(
-                        enabled = liquidBackdrop != null,
-                        backdrop = liquidBackdrop,
-                        shape = RoundedCornerShape(26.dp),
-                        surfaceColor = surface.copy(alpha = if (isLightSurface) 0.55f else 0.45f),
-                        blurRadius = 18.dp,
-                        showHighlight = true
+            Surface(
+                shape = RoundedCornerShape(26.dp),
+                color = glassColor,
+                border = BorderStroke(
+                    1.dp,
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(
+                            Color.White.copy(alpha = if (isLightSurface) 0.6f else 0.28f),
+                            Color.White.copy(alpha = 0.08f),
+                            Color.White.copy(alpha = if (isLightSurface) 0.2f else 0.1f)
+                        )
                     )
+                ),
+                // 9.293：投影加重到 22dp，让底栏与页面间出现明显的「悬浮阴影」
+                shadowElevation = 22.dp,
+                tonalElevation = 0.dp
             ) {
-                NavigationBar(containerColor = Color.Transparent) {
-                    BottomNavBarItems(selectedTab = selectedTab, onTabSelected = onTabSelected)
+                // 9.273：Murexide 液态玻璃轻量移植——内高光 + 内底影叠加层
+                // （借鉴 LiquidGlass highlight/innerShadow 思路，纯 Compose 无 backdrop 依赖）
+                Box {
+                    NavigationBar(containerColor = Color.Transparent) {
+                        BottomNavBarItems(selectedTab = selectedTab, onTabSelected = onTabSelected)
+                    }
+                    // 顶部内侧高光：自上而下渐隐，模拟玻璃受光面
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(26.dp))
+                            .background(
+                                androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = if (isLightSurface) 0.22f else 0.10f),
+                                        Color.White.copy(alpha = 0f)
+                                    ),
+                                    startY = 0f,
+                                    endY = 60f
+                                )
+                            )
+                    )
+                    // 底部内侧暗影：自下而上渐隐，模拟玻璃厚度投影
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(26.dp))
+                            .background(
+                                androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    listOf(
+                                        Color.Black.copy(alpha = 0f),
+                                        Color.Black.copy(alpha = if (isLightSurface) 0.05f else 0.12f)
+                                    ),
+                                    startY = 0f,
+                                    endY = 50f
+                                )
+                            )
+                    )
                 }
             }
         }
