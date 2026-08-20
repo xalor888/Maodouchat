@@ -19,6 +19,7 @@ import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
@@ -81,6 +82,16 @@ fun Application.configureAdminRouting(
         }
         get("/admin/assets/admin.js") {
             call.respondAdminAsset(adminDashboardJs, io.ktor.http.ContentType.Application.JavaScript)
+        }
+        // 9.250：真实品牌 logo（与 App 启动图标同一 PNG）——替代手绘 SVG 近似图，
+        // 运营方看到的品牌图形与客户端完全一致
+        get("/admin/assets/logo.png") {
+            val bytes = checkNotNull(
+                AdminSessionAttemptLimiter::class.java.classLoader.getResourceAsStream("admin/logo.png")
+            ) { "Missing admin resource: admin/logo.png" }.use { it.readBytes() }
+            call.response.headers.append(HttpHeaders.CacheControl, "public, max-age=86400")
+            call.response.headers.append("X-Content-Type-Options", "nosniff")
+            call.respondBytes(bytes, io.ktor.http.ContentType.Image.PNG)
         }
         // 双认证：普通 access token 用于首次换发 admin session；
         // admin session token 需进入 handler 走「不能续签自身」的 400 拒绝分支
