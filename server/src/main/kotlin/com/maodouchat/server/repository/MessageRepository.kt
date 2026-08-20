@@ -1178,10 +1178,12 @@ class MessageRepository {
         ChatParticipants.selectAll().where {
             (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq botUserId)
         }.forUpdate().firstOrNull() ?: return@transaction false
+        // 9.243：同 editMessage——caption 是 bot 输入，剥离伪造内嵌 meta（保留尾部合法键盘块）
+        val cleanContent = stripInlineMetaPreservingTrailing(newContent).take(8000)
         val updated = Messages.update({
             (Messages.id eq messageId) and (Messages.senderId eq botUserId)
         }) {
-            it[Messages.content] = newContent.take(8000)
+            it[Messages.content] = cleanContent
             it[Messages.editedAt] = editedAt
         }
         updated > 0
