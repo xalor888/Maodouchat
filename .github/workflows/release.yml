@@ -273,7 +273,7 @@ jobs:
 
           **commit**: \`${GITHUB_SHA:0:7}\`
           **触发者**: ${{ github.actor }}
-          **构建时间**: $(date +'%Y-%m-%d %H:%M:%S')
+          **构建时间**: $(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S')（北京时间）
 
           ### 产物
           - APK 安装包（已随本消息发送文件）
