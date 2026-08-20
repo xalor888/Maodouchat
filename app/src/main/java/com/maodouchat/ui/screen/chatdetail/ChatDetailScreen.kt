@@ -3586,7 +3586,8 @@ DropdownMenuItem(
                     state = listState,
                     reverseLayout = true,
                     modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    // 9.264：TG 式分组密度基线——组内紧凑 3dp，跨组由消息项额外 padding 补到 8dp
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                 itemsIndexed(
                     reversedChatItems,
@@ -3656,7 +3657,14 @@ DropdownMenuItem(
                                     stringResource(R.string.chat_group_read_status, count.read, count.total)
                                 }
                             } else null
-                            Column(Modifier.fillMaxWidth()) {
+                            // 9.264：TG 式分组密度——同一发送者 6 分钟内的连续消息紧凑成组（3dp），
+                            // 换人/超时/跨分隔符额外补 5dp（总 8dp）；reverseLayout 下时间上更早的
+                            // 消息在 index+1，本项 top padding 即与它的间隙
+                            val prevItem = reversedChatItems.getOrNull(index + 1)
+                            val groupedWithPrev = prevItem is ChatItem.Msg &&
+                                prevItem.message.senderId == message.senderId &&
+                                kotlin.math.abs(message.timestamp - prevItem.message.timestamp) < 6L * 60L * 1000L
+                            Column(Modifier.fillMaxWidth().padding(top = if (groupedWithPrev) 0.dp else 5.dp)) {
                             ChatMessageRow(
                                 state = ChatMessageRowState(
                                     message = displayMessage,
