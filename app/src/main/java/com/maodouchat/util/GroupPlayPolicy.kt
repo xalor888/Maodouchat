@@ -365,7 +365,7 @@ object GroupPlayPolicy {
 
     fun formatCharades(prompt: String, hostLabel: String): String {
         val p = prompt.trim().ifBlank { "mystery" }.take(40)
-        return "${CHARADES_PREFIX}$p|${hostLabel} charades — act it out!"
+        return "${CHARADES_PREFIX}${esc(p)}|${hostLabel} charades — act it out!"
     }
 
     fun parseCharades(content: String): String? {
@@ -406,6 +406,8 @@ object GroupPlayPolicy {
     fun parseRiddle(content: String): Pair<String, String>? {
         if (!content.startsWith(RIDDLE_PREFIX)) return null
         val body = content.removePrefix(RIDDLE_PREFIX)
+        // 9.225：畸形格式（缺分隔符）拒绝解析，避免 a 回退为 q 的错误展示
+        if (!body.contains('|')) return null
         val q = unesc(body.substringBefore('|'))
         val a = unesc(body.substringAfter('|').substringBefore('|'))
         if (q.isBlank()) return null
@@ -486,6 +488,8 @@ object GroupPlayPolicy {
     fun parseTrivia(content: String): Pair<String, String>? {
         if (!content.startsWith(TRIVIA_PREFIX)) return null
         val body = content.removePrefix(TRIVIA_PREFIX)
+        // 9.225：同 riddle——缺分隔符的畸形格式拒绝解析
+        if (!body.contains('|')) return null
         val q = unesc(body.substringBefore('|'))
         val a = unesc(body.substringAfter('|').substringBefore('|'))
         if (q.isBlank()) return null
@@ -515,12 +519,13 @@ object GroupPlayPolicy {
     fun formatTruthOrDare(mode: String, prompt: String, hostLabel: String): String {
         val m = mode.trim().lowercase().let { if (it == "dare") "dare" else "truth" }
         val p = prompt.trim().take(80)
-        return "${TRUTH_OR_DARE_PREFIX}${esc(m)}|$p|${hostLabel} truth-or-dare"
+        return "${TRUTH_OR_DARE_PREFIX}${esc(m)}|${esc(p)}|${hostLabel} truth-or-dare"
     }
 
     fun parseTruthOrDare(content: String): Pair<String, String>? {
         if (!content.startsWith(TRUTH_OR_DARE_PREFIX)) return null
         val body = content.removePrefix(TRUTH_OR_DARE_PREFIX)
+        if (!body.contains('|')) return null
         val mode = unesc(body.substringBefore('|'))
         val prompt = unesc(body.substringAfter('|').substringBefore('|'))
         if (prompt.isBlank()) return null
@@ -529,7 +534,7 @@ object GroupPlayPolicy {
 
     fun formatNeverHaveIEver(prompt: String, hostLabel: String): String {
         val p = prompt.trim().take(100)
-        return "${NEVER_HAVE_PREFIX}$p|${hostLabel} never-have-I-ever — react if you have!"
+        return "${NEVER_HAVE_PREFIX}${esc(p)}|${hostLabel} never-have-I-ever — react if you have!"
     }
 
     fun parseNeverHaveIEver(content: String): String? {
@@ -549,7 +554,7 @@ object GroupPlayPolicy {
 
     fun formatDrawPrompt(prompt: String, hostLabel: String): String {
         val p = prompt.trim().take(60)
-        return "${DRAW_PROMPT_PREFIX}$p|${hostLabel} draw this (no words)!"
+        return "${DRAW_PROMPT_PREFIX}${esc(p)}|${hostLabel} draw this (no words)!"
     }
 
     fun parseDrawPrompt(content: String): String? {
@@ -567,7 +572,7 @@ object GroupPlayPolicy {
 
     fun formatIcebreaker(prompt: String, hostLabel: String): String {
         val p = prompt.trim().take(100)
-        return "${ICEBREAKER_PREFIX}$p|${hostLabel} icebreaker"
+        return "${ICEBREAKER_PREFIX}${esc(p)}|${hostLabel} icebreaker"
     }
 
     fun parseIcebreaker(content: String): String? {
@@ -577,7 +582,7 @@ object GroupPlayPolicy {
 
     fun formatEmojiDuel(pair: String, hostLabel: String): String {
         val p = pair.trim().ifBlank { randomEmojiDuel() }.take(16)
-        return "${EMOJI_DUEL_PREFIX}$p|${hostLabel} emoji duel — pick a side!"
+        return "${EMOJI_DUEL_PREFIX}${esc(p)}|${hostLabel} emoji duel — pick a side!"
     }
 
     fun parseEmojiDuel(content: String): String? {
@@ -697,12 +702,13 @@ object GroupPlayPolicy {
     fun formatEmojiQuiz(prompt: String, answer: String, hostLabel: String): String {
         val p = prompt.trim().take(24)
         val a = answer.trim().take(40)
-        return "${EMOJI_QUIZ_PREFIX}$p|${esc(a)}|${hostLabel} emoji quiz"
+        return "${EMOJI_QUIZ_PREFIX}${esc(p)}|${esc(a)}|${hostLabel} emoji quiz"
     }
 
     fun parseEmojiQuiz(content: String): Pair<String, String>? {
         if (!content.startsWith(EMOJI_QUIZ_PREFIX)) return null
         val body = content.removePrefix(EMOJI_QUIZ_PREFIX)
+        if (!body.contains('|')) return null
         val p = unesc(body.substringBefore('|'))
         val a = unesc(body.substringAfter('|').substringBefore('|'))
         if (p.isBlank()) return null
@@ -832,7 +838,7 @@ object GroupPlayPolicy {
     fun formatEmojiTranslate(prompt: String, answer: String, hostLabel: String): String {
         val p = prompt.trim().take(24)
         val a = answer.trim().take(40)
-        return "${EMOJI_TR_PREFIX}$p|${esc(a)}|${hostLabel} emoji translate"
+        return "${EMOJI_TR_PREFIX}${esc(p)}|${esc(a)}|${hostLabel} emoji translate"
     }
 
     fun parseEmojiTranslate(content: String): Pair<String, String>? {
@@ -946,7 +952,7 @@ object GroupPlayPolicy {
 
     fun formatLightning(prompt: String, hostLabel: String): String {
         val p = prompt.trim().take(60)
-        return "${LIGHTNING_PREFIX}$p|${hostLabel} lightning round"
+        return "${LIGHTNING_PREFIX}${esc(p)}|${hostLabel} lightning round"
     }
 
     fun parseLightning(content: String): String? {
@@ -972,7 +978,7 @@ object GroupPlayPolicy {
 
     fun formatWhisper(prompt: String, hostLabel: String): String {
         val p = prompt.trim().take(60)
-        return "${WHISPER_PREFIX}$p|${hostLabel} whisper challenge"
+        return "${WHISPER_PREFIX}${esc(p)}|${hostLabel} whisper challenge"
     }
 
     fun parseWhisper(content: String): String? {
@@ -1077,7 +1083,7 @@ object GroupPlayPolicy {
 
     fun formatEmojiOnly(prompt: String, hostLabel: String): String {
         val p = prompt.trim().take(50)
-        return "${EMOJI_ONLY_PREFIX}$p|${hostLabel} emoji-only challenge"
+        return "${EMOJI_ONLY_PREFIX}${esc(p)}|${hostLabel} emoji-only challenge"
     }
 
     fun parseEmojiOnly(content: String): String? {
@@ -1116,7 +1122,7 @@ object GroupPlayPolicy {
 
     fun formatSilentMovie(prompt: String, hostLabel: String): String {
         val p = prompt.trim().take(40)
-        return "${SILENT_MOVIE_PREFIX}$p|${hostLabel} silent movie"
+        return "${SILENT_MOVIE_PREFIX}${esc(p)}|${hostLabel} silent movie"
     }
 
     fun parseSilentMovie(content: String): String? {
@@ -1126,7 +1132,7 @@ object GroupPlayPolicy {
 
     fun formatColorWord(pair: String, hostLabel: String): String {
         val p = pair.trim().take(30)
-        return "${COLOR_WORD_PREFIX}$p|${hostLabel} color-word"
+        return "${COLOR_WORD_PREFIX}${esc(p)}|${hostLabel} color-word"
     }
 
     fun parseColorWord(content: String): String? {
@@ -1222,7 +1228,7 @@ object GroupPlayPolicy {
 
     fun formatWordScramble(pair: String, hostLabel: String): String {
         val p = pair.trim().take(40)
-        return "${WORD_SCRAMBLE_PREFIX}$p|${hostLabel} word scramble"
+        return "${WORD_SCRAMBLE_PREFIX}${esc(p)}|${hostLabel} word scramble"
     }
 
     fun parseWordScramble(content: String): String? {
@@ -1232,7 +1238,7 @@ object GroupPlayPolicy {
 
     fun formatReactionDuel(pair: String, hostLabel: String): String {
         val p = pair.trim().take(20)
-        return "${REACTION_DUEL_PREFIX}$p|${hostLabel} reaction duel"
+        return "${REACTION_DUEL_PREFIX}${esc(p)}|${hostLabel} reaction duel"
     }
 
     fun parseReactionDuel(content: String): String? {
@@ -1350,7 +1356,7 @@ object GroupPlayPolicy {
 
     fun formatTranslateRelay(pair: String, hostLabel: String): String {
         val p = pair.trim().take(20)
-        return "${TRANSLATE_RELAY_PREFIX}$p|${hostLabel} translate relay"
+        return "${TRANSLATE_RELAY_PREFIX}${esc(p)}|${hostLabel} translate relay"
     }
 
     fun parseTranslateRelay(content: String): String? {
@@ -1476,7 +1482,7 @@ object GroupPlayPolicy {
 
     fun formatGratitudeRound(prompt: String, hostLabel: String): String {
         val p = prompt.trim().take(40)
-        return "${GRATITUDE_ROUND_PREFIX}$p|${hostLabel} gratitude round"
+        return "${GRATITUDE_ROUND_PREFIX}${esc(p)}|${hostLabel} gratitude round"
     }
 
     fun parseGratitudeRound(content: String): String? {
