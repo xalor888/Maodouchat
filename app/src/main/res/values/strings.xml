@@ -1003,7 +1003,8 @@
     <string name="about_security_value">Signal Protocol + SQLCipher</string>
     <string name="about_limits_title">产品边界（摘要）</string>
     <string name="about_limits_body">群通话为 mesh（非 SFU）；推送仅 FCM；密聊为本机防截屏/盲水印；安全码为自研格式；无 last-seen / 厂商推送 / 支付。</string>
-    <string name="about_copyright">© 2026 毛豆聊天 · 轻量化安全通信</string>
+        <string name="about_tagline">简单、安全、快速的聊天体验</string>
+<string name="about_copyright">© 2026 毛豆聊天</string>
     <string name="chat_group_announcement_updated">群公告已更新</string>
     <string name="group_announcement_banner_title">群公告</string>
     <string name="group_announcement_dialog_title">群公告</string>

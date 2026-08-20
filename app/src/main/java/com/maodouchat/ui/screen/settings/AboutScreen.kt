@@ -75,16 +75,12 @@ fun AboutScreen(onBack: () -> Unit = {}) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(32.dp))
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(88.dp).clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.primary)
-            ) {
-                Text(
-                    text = "M",
-                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White
-                )
-            }
+            // 9.251：真 logo 替代「M」文字块（与登录页/启动图标一致）
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(R.drawable.logo),
+                contentDescription = stringResource(R.string.app_name),
+                modifier = Modifier.size(88.dp).clip(RoundedCornerShape(22.dp))
+            )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = stringResource(R.string.app_name),
@@ -120,24 +116,13 @@ fun AboutScreen(onBack: () -> Unit = {}) {
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
-            ) {
-                Text(
-                    stringResource(R.string.about_limits_title),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.about_limits_body),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = LocalChatPalette.current.textSecondary
-                )
-            }
+            // 9.251：去「产品边界（摘要）」术语堆砌段——TG 式极简关于页：
+            // logo/名称/版本/服务器 + 一行简介 + 版权
+            Text(
+                text = stringResource(R.string.about_tagline),
+                style = MaterialTheme.typography.bodyMedium,
+                color = LocalChatPalette.current.textSecondary
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
             Text(

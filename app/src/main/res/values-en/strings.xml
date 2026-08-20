@@ -1021,7 +1021,8 @@
     <string name="about_security_value">Signal Protocol + SQLCipher</string>
     <string name="about_limits_title">Product bounds (summary)</string>
     <string name="about_limits_body">Group calls are mesh (not SFU); push is FCM-only; secret chat is local FLAG_SECURE + blind watermark; safety codes use a custom layout; no last-seen, vendor push, or payments.</string>
-    <string name="about_copyright">© 2026 Maodouchat · Lightweight secure messaging</string>
+        <string name="about_tagline">Simple, secure and fast messaging</string>
+<string name="about_copyright">© 2026 Maodouchat</string>
     <string name="chat_group_announcement_updated">Group announcement updated</string>
     <string name="group_announcement_banner_title">Group announcement</string>
     <string name="group_announcement_dialog_title">Group announcement</string>
