@@ -93,7 +93,9 @@ fun Application.configureAdminRouting(
                     return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("管理员会话不能续签自身"))
                 }
                 if (!AdminAccess.isAdmin(userId)) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要主管理员权限"))
+                    // 9.247：自部署高频踩坑——MASTER_ADMINS 填了邮箱而非 userId，
+                    // 报错附带配置指引便于自查（不泄露当前配置值）
+                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要主管理员权限：请确认服务端 MASTER_ADMINS 环境变量包含本账号的 userId（非邮箱），修改后重启服务"))
                 }
                 if (!adminSessionAttemptLimiter.acquire(userId)) {
                     call.response.headers.append(HttpHeaders.RetryAfter, ADMIN_SESSION_ATTEMPT_WINDOW_SECONDS.toString())

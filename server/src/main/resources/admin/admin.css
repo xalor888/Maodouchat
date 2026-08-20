@@ -404,12 +404,10 @@ a:hover {
 }
 
 .login-logo {
-  width: 44px;
-  height: 44px;
-  border-radius: 11px;
-  background: var(--brand);
-  padding: 5px;
-  box-shadow: var(--shadow-sm);
+  width: 48px;
+  height: 48px;
+  /* 9.246：真实品牌 logo（渐变 M + 白气泡）自带图形，去除占位时代的紫底/padding */
+  box-shadow: none;
 }
 
 .login-title {
@@ -522,11 +520,10 @@ a:hover {
 }
 
 .sidebar-logo {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: var(--brand);
-  box-shadow: var(--shadow-xs);
+  width: 32px;
+  height: 32px;
+  /* 9.246：同 login-logo，去紫底 */
+  box-shadow: none;
 }
 
 .sidebar-title {

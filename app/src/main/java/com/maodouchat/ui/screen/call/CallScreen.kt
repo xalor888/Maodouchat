@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -187,7 +188,9 @@ fun CallScreen(
                 onRelease = { onLocalRendererReleased?.invoke(it) },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 48.dp, end = 16.dp)
+                    // 9.247：此前硬编码 48dp 不含状态栏，打孔屏上小窗顶进挖孔区
+                    .statusBarsPadding()
+                    .padding(top = 12.dp, end = 16.dp)
                     .size(120.dp, 180.dp)
                     .clip(RoundedCornerShape(12.dp))
             )
@@ -198,7 +201,9 @@ fun CallScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
-                .padding(top = 56.dp),
+                // 9.247：同 PiP 小窗，状态栏 insets + 固定边距替代硬编码 56dp
+                .statusBarsPadding()
+                .padding(top = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (callState == CallState.CONNECTED) {

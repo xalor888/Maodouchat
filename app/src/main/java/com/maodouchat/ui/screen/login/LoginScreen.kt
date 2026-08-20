@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -177,9 +178,13 @@ fun LoginScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .imePadding()
+                // 9.247：edge-to-edge 下此前只有硬编码 top 56dp 没有状态栏 insets——
+                // 打孔屏/刘海屏（状态栏 30-40dp）上 logo 顶到状态栏，普通机型又偏空；
+                // 改吃真实状态栏高度 + 固定边距，全机型一致
+                .statusBarsPadding()
                 .navigationBarsPadding()
                 .padding(horizontal = MaodouDimens.ScreenPadding)
-                .padding(top = 56.dp, bottom = 24.dp)
+                .padding(top = 24.dp, bottom = 24.dp)
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
