@@ -10071,18 +10071,16 @@ private fun ExpressionPanel(
                     displayItems.chunked(6).forEach { rowItems ->
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             rowItems.forEach { item ->
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .clickable(enabled = stickersEnabled) {
-                                            onStickerClick(item)
-                                            recentStickers = com.maodouchat.util.StickerPolicy.pushRecent(recentStickers, item)
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(item, fontSize = 32.sp, textAlign = TextAlign.Center)
-                                }
+                                // 9.223：贴纸按压回弹（TG 式手感，尊重系统动效开关）
+                                PressScaleGlyphItem(
+                                    glyph = item,
+                                    fontSize = 32.sp,
+                                    enabled = stickersEnabled,
+                                    onClick = {
+                                        onStickerClick(item)
+                                        recentStickers = com.maodouchat.util.StickerPolicy.pushRecent(recentStickers, item)
+                                    }
+                                )
                             }
                             repeat(6 - rowItems.size) { Spacer(modifier = Modifier.size(48.dp)) }
                         }
@@ -10170,15 +10168,12 @@ private fun ExpressionPanel(
                     filteredEmojis.chunked(6).forEach { rowItems ->
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             rowItems.forEach { item ->
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .clickable { pushRecentEmoji(item) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(item, fontSize = 24.sp, textAlign = TextAlign.Center)
-                                }
+                                PressScaleGlyphItem(
+                                    glyph = item,
+                                    fontSize = 24.sp,
+                                    enabled = true,
+                                    onClick = { pushRecentEmoji(item) }
+                                )
                             }
                             repeat(6 - rowItems.size) { Spacer(modifier = Modifier.size(48.dp)) }
                         }
@@ -10587,4 +10582,47 @@ private fun ContactCardPickerDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
         }
     )
+}
+
+/**
+ * 9.223：表情/贴纸格子项——按压缩放回弹（TG 式手感）。
+ * 系统关闭动画时退化为无动效点击；无 indication（缩放即反馈）。
+ */
+@Composable
+private fun PressScaleGlyphItem(
+    glyph: String,
+    fontSize: androidx.compose.ui.unit.TextUnit,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val motion = LocalMotionSettings.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && motion.animationsEnabled) 0.82f else 1f,
+        animationSpec = spring(dampingRatio = 0.55f, stiffness = 500f),
+        label = "glyphPressScale"
+    )
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            glyph,
+            fontSize = fontSize,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+        )
+    }
 }
