@@ -8,6 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
@@ -167,14 +169,44 @@ fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
         LocalMotionSettings provides motionSettings
     ) {
         MaterialTheme(colorScheme = paint.colorScheme, typography = MaodouchatTypography, shapes = MaodouchatShapes) {
-            Box {
-                content()
-                if (veilAlpha.value > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(paint.colorScheme.background.copy(alpha = veilAlpha.value))
-                    )
+            // 9.294：Liquid Glass（Murexide 同款）——玻璃底栏开启时注册 backdrop 基础层，
+            // 供 liquidGlass 组件实时采样模糊；NavGraph 会再注册内容层
+            val liquidGlassEnabled by com.maodouchat.util.GlassBottomBarPreferences.enabled.collectAsState()
+            val liquidBackdrop = if (liquidGlassEnabled) rememberLayerBackdrop() else null
+            CompositionLocalProvider(
+                LocalLiquidGlassEnabled provides liquidGlassEnabled,
+                LocalLiquidGlassBackdrop provides liquidBackdrop
+            ) {
+                if (liquidBackdrop != null) {
+                    Box(Modifier.fillMaxSize()) {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .layerBackdrop(liquidBackdrop)
+                                .background(paint.colorScheme.background)
+                        )
+                        Box(Modifier.fillMaxSize()) {
+                            content()
+                            if (veilAlpha.value > 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(paint.colorScheme.background.copy(alpha = veilAlpha.value))
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Box {
+                        content()
+                        if (veilAlpha.value > 0f) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(paint.colorScheme.background.copy(alpha = veilAlpha.value))
+                            )
+                        }
+                    }
                 }
             }
         }
