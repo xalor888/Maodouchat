@@ -1743,8 +1743,44 @@ fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
                 shadowElevation = 14.dp,
                 tonalElevation = 0.dp
             ) {
-                NavigationBar(containerColor = Color.Transparent) {
-                    BottomNavBarItems(selectedTab = selectedTab, onTabSelected = onTabSelected)
+                // 9.273：Murexide 液态玻璃轻量移植——内高光 + 内底影叠加层
+                // （借鉴 LiquidGlass highlight/innerShadow 思路，纯 Compose 无 backdrop 依赖）
+                Box {
+                    NavigationBar(containerColor = Color.Transparent) {
+                        BottomNavBarItems(selectedTab = selectedTab, onTabSelected = onTabSelected)
+                    }
+                    // 顶部内侧高光：自上而下渐隐，模拟玻璃受光面
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(26.dp))
+                            .background(
+                                androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = if (isLightSurface) 0.22f else 0.10f),
+                                        Color.White.copy(alpha = 0f)
+                                    ),
+                                    startY = 0f,
+                                    endY = 60f
+                                )
+                            )
+                    )
+                    // 底部内侧暗影：自下而上渐隐，模拟玻璃厚度投影
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(26.dp))
+                            .background(
+                                androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    listOf(
+                                        Color.Black.copy(alpha = 0f),
+                                        Color.Black.copy(alpha = if (isLightSurface) 0.05f else 0.12f)
+                                    ),
+                                    startY = 0f,
+                                    endY = 50f
+                                )
+                            )
+                    )
                 }
             }
         }
