@@ -37,6 +37,48 @@ class ChatFolderPolicyTest {
     }
 
     @Test
+    fun `moveFolder swaps adjacent and rejects out of range`() {
+        val folders = listOf(
+            ChatFolder("a", "A", emptyList(), 0),
+            ChatFolder("b", "B", emptyList(), 1),
+            ChatFolder("c", "C", emptyList(), 2)
+        )
+        val moved = ChatFolderPolicy.moveFolder(folders, "b", -1)!!
+        assertEquals(listOf("b", "a", "c"), moved.sortedBy { it.sortOrder }.map { it.id })
+        assertNull(ChatFolderPolicy.moveFolder(folders, "a", -1))
+        assertNull(ChatFolderPolicy.moveFolder(folders, "c", 1))
+        assertNull(ChatFolderPolicy.moveFolder(folders, "missing", 1))
+    }
+
+    @Test
+    fun `reorderFolder inserts at target and renumbers`() {
+        // 历史交换可能留下 sortOrder 间隔（0,5,9），重排后应连号
+        val folders = listOf(
+            ChatFolder("a", "A", emptyList(), 0),
+            ChatFolder("b", "B", emptyList(), 5),
+            ChatFolder("c", "C", emptyList(), 9)
+        )
+        val moved = ChatFolderPolicy.reorderFolder(folders, "c", 0)!!
+        assertEquals(listOf("c", "a", "b"), moved.sortedBy { it.sortOrder }.map { it.id })
+        assertEquals(listOf(0, 1, 2), moved.sortedBy { it.sortOrder }.map { it.sortOrder })
+    }
+
+    @Test
+    fun `reorderFolder clamps target and keeps data intact`() {
+        val folders = listOf(
+            ChatFolder("a", "A", listOf("c1"), 0),
+            ChatFolder("b", "B", listOf("c2"), 1)
+        )
+        val clamped = ChatFolderPolicy.reorderFolder(folders, "a", 99)!!
+        assertEquals(listOf("b", "a"), clamped.sortedBy { it.sortOrder }.map { it.id })
+        assertEquals(listOf("c1"), clamped.first { it.id == "a" }.chatIds)
+        // 原位不变返回排序后的原列表
+        val same = ChatFolderPolicy.reorderFolder(folders, "a", 0)!!
+        assertEquals(listOf("a", "b"), same.sortedBy { it.sortOrder }.map { it.id })
+        assertNull(ChatFolderPolicy.reorderFolder(folders, "missing", 0))
+    }
+
+    @Test
     fun `rename and delete`() {
         val base = ChatFolderPolicy.createFolder(emptyList(), "家人", id = "f1")!!
         val renamed = ChatFolderPolicy.renameFolder(base, "f1", "家庭")!!

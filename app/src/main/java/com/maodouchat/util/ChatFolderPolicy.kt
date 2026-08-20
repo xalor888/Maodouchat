@@ -87,6 +87,23 @@ object ChatFolderPolicy {
         }.sortedBy { it.sortOrder }
     }
 
+    /**
+     * 9.233：拖拽排序——把 [folderId] 移到排序后的 [targetIndex] 位（插入语义）。
+     * 与 [moveFolder] 的交换语义不同：跨多位拖动时中间项依次前移/后移。
+     * 重排后按位置重新连号 sortOrder，消除历史交换残留的间隔/碰撞。
+     */
+    fun reorderFolder(existing: List<ChatFolder>, folderId: String, targetIndex: Int): List<ChatFolder>? {
+        val sorted = existing.sortedBy { it.sortOrder }
+        val from = sorted.indexOfFirst { it.id == folderId }
+        if (from < 0) return null
+        val to = targetIndex.coerceIn(0, sorted.size - 1)
+        if (from == to) return sorted
+        val moved = sorted[from]
+        val rest = sorted.filterIndexed { i, _ -> i != from }
+        val rebuilt = rest.toMutableList().apply { add(to, moved) }
+        return rebuilt.mapIndexed { i, folder -> folder.copy(sortOrder = i) }
+    }
+
     fun setChatInFolder(
         existing: List<ChatFolder>,
         folderId: String,

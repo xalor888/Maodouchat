@@ -44,6 +44,7 @@ import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.DragIndicator
 import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.filled.Search
@@ -95,6 +96,12 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.zIndex
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.platform.LocalDensity
+import kotlin.math.roundToInt
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -1096,15 +1103,76 @@ fun ChatListScreen(
     }
 
     if (showFolderManager) {
+        // 9.233：文件夹拖拽排序（TG 式）——长按拖柄拖动，实时预览目标插入位，松手提交
+        val sortedFolders = remember(state.folders) { state.folders.sortedBy { it.sortOrder } }
+        var dragFolder by remember { mutableStateOf<Pair<String, Float>?>(null) }
+        var rowPitchPx by remember { mutableStateOf(0f) }
+        val localDensity = LocalDensity.current
+        val dragIndex = dragFolder?.let { st -> sortedFolders.indexOfFirst { it.id == st.first } } ?: -1
+        val previewTarget = if (dragIndex >= 0 && rowPitchPx > 0f) {
+            val shift = ((dragFolder?.second ?: 0f) / rowPitchPx).roundToInt()
+            (dragIndex + shift).coerceIn(0, sortedFolders.size - 1)
+        } else -1
         AlertDialog(
-            onDismissRequest = { showFolderManager = false },
+            onDismissRequest = { showFolderManager = false; dragFolder = null },
             title = { Text(stringResource(R.string.chat_folder_manage)) },
             text = {
                 Column {
-                    if (state.folders.isEmpty()) Text(stringResource(R.string.chat_folder_list_empty))
-                    else state.folders.forEach { folder ->
-                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(folder.name, modifier = Modifier.weight(1f))
+                    if (sortedFolders.isEmpty()) Text(stringResource(R.string.chat_folder_list_empty))
+                    else sortedFolders.forEachIndexed { index, folder ->
+                        val isDragging = dragFolder?.first == folder.id
+                        val offsetY = if (isDragging) dragFolder?.second ?: 0f else 0f
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp)
+                                .zIndex(if (isDragging) 1f else 0f)
+                                .onGloballyPositioned { coords ->
+                                    // 行距 = 行高 + 上下 padding，用于把拖动位移换算成目标位置
+                                    if (rowPitchPx == 0f) {
+                                        rowPitchPx = coords.size.height.toFloat() + with(localDensity) { 12.dp.toPx() }
+                                    }
+                                }
+                                .graphicsLayer {
+                                    translationY = offsetY
+                                    if (isDragging) {
+                                        shadowElevation = 12f
+                                        alpha = 0.92f
+                                    }
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 拖柄：长按拖动排序（箭头按钮保留作无障碍替代）
+                            Icon(
+                                Icons.Outlined.DragIndicator,
+                                contentDescription = stringResource(R.string.chat_folder_move_up),
+                                tint = LocalChatPalette.current.textHint,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .pointerInput(folder.id) {
+                                        detectDragGesturesAfterLongPress(
+                                            onDragStart = { dragFolder = folder.id to 0f },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                dragFolder = dragFolder?.let { it.first to it.second + dragAmount.y }
+                                            },
+                                            onDragEnd = {
+                                                val st = dragFolder
+                                                if (st != null && previewTarget >= 0 && previewTarget != index) {
+                                                    viewModel.reorderFolder(st.first, previewTarget)
+                                                }
+                                                dragFolder = null
+                                            },
+                                            onDragCancel = { dragFolder = null }
+                                        )
+                                    }
+                            )
+                            Text(
+                                folder.name,
+                                modifier = Modifier.weight(1f).padding(start = 6.dp),
+                                color = if (previewTarget == index && !isDragging) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface
+                            )
                             // 9.222：文件夹排序（TG 式顺序自定义，云端同步）
                             IconButton(onClick = { viewModel.moveFolder(folder.id, -1) }, modifier = Modifier.size(32.dp)) {
                                 Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.chat_folder_move_up), tint = LocalChatPalette.current.textSecondary)
@@ -1115,10 +1183,14 @@ fun ChatListScreen(
                             TextButton(onClick = { renameFolderId = folder.id; renameFolderName = folder.name }) { Text(stringResource(R.string.chat_folder_rename)) }
                             TextButton(onClick = { viewModel.deleteFolder(folder.id) }) { Text(stringResource(R.string.chat_delete)) }
                         }
+                        // 目标插入位指示线：拖拽经过时在对应行下方划线预览落点
+                        if (dragFolder != null && previewTarget == index + 1 && previewTarget < sortedFolders.size) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.primary, thickness = 2.dp)
+                        }
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showFolderManager = false }) { Text(stringResource(android.R.string.ok)) } }
+            confirmButton = { TextButton(onClick = { showFolderManager = false; dragFolder = null }) { Text(stringResource(android.R.string.ok)) } }
         )
     }
 

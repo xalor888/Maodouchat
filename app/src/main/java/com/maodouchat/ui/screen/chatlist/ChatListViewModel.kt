@@ -736,6 +736,14 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         return true
     }
 
+    /** 9.233：拖拽排序——把文件夹移到目标位置（插入语义，云端同步）。 */
+    fun reorderFolder(folderId: String, targetIndex: Int): Boolean {
+        val next = com.maodouchat.util.ChatFolderPolicy.reorderFolder(_uiState.value.folders, folderId, targetIndex)
+            ?: return false
+        persistFolders(next)
+        return true
+    }
+
     fun moveChatToFolder(chatId: String, folderId: String?) {
         if (chatId.isBlank()) return
         persistFolders(
