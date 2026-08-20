@@ -728,6 +728,14 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         persistFolders(com.maodouchat.util.ChatFolderPolicy.deleteFolder(_uiState.value.folders, folderId))
     }
 
+    /** 9.222：文件夹上下移（交换 sortOrder，本地+云端同步）。 */
+    fun moveFolder(folderId: String, delta: Int): Boolean {
+        val next = com.maodouchat.util.ChatFolderPolicy.moveFolder(_uiState.value.folders, folderId, delta)
+            ?: return false
+        persistFolders(next)
+        return true
+    }
+
     fun moveChatToFolder(chatId: String, folderId: String?) {
         if (chatId.isBlank()) return
         persistFolders(

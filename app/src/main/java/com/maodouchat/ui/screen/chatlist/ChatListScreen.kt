@@ -42,6 +42,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.filled.Search
@@ -1103,6 +1105,13 @@ fun ChatListScreen(
                     else state.folders.forEach { folder ->
                         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(folder.name, modifier = Modifier.weight(1f))
+                            // 9.222：文件夹排序（TG 式顺序自定义，云端同步）
+                            IconButton(onClick = { viewModel.moveFolder(folder.id, -1) }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.chat_folder_move_up), tint = LocalChatPalette.current.textSecondary)
+                            }
+                            IconButton(onClick = { viewModel.moveFolder(folder.id, 1) }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.chat_folder_move_down), tint = LocalChatPalette.current.textSecondary)
+                            }
                             TextButton(onClick = { renameFolderId = folder.id; renameFolderName = folder.name }) { Text(stringResource(R.string.chat_folder_rename)) }
                             TextButton(onClick = { viewModel.deleteFolder(folder.id) }) { Text(stringResource(R.string.chat_delete)) }
                         }

@@ -66,6 +66,27 @@ object ChatFolderPolicy {
     fun deleteFolder(existing: List<ChatFolder>, folderId: String): List<ChatFolder> =
         existing.filterNot { it.id == folderId }
 
+    /**
+     * 9.222：文件夹排序——与相邻文件夹交换 sortOrder（TG 式文件夹顺序自定义）。
+     * delta = -1 上移，+1 下移；越界或不存在返回 null。
+     */
+    fun moveFolder(existing: List<ChatFolder>, folderId: String, delta: Int): List<ChatFolder>? {
+        val sorted = existing.sortedBy { it.sortOrder }
+        val index = sorted.indexOfFirst { it.id == folderId }
+        if (index < 0) return null
+        val target = index + delta
+        if (target < 0 || target >= sorted.size) return null
+        val a = sorted[index]
+        val b = sorted[target]
+        return sorted.map {
+            when (it.id) {
+                a.id -> it.copy(sortOrder = b.sortOrder)
+                b.id -> it.copy(sortOrder = a.sortOrder)
+                else -> it
+            }
+        }.sortedBy { it.sortOrder }
+    }
+
     fun setChatInFolder(
         existing: List<ChatFolder>,
         folderId: String,

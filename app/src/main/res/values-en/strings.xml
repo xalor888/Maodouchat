@@ -2199,6 +2199,8 @@
     <string name="chat_folder_unread">Unread</string>
     <string name="chat_folder_secret">Secret</string>
     <string name="chat_folder_locked">Locked</string>
+    <string name="chat_folder_move_up">Move folder up</string>
+    <string name="chat_folder_move_down">Move folder down</string>
     <string name="chat_folder_manage">Manage folders</string>
     <string name="chat_folder_create">New folder</string>
     <string name="chat_folder_create_failed">Could not create (duplicate, empty, or limit reached)</string>

@@ -2176,6 +2176,8 @@
     <string name="chat_folder_unread">未读</string>
     <string name="chat_folder_secret">密聊</string>
     <string name="chat_folder_locked">已锁</string>
+    <string name="chat_folder_move_up">上移文件夹</string>
+    <string name="chat_folder_move_down">下移文件夹</string>
     <string name="chat_folder_manage">管理文件夹</string>
     <string name="chat_folder_create">新建文件夹</string>
     <string name="chat_folder_create_failed">无法创建（重名、为空或已达上限）</string>
