@@ -1445,7 +1445,7 @@ private fun ChatListItem(
                     if (!isDeleting) onLongClick()
                 }
             )
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 10.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (isSelecting) {
@@ -1461,7 +1461,8 @@ private fun ChatListItem(
         Avatar(
             name = displayName,
             avatarUrl = if (chat.isGroup) chat.groupAvatar else otherUser?.avatar,
-            size = AvatarSize.MD,
+            // 9.268：TG 式会话列表头像 54dp（原 48dp）
+            size = AvatarSize.CHAT_LIST,
             // 1.128：单聊显示对方在线绿点（群聊不显示）；1.141：密聊不显示（隐私）
             isOnline = !chat.isGroup && otherUser?.isOnline == true && !isSecret
         )
