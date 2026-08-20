@@ -307,7 +307,9 @@ class PersistentSignalProtocolStore(
         signalKeyDao.deleteKeyBlocking(prefix() + keyType)
     }
 
-    private fun prefix(): String = "user:$accountId:"
+    // 9.236：accountId 为服务端返回不可信数据，前缀经 escapeForPrefix 转义后与 DAO
+    // 的 LIKE ... ESCAPE '\' 配套，防 %/_ 通配扩散作用域；写入/查询两侧必须同一转义
+    private fun prefix(): String = "user:${com.maodouchat.data.local.LikeQueryPolicy.escapeForPrefix(accountId)}:"
 
     private fun addressKey(address: SignalProtocolAddress): String = "${address.name}$ADDRESS_SEPARATOR${address.deviceId}"
 

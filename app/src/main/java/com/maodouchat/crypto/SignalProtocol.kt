@@ -1106,7 +1106,9 @@ class SignalProtocol(
         val accountId = currentUserId
         invalidateInMemoryAccountState()
         if (accountId != null) {
-            signalKeyDao.deleteKeysWithPrefix("user:$accountId:")
+            // 9.236：与 scopedKey/PersistentSignalProtocolStore.prefix() 同一转义，
+            // 保证 LIKE ESCAPE 能精确命中本账号作用域的键
+            signalKeyDao.deleteKeysWithPrefix("user:${com.maodouchat.data.local.LikeQueryPolicy.escapeForPrefix(accountId)}:")
             identityTrustDao.deleteForAccount(accountId)
         } else {
             // 无账号上下文（未登录/内存态已失效）时退回匿名作用域
@@ -1117,7 +1119,8 @@ class SignalProtocol(
     }
 
     private fun scopedKey(keyType: String): String {
-        return currentUserId?.let { "user:$it:$keyType" } ?: "anonymous:$keyType"
+        // 9.236：与 PersistentSignalProtocolStore.prefix() 同一转义，两条写入路径键字面量必须一致
+        return currentUserId?.let { "user:${com.maodouchat.data.local.LikeQueryPolicy.escapeForPrefix(it)}:$keyType" } ?: "anonymous:$keyType"
     }
 
     private fun getOrCreateGroupDistributionId(groupId: String, epoch: Long): String {
