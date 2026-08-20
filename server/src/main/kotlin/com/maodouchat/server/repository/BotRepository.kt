@@ -48,6 +48,8 @@ object BotRepository {
     private const val MAX_UPDATE_JSON_CHARS = 16_000
     // 9.237：单 bot 收件箱积压上限（超限 FIFO 淘汰最旧，见 evictOldestInboxLocked）
     private const val MAX_INBOX_PENDING_PER_BOT = 500L
+    // 9.238：单 bot 命令日志上限（超限 FIFO 淘汰最旧，见 evictOldestCommandLogsLocked）
+    private const val MAX_COMMAND_LOGS_PER_BOT = 2_000L
     private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
     private val logger = org.slf4j.LoggerFactory.getLogger(BotRepository::class.java)
 
@@ -545,6 +547,9 @@ object BotRepository {
                 .forUpdate()
                 .firstOrNull() ?: return@transaction
             if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction
+            // 9.238：命令日志同样封顶——slash 命令洪泛不得让 bot_command_logs 无限增长；
+            // 控制台只翻页读最近记录，FIFO 淘汰最旧不影响可见性
+            evictOldestCommandLogsLocked(botId)
             BotCommandLogs.insert {
                 it[id] = "bcl_" + UUID.randomUUID().toString().replace("-", "").take(16)
                 it[BotCommandLogs.botId] = botId
@@ -553,6 +558,21 @@ object BotRepository {
                 it[BotCommandLogs.command] = command.take(120)
                 it[createdAt] = System.currentTimeMillis()
             }
+        }
+    }
+
+    /** 9.238：单 bot 命令日志封顶（FIFO 淘汰最旧）。须在事务内调用。 */
+    private fun evictOldestCommandLogsLocked(botId: String) {
+        val total = BotCommandLogs.selectAll().where { BotCommandLogs.botId eq botId }.count()
+        if (total < MAX_COMMAND_LOGS_PER_BOT) return
+        val overflow = (total - MAX_COMMAND_LOGS_PER_BOT + 1L).coerceAtLeast(1L).toInt()
+        val oldestIds = BotCommandLogs.selectAll()
+            .where { BotCommandLogs.botId eq botId }
+            .orderBy(BotCommandLogs.createdAt to org.jetbrains.exposed.sql.SortOrder.ASC)
+            .limit(overflow)
+            .map { it[BotCommandLogs.id] }
+        if (oldestIds.isNotEmpty()) {
+            BotCommandLogs.deleteWhere { BotCommandLogs.id inList oldestIds }
         }
     }
 
