@@ -1570,14 +1570,19 @@ private fun ChatListItem(
                 if (hasUnread) {
                     Spacer(Modifier.width(8.dp))
                     // 1.182：点击未读角标直接标记已读（不进入会话）
+                    // 9.269：TG 式未读角标——全胶囊形 + 绿色（TG 标志观感，原主题色圆角矩形）
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.primary)
+                            .clip(RoundedCornerShape(percent = 50))
+                            .background(LocalChatPalette.current.onlineGreen)
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                             .then(if (onBadgeClick != null) Modifier.clickable(onClick = onBadgeClick) else Modifier)
                     ) {
-                        Text(unreadLabel, color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            unreadLabel,
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
+                        )
                     }
                 }
             }
