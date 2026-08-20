@@ -183,7 +183,10 @@ fun ThemeEditorScreen(onBack: () -> Unit = {}) {
     val revision by CustomThemeStore.revision.collectAsState()
     var variant by remember { mutableStateOf("light") }
     var editingSlot by remember { mutableStateOf<String?>(null) }
-    var toastMsg by remember { mutableStateOf<String?>(null) }
+    // 9.290：launcher 回调只记录结果，字符串在组合期用 stringResource 解析——
+    // 回调里用捕获的 LocalContext 查资源会被 compose lint（LocalContextGetResourceValueCall）判为 error 导致 CI 挂
+    var importOutcome by remember { mutableStateOf<Int?>(null) } // null=无事件，0=导入空，n=导入 n 槽位
+    var exportDone by remember { mutableStateOf(false) }
 
     // .attheme 导入（SAF）
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
@@ -192,12 +195,8 @@ fun ThemeEditorScreen(onBack: () -> Unit = {}) {
                 context.contentResolver.openInputStream(uri)?.use { it.bufferedReader().readText() }
             }.getOrNull().orEmpty()
             val parsed = CustomThemeStore.parseAtTheme(text)
-            if (parsed.isEmpty()) {
-                toastMsg = context.getString(R.string.theme_import_no_keys)
-            } else {
-                parsed.forEach { (slot, color) -> CustomThemeStore.setColor(context, variant, slot, color) }
-                toastMsg = context.getString(R.string.theme_import_ok, parsed.size)
-            }
+            parsed.forEach { (slot, color) -> CustomThemeStore.setColor(context, variant, slot, color) }
+            importOutcome = parsed.size
         }
     }
     // .attheme 导出（SAF）
@@ -208,15 +207,23 @@ fun ThemeEditorScreen(onBack: () -> Unit = {}) {
                     it.write(CustomThemeStore.exportAtTheme(context, variant).toByteArray())
                 }
             }
-            toastMsg = context.getString(R.string.theme_export_ok)
+            exportDone = true
         }
     }
 
+    val outcome = importOutcome
+    val toastMsg: String? = when {
+        outcome == 0 -> stringResource(R.string.theme_import_no_keys)
+        outcome != null && outcome > 0 -> stringResource(R.string.theme_import_ok, outcome)
+        exportDone -> stringResource(R.string.theme_export_ok)
+        else -> null
+    }
     LaunchedEffect(toastMsg) {
         val msg = toastMsg
         if (msg != null) {
             android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-            toastMsg = null
+            importOutcome = null
+            exportDone = false
         }
     }
 
