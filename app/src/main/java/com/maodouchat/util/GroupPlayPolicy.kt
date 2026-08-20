@@ -294,18 +294,21 @@ object GroupPlayPolicy {
     fun randomBingoBoard(): List<String> = bingoEmojis.shuffled().take(6)
 
     fun formatBingo(board: List<String>, hostLabel: String): String {
-        val cells = esc(board.joinToString("^") { it.take(4) })
+        // 9.224：同 quiz 修复——先逐项 esc 再 join，避免格内 ^ 与连接符混淆
+        val cells = board.joinToString("^") { esc(it.take(4)) }
         return "${BINGO_PREFIX}$cells|${hostLabel} bingo board"
     }
 
     fun parseBingo(content: String): List<String>? {
         if (!content.startsWith(BINGO_PREFIX)) return null
-        val body = unesc(content.removePrefix(BINGO_PREFIX).substringBefore('|'))
-        return body.split('^').filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }
+        val body = content.removePrefix(BINGO_PREFIX).substringBefore('|')
+        val cells = body.split('^').filter { it.isNotBlank() }.map { unesc(it) }
+        return cells.takeIf { it.isNotEmpty() }
     }
 
     fun formatLottery(pool: List<String>, winner: String, hostLabel: String): String {
-        val p = esc(pool.joinToString("^") { it.take(24) }).take(200)
+        // 9.224：同 quiz 修复——奖池可能含任意用户输入，必须先逐项 esc 再 join
+        val p = pool.joinToString("^") { esc(it.take(24)) }.take(200)
         return "${LOTTERY_PREFIX}${esc(winner)}|$p|${hostLabel} lottery"
     }
 
@@ -314,7 +317,7 @@ object GroupPlayPolicy {
         val body = content.removePrefix(LOTTERY_PREFIX)
         val winner = unesc(body.substringBefore('|'))
         val rest = body.substringAfter('|', "")
-        val pool = unesc(rest.substringBefore('|')).split('^').filter { it.isNotBlank() }
+        val pool = rest.substringBefore('|').split('^').filter { it.isNotBlank() }.map { unesc(it) }
         if (winner.isBlank()) return null
         return winner to pool
     }

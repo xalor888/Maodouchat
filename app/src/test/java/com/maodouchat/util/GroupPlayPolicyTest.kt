@@ -128,4 +128,27 @@ class GroupPlayPolicyTest {
         assertNull(GroupPlayPolicy.parseStory("SPIN:x|y"))
         assertNull(GroupPlayPolicy.parseCountdown("not a countdown"))
     }
+
+    @Test
+    fun `bingo round trips board cells`() {
+        val board = listOf("🍎", "🚀", "🎲", "🌟", "🍀", "🎯")
+        val parsed = GroupPlayPolicy.parseBingo(GroupPlayPolicy.formatBingo(board, "Host"))
+        assertEquals(board, parsed)
+    }
+
+    @Test
+    fun `lottery round trips winner and pool with separator chars`() {
+        // 奖池是用户输入，含 ^/| 时 round-trip 不得断裂（9.224 修复点）
+        val pool = listOf("alice^1", "bob|2", "carol")
+        val parsed = GroupPlayPolicy.parseLottery(GroupPlayPolicy.formatLottery(pool, "alice^1", "Host"))
+        assertEquals("alice^1", parsed?.first)
+        assertEquals(pool, parsed?.second)
+    }
+
+    @Test
+    fun `hot seat round trips target`() {
+        assertEquals("Bob", GroupPlayPolicy.parseHotSeat(GroupPlayPolicy.formatHotSeat("Bob", "Host")))
+        // 空白目标回退为 someone
+        assertEquals("someone", GroupPlayPolicy.parseHotSeat(GroupPlayPolicy.formatHotSeat("   ", "Host")))
+    }
 }
