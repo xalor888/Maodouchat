@@ -355,6 +355,7 @@ class ChatDetailViewModel(
             loadChat()
             connectWebSocket()
             observeWebSocket()
+            observePresenceFallbackPolling()
             observeMessageStatus()
             observeAttachmentTransfers()
             observeAttachmentFinalizedEvents()
@@ -2126,6 +2127,41 @@ class ChatDetailViewModel(
         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
         if (liveToken.isBlank()) return
         WebSocketClient.connect(ApiConfig.WS_URL, liveToken)
+    }
+
+    /**
+     * 9.295：presence 轮询兜底——服务端 USER_STATUS 广播有频控（20次/分）与在线规模上限
+     * （PRESENCE_FANOUT_CAP），超限即丢弃；服务端注释声明「由客户端定期轮询在线状态兜底」，
+     * 但此前客户端从未实现轮询——广播一旦被丢，顶栏在线状态就永远不再更新（用户反馈「实时状态没了」）。
+     * 单聊打开期间每 30 秒拉一次对端状态；群聊/密聊不走此路径（与 WS 事件门控一致）。
+     */
+    private fun observePresenceFallbackPolling() {
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(30_000L)
+                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = currentUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = tokenManager.getUserId(),
+                    )
+                ) continue
+                if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.PRESENCE)) continue
+                val state = _uiState.value
+                if (state.chatIsGroup || state.isSecretChat == true) continue
+                // 密聊 presence 门控（同 WS 事件路径 Surface #69）
+                if (RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_PRESENCE_BLOCK) && state.isSecretChat == true) continue
+                val contactId = state.contact.id.takeIf(String::isNotBlank) ?: continue
+                val liveToken = tokenManager.getToken().orEmpty()
+                if (liveToken.isBlank()) continue
+                ApiService.getUser(liveToken, contactId).onSuccess { dto ->
+                    // 服务端已按 showOnline 隐私计算返回值，客户端直接应用
+                    _uiState.update { cur ->
+                        if (cur.contact.id != contactId || cur.chatIsGroup) cur
+                        else cur.copy(contact = cur.contact.copy(isOnline = dto.isOnline, lastSeen = dto.lastSeen))
+                    }
+                }
+            }
+        }
     }
 
     private fun observeWebSocket() {
