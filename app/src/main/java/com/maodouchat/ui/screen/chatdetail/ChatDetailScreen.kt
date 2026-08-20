@@ -4206,7 +4206,8 @@ DropdownMenuItem(
             },
             confirmButton = {
                 TextButton(enabled = cappedBatch.isNotEmpty(), onClick = {
-                    cappedBatch.forEach { viewModel.deleteMessage(it.id) }
+                    // 9.229：串行批量删除，避免逐条并发打满服务端 mutation 限流
+                    viewModel.deleteMessagesBatch(cappedBatch.map { it.id })
                     selectedMessageIds = emptySet()
                     showBatchDeleteConfirm = false
                     // 1.50：删除完成提示

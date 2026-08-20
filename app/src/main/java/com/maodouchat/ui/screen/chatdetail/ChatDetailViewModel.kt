@@ -4207,8 +4207,44 @@ class ChatDetailViewModel(
             return
         }
         viewModelScope.launch {
-            val original = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return@launch
-            val ticket = messageMutationTracker.begin(messageId, MessageMutationKind.DELETE) ?: return@launch
+            deleteOneMessage(messageId, deleteOwnerUserId)
+        }
+    }
+
+    /**
+     * 9.229：批量删除——单协程内串行逐条执行。旧多选实现对每条并发触发 [deleteMessage]，
+     * 选 60 条即 60 个并发 REST，瞬时打满服务端 mutation 限流（60/min）造成部分 429
+     * 「删一半剩一半」；串行后受 RTT 节流自然低于限流窗口。
+     */
+    fun deleteMessagesBatch(messageIds: List<String>) {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_REVOKE)) {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
+            return
+        }
+        val deleteOwnerUserId = currentUserId
+        if (token.isBlank() || deleteOwnerUserId.isBlank()) {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
+            return
+        }
+        if (messageIds.isEmpty()) return
+        viewModelScope.launch {
+            for (id in messageIds) {
+                try {
+                    deleteOneMessage(id, deleteOwnerUserId)
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (error: Throwable) {
+                    // deleteOneMessage 内部已处理回滚与日志，单条失败不中断后续
+                    Log.w("ChatDetailViewModel", "batch delete item failed: $id", error)
+                }
+            }
+        }
+    }
+
+    /** 9.229：单条删除核心（须在协程内调用），供 [deleteMessage] 与 [deleteMessagesBatch] 复用。 */
+    private suspend fun deleteOneMessage(messageId: String, deleteOwnerUserId: String) {
+            val original = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
+            val ticket = messageMutationTracker.begin(messageId, MessageMutationKind.DELETE) ?: return
             // 先从 UI 移除，给用户即时反馈
             _uiState.update { state ->
                 state.copy(messages = state.messages.filterNot { it.id == messageId })
@@ -4228,7 +4264,7 @@ class ChatDetailViewModel(
                             )
                         }
                     }
-                    return@launch
+                    return
                 }
                 val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
                 val result = withContext(Dispatchers.IO) { ApiService.deleteMessage(liveToken, messageId) }
@@ -4252,9 +4288,9 @@ class ChatDetailViewModel(
                         if (ambiguousTransport && !alreadyGone) {
                             Log.w("ChatDetailViewModel", "deleteMessage transport ambiguous, keep deleted: " + (err?.message ?: "unknown"))
                         }
-                        return@launch
+                        return
                     }
-                    if (!messageMutationTracker.shouldRollback(ticket)) return@launch
+                    if (!messageMutationTracker.shouldRollback(ticket)) return
                     // 明确业务失败时回滚 UI：把被删的消息按原状重新插入
                     Log.w("ChatDetailViewModel", "deleteMessage failed: " + (err?.message ?: "unknown"))
                     _uiState.update { state ->
@@ -4263,7 +4299,7 @@ class ChatDetailViewModel(
                             groupEncryptionWarning = text(R.string.chat_delete_server_failed)
                         )
                     }
-                    return@launch
+                    return
                 }
                 messageMutationTracker.complete(ticket)
                 messageMutationTracker.observeAuthoritative(messageId, MessageMutationKind.DELETE)
@@ -4285,7 +4321,6 @@ class ChatDetailViewModel(
                 }
                 throw error
             }
-        }
     }
 
     fun revokeMessage(messageId: String) {
