@@ -187,17 +187,9 @@ class MaodouchatApp : Application() {
             senderKeyRetryManager.start(applicationScope)
             AiTaskReminderScheduler.ensureScheduled(this@MaodouchatApp)
             AttachmentTransferCoordinator.reconcile(this@MaodouchatApp)
-            // 自动图片 OCR：识别图内文字入搜索索引（静默，条件不满足即整体跳过）
-            if (!userId.isNullOrBlank() && tokenManager.isLoggedIn()) {
-                try {
-                    imageOcrAutoIndexer.runOnce()
-                } catch (error: kotlinx.coroutines.CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    android.util.Log.w("MaodouchatApp", "auto image OCR scan failed", error)
-                }
-            }
-            // Process death while SENDING text: flush without waiting for ChatList/ChatDetail.
+            // 9.239：用户可感知的收敛任务前置——进程被杀时卡 SENDING 的消息重发与
+            // 偏好同步优先；自动 OCR 是纯后台索引增强（每张含网络往返），
+            // 此前排在最前会把 outbox flush 拖后数秒，重发消息迟迟不发
             if (!userId.isNullOrBlank() && tokenManager.isLoggedIn()) {
                 try {
                     com.maodouchat.data.repository.TextOutboxFlusher.flush(app = this@MaodouchatApp)
@@ -212,6 +204,16 @@ class MaodouchatApp : Application() {
                     throw error
                 } catch (error: Exception) {
                     android.util.Log.w("MaodouchatApp", "cold-start client prefs pull failed", error)
+                }
+            }
+            // 自动图片 OCR：识别图内文字入搜索索引（静默，条件不满足即整体跳过）
+            if (!userId.isNullOrBlank() && tokenManager.isLoggedIn()) {
+                try {
+                    imageOcrAutoIndexer.runOnce()
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    android.util.Log.w("MaodouchatApp", "auto image OCR scan failed", error)
                 }
             }
         }
