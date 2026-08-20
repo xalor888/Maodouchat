@@ -3321,8 +3321,9 @@ DropdownMenuItem(
                     modifier = Modifier.fillMaxSize()
                 )
             }
-            // 9.205：TG 风格涂鸦纹理——仅默认壁纸且无自定义图片时叠加，不盖住用户自选壁纸
-            if (customWallpaperUri == null && chatWallpaperPreset == com.maodouchat.util.ChatWallpaperPreset.DEFAULT) {
+            // 9.205：TG 风格涂鸦纹理——叠加在默认与颜色壁纸之上（TG 是颜色+图案叠加），
+            // 仅当用户选了自定义图片壁纸时不叠加，避免盖住用户自选图片
+            if (customWallpaperUri == null) {
                 // 9.254：TG 式背景纵深——单色底上叠一层自上而下的微暗渐变，平面背景立刻有
                 // 空间感（从当前背景色派生，自定义主题/深浅模式自动跟随）
                 Box(
