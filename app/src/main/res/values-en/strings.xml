@@ -2893,4 +2893,8 @@
     <string name="theme_import_no_keys">No applicable theme colors found</string>
     <string name="theme_export_ok">Theme exported</string>
     <string name="settings_theme_customize">Customize colors</string>
+    <string name="theme_slot_in_text">Incoming text</string>
+    <string name="theme_slot_input_background">Input background</string>
+    <string name="theme_slot_unread_badge">Unread badge</string>
+    <string name="theme_slot_system_message">System message bg</string>
 </resources>

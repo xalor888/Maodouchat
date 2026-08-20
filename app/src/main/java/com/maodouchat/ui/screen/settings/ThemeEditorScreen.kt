@@ -187,9 +187,13 @@ private fun slotDisplayName(slot: String): String = stringResource(
         "accent" -> R.string.theme_slot_accent
         "chat_background" -> R.string.theme_slot_chat_background
         "chat_inBubble" -> R.string.theme_slot_in_bubble
+        "chat_inText" -> R.string.theme_slot_in_text
         "chat_outBubble" -> R.string.theme_slot_out_bubble
         "chat_outText" -> R.string.theme_slot_out_text
         "text_primary" -> R.string.theme_slot_text_primary
+        "input_background" -> R.string.theme_slot_input_background
+        "unread_badge" -> R.string.theme_slot_unread_badge
+        "system_message" -> R.string.theme_slot_system_message
         else -> R.string.theme_slot_window_background
     }
 )
@@ -205,9 +209,13 @@ private fun defaultSlotColor(slot: String, variant: String): Color {
         "accent" -> paint.colorScheme.primary
         "chat_background" -> paint.chatPalette.chatBackground
         "chat_inBubble" -> paint.chatPalette.chatBubbleReceived
+        "chat_inText" -> paint.chatPalette.textPrimary
         "chat_outBubble" -> paint.sentBubbleSpec?.color ?: paint.colorScheme.primary
         "chat_outText" -> paint.sentBubbleSpec?.content ?: Color.White
         "text_primary" -> paint.chatPalette.textPrimary
+        "input_background" -> paint.chatPalette.chatInputBackground
+        "unread_badge" -> paint.chatPalette.unreadRed
+        "system_message" -> paint.chatPalette.systemMessageBackground
         else -> paint.colorScheme.background
     }
 }

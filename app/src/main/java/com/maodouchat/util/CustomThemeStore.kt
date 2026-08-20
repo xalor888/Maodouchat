@@ -22,15 +22,19 @@ object CustomThemeStore {
     private val _revision = MutableStateFlow(0)
     val revision: StateFlow<Int> = _revision
 
-    /** 可自定义的颜色槽位：id → (显示名资源无关的键, 说明)。顺序即编辑器展示顺序。 */
+    /** 可自定义的颜色槽位：顺序即编辑器展示顺序。 */
     val SLOTS = listOf(
         "accent",            // 强调色（primary）
         "chat_background",   // 聊天背景
         "chat_inBubble",     // 接收气泡
+        "chat_inText",       // 接收气泡文字
         "chat_outBubble",    // 发送气泡
         "chat_outText",      // 发送气泡文字
         "text_primary",      // 主文字色
-        "window_background"  // 页面背景
+        "window_background", // 页面背景
+        "input_background",  // 输入框背景
+        "unread_badge",      // 未读角标
+        "system_message"     // 系统消息背景
     )
 
     /**
@@ -41,9 +45,13 @@ object CustomThemeStore {
         "actionBarDefaultAction" to "accent",
         "actionBarDefaultIcon" to "accent",
         "chat_inBubble" to "chat_inBubble",
+        "chat_inTextColor" to "chat_inText",
         "chat_messagePanelBackground" to "chat_background",
+        "chat_messagePanelBackground2" to "input_background",
         "chat_outBubble" to "chat_outBubble",
         "chat_outTextColor" to "chat_outText",
+        "chat_unreadCounter" to "unread_badge",
+        "chat_serviceMessageBackground" to "system_message",
         "chat_wallpaper" to "chat_background",
         "windowBackgroundWhite" to "window_background",
         "windowBackgroundWhiteBlackText" to "text_primary"
@@ -159,6 +167,23 @@ object CustomThemeStore {
         }
         getColor(ctx, variant, "chat_inBubble")?.let {
             palette = palette.copy(chatBubbleReceived = it)
+        }
+        getColor(ctx, variant, "chat_inText")?.let {
+            // 接收气泡正文用 textPrimary 渲染；边框同步派生保持层次
+            palette = palette.copy(
+                textPrimary = it,
+                chatBubbleReceivedBorder = it.copy(alpha = 0.25f)
+            )
+            scheme = scheme.copy(onSurface = it)
+        }
+        getColor(ctx, variant, "input_background")?.let {
+            palette = palette.copy(chatInputBackground = it)
+        }
+        getColor(ctx, variant, "unread_badge")?.let {
+            palette = palette.copy(unreadRed = it)
+        }
+        getColor(ctx, variant, "system_message")?.let {
+            palette = palette.copy(systemMessageBackground = it.copy(alpha = 0.6f))
         }
         val outBubble = getColor(ctx, variant, "chat_outBubble")
         val outText = getColor(ctx, variant, "chat_outText")

@@ -71,8 +71,9 @@ class CustomThemeStoreTest {
         // SLOTS 顺序即编辑器展示顺序，变更会改变 UI——锁定防意外重排
         assertEquals(
             listOf(
-                "accent", "chat_background", "chat_inBubble", "chat_outBubble",
-                "chat_outText", "text_primary", "window_background"
+                "accent", "chat_background", "chat_inBubble", "chat_inText",
+                "chat_outBubble", "chat_outText", "text_primary", "window_background",
+                "input_background", "unread_badge", "system_message"
             ),
             CustomThemeStore.SLOTS
         )

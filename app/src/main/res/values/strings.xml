@@ -2859,4 +2859,8 @@
     <string name="theme_import_no_keys">未识别到可应用的主题颜色</string>
     <string name="theme_export_ok">主题已导出</string>
     <string name="settings_theme_customize">自定义颜色</string>
+    <string name="theme_slot_in_text">接收气泡文字</string>
+    <string name="theme_slot_input_background">输入框背景</string>
+    <string name="theme_slot_unread_badge">未读角标</string>
+    <string name="theme_slot_system_message">系统消息背景</string>
 </resources>
