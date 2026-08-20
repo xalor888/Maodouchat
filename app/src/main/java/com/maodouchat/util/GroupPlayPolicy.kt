@@ -231,18 +231,22 @@ object GroupPlayPolicy {
     }
 
     fun formatQuiz(question: String, answer: String, options: List<String>, hostLabel: String): String {
-        val opts = esc(options.joinToString("^") { it.take(40) })
+        // 9.224 修复：先逐项 esc 再 join——此前 join 后才 esc，选项内的 ^/| 与连接符
+        // 一并被转义，解析端无法区分导致选项断裂（round-trip 破坏）
+        val opts = options.joinToString("^") { esc(it.take(40)) }
         return "${QUIZ_PREFIX}${esc(question.take(120))}|${esc(answer)}|${opts}|${hostLabel} quiz"
     }
 
     fun parseQuiz(content: String): Triple<String, String, List<String>>? {
         if (!content.startsWith(QUIZ_PREFIX)) return null
         val body = content.removePrefix(QUIZ_PREFIX)
-        val parts = body.split('|').map { unesc(it) }
+        // 9.224：选项段先按 ^ 切分再逐项 unesc，与 format 的「先 esc 再 join」对偶；
+        // q/ans 仍整段 unesc。旧格式（无真 ^ 分隔）退化为单项展示，不崩溃。
+        val parts = body.split('|')
         if (parts.size < 3) return null
-        val q = parts[0]
-        val ans = parts[1]
-        val opts = parts[2].split('^').filter { it.isNotBlank() }
+        val q = unesc(parts[0])
+        val ans = unesc(parts[1])
+        val opts = parts[2].split('^').filter { it.isNotBlank() }.map { unesc(it) }
         return Triple(q, ans, opts)
     }
 

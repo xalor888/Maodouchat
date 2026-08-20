@@ -717,7 +717,9 @@ private fun TextBubble(
                     if (parsedBody.startsWith(com.maodouchat.util.GroupPlayPolicy.EMOJI_RAIN_PREFIX)) { return@run parsedBody.removePrefix(com.maodouchat.util.GroupPlayPolicy.EMOJI_RAIN_PREFIX).substringAfter('|', parsedBody) }
                     com.maodouchat.util.GroupPlayPolicy.parseTwoTruthsOneLie(parsedBody)?.let { items -> return@run "Two truths & one lie: " + items.joinToString(" / ") }
                     if (parsedBody.startsWith(com.maodouchat.util.GroupPlayPolicy.QUIZ_PREFIX)) {
-                        val q = parsedBody.removePrefix(com.maodouchat.util.GroupPlayPolicy.QUIZ_PREFIX).substringBefore('|')
+                        // 9.224：走 parseQuiz 拿到 unesc 后的题目（直接 substringBefore 会残留转义符）
+                        val q = com.maodouchat.util.GroupPlayPolicy.parseQuiz(parsedBody)?.first
+                            ?: parsedBody.removePrefix(com.maodouchat.util.GroupPlayPolicy.QUIZ_PREFIX).substringBefore('|')
                         return@run "Quiz: $q"
                     }
                     com.maodouchat.util.GroupPlayPolicy.parseCharades(parsedBody)?.let { return@run "Charades: ${it}" }
