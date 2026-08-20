@@ -530,12 +530,15 @@ fun Application.configureRouting(
                     return@get
                 }
                 val maint = RuntimeConfigService.isMaintenanceMode()
+                val registrationOpen = RuntimeConfigService.isRegistrationAllowed()
                 val body = buildJsonObject {
 put("ok", !maint)
 put("maintenance", maint)
 put("maintenanceMessage", RuntimeConfigService.get(RuntimeConfigService.KEY_MAINTENANCE_MESSAGE))
-put("registrationOpen", RuntimeConfigService.isRegistrationAllowed())
-put("inviteOnlyHint", RuntimeConfigService.get(RuntimeConfigService.KEY_INVITE_ONLY_HINT))
+put("registrationOpen", registrationOpen)
+// 邀请制提示仅在注册关闭时下发：注册开放时客户端登录页也会展示非空 hint，
+// 默认文案“Registration is temporarily closed.”会误导用户以为注册已停止。
+put("inviteOnlyHint", if (registrationOpen) "" else RuntimeConfigService.get(RuntimeConfigService.KEY_INVITE_ONLY_HINT))
 put("globalBanner", RuntimeConfigService.get(RuntimeConfigService.KEY_GLOBAL_BANNER))
 put("forceE2eeBanner", RuntimeConfigService.get(RuntimeConfigService.KEY_FORCE_E2EE_BANNER))
 put("sealedSenderEnabled", RuntimeConfigService.isSealedSenderEnabled())

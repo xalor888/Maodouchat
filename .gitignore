@@ -26,6 +26,7 @@ captures/
 !.env.example
 !.env.docker.example
 keystore.properties
+signing/
 *.jks
 *.keystore
 secrets/
