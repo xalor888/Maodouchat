@@ -522,6 +522,30 @@ private fun Modifier.captureBubbleBounds(onBoundsMeasured: ((IntOffset, IntSize)
     }
 }
 
+/**
+ * 9.267：TG 式角尾——组尾消息（showAvatar 位）的尾角侧用小圆角：
+ * 自己消息右下角 / 对方消息左下角；其余角保持主题形状（尊重用户自定义圆角风格）。
+ */
+@Composable
+private fun resolveBubbleShape(isOwnMessage: Boolean, isGroupEdge: Boolean): androidx.compose.ui.graphics.Shape {
+    val base = if (isOwnMessage) com.maodouchat.ui.theme.LocalBubbleShapes.current.sent
+    else com.maodouchat.ui.theme.LocalBubbleShapes.current.received
+    if (!isGroupEdge) return base
+    val rounded = base as? androidx.compose.foundation.shape.RoundedCornerShape ?: return base
+    val tailCorner = androidx.compose.foundation.shape.CornerSize(4.dp)
+    return if (isOwnMessage) {
+        androidx.compose.foundation.shape.RoundedCornerShape(
+            topStart = rounded.topStart, topEnd = rounded.topEnd,
+            bottomStart = rounded.bottomStart, bottomEnd = tailCorner
+        )
+    } else {
+        androidx.compose.foundation.shape.RoundedCornerShape(
+            topStart = rounded.topStart, topEnd = rounded.topEnd,
+            bottomStart = tailCorner, bottomEnd = rounded.bottomEnd
+        )
+    }
+}
+
 @Composable
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 private fun TextBubble(
@@ -633,16 +657,18 @@ private fun TextBubble(
             }
 
             // 气泡
+            // 9.267：TG 式角尾——showAvatar 即组尾（含单条消息组），尾角侧用小圆角
+            val bubbleShape = resolveBubbleShape(isOwnMessage, isGroupEdge = showAvatar)
             Column(
                 modifier = Modifier
                     .captureBubbleBounds(onBoundsMeasured)
-                    .clip(if (isOwnMessage) com.maodouchat.ui.theme.LocalBubbleShapes.current.sent else com.maodouchat.ui.theme.LocalBubbleShapes.current.received)
+                    .clip(bubbleShape)
                     .background(if (isOwnMessage) Brush.linearGradient(com.maodouchat.ui.theme.ChatBubbleColorPalette.gradient(LocalChatBubbleColor.current)) else Brush.linearGradient(listOf(palette.chatBubbleReceived, palette.chatBubbleReceived)))
                     .then(
                         if (!isOwnMessage) Modifier.border(
                             1.dp,
                             palette.chatBubbleReceivedBorder,
-                            com.maodouchat.ui.theme.LocalBubbleShapes.current.received
+                            bubbleShape
                         ) else Modifier
                     )
                     .padding(horizontal = 14.dp, vertical = 10.dp)
