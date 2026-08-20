@@ -87,7 +87,9 @@ val ChatInputBorderDark = Color(0xFF2F333B)
 val ChatInputPlaceholderDark = Color(0xFF666B72)
 val SystemMessageBgDark = Color(0x16FFFFFF)
 val SystemMessageTextDark = Color(0xFF9AA1AB)
-val TextHintDark = Color(0xFF6B7077)
+// 9.261：深色对比度校准——#6B7077 在深色背景仅 3.2:1（时间戳/提示看不清），
+// 提亮到 #8A9099（背景上 5.76:1 / 深色气泡上 4.96:1，均达 WCAG AA）
+val TextHintDark = Color(0xFF8A9099)
 val TextPrimaryDark = Color(0xFFE4E6EA)
 val TextSecondaryDark = Color(0xFF9AA1AB)
 val DividerDark = Color(0xFF2A2E36)
