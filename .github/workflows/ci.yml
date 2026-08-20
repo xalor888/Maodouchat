@@ -93,9 +93,11 @@ jobs:
           ADMIN_E2E_BASE_URL: http://127.0.0.1:18080
         run: |
           mkdir -p build/reports
-          (cd server && ../gradlew run --no-daemon --console=plain > ../build/admin-e2e-server.log 2>&1) &
+          # 9.244：用 setsid 起进程组——此前 kill 只杀子 shell，gradle run 的 JVM
+          # 变孤儿进程占住 18080/内存直到 runner 超时
+          setsid bash -c 'cd server && exec ../gradlew run --no-daemon --console=plain > ../build/admin-e2e-server.log 2>&1' &
           SERVER_PID=$!
-          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          trap 'kill -- -"$SERVER_PID" 2>/dev/null || true' EXIT
           npm run test:admin-e2e
           npm run test:website
           npm run test:developer-e2e
