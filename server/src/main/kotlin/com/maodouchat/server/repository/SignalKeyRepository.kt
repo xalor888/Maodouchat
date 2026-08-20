@@ -446,7 +446,7 @@ class SignalKeyRepository {
      * Full key package in one transaction so SPK + signature never diverge mid-upload.
      * @return the upload result, including session and device-ID conflicts.
      */
-    enum class UploadKeyPackageResult { UPLOADED, SESSION_CONFLICT, DEVICE_ID_CONFLICT }
+    enum class UploadKeyPackageResult { UPLOADED, SESSION_CONFLICT, DEVICE_ID_CONFLICT, INVALID_SIGNATURE }
 
     fun uploadKeyPackage(
         userId: String,
@@ -460,6 +460,12 @@ class SignalKeyRepository {
         preKeys: List<PreKeyUpload>,
         deviceName: String? = null,
     ): UploadKeyPackageResult {
+        // 9.298：上传前验签——signedPreKey 签名必须用 identityKey 验证通过。
+        // 实测事故：旧版客户端 identity 重生后残留旧 SPK 上传，坏 bundle 入库后所有
+        // 与该用户建会话的对端永远报「密钥包无效」（发图/发消息全挂）。入库前拦住
+        if (!verifyKeyPackageSignature(identityKey, signedPreKey, signedPreKeySignature)) {
+            return UploadKeyPackageResult.INVALID_SIGNATURE
+        }
         return transaction {
             com.maodouchat.server.db.Users.selectAll()
                 .where { com.maodouchat.server.db.Users.id eq userId }
@@ -612,6 +618,18 @@ class SignalKeyRepository {
             }.firstOrNull()?.get(SignalKeys.keyData)
         }
     }
+
+    /** 9.298：密钥包上传验签——identity 验 signedPreKey，格式/签名任一异常都拒绝。 */
+    private fun verifyKeyPackageSignature(
+        identityKeyBase64: String,
+        signedPreKeyBase64: String,
+        signatureBase64: String
+    ): Boolean = runCatching {
+        val identityPublic = Curve.decodePoint(Base64.getDecoder().decode(identityKeyBase64), 0)
+        val signedPreKeyPublic = Curve.decodePoint(Base64.getDecoder().decode(signedPreKeyBase64), 0)
+        val signature = Base64.getDecoder().decode(signatureBase64)
+        Curve.verifySignature(identityPublic, signedPreKeyPublic.serialize(), signature)
+    }.getOrDefault(false)
 
     private fun verifyDeviceConfirmationProof(
         userId: String,

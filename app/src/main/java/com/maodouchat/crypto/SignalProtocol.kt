@@ -121,6 +121,18 @@ class SignalProtocol(
                 Log.w(TAG, "Signal init: $droppedCorruptKeys corrupt key rows dropped during loadPersistedState")
             }
             restoreSignedPreKey()
+            // 9.298：SPK 签名必须与当前 identity 匹配——identity 因腐败/缺失被重新生成而旧 SPK
+            // 残留时，上传会让所有与该用户建会话的对端永远报「密钥包无效」（签名验证失败）。
+            // 实测案例：服务端 bundle 的 signedPreKey 签名对不上 identityKey，导致发图/发消息全挂
+            signedPreKey?.let { spk ->
+                val signatureValid = runCatching {
+                    Curve.verifySignature(identityKeyPair.publicKey.publicKey, spk.serialize(), spk.signature)
+                }.getOrDefault(false)
+                if (!signatureValid) {
+                    Log.w(TAG, "Signal init: signed pre-key signature does not match current identity; regenerating to avoid publishing invalid bundle")
+                    signedPreKey = null
+                }
+            }
             // 只取 store 中**未被消费**的 pre_key:* 单行记录。不要回退到 KEY_PRE_KEYS blob——
             // blob 含已消费的一次性预密钥，整体复活后 persistPreKeys() + 上传会把已用 OTPK
             // 重新投放，破坏 X3DH 单次使用语义（两次会话共用同一 OTPK）。无剩余时交给

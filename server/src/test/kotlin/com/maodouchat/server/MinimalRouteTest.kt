@@ -1474,9 +1474,13 @@ class AiSummarySyncSessionIsolationRouteTest {
         val signalKeyRepo = SignalKeyRepository()
         val deviceOneKeyPair = Curve.generateKeyPair()
         val deviceOneIdentity = Base64.getEncoder().encodeToString(deviceOneKeyPair.publicKey.serialize())
-        val deviceTwoIdentity = "summary-sync-device-two-identity"
+        // 9.298：服务端上传验签——deviceTwo 也用真实密钥对（原假字符串无法通过 decodePoint/验签）
+        val deviceTwoKeyPair = Curve.generateKeyPair()
+        val deviceTwoIdentity = Base64.getEncoder().encodeToString(deviceTwoKeyPair.publicKey.serialize())
 
-        fun uploadDevice(sessionId: String, deviceId: Int, identityKey: String) {
+        fun uploadDevice(sessionId: String, deviceId: Int, identityKey: String, identityPrivateKey: org.signal.libsignal.protocol.ecc.ECPrivateKey) {
+            val spkPair = Curve.generateKeyPair()
+            val spkSignature = Curve.calculateSignature(identityPrivateKey, spkPair.publicKey.serialize())
             assertEquals(
                 SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
                 signalKeyRepo.uploadKeyPackage(
@@ -1486,15 +1490,15 @@ class AiSummarySyncSessionIsolationRouteTest {
                     identityKey = identityKey,
                     registrationId = 20_000 + deviceId,
                     signedPreKeyId = deviceId,
-                    signedPreKey = "summary-sync-signed-pre-key-$deviceId",
-                    signedPreKeySignature = "summary-sync-signature-$deviceId",
+                    signedPreKey = Base64.getEncoder().encodeToString(spkPair.publicKey.serialize()),
+                    signedPreKeySignature = Base64.getEncoder().encodeToString(spkSignature),
                     preKeys = emptyList()
                 )
             )
         }
 
-        uploadDevice(deviceOneSession, 1, deviceOneIdentity)
-        uploadDevice(deviceTwoSession, 2, deviceTwoIdentity)
+        uploadDevice(deviceOneSession, 1, deviceOneIdentity, deviceOneKeyPair.privateKey)
+        uploadDevice(deviceTwoSession, 2, deviceTwoIdentity, deviceTwoKeyPair.privateKey)
         val confirmationPayload = "maodouchat-device-confirm:v1\nu1\n1\n2\n$deviceTwoIdentity".toByteArray()
         val confirmationProof = Base64.getEncoder().encodeToString(
             Curve.calculateSignature(deviceOneKeyPair.privateKey, confirmationPayload)
@@ -2093,7 +2097,20 @@ class SenderKeyDistributionRouteTest {
         val chatId = (Json.parseToJsonElement(created.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
 
         SignalKeyRepository().apply {
-            fun uploadBundle(userId: String, deviceId: Int, label: String, identityKey: String = "$label-identity") {
+            fun uploadBundle(
+                userId: String,
+                deviceId: Int,
+                label: String,
+                identityKey: String? = null,
+                identityPrivateKey: org.signal.libsignal.protocol.ecc.ECPrivateKey? = null
+            ) {
+                // 9.298：服务端上传验签后，测试必须用真实密钥包（identity 签 SPK）
+                val generatedPair = if (identityKey == null) Curve.generateKeyPair() else null
+                val actualIdentityKey = identityKey
+                    ?: Base64.getEncoder().encodeToString(generatedPair!!.publicKey.serialize())
+                val signingKey = identityPrivateKey ?: generatedPair!!.privateKey
+                val spkPair = Curve.generateKeyPair()
+                val spkSignature = Curve.calculateSignature(signingKey, spkPair.publicKey.serialize())
                 val sessionId = "test-session-$userId-$deviceId"
                 org.jetbrains.exposed.sql.transactions.transaction {
                     com.maodouchat.server.db.AuthSessions.insert {
@@ -2108,23 +2125,24 @@ class SenderKeyDistributionRouteTest {
                     userId = userId,
                     authSessionId = sessionId,
                     deviceId = deviceId,
-                    identityKey = identityKey,
+                    identityKey = actualIdentityKey,
                     registrationId = 10_000 + deviceId,
                     signedPreKeyId = deviceId,
-                    signedPreKey = "$label-signed-pre-key",
-                    signedPreKeySignature = "$label-signature",
+                    signedPreKey = Base64.getEncoder().encodeToString(spkPair.publicKey.serialize()),
+                    signedPreKeySignature = Base64.getEncoder().encodeToString(spkSignature),
                     preKeys = emptyList()
                 )
                 check(uploadResult == SignalKeyRepository.UploadKeyPackageResult.UPLOADED) { "uploadKeyPackage failed: $uploadResult" }
             }
             val approverKeyPair = Curve.generateKeyPair()
             val approverIdentity = Base64.getEncoder().encodeToString(approverKeyPair.publicKey.serialize())
-            val targetIdentity = "alice-device-2-identity"
+            val targetKeyPair = Curve.generateKeyPair()
+            val targetIdentity = Base64.getEncoder().encodeToString(targetKeyPair.publicKey.serialize())
             uploadBundle("u1", 1, "alex-device-1")
             touchDevice("u1", 1)
-            uploadBundle("u2", 1, "alice-device-1", approverIdentity)
+            uploadBundle("u2", 1, "alice-device-1", approverIdentity, approverKeyPair.privateKey)
             touchDevice("u2", 1)
-            uploadBundle("u2", 2, "alice-device-2", targetIdentity)
+            uploadBundle("u2", 2, "alice-device-2", targetIdentity, targetKeyPair.privateKey)
             touchDevice("u2", 2)
             val proofPayload = "maodouchat-device-confirm:v1\nu2\n1\n2\n$targetIdentity".toByteArray()
             val proof = Base64.getEncoder().encodeToString(Curve.calculateSignature(approverKeyPair.privateKey, proofPayload))

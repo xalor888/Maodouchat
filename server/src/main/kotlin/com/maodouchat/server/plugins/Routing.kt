@@ -16374,6 +16374,14 @@ put("likeCount", likeCount)
                         )
                         return@post
                     }
+                    // 9.298：签名无效拒绝入库，提示客户端重生密钥后重传
+                    SignalKeyRepository.UploadKeyPackageResult.INVALID_SIGNATURE -> {
+                        call.respond(
+                            HttpStatusCode.BadRequest,
+                            ErrorResponse("密钥包签名校验失败，请更新客户端重新生成密钥", code = "INVALID_KEY_SIGNATURE")
+                        )
+                        return@post
+                    }
                 }
                 call.respond(
                 buildJsonObject {
