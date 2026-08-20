@@ -125,6 +125,18 @@ private val SystemBubbleShape = RoundedCornerShape(16.dp)
 private val WaveHeights = listOf(0.3f, 0.7f, 1f, 0.5f, 0.9f, 0.4f, 0.6f, 0.2f)
 
 /**
+ * 9.272：语音波形高度按 message.id 派生确定性伪随机——每条语音拥有独有且稳定的波形
+ *（TG 观感：每条语音波形不同；原固定序列全部语音同一形状）。LCG 保证同 id 恒定。
+ */
+private fun waveHeightsFor(messageId: String): List<Float> {
+    var seed = messageId.hashCode().toLong()
+    return List(WaveHeights.size) {
+        seed = seed * 6364136223846793005L + 1442695040888963407L
+        0.25f + ((seed ushr 33) % 76) / 100f
+    }
+}
+
+/**
  * 消息气泡组件
  *
  * @param message 消息数据
@@ -1501,14 +1513,15 @@ private fun VoiceBubble(
 
                         Spacer(modifier = Modifier.width(12.dp))
 
-                        // 模拟波形 + 实时进度覆盖
+                        // 模拟波形 + 实时进度覆盖（9.272：波形按 message.id 派生，每条语音独有）
+                        val waveHeights = remember(message.id) { waveHeightsFor(message.id) }
                         Box(modifier = Modifier.weight(1f).height(28.dp)) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(3.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.align(Alignment.CenterStart)
                             ) {
-                                WaveHeights.forEach { h ->
+                                waveHeights.forEach { h ->
                                     Box(
                                         modifier = Modifier
                                             .width(3.dp)
@@ -1521,14 +1534,14 @@ private fun VoiceBubble(
                                     )
                                 }
                             }
-                            val activeCount = (WaveHeights.size * progress).toInt().coerceIn(0, WaveHeights.size)
+                            val activeCount = (waveHeights.size * progress).toInt().coerceIn(0, waveHeights.size)
                             if (activeCount > 0) {
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(3.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.align(Alignment.CenterStart)
                                 ) {
-                                    WaveHeights.take(activeCount).forEach { h ->
+                                    waveHeights.take(activeCount).forEach { h ->
                                         Box(
                                             modifier = Modifier
                                                 .width(3.dp)
