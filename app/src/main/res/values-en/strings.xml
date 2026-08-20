@@ -1888,6 +1888,10 @@
     <string name="contacts_scan_align">Align a QR code inside the scanner</string>
     <string name="contacts_scan_supports">Scans Maodouchat IDs, group invites, and safety codes</string>
     <string name="contacts_start_scan">Start scanning</string>
+    <string name="contacts_scan_from_gallery">Choose from gallery</string>
+    <string name="contacts_gallery_qr_not_found">No QR code found in the image</string>
+    <string name="contacts_camera_permission_needed">Camera permission is required to scan. You can also pick a QR image from the gallery</string>
+    <string name="contacts_camera_grant">Grant camera permission</string>
     <string name="contacts_invalid_qr_title">QR code not recognized</string>
     <string name="contacts_invalid_qr_message">This is not a supported Maodouchat QR code.</string>
     <string name="contacts_found">Contact found</string>

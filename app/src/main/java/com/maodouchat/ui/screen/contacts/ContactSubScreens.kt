@@ -7,6 +7,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +31,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.QrCode
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Refresh
@@ -48,6 +50,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -371,8 +374,8 @@ fun ScanScreen(
     var invalidQr by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
 
-    val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
-        val raw = result.contents ?: return@rememberLauncherForActivityResult
+    // 9.280：扫码结果处理统一入口（页内嵌入扫码/相册解码/旧 CaptureActivity 兼容三路共用）
+    val handleScanResult: (String) -> Unit = handleRaw@{ raw ->
         val target = QrCodeGenerator.parsePayload(raw)
         invalidQr = false
         if (target == null) {
@@ -382,7 +385,7 @@ fun ScanScreen(
             inviteError = null
             safetyScanResult = null
             invalidQr = true
-            return@rememberLauncherForActivityResult
+            return@handleRaw
         }
         when (target) {
             is QrCodeGenerator.QrTarget.Chat -> onOpenChat(target.chatId)
@@ -541,7 +544,33 @@ fun ScanScreen(
             }
         }
     }
-
+    
+    // 旧 CaptureActivity 兑底路径（保留可用，主入口已改为页内嵌入扫码）
+    val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val raw = result.contents ?: return@rememberLauncherForActivityResult
+        handleScanResult(raw)
+    }
+    // 9.280：相册图片 QR 解码（Photo Picker 免权限，zxing core 本地解码）
+    var decodingGallery by remember { mutableStateOf(false) }
+    val galleryQrLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        decodingGallery = true
+        scope.launch {
+            val text = withContext(Dispatchers.IO) { decodeQrFromImage(context, uri) }
+            decodingGallery = false
+            if (text == null) {
+                Toast.makeText(context, context.getString(R.string.contacts_gallery_qr_not_found), Toast.LENGTH_SHORT).show()
+            } else {
+                handleScanResult(text)
+            }
+        }
+    }
+    // 9.280：相机权限状态（页内预览需要）
+    var cameraGranted by remember {
+        mutableStateOf(context.checkSelfPermission(android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED)
+    }
+    val cameraPermLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { cameraGranted = it }
+    
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text(stringResource(R.string.contacts_scan), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
@@ -553,27 +582,91 @@ fun ScanScreen(
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
         )
 
-        Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(stringResource(R.string.contacts_scan_align), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(stringResource(R.string.contacts_scan_supports), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
-            Spacer(modifier = Modifier.height(32.dp))
-            Button(
-                onClick = {
-                    val options = ScanOptions().apply {
-                        setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                        setPrompt(scanAlignPrompt)
-                        setBeepEnabled(true)
-                        setOrientationLocked(false)
-                        setBarcodeImageEnabled(false)
+        // 9.280：页内嵌入扫码器（替代第三方复古 CaptureActivity 页面），实时预览 + 自定义观感
+        Box(modifier = Modifier.weight(1f).fillMaxWidth().background(androidx.compose.ui.graphics.Color.Black)) {
+            if (cameraGranted) {
+                val barcodeView = remember {
+                    com.journeyapps.barcodescanner.DecoratedBarcodeView(context).apply {
+                        setStatusText("")
+                        barcodeView.decoderFactory = com.journeyapps.barcodescanner.DefaultDecoderFactory(listOf(com.google.zxing.BarcodeFormat.QR_CODE))
                     }
-                    scanLauncher.launch(options)
-                },
-                modifier = Modifier.fillMaxWidth().height(56.dp)
+                }
+                val scanConsumed = remember { mutableStateOf(false) }
+                DisposableEffect(barcodeView) {
+                    barcodeView.decodeContinuous { result ->
+                        if (!scanConsumed.value && !result.text.isNullOrBlank()) {
+                            scanConsumed.value = true
+                            barcodeView.pause()
+                            handleScanResult(result.text)
+                        }
+                    }
+                    barcodeView.resume()
+                    onDispose { barcodeView.pause() }
+                }
+                // 结果弹窗关闭后恢复扫描
+                LaunchedEffect(scannedTarget, invalidQr, loading) {
+                    if (scannedTarget == null && !invalidQr && !loading) {
+                        scanConsumed.value = false
+                        barcodeView.resume()
+                    }
+                }
+                androidx.compose.ui.viewinterop.AndroidView(
+                    factory = { barcodeView },
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Outlined.QrCodeScanner, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(56.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(stringResource(R.string.contacts_camera_permission_needed), style = MaterialTheme.typography.bodyMedium, color = androidx.compose.ui.graphics.Color.White)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { cameraPermLauncher.launch(android.Manifest.permission.CAMERA) }) {
+                        Text(stringResource(R.string.contacts_camera_grant))
+                    }
+                }
+            }
+            if (decodingGallery) {
+                Box(modifier = Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+    
+        // 底部操作区：从相册选择 + 传统扫描兑底
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = { galleryQrLauncher.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                modifier = Modifier.weight(1f).height(48.dp)
             ) {
-                Icon(Icons.Outlined.QrCodeScanner, contentDescription = null, modifier = Modifier.size(22.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.contacts_start_scan))
+                Icon(Icons.Outlined.PhotoLibrary, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(stringResource(R.string.contacts_scan_from_gallery))
+            }
+            if (!cameraGranted) {
+                Button(
+                    onClick = {
+                        val options = ScanOptions().apply {
+                            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                            setPrompt(scanAlignPrompt)
+                            setBeepEnabled(true)
+                            setOrientationLocked(false)
+                            setBarcodeImageEnabled(false)
+                        }
+                        scanLauncher.launch(options)
+                    },
+                    modifier = Modifier.weight(1f).height(48.dp)
+                ) {
+                    Icon(Icons.Outlined.QrCodeScanner, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(stringResource(R.string.contacts_start_scan))
+                }
             }
         }
     }
@@ -761,6 +854,46 @@ private fun qrScanMessage(context: android.content.Context, feedback: QrScanFeed
         QrScanFeedbackPolicy.Kind.NETWORK -> context.getString(R.string.contacts_invite_network)
         QrScanFeedbackPolicy.Kind.UNKNOWN -> context.getString(R.string.contacts_join_group_failed)
     }
+
+/**
+ * 9.280：从相册图片解码 QR（zxing core，本地无需网络）。
+ * 大图先降采样到 1600px 内避免 OOM；解码失败/无码返回 null。
+ */
+private fun decodeQrFromImage(context: android.content.Context, uri: Uri): String? = runCatching {
+    val bitmap: Bitmap = if (android.os.Build.VERSION.SDK_INT >= 28) {
+        android.graphics.ImageDecoder.decodeBitmap(
+            android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
+        ) { decoder, info, _ ->
+            val maxSide = 1600
+            if (info.size.width > maxSide || info.size.height > maxSide) {
+                decoder.setTargetSize(maxSide, maxSide)
+            }
+            decoder.setMutableRequired(true)
+        }
+    } else {
+        val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, options) }
+        val maxSide = 1600
+        var sample = 1
+        while (options.outWidth / sample > maxSide || options.outHeight / sample > maxSide) sample *= 2
+        val realOptions = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+        context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, realOptions) }
+            ?: return@runCatching null
+    }
+    val w = bitmap.width
+    val h = bitmap.height
+    val pixels = IntArray(w * h)
+    bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
+    val source = com.google.zxing.RGBLuminanceSource(w, h, pixels)
+    val reader = com.google.zxing.MultiFormatReader().apply {
+        setHints(mapOf(com.google.zxing.DecodeHintType.POSSIBLE_FORMATS to listOf(com.google.zxing.BarcodeFormat.QR_CODE)))
+    }
+    // 先 Hybrid 二值化解码，失败后换 GlobalHistogram 再试一次（截图/暗色背景兼容）
+    runCatching { reader.decode(com.google.zxing.BinaryBitmap(com.google.zxing.common.HybridBinarizer(source))) }
+        .recoverCatching { reader.decode(com.google.zxing.BinaryBitmap(com.google.zxing.common.GlobalHistogramBinarizer(source))) }
+        .getOrThrow()
+        .text
+}.getOrNull()
 
 private fun String.normalizedSafetyCode(): String = filter { it.isDigit() }
 private fun String.normalizedFingerprint(): String = filter { it.isLetterOrDigit() }.lowercase()

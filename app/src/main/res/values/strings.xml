@@ -1868,6 +1868,10 @@
     <string name="contacts_scan_align">将二维码对准扫描框</string>
     <string name="contacts_scan_supports">支持扫描毛豆聊天号、群聊邀请和安全码</string>
     <string name="contacts_start_scan">开始扫描</string>
+    <string name="contacts_scan_from_gallery">从相册选择</string>
+    <string name="contacts_gallery_qr_not_found">未在图片中识别到二维码</string>
+    <string name="contacts_camera_permission_needed">需要相机权限才能扫码，也可以从相册选择二维码图片</string>
+    <string name="contacts_camera_grant">授予相机权限</string>
     <string name="contacts_invalid_qr_title">无法识别二维码</string>
     <string name="contacts_invalid_qr_message">该二维码不是受支持的毛豆聊天二维码。</string>
     <string name="contacts_found">找到联系人</string>
