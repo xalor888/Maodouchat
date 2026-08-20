@@ -1475,7 +1475,12 @@ private fun ChatListItem(
                 } else {
                     Text(displayName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 }
-                Text(formatChatTime(chat.lastMessageTime), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
+                Text(
+                    formatChatTime(chat.lastMessageTime),
+                    style = MaterialTheme.typography.labelSmall,
+                    // 9.276：TG 式——有未读时时间用强调色，否则中性 hint
+                    color = if (hasUnread) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint
+                )
             }
             Spacer(modifier = Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
