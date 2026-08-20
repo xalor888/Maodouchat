@@ -3625,25 +3625,24 @@ DropdownMenuItem(
                             }
                         }
                         is ChatItem.UnreadSeparator -> {
-                            // 1.03：「以下为未读消息」分隔线（微信式）；1.74：点击跳转到第一条未读消息
+                            // 1.03：「以下为未读消息」分隔线；1.74：点击跳转到第一条未读消息
+                            // 9.271：TG 式未读分隔条——全宽胶囊条 + 白字（TG 观感，原红线夹文字微信式）
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 6.dp)
                                     .then(if (itemPlacementSpec != null) Modifier.animateItem(placementSpec = itemPlacementSpec) else Modifier)
+                                    .clip(RoundedCornerShape(percent = 50))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.82f))
                                     .clickable { viewModel.jumpToMessage(item.messageId) },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(modifier = Modifier.width(24.dp).height(1.dp).background(UnreadRed.copy(alpha = 0.6f)))
-                                    Text(
-                                        stringResource(R.string.chat_unread_divider),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = LocalChatPalette.current.unreadRed,
-                                        modifier = Modifier.padding(horizontal = 8.dp)
-                                    )
-                                    Box(modifier = Modifier.width(24.dp).height(1.dp).background(UnreadRed.copy(alpha = 0.6f)))
-                                }
+                                Text(
+                                    stringResource(R.string.chat_unread_divider),
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                    color = Color.White,
+                                    modifier = Modifier.padding(vertical = 5.dp)
+                                )
                             }
                         }
                         is ChatItem.Msg -> {
