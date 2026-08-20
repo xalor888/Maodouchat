@@ -174,7 +174,7 @@ h1, h2, h3, h4 {
   padding: 0 24px;
 }
 
-/* ═══ Theme toggle ═══ */
+/* ═══ Theme toggle（与首页 home.css 保持一致：粗边框 + 更深图标色）═══ */
 .theme-toggle {
   position: fixed;
   top: 11px;
@@ -185,10 +185,10 @@ h1, h2, h3, h4 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: 50%;
   background: var(--surface);
-  color: var(--text-2);
+  color: var(--text);
   box-shadow: var(--shadow-sm);
   transition: border-color var(--t-fast), transform var(--t-fast), color var(--t-fast), background var(--t-fast);
 }
@@ -1922,7 +1922,7 @@ h1, h2, h3, h4 {
   .theme-toggle {
     position: fixed;
     top: 11px;
-    right: 70px;
+    right: 74px;
     width: 40px;
     height: 40px;
   }
