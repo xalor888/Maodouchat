@@ -87,6 +87,8 @@ jobs:
           SEED_DEMO_USERS: "true"
           MODERATOR_EMAILS: alex@example.com
           MASTER_ADMINS: u1
+          # 9.221：开发者中心 E2E 需要 u1 在开发者白名单（失败闭合策略）
+          DEVELOPER_USER_IDS: u1
           SMTP_HOST: ""
           ADMIN_E2E_BASE_URL: http://127.0.0.1:18080
         run: |
@@ -96,6 +98,7 @@ jobs:
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
           npm run test:admin-e2e
           npm run test:website
+          npm run test:developer-e2e
 
       - name: Upload admin E2E artifacts
         if: always()

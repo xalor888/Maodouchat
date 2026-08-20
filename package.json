@@ -4,6 +4,7 @@
   "scripts": {
     "test:admin-e2e": "node scripts/admin-e2e.mjs",
     "test:website": "node scripts/website-e2e.mjs",
+    "test:developer-e2e": "node scripts/developer-e2e.mjs",
     "preview": "node scripts/preview-server.mjs"
   },
   "devDependencies": {
