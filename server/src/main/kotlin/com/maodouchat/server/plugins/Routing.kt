@@ -5793,6 +5793,11 @@ put("type", "VOICE")
                 if (!chatRepo.isParticipant(chatId, bot.id)) {
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 }
+                // 9.242：邀请 token 是管理者级信息（持 token 可拉人入群）——与 pin/unpin 的
+                // isOwnerOrAdmin 口径对齐（当前 bot 入群即 ADMIN，防御未来成员角色变化）
+                if (!chatRepo.isOwnerOrAdmin(chatId, bot.id)) {
+                    return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot is not a manager of this chat"))
+                }
                 // Read-only invite snapshot; rotation uses exportChatInviteLink
                 val chat = chatRepo.getChatById(chatId)
                     ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("chat not found"))
@@ -6532,6 +6537,10 @@ put("kicked", true)
                 if (chatId.isBlank()) return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
                 if (!chatRepo.isParticipant(chatId, bot.id)) {
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
+                }
+                // 9.242：同 getInviteLink——邀请 token 仅管理者可读
+                if (!chatRepo.isOwnerOrAdmin(chatId, bot.id)) {
+                    return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot is not a manager of this chat"))
                 }
                 val chat = chatRepo.getChatById(chatId)
                     ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("chat not found"))
