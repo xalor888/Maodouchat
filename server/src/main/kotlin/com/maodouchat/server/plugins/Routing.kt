@@ -1154,7 +1154,8 @@ put("status", "ok")
                 val name = esc(System.getenv("SERVER_NAME")?.takeIf { it.isNotBlank() } ?: "Maodouchat Server")
                 val desc = esc(System.getenv("SERVER_DESCRIPTION").orEmpty())
                 call.respondText(
-                    """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="robots" content="noindex"/><title>$name</title></head><body style="font-family:system-ui,sans-serif;display:flex;min-height:100vh;margin:0;align-items:center;justify-content:center;background:#0f1419;color:#e8eaed"><div style="text-align:center;max-width:520px;padding:24px"><h1 style="font-size:26px;margin:0 0 8px">$name</h1><p style="color:#9aa1ab;margin:0 0 16px">$desc</p><p style="color:#6b7077;font-size:13px">Powered by Maodouchat Server</p></div></body></html>""",
+                    // 9.289：极简名片页风格对齐 /u/ 公开主页（浅色白卡+品牌蓝，去深色裸页感）
+                    """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="robots" content="noindex"/><title>$name</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f4f5f7;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#23272b}.card{background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(16,24,40,.06);padding:40px 32px;max-width:420px;width:calc(100% - 32px);text-align:center}.mark{width:56px;height:56px;border-radius:14px;background:#3390EC;color:#fff;font-size:24px;font-weight:600;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}h1{font-size:20px;font-weight:600;color:#111418;margin-bottom:6px}.desc{font-size:14px;color:#6b7280;line-height:1.6;margin-bottom:14px}.foot{font-size:12px;color:#a2a8b0}@media (prefers-color-scheme:dark){body{background:#101418}.card{background:#1a1f24;box-shadow:none}h1{color:#f2f4f6}.desc{color:#9aa1a9}}</style></head><body><div class="card"><div class="mark">毛</div><h1>$name</h1>${if (desc.isNotBlank()) "<p class=\"desc\">$desc</p>" else ""}<p class="foot">Powered by Maodouchat Server</p></div></body></html>""",
                     ContentType.Text.Html
                 )
                 return@get
@@ -17100,7 +17101,7 @@ private fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: Strin
                 ${if (safeStatus?.isNotBlank() == true) """<div class="status">$safeStatus</div>""" else ""}
                 <div class="hint">点击下方按钮，在毛豆聊天中查看资料并添加好友</div>
                 <a href="maodouchat://u/$safeUsername" class="btn-primary">在毛豆聊天中打开</a>
-                <a href="https://chat.mdou.me/u/$safeUsername" class="btn-secondary">使用 App 链接打开</a>
+                <a href="$escapedBase/u/$safeUsername" class="btn-secondary">使用 App 链接打开</a>
             </div>
             """
         } else {

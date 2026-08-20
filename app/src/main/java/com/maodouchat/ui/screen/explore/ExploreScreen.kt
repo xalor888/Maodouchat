@@ -433,7 +433,8 @@ fun ExploreScreen(
                         val authorUsername = post.author.username?.takeIf { it.isNotBlank() }
                         if (authorUsername != null) {
                             if (isNotBlank()) append("\n")
-                            append("https://chat.mdou.me/u/").append(authorUsername)
+                            // 9.289：跟随当前服务器地址，自建部署不再分享无效的官服域名
+                            append(com.maodouchat.network.ApiConfig.BASE_URL.trimEnd('/')).append("/u/").append(authorUsername)
                         }
                     }.ifBlank { "动态" }
                     val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {

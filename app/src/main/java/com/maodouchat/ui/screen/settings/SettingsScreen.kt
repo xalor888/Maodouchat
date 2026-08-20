@@ -290,7 +290,8 @@ fun SettingsScreen(
                         HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
                         SettingsItem(icon = Icons.Outlined.Share, title = stringResource(R.string.settings_share_profile),
                             onClick = {
-                                val url = state.publicProfileUrl ?: "https://chat.mdou.me"
+                                // 9.289：无用户名时 fallback 不再硬编码官服域名，改用当前服务器入口
+                                val url = state.publicProfileUrl ?: com.maodouchat.network.ApiConfig.BASE_URL.trimEnd('/')
                                 val sendIntent = android.content.Intent().apply {
                                     action = android.content.Intent.ACTION_SEND
                                     putExtra(android.content.Intent.EXTRA_TEXT, context.getString(R.string.public_profile_share_text, state.userName, url))

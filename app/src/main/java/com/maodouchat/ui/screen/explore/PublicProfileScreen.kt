@@ -174,20 +174,20 @@ fun PublicProfileScreen(
                 profile != null -> {
                     // 9.219：守卫处单次断言捕获局部 profile——回调延迟执行时不再重复 !!（委托属性无法智能转换）
                     val loadedProfile = profile!!
+                    // 9.289：主页链接跟随当前服务器地址（自建部署不再复制/分享无效的官服域名）
+                    val profileLink = com.maodouchat.network.ApiConfig.BASE_URL.trimEnd('/') + "/u/" + username
                     ProfileContentView(
                         profile = loadedProfile,
                         onStartChat = { onStartChat(loadedProfile.id) },
                         onCopyLink = {
-                            val link = "https://chat.mdou.me/u/$username"
                             @Suppress("DEPRECATION")
-                            clipboard.setText(AnnotatedString(link))
+                            clipboard.setText(AnnotatedString(profileLink))
                             scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.public_profile_link_copied)) }
                         },
                         onShare = {
-                            val link = "https://chat.mdou.me/u/$username"
                             val sendIntent = Intent().apply {
                                 action = Intent.ACTION_SEND
-                                putExtra(Intent.EXTRA_TEXT, context.getString(R.string.public_profile_share_text, loadedProfile.name, link))
+                                putExtra(Intent.EXTRA_TEXT, context.getString(R.string.public_profile_share_text, loadedProfile.name, profileLink))
                                 type = "text/plain"
                             }
                             context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.public_profile_share_chooser)))
