@@ -5367,97 +5367,7 @@ class ChatDetailViewModel(
             val forwardResult = try {
                 withContext(Dispatchers.IO) {
                     try {
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = forwardOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            throw kotlinx.coroutines.CancellationException("forward_session_changed")
-                        }
-                        val msgId = "m_${UUID.randomUUID()}"
-                        if (message.type in RELIABLE_ATTACHMENT_TYPES) {
-                            forwardEncryptedAttachment(targetChat, message, msgId)
-                        } else {
-                            // Durable outbox for text/sticker/location forwards (same ladder as sendMessage).
-                            // WS enqueue alone used to leave no local row — process death dropped the forward.
-                            val plainContent = when (message.type) {
-                                MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER, MessageType.LOCATION -> message.parsedContent()
-                                else -> throw IllegalStateException(text(R.string.chat_forward_type_unsupported))
-                            }
-                            val timestamp = System.currentTimeMillis()
-                            // 0.67：转发来源标记（密聊转发不记录来源名，仅置「已转发」标记以保护隐私）
-                            val sourceName = if (_uiState.value.isSecretChat == true) null
-                                else _uiState.value.chat?.participants?.firstOrNull { it.id == message.senderId }?.name
-                            // 8.49 修复：meta 一律取 parsedMeta()（DB/WS round-trip 后瞬态字段恒空，
-                            // 旧写法会错误覆盖转发链）；来源随 content 经统一 <meta> 编码持久化，
-                            // 此前只写瞬态 meta 字段，重启后「转发自 X」丢失
-                            val forwardMeta = message.parsedMeta()
-                                .copy(forwardedFrom = message.parsedMeta().forwardedFrom ?: sourceName)
-                            val local = Message(
-                                id = msgId,
-                                chatId = targetChat.id,
-                                senderId = currentUserId,
-                                content = com.maodouchat.util.JsonFormat.composeContentWithMeta(plainContent, forwardMeta),
-                                type = message.type,
-                                timestamp = timestamp,
-                                status = MessageStatus.SENDING,
-                                meta = forwardMeta
-                            )
-                            messageRepo.insertMessage(local)
-                            indexSearchableMessage(local)
-                            if (targetChat.id == activeChatId) {
-                                _uiState.update { st ->
-                                    st.copy(messages = mergeMessages(st.messages, listOf(local)))
-                                }
-                            }
-                            try {
-                                val (wireContent, encryptEpoch) = encryptForwardedContent(targetChat, message, local.parsedMeta().forwardedFrom)
-                                val viaRest = deliverOutgoing(
-                                    message = local.copy(content = wireContent),
-                                    wireContent = wireContent,
-                                    typeName = message.type.name,
-                                    messageId = msgId,
-                                    chatId = targetChat.id
-                                )
-                                if (encryptEpoch != null) {
-                                    markGroupSenderKeyMessageSent(targetChat.id, encryptEpoch, msgId)
-                                }
-                                val converged = local.copy(
-                                    status = if (viaRest) MessageStatus.SENT else MessageStatus.SENDING
-                                )
-                                messageRepo.insertMessage(converged)
-                                if (targetChat.id == activeChatId) {
-                                    _uiState.update { st ->
-                                        st.copy(messages = mergeMessages(st.messages, listOf(converged)))
-                                    }
-                                }
-                                val preview = when (message.type) {
-                                    MessageType.IMAGE -> text(R.string.message_preview_image)
-                                    MessageType.GIF -> text(R.string.message_preview_gif)
-                                    MessageType.STICKER -> text(R.string.message_preview_sticker)
-                                    MessageType.LOCATION -> text(R.string.message_preview_location)
-                                    MessageType.VIDEO -> text(R.string.message_preview_video)
-                                    MessageType.VOICE -> text(R.string.message_preview_voice)
-                                    else -> plainContent.take(40)
-                                }
-                                com.maodouchat.MaodouchatApp.emitMessageSent(targetChat.id, preview, message.type.name)
-                            } catch (error: kotlinx.coroutines.CancellationException) {
-                                // Keep SENDING for TextOutboxFlusher; cancel is not encrypt failure.
-                                throw error
-                            } catch (error: Throwable) {
-                                if (shouldMarkOutboxFailed(error)) {
-                                    val failed = local.copy(status = MessageStatus.FAILED)
-                                    messageRepo.insertMessage(failed)
-                                    if (targetChat.id == activeChatId) {
-                                        _uiState.update { st ->
-                                            st.copy(messages = mergeMessages(st.messages, listOf(failed)))
-                                        }
-                                    }
-                                }
-                                throw error
-                            }
-                        }
+                        forwardOneMessage(targetChat, message, forwardOwnerUserId)
                         Result.success(Unit)
                     } catch (error: kotlinx.coroutines.CancellationException) {
                         throw error
@@ -5507,54 +5417,239 @@ class ChatDetailViewModel(
             ) {
                 return@launch
             }
-            val msgId = "m_${UUID.randomUUID()}"
-            val looksMd = com.maodouchat.ui.component.ChatMarkdown.looksLikeMarkdown(trimmed)
-            val type = if (looksMd) MessageType.MARKDOWN else MessageType.TEXT
-            val timestamp = System.currentTimeMillis()
-            val local = Message(
-                id = msgId,
-                chatId = targetChat.id,
-                senderId = currentUserId,
-                content = trimmed,
-                type = type,
-                timestamp = timestamp,
-                status = MessageStatus.SENDING,
-                meta = MessageMeta(markdown = looksMd)
-            )
-            withContext(Dispatchers.IO) {
-                messageRepo.insertMessage(local)
-                indexSearchableMessage(local)
-            }
-            if (targetChat.id == activeChatId) {
-                _uiState.update { st ->
-                    st.copy(messages = mergeMessages(st.messages, listOf(local)))
-                }
-            }
             try {
-                val (wireContent, epoch) = encryptForwardedContent(targetChat, local, local.parsedMeta().forwardedFrom)
-                val viaRest = deliverOutgoing(
-                    message = local.copy(content = wireContent),
-                    wireContent = wireContent,
-                    typeName = type.name,
-                    messageId = msgId,
-                    chatId = targetChat.id
-                )
-                if (epoch != null) {
-                    markGroupSenderKeyMessageSent(targetChat.id, epoch, msgId)
-                }
-                val converged = local.copy(status = if (viaRest) MessageStatus.SENT else MessageStatus.SENDING)
-                withContext(Dispatchers.IO) { messageRepo.insertMessage(converged) }
-                if (targetChat.id == activeChatId) {
-                    _uiState.update { st ->
-                        st.copy(messages = mergeMessages(st.messages, listOf(converged)))
-                    }
-                }
-                com.maodouchat.MaodouchatApp.emitMessageSent(targetChat.id, trimmed.take(40), type.name)
+                sendNoteToChat(targetChat, trimmed)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (error: Throwable) {
                 // 失败保留 SENDING 待重试，不阻塞转发主流程
                 Log.w("ChatDetailViewModel", "forward note send failed", error)
+            }
+        }
+    }
+
+    /**
+     * 9.227：转发留言发送核心（供 [sendTextToChat] 与 [forwardMessagesBatch] 复用，需在协程内调用）。
+     * 失败保留 SENDING 交 TextOutboxFlusher 重试；异常直抛由调用方决定吞没策略。
+     */
+    private suspend fun sendNoteToChat(targetChat: Chat, text: String) {
+        val msgId = "m_${UUID.randomUUID()}"
+        val looksMd = com.maodouchat.ui.component.ChatMarkdown.looksLikeMarkdown(text)
+        val type = if (looksMd) MessageType.MARKDOWN else MessageType.TEXT
+        val timestamp = System.currentTimeMillis()
+        val local = Message(
+            id = msgId,
+            chatId = targetChat.id,
+            senderId = currentUserId,
+            content = text,
+            type = type,
+            timestamp = timestamp,
+            status = MessageStatus.SENDING,
+            meta = MessageMeta(markdown = looksMd)
+        )
+        withContext(Dispatchers.IO) {
+            messageRepo.insertMessage(local)
+            indexSearchableMessage(local)
+        }
+        if (targetChat.id == activeChatId) {
+            _uiState.update { st ->
+                st.copy(messages = mergeMessages(st.messages, listOf(local)))
+            }
+        }
+        val (wireContent, epoch) = encryptForwardedContent(targetChat, local, local.parsedMeta().forwardedFrom)
+        val viaRest = deliverOutgoing(
+            message = local.copy(content = wireContent),
+            wireContent = wireContent,
+            typeName = type.name,
+            messageId = msgId,
+            chatId = targetChat.id
+        )
+        if (epoch != null) {
+            markGroupSenderKeyMessageSent(targetChat.id, epoch, msgId)
+        }
+        val converged = local.copy(status = if (viaRest) MessageStatus.SENT else MessageStatus.SENDING)
+        withContext(Dispatchers.IO) { messageRepo.insertMessage(converged) }
+        if (targetChat.id == activeChatId) {
+            _uiState.update { st ->
+                st.copy(messages = mergeMessages(st.messages, listOf(converged)))
+            }
+        }
+        com.maodouchat.MaodouchatApp.emitMessageSent(targetChat.id, text.take(40), type.name)
+    }
+
+    /**
+     * 9.227：单条转发核心（须在 Dispatchers.IO 内调用），供 [forwardMessage] 与 [forwardMessagesBatch] 复用。
+     * 异常直抛：单条模式转 Result 出 toast 文案，批量模式逐条收集不中断后续消息。
+     */
+    private suspend fun forwardOneMessage(targetChat: Chat, message: Message, forwardOwnerUserId: String) {
+        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                expectedUserId = forwardOwnerUserId,
+                liveToken = tokenManager.getToken(),
+                liveUserId = tokenManager.getUserId(),
+            )
+        ) {
+            throw kotlinx.coroutines.CancellationException("forward_session_changed")
+        }
+        val msgId = "m_${UUID.randomUUID()}"
+        if (message.type in RELIABLE_ATTACHMENT_TYPES) {
+            forwardEncryptedAttachment(targetChat, message, msgId)
+            return
+        }
+        // Durable outbox for text/sticker/location forwards (same ladder as sendMessage).
+        // WS enqueue alone used to leave no local row — process death dropped the forward.
+        val plainContent = when (message.type) {
+            MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER, MessageType.LOCATION -> message.parsedContent()
+            else -> throw IllegalStateException(text(R.string.chat_forward_type_unsupported))
+        }
+        val timestamp = System.currentTimeMillis()
+        // 0.67：转发来源标记（密聊转发不记录来源名，仅置「已转发」标记以保护隐私）
+        val sourceName = if (_uiState.value.isSecretChat == true) null
+            else _uiState.value.chat?.participants?.firstOrNull { it.id == message.senderId }?.name
+        // 8.49 修复：meta 一律取 parsedMeta()（DB/WS round-trip 后瞬态字段恒空，
+        // 旧写法会错误覆盖转发链）；来源随 content 经统一 <meta> 编码持久化，
+        // 此前只写瞬态 meta 字段，重启后「转发自 X」丢失
+        val forwardMeta = message.parsedMeta()
+            .copy(forwardedFrom = message.parsedMeta().forwardedFrom ?: sourceName)
+        val local = Message(
+            id = msgId,
+            chatId = targetChat.id,
+            senderId = currentUserId,
+            content = com.maodouchat.util.JsonFormat.composeContentWithMeta(plainContent, forwardMeta),
+            type = message.type,
+            timestamp = timestamp,
+            status = MessageStatus.SENDING,
+            meta = forwardMeta
+        )
+        messageRepo.insertMessage(local)
+        indexSearchableMessage(local)
+        if (targetChat.id == activeChatId) {
+            _uiState.update { st ->
+                st.copy(messages = mergeMessages(st.messages, listOf(local)))
+            }
+        }
+        try {
+            val (wireContent, encryptEpoch) = encryptForwardedContent(targetChat, message, local.parsedMeta().forwardedFrom)
+            val viaRest = deliverOutgoing(
+                message = local.copy(content = wireContent),
+                wireContent = wireContent,
+                typeName = message.type.name,
+                messageId = msgId,
+                chatId = targetChat.id
+            )
+            if (encryptEpoch != null) {
+                markGroupSenderKeyMessageSent(targetChat.id, encryptEpoch, msgId)
+            }
+            val converged = local.copy(
+                status = if (viaRest) MessageStatus.SENT else MessageStatus.SENDING
+            )
+            messageRepo.insertMessage(converged)
+            if (targetChat.id == activeChatId) {
+                _uiState.update { st ->
+                    st.copy(messages = mergeMessages(st.messages, listOf(converged)))
+                }
+            }
+            val preview = when (message.type) {
+                MessageType.IMAGE -> text(R.string.message_preview_image)
+                MessageType.GIF -> text(R.string.message_preview_gif)
+                MessageType.STICKER -> text(R.string.message_preview_sticker)
+                MessageType.LOCATION -> text(R.string.message_preview_location)
+                MessageType.VIDEO -> text(R.string.message_preview_video)
+                MessageType.VOICE -> text(R.string.message_preview_voice)
+                else -> plainContent.take(40)
+            }
+            com.maodouchat.MaodouchatApp.emitMessageSent(targetChat.id, preview, message.type.name)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            // Keep SENDING for TextOutboxFlusher; cancel is not encrypt failure.
+            throw error
+        } catch (error: Throwable) {
+            if (shouldMarkOutboxFailed(error)) {
+                val failed = local.copy(status = MessageStatus.FAILED)
+                messageRepo.insertMessage(failed)
+                if (targetChat.id == activeChatId) {
+                    _uiState.update { st ->
+                        st.copy(messages = mergeMessages(st.messages, listOf(failed)))
+                    }
+                }
+            }
+            throw error
+        }
+    }
+
+    /**
+     * 9.227：批量串行转发——修复多选转发（1.34）两个 bug：
+     * 1. 旧实现对 N 条消息并行发 N 个协程，isForwarding 守卫失效（先完成者提前置 false），
+     *    且群 Sender Key 分发（ensureGroupSenderKeyDistributed）并发竞争、警告文案互相覆盖；
+     * 2. 附带留言与附件转发并行立即发送，实际先于附件到达，与「转发完成后发送」语义相反。
+     * 现按目标会话逐个串行转发全部消息（保持选择顺序），该会话无错时最后补发留言。
+     */
+    fun forwardMessagesBatch(messages: List<Message>, targetChatIds: List<String>, note: String?) {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_FORWARDING)) {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.message_forwarding_disabled)) }
+            return
+        }
+        val usable = messages.filter { it.type !in setOf(MessageType.NUDGE, MessageType.SK_DIST, MessageType.SYSTEM, MessageType.REVOKED) }
+        if (usable.isEmpty() || targetChatIds.isEmpty()) return
+        val isSecret = _uiState.value.isSecretChat == true
+        if (isSecret && RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_FORWARD_BLOCK)) {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_forward_blocked)) }
+            return
+        }
+        val batchOwnerUserId = currentUserId
+        if (token.isBlank() || batchOwnerUserId.isBlank()) {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
+            return
+        }
+        if (_uiState.value.isForwarding) return
+        val trimmedNote = note?.trim()?.takeIf { it.isNotBlank() }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isForwarding = true, groupEncryptionWarning = null) }
+            var firstError: Throwable? = null
+            try {
+                withContext(Dispatchers.IO) {
+                    for (chatId in targetChatIds) {
+                        // B2 转发白名单（fwlz）：密聊消息只允许转发到白名单会话
+                        if (isSecret && !com.maodouchat.util.SecretForwardWhitelistPrefs.isForwardAllowed(getApplication(), chatId)) {
+                            if (firstError == null) firstError = IllegalStateException(text(R.string.secret_forward_whitelist_blocked))
+                            continue
+                        }
+                        val targetChat = _uiState.value.forwardTargets.firstOrNull { it.id == chatId } ?: continue
+                        var chatHadError = false
+                        for (msg in usable) {
+                            try {
+                                forwardOneMessage(targetChat, msg, batchOwnerUserId)
+                            } catch (error: kotlinx.coroutines.CancellationException) {
+                                throw error
+                            } catch (error: Throwable) {
+                                chatHadError = true
+                                if (firstError == null) firstError = error
+                            }
+                        }
+                        // 留言在转发后：该会话全部消息串行转发完成且无错时最后补发一条文本
+                        if (trimmedNote != null && !chatHadError) {
+                            try {
+                                sendNoteToChat(targetChat, trimmedNote)
+                            } catch (error: kotlinx.coroutines.CancellationException) {
+                                throw error
+                            } catch (error: Throwable) {
+                                Log.w("ChatDetailViewModel", "forward note send failed", error)
+                            }
+                        }
+                    }
+                }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                _uiState.update { it.copy(isForwarding = false) }
+                throw error
+            }
+            val batchError = firstError
+            _uiState.update {
+                it.copy(
+                    isForwarding = false,
+                    groupEncryptionWarning = when {
+                        batchError == null -> text(R.string.chat_forwarded)
+                        usable.any { m -> m.type in RELIABLE_ATTACHMENT_TYPES } -> attachmentErrorText(batchError, R.string.chat_attachment_upload_failed)
+                        else -> batchError.message
+                    }
+                )
             }
         }
     }

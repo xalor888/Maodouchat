@@ -5337,18 +5337,16 @@ DropdownMenuItem(
                                     (senderLabel?.let { "$it：$content" } ?: content)
                                 }.take(4_000)
                             } else null
-                            selectedForwardChatIds.forEach { chatId ->
-                                if (mergedText != null) {
+                            if (mergedText != null) {
+                                selectedForwardChatIds.forEach { chatId ->
                                     // 1.157：合并转发时附带留言并入合并文本首行（不单独发第二条）
                                     val finalMerged = if (forwardNote.isNotBlank()) "$forwardNote\n$mergedText" else mergedText
                                     viewModel.sendTextToChat(chatId, finalMerged)
-                                } else {
-                                    forwardMessages.forEach { viewModel.forwardMessage(it, chatId) }
-                                    // 转发附带留言：转发完成后向每个目标会话发送一条文本
-                                    if (forwardNote.isNotBlank()) {
-                                        viewModel.sendTextToChat(chatId, forwardNote)
-                                    }
                                 }
+                            } else {
+                                // 9.227：批量串行转发——旧实现逐条并发触发 forwardMessage，
+                                // 留言也抢在附件转发前发出；现改为单协程内按顺序串行转发+最后补发留言
+                                viewModel.forwardMessagesBatch(forwardMessages, selectedForwardChatIds.toList(), forwardNote)
                             }
                             messagesToForward = emptyList()
                             selectedMessageIds = emptySet()

@@ -42,6 +42,12 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 // 在线用户连接表: userId -> WebSocketSession
 private const val MAX_FRAME_SIZE = 4L * 1024L * 1024L
+
+/**
+ * 单帧发送限时（9.226）。弱网/半死连接的 TCP 写缓冲可能长时间写不进去，
+ * 没有限时会让一个坏 session 串行阻塞整条群扇出链；超时后按死连接清理。
+ */
+private const val WS_SEND_TIMEOUT_MS = 5_000L
 /**
  * 在线状态广播的 fanout 上限。单个事件会向所有在线用户（除自己）逐一 sendToUser，
  * 代价 O(N)；N 个在线用户时若每个都触发广播，总代价 O(N²)。超过上限即跳过全量广播，
@@ -844,7 +850,16 @@ private suspend fun sendSafe(session: WebSocketSession, text: String) {
     }!!
     try {
         lock.mutex.withLock {
-            session.send(Frame.Text(text))
+            // 9.226：发送限时——卡住的会话（TCP 写缓冲满/弱网）不得拖住整条群扇出链；
+            // 超时异常转换为 IOException，让调用方按死连接清理（它不是 CancellationException
+            // 子类，本可直穿 catch，但显式转换表明超时语义，且避免将来实现变更时误判）。
+            try {
+                kotlinx.coroutines.withTimeout(WS_SEND_TIMEOUT_MS) {
+                    session.send(Frame.Text(text))
+                }
+            } catch (e: java.util.concurrent.TimeoutException) {
+                throw java.io.IOException("ws send timeout after ${WS_SEND_TIMEOUT_MS}ms", e)
+            }
         }
     } finally {
         sessionSendLocks.computeIfPresent(session) { _, current ->
