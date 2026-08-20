@@ -22,6 +22,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -1486,7 +1487,10 @@ private fun MainContainer(navController: NavHostController) {
     Scaffold(
         bottomBar = { BottomNavBar(selectedTab = selectedTab, onTabSelected = { selectedTab = it }) }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        // 9.249：关键适配修复——padding(paddingValues) 只加边距不声明消费，内层每个 tab 的
+        // Scaffold/TopAppBar 会把状态栏 insets 再加一遍，顶部出现双倍状态栏留白（错位/遮挡感）；
+        // consumeWindowInsets 后内层不再重复应用，全机型顶部对齐
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues).consumeWindowInsets(paddingValues)) {
         AnimatedContent(
             targetState = selectedTab,
             transitionSpec = {
