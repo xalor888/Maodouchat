@@ -69,7 +69,7 @@ class ChatRepository {
         val deletedAttachmentIds: List<String> = emptyList(),
         val deletedGroupAvatarUrl: String? = null
     )
-    enum class TransferOwnershipResult { TRANSFERRED, CHAT_NOT_FOUND, NOT_GROUP, NOT_OWNER, TARGET_NOT_PARTICIPANT, SAME_USER }
+    enum class TransferOwnershipResult { TRANSFERRED, CHAT_NOT_FOUND, NOT_GROUP, NOT_OWNER, TARGET_NOT_PARTICIPANT, TARGET_DEACTIVATED, SAME_USER }
     enum class GroupMemberMutationResult {
         UPDATED,
         CHAT_NOT_FOUND,
@@ -791,6 +791,12 @@ class ChatRepository {
         if (owner[ChatParticipants.role] != "OWNER") return@transaction TransferOwnershipResult.NOT_OWNER
         val target = participants.firstOrNull { it[ChatParticipants.userId] == targetUserId }
             ?: return@transaction TransferOwnershipResult.TARGET_NOT_PARTICIPANT
+        // 9.241：不得把群转给已注销账号——注销清理与转让存在竞态窗口，转给幽灵账号
+        // 会导致群永久无可行使权力的群主（原群主已降为 ADMIN 无法再转让）
+        val targetUser = Users.selectAll().where { Users.id eq targetUserId }.firstOrNull()
+        if (targetUser == null || targetUser[Users.deletedAt] != null) {
+            return@transaction TransferOwnershipResult.TARGET_DEACTIVATED
+        }
 
         ChatParticipants.update({
             (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq ownerId)

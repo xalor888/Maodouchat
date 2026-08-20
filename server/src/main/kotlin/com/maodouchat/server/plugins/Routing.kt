@@ -14183,6 +14183,8 @@ put("status", "ok")
                         call.respond(HttpStatusCode.Forbidden, ErrorResponse("只有群主可以转让群主身份"))
                     ChatRepository.TransferOwnershipResult.TARGET_NOT_PARTICIPANT ->
                         call.respond(HttpStatusCode.NotFound, ErrorResponse("该用户不是群成员"))
+                    ChatRepository.TransferOwnershipResult.TARGET_DEACTIVATED ->
+                        call.respond(HttpStatusCode.Conflict, ErrorResponse("该账号已注销，不能转让群主"))
                     ChatRepository.TransferOwnershipResult.SAME_USER ->
                         call.respond(HttpStatusCode.BadRequest, ErrorResponse("不能将群主身份转让给自己"))
                 }
