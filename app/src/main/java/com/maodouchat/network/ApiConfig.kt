@@ -64,6 +64,19 @@ object ApiConfig {
             )
         }
         val prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        // 9.285：保存的地址等于编译期官服时按「恢复默认」处理——不写入 runtime 配置，
+        // 避免用户只是重新保存官服地址就被误判为第三方服务器模式
+        if (normalized == normalizeBaseUrl(BuildConfig.API_BASE_URL)) {
+            val cleared = prefs.edit().remove(PREF_KEY_BASE_URL).remove(PREF_KEY_WS_URL).commit()
+            if (!cleared) {
+                return@withContext ServerChangeResult.Failed(
+                    context.getString(com.maodouchat.R.string.settings_server_save_failed)
+                )
+            }
+            runtimeBaseUrl = null
+            runtimeWsUrl = null
+            return@withContext if (changed) ServerChangeResult.Changed else ServerChangeResult.Unchanged
+        }
         val persisted = prefs.edit()
             .putString(PREF_KEY_BASE_URL, normalized)
             .putString(PREF_KEY_WS_URL, wsUrl)

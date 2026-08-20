@@ -17037,118 +17037,85 @@ private fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: Strin
     ${if (safeAvatarUrl.isNotBlank()) """<meta property="og:image" content="$safeAvatarUrl">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="$safeAvatarUrl">""" else """<meta name="twitter:card" content="summary">"""}
-    <meta name="theme-color" content="#6366f1">
+    <meta name="theme-color" content="#3390EC">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' http: https: data:; frame-ancestors 'none'; form-action 'none'">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 50%, #e8f4f8 100%); min-height: 100vh; display: flex; flex-direction: column; align-items: center; color: #1e293b; }
-        .container { width: 100%; max-width: 480px; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-        .logo { width: 56px; height: 56px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; font-size: 28px; color: white; font-weight: 700; }
-        .app-name { font-size: 14px; color: #6366f1; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 32px; }
-        .profile-card { background: white; border-radius: 24px; padding: 40px 32px; box-shadow: 0 4px 24px rgba(99,102,241,0.10); width: 100%; text-align: center; transition: transform 0.2s; }
-        .profile-card.error { padding: 48px 32px; }
-        .avatar { width: 96px; height: 96px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #8b5cf6); margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; font-size: 36px; color: white; font-weight: 700; overflow: hidden; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f4f5f7; min-height: 100vh; display: flex; flex-direction: column; align-items: center; color: #23272b; }
+        .container { width: 100%; max-width: 420px; padding: 32px 16px 24px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .brand { font-size: 13px; color: #8a919a; font-weight: 500; margin-bottom: 24px; letter-spacing: 0.3px; }
+        .card { background: #fff; border-radius: 16px; padding: 32px 24px; width: 100%; text-align: center; box-shadow: 0 1px 3px rgba(16,24,40,0.06); }
+        .avatar { width: 88px; height: 88px; border-radius: 50%; background: #3390EC; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; font-size: 34px; color: #fff; font-weight: 600; overflow: hidden; }
         .avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .name { font-size: 24px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
-        .username { font-size: 15px; color: #6366f1; font-weight: 500; margin-bottom: 8px; }
-        .username::before { content: '@'; }
-        .status { font-size: 14px; color: #64748b; margin-bottom: 24px; line-height: 1.5; }
-        .divider { height: 1px; background: #e2e8f0; margin: 20px 0; }
-        .stats { display: flex; justify-content: center; gap: 32px; margin: 16px 0; }
-        .stat-item { text-align: center; }
-        .stat-value { font-size: 20px; font-weight: 700; color: #0f172a; }
-        .stat-label { font-size: 12px; color: #94a3b8; margin-top: 2px; }
-        .actions { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; width: 100%; }
-        .btn-primary { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; border: none; border-radius: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; transition: opacity 0.2s, transform 0.1s; }
-        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-        .btn-primary:active { transform: scale(0.98); }
-        .btn-secondary { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; border: 1.5px solid #e2e8f0; border-radius: 14px; background: white; color: #475569; font-size: 15px; font-weight: 500; cursor: pointer; text-decoration: none; transition: border-color 0.2s, background 0.2s; }
-        .btn-secondary:hover { border-color: #6366f1; background: #f8faff; }
-        .error-icon { width: 64px; height: 64px; border-radius: 50%; background: #fef2f2; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; font-size: 28px; }
-        .error-title { font-size: 20px; font-weight: 600; color: #dc2626; margin-bottom: 8px; }
-        .error-desc { font-size: 14px; color: #64748b; }
-        .footer { margin-top: auto; padding: 24px 0 16px; text-align: center; font-size: 12px; color: #94a3b8; }
-        .footer a { color: #6366f1; text-decoration: none; }
-        .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; margin-bottom: 12px; }
-        .badge.online { background: #d1fae5; color: #059669; }
-        .badge.offline { background: #f1f5f9; color: #64748b; }
+        .name { font-size: 20px; font-weight: 600; color: #111418; margin-bottom: 3px; }
+        .username { font-size: 14px; color: #3390EC; margin-bottom: 10px; }
+        .status { font-size: 14px; color: #6b7280; line-height: 1.5; margin-bottom: 4px; }
+        .hint { font-size: 13px; color: #8a919a; margin: 14px 0 18px; line-height: 1.5; }
+        .btn-primary { display: block; width: 100%; padding: 13px; border: none; border-radius: 12px; background: #3390EC; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; }
+        .btn-primary:hover { background: #2b82d6; }
+        .btn-secondary { display: block; width: 100%; padding: 12px; margin-top: 10px; border: 1px solid #e3e6ea; border-radius: 12px; background: #fff; color: #3390EC; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; }
+        .btn-secondary:hover { background: #f6f9fc; }
+        .error-icon { width: 56px; height: 56px; border-radius: 50%; background: #fdecec; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #d64545; }
+        .error-title { font-size: 17px; font-weight: 600; color: #111418; margin-bottom: 6px; }
+        .error-desc { font-size: 13px; color: #8a919a; margin-bottom: 18px; }
+        .footer { margin-top: auto; padding: 20px 0 8px; text-align: center; font-size: 12px; color: #a2a8b0; }
+        .footer a { color: #3390EC; text-decoration: none; }
         @media (prefers-color-scheme: dark) {
-            body { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); color: #e2e8f0; }
-            .profile-card { background: #1e293b; box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
-            .name { color: #f1f5f9; }
-            .status { color: #94a3b8; }
-            .stat-value { color: #f1f5f9; }
-            .divider { background: #334155; }
-            .btn-secondary { background: #1e293b; border-color: #334155; color: #cbd5e1; }
-            .btn-secondary:hover { border-color: #6366f1; background: #1e293b; }
-            .badge.offline { background: #334155; color: #94a3b8; }
-            .app-name { color: #818cf8; }
-            .logo { background: linear-gradient(135deg, #818cf8, #a78bfa); }
+            body { background: #101418; color: #e4e7eb; }
+            .card { background: #1a1f24; box-shadow: none; }
+            .name { color: #f2f4f6; }
+            .status { color: #9aa1a9; }
+            .hint { color: #7d848d; }
+            .btn-secondary { background: #1a1f24; border-color: #2a3138; }
+            .btn-secondary:hover { background: #20262c; }
+            .error-title { color: #f2f4f6; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="logo">🐱</div>
-        <div class="app-name">毛豆聊天</div>
+        <div class="brand">毛豆聊天</div>
 
         ${if (error != null) {
             """
-            <div class="profile-card error">
-                <div class="error-icon">⚠️</div>
+            <div class="card">
+                <div class="error-icon">!</div>
                 <div class="error-title">$escapedError</div>
                 <div class="error-desc">该用户不存在或链接无效</div>
-                <div class="divider"></div>
-                <div class="actions">
-                    <a href="$escapedBase" class="btn-primary">打开毛豆聊天</a>
-                </div>
+                <a href="$escapedBase" class="btn-primary">返回毛豆聊天</a>
             </div>
             """
         } else if (user != null) {
             val initial = escapeHtml(user.name.firstOrNull()?.toString() ?: "?")
-            val onlineLabel = if (user.isOnline) "🟢 在线" else "💤 离线"
-            val onlineClass = if (user.isOnline) "online" else "offline"
             // safeName/safeStatus/safeUsername/safeAvatarUrl 已在函数头完整转义（含 " '）
+            // 9.288：在线徽标移除——匿名访问本就拿不到真实在线态（隐私策略强制隐藏），
+            // 旧页面永远显示「离线」属于错误信息，不如不显示
             """
-            <div class="profile-card">
+            <div class="card">
                 <div class="avatar">
                     ${if (safeAvatarUrl.isNotBlank()) "<img src=\"$safeAvatarUrl\" alt=\"$safeName\" />" else initial}
                 </div>
-                <div class="badge $onlineClass">$onlineLabel</div>
                 <div class="name">$safeName</div>
-                <div class="username">$safeUsername</div>
+                <div class="username">@$safeUsername</div>
                 ${if (safeStatus?.isNotBlank() == true) """<div class="status">$safeStatus</div>""" else ""}
-                <div class="divider"></div>
-                <div class="actions">
-                    <a href="${escapedBase}?start=$safeUsername" class="btn-primary">
-                        💬 在毛豆聊天上发消息
-                    </a>
-                    <a href="${escapedBase}?add=$safeUsername" class="btn-secondary">
-                        ➕ 添加为联系人
-                    </a>
-                    <a href="intent://u/$safeUsername#Intent;scheme=maodouchat;end" class="btn-secondary">
-                        📱 在 App 中打开
-                    </a>
-                </div>
+                <div class="hint">点击下方按钮，在毛豆聊天中查看资料并添加好友</div>
+                <a href="maodouchat://u/$safeUsername" class="btn-primary">在毛豆聊天中打开</a>
+                <a href="https://chat.mdou.me/u/$safeUsername" class="btn-secondary">使用 App 链接打开</a>
             </div>
             """
         } else {
             """
-            <div class="profile-card">
-                <div class="avatar">🐱</div>
+            <div class="card">
+                <div class="avatar">毛</div>
                 <div class="name">毛豆聊天</div>
                 <div class="status">安全 · 轻量 · 智能的即时通讯</div>
-                <div class="divider"></div>
-                <div class="actions">
-                    <a href="$escapedBase" class="btn-primary">打开毛豆聊天</a>
-                    <a href="https://chat.mdou.me" class="btn-secondary">了解更多</a>
-                </div>
+                <a href="$escapedBase" class="btn-primary">打开毛豆聊天</a>
             </div>
             """
         }}
 
         <div class="footer">
-            <a href="https://chat.mdou.me">chat.mdou.me</a> · 毛豆聊天 &copy; ${java.time.Year.now().value}
+            <a href="$escapedBase">毛豆聊天</a> &copy; ${java.time.Year.now().value}
         </div>
     </div>
 </body>

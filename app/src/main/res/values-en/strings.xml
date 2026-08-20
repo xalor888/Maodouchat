@@ -1476,7 +1476,7 @@
     <string name="settings_username_title">Set username</string>
     <string name="settings_username_hint">Set a unique username so people can find you at chat.mdou.me/u/username</string>
     <string name="settings_username_placeholder">Enter a username (3–50 letters, digits, underscores)</string>
-    <string name="settings_username_profile_url">Profile: chat.mdou.me/u/%1$s</string>
+    <string name="settings_username_profile_url">Profile: %1$s</string>
     <string name="settings_username_too_short">Username must be at least 3 characters</string>
     <string name="settings_username_invalid">Usernames can only contain letters, digits, underscores and hyphens</string>
     <string name="settings_username_updated">Username updated</string>
@@ -2791,6 +2791,9 @@
     <string name="server_announcement_title">Server Announcement</string>
     <string name="settings_server_third_party_title">Third-Party Server</string>
     <string name="settings_server_third_party_badge">Third-Party</string>
+    <string name="home_third_server_title">Third-party server in use</string>
+    <string name="home_third_server_body">You are connected to the third-party server "%1$s". Your messages and data are relayed and stored by that server. Please verify that you trust it.</string>
+    <string name="home_third_server_ack">Got it</string>
     <string name="settings_server_third_party_desc">You are connected to a custom server. Accounts and data are managed by its operator — verify its trustworthiness.</string>
     <string name="settings_server_info_version">Server version: %1$s</string>
     <string name="settings_server_info_announcement">Operator Announcement</string>

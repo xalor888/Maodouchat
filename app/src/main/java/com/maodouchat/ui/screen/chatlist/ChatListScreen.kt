@@ -194,6 +194,8 @@ fun ChatListScreen(
     var menuChat by remember { mutableStateOf<Chat?>(null) }
     // 1.373：多选批量删除确认（防止误触批量清空）
     var showBatchDeleteConfirm by rememberSaveable { mutableStateOf(false) }
+    // 9.286：第三方服务器提醒弹窗
+    var showThirdPartyServerDialog by rememberSaveable { mutableStateOf(false) }
     // 1.31：会话列表长按菜单「临时静音至」目标会话
     var silentUntilChat by remember { mutableStateOf<Chat?>(null) }
     var showMissedCallsSheet by rememberSaveable { mutableStateOf(false) }
@@ -557,22 +559,22 @@ fun ChatListScreen(
                                 if (state.showArchived) stringResource(R.string.chat_archived_title)
                                 else stringResource(R.string.nav_chats)
                             )
-                            // 9.202：第三方服务器模式角标（服务器名称）
-                            if (com.maodouchat.network.ServerIdentity.isThirdPartyServer) {
-                                val serverInfo by com.maodouchat.network.ServerIdentity.current.collectAsState()
-                                Text(
-                                    text = serverInfo?.name?.take(12)
-                                        ?: stringResource(R.string.settings_server_third_party_badge),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    maxLines = 1,
-                                    modifier = Modifier
-                                        .background(
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                            RoundedCornerShape(8.dp)
-                                        )
-                                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
+                            // 9.286：第三方服务器提醒——平时不显示服务器名；第三方且未确认时
+                            // 仅一个小感叹号，点开提示后「我知道了」不再显示（按地址隔离）
+                            if (com.maodouchat.network.ServerIdentity.isThirdPartyServer &&
+                                !com.maodouchat.network.ServerIdentity.isWarningAcknowledged(context, com.maodouchat.network.ApiConfig.BASE_URL)
+                            ) {
+                                IconButton(
+                                    onClick = { showThirdPartyServerDialog = true },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.WarningAmber,
+                                        contentDescription = stringResource(R.string.home_third_server_title),
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -916,6 +918,37 @@ fun ChatListScreen(
     }
 
     // 1.373：多选批量删除确认（显示选中数，确认后才执行）
+    // 9.286：第三方服务器提醒弹窗——确认名/地址与信任提示，「我知道了」后不再显示
+    if (showThirdPartyServerDialog) {
+        val thirdPartyInfo by com.maodouchat.network.ServerIdentity.current.collectAsState()
+        AlertDialog(
+            onDismissRequest = { showThirdPartyServerDialog = false },
+            title = { Text(stringResource(R.string.home_third_server_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        stringResource(
+                            R.string.home_third_server_body,
+                            thirdPartyInfo?.name?.takeIf { it.isNotBlank() }
+                                ?: com.maodouchat.network.ApiConfig.BASE_URL
+                        )
+                    )
+                    Text(
+                        com.maodouchat.network.ApiConfig.BASE_URL,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = LocalChatPalette.current.textHint
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    com.maodouchat.network.ServerIdentity.acknowledgeWarning(context, com.maodouchat.network.ApiConfig.BASE_URL)
+                    showThirdPartyServerDialog = false
+                }) { Text(stringResource(R.string.home_third_server_ack)) }
+            }
+        )
+    }
+
     if (showBatchDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showBatchDeleteConfirm = false },

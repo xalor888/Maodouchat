@@ -1457,7 +1457,7 @@
     <string name="settings_username_title">设置用户名</string>
     <string name="settings_username_hint">设置一个唯一的用户名，方便他人通过 chat.mdou.me/u/username 找到你</string>
     <string name="settings_username_placeholder">输入用户名（3-50位字母、数字、下划线）</string>
-    <string name="settings_username_profile_url">个人主页：chat.mdou.me/u/%1$s</string>
+    <string name="settings_username_profile_url">个人主页：%1$s</string>
     <string name="settings_username_too_short">用户名至少需要3个字符</string>
     <string name="settings_username_invalid">用户名只能包含字母、数字、下划线和连字符</string>
     <string name="settings_username_updated">用户名已更新</string>
@@ -2788,6 +2788,9 @@
     <string name="server_announcement_title">服务器公告</string>
     <string name="settings_server_third_party_title">第三方服务器模式</string>
     <string name="settings_server_third_party_badge">第三方</string>
+    <string name="home_third_server_title">正在使用第三方服务器</string>
+    <string name="home_third_server_body">当前连接到第三方服务器「%1$s」。你的消息与数据由该服务器中转和存储，请自行确认其可信度。</string>
+    <string name="home_third_server_ack">我知道了</string>
     <string name="settings_server_third_party_desc">当前连接的是自定义服务器地址，账号与数据由该服务器运营方管理，请注意甄别其可信度。</string>
     <string name="settings_server_info_version">服务器版本：%1$s</string>
     <string name="settings_server_info_announcement">运营方公告</string>

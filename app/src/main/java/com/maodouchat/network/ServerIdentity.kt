@@ -53,6 +53,25 @@ object ServerIdentity {
         _current.value = null
     }
 
+    // 9.286：首页第三方服务器提醒「我知道了」记录——按服务器地址隔离，
+    // 换到另一个第三方服务器会重新提醒
+    private const val ACK_PREF_NAME = "server_identity_ack_prefs"
+    private const val ACK_KEY = "acknowledged_base_urls"
+
+    fun isWarningAcknowledged(context: android.content.Context, baseUrl: String): Boolean {
+        val normalized = baseUrl.trim().trimEnd('/')
+        val prefs = context.applicationContext.getSharedPreferences(ACK_PREF_NAME, android.content.Context.MODE_PRIVATE)
+        return prefs.getStringSet(ACK_KEY, emptySet()).orEmpty().contains(normalized)
+    }
+
+    fun acknowledgeWarning(context: android.content.Context, baseUrl: String) {
+        val normalized = baseUrl.trim().trimEnd('/')
+        val prefs = context.applicationContext.getSharedPreferences(ACK_PREF_NAME, android.content.Context.MODE_PRIVATE)
+        val set = prefs.getStringSet(ACK_KEY, emptySet()).orEmpty().toMutableSet()
+        set.add(normalized)
+        prefs.edit().putStringSet(ACK_KEY, set).apply()
+    }
+
     /** 拉取指定地址的服务器身份；网络失败/非 Maodouchat 服务返回 null。 */
     fun fetch(baseUrl: String): Info? = runCatching {
         val normalized = baseUrl.trim().trimEnd('/')

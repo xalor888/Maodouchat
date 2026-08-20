@@ -971,7 +971,12 @@ private fun UsernameEditorDialog(
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 }
                 Text(
-                    stringResource(R.string.settings_username_profile_url, "chat.mdou.me/u/$username"),
+                    // 9.287：修复 URL 域名重复嵌套（字符串模板已含前缀又传了完整 URL），
+                    // 并改为跟随当前服务器地址（自建部署不再显示错误的 chat.mdou.me）
+                    stringResource(
+                        R.string.settings_username_profile_url,
+                        com.maodouchat.network.ApiConfig.BASE_URL.removePrefix("https://").removePrefix("http://").trimEnd('/') + "/u/" + username
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (username.length >= 3) Primary else TextHint
                 )

@@ -133,6 +133,7 @@ import com.maodouchat.ui.theme.Surface
 import com.maodouchat.ui.theme.TextSecondary
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.maodouchat.ui.theme.LocalChatPalette
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -305,14 +306,19 @@ fun ExploreScreen(
                     // 1.158：从剪贴板粘贴图片（解码到缓存 file:// → addImages）
                     onPasteImages = {
                         val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        val clip = cm.primaryClip
-                        val item = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)
-                        val directUri = item?.uri?.takeIf { context.contentResolver.getType(it)?.startsWith("image/") == true }
+                        val clip = runCatching { cm.primaryClip }.getOrNull()
+                        val item = clip?.takeIf { it.itemCount > 0 }?.let { runCatching { it.getItemAt(0) }.getOrNull() }
+                        // 9.284：剪贴板 content:// URI 可能无持久读权限（跨应用分享），
+                        // getType/openInputStream 会抛 SecurityException——此前未接导致点粘贴直接闪退
+                        val directUri = item?.uri?.takeIf { uri ->
+                            runCatching { context.contentResolver.getType(uri)?.startsWith("image/") == true }.getOrDefault(false)
+                        }
                         if (directUri != null) {
                             viewModel.addImages(listOf(directUri))
                         } else if (item != null) {
                             scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                 val pasted = runCatching {
+                                    // 纯文本剪贴板无 uri：尝试把文本当作图片 URL 无效则直接 null
                                     val bmp = item.uri?.let { uri ->
                                         context.contentResolver.openInputStream(uri)?.use { stream ->
                                             android.graphics.BitmapFactory.decodeStream(stream)
@@ -325,7 +331,9 @@ fun ExploreScreen(
                                     android.net.Uri.fromFile(file)
                                 }.getOrNull()
                                 if (pasted != null) viewModel.addImages(listOf(pasted))
-                                else android.widget.Toast.makeText(context, context.getString(R.string.explore_clipboard_no_image), android.widget.Toast.LENGTH_SHORT).show()
+                                else withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    android.widget.Toast.makeText(context, context.getString(R.string.explore_clipboard_no_image), android.widget.Toast.LENGTH_SHORT).show()
+                                }
                             }
                         } else {
                             android.widget.Toast.makeText(context, context.getString(R.string.explore_clipboard_no_image), android.widget.Toast.LENGTH_SHORT).show()
