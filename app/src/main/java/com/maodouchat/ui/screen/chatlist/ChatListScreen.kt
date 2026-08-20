@@ -119,6 +119,7 @@ import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.PullToRefreshLayout
+import com.maodouchat.ui.component.AnimatedNotificationBadge
 import com.maodouchat.ui.component.SwipeableChatItem
 import com.maodouchat.ui.component.SearchBar
 import com.maodouchat.ui.component.ShimmerChatRow
@@ -1673,7 +1674,11 @@ private fun androidx.compose.foundation.layout.RowScope.BottomNavBarItems(
             Box {
                 Icon(Icons.Outlined.ChatBubbleOutline, null)
                 if (unreadTotal > 0) {
-                    Badge(modifier = Modifier.align(Alignment.TopEnd)) { Text(if (unreadTotal > 99) "99+" else unreadTotal.toString()) }
+                    // 9.220：接入弹跳动画角标（尊重系统动效开关，替换静态 Badge）
+                    AnimatedNotificationBadge(
+                        count = unreadTotal,
+                        modifier = Modifier.align(Alignment.TopEnd)
+                    )
                 }
             }
         },
@@ -1689,7 +1694,10 @@ private fun androidx.compose.foundation.layout.RowScope.BottomNavBarItems(
             Box {
                 Icon(Icons.Outlined.Explore, null)
                 if (exploreBadge > 0) {
-                    Badge(modifier = Modifier.align(Alignment.TopEnd)) { Text(if (exploreBadge > 99) "99+" else exploreBadge.toString()) }
+                    AnimatedNotificationBadge(
+                        count = exploreBadge,
+                        modifier = Modifier.align(Alignment.TopEnd)
+                    )
                 }
             }
         },
