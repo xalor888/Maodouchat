@@ -53,8 +53,12 @@ val OnErrorContainer = Color(0xFF93000A)
 
 // ─── Text Hierarchy ─────────────────────────────────────────
 val TextPrimary = Color(0xFF191C1D)      // YAML on-surface
-val TextSecondary = Color(0xFF717786)    // YAML outline (用于次要文字)
-val TextHint = Color(0xFFC7C7CC)         // 提示/占位文字
+// 9.262：浅色对比度校准——#717786 在浅背景仅 4.15:1（略欠 WCAG AA），
+// 加深到 #5F6574（背景 5.20:1 / 白气泡 5.83:1）
+val TextSecondary = Color(0xFF5F6574)    // 次要文字（WCAG AA）
+// 9.262：#C7C7CC 在浅背景仅 2.33:1（看不清），加深到 #767C86
+//（背景 3.75:1 / 白气泡 4.20:1，达 UI 组件 3:1 标准且保持提示层级比 secondary 浅）
+val TextHint = Color(0xFF767C86)         // 提示/占位文字
 val TextWhite = Color(0xFFFFFFFF)
 val TextWhiteSecondary = Color(0xCCFFFFFF) // 80% 白
 
