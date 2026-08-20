@@ -152,15 +152,18 @@ object ChatMarkdown {
     /** 0.71：剥离常见 Markdown 语法得到纯文本（「复制为纯文本」用）。 */
     fun toPlainText(markdown: String): String {
         var text = markdown
-        // [t](url) -> t
+        // [t](url) -> t（9.230：必须先于行首语法剥离——否则 `- [t](url)` 的 `- ` 前缀
+        // 被先行删去后无碍，但图片 ![alt](url) 的 ! 残留及顺序交换引发的链接断裂已规避）
+        text = text.replace(Regex("!\\[([^\\]]*)\\]\\([^)]*\\)"), "$1")
         text = text.replace(Regex("\\[([^\\]]+)\\]\\([^)]*\\)"), "$1")
-        // 行首语法：标题/引用/无序/有序列表/代码围栏
-        text = text.replace(Regex("(?m)^\\s{0,3}(#{1,6}[ \\t]+|> ?|[-+*] ?|\\d+\\. ?|```+)"), "")
-        // 内联强调/删除线/行内代码
+        // 9.230：内联语法必须先于行首剥离——行首规则中的 ```+ 会吞掉行内代码的
+        // 首个反引号，导致孤儿反引号残留进复制/分享文本
         text = text.replace(Regex("\\*\\*(.+?)\\*\\*"), "$1")
         text = text.replace(Regex("__(.+?)__"), "$1")
         text = text.replace(Regex("~~(.+?)~~"), "$1")
         text = text.replace(Regex("`([^`]+)`"), "$1")
+        // 行首语法：标题/引用/无序/有序列表/代码围栏
+        text = text.replace(Regex("(?m)^\\s{0,3}(#{1,6}[ \\t]+|> ?|[-+*] ?|\\d+\\. ?|```+)"), "")
         return text.trim()
     }
 }
@@ -274,7 +277,7 @@ fun MarkdownMessageContent(
     }
 }
 
-private sealed interface MdBlock {
+internal sealed interface MdBlock {
     data class Paragraph(val text: String) : MdBlock
     data class Heading(val level: Int, val text: String) : MdBlock
     data class Quote(val text: String) : MdBlock
@@ -284,7 +287,7 @@ private sealed interface MdBlock {
     data object Hr : MdBlock
 }
 
-private fun parseMarkdownBlocks(src: String): List<MdBlock> {
+internal fun parseMarkdownBlocks(src: String): List<MdBlock> {
     val out = mutableListOf<MdBlock>()
     val lines = src.replace("\r\n", "\n").lines()
     var i = 0
@@ -303,10 +306,11 @@ private fun parseMarkdownBlocks(src: String): List<MdBlock> {
                 // 9.160：按开栏反引号长度匹配闭栏——4+ 反引号围栏（内含 ``` 行）此前
                 // 在内层行提前闭合，后续代码被误解析为标题/引用/表格
                 val fence = line.takeWhile { it == '`' }.length
-                val closer = "`".repeat(fence)
                 val buf = StringBuilder()
                 i++
-                while (i < lines.size && !lines[i].startsWith(closer)) {
+                // 9.230：CommonMark 规则——闭栏须纯反引号（可尾随空格）且数恰等于开栏；
+                // 此前 startsWith 匹配，围栏内 ```python 行与更长反引号行都会提前闭合
+                while (i < lines.size && !isClosingFence(lines[i], fence)) {
                     if (buf.isNotEmpty()) buf.append('\n')
                     buf.append(lines[i])
                     i++
@@ -325,14 +329,15 @@ private fun parseMarkdownBlocks(src: String): List<MdBlock> {
             line.trim() == "---" || line.trim() == "***" || line.trim() == "___" -> {
                 flushPara(); out += MdBlock.Hr
             }
-            line.startsWith("> ") || line.startsWith(">") -> {
+            // 9.230：仅 `> text` 与裸 `>` 算引用；`>abc`（无空格，如「>3 即大于 3」）
+            // 此前被兜底 startsWith(">") 吞掉首字符误渲染为引用
+            line.startsWith("> ") || line.trimEnd() == ">" -> {
                 flushPara()
                 val qbuf = StringBuilder()
                 var j = i
-                while (j < lines.size && (lines[j].startsWith("> ") || lines[j] == ">" || lines[j].startsWith(">"))) {
+                while (j < lines.size && (lines[j].startsWith("> ") || lines[j].trimEnd() == ">")) {
                     val qline = when {
                         lines[j].startsWith("> ") -> lines[j].removePrefix("> ")
-                        lines[j].startsWith(">") -> lines[j].removePrefix(">").trimStart()
                         else -> ""
                     }
                     if (qbuf.isNotEmpty()) qbuf.append('\n')
@@ -387,6 +392,12 @@ private fun parseMarkdownBlocks(src: String): List<MdBlock> {
     flushPara()
     if (out.isEmpty()) out += MdBlock.Paragraph(src)
     return out
+}
+
+/** 9.230：闭栏判定——纯反引号（可尾随空格）且数量恰等于开栏；```python 属代码内容。 */
+private fun isClosingFence(line: String, fence: Int): Boolean {
+    val trimmed = line.trimEnd()
+    return trimmed.length == fence && trimmed.all { it == '`' }
 }
 
 private fun inlineMarkdown(text: String, baseColor: Color, onLinkClick: (String) -> Unit = {}) = buildAnnotatedString {
