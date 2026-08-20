@@ -239,7 +239,9 @@ object MessageSearchTokenizer {
                     flushHan()
                 }
             }
-            if (result.size >= 200) return@forEach
+            // 9.235：达上限直接返回——此前 return@forEach 仅跳过当前字符，
+            // 超长文本（上限 4000 字符）仍会白遍历剩余字符且缓冲区不再 flush
+            if (result.size >= 200) return result.take(200)
         }
         flushLatin()
         flushHan()
