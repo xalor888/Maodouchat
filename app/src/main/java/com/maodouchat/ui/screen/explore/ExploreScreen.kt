@@ -564,47 +564,36 @@ private fun EntryGrid(onEntryClick: (String) -> Unit) {
             add(EntryItem("nearby", stringResource(R.string.explore_nearby), stringResource(R.string.explore_nearby_subtitle), Icons.Outlined.NearMe))
         }
     }
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    // 9.292：TG 式紧凑入口条——替代 88dp 大卡片（视觉重、AI 感强），
+    // 单行白卡内平铺「圆图标+标题」，克制接近 Telegram 观感
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        entries.forEach { entry ->
-            val interactionSource = remember { MutableInteractionSource() }
-            val pressed by interactionSource.collectIsPressedAsState()
-            val cardScale by animateFloatAsState(
-                targetValue = if (pressed) 0.96f else 1f,
-                animationSpec = spring(dampingRatio = 0.7f, stiffness = 450f),
-                label = "entryCardScale_${entry.id}"
-            )
-            Card(
-                onClick = { onEntryClick(entry.id) },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(20.dp),
-                interactionSource = interactionSource,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(88.dp)
-                    .graphicsLayer {
-                        scaleX = cardScale
-                        scaleY = cardScale
-                    }
-            ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            entries.forEachIndexed { index, entry ->
+                if (index > 0) {
+                    androidx.compose.material3.HorizontalDivider(
+                        modifier = Modifier.width(0.5.dp).height(28.dp),
+                        thickness = 0.5.dp,
+                        color = LocalChatPalette.current.divider
+                    )
+                }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxSize().padding(14.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onEntryClick(entry.id) }
+                        .padding(vertical = 10.dp),
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(42.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f), CircleShape)
-                    ) {
-                        Icon(entry.icon, contentDescription = entry.title, tint = MaterialTheme.colorScheme.primary)
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Column {
-                        Text(entry.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                        Text(entry.subtitle, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
+                    Icon(entry.icon, contentDescription = entry.title, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(7.dp))
+                    Text(entry.title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         }

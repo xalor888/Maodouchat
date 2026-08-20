@@ -1757,28 +1757,34 @@ fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
     if (glassEnabled) {
         val surface = MaterialTheme.colorScheme.surface
         val isLightSurface = (surface.red + surface.green + surface.blue) / 3f > 0.5f
-        val glassColor = surface.copy(alpha = if (isLightSurface) 0.82f else 0.72f)
+        // 9.293：悬浮感重做——白底上纯白半透明等于隐形，改为带轻微主色调的磨砂色，
+        // 配合大留白 + 强投影让底栏真正「飘」起来（此前 12dp 留白 + 白透明，视觉与普通贴底栏无差）
+        val tint = MaterialTheme.colorScheme.primary
+        val glassColor = if (isLightSurface) {
+            androidx.compose.ui.graphics.lerp(Color.White, tint, 0.05f).copy(alpha = 0.94f)
+        } else {
+            androidx.compose.ui.graphics.lerp(surface, tint, 0.12f).copy(alpha = 0.82f)
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Surface(
                 shape = RoundedCornerShape(26.dp),
                 color = glassColor,
-                // 9.256：玻璃质感增强——顶边高光渐变描边（借鉴 Murexide 液态玻璃
-                // highlight 思路）：上缘亮、两侧渐淡，比普通细描边更接近真实玻璃观感
                 border = BorderStroke(
                     1.dp,
                     androidx.compose.ui.graphics.Brush.linearGradient(
                         listOf(
-                            Color.White.copy(alpha = if (isLightSurface) 0.55f else 0.28f),
-                            Color.White.copy(alpha = 0.10f),
-                            Color.White.copy(alpha = if (isLightSurface) 0.22f else 0.10f)
+                            Color.White.copy(alpha = if (isLightSurface) 0.6f else 0.28f),
+                            Color.White.copy(alpha = 0.08f),
+                            Color.White.copy(alpha = if (isLightSurface) 0.2f else 0.1f)
                         )
                     )
                 ),
-                shadowElevation = 14.dp,
+                // 9.293：投影加重到 22dp，让底栏与页面间出现明显的「悬浮阴影」
+                shadowElevation = 22.dp,
                 tonalElevation = 0.dp
             ) {
                 // 9.273：Murexide 液态玻璃轻量移植——内高光 + 内底影叠加层
