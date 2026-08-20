@@ -10,6 +10,9 @@ import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -2875,11 +2878,18 @@ fun GeneralSettingsScreen(
 
     // 9.200：主题风格选择（含 TG 1:1 还原主题，浅/深双变体预览）
     if (showThemeStyleDialog) {
+        // 9.259：锁定打开对话框时的主题——预览期间 state.themeStyle 会被临时切换，
+        // 松手恢复必须用此快照而非实时 state
+        val confirmedStyle = remember { state.themeStyle }
         ThemeStylePickerDialog(
-            currentStyle = state.themeStyle,
+            currentStyle = confirmedStyle,
             onSelect = { style ->
                 viewModel.setThemeStyle(style)
                 showThemeStyleDialog = false
+            },
+            // 9.259：长按临时预览——长按即切到该主题（对话框背后整 App 可见），松手恢复
+            onPreview = { previewStyle ->
+                viewModel.setThemeStyle(previewStyle ?: confirmedStyle)
             },
             onDismiss = { showThemeStyleDialog = false }
         )
@@ -3042,6 +3052,8 @@ private fun themeStyleName(style: String): String = when (com.maodouchat.ui.them
 private fun ThemeStylePickerDialog(
     currentStyle: String,
     onSelect: (String) -> Unit,
+    // 9.259：长按临时预览回调（style=临时应用；null=松手恢复原主题）
+    onPreview: (String?) -> Unit,
     onDismiss: () -> Unit
 ) {
     val currentFamily = com.maodouchat.ui.theme.ThemeFamily.normalize(currentStyle)
@@ -3053,11 +3065,19 @@ private fun ThemeStylePickerDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // 9.259：长按预览提示
+                Text(
+                    stringResource(R.string.general_theme_style_longpress_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = LocalChatPalette.current.textSecondary
+                )
                 com.maodouchat.ui.theme.ThemeFamily.ALL.forEach { family ->
                     ThemeStyleCard(
                         family = family,
                         selected = family == currentFamily,
-                        onClick = { onSelect(family.id) }
+                        onClick = { onSelect(family.id) },
+                        onPreviewStart = { onPreview(family.id) },
+                        onPreviewEnd = { onPreview(null) }
                     )
                 }
             }
@@ -3073,7 +3093,10 @@ private fun ThemeStylePickerDialog(
 private fun ThemeStyleCard(
     family: com.maodouchat.ui.theme.ThemeFamily,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    // 9.259：TG 式长按临时预览——长按即应用（对话框背后整 App 即时切主题），松手恢复
+    onPreviewStart: () -> Unit,
+    onPreviewEnd: () -> Unit
 ) {
     val lightPaint = remember(family) { com.maodouchat.ui.theme.resolveThemePaint(family, dark = false) }
     val darkPaint = remember(family) { com.maodouchat.ui.theme.resolveThemePaint(family, dark = true) }
@@ -3096,6 +3119,34 @@ private fun ThemeStyleCard(
                 else Modifier.border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
             )
             .clickable(onClick = onClick)
+            .pointerInput(family.id) {
+                // 9.259 长按临时预览：短按仍走 clickable 确认选择；按住达阈即应用，松手恢复。
+                // waitForLongPress 在本 BOM 为 internal，自实现时间戳判定
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val downTime = down.uptimeMillis
+                    val slop = viewConfiguration.touchSlop
+                    var longPressed = false
+                    var released = false
+                    while (!released) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull() ?: break
+                        if (!change.pressed) {
+                            released = true
+                        } else {
+                            val dist = (change.position - down.position).getDistance()
+                            if (dist > slop) {
+                                // 移动超阈：取消手势（滚动容器接管）
+                                released = true
+                            } else if (!longPressed && change.uptimeMillis - downTime >= android.view.ViewConfiguration.getLongPressTimeout()) {
+                                longPressed = true
+                                onPreviewStart()
+                            }
+                        }
+                    }
+                    if (longPressed) onPreviewEnd()
+                }
+            }
             .padding(10.dp)
     ) {
         Row(

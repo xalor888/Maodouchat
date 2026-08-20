@@ -2865,4 +2865,5 @@
     <string name="theme_slot_system_message">系统消息背景</string>
     <string name="general_oled_black_title">纯黑深色（OLED）</string>
     <string name="general_oled_black_subtitle">深色模式下背景纯黑，OLED 屏幕更省电</string>
+    <string name="general_theme_style_longpress_hint">点按选择主题；长按可临时预览，松手恢复</string>
 </resources>
