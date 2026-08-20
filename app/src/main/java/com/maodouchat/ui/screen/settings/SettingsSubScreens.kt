@@ -2688,6 +2688,8 @@ fun GeneralSettingsScreen(
     onOpenAbout: () -> Unit = {},
     onOpenWatermarkForensic: () -> Unit = {},
     onOpenDeveloperBots: () -> Unit = {},
+    // 9.253：主题编辑器入口（TG 式高自定义 + .attheme 导入导出）
+    onOpenThemeEditor: () -> Unit = {},
     viewModel: GeneralSettingsViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -2745,6 +2747,12 @@ fun GeneralSettingsScreen(
                     current = state.accentColor,
                     onChange = viewModel::setAccentColor
                 )
+                androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
+                // 9.253：自定义颜色（TG 式主题编辑器，支持 .attheme 导入导出）
+                ActionRow(
+                    label = stringResource(R.string.settings_theme_customize),
+                    subtitle = stringResource(R.string.theme_editor_hint)
+                ) { onOpenThemeEditor() }
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 GlassBottomBarSwitchRow(
                     enabled = state.glassBottomBar,

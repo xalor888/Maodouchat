@@ -2870,4 +2870,27 @@
     <string name="server_url_no_host">Server address is missing a hostname</string>
     <string name="server_url_extra">Server address cannot contain user info, query, or fragment</string>
     <string name="server_url_port">Invalid port number</string>
+    <string name="theme_editor_title">Edit Theme</string>
+    <string name="theme_import">Import</string>
+    <string name="theme_export">Export</string>
+    <string name="theme_reset_all">Reset</string>
+    <string name="theme_variant_light">Light</string>
+    <string name="theme_variant_dark">Dark</string>
+    <string name="theme_editor_hint">Tap a color to customize; delete icon restores default. Import/export .attheme packs supported.</string>
+    <string name="theme_slot_accent">Accent</string>
+    <string name="theme_slot_chat_background">Chat background</string>
+    <string name="theme_slot_in_bubble">Incoming bubble</string>
+    <string name="theme_slot_out_bubble">Outgoing bubble</string>
+    <string name="theme_slot_out_text">Outgoing text</string>
+    <string name="theme_slot_text_primary">Primary text</string>
+    <string name="theme_slot_window_background">Page background</string>
+    <string name="theme_slot_default">Theme default</string>
+    <string name="theme_slot_reset">Reset</string>
+    <string name="theme_color_red">R</string>
+    <string name="theme_color_green">G</string>
+    <string name="theme_color_blue">B</string>
+    <string name="theme_import_ok">Imported %1$d colors</string>
+    <string name="theme_import_no_keys">No applicable theme colors found</string>
+    <string name="theme_export_ok">Theme exported</string>
+    <string name="settings_theme_customize">Customize colors</string>
 </resources>

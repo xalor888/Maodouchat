@@ -2836,4 +2836,27 @@
     <string name="server_url_no_host">服务器地址缺少主机名</string>
     <string name="server_url_extra">服务器地址不能包含用户名、参数或锚点</string>
     <string name="server_url_port">端口号无效</string>
+    <string name="theme_editor_title">编辑主题</string>
+    <string name="theme_import">导入</string>
+    <string name="theme_export">导出</string>
+    <string name="theme_reset_all">重置</string>
+    <string name="theme_variant_light">浅色</string>
+    <string name="theme_variant_dark">深色</string>
+    <string name="theme_editor_hint">点击颜色行自定义；删除图标恢复默认。支持导入/导出 .attheme 主题包。</string>
+    <string name="theme_slot_accent">强调色</string>
+    <string name="theme_slot_chat_background">聊天背景</string>
+    <string name="theme_slot_in_bubble">接收气泡</string>
+    <string name="theme_slot_out_bubble">发送气泡</string>
+    <string name="theme_slot_out_text">发送气泡文字</string>
+    <string name="theme_slot_text_primary">主文字色</string>
+    <string name="theme_slot_window_background">页面背景</string>
+    <string name="theme_slot_default">跟随主题默认</string>
+    <string name="theme_slot_reset">恢复默认</string>
+    <string name="theme_color_red">R</string>
+    <string name="theme_color_green">G</string>
+    <string name="theme_color_blue">B</string>
+    <string name="theme_import_ok">已导入 %1$d 个颜色</string>
+    <string name="theme_import_no_keys">未识别到可应用的主题颜色</string>
+    <string name="theme_export_ok">主题已导出</string>
+    <string name="settings_theme_customize">自定义颜色</string>
 </resources>

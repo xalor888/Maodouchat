@@ -103,12 +103,15 @@ fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
         else -> darkTheme
     }
     // Telegram 级主题风格：按家族 + 深浅解析完整绘制参数；强调色可覆盖主题默认 primary
-    val paint = remember(themeStylePref, accentPref, useDark) {
+    // 9.253：自定义主题覆盖层——用户改过的颜色槽位叠加在家族默认之上（revision 驱动刷新）
+    val customRevision by com.maodouchat.util.CustomThemeStore.revision.collectAsState()
+    val paint = remember(themeStylePref, accentPref, useDark, customRevision) {
         val base = resolveThemePaint(com.maodouchat.ui.theme.ThemeFamily.normalize(themeStylePref), useDark)
         val accent = com.maodouchat.ui.theme.accentFor(accentPref, useDark)
-        if (accent == null) base else base.copy(
+        val withAccent = if (accent == null) base else base.copy(
             colorScheme = base.colorScheme.copy(primary = accent, onPrimary = Color.White)
         )
+        com.maodouchat.util.CustomThemeStore.applyOverrides(ctx, if (useDark) "dark" else "light", withAccent)
     }
     val motionSettings = rememberSystemMotionSettings()
 

@@ -106,6 +106,8 @@ object Routes {
     const val SETTINGS_MODERATION = "settings/moderation"
     const val SETTINGS_GENERAL = "settings/general"
     const val SETTINGS_ABOUT = "settings/about"
+    // 9.253：主题编辑器（TG 式高自定义 + .attheme 导入导出）
+    const val SETTINGS_THEME_EDITOR = "settings/theme_editor"
     const val SETTINGS_SERVER = "settings/server"
     const val WATERMARK_FORENSIC = "watermark_forensic"
     const val DEVELOPER_BOTS = "developer_bots"
@@ -733,8 +735,12 @@ fun MaodouchatNavGraph(
                 onBack = { navController.popBackStack() },
                 onOpenAbout = { navController.navigate(Routes.SETTINGS_ABOUT) },
                 onOpenWatermarkForensic = { navController.navigate(Routes.WATERMARK_FORENSIC) },
-                onOpenDeveloperBots = { navController.navigate(Routes.DEVELOPER_BOTS) }
+                onOpenDeveloperBots = { navController.navigate(Routes.DEVELOPER_BOTS) },
+                onOpenThemeEditor = { navController.navigate(Routes.SETTINGS_THEME_EDITOR) }
             )
+        }
+        composable(Routes.SETTINGS_THEME_EDITOR) {
+            com.maodouchat.ui.screen.settings.ThemeEditorScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.FAKE_CHAT_SETTINGS) {
             com.maodouchat.ui.screen.settings.FakeChatSettingsScreen(
