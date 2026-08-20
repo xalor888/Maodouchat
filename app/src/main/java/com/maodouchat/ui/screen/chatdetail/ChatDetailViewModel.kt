@@ -7365,6 +7365,8 @@ fun sendCurrentLocation() {
                 }
                 throw error
             } catch (error: Exception) {
+                // 9.296：准备阶段失败必须落日志——此前异常被静默吞掉，「附件发送失败」无任何可诊断信息
+                android.util.Log.w("ChatDetailViewModel", "Attachment preparation failed: $messageId", error)
                 val persisted = withContext(Dispatchers.IO) {
                     app.database.attachmentTransferDao().get(
                         messageId,

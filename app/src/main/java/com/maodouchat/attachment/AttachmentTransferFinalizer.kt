@@ -394,7 +394,29 @@ object AttachmentTransferFinalizer {
     fun isRetryable(error: Throwable): Boolean = when (error) {
         is ApiException -> error.kind in setOf(ApiFailureKind.NETWORK, ApiFailureKind.TIMEOUT) || (error.statusCode ?: 0) >= 500
         is IOException -> true
-        else -> false
+        // 9.297：Signal 会话未建立/身份变更/prekey 失效属瞬态错误——Signal 初始化在后台
+        // 进行，worker 重试（指数退避，上限 MAX_RETRIES）通常能成功。此前这类异常直接标
+        // FAILED 不重试，导致 fresh 安装/重装/会话重建窗口期发图必败（「附件发送失败」）
+        else -> isTransientCryptoError(error)
+    }
+
+    /** libsignal 会话层瞬态异常识别（沿 cause 链检查，避免被包装后漏判）。 */
+    private fun isTransientCryptoError(error: Throwable): Boolean {
+        var t: Throwable? = error
+        var depth = 0
+        while (t != null && depth < 6) {
+            val simpleName = t.javaClass.simpleName
+            if (simpleName in setOf(
+                    "NoSessionException", "UntrustedIdentityException",
+                    "InvalidKeyIdException", "InvalidKeyException", "StaleKeyException"
+                )
+            ) return true
+            val msg = t.message.orEmpty()
+            if ("not ready" in msg || "protocol initialization" in msg) return true
+            t = t.cause
+            depth++
+        }
+        return false
     }
 
     private suspend fun fail(
