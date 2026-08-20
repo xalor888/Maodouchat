@@ -3609,8 +3609,19 @@ DropdownMenuItem(
                                     else Modifier
                                 ),
                                 contentAlignment = Alignment.Center) {
-                                Text(item.label, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = MaterialTheme.colorScheme.inverseOnSurface,
-                                    modifier = Modifier.background(LocalChatPalette.current.systemMessageBackground, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 4.dp))
+                                // 9.270：TG 式日期胶囊——全胶囊形 + 加深半透明（悬浮在壁纸上的磨砂感，
+                                // 原 12dp 圆角矩形 + 淡半透明），字号收紧更精致
+                                Text(
+                                    item.label,
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                    color = MaterialTheme.colorScheme.inverseOnSurface,
+                                    modifier = Modifier
+                                        .background(
+                                            LocalChatPalette.current.systemMessageBackground.copy(alpha = 0.32f),
+                                            RoundedCornerShape(percent = 50)
+                                        )
+                                        .padding(horizontal = 12.dp, vertical = 5.dp)
+                                )
                             }
                         }
                         is ChatItem.UnreadSeparator -> {
