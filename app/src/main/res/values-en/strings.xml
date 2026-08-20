@@ -11,17 +11,12 @@
     <string name="common_share">Share</string>
     <string name="common_clear">Clear</string>
     <string name="common_selected">Selected</string>
-    <string name="common_from">From</string>
-    <string name="common_to">To</string>
 
     <string name="nav_chats">Chats</string>
     <string name="nav_contacts">Contacts</string>
     <string name="nav_explore">Explore</string>
     <string name="nav_settings">Settings</string>
     <string name="chat_refresh">Refresh chats</string>
-    <string name="chat_add_contact">Add contact</string>
-    <string name="chat_search">Search chats</string>
-    <string name="chat_network_notice">Connection issue</string>
     <string name="chat_acknowledge">OK</string>
     <string name="chat_group">Group chat</string>
     <string name="chat_channel_default_name">Broadcast channel</string>
@@ -30,24 +25,17 @@
     <string name="chat_channel_create_subtitle">The creator broadcasts one-way; subscribers can only view. You can add subscribers at any time.</string>
     <string name="chat_channel_name_hint">Channel name</string>
     <string name="chat_channel_create_button">Create channel</string>
-    <string name="chat_channel_subscribers">Subscribers</string>
     <plurals name="chat_channel_member_count">
         <item quantity="one">%1$d subscriber</item>
         <item quantity="other">%1$d subscribers</item>
     </plurals>
     <string name="chat_channel_subscriber_hint">Only the creator can send messages; subscribers are read-only</string>
-    <string name="chat_channel_created">Channel created</string>
     <string name="chat_create_channel">New channel</string>
     <string name="chat_detail_channel_header">Channel</string>
-    <string name="chat_channel_no_announcement">No channel announcements</string>
-    <string name="chat_channel_dissolve_title">Dissolve channel</string>
-    <string name="chat_channel_dissolve_confirm">All subscribers will lose access to this channel once it is dissolved. Dissolve it?</string>
-    <string name="chat_channel_dissolved">Channel dissolved</string>
     <string name="chat_channel_leave">Leave channel</string>
     <string name="chat_this_chat">this chat</string>
     <string name="chat_unknown">Unknown</string>
     <string name="chat_delete_title">Delete chat</string>
-    <string name="chat_delete_message">Delete your chat with “%1$s”? Its local history will be cleared.</string>
     <string name="chat_delete">Delete</string>
     <plurals name="chat_list_selected_count">
         <item quantity="one">%1$d selected</item>
@@ -86,7 +74,6 @@
     <string name="chat_leave_group">Leave group</string>
     <string name="chat_owner_transfer_required_title">Transfer ownership first</string>
     <string name="chat_owner_transfer_required_message">Other members are still in this group. Open group management and transfer ownership before leaving.</string>
-    <string name="chat_open_group_management">Open group management</string>
     <string name="chat_refresh_failed_cached">Could not refresh chats. Showing cached conversations.</string>
     <string name="chat_role_owner">Owner</string>
     <string name="chat_role_admin">Admin</string>
@@ -230,7 +217,6 @@
     <string name="explore_nearby_permission">Location permission is required to become visible nearby</string>
     <string name="explore_nearby_visible">Visible nearby</string>
     <string name="explore_nearby_disabled">Location sharing is off</string>
-    <string name="explore_nearby_visible_hint">Your location is hidden automatically after about 30 minutes</string>
     <string name="explore_nearby_disabled_hint">Your current location is not uploaded or retained</string>
     <string name="explore_nearby_enable">Enable Nearby</string>
     <string name="explore_nearby_empty">No visible users nearby</string>
@@ -248,7 +234,6 @@
         <item quantity="one">%1$d nearby</item>
         <item quantity="other">%1$d nearby</item>
     </plurals>
-    <string name="disappear_list_indicator">Disappearing messages on</string>
     <string name="explore_moments_empty">No public posts yet. Create one from Explore.</string>
     <string name="explore_author_home">Profile</string>
     <string name="explore_post_details">Post details</string>
@@ -350,7 +335,6 @@
     <string name="contacts_block_message">Block %1$s? They will not be able to contact you, and your posts and profile will be hidden from them.</string>
     <string name="contacts_friend_blocked">Blocked %1$s</string>
 
-    <string name="chat_exported">Exported</string>
     <plurals name="chat_export_success">
         <item quantity="one">Exported %1$d message</item>
         <item quantity="other">Exported %1$d messages</item>
@@ -373,7 +357,6 @@
     <string name="chat_remove">Remove</string>
     <string name="chat_add_member">Add members</string>
     <string name="chat_add">Add</string>
-    <string name="chat_candidates_limit">Showing the first 20 available users</string>
     <string name="chat_candidates_more" tools:ignore="PluralsCandidate">Show %1$d more people to add</string>
     <string name="chat_candidates_showing_all" tools:ignore="PluralsCandidate">Showing all %1$d people available to add</string>
     <string name="chat_group_info_search_hint">Search members or people to add</string>
@@ -396,7 +379,6 @@
     <string name="chat_draft_restored">Restored your previous draft</string>
     <string name="chat_pin">Pin</string>
     <string name="chat_unpin">Unpin</string>
-    <string name="chat_pinned">Pinned</string>
     <string name="chat_message_pin">Pin message</string>
     <string name="chat_message_unpin">Unpin message</string>
     <string name="chat_pin_success">Message pinned</string>
@@ -420,19 +402,12 @@
     <string name="chat_pinned_preview_generic">[Message]</string>
     <string name="chat_mute_notifications">Mute notifications</string>
     <string name="chat_unmute_notifications">Enable notifications</string>
-    <string name="chat_notifications_muted">Notifications muted</string>
     <string name="chat_archive">Archive</string>
     <string name="chat_unarchive">Unarchive</string>
     <string name="chat_archived_title">Archived</string>
-    <string name="chat_back_to_inbox">Back to chats</string>
     <string name="chat_mark_unread">Mark as unread</string>
     <string name="chat_mark_read">Mark as read</string>
     <string name="chat_settings_sync_failed">Could not sync conversation settings. The previous state was restored.</string>
-    <string name="chat_batch_manage">Manage multiple</string>
-    <plurals name="chat_selected_count">
-        <item quantity="one">%1$d selected</item>
-        <item quantity="other">%1$d selected</item>
-    </plurals>
     <string name="chat_select_message">Select message</string>
     <plurals name="chat_messages_selected">
         <item quantity="one">%1$d message selected</item>
@@ -610,7 +585,6 @@
     <string name="chat_mark_all_read">Mark all as read</string>
     <string name="chat_copy">Copy</string>
     <string name="chat_translating">Translating</string>
-    <string name="chat_translate_chinese">Translate to Chinese</string>
     <string name="chat_translate">Translate…</string>
     <string name="chat_clipboard_translation">Message translation</string>
     <string name="chat_translation_copied">Translation copied</string>
@@ -645,7 +619,6 @@
     <string name="chat_forward_to_selected" tools:ignore="PluralsCandidate">Forward to %1$d chats</string>
     <string name="chat_no_forward_targets">No conversations available</string>
     <string name="chat_forwarded">Forwarded</string>
-    <string name="chat_forward_targets_limit">Showing up to 20 matching chats</string>
     <string name="chat_forward_targets_more" tools:ignore="PluralsCandidate">Show %1$d more chats</string>
     <string name="chat_forward_targets_showing_all" tools:ignore="PluralsCandidate">Showing all %1$d matching chats</string>
     <string name="chat_forward_search_hint">Search chats</string>
@@ -776,7 +749,6 @@
     <string name="chat_attachment_file_too_large">Files can’t exceed 100 MB</string>
     <string name="chat_attachment_integrity_failed">Attachment integrity check failed. Download it again.</string>
     <string name="chat_attachment_upload_failed">Couldn’t send the attachment. Try again.</string>
-    <string name="chat_attachment_send_failed">The attachment was uploaded, but the encrypted message could not be sent. Try again.</string>
     <string name="chat_attachment_download_failed">Couldn’t download the attachment. Try again.</string>
     <string name="chat_attachment_reference_invalid">The attachment reference is invalid or damaged</string>
     <string name="chat_attachment_content_mismatch">The file content does not match the selected media type</string>
@@ -839,7 +811,6 @@
     <string name="chat_cancel_recording">Cancel recording</string>
     <string name="chat_stop_recording">Stop recording</string>
     <string name="chat_hold_to_talk">Hold to talk</string>
-    <string name="chat_release_to_send">Release to send</string>
     <string name="chat_release_to_preview">Release to preview</string>
     <string name="chat_slide_up_to_cancel">Slide up to cancel</string>
     <string name="chat_voice_preview_title">Voice preview</string>
@@ -847,7 +818,6 @@
     <string name="chat_voice_preview_discard">Retake</string>
     <string name="chat_voice_preview_play">Preview</string>
     <string name="chat_voice_preview_stop">Stop</string>
-    <string name="message_voice_speed">Speed %1$s</string>
     <string name="message_voice_earpiece">Play on earpiece</string>
     <string name="message_voice_speaker">Play on speaker</string>
     <string name="chat_mention_everyone">Everyone</string>
@@ -995,7 +965,6 @@
     <string name="schedule_delay_2d">In 2 days</string>
     <string name="schedule_delay_3d">In 3 days</string>
     <string name="schedule_delay_7d">In 7 days</string>
-    <string name="schedule_queued">Scheduled</string>
     <string name="schedule_queued_at">Scheduled for %1$s</string>
     <string name="schedule_cancelled">Scheduled message canceled</string>
     <string name="schedule_cancel_all">Cancel all</string>
@@ -1003,7 +972,6 @@
     <string name="schedule_cancelled_all">All scheduled messages canceled</string>
     <string name="schedule_failed">Could not schedule the message</string>
     <string name="schedule_limit_reached">Scheduled message limit reached for this chat</string>
-    <string name="schedule_group_unsupported">Group scheduled send supports text only</string>
     <string name="schedule_pending_title">Scheduled (%1$d)</string>
     <string name="schedule_search_hint">Search scheduled messages</string>
     <string name="schedule_search_empty">No matching scheduled messages</string>
@@ -1018,11 +986,8 @@
     <string name="schedule_custom">Pick date &amp; time</string>
     <string name="schedule_custom_too_soon">Choose a time at least 1 minute from now</string>
     <string name="schedule_custom_too_late">Scheduled send supports up to 7 days ahead</string>
-    <string name="missed_calls_title">Missed calls</string>
-    <string name="missed_calls_mark_read">Mark all read</string>
     <string name="missed_calls_clear_all">Clear history</string>
     <string name="missed_calls_callback">Call back</string>
-    <string name="missed_calls_open_chat">Open chat</string>
     <string name="missed_calls_empty">No missed calls</string>
     <string name="call_log_title">Call history</string>
     <string name="call_history_empty">No calls yet</string>
@@ -1069,7 +1034,6 @@
     <string name="chat_ai_no_summary_context">No text messages are available to summarize</string>
     <string name="chat_ai_transcript_exists">This voice message already has a transcript</string>
     <string name="chat_ai_no_translation_text">This message has no text to translate</string>
-    <string name="chat_ai_translation_exists">This message already has a translation</string>
     <string name="chat_translation_selected">Translation language changed</string>
     <string name="chat_translation_language_title">Translate to</string>
     <string name="chat_translation_language_search_hint">Search languages</string>
@@ -1103,8 +1067,6 @@
     <string name="chat_ai_disabled_status">AI disabled in this chat</string>
     <string name="chat_ai_setting_failed">Could not update AI settings</string>
     <string name="chat_ai_rewrite_success">AI updated the draft</string>
-    <string name="chat_ai_rewrite_failed">AI rewrite failed</string>
-    <string name="chat_ai_replies_failed">Could not generate smart replies</string>
     <string name="chat_ai_summary_failed">Could not generate a summary</string>
     <string name="chat_ai_operation_transcribe">Voice transcription</string>
     <string name="chat_ai_operation_translate">Message translation</string>
@@ -1112,15 +1074,12 @@
     <string name="chat_ai_operation_image">Image analysis</string>
     <string name="chat_ai_operation_file">File analysis</string>
     <string name="chat_ai_operation_queued">Waiting</string>
-    <string name="chat_ai_operation_running">Processing</string>
     <string name="chat_ai_operation_failed">Processing failed</string>
-    <string name="chat_ai_operation_interrupted">The previous run was interrupted</string>
     <string name="chat_ai_operation_outcome_unknown">The AI service may have processed this request. To avoid duplicate charges, it was not retried automatically. Confirm before retrying.</string>
     <string name="chat_ai_operation_retry_scheduled">Could not connect. Automatic retry is scheduled for %1$s.</string>
     <string name="chat_ai_operation_attempts" tools:ignore="PluralsCandidate">%1$d attempt(s)</string>
     <string name="chat_ai_operation_context_missing">The source message or context is no longer available</string>
     <string name="chat_ai_operation_network_failed">No network connection. Check your connection and retry.</string>
-    <string name="chat_ai_operation_timeout">Processing timed out. Try again later.</string>
     <string name="chat_ai_operation_server_failed">The AI service is temporarily unavailable</string>
     <string name="chat_ai_operation_invalid_result">The AI service returned no usable result</string>
     <string name="chat_ai_operation_rate_limited" tools:ignore="PluralsCandidate">Too many AI requests. Wait about %1$d seconds, then retry. This run did not finish; retries may be billed again.</string>
@@ -1155,7 +1114,6 @@
     <string name="chat_group_ai_share_confirm_body">This will be sent as your own message and labeled “AI assisted · confirmed by sender”. It will never look like a system message.</string>
     <string name="chat_group_ai_share_confirm_action">Confirm share</string>
     <string name="message_ai_assisted_shared">AI assisted · confirmed by sender</string>
-    <string name="chat_voice_unreadable">Could not read this voice message</string>
     <string name="chat_voice_cache_missing">The voice file was removed or is too large to transcribe</string>
     <string name="chat_voice_transcript_empty">The transcript was empty</string>
     <string name="chat_voice_transcribed">Voice message transcribed</string>
@@ -1191,23 +1149,17 @@
     <string name="chat_group_member_removed_key">Member removed. Group keys will be redistributed with the next message.</string>
     <string name="chat_group_remove_failed">Could not remove the group member</string>
     <string name="chat_group_refresh_failed">Could not refresh group info</string>
-    <string name="chat_location_failed">Could not get your location</string>
     <string name="chat_group_call_empty">No group members are available for a call</string>
     <string name="chat_ws_send_failed">Real-time delivery failed</string>
     <string name="chat_ws_connection_failed">Real-time connection unavailable. Reconnecting…</string>
     <string name="chat_ws_data_invalid">Received real-time data could not be processed</string>
     <string name="chat_invalid_conversation">Invalid conversation. Go back and try again.</string>
-    <string name="chat_original_media_missing">The original media file is unavailable or was removed</string>
-    <string name="chat_original_file_missing">The original file is unavailable or was removed</string>
     <string name="chat_retry_type_unsupported">This message type cannot be retried</string>
-    <string name="chat_forward_media_missing">The media file to forward is unavailable</string>
     <string name="chat_forward_type_unsupported">This message type cannot be forwarded</string>
     <string name="chat_forward_recipient_missing">Forward recipient not found</string>
     <string name="chat_group_e2ee_send_failed">Group end-to-end encryption failed. Retry later or check member key status.</string>
-    <string name="chat_group_key_rotated">Group keys rotated and are being redistributed</string>
     <string name="chat_group_key_distributing">Distributing group key epoch %1$d</string>
     <string name="chat_group_key_distribution_failed" tools:ignore="PluralsCandidate">Group key epoch %1$d failed to distribute and will retry with the next message</string>
-    <string name="chat_group_key_newer">A newer group key epoch arrived. Refresh group info and retry.</string>
     <string name="chat_group_key_unusable">This group key could not be applied. Refresh group info and retry.</string>
     <string name="chat_group_key_session_missing">Waiting for the sender to redistribute the missing group key session</string>
     <string name="chat_group_identity_changed">A member safety number changed. Verify identity before accepting group keys.</string>
@@ -1247,7 +1199,6 @@
     <string name="message_video">Video message</string>
     <string name="message_play_video">Play video</string>
     <string name="message_file">File</string>
-    <string name="message_file_open_hint">Tap to open · %1$s</string>
     <string name="message_status_sent">Sent</string>
     <string name="message_status_delivered">Delivered</string>
     <string name="message_status_read">Read</string>
@@ -1356,7 +1307,6 @@
     <string name="group_detail_demote">Demote</string>
     <string name="group_detail_promote_admin">Make admin</string>
     <string name="group_detail_transfer_owner">Transfer ownership</string>
-    <string name="group_detail_transfer_owner_to">Transfer ownership to %1$s</string>
     <string name="group_detail_transfer_confirm">Transfer ownership to %1$s? You will become an administrator.</string>
     <string name="group_detail_transfer_confirm_action">Transfer</string>
     <string name="group_detail_transfer_success">Ownership transferred</string>
@@ -1415,7 +1365,6 @@
     <string name="starred_empty">No starred messages yet</string>
     <string name="starred_search_hint">Search starred messages</string>
     <string name="starred_search_empty">No matching starred messages</string>
-    <string name="starred_marked">Starred</string>
     <string name="starred_clear_all">Clear all starred</string>
     <string name="starred_clear_all_confirm">This will unstar all saved messages. Continue?</string>
     <string name="starred_unstar">Unstar</string>
@@ -1464,12 +1413,9 @@
     <string name="call_group_member_rejected">Declined</string>
     <string name="call_group_member_busy">Busy</string>
     <string name="call_group_member_no_answer">No answer</string>
-    <string name="call_all_rejected">All members declined</string>
     <string name="call_peer_rejected">Call declined</string>
-    <string name="call_all_busy">All members are busy</string>
     <string name="call_peer_busy">User is busy</string>
     <string name="call_handle_signaling_failed">Could not process call signaling: %1$s</string>
-    <string name="call_notify_hangup_failed">Could not notify the other user that the call ended</string>
     <string name="call_establishing">Connecting…</string>
     <string name="call_calling_video">Calling with video…</string>
     <string name="call_calling">Calling…</string>
@@ -2189,10 +2135,6 @@
     <string name="notif_center_minutes_ago" tools:ignore="PluralsCandidate">%1$d min ago</string>
     <string name="notif_center_hours_ago" tools:ignore="PluralsCandidate">%1$d h ago</string>
     <string name="notif_center_days_ago" tools:ignore="PluralsCandidate">%1$d d ago</string>
-    <string name="notif_center_message_preview">New message</string>
-    <string name="notif_center_group_invite_title">Group invitation</string>
-    <string name="notif_center_security_login">Account security notice</string>
-    <string name="notif_center_moderation_title">Moderation notice</string>
     <string name="notif_center_subtitle_message">Messages</string>
     <string name="notif_center_filter_all">All</string>
     <string name="notif_center_filter_unread">Unread</string>
@@ -2203,7 +2145,6 @@
     <string name="notif_center_filter_empty">No notifications in this category</string>
     <string name="notif_center_search_hint">Search notification title or preview</string>
     <string name="notif_center_search_empty">No matching notifications</string>
-    <string name="notif_center_dismiss">Dismiss</string>
     <string name="ai_privacy_reset_consent">Revoke local AI authorization</string>
     <string name="ai_privacy_reset_consent_subtitle">Clear local AI preferences and stop all AI features. You\'ll be asked to consent again next time.</string>
     <string name="ai_privacy_reset_confirm">Revoke local AI authorization? Existing cached summaries will stay on this device.</string>
@@ -2240,11 +2181,6 @@
     <string name="call_active_private_subtitle">Encrypted call in progress</string>
     <string name="call_channel_name">Calls</string>
     <string name="call_channel_description">Shows the call currently in progress</string>
-    <string name="chat_attachment_summary_failed" tools:ignore="PluralsCandidate">Attachments: %1$d failed, %2$d in progress</string>
-    <string name="chat_attachment_summary_active" tools:ignore="PluralsCandidate">Attachments: %1$d transferring, %2$d queued</string>
-    <string name="chat_attachment_summary_complete" tools:ignore="PluralsCandidate">Attachments: %1$d uploaded</string>
-    <string name="chat_attachment_retry_all">Retry all</string>
-    <string name="chat_attachment_clear_all">Clear</string>
     <string name="chat_ai_too_soon" tools:ignore="PluralsCandidate">AI rate limit reached, please wait %1$d seconds and retry</string>
 
     <!-- Swipe Actions -->
@@ -2265,14 +2201,9 @@
     <string name="chat_folder_locked">Locked</string>
     <string name="chat_folder_manage">Manage folders</string>
     <string name="chat_folder_create">New folder</string>
-    <string name="chat_folder_name_hint">Folder name</string>
     <string name="chat_folder_create_failed">Could not create (duplicate, empty, or limit reached)</string>
     <string name="chat_folder_rename">Rename</string>
-    <string name="chat_folder_rename_title">Rename folder</string>
     <string name="chat_folder_rename_failed">Could not rename (duplicate or empty name)</string>
-    <string name="chat_folder_delete">Delete folder</string>
-    <string name="chat_folder_move">Move to folder</string>
-    <string name="chat_folder_none">No folder</string>
     <string name="chat_folder_empty">No chats in this folder</string>
     <string name="chat_folder_empty_subtitle">Move chats into this folder to view them together here</string>
     <string name="chat_folder_empty_unread_title">No unread chats</string>
@@ -2287,29 +2218,14 @@
     <string name="chat_folder_empty_locked_subtitle">Enable a chat PIN lock to see it here</string>
     <string name="chat_folder_show_all">Show all chats</string>
     <string name="chat_folder_list_empty">No custom folders yet — create one below</string>
-    <string name="chat_folder_search_hint">Search folders</string>
-    <string name="chat_folder_search_empty">No matching folders</string>
-    <string name="chat_folder_unread_badge">%1$d</string>
 
     <!-- Empty States -->
-    <string name="empty_state_no_chats_title">No chats yet</string>
-    <string name="empty_state_no_chats_subtitle">Tap the add button to start a conversation</string>
-    <string name="empty_state_search_title">No results found</string>
-    <string name="empty_state_search_subtitle">Try a different keyword</string>
-    <string name="empty_state_network_title">Network error</string>
-    <string name="empty_state_network_subtitle">Please check your connection and try again</string>
     <string name="empty_state_retry">Retry</string>
     <string name="chat_screenshot_detected_disappearing">Screenshot detected: disappearing messages may have been saved</string>
-    <string name="user_last_seen_date">Online MM/dd</string>
-    <string name="user_last_seen_minutes">Online %d min ago</string>
-    <string name="user_last_seen_now">Just now</string>
     <string name="user_last_seen_prefix">Last seen</string>
-    <string name="user_last_seen_today">Today HH:mm</string>
-    <string name="user_online">Online</string>
     <string name="watermark_forensic_desc">Extract frequency-domain blind watermark payload from screenshots to trace leak sources</string>
     <string name="watermark_forensic_entry">Watermark Forensics</string>
     <string name="watermark_forensic_error">Extraction failed</string>
-    <string name="watermark_forensic_extracting">Extracting…</string>
     <string name="watermark_forensic_image_too_small">Image too small to extract</string>
     <string name="watermark_forensic_image_preview">Image selected for watermark forensics</string>
     <string name="watermark_forensic_no_watermark">No watermark detected</string>
@@ -2326,7 +2242,6 @@
     <string name="group_play_poll_failed">Failed to create poll</string>
     <string name="group_play_dice">Dice</string>
     <string name="group_play_poll">Create poll</string>
-    <string name="composer_markdown_hint">Markdown supported: **bold** `code` lists and headings</string>
     <string name="group_play_poll_question_default">Quick poll</string>
     <string name="group_play_poll_opt_a">Option A</string>
     <string name="group_play_poll_opt_b">Option B</string>
@@ -2417,7 +2332,6 @@
     <string name="settings_totp_secret_copied">Secret copied</string>
     <string name="settings_totp_copy_uri">Copy authenticator setup link</string>
     <string name="settings_totp_uri_copied">Authenticator setup link copied</string>
-    <string name="chat_view_once">View once</string>
     <string name="chat_view_once_send">Send view-once photo</string>
     <string name="group_play_bomb">Number bomb</string>
     <string name="group_play_word">Word chain</string>
@@ -2442,10 +2356,8 @@
     <string name="message_location_unavailable">Location unavailable</string>
     <string name="group_play_coinflip">Coin flip</string>
     <string name="group_play_redpacket">Fun red packet</string>
-    <string name="secret_chat_sealed_ready">Sealed-sender certificate ready</string>
     <string name="secret_chat_sealed_ready_ttl" tools:ignore="PluralsCandidate">Sealed-sender ready (~%1$d h left)</string>
     <string name="secret_chat_sealed_chip" tools:ignore="PluralsCandidate">Sealed · ~%1$dh</string>
-    <string name="secret_chat_sealed_chip_ready">Sealed sender active</string>
     <string name="secret_chat_sealed_chip_pending">Sealed cert refreshing…</string>
     <string name="group_play_debate">Debate</string>
     <string name="group_play_mirror">Mirror</string>
@@ -2453,8 +2365,6 @@
     <string name="group_play_toast">Friendly roast</string>
     <string name="voice_messages_disabled">Voice messages are disabled by the server</string>
     <string name="reactions_disabled">Reactions are disabled by the server</string>
-    <string name="group_play_two_truths">Two truths one lie</string>
-    <string name="group_play_would_you">Would you rather</string>
     <string name="group_play_hot_potato">Hot potato</string>
     <string name="group_play_wordle">Word hint</string>
     <string name="chat_media_upload_disabled">Media upload is disabled by the server</string>
@@ -2463,7 +2373,6 @@
     <string name="group_play_spyfall">Spyfall</string>
     <string name="group_play_acrostic">Acrostic</string>
     <string name="group_play_emoji_translate">Emoji translate</string>
-    <string name="secret_chat_recents_hidden">Task snapshot hidden in recents</string>
     <string name="calls_disabled">Calls are disabled by the server</string>
     <string name="scheduled_messages_disabled">Scheduled messages are disabled by the server</string>
     <string name="group_play_twenty_questions">20 questions</string>
@@ -2478,7 +2387,6 @@
     <string name="group_play_password">Password game</string>
     <string name="group_play_time_capsule">Time capsule</string>
     <string name="feature_disabled_by_admin">This feature is disabled by admin</string>
-    <string name="group_play_alphabet_race">Alphabet race</string>
     <string name="group_play_silent_movie">Silent movie</string>
     <string name="group_play_color_word">Color word</string>
     <string name="group_play_debate_flash">Debate flash</string>
@@ -2505,9 +2413,6 @@
     <string name="group_play_invite_race">Invite race</string>
     <string name="group_play_mention_mayhem">Mention mayhem</string>
     <string name="group_play_link_hunt">Link hunt</string>
-    <string name="group_invites_disabled">Group invites are disabled by admin</string>
-    <string name="mentions_disabled">Mentions are disabled by admin</string>
-    <string name="chat_drafts_disabled">Chat drafts are disabled by admin</string>
     <string name="chat_ai_translate_disabled">AI translate is disabled by admin</string>
     <string name="group_play_poll_disabled">Polls are disabled by admin</string>
     <string name="nudge_disabled">Nudge is disabled by admin</string>
@@ -2528,14 +2433,12 @@
     <string name="group_play_contact_swap">Contact swap</string>
     <string name="group_play_scan_sprint">Scan sprint</string>
     <string name="spoiler_media_disabled">Spoiler media is disabled by admin</string>
-    <string name="auto_download_disabled">Auto-download is disabled by admin</string>
     <string name="group_play_spoiler_race">Spoiler race</string>
     <string name="group_play_blur_battle">Blur battle</string>
     <string name="group_play_download_dash">Download dash</string>
     <string name="static_location_disabled">Location share is disabled by admin</string>
     <string name="file_share_disabled">File sharing is disabled by admin</string>
     <string name="secret_chat_feature_disabled">Secret chat is disabled by admin</string>
-    <string name="screen_secure_runtime_disabled">Screen secure is disabled by admin</string>
     <string name="group_play_pin_drop">Pin drop</string>
     <string name="group_play_file_relay">File relay</string>
     <string name="group_play_map_dash">Map dash</string>
@@ -2585,24 +2488,7 @@
     <string name="group_play_notif_mask">Notif mask</string>
     <string name="group_play_list_blur">List blur</string>
     <string name="group_play_tray_seal">Tray seal</string>
-    <string name="group_play_typing_seal">Typing seal</string>
-    <string name="group_play_read_seal">Read seal</string>
-    <string name="group_play_presence_seal">Presence seal</string>
-    <string name="group_play_last_seen_seal">Last seen seal</string>
-    <string name="secret_typing_blocked">Typing indicators blocked in secret chats</string>
-    <string name="secret_read_receipt_blocked">Read receipts blocked in secret chats</string>
-    <string name="secret_presence_blocked">Presence/online blocked in secret chats</string>
-    <string name="secret_last_seen_blocked">Last seen blocked in secret chats</string>
-    <string name="secret_link_preview_blocked">Link previews disabled in secret chats</string>
     <string name="secret_external_link_blocked">External links blocked in secret chats</string>
-    <string name="visible_watermark_disabled">Visible watermark disabled by admin</string>
-    <string name="secret_auto_disappear_disabled">Secret auto disappear disabled by admin</string>
-    <string name="sealed_sender_disabled">Sealed sender disabled by admin</string>
-    <string name="pqxdh_preview_disabled">PQXDH preview disabled by admin</string>
-    <string name="secret_forward_block_disabled">Secret forward block disabled by admin</string>
-    <string name="secret_chat_export_block_disabled">Secret chat export block disabled by admin</string>
-    <string name="secret_copy_block_disabled">Secret copy block disabled by admin</string>
-    <string name="secret_media_export_block_disabled">Secret media export block disabled by admin</string>
     <string name="live_location_sharing_banner">Sharing live location · %1$s left</string>
     
     <string name="live_location_duration_15m">15 minutes</string>
@@ -2645,10 +2531,7 @@
     <string name="media_panel_tab_gif">GIF</string>
     <string name="media_panel_sticker_empty">No stickers available</string>
     <string name="media_panel_gif_empty">No GIFs available</string>
-    <string name="blind_watermark_disabled">Blind watermark is disabled by admin</string>
-    <string name="chat_animations_disabled">Chat animations are disabled by admin</string>
     <string name="chat_export_disabled">Chat export is disabled by admin</string>
-    <string name="chat_folders_disabled">Chat folders are disabled by admin</string>
     <string name="chat_font_scale_disabled">Chat font size adjustment is disabled by admin</string>
     <string name="chat_wallpaper_disabled">Chat wallpaper is disabled by admin</string>
     <string name="dnd_disabled">Do Not Disturb scheduling is disabled by admin</string>
@@ -2703,25 +2586,15 @@
     <string name="group_play_wall_pick">Wallpaper pick</string>
     <string name="group_play_whisper">Whisper challenge</string>
     <string name="group_play_would2">This or that: Plus</string>
-    <string name="haptics_disabled">Haptic feedback is disabled by admin</string>
-    <string name="in_app_sounds_disabled">In-app sounds are disabled by admin</string>
-    <string name="markdown_disabled">Markdown rendering is disabled by admin</string>
     <string name="message_forwarding_disabled">Message forwarding is disabled by admin</string>
     <string name="message_starring_disabled">Message starring is disabled by admin</string>
-    <string name="nav_transitions_disabled">Page transitions are disabled by admin</string>
     <string name="notification_preview_disabled">Notification preview settings are disabled by admin</string>
     <string name="notification_sound_disabled">Notification sound settings are disabled by admin</string>
-    <string name="offline_ai_disabled">Offline AI fallback is disabled by admin</string>
-    <string name="presence_disabled">Online status is disabled by admin</string>
     <string name="push_notifications_disabled">Push notifications are disabled by admin</string>
-    <string name="read_receipts_disabled">Read receipts are disabled by admin</string>
-    <string name="recents_exclusion_disabled">Hide from Recents is disabled by admin</string>
     <string name="ringtone_disabled">Ringtone settings are disabled by admin</string>
-    <string name="screenshot_detect_disabled">Screenshot detection is disabled by admin</string>
     <string name="secret_reaction_blocked">Message reactions are blocked in secret chats to prevent metadata leaks</string>
     <string name="secret_star_blocked">Message starring is blocked in secret chats</string>
     <string name="task_reminders_disabled">Task reminders are disabled by admin</string>
-    <string name="typing_indicators_disabled">Typing indicators are disabled by admin</string>
     <string name="unread_priority_disabled">Unread-first sorting is disabled by admin</string>
     <string name="video_call_disabled">Video calls are disabled by admin</string>
     <string name="voice_call_disabled">Voice calls are disabled by admin</string>
@@ -2769,7 +2642,6 @@
     <string name="fake_chat_unhide_icon_title">Restore launcher icon?</string>
     <string name="fake_chat_unhide_icon_body">The app icon will reappear on the home screen. You can hide it again anytime with the dialer code.</string>
     <!-- B1 block · on-demand sticker packs (OnDemandStickerStore) status text, 2026-08-01 -->
-    <string name="sticker_store_basic">Basic emoji</string>
     <string name="sticker_store_downloaded">Sticker pack ready</string>
     <string name="sticker_store_download_failed">Sticker pack download failed. Try again later</string>
     <plurals name="sticker_store_partial">
@@ -2780,7 +2652,6 @@
     <string name="sticker_store_remote_refresh">Refresh</string>
     <string name="sticker_store_remote_empty">No remote sticker packs available</string>
     <string name="sticker_store_remote_download">Download</string>
-    <string name="sticker_store_remote_downloading">Downloading…</string>
     <!-- B3 block · group play: poll / check-in+leaderboard / chain / PK, 2026-08-01 -->
     <string name="group_play_poll_title">Group poll</string>
     <string name="group_play_poll_question_hint">Poll question (≤200 chars)</string>
@@ -2790,7 +2661,6 @@
     <string name="group_play_poll_anonymous">Anonymous</string>
     <string name="group_play_poll_create">Create poll</string>
     <string name="group_play_poll_vote">Vote</string>
-    <string name="group_play_poll_vote_shortcut">~vote shortcut</string>
     <string name="group_play_checkin_title">Check-in</string>
     <string name="group_play_checkin_now">Check in</string>
     <string name="group_play_checkin_done">Checked in today</string>
@@ -2820,16 +2690,8 @@
     <string name="group_play_back">Back</string>
     <string name="group_play_close">Close</string>
     <!-- B4 block · AI enhance capabilities (profile/archive/weekly/emotion/cross-chat/classify), 2026-08-01 -->
-    <string name="ai_enhance_profile_title">Chat profile</string>
-    <string name="ai_enhance_profile_hint">Topics and activity derived from on-device messages; everything stays in the local encrypted store</string>
     <string name="ai_enhance_archive_title">Archive suggestions</string>
     <string name="ai_enhance_archive_hint">Chats worth archiving based on idle time and activity</string>
-    <string name="ai_enhance_weekly_title">Weekly report</string>
-    <string name="ai_enhance_weekly_hint">Weekly group recap: progress, todos and owners</string>
-    <string name="ai_enhance_emotion_title">Emotion-aware reply</string>
-    <string name="ai_enhance_emotion_hint">A caring reply based on the recent conversation mood</string>
-    <string name="ai_enhance_cross_qa_title">Cross-chat Q&amp;A</string>
-    <string name="ai_enhance_cross_qa_hint">Find related messages across chats and answer; citations stay limited to your local messages</string>
     <string name="ai_enhance_classify_title">Message categories</string>
     <string name="ai_enhance_classify_hint">Per-chat category stats; results stay on this device</string>
     <string name="ai_enhance_classify_notice">Notice</string>
@@ -2860,34 +2722,25 @@
     <string name="widget_config_requires_login">Sign in before configuring the widget</string>
     <string name="widget_config_load_failed">Failed to load conversations</string>
     <!-- B5 block · quick reply (QuickReply) -->
-    <string name="quick_reply_label">Quick reply</string>
     <string name="quick_reply_rejected">Quick reply is unavailable for this chat (secret or locked)</string>
     <!-- B5 block · floating ball (FloatingBall) -->
     <string name="floating_ball_content_description">Maodouchat floating ball</string>
     <string name="floating_ball_permission_needed">Floating window permission is required. Enable it in system settings</string>
     <string name="floating_ball_removed">Floating ball removed</string>
     <!-- B6 block · system announcements (AnnouncementPolicy / /api/announcements/active), 2026-08-01 -->
-    <string name="announcement_badge">Announcement</string>
     <string name="announcement_level_emergency">Emergency</string>
     <string name="announcement_level_maintenance">Maintenance</string>
-    <string name="announcement_level_warning">Alert</string>
     <string name="announcement_level_info">Notice</string>
-    <string name="announcement_ack">Got it</string>
-    <string name="announcement_expired">This announcement has expired</string>
     <!-- B5 block · adaptive two-pane layout (AdaptiveLayout), 2026-08-01 -->
     <string name="two_pane_empty_hint">Select a conversation to start chatting</string>
 
     <!-- B2 block · secret-chat leak-prevention extension (Surface #71–#78), 2026-08-01 -->
     <string name="secret_auto_destroy_title">Secret chat auto destroy</string>
     <string name="secret_auto_destroy_subtitle">Secret chats are destroyed entirely after an inactivity period (local media and snapshots are purged)</string>
-    <string name="secret_auto_destroy_ttl_hint">Auto destroy period (minutes)</string>
     <string name="secret_auto_destroy_enabled_toast">Secret auto destroy enabled</string>
     <string name="secret_auto_destroy_disabled_toast">Secret auto destroy disabled</string>
-    <string name="secret_auto_destroy_expired">Secret chat was auto destroyed after timing out</string>
     <string name="secret_screenshot_burn_title">Burn on screenshot</string>
     <string name="secret_screenshot_burn_subtitle">Burns this secret chat’s local decrypted cache when a screenshot/screen-record attempt is detected</string>
-    <string name="secret_screenshot_burn_purge_media">Also purge local decrypted media cache</string>
-    <string name="secret_screenshot_burn_detected">Screenshot/screen-record detected; secret cache burned</string>
     <string name="secret_screenshot_burn_enabled_toast">Burn on screenshot enabled</string>
     <string name="secret_screenshot_burn_disabled_toast">Burn on screenshot disabled</string>
     <string name="secret_forward_whitelist_title">Secret forward whitelist</string>
@@ -2898,43 +2751,27 @@
     <string name="secret_forward_whitelist_disabled_toast">Forward whitelist disabled</string>
     <string name="secret_sim_change_title">SIM change protection</string>
     <string name="secret_sim_change_subtitle">Locks and purges secret chat data when the SIM card is removed or swapped</string>
-    <string name="secret_sim_change_detected">SIM change detected; secret chats locked and purged</string>
     <string name="secret_sim_change_enabled_toast">SIM change protection enabled</string>
     <string name="secret_sim_change_disabled_toast">SIM change protection disabled</string>
     <string name="secret_2fa_gate_title">Secret chat 2FA gate</string>
     <string name="secret_2fa_gate_subtitle">Requires a second factor (App lock / biometrics) before opening secret chats; stays open within the grace window</string>
     <string name="secret_2fa_gate_verify_hint">Complete the second factor to open secret chats</string>
-    <string name="secret_2fa_gate_timeout_hint">Grace window (minutes)</string>
     <string name="secret_2fa_gate_enabled_toast">2FA gate enabled</string>
     <string name="secret_2fa_gate_disabled_toast">2FA gate disabled</string>
     <string name="secret_new_device_risk_title">New device risk</string>
     <string name="secret_new_device_risk_subtitle">Only trusted registered device fingerprints can open secret chats; unknown devices stay locked without preview</string>
     <string name="secret_new_device_risk_register">Register this device</string>
-    <string name="secret_new_device_risk_unknown">Unregistered device; secret chats locked</string>
     <string name="secret_new_device_risk_registered">This device is registered</string>
     <string name="secret_new_device_risk_enabled_toast">New device risk enabled</string>
     <string name="secret_new_device_risk_disabled_toast">New device risk disabled</string>
     <string name="secret_device_verify_title">Device verify</string>
     <string name="secret_device_verify_subtitle">Verify the peer device fingerprint before opening secret chats; mismatched fingerprints block content</string>
-    <string name="secret_device_verify_fingerprint_mismatch">Peer device fingerprint mismatch; secret content refused</string>
-    <string name="secret_device_verify_verified">Peer device verified</string>
-    <string name="secret_device_verify_confirm">Confirm the fingerprints match</string>
     <string name="secret_device_verify_enabled_toast">Device verify enabled</string>
     <string name="secret_device_verify_disabled_toast">Device verify disabled</string>
     <string name="secret_session_notice_title">Two-way secret notice</string>
     <string name="secret_session_notice_subtitle">Shows the protection badge only when both sides enable secret chat; one-sided mode clearly says “this device only”</string>
-    <string name="secret_session_notice_both">Both sides in secret chat · full-chain protection</string>
-    <string name="secret_session_notice_one_side">Secret chat on this device only · peer not enabled</string>
     <string name="secret_session_notice_enabled_toast">Two-way secret notice enabled</string>
     <string name="secret_session_notice_disabled_toast">Two-way secret notice disabled</string>
-    <string name="secret_2fa_gate_disabled">Secret chat 2FA gate is disabled by admin</string>
-    <string name="secret_new_device_risk_disabled">Secret chat new device risk is disabled by admin</string>
-    <string name="secret_device_verify_disabled">Secret chat device verify is disabled by admin</string>
-    <string name="secret_session_notice_disabled">Two-way secret notice is disabled by admin</string>
-    <string name="secret_auto_destroy_disabled">Secret chat auto destroy is disabled by admin</string>
-    <string name="secret_screenshot_burn_disabled">Burn on screenshot is disabled by admin</string>
-    <string name="secret_forward_whitelist_disabled">Secret chat forward whitelist is disabled by admin</string>
-    <string name="secret_sim_change_protection_disabled">SIM change protection is disabled by admin</string>
 
     <string name="settings_server">Server</string>
     <string name="settings_server_subtitle">Connection address (editable for self-hosted)</string>
@@ -2979,7 +2816,6 @@
     <string name="chat_ai_weekly_report_loading">Generating weekly report…</string>
     <string name="chat_ai_weekly_report_title">Weekly report</string>
     <string name="chat_open_link_failed">Unable to open link</string>
-    <string name="login_invite_only_hint">Invite-only: please register with an invite code</string>
     <string name="login_maintenance_mode">Server under maintenance</string>
     <string name="login_register_closed">Registration is closed, please contact the administrator</string>
     <string name="notification_announcement_title">System announcement</string>

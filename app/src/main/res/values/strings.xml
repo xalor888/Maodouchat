@@ -11,17 +11,12 @@
     <string name="common_share">分享</string>
     <string name="common_clear">清除</string>
     <string name="common_selected">已选择</string>
-    <string name="common_from">从</string>
-    <string name="common_to">到</string>
 
     <string name="nav_chats">聊天</string>
     <string name="nav_contacts">通讯录</string>
     <string name="nav_explore">发现</string>
     <string name="nav_settings">设置</string>
     <string name="chat_refresh">刷新聊天</string>
-    <string name="chat_add_contact">添加联系人</string>
-    <string name="chat_search">搜索聊天</string>
-    <string name="chat_network_notice">网络提示</string>
     <string name="chat_acknowledge">知道了</string>
     <string name="chat_group">群聊</string>
     <string name="chat_channel_default_name">广播频道</string>
@@ -30,23 +25,16 @@
     <string name="chat_channel_create_subtitle">创建者单向广播，订阅者只能查看。可随时添加订阅者。</string>
     <string name="chat_channel_name_hint">频道名称</string>
     <string name="chat_channel_create_button">创建频道</string>
-    <string name="chat_channel_subscribers">订阅者</string>
     <plurals name="chat_channel_member_count">
         <item quantity="other">%1$d 位订阅者</item>
     </plurals>
     <string name="chat_channel_subscriber_hint">仅创建者可发送消息，订阅者只读</string>
-    <string name="chat_channel_created">频道已创建</string>
     <string name="chat_create_channel">新建频道</string>
     <string name="chat_detail_channel_header">频道</string>
-    <string name="chat_channel_no_announcement">暂无频道公告</string>
-    <string name="chat_channel_dissolve_title">解散频道</string>
-    <string name="chat_channel_dissolve_confirm">解散后所有订阅者将无法访问该频道，确定解散？</string>
-    <string name="chat_channel_dissolved">频道已解散</string>
     <string name="chat_channel_leave">退出频道</string>
     <string name="chat_this_chat">该聊天</string>
     <string name="chat_unknown">未知</string>
     <string name="chat_delete_title">删除聊天</string>
-    <string name="chat_delete_message">确定要删除与「%1$s」的聊天吗？聊天记录将被清除。</string>
     <string name="chat_delete">删除</string>
     <plurals name="chat_list_selected_count">
         <item quantity="other">已选 %1$d</item>
@@ -84,7 +72,6 @@
     <string name="chat_leave_group">退出群聊</string>
     <string name="chat_owner_transfer_required_title">需要先转让群主</string>
     <string name="chat_owner_transfer_required_message">群内还有其他成员。请先进入群管理，将群主身份转让给一名成员后再退出。</string>
-    <string name="chat_open_group_management">打开群管理</string>
     <string name="chat_refresh_failed_cached">聊天列表刷新失败，已显示本地缓存</string>
     <string name="chat_role_owner">群主</string>
     <string name="chat_role_admin">管理员</string>
@@ -225,7 +212,6 @@
     <string name="explore_nearby_permission">需要位置权限才能开启附近可见</string>
     <string name="explore_nearby_visible">附近可见</string>
     <string name="explore_nearby_disabled">位置共享已关闭</string>
-    <string name="explore_nearby_visible_hint">位置约 30 分钟后自动隐藏</string>
     <string name="explore_nearby_disabled_hint">不会上传或保留当前位置</string>
     <string name="explore_nearby_enable">开启附近</string>
     <string name="explore_nearby_empty">附近暂时没有可见用户</string>
@@ -242,7 +228,6 @@
     <plurals name="explore_nearby_count">
         <item quantity="other">附近 %1$d 人</item>
     </plurals>
-    <string name="disappear_list_indicator">阅后即焚已开启</string>
     <string name="explore_moments_empty">还没有公开动态，先去发现页发一条吧</string>
     <string name="explore_author_home">主页</string>
     <string name="explore_post_details">动态详情</string>
@@ -343,7 +328,6 @@
     <string name="contacts_block_message">确定拉黑 %1$s？对方将无法联系你，你的动态与资料也会对其隐藏。</string>
     <string name="contacts_friend_blocked">已拉黑 %1$s</string>
 
-    <string name="chat_exported">已导出</string>
     <plurals name="chat_export_success">
         <item quantity="other">已导出 %1$d 条消息</item>
     </plurals>
@@ -364,7 +348,6 @@
     <string name="chat_remove">移除</string>
     <string name="chat_add_member">添加成员</string>
     <string name="chat_add">添加</string>
-    <string name="chat_candidates_limit">仅显示前 20 位可添加用户</string>
     <string name="chat_candidates_more">展开其余 %1$d 位可添加用户</string>
     <string name="chat_candidates_showing_all">已显示全部 %1$d 位可添加用户</string>
     <string name="chat_group_info_search_hint">搜索成员或可添加用户</string>
@@ -387,7 +370,6 @@
     <string name="chat_draft_restored">已恢复上次编辑的草稿</string>
     <string name="chat_pin">置顶</string>
     <string name="chat_unpin">取消置顶</string>
-    <string name="chat_pinned">已置顶</string>
     <string name="chat_message_pin">置顶消息</string>
     <string name="chat_message_unpin">取消置顶消息</string>
     <string name="chat_pin_success">已置顶</string>
@@ -411,18 +393,12 @@
     <string name="chat_pinned_preview_generic">[消息]</string>
     <string name="chat_mute_notifications">消息免打扰</string>
     <string name="chat_unmute_notifications">开启消息通知</string>
-    <string name="chat_notifications_muted">消息已免打扰</string>
     <string name="chat_archive">归档</string>
     <string name="chat_unarchive">移出归档</string>
     <string name="chat_archived_title">已归档</string>
-    <string name="chat_back_to_inbox">返回聊天</string>
     <string name="chat_mark_unread">标记为未读</string>
     <string name="chat_mark_read">标记为已读</string>
     <string name="chat_settings_sync_failed">会话设置同步失败，已恢复原状态</string>
-    <string name="chat_batch_manage">批量管理</string>
-    <plurals name="chat_selected_count">
-        <item quantity="other">已选择 %1$d 项</item>
-    </plurals>
     <string name="chat_select_message">选择消息</string>
     <plurals name="chat_messages_selected">
         <item quantity="other">已选择 %1$d 条消息</item>
@@ -595,7 +571,6 @@
     <string name="chat_mark_all_read">全部已读</string>
     <string name="chat_copy">复制</string>
     <string name="chat_translating">正在翻译</string>
-    <string name="chat_translate_chinese">翻译成中文</string>
     <string name="chat_translate">翻译…</string>
     <string name="chat_clipboard_translation">消息翻译</string>
     <string name="chat_translation_copied">已复制翻译</string>
@@ -630,7 +605,6 @@
     <string name="chat_forward_to_selected">转发到 %1$d 个会话</string>
     <string name="chat_no_forward_targets">暂无可转发的会话</string>
     <string name="chat_forwarded">已转发</string>
-    <string name="chat_forward_targets_limit">仅显示最近 20 个匹配会话</string>
     <string name="chat_forward_targets_more">展开其余 %1$d 个会话</string>
     <string name="chat_forward_targets_showing_all">已显示全部 %1$d 个匹配会话</string>
     <string name="chat_forward_search_hint">搜索会话名称</string>
@@ -759,7 +733,6 @@
     <string name="chat_attachment_file_too_large">文件不能超过 100 MB</string>
     <string name="chat_attachment_integrity_failed">附件完整性校验失败，请重新获取</string>
     <string name="chat_attachment_upload_failed">附件发送失败，请重试</string>
-    <string name="chat_attachment_send_failed">附件已上传，但加密消息发送失败，请重试</string>
     <string name="chat_attachment_download_failed">附件下载失败，请重试</string>
     <string name="chat_attachment_reference_invalid">附件引用无效或已损坏</string>
     <string name="chat_attachment_content_mismatch">文件内容与所选媒体类型不匹配</string>
@@ -822,7 +795,6 @@
     <string name="chat_cancel_recording">取消录音</string>
     <string name="chat_stop_recording">停止录音</string>
     <string name="chat_hold_to_talk">按住 说话</string>
-    <string name="chat_release_to_send">松开发送</string>
     <string name="chat_release_to_preview">松手试听</string>
     <string name="chat_slide_up_to_cancel">上滑取消</string>
     <string name="chat_voice_preview_title">语音试听</string>
@@ -830,7 +802,6 @@
     <string name="chat_voice_preview_discard">重录</string>
     <string name="chat_voice_preview_play">试听</string>
     <string name="chat_voice_preview_stop">停止</string>
-    <string name="message_voice_speed">倍速 %1$s</string>
     <string name="message_voice_earpiece">听筒播放</string>
     <string name="message_voice_speaker">扬声器播放</string>
     <string name="chat_mention_everyone">所有人</string>
@@ -976,7 +947,6 @@
     <string name="schedule_delay_2d">2 天后</string>
     <string name="schedule_delay_3d">3 天后</string>
     <string name="schedule_delay_7d">7 天后</string>
-    <string name="schedule_queued">已加入定时发送</string>
     <string name="schedule_queued_at">已定时至 %1$s</string>
     <string name="schedule_cancelled">已取消定时消息</string>
     <string name="schedule_cancel_all">全部取消</string>
@@ -984,7 +954,6 @@
     <string name="schedule_cancelled_all">已取消全部定时消息</string>
     <string name="schedule_failed">无法创建定时消息</string>
     <string name="schedule_limit_reached">本会话定时消息已达上限</string>
-    <string name="schedule_group_unsupported">群聊定时发送仅支持纯文本</string>
     <string name="schedule_pending_title">待发送（%1$d）</string>
     <string name="schedule_search_hint">搜索待发送内容</string>
     <string name="schedule_search_empty">没有匹配的待发送消息</string>
@@ -999,11 +968,8 @@
     <string name="schedule_custom">自定义时间</string>
     <string name="schedule_custom_too_soon">请选择至少 1 分钟后的时间</string>
     <string name="schedule_custom_too_late">定时发送最多提前 7 天</string>
-    <string name="missed_calls_title">未接来电</string>
-    <string name="missed_calls_mark_read">全部标为已读</string>
     <string name="missed_calls_clear_all">清空记录</string>
     <string name="missed_calls_callback">回拨</string>
-    <string name="missed_calls_open_chat">打开会话</string>
     <string name="missed_calls_empty">暂无未接来电</string>
     <string name="call_log_title">通话记录</string>
     <string name="call_history_empty">暂无通话记录</string>
@@ -1050,7 +1016,6 @@
     <string name="chat_ai_no_summary_context">暂无可用于总结的文本消息</string>
     <string name="chat_ai_transcript_exists">这条语音已有转写结果</string>
     <string name="chat_ai_no_translation_text">这条消息没有可翻译的文本</string>
-    <string name="chat_ai_translation_exists">这条消息已有翻译结果</string>
     <string name="chat_translation_selected">已切换翻译语言</string>
     <string name="chat_translation_language_title">翻译成</string>
     <string name="chat_translation_language_search_hint">搜索语言</string>
@@ -1084,8 +1049,6 @@
     <string name="chat_ai_disabled_status">已关闭当前聊天 AI 助手</string>
     <string name="chat_ai_setting_failed">AI 设置更新失败</string>
     <string name="chat_ai_rewrite_success">AI 已改写草稿</string>
-    <string name="chat_ai_rewrite_failed">AI 改写失败</string>
-    <string name="chat_ai_replies_failed">AI 智能回复失败</string>
     <string name="chat_ai_summary_failed">AI 总结失败</string>
     <string name="chat_ai_operation_transcribe">语音转写</string>
     <string name="chat_ai_operation_translate">消息翻译</string>
@@ -1093,15 +1056,12 @@
     <string name="chat_ai_operation_image">图片分析</string>
     <string name="chat_ai_operation_file">文件分析</string>
     <string name="chat_ai_operation_queued">等待执行</string>
-    <string name="chat_ai_operation_running">正在处理</string>
     <string name="chat_ai_operation_failed">处理失败</string>
-    <string name="chat_ai_operation_interrupted">上次执行被中断</string>
     <string name="chat_ai_operation_outcome_unknown">请求可能已被 AI 服务处理。为避免重复计费，未自动重试，请确认后手动重试。</string>
     <string name="chat_ai_operation_retry_scheduled">尚未连接到服务，将于 %1$s 自动重试</string>
     <string name="chat_ai_operation_attempts">已尝试 %1$d 次</string>
     <string name="chat_ai_operation_context_missing">原消息或上下文已不可用</string>
     <string name="chat_ai_operation_network_failed">网络不可用，请检查连接后重试</string>
-    <string name="chat_ai_operation_timeout">处理超时，请稍后重试</string>
     <string name="chat_ai_operation_server_failed">AI 服务暂时不可用</string>
     <string name="chat_ai_operation_invalid_result">AI 未返回有效结果</string>
     <string name="chat_ai_operation_rate_limited">请求过于频繁，请等待约 %1$d 秒后再试。本次未完成，重试可能再次计费。</string>
@@ -1136,7 +1096,6 @@
     <string name="chat_group_ai_share_confirm_body">将以你本人的身份发送，并标注「AI 辅助 · 发送者已确认」。不会伪装成系统消息。</string>
     <string name="chat_group_ai_share_confirm_action">确认分享</string>
     <string name="message_ai_assisted_shared">AI 辅助 · 发送者已确认</string>
-    <string name="chat_voice_unreadable">无法读取这条语音</string>
     <string name="chat_voice_cache_missing">语音缓存已清理或文件过大，无法转文字</string>
     <string name="chat_voice_transcript_empty">语音转写结果为空</string>
     <string name="chat_voice_transcribed">语音已转为文字</string>
@@ -1172,23 +1131,17 @@
     <string name="chat_group_member_removed_key">已移除群成员，群聊密钥将在下次发送时重新分发</string>
     <string name="chat_group_remove_failed">移除群成员失败</string>
     <string name="chat_group_refresh_failed">群信息刷新失败</string>
-    <string name="chat_location_failed">位置获取失败</string>
     <string name="chat_group_call_empty">群成员为空，无法发起群通话</string>
     <string name="chat_ws_send_failed">实时连接发送失败</string>
     <string name="chat_ws_connection_failed">实时连接暂时不可用，正在重连</string>
     <string name="chat_ws_data_invalid">收到的实时数据无法处理</string>
     <string name="chat_invalid_conversation">会话参数无效，请返回后重试</string>
-    <string name="chat_original_media_missing">无法读取原始媒体文件，文件可能已被清理</string>
-    <string name="chat_original_file_missing">无法读取原始文件，文件可能已被清理</string>
     <string name="chat_retry_type_unsupported">不支持重发此类型的消息</string>
-    <string name="chat_forward_media_missing">无法读取要转发的媒体文件</string>
     <string name="chat_forward_type_unsupported">不支持转发此类型消息</string>
     <string name="chat_forward_recipient_missing">找不到转发对象</string>
     <string name="chat_group_e2ee_send_failed">群聊端到端加密发送失败，请稍后重试或确认群成员密钥状态。</string>
-    <string name="chat_group_key_rotated">群聊密钥已定期轮换，正在重新分发</string>
     <string name="chat_group_key_distributing">正在分发群聊密钥 epoch %1$d</string>
     <string name="chat_group_key_distribution_failed">群聊密钥 epoch %1$d 分发失败，将在下次发送时重试</string>
-    <string name="chat_group_key_newer">收到更高 epoch 的群聊密钥，请刷新群信息后重试</string>
     <string name="chat_group_key_unusable">收到无法应用的群聊密钥，请刷新群信息后重试</string>
     <string name="chat_group_key_session_missing">缺少群聊密钥分发会话，等待对方重新分发</string>
     <string name="chat_group_identity_changed">群成员安全码已变化，请验证身份后再接收群密钥</string>
@@ -1228,7 +1181,6 @@
     <string name="message_video">视频消息</string>
     <string name="message_play_video">播放视频</string>
     <string name="message_file">文件</string>
-    <string name="message_file_open_hint">点击打开 · %1$s</string>
     <string name="message_status_sent">已发送</string>
     <string name="message_status_delivered">已送达</string>
     <string name="message_status_read">已读</string>
@@ -1335,7 +1287,6 @@
     <string name="group_detail_demote">降级</string>
     <string name="group_detail_promote_admin">设管理</string>
     <string name="group_detail_transfer_owner">转让群主</string>
-    <string name="group_detail_transfer_owner_to">将群主转让给 %1$s</string>
     <string name="group_detail_transfer_confirm">确定将群主身份转让给 %1$s 吗？转让后你将成为管理员。</string>
     <string name="group_detail_transfer_confirm_action">确认转让</string>
     <string name="group_detail_transfer_success">群主已转让</string>
@@ -1395,7 +1346,6 @@
     <string name="starred_empty">还没有星标消息</string>
     <string name="starred_search_hint">搜索星标消息</string>
     <string name="starred_search_empty">没有匹配的星标消息</string>
-    <string name="starred_marked">已星标</string>
     <string name="starred_clear_all">清空全部收藏</string>
     <string name="starred_clear_all_confirm">将取消全部收藏消息，确定继续？</string>
     <string name="starred_unstar">取消收藏</string>
@@ -1444,12 +1394,9 @@
     <string name="call_group_member_rejected">已拒绝</string>
     <string name="call_group_member_busy">忙线中</string>
     <string name="call_group_member_no_answer">未接听</string>
-    <string name="call_all_rejected">所有成员都拒接</string>
     <string name="call_peer_rejected">对方已拒接</string>
-    <string name="call_all_busy">所有成员都忙线中</string>
     <string name="call_peer_busy">对方忙线中</string>
     <string name="call_handle_signaling_failed">处理通话信令失败：%1$s</string>
-    <string name="call_notify_hangup_failed">通知对方挂断失败</string>
     <string name="call_establishing">正在建立通话…</string>
     <string name="call_calling_video">正在呼叫（视频）…</string>
     <string name="call_calling">正在呼叫…</string>
@@ -2165,10 +2112,6 @@
     <string name="notif_center_minutes_ago">%1$d 分钟前</string>
     <string name="notif_center_hours_ago">%1$d 小时前</string>
     <string name="notif_center_days_ago">%1$d 天前</string>
-    <string name="notif_center_message_preview">收到一条新消息</string>
-    <string name="notif_center_group_invite_title">群聊邀请</string>
-    <string name="notif_center_security_login">账号安全提醒</string>
-    <string name="notif_center_moderation_title">内容审核通知</string>
     <string name="notif_center_subtitle_message">消息</string>
     <string name="notif_center_filter_all">全部</string>
     <string name="notif_center_filter_unread">未读</string>
@@ -2184,7 +2127,6 @@
     <string name="ai_privacy_reset_confirm">确认撤回本机 AI 授权？本机已产生的摘要仍会保留。</string>
     <string name="ai_privacy_reset_confirm_ok">撤回授权</string>
     <string name="ai_privacy_reset_done">已撤回本机 AI 授权</string>
-    <string name="notif_center_dismiss">忽略</string>
     <string name="chat_read_details_ratio">%1$d / %2$d 已读</string>
     <string name="chat_group_read_status">已读 %1$d/%2$d</string>
     <string name="chat_read_details_unread">未读 %1$d</string>
@@ -2216,11 +2158,6 @@
     <string name="call_active_private_subtitle">加密通话正在进行</string>
     <string name="call_channel_name">通话</string>
     <string name="call_channel_description">显示当前正在进行的通话</string>
-    <string name="chat_attachment_summary_failed">附件：%1$d 个失败，%2$d 个进行中</string>
-    <string name="chat_attachment_summary_active">附件：%1$d 个传输中，%2$d 个排队</string>
-    <string name="chat_attachment_summary_complete">附件：%1$d 个已上传完成</string>
-    <string name="chat_attachment_retry_all">全部重试</string>
-    <string name="chat_attachment_clear_all">清空</string>
     <string name="chat_ai_too_soon">AI 调用过于频繁，请等待 %1$d 秒后再试</string>
 
     <!-- Swipe Actions -->
@@ -2241,14 +2178,9 @@
     <string name="chat_folder_locked">已锁</string>
     <string name="chat_folder_manage">管理文件夹</string>
     <string name="chat_folder_create">新建文件夹</string>
-    <string name="chat_folder_name_hint">文件夹名称</string>
     <string name="chat_folder_create_failed">无法创建（重名、为空或已达上限）</string>
     <string name="chat_folder_rename">重命名</string>
-    <string name="chat_folder_rename_title">重命名文件夹</string>
     <string name="chat_folder_rename_failed">无法重命名（重名或名称为空）</string>
-    <string name="chat_folder_delete">删除文件夹</string>
-    <string name="chat_folder_move">移到文件夹</string>
-    <string name="chat_folder_none">不归入文件夹</string>
     <string name="chat_folder_empty">此文件夹暂无会话</string>
     <string name="chat_folder_empty_subtitle">把会话移入文件夹后，可在这里集中查看</string>
     <string name="chat_folder_empty_unread_title">暂无未读会话</string>
@@ -2263,22 +2195,12 @@
     <string name="chat_folder_empty_locked_subtitle">在会话中开启 PIN 锁后会出现在这里</string>
     <string name="chat_folder_show_all">查看全部会话</string>
     <string name="chat_folder_list_empty">还没有自定义文件夹，点下方新建</string>
-    <string name="chat_folder_search_hint">搜索文件夹</string>
-    <string name="chat_folder_search_empty">没有匹配的文件夹</string>
-    <string name="chat_folder_unread_badge">%1$d</string>
 
     <!-- Empty States -->
-    <string name="empty_state_no_chats_title">还没有聊天</string>
-    <string name="empty_state_no_chats_subtitle">点击右上角添加联系人开始聊天</string>
-    <string name="empty_state_search_title">未找到结果</string>
-    <string name="empty_state_search_subtitle">尝试使用不同的关键词</string>
-    <string name="empty_state_network_title">网络异常</string>
-    <string name="empty_state_network_subtitle">请检查网络连接后重试</string>
     <string name="empty_state_retry">重试</string>
     <string name="watermark_forensic_title">水印取证</string>
     <string name="watermark_forensic_desc">从截图中提取频域盲水印载荷，用于追溯泄露来源</string>
     <string name="watermark_forensic_pick">选择图片</string>
-    <string name="watermark_forensic_extracting">正在提取…</string>
     <string name="watermark_forensic_result">提取结果</string>
     <string name="watermark_forensic_no_watermark">未检测到水印</string>
     <string name="watermark_forensic_payload">载荷 (Hex)</string>
@@ -2287,11 +2209,6 @@
     <string name="watermark_forensic_image_too_small">图像过小，无法提取</string>
     <string name="watermark_forensic_image_preview">待取证图片预览</string>
     <string name="watermark_forensic_error">提取失败</string>
-    <string name="user_last_seen_now">刚刚在线</string>
-    <string name="user_last_seen_minutes">%d 分钟前在线</string>
-    <string name="user_last_seen_today">今天 HH:mm 在线</string>
-    <string name="user_last_seen_date">MM月dd日 在线</string>
-    <string name="user_online">在线</string>
     <string name="user_last_seen_prefix">上次在线</string>
     <string name="chat_screenshot_detected_disappearing">检测到截屏：阅后即焚消息可能被保存</string>
     
@@ -2302,7 +2219,6 @@
     <string name="group_play_poll_failed">创建投票失败</string>
     <string name="group_play_dice">骰子</string>
     <string name="group_play_poll">发起投票</string>
-    <string name="composer_markdown_hint">支持 Markdown：**粗体** `代码` 列表与标题</string>
     <string name="group_play_poll_question_default">快速投票</string>
     <string name="group_play_poll_opt_a">选项 A</string>
     <string name="group_play_poll_opt_b">选项 B</string>
@@ -2392,7 +2308,6 @@
     <string name="settings_totp_secret_copied">密钥已复制</string>
     <string name="settings_totp_copy_uri">复制验证器设置链接</string>
     <string name="settings_totp_uri_copied">验证器设置链接已复制</string>
-    <string name="chat_view_once">阅后即焚图</string>
     <string name="chat_view_once_send">发送阅后即焚图片</string>
     <string name="group_play_bomb">数字炸弹</string>
     <string name="group_play_word">词语接龙</string>
@@ -2417,10 +2332,8 @@
     <string name="message_location_unavailable">无法获取位置</string>
     <string name="group_play_coinflip">抛硬币</string>
     <string name="group_play_redpacket">趣味红包</string>
-    <string name="secret_chat_sealed_ready">密封发送方证书已就绪</string>
     <string name="secret_chat_sealed_ready_ttl">密封发送就绪，约 %1$d 小时内有效</string>
     <string name="secret_chat_sealed_chip">密封 · 约%1$d时</string>
-    <string name="secret_chat_sealed_chip_ready">密封发送已激活</string>
     <string name="secret_chat_sealed_chip_pending">密封证书刷新中…</string>
     <string name="group_play_debate">正反辩论</string>
     <string name="group_play_mirror">镜像跟读</string>
@@ -2428,8 +2341,6 @@
     <string name="group_play_toast">友好吐槽局</string>
     <string name="voice_messages_disabled">语音消息已被管理员关闭</string>
     <string name="reactions_disabled">消息回应已被管理员关闭</string>
-    <string name="group_play_two_truths">两个真相一个谎</string>
-    <string name="group_play_would_you">二选一</string>
     <string name="group_play_hot_potato">击鼓传花</string>
     <string name="group_play_wordle">猜词提示</string>
     <string name="chat_media_upload_disabled">媒体上传已被管理员关闭</string>
@@ -2438,7 +2349,6 @@
     <string name="group_play_spyfall">谁是卧底·简</string>
     <string name="group_play_acrostic">藏头诗接龙</string>
     <string name="group_play_emoji_translate">表情翻译</string>
-    <string name="secret_chat_recents_hidden">密聊已从最近任务隐藏快照</string>
     <string name="calls_disabled">通话功能已被管理员关闭</string>
     <string name="scheduled_messages_disabled">定时消息已被管理员关闭</string>
     <string name="group_play_twenty_questions">二十个问题</string>
@@ -2488,10 +2398,6 @@
     <string name="group_play_taboo">禁忌词描述</string>
     <string name="group_play_lightning">闪电回合</string>
     <string name="group_play_two_words">两词故事</string>
-    <string name="markdown_disabled">Markdown 渲染已被管理员关闭</string>
-    <string name="typing_indicators_disabled">输入状态提示已被管理员关闭</string>
-    <string name="read_receipts_disabled">已读回执已被管理员关闭</string>
-    <string name="presence_disabled">在线状态已被管理员关闭</string>
     <string name="group_play_whisper">悄悄话挑战</string>
     <string name="group_play_emoji_duel_v2">表情对决·二选一</string>
     <string name="group_play_countdown_race">倒计时抢答</string>
@@ -2506,10 +2412,8 @@
     <string name="group_play_speed_math">极速心算</string>
     <string name="group_play_story_seed">故事种子</string>
     <string name="friend_requests_disabled">好友申请已被管理员关闭</string>
-    <string name="chat_folders_disabled">会话文件夹已被管理员关闭</string>
     <string name="group_play_would2">二选一·加强</string>
     <string name="group_play_emoji_only">纯表情挑战</string>
-    <string name="group_play_alphabet_race">字母竞速</string>
     <string name="group_play_silent_movie">默片猜猜</string>
     <string name="group_play_color_word">色彩词挑战</string>
     <string name="group_play_blind_draw">盲抽表情</string>
@@ -2537,9 +2441,6 @@
     <string name="group_play_invite_race">邀请竞速</string>
     <string name="group_play_mention_mayhem">疯狂提及</string>
     <string name="group_play_link_hunt">链接寻宝</string>
-    <string name="group_invites_disabled">群邀请已由管理员关闭</string>
-    <string name="mentions_disabled">提及功能已由管理员关闭</string>
-    <string name="chat_drafts_disabled">草稿已由管理员关闭</string>
     <string name="chat_ai_translate_disabled">AI 翻译已由管理员关闭</string>
     <string name="group_play_poll_disabled">投票已由管理员关闭</string>
     <string name="nudge_disabled">拍一拍已由管理员关闭</string>
@@ -2560,14 +2461,12 @@
     <string name="group_play_contact_swap">联系人交换</string>
     <string name="group_play_scan_sprint">扫码竞速</string>
     <string name="spoiler_media_disabled">剧透媒体已由管理员关闭</string>
-    <string name="auto_download_disabled">自动下载已由管理员关闭</string>
     <string name="group_play_spoiler_race">剧透竞速</string>
     <string name="group_play_blur_battle">模糊对决</string>
     <string name="group_play_download_dash">下载竞速</string>
     <string name="static_location_disabled">位置分享已由管理员关闭</string>
     <string name="file_share_disabled">文件发送已由管理员关闭</string>
     <string name="secret_chat_feature_disabled">密聊已由管理员关闭</string>
-    <string name="screen_secure_runtime_disabled">防截屏已由管理员关闭</string>
     <string name="group_play_pin_drop">位置速投</string>
     <string name="group_play_file_relay">文件接力</string>
     <string name="group_play_map_dash">地图竞速</string>
@@ -2583,8 +2482,6 @@
     <string name="ai_analyze_image_disabled">AI 图片分析已由管理员关闭</string>
     <string name="ai_group_assistant_disabled">AI 群助手已由管理员关闭</string>
     <string name="ai_analyze_file_disabled">AI 文件分析已由管理员关闭</string>
-    <string name="screenshot_detect_disabled">截图检测已被管理员关闭</string>
-    <string name="recents_exclusion_disabled">最近任务卡片隐藏已被管理员关闭</string>
     <string name="group_play_snap_guard">截图防护</string>
     <string name="group_play_recents_hide">隐藏最近任务</string>
     <string name="group_play_shield_sprint">防护冲刺</string>
@@ -2609,39 +2506,17 @@
     <string name="group_play_react_lock">消息反应锁定</string>
     <string name="group_play_star_seal">星标封锁</string>
     <string name="group_play_meta_fence">元数据防线</string>
-    <string name="group_play_typing_seal">输入状态封锁</string>
-    <string name="group_play_read_seal">已读封锁</string>
-    <string name="group_play_presence_seal">在线状态封锁</string>
-    <string name="group_play_last_seen_seal">最后上线封锁</string>
     <string name="secret_reaction_blocked">密聊已禁止消息反应（防元数据泄露）</string>
     <string name="secret_star_blocked">密聊已禁止消息收藏/标星</string>
-    <string name="secret_typing_blocked">密聊已禁止输入状态指示（防在线侧信道）</string>
-    <string name="secret_read_receipt_blocked">密聊已禁止已读回执（防观察侧信道）</string>
-    <string name="secret_presence_blocked">密聊已禁止在线状态指示（防在线侧信道）</string>
-    <string name="secret_last_seen_blocked">密聊已禁止最后上线时间（防观察侧信道）</string>
-    <string name="secret_link_preview_blocked">密聊已禁用链接预览</string>
     <string name="secret_external_link_blocked">密聊已禁止打开外部链接</string>
     <string name="chat_open_link_failed">无法打开链接</string>
-    <string name="visible_watermark_disabled">可见水印已被管理员关闭</string>
-    <string name="secret_auto_disappear_disabled">密聊自动阅后即焚已被管理员关闭</string>
-    <string name="sealed_sender_disabled">密封发送已被管理员关闭</string>
-    <string name="pqxdh_preview_disabled">PQXDH 预览已被管理员关闭</string>
-    <string name="secret_forward_block_disabled">密聊转发保护已被管理员关闭</string>
-    <string name="secret_chat_export_block_disabled">密聊会话导出保护已被管理员关闭</string>
-    <string name="secret_copy_block_disabled">密聊复制保护已被管理员关闭</string>
-    <string name="secret_media_export_block_disabled">密聊媒体导出保护已被管理员关闭</string>
-    <string name="chat_animations_disabled">聊天动效已被管理员关闭</string>
-    <string name="nav_transitions_disabled">页面转场动效已被管理员关闭</string>
     <string name="group_play_slide_race">滑动竞速</string>
     <string name="group_play_fade_circle">淡出循环</string>
     <string name="group_play_spring_dash">弹性竞速</string>
-    <string name="in_app_sounds_disabled">应用内音效已被管理员关闭</string>
-    <string name="haptics_disabled">触感反馈已被管理员关闭</string>
     <string name="group_play_click_beat">点击节拍</string>
     <string name="group_play_buzz_relay">震动接力</string>
     <string name="group_play_feel_sprint">触感冲刺</string>
     <string name="dnd_disabled">免打扰时段设置已被管理员关闭</string>
-    <string name="offline_ai_disabled">离线 AI 回退已被管理员关闭</string>
     <string name="group_play_quiet_hour">安静时段</string>
     <string name="group_play_offline_hint">离线提示</string>
     <string name="group_play_fallback_dash">回退竞速</string>
@@ -2671,7 +2546,6 @@
     <string name="group_play_video_stage">视频舞台</string>
     <string name="group_play_ring_dash">呼叫竞速</string>
     <string name="gif_send_disabled">GIF 发送已被管理员关闭</string>
-    <string name="blind_watermark_disabled">盲水印已被管理员关闭</string>
     <string name="group_play_gif_relay">GIF 接力</string>
     <string name="group_play_mark_hunt">水印寻找</string>
     <string name="group_play_leak_sprint">防泄漏冲刺</string>
@@ -2742,7 +2616,6 @@
     <string name="fake_chat_unhide_icon_title">恢复桌面图标？</string>
     <string name="fake_chat_unhide_icon_body">桌面将重新显示应用图标。你也可以随时用拨号盘恢复码再次隐藏。</string>
     <!-- B1 区块 · 按需贴纸包（OnDemandStickerStore）状态文案，2026-08-01 -->
-    <string name="sticker_store_basic">基础表情</string>
     <string name="sticker_store_downloaded">贴纸包已就绪</string>
     <string name="sticker_store_download_failed">贴纸包下载失败，可稍后重试</string>
     <plurals name="sticker_store_partial">
@@ -2752,7 +2625,6 @@
     <string name="sticker_store_remote_refresh">刷新</string>
     <string name="sticker_store_remote_empty">暂无可用远程贴纸包</string>
     <string name="sticker_store_remote_download">下载</string>
-    <string name="sticker_store_remote_downloading">下载中…</string>
     <!-- B3 区块 · 群玩法：群投票 / 群签到+排行 / 群接龙 / 群 PK，2026-08-01 -->
     <string name="group_play_poll_title">群投票</string>
     <string name="group_play_poll_question_hint">投票问题（≤200 字）</string>
@@ -2762,7 +2634,6 @@
     <string name="group_play_poll_anonymous">匿名</string>
     <string name="group_play_poll_create">创建投票</string>
     <string name="group_play_poll_vote">参与投票</string>
-    <string name="group_play_poll_vote_shortcut">~vote 快捷符</string>
     <string name="group_play_checkin_title">群签到</string>
     <string name="group_play_checkin_now">签到</string>
     <string name="group_play_checkin_done">今日已签到</string>
@@ -2790,16 +2661,8 @@
     <string name="group_play_back">返回</string>
     <string name="group_play_close">关闭</string>
     <!-- B4 区块 · AI 增强能力（会话画像/归档建议/群周报/情绪回复/跨聊天问答/消息分类），2026-08-01 -->
-    <string name="ai_enhance_profile_title">会话画像</string>
-    <string name="ai_enhance_profile_hint">基于本机聊天记录生成的话题与活跃度画像，全部保存在本机加密库</string>
     <string name="ai_enhance_archive_title">智能归档建议</string>
     <string name="ai_enhance_archive_hint">根据静置时长与活跃度推荐值得归档的会话</string>
-    <string name="ai_enhance_weekly_title">群周报</string>
-    <string name="ai_enhance_weekly_hint">每周群聊回顾：进展、待办与负责人</string>
-    <string name="ai_enhance_emotion_title">情绪感知回复</string>
-    <string name="ai_enhance_emotion_hint">根据最近聊天情绪生成一条贴心的回复</string>
-    <string name="ai_enhance_cross_qa_title">跨聊天问答</string>
-    <string name="ai_enhance_cross_qa_hint">跨多个会话查找相关消息并回答问题，引用来源限本机消息</string>
     <string name="ai_enhance_classify_title">消息分类</string>
     <string name="ai_enhance_classify_hint">按类别统计本会话消息，结果仅保存在本机</string>
     <string name="ai_enhance_classify_notice">通知</string>
@@ -2829,36 +2692,27 @@
     <string name="widget_config_requires_login">请先登录后再配置小组件</string>
     <string name="widget_config_load_failed">会话加载失败</string>
     <!-- B5 区块 · 快捷回复（QuickReply） -->
-    <string name="quick_reply_label">快捷回复</string>
     <string name="quick_reply_rejected">当前会话不可快捷回复（密聊或已锁定）</string>
     <!-- B5 区块 · 悬浮球（FloatingBall） -->
     <string name="floating_ball_content_description">喵聊悬浮球</string>
     <string name="floating_ball_permission_needed">需要悬浮窗权限，请在系统设置中开启</string>
     <string name="floating_ball_removed">悬浮球已移除</string>
     <!-- B6 区块 · 系统公告（AnnouncementPolicy / /api/announcements/active），2026-08-01 -->
-    <string name="announcement_badge">公告</string>
     <string name="announcement_level_emergency">紧急</string>
     <string name="announcement_title_default">系统公告</string>
     <string name="announcement_level_maintenance">维护</string>
-    <string name="announcement_level_warning">提醒</string>
     <string name="announcement_level_info">通知</string>
     <string name="notification_announcement_title">系统公告</string>
-    <string name="announcement_ack">我知道了</string>
-    <string name="announcement_expired">该公告已过期</string>
     <!-- B5 区块 · 平板双栏布局（AdaptiveLayout），2026-08-01 -->
     <string name="two_pane_empty_hint">选择一个会话开始聊天</string>
 
     <!-- B2 区块 · 密聊防泄漏扩展（Surface #71–#78），2026-08-01 -->
     <string name="secret_auto_destroy_title">密聊自动销毁</string>
     <string name="secret_auto_destroy_subtitle">密聊会话超过无活动时长后整体销毁（本地媒体与快照一并清除）</string>
-    <string name="secret_auto_destroy_ttl_hint">自动销毁时长（分钟）</string>
     <string name="secret_auto_destroy_enabled_toast">密聊自动销毁已开启</string>
     <string name="secret_auto_destroy_disabled_toast">密聊自动销毁已关闭</string>
-    <string name="secret_auto_destroy_expired">密聊会话已因超时自动销毁</string>
     <string name="secret_screenshot_burn_title">截屏即焚</string>
     <string name="secret_screenshot_burn_subtitle">检测到截屏/录屏尝试时立即焚毁该密聊的本地解密缓存</string>
-    <string name="secret_screenshot_burn_purge_media">同时清除本地解密缓存媒体</string>
-    <string name="secret_screenshot_burn_detected">检测到截屏/录屏，密聊缓存已焚毁</string>
     <string name="secret_screenshot_burn_enabled_toast">截屏即焚已开启</string>
     <string name="secret_screenshot_burn_disabled_toast">截屏即焚已关闭</string>
     <string name="secret_forward_whitelist_title">密聊转发白名单</string>
@@ -2870,47 +2724,30 @@
     <string name="secret_forward_whitelist_disabled_toast">转发白名单已关闭</string>
     <string name="secret_sim_change_title">SIM 变更防护</string>
     <string name="secret_sim_change_subtitle">检测到 SIM 卡被拔出或更换时立即锁定并清除密聊数据</string>
-    <string name="secret_sim_change_detected">检测到 SIM 卡变更，密聊会话已锁定并清除</string>
     <string name="secret_sim_change_enabled_toast">SIM 变更防护已开启</string>
     <string name="secret_sim_change_disabled_toast">SIM 变更防护已关闭</string>
     <string name="secret_2fa_gate_title">密聊双因素门禁</string>
     <string name="secret_2fa_gate_subtitle">进入密聊前需二次验证（如 App 锁/生物识别），验证窗口内免重复</string>
     <string name="secret_2fa_gate_verify_hint">请完成二次验证以进入密聊</string>
-    <string name="secret_2fa_gate_timeout_hint">免验证时长（分钟）</string>
     <string name="secret_2fa_gate_enabled_toast">双因素门禁已开启</string>
     <string name="secret_2fa_gate_disabled_toast">双因素门禁已关闭</string>
     <string name="secret_new_device_risk_title">新设备风控</string>
     <string name="secret_new_device_risk_subtitle">仅信任已登记设备指纹，陌生设备上的密聊默认锁定且不预览内容</string>
     <string name="secret_new_device_risk_register">登记当前设备</string>
-    <string name="secret_new_device_risk_unknown">未登记的设备，密聊已锁定</string>
     <string name="secret_new_device_risk_registered">当前设备已登记</string>
     <string name="secret_new_device_risk_enabled_toast">新设备风控已开启</string>
     <string name="secret_new_device_risk_disabled_toast">新设备风控已关闭</string>
     <string name="secret_device_verify_title">设备核验</string>
     <string name="secret_device_verify_subtitle">进入密聊前核对对端设备指纹，指纹不一致时拒绝展示密聊内容</string>
-    <string name="secret_device_verify_fingerprint_mismatch">对端设备指纹不一致，已拒绝展示密聊内容</string>
-    <string name="secret_device_verify_verified">对端设备已核验</string>
-    <string name="secret_device_verify_confirm">确认设备指纹一致</string>
     <string name="secret_device_verify_enabled_toast">设备核验已开启</string>
     <string name="secret_device_verify_disabled_toast">设备核验已关闭</string>
     <string name="secret_session_notice_title">双向密聊提示</string>
     <string name="secret_session_notice_subtitle">仅当双方都开启密聊时展示防护徽标；单边密聊明确提示"仅本机防护"</string>
-    <string name="secret_session_notice_both">双方均开启密聊 · 全链路防护</string>
     <string name="settings_secret_security">密聊安全</string>
     <string name="settings_secret_security_hint">密聊专属防护开关（仅本机生效）</string>
-    <string name="secret_session_notice_one_side">仅本机开启密聊 · 对端未启用</string>
     <string name="secret_session_notice_enabled_toast">双向密聊提示已开启</string>
     <string name="secret_session_notice_disabled_toast">双向密聊提示已关闭</string>
-    <string name="secret_2fa_gate_disabled">密聊双因素门禁已被管理员关闭</string>
-    <string name="secret_new_device_risk_disabled">密聊新设备风控已被管理员关闭</string>
-    <string name="secret_device_verify_disabled">密聊设备核验已被管理员关闭</string>
-    <string name="secret_session_notice_disabled">双向密聊提示已被管理员关闭</string>
-    <string name="secret_auto_destroy_disabled">密聊自动销毁已被管理员关闭</string>
-    <string name="secret_screenshot_burn_disabled">截屏即焚已被管理员关闭</string>
-    <string name="secret_forward_whitelist_disabled">密聊转发白名单已被管理员关闭</string>
-    <string name="secret_sim_change_protection_disabled">SIM 变更防护已被管理员关闭</string>
     <string name="login_register_closed">注册已关闭，请联系管理员</string>
-    <string name="login_invite_only_hint">邀请制：请使用邀请码注册</string>
     <string name="login_maintenance_mode">服务器维护中</string>
     <string name="secret_chat_screenshot_burned">检测到截屏/录屏：已焚毁本机密聊解密缓存</string>
     <string name="chat_ai_conversation_profile">会话画像</string>
