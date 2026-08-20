@@ -87,6 +87,8 @@ fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
     // 9.211：定时深色——分钟级 ticker 驱动窗口边界自动切换（仅 scheduled 模式活跃）
     val nightStart by ThemePreferences.nightStart.collectAsState()
     val nightEnd by ThemePreferences.nightEnd.collectAsState()
+    // 9.258：OLED 纯黑（TG Amoled Black 式）
+    val oledBlack by ThemePreferences.oledBlack.collectAsState()
     var currentMinute by remember { mutableIntStateOf(currentMinuteOfDay()) }
     LaunchedEffect(themePref) {
         if (themePref == "scheduled") {
@@ -105,12 +107,29 @@ fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
     // Telegram 级主题风格：按家族 + 深浅解析完整绘制参数；强调色可覆盖主题默认 primary
     // 9.253：自定义主题覆盖层——用户改过的颜色槽位叠加在家族默认之上（revision 驱动刷新）
     val customRevision by com.maodouchat.util.CustomThemeStore.revision.collectAsState()
-    val paint = remember(themeStylePref, accentPref, useDark, customRevision) {
+    val paint = remember(themeStylePref, accentPref, useDark, customRevision, oledBlack) {
         val base = resolveThemePaint(com.maodouchat.ui.theme.ThemeFamily.normalize(themeStylePref), useDark)
         val accent = com.maodouchat.ui.theme.accentFor(accentPref, useDark)
-        val withAccent = if (accent == null) base else base.copy(
+        var withAccent = if (accent == null) base else base.copy(
             colorScheme = base.colorScheme.copy(primary = accent, onPrimary = Color.White)
         )
+        // 9.258：OLED 纯黑——深色下背景/surface 压到纯黑，OLED 屏像素关闭省电；
+        // 卡片 surface 保留极深灰维持层次，聊天背景同步纯黑
+        if (useDark && oledBlack) {
+            withAccent = withAccent.copy(
+                colorScheme = withAccent.colorScheme.copy(
+                    background = Color.Black,
+                    surface = Color(0xFF121212),
+                    surfaceVariant = Color(0xFF1A1A1A)
+                ),
+                chatPalette = withAccent.chatPalette.copy(
+                    chatBackground = Color.Black,
+                    chatInputBackground = Color(0xFF121212),
+                    chatElevatedSurface = Color(0xFF121212),
+                    chatElevatedSurfaceHigh = Color(0xFF1A1A1A)
+                )
+            )
+        }
         com.maodouchat.util.CustomThemeStore.applyOverrides(ctx, if (useDark) "dark" else "light", withAccent)
     }
     val motionSettings = rememberSystemMotionSettings()

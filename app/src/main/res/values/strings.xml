@@ -2863,4 +2863,6 @@
     <string name="theme_slot_input_background">输入框背景</string>
     <string name="theme_slot_unread_badge">未读角标</string>
     <string name="theme_slot_system_message">系统消息背景</string>
+    <string name="general_oled_black_title">纯黑深色（OLED）</string>
+    <string name="general_oled_black_subtitle">深色模式下背景纯黑，OLED 屏幕更省电</string>
 </resources>

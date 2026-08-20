@@ -2897,4 +2897,6 @@
     <string name="theme_slot_input_background">Input background</string>
     <string name="theme_slot_unread_badge">Unread badge</string>
     <string name="theme_slot_system_message">System message bg</string>
+    <string name="general_oled_black_title">Pure black (OLED)</string>
+    <string name="general_oled_black_subtitle">Pure black background in dark mode, saves battery on OLED</string>
 </resources>

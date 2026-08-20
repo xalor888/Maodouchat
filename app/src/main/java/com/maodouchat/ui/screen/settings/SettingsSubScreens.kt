@@ -3187,6 +3187,38 @@ private fun ThemeRow(currentTheme: String, onThemeChange: (String) -> Unit) {
             Spacer(modifier = Modifier.height(10.dp))
             NightWindowRow()
         }
+        // 9.258：OLED 纯黑（TG Amoled Black 式）——深色可能生效的模式下显示
+        if (currentTheme == "dark" || currentTheme == "system" || currentTheme == "scheduled") {
+            Spacer(modifier = Modifier.height(10.dp))
+            OledBlackRow()
+        }
+    }
+}
+
+/**
+ * 9.258：OLED 纯黑开关行（深色模式下背景纯黑，OLED 屏省电）。
+ */
+@Composable
+private fun OledBlackRow() {
+    val context = LocalContext.current
+    val oledBlack by com.maodouchat.util.ThemePreferences.oledBlack.collectAsState()
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.general_oled_black_title),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                stringResource(R.string.general_oled_black_subtitle),
+                style = MaterialTheme.typography.labelSmall,
+                color = LocalChatPalette.current.textSecondary
+            )
+        }
+        androidx.compose.material3.Switch(
+            checked = oledBlack,
+            onCheckedChange = { com.maodouchat.util.ThemePreferences.setOledBlack(context, it) }
+        )
     }
 }
 

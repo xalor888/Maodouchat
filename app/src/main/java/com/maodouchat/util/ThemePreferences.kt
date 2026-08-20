@@ -19,6 +19,8 @@ object ThemePreferences {
     // 9.211：定时深色（TG 式）——本地分钟数时段，默认 21:00 → 07:00
     private const val KEY_NIGHT_START = "night_start_minutes"
     private const val KEY_NIGHT_END = "night_end_minutes"
+    // 9.258：OLED 纯黑深色（TG Amoled Black 式）——深色模式下背景纯黑省电
+    private const val KEY_OLED_BLACK = "oled_black"
     const val NIGHT_START_DEFAULT = 21 * 60
     const val NIGHT_END_DEFAULT = 7 * 60
 
@@ -34,6 +36,8 @@ object ThemePreferences {
     val nightStart: StateFlow<Int> = _nightStart.asStateFlow()
     private val _nightEnd = MutableStateFlow(NIGHT_END_DEFAULT)
     val nightEnd: StateFlow<Int> = _nightEnd.asStateFlow()
+    private val _oledBlack = MutableStateFlow(false)
+    val oledBlack: StateFlow<Boolean> = _oledBlack.asStateFlow()
 
     private val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         if (key == null || key == KEY_THEME) {
@@ -51,6 +55,9 @@ object ThemePreferences {
         if (key == null || key == KEY_NIGHT_END) {
             _nightEnd.value = prefs.getInt(KEY_NIGHT_END, NIGHT_END_DEFAULT).coerceIn(0, 23 * 60 + 59)
         }
+        if (key == null || key == KEY_OLED_BLACK) {
+            _oledBlack.value = prefs.getBoolean(KEY_OLED_BLACK, false)
+        }
     }
 
     fun ensureSeeded(context: Context) {
@@ -63,6 +70,7 @@ object ThemePreferences {
             _accent.value = normalizeAccent(prefs.getString(KEY_ACCENT, "none"))
             _nightStart.value = prefs.getInt(KEY_NIGHT_START, NIGHT_START_DEFAULT).coerceIn(0, 23 * 60 + 59)
             _nightEnd.value = prefs.getInt(KEY_NIGHT_END, NIGHT_END_DEFAULT).coerceIn(0, 23 * 60 + 59)
+            _oledBlack.value = prefs.getBoolean(KEY_OLED_BLACK, false)
             prefs.registerOnSharedPreferenceChangeListener(listener)
             seeded = true
         }
@@ -150,4 +158,14 @@ object ThemePreferences {
     fun isWithinNightWindow(currentMinute: Int, start: Int, end: Int): Boolean =
         if (start <= end) currentMinute in start until end
         else currentMinute >= start || currentMinute < end
+
+    /** 9.258：OLED 纯黑开关（深色模式下生效）。 */
+    fun setOledBlack(context: Context, enabled: Boolean) {
+        ensureSeeded(context)
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_OLED_BLACK, enabled)
+            .apply()
+        _oledBlack.value = enabled
+    }
 }
