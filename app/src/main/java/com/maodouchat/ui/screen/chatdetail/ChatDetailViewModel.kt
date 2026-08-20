@@ -7398,8 +7398,12 @@ fun sendCurrentLocation() {
                 text(R.string.chat_attachment_integrity_failed)
             com.maodouchat.attachment.AttachmentErrorUiPolicy.Kind.CONTENT_MISMATCH ->
                 text(R.string.chat_attachment_content_mismatch)
-            com.maodouchat.attachment.AttachmentErrorUiPolicy.Kind.FALLBACK ->
-                text(fallbackStringRes)
+            com.maodouchat.attachment.AttachmentErrorUiPolicy.Kind.FALLBACK -> {
+                // 9.283：透传服务端具体错误（配额不足/总哈希校验失败/参数无效等），
+                // 避免笼统的「附件发送失败」掩盖真实原因，便于用户自查与我方定位
+                (error as? com.maodouchat.network.ApiException)?.serverMessage?.takeIf { it.isNotBlank() }
+                    ?: text(fallbackStringRes)
+            }
         }
 
     private fun refreshIdentitySafetyState(contactId: String) {
