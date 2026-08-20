@@ -327,6 +327,9 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("io.mockk:mockk:1.13.8")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    // 9.291：显式声明 runner——testInstrumentationRunner 指向 AndroidJUnitRunner，但 ext:junit 1.2.1
+    // 不再传递引入 androidx.test:runner，导致仪器测试启动即 ClassNotFoundException 崩溃（0 tests）
+    androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:core-ktx:1.6.1")
     androidTestImplementation("androidx.room:room-testing:2.8.4")
     // Robolectric 需要从互联网下载 Android SDK 镜像；在受限网络环境下无法运行。

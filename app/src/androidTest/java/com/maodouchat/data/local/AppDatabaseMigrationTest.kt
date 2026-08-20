@@ -325,8 +325,9 @@ class AppDatabaseMigrationTest {
                 """
                 INSERT INTO chats (
                     id, lastMessage, lastMessageType, lastMessageTime, unreadCount,
-                    isGroup, groupName, groupAnnouncement, memberRevision, participantIds
-                ) VALUES ('c_migration_30', 'encrypted-preview', 'IMAGE', 7788, 4, 1, '迁移群', '公告', 9, 'u1,u2')
+                    isGroup, groupName, groupAnnouncement, memberRevision, participantIds,
+                    pinnedAt, notificationsMuted, archived, markedUnread, settingsUpdatedAt, disappearingMessageSeconds
+                ) VALUES ('c_migration_30', 'encrypted-preview', 'IMAGE', 7788, 4, 1, '迁移群', '公告', 9, 'u1,u2', 0, 0, 0, 0, 0, 0)
                 """.trimIndent()
             )
             execSQL(
