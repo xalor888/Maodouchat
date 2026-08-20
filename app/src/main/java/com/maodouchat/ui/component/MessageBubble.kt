@@ -936,6 +936,8 @@ private fun TextBubble(
                         mentionedUserIds = mentionedUserIds,
                         isOwnMessage = isOwnMessage,
                         onContactCardClick = onContactCardClick,
+                        // 9.266：TG 式内嵌时间戳——非 Markdown 文本消息时间戳随行尾渲染
+                        inlineTimeSuffix = formatTime(message.timestamp),
                         onLinkClick = { url ->
                             // 1.17：名片点击 → 打开该用户资料
                             if (url.startsWith("contactcard://")) {
@@ -1100,11 +1102,20 @@ private fun TextBubble(
                     )
                     Spacer(modifier = Modifier.width(3.dp))
                 }
-                Text(
-                    text = formatTime(message.timestamp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
-                )
+                // 9.266：非 Markdown 文本消息时间戳已内嵌正文行尾，此处不重复；
+                // Markdown/其它类型仍走底部时间行（判定与正文渲染分支同构）
+                val timeInline = !(RuntimeFlags.isEnabled(LocalContext.current, RuntimeFlags.MARKDOWN) && (
+                    message.type == MessageType.MARKDOWN ||
+                        message.parsedMeta().markdown ||
+                        ChatMarkdown.looksLikeMarkdown(message.parsedContent())
+                    ))
+                if (!timeInline) {
+                    Text(
+                        text = formatTime(message.timestamp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
+                    )
+                }
                 DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = isOwnMessage)
                 if (message.editedAt != null) {
                     Spacer(modifier = Modifier.width(4.dp))
@@ -2445,8 +2456,23 @@ private fun RichTextContent(
     mentionedUserIds: List<String>,
     isOwnMessage: Boolean,
     onContactCardClick: ((String) -> Unit)? = null,
-    onLinkClick: (String) -> Unit = {}
+    onLinkClick: (String) -> Unit = {},
+    // 9.266：TG 式内嵌时间戳——非空时追加在正文最后一行行尾（小字号次色）
+    inlineTimeSuffix: String? = null
 ) {
+    // TG 式行尾时间戳 span：两空格间隔 + 11sp 次色，与正文同段落自然折行
+    val inlineTimeColor = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
+    fun androidx.compose.ui.text.AnnotatedString.Builder.appendInlineTime(time: String) {
+        append("  ")
+        withStyle(
+            androidx.compose.ui.text.SpanStyle(
+                fontSize = 11.sp,
+                color = inlineTimeColor
+            )
+        ) {
+            append(time)
+        }
+    }
     // 1.11：先剥离名片标记，接收端不会看到裸 [contactUser:...]（1.18 复用 ChatMarkdown 统一实现）
     val cleanText = com.maodouchat.ui.component.ChatMarkdown.stripContactCardMarker(text)
     // 1.17：名片消息整体渲染为可点击链接（点击打开该用户资料）
@@ -2481,11 +2507,22 @@ private fun RichTextContent(
     val hasAt = cleanText.contains('@')
     val urlRanges = remember(cleanText) { findUrlRanges(cleanText) }
     if (!hasAt && mentionedUserIds.isEmpty() && urlRanges.isEmpty()) {
-        Text(
-            text = cleanText,
-            style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp),
-            color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
-        )
+        if (inlineTimeSuffix == null) {
+            Text(
+                text = cleanText,
+                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp),
+                color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
+            )
+        } else {
+            Text(
+                text = androidx.compose.ui.text.buildAnnotatedString {
+                    append(cleanText)
+                    appendInlineTime(inlineTimeSuffix)
+                },
+                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp),
+                color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
+            )
+        }
         return
     }
     val annotated = androidx.compose.ui.text.buildAnnotatedString {
@@ -2538,6 +2575,8 @@ private fun RichTextContent(
                 i++
             }
         }
+        // 9.266：mention/URL 混排分支同样追加行尾时间戳
+        if (inlineTimeSuffix != null) appendInlineTime(inlineTimeSuffix)
     }
     Text(
         text = annotated,
