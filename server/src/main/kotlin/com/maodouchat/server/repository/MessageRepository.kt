@@ -1129,6 +1129,9 @@ class MessageRepository {
             val previousRevision = maxOf(msg[Messages.timestamp], msg[Messages.editedAt] ?: msg[Messages.timestamp])
             val minimumNextRevision = if (previousRevision == Long.MAX_VALUE) Long.MAX_VALUE else previousRevision + 1L
             val now = maxOf(System.currentTimeMillis(), minimumNextRevision)
+            // 9.243：与 insertBotMessage 同一剥离——bot 编辑路径不经 insert 的清洗，
+            // 此前可在 content 内嵌伪造 <meta> 键盘块（callback-data 注入面）
+            val cleanContent = stripInlineMetaPreservingTrailing(newContent)
             // 条件更新：若并发撤回已改 type，则 updated==0，避免改写已撤回内容
             val updated = Messages.update({
                 (Messages.id eq messageId) and
@@ -1138,7 +1141,7 @@ class MessageRepository {
                     // 避免同毫秒双编辑都成功且 editedAt 相同，导致客户端去重忽略较晚的编辑（丢失更新）
                     (Messages.editedAt.isNull() or (Messages.editedAt lessEq previousRevision))
             }) {
-                it[content] = newContent
+                it[content] = cleanContent
                 it[editedAt] = now
             }
             if (updated > 0) {
@@ -1147,7 +1150,7 @@ class MessageRepository {
                     messageId = messageId,
                     action = "EDIT",
                     actorId = userId,
-                    content = newContent,
+                    content = cleanContent,
                     editedAt = now
                 )
             }
