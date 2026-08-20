@@ -164,15 +164,19 @@ fun PublicProfileScreen(
                     }
                 }
                 error != null -> {
+                    // 守卫处单次断言捕获，后续不再需要 !!
+                    val errorMessage = error!!
                     ProfileErrorView(
-                        error = error!!,
+                        error = errorMessage,
                         onRetry = { retryKey++ }
                     )
                 }
                 profile != null -> {
+                    // 9.219：守卫处单次断言捕获局部 profile——回调延迟执行时不再重复 !!（委托属性无法智能转换）
+                    val loadedProfile = profile!!
                     ProfileContentView(
-                        profile = profile!!,
-                        onStartChat = { onStartChat(profile!!.id) },
+                        profile = loadedProfile,
+                        onStartChat = { onStartChat(loadedProfile.id) },
                         onCopyLink = {
                             val link = "https://chat.mdou.me/u/$username"
                             @Suppress("DEPRECATION")
@@ -183,7 +187,7 @@ fun PublicProfileScreen(
                             val link = "https://chat.mdou.me/u/$username"
                             val sendIntent = Intent().apply {
                                 action = Intent.ACTION_SEND
-                                putExtra(Intent.EXTRA_TEXT, context.getString(R.string.public_profile_share_text, profile!!.name, link))
+                                putExtra(Intent.EXTRA_TEXT, context.getString(R.string.public_profile_share_text, loadedProfile.name, link))
                                 type = "text/plain"
                             }
                             context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.public_profile_share_chooser)))

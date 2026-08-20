@@ -1478,15 +1478,17 @@ fun ChatDetailScreen(
 
     // 8.46：会话免打扰时段（本地 per-chat 静音窗）
     if (showQuietHoursDialog && state.chat?.id?.isNotBlank() == true) {
+        // 9.219：捕获局部 chatId——onPick 回调延迟执行时 state.chat 可能已变空（会话删除竞态）
+        val quietChatId = state.chat!!.id
         ChatQuietHoursDialog(
             current = com.maodouchat.notification.ChatQuietHoursStore.get(
                 context,
-                state.chat!!.id
+                quietChatId
             ),
             onPick = { window ->
                 com.maodouchat.notification.ChatQuietHoursStore.set(
                     context,
-                    state.chat!!.id,
+                    quietChatId,
                     window
                 )
                 Toast.makeText(
@@ -1552,8 +1554,10 @@ fun ChatDetailScreen(
 
     // 8.48：稍后提醒列表（查看/取消）
     if (showReminderList && state.chat?.id?.isNotBlank() == true) {
-        var reminders by remember(showReminderList, state.chat?.id) {
-            mutableStateOf(viewModel.listRemindersForChat(state.chat!!.id))
+        // 9.219：捕获局部 chatId（同免打扰段，回调延迟执行防会话删除竞态）
+        val reminderChatId = state.chat!!.id
+        var reminders by remember(showReminderList, reminderChatId) {
+            mutableStateOf(viewModel.listRemindersForChat(reminderChatId))
         }
         AlertDialog(
             onDismissRequest = { showReminderList = false },
@@ -1601,7 +1605,7 @@ fun ChatDetailScreen(
                         // 1.32：清除该会话全部提醒
                         TextButton(
                             onClick = {
-                                viewModel.clearRemindersForChat(state.chat!!.id)
+                                viewModel.clearRemindersForChat(reminderChatId)
                                 reminders = emptyList()
                             },
                             modifier = Modifier.fillMaxWidth()
