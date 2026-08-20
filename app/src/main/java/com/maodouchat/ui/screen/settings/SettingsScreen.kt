@@ -867,8 +867,11 @@ private fun SettingsItem(icon: ImageVector?, title: String, titleColor: Color = 
             .clickable(interactionSource = interactionSource, indication = androidx.compose.material3.ripple(), onClick = onClick)
     ) {
         if (icon != null) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(32.dp).background(MaterialTheme.colorScheme.primaryFixed.copy(alpha = 0.2f), RoundedCornerShape(8.dp))) {
-                Icon(icon, contentDescription = title, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            // 9.275：TG 式逐项图标配色——按图标稳定哈希到一组柔和调色板，
+            // 每个设置项图标颜色不同（同名图标保持一致），更接近 Telegram 观感
+            val iconTint = settingsIconTint(icon)
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(32.dp).background(iconTint.copy(alpha = 0.16f), RoundedCornerShape(8.dp))) {
+                Icon(icon, contentDescription = title, tint = iconTint, modifier = Modifier.size(20.dp))
             }
             Spacer(modifier = Modifier.width(12.dp))
         } else {
@@ -882,6 +885,26 @@ private fun SettingsItem(icon: ImageVector?, title: String, titleColor: Color = 
         }
         Icon(Icons.AutoMirrored.Outlined.ArrowForwardIos, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(16.dp))
     }
+}
+
+/**
+ * 9.275：按图标 name 稳定哈希选一个柔和调色板色。
+ * 同一图标（ImageVector 单例，name 固定）始终得到同一颜色，不同图标错开，
+ * 观感接近 Telegram 设置页逐项彩色图标。
+ */
+private fun settingsIconTint(icon: ImageVector): Color {
+    val palette = listOf(
+        Color(0xFFFF9500), // 橙
+        Color(0xFF34A853), // 绿
+        Color(0xFF3390EC), // 蓝
+        Color(0xFF9B6BD6), // 紫
+        Color(0xFFE85D5D), // 红
+        Color(0xFF23B5A9), // 青
+        Color(0xFFE0709B), // 粉
+        Color(0xFF6B7BD6)  // 靛蓝
+    )
+    val index = (icon.name.hashCode() and Int.MAX_VALUE) % palette.size
+    return palette[index]
 }
 
 @Composable
