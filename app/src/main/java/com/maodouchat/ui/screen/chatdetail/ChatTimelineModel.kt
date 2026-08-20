@@ -36,10 +36,11 @@ internal fun buildChatItems(
 
     val result = ArrayList<ChatItem>(sorted.size + 8)
     var previousDateLabel: String? = null
-    var previousSenderId: String? = null
     // 1.03：未读分隔线只插一次——放在未读起点消息之前
     var unreadPlaced = unreadSeparatorId == null
-    sorted.forEach { message ->
+    // 9.265：TG 式头像规则——头像显示在组的最后一条消息（气泡底对齐），
+    // 而非旧的首条显示；单条消息组首=尾不受影响
+    sorted.forEachIndexed { i, message ->
         val dateLabel = labelForTimestamp(message.timestamp)
         val startsNewDate = dateLabel != previousDateLabel
         if (startsNewDate) result += ChatItem.DateSeparator(dateLabel, (message.timestamp / 86_400_000L).toString())
@@ -47,12 +48,15 @@ internal fun buildChatItems(
             result += ChatItem.UnreadSeparator(message.id)
             unreadPlaced = true
         }
+        val next = sorted.getOrNull(i + 1)
+        val endsGroup = next == null ||
+            next.senderId != message.senderId ||
+            labelForTimestamp(next.timestamp) != dateLabel
         result += ChatItem.Msg(
             message = message,
-            showAvatar = startsNewDate || previousSenderId != message.senderId
+            showAvatar = endsGroup
         )
         previousDateLabel = dateLabel
-        previousSenderId = message.senderId
     }
     // 未读起点消息不在当前窗口（早于已加载）时，放在最旧消息之前兜底
     if (!unreadPlaced && sorted.isNotEmpty()) {

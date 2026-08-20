@@ -32,7 +32,7 @@ class ChatTimelineModelTest {
     }
 
     @Test
-    fun `avatar starts a date or sender run only`() {
+    fun `avatar shows at end of date or sender run (TG style)`() {
         val items = buildChatItems(
             listOf(
                 message("m1", "u1", 1L),
@@ -44,8 +44,11 @@ class ChatTimelineModelTest {
         )
         val rows = items.filterIsInstance<ChatItem.Msg>()
 
-        assertTrue(rows[0].showAvatar)
-        assertFalse(rows[1].showAvatar)
+        // 9.265：TG 式头像在组尾——m1/m2 同为 u1 day-1 组，仅组尾 m2 显示；
+        // m3 是 u1→u2 切换前的 u2 首条但也是 day-1 组首…实际 m3 后接跨天的 m4，
+        // m3 是 day-1 组尾；m4 是最后一条
+        assertFalse(rows[0].showAvatar)
+        assertTrue(rows[1].showAvatar)
         assertTrue(rows[2].showAvatar)
         assertTrue(rows[3].showAvatar)
     }
@@ -62,9 +65,10 @@ class ChatTimelineModelTest {
         )
         val rows = items.filterIsInstance<ChatItem.Msg>()
         assertEquals(listOf("m1", "m2"), rows.map { it.message.id })
-        assertTrue(rows[0].showAvatar)
-        // SK_DIST between same sender must not force a second avatar on m2.
-        assertFalse(rows[1].showAvatar)
+        // 9.265：TG 式头像在组尾——m1/m2 同发送者同组，仅组尾 m2 显示头像；
+        // SK_DIST 不打断发送者分组（m2 仍是唯一头像位）
+        assertFalse(rows[0].showAvatar)
+        assertTrue(rows[1].showAvatar)
     }
 
     private fun message(
