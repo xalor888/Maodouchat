@@ -198,7 +198,10 @@ class NearbyRepository {
             .map { (row, distance) ->
                 NearbyUserResponse(
                     user = row.toPublicUser(),
-                    distanceMeters = distance.toInt().coerceAtLeast(MIN_DISPLAY_DISTANCE_METERS),
+                    // 9.240：距离按 100m 量化——1m 精度下多点查询可三角定位对方实时位置，
+                    // 量化后与 MIN_DISPLAY_DISTANCE_METERS 的隐私下限同粒度，排序仍保序
+                    distanceMeters = ((distance.toInt() + 99) / DISTANCE_QUANTUM_METERS * DISTANCE_QUANTUM_METERS)
+                        .coerceAtLeast(MIN_DISPLAY_DISTANCE_METERS),
                     locationUpdatedAt = row[UserLocations.updatedAt]
                 )
             }
@@ -236,6 +239,8 @@ class NearbyRepository {
     private companion object {
         const val LOCATION_TTL_MS = 45L * 60L * 1000L
         const val MIN_DISPLAY_DISTANCE_METERS = 100
+        // 9.240：距离展示量化粒度（防多点三角定位）
+        const val DISTANCE_QUANTUM_METERS = 100
         const val NEARBY_CLEANUP_INTERVAL_MS = 5L * 60L * 1000L
         val lastNearbyCleanupAt = AtomicLong(0)
     }
