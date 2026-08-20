@@ -61,18 +61,19 @@ object AiMessageClassifier {
                 .map { it.toDomain() }
                 .takeLast(CLASSIFY_SAMPLE_LIMIT)
             val counts = HashMap<Category, Int>()
-            var confidenceSum = 0.0
+            // 9.231：置信度按类别均值——此前把全会话平均置信度复制给每个类别，
+            // 低命中类别也显示高置信度，UI 排序/展示失真
+            val confSums = HashMap<Category, Double>()
             for (message in messages) {
                 val result = classifyText(message.parsedContent())
                 counts[result.category] = (counts[result.category] ?: 0) + 1
-                confidenceSum += result.confidence
+                confSums[result.category] = (confSums[result.category] ?: 0.0) + result.confidence
             }
-            val sampleSize = messages.size.coerceAtLeast(1)
             counts.map { (category, count) ->
                 AiProfileRepository.CategoryCount(
                     category = category.wire,
                     count = count,
-                    confidence = confidenceSum / sampleSize
+                    confidence = (confSums[category] ?: 0.0) / count
                 )
             }.sortedByDescending { it.count }
         }

@@ -67,9 +67,10 @@ object AiConversationProfile {
      */
     suspend fun build(context: Context, database: AppDatabase, chatId: String): ConversationProfile {
         val stats = withContext(Dispatchers.IO) {
-            val messages = database.messageDao().getSearchableMessages(limit = 800)
+            // 9.231：按会话查询——此前「全库最新 800 条后 filter chatId」在活跃大库下
+            // 目标会话不在最新窗口时统计失真（同 8.48 分类器修复）
+            val messages = database.messageDao().getSearchableMessagesForChat(chatId, limit = 800)
                 .map { it.toDomain() }
-                .filter { it.chatId == chatId }
             computeStats(messages)
         }
         val narrative = if (isAllowed(context) && stats.messageCount > 0) {
@@ -111,9 +112,10 @@ object AiConversationProfile {
         stats: LocalStats
     ): String {
         val messages = withContext(Dispatchers.IO) {
-            database.messageDao().getSearchableMessages(limit = 200)
+            // 9.231：同上按会话查询，仅保留对方消息供叙事摘要
+            database.messageDao().getSearchableMessagesForChat(chatId, limit = 200)
                 .map { it.toDomain() }
-                .filter { it.chatId == chatId && it.senderId != selfSenderId() }
+                .filter { it.senderId != selfSenderId() }
                 .takeLast(PROFILE_CONTEXT_MESSAGES)
         }
         if (messages.isEmpty()) return ""

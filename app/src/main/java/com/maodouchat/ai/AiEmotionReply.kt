@@ -79,9 +79,10 @@ object AiEmotionReply {
         chatId: String
     ): Result<String> {
         val messages = withContext(Dispatchers.IO) {
-            database.messageDao().getSearchableMessages(limit = 200)
+            // 9.231：按会话查询——此前「全库最新 200 条后 filter chatId」在活跃大库下
+            // 目标会话不在最新窗口时取不到上下文，情绪检测与回复生成失真（同 8.48 分类器修复）
+            database.messageDao().getSearchableMessagesForChat(chatId, limit = MAX_CONTEXT_MESSAGES)
                 .map { it.toDomain() }
-                .filter { it.chatId == chatId }
                 .takeLast(MAX_CONTEXT_MESSAGES)
         }
         val plainTexts = messages.map { it.parsedContent() }
