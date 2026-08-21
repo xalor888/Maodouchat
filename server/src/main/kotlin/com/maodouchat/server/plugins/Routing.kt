@@ -1362,7 +1362,7 @@ authenticate("auth-jwt") {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("你已被禁言，暂时无法上传附件"))
                     return@post
                 }
-                if (!encryptedAttachmentRepo.hasCapacityFor(userId, request.chatId, request.messageId, request.cipherSize, MAX_ATTACHMENT_USER_BYTES)) {
+                if (!encryptedAttachmentRepo.hasCapacityFor(userId, request.chatId, request.messageId, request.cipherSize, maxAttachmentUserBytes)) {
                     call.respond(ATTACHMENT_QUOTA_STATUS, ErrorResponse("附件存储配额不足"))
                     return@post
                 }
@@ -1381,7 +1381,7 @@ authenticate("auth-jwt") {
                         sha256 = request.cipherSha256.lowercase(),
                         cipherSize = request.cipherSize,
                         expiresAt = expiresAt,
-                        maxUserBytes = MAX_ATTACHMENT_USER_BYTES
+                        maxUserBytes = maxAttachmentUserBytes
                     )
                 }
                 val session = created.getOrElse { error ->
@@ -1579,7 +1579,7 @@ authenticate("auth-jwt") {
                     call.respond(ATTACHMENT_TOO_LARGE_STATUS, ErrorResponse("附件大小无效或超过限制"))
                     return@post
                 }
-                if (!encryptedAttachmentRepo.hasCapacityFor(userId, chatId, pendingMessageId, declaredLength, MAX_ATTACHMENT_USER_BYTES)) {
+                if (!encryptedAttachmentRepo.hasCapacityFor(userId, chatId, pendingMessageId, declaredLength, maxAttachmentUserBytes)) {
                     call.respond(ATTACHMENT_QUOTA_STATUS, ErrorResponse("附件存储配额不足"))
                     return@post
                 }
@@ -1616,7 +1616,7 @@ authenticate("auth-jwt") {
                         sha256 = received.sha256,
                         cipherSize = received.byteCount,
                         expiresAt = expiresAt,
-                        maxUserBytes = MAX_ATTACHMENT_USER_BYTES
+                        maxUserBytes = maxAttachmentUserBytes
                     )
                 }
                 if (stored.isFailure) {

@@ -63,8 +63,8 @@ object ServerConfig {
     val maxImageDimension: Int get() = env("MAX_IMAGE_DIMENSION", "4096").toIntOrNull()?.coerceIn(256, 8192) ?: 4096
     /** Maximum encrypted attachment size per object (100 MB default). */
     val maxAttachmentBytes: Long get() = env("MAX_ATTACHMENT_BYTES", "104857600").toLongOrNull()?.coerceIn(1_048_576L, 524_288_000L) ?: 104_857_600L
-    /** Per-user storage quota in bytes (1 GB default). */
-    val userStorageQuotaBytes: Long get() = env("USER_STORAGE_QUOTA_BYTES", "1073741824").toLongOrNull()?.coerceIn(104_857_600L, 10_737_418_240L) ?: 1_073_741_824L
+    /** Per-user storage quota in bytes (20 GB default, env-tunable between 1 GB and 1 TB). */
+    val userStorageQuotaBytes: Long get() = env("USER_STORAGE_QUOTA_BYTES", "21474836480").toLongOrNull()?.coerceIn(1_073_741_824L, 1_099_511_627_776L) ?: 21_474_836_480L
 
     /**
      * Global API rate limit: requests per minute per IP for UNAUTHENTICATED requests only.

@@ -367,7 +367,7 @@ fun Application.configureAdminRouting(
                             totalBytes = list.sumOf { it[EncryptedAttachments.cipherSize] }
                         )
                     }.sortedByDescending { it.totalBytes }
-                    val quotaPerUser = 1024L * 1024L * 1024L // 1 GB
+                    val quotaPerUser = ServerConfig.userStorageQuotaBytes
                     val perUserBytes = allAttachments.groupBy { it[EncryptedAttachments.uploaderId] }
                         .mapValues { it.value.sumOf { att -> att[EncryptedAttachments.cipherSize] } }
                     val usersNearQuota = perUserBytes.count { it.value >= quotaPerUser * 0.8 }

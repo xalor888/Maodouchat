@@ -62,7 +62,8 @@ internal const val MAX_AI_TEXT_FILE_CHARS = 120_000
 internal val ALLOWED_AI_TEXT_FILE_EXTENSIONS = setOf("txt", "md", "markdown", "csv", "json", "xml")
 internal const val MAX_ATTACHMENT_CIPHER_BYTES = 100L * 1024L * 1024L + 64L
 internal const val MAX_ATTACHMENT_CHUNK_BYTES = 4L * 1024L * 1024L
-internal const val MAX_ATTACHMENT_USER_BYTES = 1024L * 1024L * 1024L
+/** Per-user encrypted-attachment quota; env-tunable via USER_STORAGE_QUOTA_BYTES (20 GB default). */
+internal val maxAttachmentUserBytes: Long get() = ServerConfig.userStorageQuotaBytes
 internal const val ATTACHMENT_UPLOAD_TTL_MS = 24L * 60L * 60L * 1_000L
 internal const val ATTACHMENT_HASH_HEADER = "X-Content-SHA256"
 internal const val ATTACHMENT_CHUNK_HASH_HEADER = "X-Chunk-SHA256"
