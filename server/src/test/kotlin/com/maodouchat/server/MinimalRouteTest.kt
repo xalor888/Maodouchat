@@ -1965,6 +1965,23 @@ class NewFeaturesRouteTest {
     }
 }
 
+class CorsSameOriginRouteTest {
+    @Test
+    fun `same origin browser requests with Origin header are not rejected`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+        // 模拟浏览器：携带与 BASE_URL 同源的 Origin 头做 POST——此前被 CORS 空白名单 403
+        val origin = "http://localhost:8080"
+        val login = client.post("/api/auth/login") {
+            header(io.ktor.http.HttpHeaders.Origin, origin)
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"alex@example.com","password":"password123"}""")
+        }
+        assertEquals(HttpStatusCode.OK, login.status, login.bodyAsText())
+        // 注：跨域拒绝在开发模式（anyHost）下不可断言——生产白名单路径由
+        // ServerConfig.corsOrigins 分支与上述 same-origin allowHost 共同约束
+    }
+}
+
 class WsHeartbeatRouteTest {
     @Test
     fun `app level ping is answered with pong`() = testApplication {

@@ -22,6 +22,17 @@ fun Application.configureCORS() {
                 // 开发模式 - 允许所有源
                 anyHost()
             }
+            // 9.5xx：放行「自身服务源」——浏览器同源 fetch 仍携带 Origin 头，
+            // 此前空白名单下 Ktor 对一切带 Origin 的请求回 403：管理后台页面在浏览器里
+            // 登录永远 403（curl / Android App 不带 Origin 所以表现正常）。
+            // 仅允许 BASE_URL 自身的协议+主机，跨域源仍被拒绝，不扩大攻击面。
+            runCatching { io.ktor.http.Url(ServerConfig.baseUrl) }
+                .onSuccess { url ->
+                    allowHost(url.host, schemes = listOf(url.protocol.name))
+                }
+                .onFailure { e ->
+                    corsLog.warn("Failed to parse BASE_URL for same-origin CORS: {}", e.message)
+                }
         } else {
             // Production — only allow configured origins
             ServerConfig.corsOrigins.forEach { host ->
