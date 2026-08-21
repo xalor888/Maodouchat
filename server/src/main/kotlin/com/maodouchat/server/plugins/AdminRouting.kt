@@ -71,27 +71,15 @@ fun Application.configureAdminRouting(
         get("/admin") {
             call.respondAdminDashboardPage()
         }
-        get("/admin/assets/admin.css") {
-            call.respondAdminAsset(adminDashboardCss, io.ktor.http.ContentType.Text.CSS)
+        // 9.5xx：资产双路径服务——/admin/assets/* 供直连 Ktor 的 CI/测试使用；
+        // /admin-assets/* 供经 Caddy 隐藏前缀的生产部署使用：页面 HTML 以根绝对路径
+        // /admin-assets/... 引用（相对路径在不带斜杠的隐藏 URL 下会解析到前缀上一级而 404），
+        // 该前缀不匹配 Caddy 的「/admin 一律 404」拦截规则，直接透传。
+        route("/admin/assets") {
+            serveAdminAssets()
         }
-        get("/admin/assets/admin-theme.js") {
-            call.respondAdminAsset(adminDashboardThemeJs, io.ktor.http.ContentType.Application.JavaScript)
-        }
-        get("/admin/assets/admin-branding.js") {
-            call.respondAdminAsset(adminDashboardBrandingJs, io.ktor.http.ContentType.Application.JavaScript)
-        }
-        get("/admin/assets/admin.js") {
-            call.respondAdminAsset(adminDashboardJs, io.ktor.http.ContentType.Application.JavaScript)
-        }
-        // 9.250：真实品牌 logo（与 App 启动图标同一 PNG）——替代手绘 SVG 近似图，
-        // 运营方看到的品牌图形与客户端完全一致
-        get("/admin/assets/logo.png") {
-            val bytes = checkNotNull(
-                AdminSessionAttemptLimiter::class.java.classLoader.getResourceAsStream("admin/logo.png")
-            ) { "Missing admin resource: admin/logo.png" }.use { it.readBytes() }
-            call.response.headers.append(HttpHeaders.CacheControl, "public, max-age=86400")
-            call.response.headers.append("X-Content-Type-Options", "nosniff")
-            call.respondBytes(bytes, io.ktor.http.ContentType.Image.PNG)
+        route("/admin-assets") {
+            serveAdminAssets()
         }
         // 双认证：普通 access token 用于首次换发 admin session；
         // admin session token 需进入 handler 走「不能续签自身」的 400 拒绝分支
@@ -4397,6 +4385,32 @@ internal class AdminSessionAttemptLimiter {
 private suspend inline fun <reified T> ApplicationCall.receiveAdminJson(): T? {
     val body = receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) ?: return null
     return runCatching { adminJson.decodeFromString<T>(body) }.getOrNull()
+}
+
+/** 管理后台静态资产（双路径复用）。 */
+private fun io.ktor.server.routing.Route.serveAdminAssets() {
+    get("/admin.css") {
+        call.respondAdminAsset(adminDashboardCss, io.ktor.http.ContentType.Text.CSS)
+    }
+    get("/admin-theme.js") {
+        call.respondAdminAsset(adminDashboardThemeJs, io.ktor.http.ContentType.Application.JavaScript)
+    }
+    get("/admin-branding.js") {
+        call.respondAdminAsset(adminDashboardBrandingJs, io.ktor.http.ContentType.Application.JavaScript)
+    }
+    get("/admin.js") {
+        call.respondAdminAsset(adminDashboardJs, io.ktor.http.ContentType.Application.JavaScript)
+    }
+    // 9.250：真实品牌 logo（与 App 启动图标同一 PNG）——替代手绘 SVG 近似图，
+    // 运营方看到的品牌图形与客户端完全一致
+    get("/logo.png") {
+        val bytes = checkNotNull(
+            AdminSessionAttemptLimiter::class.java.classLoader.getResourceAsStream("admin/logo.png")
+        ) { "Missing admin resource: admin/logo.png" }.use { it.readBytes() }
+        call.response.headers.append(HttpHeaders.CacheControl, "public, max-age=86400")
+        call.response.headers.append("X-Content-Type-Options", "nosniff")
+        call.respondBytes(bytes, io.ktor.http.ContentType.Image.PNG)
+    }
 }
 
 private suspend fun ApplicationCall.respondAdminDashboardPage() {
