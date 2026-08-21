@@ -25,7 +25,10 @@ object WebRtcBinaryService {
         File(File(ServerConfig.storageDir), "webrtc/$SUPPORTED_ABI/libjingle_peerconnection_so.so")
             .canonicalFile
             .also {
-                require(it.parentFile == File(File(ServerConfig.storageDir), "webrtc").canonicalFile) {
+                // 9.304：此前拿 parentFile（webrtc/arm64-v8a）与 webrtc 目录比较永不相等，
+                // require 永远抛异常被 resolveFile 吞掉 → 端点永远 503，通话从未可用
+                val expectedParent = File(File(ServerConfig.storageDir), "webrtc/$SUPPORTED_ABI").canonicalFile
+                require(it.parentFile == expectedParent) {
                     "WebRTC 二进制存储路径非法"
                 }
             }
@@ -54,7 +57,9 @@ object WebRtcBinaryService {
                     val dir = targetFile.parentFile ?: return@synchronized null
                     dir.mkdirs()
                     val tmp = File(dir, targetFile.name + ".part")
-                    input.copyTo(tmp.outputStream().buffered())
+                    // 9.304：copyTo 不会 flush/close 目标流，buffered 尾部字节丢失会让 .so 损坏
+                    // （客户端 SHA-256 校验拒收）——输出流必须 use 关闭
+                    tmp.outputStream().buffered().use { output -> input.copyTo(output) }
                     if (!tmp.renameTo(targetFile)) {
                         // 并发首请求时目标可能已被其他线程落盘，直接复用
                         if (!targetFile.isFile) return@synchronized null
@@ -65,6 +70,8 @@ object WebRtcBinaryService {
                 cachedSha256 = null
                 targetFile.takeIf { it.isFile }
             } catch (error: Exception) {
+                // 9.304：异常不能再静默吞掉——此前 require 失败/IO 错误全部无声变 503，排查无门
+                System.err.println("WebRtcBinaryService resolveFile failed: $error")
                 null
             }
         }
