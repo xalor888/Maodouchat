@@ -17235,7 +17235,7 @@ private fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: Strin
     <meta name="description" content="$description">
     <meta property="og:title" content="$title">
     <meta property="og:description" content="$description">
-    <meta property="og:type" content="website">
+    <meta property="og:type" content="profile">
     <meta property="og:site_name" content="毛豆聊天">
     ${if (safeAvatarUrl.isNotBlank()) """<meta property="og:image" content="$safeAvatarUrl">
     <meta name="twitter:card" content="summary_large_image">
@@ -17243,41 +17243,162 @@ private fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: Strin
     <meta name="theme-color" content="#3390EC">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' http: https: data:; frame-ancestors 'none'; form-action 'none'">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f4f5f7; min-height: 100vh; display: flex; flex-direction: column; align-items: center; color: #23272b; }
-        .container { width: 100%; max-width: 420px; padding: 32px 16px 24px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-        .brand { font-size: 13px; color: #8a919a; font-weight: 500; margin-bottom: 24px; letter-spacing: 0.3px; }
-        .card { background: #fff; border-radius: 16px; padding: 32px 24px; width: 100%; text-align: center; box-shadow: 0 1px 3px rgba(16,24,40,0.06); }
-        .avatar { width: 88px; height: 88px; border-radius: 50%; background: #3390EC; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; font-size: 34px; color: #fff; font-weight: 600; overflow: hidden; }
-        .avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .name { font-size: 20px; font-weight: 600; color: #111418; margin-bottom: 3px; }
-        .username { font-size: 14px; color: #3390EC; margin-bottom: 10px; }
-        .status { font-size: 14px; color: #6b7280; line-height: 1.5; margin-bottom: 4px; }
-        .hint { font-size: 13px; color: #8a919a; margin: 14px 0 18px; line-height: 1.5; }
-        .btn-primary { display: block; width: 100%; padding: 13px; border: none; border-radius: 12px; background: #3390EC; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; }
-        .btn-primary:hover { background: #2b82d6; }
-        .btn-secondary { display: block; width: 100%; padding: 12px; margin-top: 10px; border: 1px solid #e3e6ea; border-radius: 12px; background: #fff; color: #3390EC; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; }
-        .btn-secondary:hover { background: #f6f9fc; }
-        .error-icon { width: 56px; height: 56px; border-radius: 50%; background: #fdecec; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #d64545; }
-        .error-title { font-size: 17px; font-weight: 600; color: #111418; margin-bottom: 6px; }
-        .error-desc { font-size: 13px; color: #8a919a; margin-bottom: 18px; }
-        .footer { margin-top: auto; padding: 20px 0 8px; text-align: center; font-size: 12px; color: #a2a8b0; }
-        .footer a { color: #3390EC; text-decoration: none; }
+        :root {
+            --accent: #3390ec;
+            --accent-strong: #1f7ce0;
+            --accent-soft: rgba(51, 144, 236, 0.12);
+            --bg: #f2f4f8;
+            --card: #ffffff;
+            --text: #17212b;
+            --text-2: #707b86;
+            --text-3: #9aa4ae;
+            --border: rgba(23, 33, 43, 0.08);
+            --shadow-lg: 0 24px 64px -16px rgba(23, 33, 43, 0.18), 0 4px 16px -4px rgba(23, 33, 43, 0.06);
+            --ring: rgba(51, 144, 236, 0.22);
+        }
         @media (prefers-color-scheme: dark) {
-            body { background: #101418; color: #e4e7eb; }
-            .card { background: #1a1f24; box-shadow: none; }
-            .name { color: #f2f4f6; }
-            .status { color: #9aa1a9; }
-            .hint { color: #7d848d; }
-            .btn-secondary { background: #1a1f24; border-color: #2a3138; }
-            .btn-secondary:hover { background: #20262c; }
-            .error-title { color: #f2f4f6; }
+            :root {
+                --bg: #0e1621;
+                --card: #17212b;
+                --text: #f1f5f9;
+                --text-2: #8fa3b3;
+                --text-3: #647480;
+                --border: rgba(255, 255, 255, 0.07);
+                --shadow-lg: 0 24px 64px -16px rgba(0, 0, 0, 0.55), 0 4px 16px -4px rgba(0, 0, 0, 0.3);
+                --ring: rgba(51, 144, 236, 0.32);
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { -webkit-text-size-adjust: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'PingFang SC', 'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow-x: hidden;
+        }
+        /* 顶部品牌色渐变光晕 */
+        body::before {
+            content: '';
+            position: absolute;
+            inset: 0 0 auto 0;
+            height: 46vh;
+            background:
+                radial-gradient(60% 90% at 20% 0%, rgba(51,144,236,0.16), transparent 62%),
+                radial-gradient(50% 80% at 85% 10%, rgba(155,110,240,0.13), transparent 60%);
+            pointer-events: none;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            max-width: 430px;
+            padding: clamp(24px, 6vh, 56px) 20px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-2);
+            letter-spacing: 0.2px;
+            margin-bottom: 26px;
+            animation: rise 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        .brand-dot {
+            width: 22px; height: 22px; border-radius: 7px;
+            background: linear-gradient(135deg, var(--accent), #7b5ce0);
+            display: inline-flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 12px; font-weight: 700;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 36px 28px 28px;
+            width: 100%;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+            animation: pop 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+            animation-delay: 60ms;
+        }
+        .avatar {
+            width: 96px; height: 96px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), #7b5ce0);
+            margin: 0 auto 16px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 38px; color: #fff; font-weight: 600;
+            overflow: hidden;
+            box-shadow: 0 0 0 5px var(--ring), 0 10px 24px -8px rgba(51,144,236,0.45);
+        }
+        .avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .name { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 4px; }
+        .username { font-size: 15px; font-weight: 500; color: var(--accent); margin-bottom: 12px; }
+        .status {
+            display: inline-block;
+            font-size: 14px; line-height: 1.55; color: var(--text-2);
+            background: var(--accent-soft);
+            border-radius: 999px;
+            padding: 6px 14px;
+            max-width: 100%;
+            overflow-wrap: anywhere;
+        }
+        .hint { font-size: 13px; color: var(--text-3); margin: 20px 0 18px; line-height: 1.55; }
+        .btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%;
+            padding: 14px;
+            border-radius: 14px;
+            font-size: 15px; font-weight: 600;
+            cursor: pointer; text-decoration: none;
+            transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 160ms ease, background 160ms ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .btn:active { transform: scale(0.975); }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+            color: #fff;
+            box-shadow: 0 8px 20px -6px rgba(51,144,236,0.5);
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 26px -6px rgba(51,144,236,0.55); }
+        .btn-secondary {
+            margin-top: 10px;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--accent);
+        }
+        .btn-secondary:hover { background: var(--accent-soft); }
+        .btn svg { flex: none; }
+        .error-icon {
+            width: 64px; height: 64px; border-radius: 50%;
+            background: rgba(230, 80, 80, 0.12);
+            margin: 0 auto 16px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 26px; font-weight: 700; color: #e05c5c;
+        }
+        .error-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+        .error-desc { font-size: 13px; color: var(--text-3); margin-bottom: 20px; }
+        .footer { margin-top: auto; padding: 26px 0 10px; text-align: center; font-size: 12px; color: var(--text-3); }
+        .footer a { color: var(--text-2); font-weight: 500; text-decoration: none; }
+        @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        @keyframes pop { from { opacity: 0; transform: translateY(16px) scale(0.97); } to { opacity: 1; transform: none; } }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="brand">毛豆聊天</div>
+        <div class="brand"><span class="brand-dot">毛</span>毛豆聊天</div>
 
         ${if (error != null) {
             """
@@ -17285,7 +17406,7 @@ private fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: Strin
                 <div class="error-icon">!</div>
                 <div class="error-title">$escapedError</div>
                 <div class="error-desc">该用户不存在或链接无效</div>
-                <a href="$escapedBase" class="btn-primary">返回毛豆聊天</a>
+                <a href="$escapedBase" class="btn btn-primary">返回毛豆聊天</a>
             </div>
             """
         } else if (user != null) {
@@ -17302,8 +17423,11 @@ private fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: Strin
                 <div class="username">@$safeUsername</div>
                 ${if (safeStatus?.isNotBlank() == true) """<div class="status">$safeStatus</div>""" else ""}
                 <div class="hint">点击下方按钮，在毛豆聊天中查看资料并添加好友</div>
-                <a href="maodouchat://u/$safeUsername" class="btn-primary">在毛豆聊天中打开</a>
-                <a href="$escapedBase/u/$safeUsername" class="btn-secondary">使用 App 链接打开</a>
+                <a href="maodouchat://u/$safeUsername" class="btn btn-primary">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-2h2v2zm2.1-7.7c-.6 1-.9 1.4-1.7 1.9-.8.5-1.4 1.1-1.4 2.3v.5h-2v-.7c0-1.5.7-2.3 1.6-3 .8-.6 1.3-1 1.6-1.9.2-.6-.1-1.4-1.2-1.4-.9 0-1.5.5-1.7 1.4l-2-.4C9 6.4 10.5 5.3 12.5 5.3c2.2 0 3.6 1.2 3.6 2.9 0 .4 0 .7-.3 1.1z"/></svg>
+                    在毛豆聊天中打开
+                </a>
+                <a href="$escapedBase/u/$safeUsername" class="btn btn-secondary">使用 App 链接打开</a>
             </div>
             """
         } else {
@@ -17312,7 +17436,8 @@ private fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: Strin
                 <div class="avatar">毛</div>
                 <div class="name">毛豆聊天</div>
                 <div class="status">安全 · 轻量 · 智能的即时通讯</div>
-                <a href="$escapedBase" class="btn-primary">打开毛豆聊天</a>
+                <div class="hint">端到端加密 · 密聊防截图 · 开放机器人平台</div>
+                <a href="$escapedBase" class="btn btn-primary">打开毛豆聊天</a>
             </div>
             """
         }}
