@@ -28,6 +28,15 @@ data class FriendRequestItem(
     val outgoing: Boolean = false
 )
 
+data class GroupInviteItem(
+    val id: String,
+    val chatId: String,
+    val chatName: String,
+    val inviterName: String,
+    val memberCount: Int = 0,
+    val createdAt: Long = 0
+)
+
 data class ContactsUiState(
     val contacts: List<User> = emptyList(),
     val searchResults: List<User> = emptyList(),
@@ -41,7 +50,10 @@ data class ContactsUiState(
     val infoMessage: String? = null,
     val incomingRequests: List<FriendRequestItem> = emptyList(),
     val outgoingRequests: List<FriendRequestItem> = emptyList(),
-    val isFriendActionBusy: Boolean = false
+    val isFriendActionBusy: Boolean = false,
+    /** 9.3xx：待处理的群邀请（需本人接受才能入群）。 */
+    val groupInvites: List<GroupInviteItem> = emptyList(),
+    val isGroupInviteBusy: Boolean = false
 ) {
     val onlineCount: Int
         get() = contacts.count { it.isOnline }
@@ -85,6 +97,7 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
     init {
         loadContacts()
         loadFriendRequests()
+        loadGroupInvites()
         observeUserVisibility()
     }
 
@@ -168,6 +181,31 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
                                             "requestId" to event.request.id,
                                             "fromUserId" to from.id
                                         )
+                                    ),
+                                    expectedUserId = onlineOwnerUserId,
+                                )
+                            }
+                        }
+                    }
+                    is WebSocketEvent.GroupInviteUpdated -> {
+                        // 9.3xx：群邀请事件——CREATED 时新邀请进入列表；ACCEPTED/DECLINED/CANCELLED 刷新
+                        loadGroupInvites()
+                        if (event.action == "ACCEPTED") {
+                            loadContacts()
+                        }
+                        val me = onlineOwnerUserId
+                        if (event.action == "CREATED" && event.invite.userId == me) {
+                            runCatching {
+                                com.maodouchat.MaodouchatApp.emitNotificationCenterItem(
+                                    com.maodouchat.data.repository.NotificationCenterItem(
+                                        id = "group_invite_${event.invite.id}",
+                                        type = com.maodouchat.ui.screen.chatlist.NotificationCenterType.GROUP_INVITE,
+                                        mergeKey = "group_invite",
+                                        title = text(R.string.contacts_group_invites_title),
+                                        subtitle = event.invite.inviterName,
+                                        preview = event.invite.chatName,
+                                        deeplink = "maodouchat:group_invites",
+                                        extra = mapOf("inviteId" to event.invite.id, "chatId" to event.invite.chatId)
                                     ),
                                     expectedUserId = onlineOwnerUserId,
                                 )
@@ -341,6 +379,114 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    // ─── 9.3xx：群邀请同意流程 ──────────────────────────────
+
+    fun loadGroupInvites() {
+        val token = tokenManager.getToken().orEmpty()
+        val ownerUserId = tokenManager.getUserId().orEmpty()
+        if (token.isBlank() || ownerUserId.isBlank()) return
+        viewModelScope.launch {
+            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                    expectedUserId = ownerUserId,
+                    liveToken = tokenManager.getToken(),
+                    liveUserId = tokenManager.getUserId(),
+                )
+            ) return@launch
+            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+            val result = ApiService.getGroupInvitations(liveToken)
+            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                    expectedUserId = ownerUserId,
+                    liveToken = tokenManager.getToken(),
+                    liveUserId = tokenManager.getUserId(),
+                )
+            ) return@launch
+            // 失败保留旧列表（与好友申请一致，避免弱网下列表闪空）
+            val invites = result.getOrNull() ?: return@launch
+            _uiState.update {
+                it.copy(
+                    groupInvites = invites.map { dto ->
+                        GroupInviteItem(
+                            id = dto.id,
+                            chatId = dto.chatId,
+                            chatName = dto.chatName.ifBlank { text(R.string.contacts_group_unnamed) },
+                            inviterName = dto.inviterName,
+                            memberCount = dto.memberCount,
+                            createdAt = dto.createdAt
+                        )
+                    }
+                )
+            }
+        }
+    }
+
+    fun acceptGroupInvite(inviteId: String) {
+        mutateGroupInvite(inviteId, accept = true)
+    }
+
+    fun declineGroupInvite(inviteId: String) {
+        mutateGroupInvite(inviteId, accept = false)
+    }
+
+    private fun mutateGroupInvite(inviteId: String, accept: Boolean) {
+        val token = tokenManager.getToken().orEmpty()
+        val ownerUserId = tokenManager.getUserId().orEmpty()
+        if (token.isBlank() || ownerUserId.isBlank() || _uiState.value.isGroupInviteBusy) return
+        viewModelScope.launch {
+            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                    expectedUserId = ownerUserId,
+                    liveToken = tokenManager.getToken(),
+                    liveUserId = tokenManager.getUserId(),
+                )
+            ) return@launch
+            _uiState.update { it.copy(isGroupInviteBusy = true, errorMessage = null, infoMessage = null) }
+            try {
+                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+                val result = if (accept) {
+                    ApiService.acceptGroupInvitation(liveToken, inviteId)
+                } else {
+                    ApiService.declineGroupInvitation(liveToken, inviteId)
+                }
+                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = ownerUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = tokenManager.getUserId(),
+                    )
+                ) return@launch
+                result.fold(
+                    onSuccess = {
+                        _uiState.update { state ->
+                            state.copy(
+                                isGroupInviteBusy = false,
+                                infoMessage = text(if (accept) R.string.contacts_group_invite_accepted else R.string.contacts_group_invite_declined),
+                                groupInvites = state.groupInvites.filterNot { it.id == inviteId }
+                            )
+                        }
+                        if (accept) loadContacts()
+                        loadGroupInvites()
+                    },
+                    onFailure = { error ->
+                        _uiState.update {
+                            it.copy(
+                                isGroupInviteBusy = false,
+                                errorMessage = error.message ?: text(R.string.error_operation_failed)
+                            )
+                        }
+                    }
+                )
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                _uiState.update { it.copy(isGroupInviteBusy = false) }
+                throw error
+            } catch (error: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isGroupInviteBusy = false,
+                        errorMessage = error.message ?: text(R.string.error_operation_failed)
+                    )
+                }
+            }
+        }
+    }
+
     fun sendFriendRequest(user: User, message: String = "") {
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.FRIEND_REQUESTS)) {
             _uiState.update { it.copy(errorMessage = text(R.string.friend_requests_disabled)) }
@@ -487,6 +633,10 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
                 if (!isCurrentOwner(ownerUserId)) return@launch
                 if (accept && acceptedFriends.isNotEmpty()) {
                     userRepo.insertUsers(acceptedFriends)
+                    // 9.3xx：同步好友缓存，断网/限流回退时仍正确显示
+                    acceptedFriends.forEach { f ->
+                        com.maodouchat.data.repository.FriendCacheStore.add(getApplication(), f.id)
+                    }
                     _uiState.update { st ->
                         val merged = st.contacts + acceptedFriends.filter { f -> st.contacts.none { it.id == f.id } }
                         st.copy(contacts = merged.sortedBy { it.name.lowercase() })
@@ -682,6 +832,7 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
                                 lastSeen = dto.fromUser.lastSeen
                             )
                             userRepo.insertUsers(listOf(friend))
+                            com.maodouchat.data.repository.FriendCacheStore.add(getApplication(), friend.id)
                             if (!isCurrentOwner(ownerUserId)) return@fold
                             _uiState.update { st ->
                                 if (st.contacts.any { it.id == friend.id }) st
@@ -790,18 +941,27 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
                 val currentUserId = loadOwnerUserId.ifBlank { "me" }
                 var networkError: String? = null
 
-                if (token.isBlank()) {
-                    // Offline/session-less: show cache if any; empty cache needs explicit session feedback.
+                // 9.3xx：仅展示本地缓存的好友（服务端确认过的关系），绝不把全部本地用户
+                // （群成员/仅聊过天的陌生人）当好友展示——此前"没同意就出现在好友列表"的根因。
+                suspend fun showLocalFriendsOnly(fallbackError: String?) {
+                    val friendIds = com.maodouchat.data.repository.FriendCacheStore.getFriendIds(getApplication())
                     val users = userRepo.getAllUsers().firstOrNull() ?: emptyList()
-                    if (tokenManager.getUserId().orEmpty() != loadOwnerUserId) return@launch
-                    val others = users.filter { it.id != currentUserId }
+                    if (tokenManager.getUserId().orEmpty() != loadOwnerUserId) return
+                    val friends = users
+                        .filter { it.id != currentUserId && it.id in friendIds }
+                        .sortedBy { it.displayName.lowercase() }
                     _uiState.update {
                         it.copy(
-                            contacts = others,
+                            contacts = friends,
                             isLoading = false,
-                            errorMessage = if (others.isEmpty()) text(R.string.error_session_expired) else null
+                            errorMessage = if (friends.isEmpty()) fallbackError else null
                         )
                     }
+                }
+
+                if (token.isBlank()) {
+                    // Offline/session-less: show cache if any; empty cache needs explicit session feedback.
+                    showLocalFriendsOnly(text(R.string.error_session_expired))
                     return@launch
                 }
 
@@ -812,17 +972,7 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
                         liveUserId = tokenManager.getUserId(),
                     )
                 ) {
-                    if (tokenManager.getUserId().orEmpty() != loadOwnerUserId) return@launch
-                    val users = userRepo.getAllUsers().firstOrNull() ?: emptyList()
-                    if (tokenManager.getUserId().orEmpty() != loadOwnerUserId) return@launch
-                    val others = users.filter { it.id != loadOwnerUserId }
-                    _uiState.update {
-                        it.copy(
-                            contacts = others,
-                            isLoading = false,
-                            errorMessage = if (others.isEmpty()) text(R.string.error_session_expired) else null
-                        )
-                    }
+                    showLocalFriendsOnly(text(R.string.error_session_expired))
                     return@launch
                 }
                 val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
@@ -843,6 +993,11 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
                             .distinctBy { it.id }
                             .map { User(it.id, it.name, it.avatar, it.email, it.isOnline, it.status, lastSeen = it.lastSeen) }
                         userRepo.insertUsers(users)
+                        // 9.3xx：同步好友 ID 缓存（后续断网/限流时只显示这些确认好友）
+                        com.maodouchat.data.repository.FriendCacheStore.replaceAll(
+                            getApplication(),
+                            friendDtos.map { it.id }.toSet()
+                        )
                         // 再读本地以合并备注名
                         val merged = users.map { u ->
                             val nick = userRepo.getUserById(u.id)?.nickname
@@ -857,17 +1012,8 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
                     }
                 )
 
-                // 回退到本地；若本地也为空且网络失败则展示错误
-                val users = userRepo.getAllUsers().firstOrNull() ?: emptyList()
-                if (tokenManager.getUserId().orEmpty() != loadOwnerUserId) return@launch
-                val others = users.filter { it.id != currentUserId }
-                _uiState.update {
-                    it.copy(
-                        contacts = others,
-                        isLoading = false,
-                        errorMessage = if (others.isEmpty()) networkError else null
-                    )
-                }
+                // 回退到本地好友缓存；若本地也为空且网络失败则展示错误
+                showLocalFriendsOnly(networkError)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 if (tokenManager.getUserId().orEmpty() == loadOwnerUserId) {
                     _uiState.update { it.copy(isLoading = false) }

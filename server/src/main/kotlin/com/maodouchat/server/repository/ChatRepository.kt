@@ -10,6 +10,7 @@ import com.maodouchat.server.db.GroupAuditLogs
 import com.maodouchat.server.db.GroupChainEntries
 import com.maodouchat.server.db.GroupChains
 import com.maodouchat.server.db.GroupCheckins
+import com.maodouchat.server.db.GroupInvitations
 import com.maodouchat.server.db.GroupPkRounds
 import com.maodouchat.server.db.GroupPkVotes
 import com.maodouchat.server.db.GroupPolls
@@ -28,11 +29,13 @@ import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.ChatResponse
 import com.maodouchat.server.model.ChatSettingsResponse
 import com.maodouchat.server.model.ChatType
+import com.maodouchat.server.model.GroupInvitationDto
 import com.maodouchat.server.model.DisappearingMessagesResponse
 import com.maodouchat.server.model.UpdateChatSettingsRequest
 import com.maodouchat.server.model.GroupMemberResponse
 import com.maodouchat.server.model.GroupAuditLogResponse
 import com.maodouchat.server.model.UserResponse
+import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -894,6 +897,280 @@ class ChatRepository {
             }
         }
         AddGroupMembersResult(GroupMemberMutationResult.UPDATED, addedUserIds = addedIds)
+    }
+
+    // ── 9.3xx：群邀请同意流程（成员入群前须本人接受）────────────────────────────
+
+    enum class GroupInviteAcceptResult {
+        ACCEPTED, NOT_FOUND, NOT_PENDING, NOT_INVITEE, CHAT_NOT_FOUND, NOT_GROUP,
+        CHANNEL_NOT_SUPPORTED, MEMBER_LIMIT_EXCEEDED, BLOCKED, ALREADY_MEMBER, USER_DEACTIVATED
+    }
+
+    data class GroupInviteResult(
+        val result: GroupMemberMutationResult,
+        val invitedUserIds: List<String> = emptyList(),
+        val skippedMemberIds: List<String> = emptyList()
+    )
+
+    /**
+     * 邀请用户入群：只创建 PENDING 邀请记录，不直接写入成员表。
+     * 已是成员的跳过；已有 PENDING 邀请的幂等刷新 updatedAt；重复调用安全。
+     */
+    fun inviteGroupMembers(
+        chatId: String,
+        actorId: String,
+        requestedUserIds: List<String>,
+        maxMembers: Int
+    ): GroupInviteResult = transaction {
+        val requestedIds = requestedUserIds.distinct()
+        val lockedRequestedUsers = lockUsersInTx(requestedIds)
+        val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
+            ?: return@transaction GroupInviteResult(GroupMemberMutationResult.CHAT_NOT_FOUND)
+        if (!chat[Chats.isGroup]) return@transaction GroupInviteResult(GroupMemberMutationResult.NOT_GROUP)
+        if (chat[Chats.chatType] == ChatType.CHANNEL) return@transaction GroupInviteResult(GroupMemberMutationResult.NOT_GROUP)
+        val participants = ChatParticipants.selectAll().where { ChatParticipants.chatId eq chatId }.toList()
+        val actor = participants.firstOrNull { it[ChatParticipants.userId] == actorId }
+            ?: return@transaction GroupInviteResult(GroupMemberMutationResult.ACTOR_NOT_PARTICIPANT)
+        if (actor[ChatParticipants.role] !in ADMIN_ROLES) {
+            return@transaction GroupInviteResult(GroupMemberMutationResult.FORBIDDEN)
+        }
+        val existingIds = participants.map { it[ChatParticipants.userId] }.toSet()
+        val newIds = requestedIds.filterNot(existingIds::contains)
+        val existingInvites = GroupInvitations.selectAll().where {
+            (GroupInvitations.chatId eq chatId) and (GroupInvitations.userId inList requestedIds)
+        }.toList()
+        val invitedAlready = existingInvites.map { it[GroupInvitations.userId] }.toSet()
+        val toCreate = newIds.filterNot(invitedAlready::contains)
+        val boundedMaxMembers = maxMembers.coerceAtLeast(0)
+        // 成员数上限 = 现有成员 + 全部未落定的邀请（含待接受）
+        val pendingCount = existingInvites.count { it[GroupInvitations.status] == "PENDING" }
+        if (existingIds.size + pendingCount > boundedMaxMembers ||
+            toCreate.size > boundedMaxMembers - existingIds.size - pendingCount
+        ) {
+            return@transaction GroupInviteResult(GroupMemberMutationResult.MEMBER_LIMIT_EXCEEDED)
+        }
+        val addedIdSet = toCreate.toSet()
+        val knownIds = lockedRequestedUsers
+            .filter { it[Users.id] in addedIdSet }
+            .filter { it[Users.deletedAt] == null }
+            .map { it[Users.id] }
+            .toSet()
+        val missing = toCreate.firstOrNull { it !in knownIds }
+        if (missing != null) {
+            return@transaction GroupInviteResult(
+                GroupMemberMutationResult.USER_NOT_FOUND,
+                invitedUserIds = emptyList()
+            )
+        }
+        // 与任一现有成员双向拉黑的用户不可被邀请
+        val blockedId = if (existingIds.isEmpty()) null else {
+            val involved = existingIds + toCreate
+            val pairSet = BlockedUsers.select(BlockedUsers.blockerId, BlockedUsers.blockedId)
+                .where {
+                    (BlockedUsers.blockerId inList involved) and (BlockedUsers.blockedId inList involved)
+                }
+                .toList()
+                .map { it[BlockedUsers.blockerId] to it[BlockedUsers.blockedId] }
+                .toSet()
+            toCreate.firstOrNull { candidate ->
+                existingIds.any { memberId ->
+                    pairSet.contains(memberId to candidate) || pairSet.contains(candidate to memberId)
+                }
+            }
+        }
+        if (blockedId != null) {
+            return@transaction GroupInviteResult(GroupMemberMutationResult.BLOCKED)
+        }
+        val now = System.currentTimeMillis()
+        toCreate.forEach { userId ->
+            GroupInvitations.insert {
+                it[GroupInvitations.id] = "gi_${UUID.randomUUID()}"
+                it[GroupInvitations.chatId] = chatId
+                it[GroupInvitations.userId] = userId
+                it[GroupInvitations.inviterId] = actorId
+                it[GroupInvitations.status] = "PENDING"
+                it[GroupInvitations.createdAt] = now
+                it[GroupInvitations.updatedAt] = now
+            }
+            insertGroupAudit(chatId, actorId, "MEMBER_INVITED", userId)
+        }
+        // 刷新已有 PENDING 邀请的 updatedAt（重复邀请视为重新提醒）
+        if (invitedAlready.isNotEmpty()) {
+            GroupInvitations.update({
+                (GroupInvitations.chatId eq chatId) and
+                    (GroupInvitations.userId inList invitedAlready) and
+                    (GroupInvitations.status eq "PENDING")
+            }) {
+                it[GroupInvitations.updatedAt] = now
+            }
+        }
+        GroupInviteResult(
+            GroupMemberMutationResult.UPDATED,
+            invitedUserIds = toCreate + invitedAlready,
+            skippedMemberIds = requestedIds.filter(existingIds::contains)
+        )
+    }
+
+    /** 邀请人撤销一条 PENDING 邀请（仅邀请人本人或群管理员）。 */
+    fun cancelGroupInvitation(inviteId: String, actorId: String): Boolean = transaction {
+        val invite = GroupInvitations.selectAll().where { GroupInvitations.id eq inviteId }
+            .forUpdate().firstOrNull() ?: return@transaction false
+        val actor = ChatParticipants.selectAll().where {
+            (ChatParticipants.chatId eq invite[GroupInvitations.chatId]) and
+                (ChatParticipants.userId eq actorId)
+        }.firstOrNull() ?: return@transaction false
+        val isInviter = invite[GroupInvitations.inviterId] == actorId
+        if (!isInviter && actor[ChatParticipants.role] !in ADMIN_ROLES) return@transaction false
+        if (invite[GroupInvitations.status] != "PENDING") return@transaction true
+        GroupInvitations.update({ GroupInvitations.id eq inviteId }) {
+            it[GroupInvitations.status] = "CANCELLED"
+            it[GroupInvitations.updatedAt] = System.currentTimeMillis()
+        }
+        true
+    }
+
+    /** 本人接受邀请 → 正式入群；member_revision +1 触发全群 SenderKey 失效与重新分发。 */
+    fun acceptGroupInvitation(inviteId: String, userId: String, maxMembers: Int): Pair<GroupInviteAcceptResult, ChatResponse?> = transaction {
+        val invite = GroupInvitations.selectAll().where { GroupInvitations.id eq inviteId }
+            .forUpdate().firstOrNull() ?: return@transaction GroupInviteAcceptResult.NOT_FOUND to null
+        if (invite[GroupInvitations.userId] != userId) return@transaction GroupInviteAcceptResult.NOT_INVITEE to null
+        if (invite[GroupInvitations.status] != "PENDING") return@transaction GroupInviteAcceptResult.NOT_PENDING to null
+        val chatId = invite[GroupInvitations.chatId]
+        val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
+            ?: return@transaction GroupInviteAcceptResult.CHAT_NOT_FOUND to null
+        if (!chat[Chats.isGroup]) return@transaction GroupInviteAcceptResult.NOT_GROUP to null
+        if (chat[Chats.chatType] == ChatType.CHANNEL) return@transaction GroupInviteAcceptResult.CHANNEL_NOT_SUPPORTED to null
+        val userRow = Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
+            ?: return@transaction GroupInviteAcceptResult.USER_DEACTIVATED to null
+        if (userRow[Users.deletedAt] != null) return@transaction GroupInviteAcceptResult.USER_DEACTIVATED to null
+        val participants = ChatParticipants.selectAll().where { ChatParticipants.chatId eq chatId }.toList()
+        if (participants.any { it[ChatParticipants.userId] == userId }) {
+            // 已被拉入（如频道路径/竞态）——邀请置 ACCEPTED 且不再重复入群
+            GroupInvitations.update({ GroupInvitations.id eq inviteId }) {
+                it[GroupInvitations.status] = "ACCEPTED"
+                it[GroupInvitations.updatedAt] = System.currentTimeMillis()
+            }
+            return@transaction GroupInviteAcceptResult.ALREADY_MEMBER to getChatByIdInTx(chatId, userId)
+        }
+        if (participants.size >= maxMembers.coerceAtLeast(0)) {
+            return@transaction GroupInviteAcceptResult.MEMBER_LIMIT_EXCEEDED to null
+        }
+        val existingIds = participants.map { it[ChatParticipants.userId] }.toSet()
+        val blocked = if (existingIds.isEmpty()) null else {
+            val pairSet = BlockedUsers.select(BlockedUsers.blockerId, BlockedUsers.blockedId)
+                .where { BlockedUsers.blockerId inList (existingIds + userId) and (BlockedUsers.blockedId inList (existingIds + userId)) }
+                .toList()
+                .map { it[BlockedUsers.blockerId] to it[BlockedUsers.blockedId] }
+                .toSet()
+            existingIds.any { memberId -> pairSet.contains(memberId to userId) || pairSet.contains(userId to memberId) }
+        }
+        if (blocked == true) return@transaction GroupInviteAcceptResult.BLOCKED to null
+        val now = System.currentTimeMillis()
+        ChatParticipants.insert {
+            it[ChatParticipants.chatId] = chatId
+            it[ChatParticipants.userId] = userId
+            it[ChatParticipants.role] = "MEMBER"
+            it[ChatParticipants.joinedAt] = now
+        }
+        Chats.update({ Chats.id eq chatId }) {
+            it[Chats.memberRevision] = chat[Chats.memberRevision] + 1
+        }
+        GroupInvitations.update({ GroupInvitations.id eq inviteId }) {
+            it[GroupInvitations.status] = "ACCEPTED"
+            it[GroupInvitations.updatedAt] = now
+        }
+        insertGroupAudit(chatId, userId, "MEMBER_JOINED", userId)
+        GroupInviteAcceptResult.ACCEPTED to getChatByIdInTx(chatId, userId)
+    }
+
+    fun declineGroupInvitation(inviteId: String, userId: String): Boolean = transaction {
+        val updated = GroupInvitations.update({
+            (GroupInvitations.id eq inviteId) and (GroupInvitations.userId eq userId) and
+                (GroupInvitations.status eq "PENDING")
+        }) {
+            it[GroupInvitations.status] = "DECLINED"
+            it[GroupInvitations.updatedAt] = System.currentTimeMillis()
+        }
+        updated > 0
+    }
+
+    /** 用户收到的待处理邀请列表（含群名/邀请人信息）。 */
+    fun listIncomingGroupInvitations(userId: String): List<GroupInvitationDto> = transaction {
+        val rows = GroupInvitations
+            .join(Chats, JoinType.INNER, onColumn = GroupInvitations.chatId, otherColumn = Chats.id)
+            .join(Users, JoinType.INNER, onColumn = GroupInvitations.inviterId, otherColumn = Users.id)
+            .select(
+                GroupInvitations.id, GroupInvitations.chatId, GroupInvitations.userId,
+                GroupInvitations.inviterId, GroupInvitations.status, GroupInvitations.createdAt,
+                GroupInvitations.updatedAt, Chats.groupName, Chats.groupAvatar, Chats.chatType,
+                Users.name
+            )
+            .where { (GroupInvitations.userId eq userId) and (GroupInvitations.status eq "PENDING") }
+            .orderBy(GroupInvitations.createdAt, SortOrder.DESC)
+            .toList()
+        rows.map { row ->
+            val chatId = row[GroupInvitations.chatId]
+            GroupInvitationDto(
+                id = row[GroupInvitations.id],
+                chatId = chatId,
+                userId = row[GroupInvitations.userId],
+                inviterId = row[GroupInvitations.inviterId],
+                inviterName = row[Users.name],
+                chatName = row[Chats.groupName].orEmpty(),
+                chatAvatar = row[Chats.groupAvatar],
+                chatType = row[Chats.chatType],
+                memberCount = ChatParticipants.selectAll().where { ChatParticipants.chatId eq chatId }.count().toInt(),
+                status = row[GroupInvitations.status],
+                createdAt = row[GroupInvitations.createdAt],
+                updatedAt = row[GroupInvitations.updatedAt]
+            )
+        }
+    }
+
+    /** 群内 PENDING 邀请（成员管理页撤销用）。 */
+    fun listChatGroupInvitations(chatId: String): List<GroupInvitationDto> = transaction {
+        val rows = GroupInvitations
+            .join(Users, JoinType.INNER, onColumn = GroupInvitations.userId, otherColumn = Users.id)
+            .select(
+                GroupInvitations.id, GroupInvitations.chatId, GroupInvitations.userId,
+                GroupInvitations.inviterId, GroupInvitations.status, GroupInvitations.createdAt,
+                GroupInvitations.updatedAt, Users.name
+            )
+            .where { (GroupInvitations.chatId eq chatId) and (GroupInvitations.status eq "PENDING") }
+            .orderBy(GroupInvitations.createdAt, SortOrder.DESC)
+            .toList()
+        rows.map { row ->
+            GroupInvitationDto(
+                id = row[GroupInvitations.id],
+                chatId = row[GroupInvitations.chatId],
+                userId = row[GroupInvitations.userId],
+                inviterId = row[GroupInvitations.inviterId],
+                inviterName = row[Users.name],
+                status = row[GroupInvitations.status],
+                createdAt = row[GroupInvitations.createdAt],
+                updatedAt = row[GroupInvitations.updatedAt]
+            )
+        }
+    }
+
+    fun getGroupInvitation(inviteId: String): GroupInvitationDto? = transaction {
+        val row = GroupInvitations.selectAll().where { GroupInvitations.id eq inviteId }.firstOrNull()
+            ?: return@transaction null
+        val chat = Chats.selectAll().where { Chats.id eq row[GroupInvitations.chatId] }.firstOrNull()
+        val inviter = Users.selectAll().where { Users.id eq row[GroupInvitations.inviterId] }.firstOrNull()
+        GroupInvitationDto(
+            id = row[GroupInvitations.id],
+            chatId = row[GroupInvitations.chatId],
+            userId = row[GroupInvitations.userId],
+            inviterId = row[GroupInvitations.inviterId],
+            inviterName = inviter?.get(Users.name).orEmpty(),
+            chatName = chat?.get(Chats.groupName).orEmpty(),
+            chatAvatar = chat?.get(Chats.groupAvatar),
+            chatType = chat?.get(Chats.chatType) ?: "GROUP",
+            status = row[GroupInvitations.status],
+            createdAt = row[GroupInvitations.createdAt],
+            updatedAt = row[GroupInvitations.updatedAt]
+        )
     }
 
     /** Adds an owned bot as ADMIN while serializing against bot deletion and membership mutations. */

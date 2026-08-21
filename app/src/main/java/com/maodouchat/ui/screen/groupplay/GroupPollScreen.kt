@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.groupplay
 import android.app.Application
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +28,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -98,7 +101,9 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
         if (chatId.isBlank()) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(loading = true, error = null)
-            val text = GroupPlayHttp.get(token(), "/api/chats/$chatId/polls/sync")
+            // 9.4xx：/polls/sync 的 PollSnapshot 不含 myVotes（已投状态永远不显示），
+            // 改用 /polls 端点（PollDto 含 myVotes）
+            val text = GroupPlayHttp.get(token(), "/api/chats/$chatId/polls")
             if (text == null) {
                 _uiState.value = _uiState.value.copy(loading = false, error = str(R.string.group_play_load_failed))
                 return@launch
@@ -150,7 +155,12 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
         _uiState.value = s.copy(creating = true, error = null)
         viewModelScope.launch {
             val result = ApiService.createGroupPoll(token(), chatId, question, options, s.multi, s.anonymous)
-            val pollId = result.getOrNull()
+            // 9.4xx：接口返回整段 PollDto JSON（executeForText 原始 body），
+            // 此前把整段 JSON 当 pollId 塞进分享快捷符 → 群友无法投票
+            val pollId = result.getOrNull()?.let { text ->
+                runCatching { org.json.JSONObject(text).optString("id") }
+                    .getOrNull()?.takeIf { it.isNotBlank() }
+            }
             if (pollId == null) {
                 _uiState.value = _uiState.value.copy(creating = false, error = str(R.string.group_play_create_failed))
             } else {
@@ -236,7 +246,8 @@ fun GroupPollScreen(
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+            // 9.4xx：imePadding 防止键盘遮挡输入框
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp).imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // 创建投票
@@ -248,19 +259,25 @@ fun GroupPollScreen(
                         label = { Text(stringResource(R.string.group_play_poll_question_hint)) },
                         modifier = Modifier.fillMaxWidth()
                     )
+                    // 9.4xx：选项行整行宽度 + 独立删除按钮，避免拥挤误触
                     state.options.forEachIndexed { index, opt ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             OutlinedTextField(
                                 value = opt,
                                 onValueChange = { viewModel.updateOption(index, it) },
                                 label = { Text(stringResource(R.string.group_play_poll_option_hint, index + 1)) },
+                                singleLine = true,
                                 modifier = Modifier.weight(1f)
                             )
                             if (state.options.size > 2) {
-                                Text(
-                                    text = "✕",
-                                    modifier = Modifier.padding(start = 8.dp).clickable { viewModel.removeOption(index) }
-                                )
+                                TextButton(
+                                    onClick = { viewModel.removeOption(index) },
+                                    modifier = Modifier.width(48.dp)
+                                ) {
+                                    Text("✕", color = LocalChatPalette.current.textSecondary)
+                                }
+                            } else {
+                                Spacer(Modifier.width(48.dp))
                             }
                         }
                     }

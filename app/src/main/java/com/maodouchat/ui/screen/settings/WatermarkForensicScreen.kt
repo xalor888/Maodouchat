@@ -93,14 +93,24 @@ fun WatermarkForensicScreen(onBack: () -> Unit) {
                 // 避免大图（如 4000x3000 手机照片，解码后约 48MB）直接 decodeStream 导致 OOM。
                 // SecretImageWatermark.extractHex 仅需 64x64 以上即可，下采样到 ~256x256 已足够。
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                context.contentResolver.openInputStream(uri)?.use {
-                    BitmapFactory.decodeStream(it, null, bounds)
+                val boundsStream = context.contentResolver.openInputStream(uri)
+                if (boundsStream == null) {
+                    error = context.getString(R.string.watermark_forensic_error)
+                    return@launch
+                }
+                boundsStream.use { BitmapFactory.decodeStream(it, null, bounds) }
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                    error = context.getString(R.string.watermark_forensic_error)
+                    return@launch
                 }
                 val sampleSize = computeInSampleSize(bounds.outWidth, bounds.outHeight, 256, 256)
                 val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-                bmp = context.contentResolver.openInputStream(uri)?.use {
-                    BitmapFactory.decodeStream(it, null, decodeOpts)
+                val decodeStream = context.contentResolver.openInputStream(uri)
+                if (decodeStream == null) {
+                    error = context.getString(R.string.watermark_forensic_error)
+                    return@launch
                 }
+                bmp = decodeStream.use { BitmapFactory.decodeStream(it, null, decodeOpts) }
                 when {
                     bmp == null -> error = context.getString(R.string.watermark_forensic_error)
                     bmp.width < 64 || bmp.height < 64 ->
@@ -117,8 +127,8 @@ fun WatermarkForensicScreen(onBack: () -> Unit) {
             } finally {
                 // 8.48 修复 L9：异常路径也回收位图，避免大图滞留至 GC
                 bmp?.recycle()
+                extracting = false
             }
-            extracting = false
         }
     }
 

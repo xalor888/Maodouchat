@@ -332,6 +332,11 @@ fun ChatDetailScreen(
     onOpenStarredMessages: (chatId: String) -> Unit = {},
     onOpenMediaCenter: (chatId: String) -> Unit = {},
     onOpenAiTasks: (chatId: String) -> Unit = {},
+    // 9.3xx：真实群功能页（投票/签到/接龙/PK）
+    onOpenGroupPoll: (chatId: String) -> Unit = {},
+    onOpenGroupCheckin: (chatId: String) -> Unit = {},
+    onOpenGroupChain: (chatId: String) -> Unit = {},
+    onOpenGroupPk: (chatId: String) -> Unit = {},
     // 1.17：点击消息内名片 → 打开对方资料
     onOpenProfile: ((userId: String) -> Unit)? = null,
     // 1.29：通话记录
@@ -1479,7 +1484,9 @@ fun ChatDetailScreen(
     // 8.46：会话免打扰时段（本地 per-chat 静音窗）
     if (showQuietHoursDialog && state.chat?.id?.isNotBlank() == true) {
         // 9.219：捕获局部 chatId——onPick 回调延迟执行时 state.chat 可能已变空（会话删除竞态）
-        val quietChatId = state.chat!!.id
+        val quietChatId = state.chat?.id ?: return
+        @Suppress("NAME_SHADOWING")
+        val _ignored = quietChatId
         ChatQuietHoursDialog(
             current = com.maodouchat.notification.ChatQuietHoursStore.get(
                 context,
@@ -1507,7 +1514,7 @@ fun ChatDetailScreen(
 
     // 1.02：临时静音至（本地，1/8/24 小时）
     if (showSilentUntilDialog && state.chat?.id?.isNotBlank() == true) {
-        val chatIdForSilent = state.chat!!.id
+        val chatIdForSilent = state.chat?.id ?: return
         val hasActiveSilent = com.maodouchat.notification.ChatQuietHoursStore.silentUntil(context, chatIdForSilent) > System.currentTimeMillis()
         AlertDialog(
             onDismissRequest = { showSilentUntilDialog = false },
@@ -1555,7 +1562,7 @@ fun ChatDetailScreen(
     // 8.48：稍后提醒列表（查看/取消）
     if (showReminderList && state.chat?.id?.isNotBlank() == true) {
         // 9.219：捕获局部 chatId（同免打扰段，回调延迟执行防会话删除竞态）
-        val reminderChatId = state.chat!!.id
+        val reminderChatId = state.chat?.id ?: return
         var reminders by remember(showReminderList, reminderChatId) {
             mutableStateOf(viewModel.listRemindersForChat(reminderChatId))
         }
@@ -2337,7 +2344,8 @@ if (showGroupCallTypeDialog) {
                     }
                 },
                 actions = {
-                    if (RuntimeFlags.isEnabled(context, RuntimeFlags.NUDGE)) {
+                    // 9.3xx：拍一拍仅限单聊（服务端同步拒绝群聊拍一拍）
+                    if (RuntimeFlags.isEnabled(context, RuntimeFlags.NUDGE) && !state.chatIsGroup) {
                         IconButton(onClick = { viewModel.sendNudge() }) { Icon(Icons.Outlined.Pets, contentDescription = stringResource(R.string.chat_nudge), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp)) }
                     }
                     if (state.chatIsGroup) {
@@ -2439,764 +2447,23 @@ if (showGroupCallTypeDialog) {
                                 onClick = { showChatOverflow = false; showClearHistoryConfirm = true }
                             )
                             if (state.chatIsGroup) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_dice)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendDice() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_lucky)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendLuckyDraw() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_race)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendReactionRace() }
-                                )
-                                
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_would)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendWouldYouRather() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_emoji_rain)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendEmojiRain() }
-                                )
-
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_truths)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendTwoTruthsOneLie() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_quiz)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendGroupQuiz() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_spin)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSpinWheel() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_story)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendStoryChain() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_countdown)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendGroupCountdown(30) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_bingo)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendEmojiBingo() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_lottery)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendLotteryDraw() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_hotseat)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendHotSeat() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_coinflip)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendCoinFlip() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_redpacket)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendFunRedPacket() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_charades)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendCharades() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_number_guess)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendNumberGuess() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_riddle)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendRiddle() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_impostor)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendImpostor() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_emoji_story)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendEmojiStory() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_simon)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSimon() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_hot_or_not)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendHotOrNot() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_alphabet)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendAlphabetRace() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_silent_movie)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSilentMovie() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_color_word)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendColorWord() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_debate_flash)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendDebateFlash() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_emoji_story)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendEmojiStory() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_quick_poll)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendQuickPollPlay() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_mirror_echo)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendMirrorEcho() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_sync_clap)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSyncClap() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_fact_or_fiction)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendFactOrFiction() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_impulse_draw)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendImpulseDraw() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_word_scramble)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendWordScramble() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_reaction_duel)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendReactionDuel() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_code_breaker)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendCodeBreaker() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_silly_law)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSillyLaw() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_emoji_math)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendEmojiMath() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_pin_the_mood)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendPinTheMood() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_revoke_rush)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendRevokeRush() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_secret_signal)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSecretSignal() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_mood_meter)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendMoodMeter() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_focus_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendFocusSprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_gratitude_round)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendGratitudeRound() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_idea_relay)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendIdeaRelay() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_tempo_tap)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendTempoTap() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_translate_relay)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendTranslateRelay() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_invite_race)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendInviteRace() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_mention_mayhem)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendMentionMayhem() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_link_hunt)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendLinkHunt() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_nudge_dash)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendNudgeDash() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_code_check)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendCodeCheck() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_trust_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendTrustSprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_qr_quest)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendQrQuest() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_contact_swap)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendContactSwap() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_scan_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendScanSprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_spoiler_race)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSpoilerRace() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_blur_battle)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendBlurBattle() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_download_dash)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendDownloadDash() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_pin_drop)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendPinDrop() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_file_relay)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendFileRelay() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_map_dash)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendMapDash() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_vault_lock)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendVaultLock() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_watermark_hunt)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendWatermarkHunt() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_secure_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSecureSprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_photo_race)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendPhotoRace() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_clip_dash)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendClipDash() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_frame_hunt)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendFrameHunt() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_summary_circle)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSummaryCircle() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_rewrite_relay)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendRewriteRelay() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_prompt_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendPromptSprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_suggest_circle)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSuggestCircle() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_voice_race)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendVoiceRace() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_reply_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendReplySprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_pixel_quest)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendPixelQuest() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_assist_circle)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendAssistCircle() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_decision_dash)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendDecisionDash() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_doc_hunt)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendDocHunt() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_meaning_race)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendMeaningRace() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_insight_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendInsightSprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_gif_relay)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendGifRelay() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_mark_hunt)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendMarkHunt() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_leak_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendLeakSprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_voice_ring)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendVoiceRing() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_video_stage)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendVideoStage() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_ring_dash)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendRingDash() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_wall_pick)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendWallPick() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_font_race)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendFontRace() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_theme_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendThemeSprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_unread_rush)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendUnreadRush() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_ring_choir)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendRingChoir() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_alert_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendAlertSprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_sound_wave)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSoundWave() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_preview_mask)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendPreviewMask() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_beep_dash)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendBeepDash() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_push_race)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendPushRace() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_remind_circle)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendRemindCircle() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_wake_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendWakeSprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_quiet_hour)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendQuietHour() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_offline_hint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendOfflineHint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_fallback_dash)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendFallbackDash() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_click_beat)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendClickBeat() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_buzz_relay)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendBuzzRelay() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_feel_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendFeelSprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_slide_race)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSlideRace() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_fade_circle)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendFadeCircle() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_spring_dash)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSpringDash() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_snap_guard)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSnapGuard() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_recents_hide)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendRecentsHide() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_shield_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendShieldSprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_copy_lock)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendCopyLock() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_export_seal)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendExportSeal() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_leak_wall)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendLeakWall() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_forward_seal)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendForwardSeal() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_chat_export_lock)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendChatExportLock() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_vault_fence)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendVaultFence() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_seal_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSealSprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_pqxdh_dash)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendPqxdhDash() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_cert_relay)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendCertRelay() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_mark_sprint)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendMarkSprint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_fade_timer)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendFadeTimer() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_stamp_relay)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendStampRelay() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_link_lock)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendLinkLock() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_preview_mute)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendPreviewMute() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_url_fence)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendUrlFence() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_notif_mask)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendNotifMask() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_list_blur)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendListBlur() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_tray_seal)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendTraySeal() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_react_lock)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendReactLock() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_star_seal)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendStarSeal() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_meta_fence)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendMetaFence() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_trivia)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendTrivia() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_speed)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSpeedChallenge() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_truth_dare)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendTruthOrDare() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_never_have)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendNeverHaveIEver() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_memory)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendMemoryMatch() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_draw_prompt)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendDrawPrompt() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_icebreaker)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendIcebreaker() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_emoji_duel)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendEmojiDuel() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_rapid_fire)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendRapidFire() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_scatter)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendScattergories() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_minute_talk)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendMinuteTalk() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_caption)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendCaptionThis() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_story_swap)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendStorySwap() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_karaoke)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendKaraokeChallenge() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_blind_q)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendBlindQ() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_fortune)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendFortuneCookie() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_emoji_quiz)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendEmojiQuiz() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_chain_react)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendChainReact() }
-                                )
-
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_debate)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendDebateTopic() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_mirror)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendMirrorLine() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_hide_seek)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendHideSeek() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_toast)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendFriendlyToast() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_hot_potato)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendHotPotato() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_wordle)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendWordHint() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_spyfall)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSpyfall() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_acrostic)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendAcrostic() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_emoji_translate)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendEmojiTranslate() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_twenty_questions)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendTwentyQuestions() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_rhyme)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendRhymeChain() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_odd_one)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendOddOneOut() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_categories)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendCategoriesPlay() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_password)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendPasswordGame() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_time_capsule)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendTimeCapsule() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_taboo)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendTaboo() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_lightning)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendLightningRound() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_two_words)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendTwoWordStory() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_whisper)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendWhisperChallenge() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_emoji_duel_v2)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendEmojiDuel() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_countdown_race)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendCountdownRace() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_rapid_fire_v2)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendRapidFirePlay() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_emoji_memory)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendEmojiMemory() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_geo_guess)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendGeoGuess() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_one_word)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendOneWordStory() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_speed_math)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendSpeedMath() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_story_seed)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendStorySeed() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_would2)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendWouldYouRather2() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_emoji_only)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendEmojiOnlyChallenge() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_blind_draw)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendBlindDraw() }
-                                )
-DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_bomb)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendNumberBomb() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_word)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendWordChain() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_rps)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendRockPaperScissors() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_truth)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendTruthPrompt() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_anon)) },
-                                    onClick = {
-                                        showChatOverflow = false
-                                        val draft = viewModel.uiState.value.inputText
-                                        if (draft.isNotBlank()) viewModel.sendAnonBox(draft)
-                                        else viewModel.sendAnonBox("（匿名）大家怎么看？")
-                                    }
-                                )
+                                // 9.3xx：移除约 190 个"假群玩法"入口（只发随机文字，不是真功能）。
+                                // 保留 4 个服务端真实实现的功能页（投票/签到/接龙/PK）与邀请 Bot。
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.group_play_poll)) },
-                                    onClick = {
-                                        showChatOverflow = false
-                                        viewModel.createQuickPoll(
-                                            question = context.getString(R.string.group_play_poll_question_default),
-                                            options = listOf(
-                                                context.getString(R.string.group_play_poll_opt_a),
-                                                context.getString(R.string.group_play_poll_opt_b),
-                                                context.getString(R.string.group_play_poll_opt_c),
-                                                context.getString(R.string.group_play_poll_opt_d)
-                                            )
-                                        )
-                                    }
+                                    onClick = { showChatOverflow = false; onOpenGroupPoll(state.chat?.id.orEmpty()) }
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.group_play_checkin)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendCheckIn() }
+                                    onClick = { showChatOverflow = false; onOpenGroupCheckin(state.chat?.id.orEmpty()) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.group_play_chain_title)) },
+                                    onClick = { showChatOverflow = false; onOpenGroupChain(state.chat?.id.orEmpty()) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.group_play_pk_title)) },
+                                    onClick = { showChatOverflow = false; onOpenGroupPk(state.chat?.id.orEmpty()) }
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.group_play_invite_bot)) },
@@ -3206,6 +2473,7 @@ DropdownMenuItem(
                                     }
                                 )
                             }
+
                             // Local device PIN gate — works for 1:1 and groups (Room chatId key).
                             DropdownMenuItem(
                                 text = {
@@ -8874,7 +8142,9 @@ private fun ChatInputBar(
         )
     }
 
-    Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).navigationBarsPadding()) {
+    // 9.4xx：外层 Column 已 imePadding()，这里再去 navigationBarsPadding 会在键盘弹出时叠出
+    // 双份空隙（ime inset 已含导航栏高度）；改为仅保留背景色，insets 由外层统一处理
+    Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
         if (readOnly) {
             // 广播频道订阅者：单向只读，仅显示提示条
             Row(

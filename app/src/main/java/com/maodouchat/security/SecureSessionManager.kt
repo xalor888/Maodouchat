@@ -268,6 +268,22 @@ class SecureSessionManager(
             } catch (error: Exception) {
                 Log.w(TAG, "Failed to clear link preview cache during local purge", error)
             }
+            // 9.3xx：登出/换号必须停止推送保活（前台服务/媒体会话/假来电全部拆除）
+            try {
+                com.maodouchat.push.PushKeepAlive.stop(context)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w(TAG, "Failed to stop push keepalive during local purge", error)
+            }
+            // 9.3xx：好友关系缓存不得跨账号残留（否则换号后联系人列表显示上一个账号的好友）
+            try {
+                com.maodouchat.data.repository.FriendCacheStore.clear(context)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w(TAG, "Failed to clear friend cache during local purge", error)
+            }
             // Process-scoped chat PIN unlock must not carry across logout/account switch.
             try {
                 ChatLockSession.clearAll()

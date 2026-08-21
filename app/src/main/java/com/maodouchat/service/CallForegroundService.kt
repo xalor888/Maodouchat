@@ -29,6 +29,8 @@ class CallForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 9.3xx：真实通话开始——保活假来电让位、媒体保活暂停（避免通话冲突）
+        com.maodouchat.push.PushKeepAlive.onRealCallStarted(this)
         // 系统/OEM 在无有效 intent 下重建服务（START_NOT_STICKY 下罕见）：无真实通话，
         // 不构建空通知、不提升前台，直接退出，避免悬挂的"未知来电"空通知。
         if (intent == null) return START_NOT_STICKY
@@ -99,6 +101,8 @@ class CallForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        // 9.3xx：真实通话结束——按模式恢复保活策略
+        com.maodouchat.push.PushKeepAlive.onRealCallEnded(this)
         activeCallId = ""
         runCatching {
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

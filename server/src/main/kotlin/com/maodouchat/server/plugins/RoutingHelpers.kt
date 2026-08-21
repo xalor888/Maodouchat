@@ -595,7 +595,8 @@ internal fun UploadKeysRequest.isValid(): Boolean {
     // 9.138：registrationId 收紧到 libsignal 非扩展区间（客户端 generateRegistrationId(false) 生成 1..16380）
     return registrationId in 1..16_380 &&
         deviceId in 1..255 &&
-        signedPreKeyId > 0 &&
+        // 9.312：Signed PreKey ID 同样必须 1..16_777_215（与 PreKey / libsignal 24-bit 一致）
+        signedPreKeyId in 1..16_777_215 &&
         identityKey.isValidBase64Field(maxLength = 4096) &&
         signedPreKey.isValidBase64Field(maxLength = 4096) &&
         signedPreKeySignature.isValidBase64Field(maxLength = 4096) &&

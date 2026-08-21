@@ -145,6 +145,9 @@ class MaodouchatApp : Application() {
         // 通知渠道必须在主线程建（系统要求）
         com.maodouchat.util.AppNotifier.ensureChannels(this)
 
+        // 9.3xx：冷启动按设置恢复推送保活（登录态在 ensureForUser 内校验）
+        com.maodouchat.push.PushKeepAlive.ensureForUser(this)
+
         // ConnectionService：注册系统通话 PhoneAccount（用于来电时接管原生通话 UI）
         com.maodouchat.telecom.TelecomHelper.registerPhoneAccount(this)
 

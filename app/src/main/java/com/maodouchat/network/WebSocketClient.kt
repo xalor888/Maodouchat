@@ -81,6 +81,11 @@ sealed class WebSocketEvent {
         val action: String,
         val request: FriendRequestDto
     ) : WebSocketEvent()
+    /** 9.3xx：群邀请事件（CREATED / ACCEPTED / DECLINED / CANCELLED）。 */
+    data class GroupInviteUpdated(
+        val action: String,
+        val invite: GroupInvitationDto
+    ) : WebSocketEvent()
     data class Connected(val success: Boolean) : WebSocketEvent()
     data class Error(
         val kind: WebSocketErrorKind,
@@ -265,6 +270,12 @@ private data class IncomingFriendRequestEvent(
 )
 
 @Serializable
+private data class IncomingGroupInviteEvent(
+    val action: String,
+    val invite: GroupInvitationDto
+)
+
+@Serializable
 private data class IncomingGroupRevisionChanged(
     val chatId: String,
     val memberRevision: Long,
@@ -280,14 +291,29 @@ object WebSocketClient {
 
     private const val INITIAL_RECONNECT_DELAY_MS = 1_000L
     private const val MAX_RECONNECT_DELAY_MS = 30_000L
-    // 最大重连次数上限，避免 SSL 证书错误、DNS 持续失败等不可恢复场景无限重试耗电
-    private const val MAX_RECONNECT_ATTEMPTS = 20
+    // 9.3xx：借鉴 Ideaura 的保活思路——重连永不"永久死亡"。
+    // 前 MAX_FAST_RECONNECT_ATTEMPTS 次按指数退避快速重试；超出后改为每 RECONNECT_SLOW_INTERVAL_MS
+    // 的低频保活重试（网络恢复/服务端重启后自动恢复），彻底杜绝"断线 20 次后永久静默"。
+    private const val MAX_FAST_RECONNECT_ATTEMPTS = 20
+    private const val RECONNECT_SLOW_INTERVAL_MS = 60_000L
+
+    // ── 9.3xx：Ideaura 式应用层心跳 + 连接看门狗 ─────────────────────
+    // Ideaura 的做法：MQTT-over-WebSocket 上订阅个人 inbox 主题，OkHttp pingInterval=5s、
+    // readTimeout=0，5s 连接超时看门狗，收到 publish 直接弹通知。我们对应实现：
+    // ① 握手即绑定用户（等价于"订阅个人 inbox 主题"，少一次 SUBSCRIBE 往返，服务端 sendToUser 定向投递）；
+    // ② 应用层 PING/PONG 帧——协议层 WebSocket ping 可能被 NAT/代理吞掉，应用层心跳能
+    //    确定性检测死连接（20s 发 PING，30s 无任何流量即判定死亡并主动掐断触发重连）；
+    // ③ 连接看门狗——发起连接 8s 内未 onOpen 即取消并重试（Ideaura 为 5s）。
+    private const val HEARTBEAT_INTERVAL_MS = 20_000L
+    private const val HEARTBEAT_DEAD_AFTER_MS = 30_000L
+    private const val CONNECT_WATCHDOG_MS = 8_000L
 
     private val json = Json { ignoreUnknownKeys = true }
     private var webSocket: WebSocket? = null
     private val client = OkHttpClient.Builder()
-        .readTimeout(30, TimeUnit.SECONDS)
-        .pingInterval(15, TimeUnit.SECONDS)
+        // readTimeout=0：长连接读不超时，靠应用层心跳判定死连接（Ideaura 同款）
+        .readTimeout(0, TimeUnit.MILLISECONDS)
+        .pingInterval(5, TimeUnit.SECONDS)
         .build()
 
     // 业务事件不能向新订阅者重放，否则新页面可能重复处理旧消息、删除或群变更。
@@ -306,6 +332,10 @@ object WebSocketClient {
     private var shouldReconnect = false
 
     private var reconnectJob: Job? = null
+    // 9.3xx：应用层心跳——最近一次收到任何帧（含 PONG）的时刻；心跳协程据此判定死连接
+    private val lastTrafficAt = java.util.concurrent.atomic.AtomicLong(0L)
+    private var heartbeatJob: Job? = null
+    private var connectWatchdogJob: Job? = null
     // AtomicLong 保证 reconnectDelayMs 在 OkHttp 回调线程和重连协程之间可见且原子
     private val reconnectDelayMs = AtomicLong(INITIAL_RECONNECT_DELAY_MS)
     // 重连尝试计数器，达到 MAX_RECONNECT_ATTEMPTS 后停止重连，等用户手动操作（如重新登录、检查网络）
@@ -373,6 +403,18 @@ object WebSocketClient {
             .addHeader("Authorization", "Bearer $newToken")
             .build()
 
+        // 9.3xx 连接看门狗（Ideaura 式）：CONNECT_WATCHDOG_MS 内未 onOpen 即取消本次尝试，
+        // 触发 onFailure → 退避重连。此前握手悬挂（半开连接）会一直占用 connecting 标志。
+        connectWatchdogJob?.cancel()
+        val watchdogSession = session
+        connectWatchdogJob = scope.launch {
+            kotlinx.coroutines.delay(CONNECT_WATCHDOG_MS)
+            if (!isConnected && sessionGate.isCurrent(watchdogSession) && shouldReconnect) {
+                android.util.Log.w("WebSocketClient", "connect watchdog: not open after ${CONNECT_WATCHDOG_MS}ms, cancelling attempt")
+                runCatching { webSocket?.cancel() }
+            }
+        }
+
         try {
             webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -383,6 +425,7 @@ object WebSocketClient {
                 }
                 isConnected = true
                 connecting.set(false)
+                lastTrafficAt.set(System.currentTimeMillis())
                 reconnectDelayMs.set(INITIAL_RECONNECT_DELAY_MS)
                 // 8.45 修复：不再在 onOpen 立即重置重连计数——「连接建立后立即被关闭」的循环
                 // （服务端重启、握手成功即 1006/1011）会让 20 次上限永远达不到，退避封顶后
@@ -395,11 +438,16 @@ object WebSocketClient {
                     }
                 }
                 reconnectJob?.cancel()
+                // 9.3xx：连接看门狗完成使命；启动应用层心跳（Ideaura 式保活）
+                connectWatchdogJob?.cancel()
+                startHeartbeat(session)
                 eventBus.post(WebSocketEvent.Connected(true))
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 if (!sessionGate.isCurrent(session)) return
+                // 任何到达的帧都证明连接存活（含 PONG）
+                lastTrafficAt.set(System.currentTimeMillis())
                 try {
                     val wsMsg = json.decodeFromString<WsMessage>(text)
                     handleWsMessage(wsMsg)
@@ -521,16 +569,44 @@ object WebSocketClient {
         }
     }
 
+    /**
+     * 9.3xx：Ideaura 式应用层心跳。
+     * 每 HEARTBEAT_INTERVAL_MS 发一帧 PING（服务端回 PONG）；若 HEARTBEAT_DEAD_AFTER_MS
+     * 内没有任何流量（含 PONG 与业务帧），判定死连接并主动取消 socket——
+     * OkHttp onFailure 随即触发既有退避重连，推送链路不会"看起来连着实际已死"。
+     */
+    private fun startHeartbeat(session: Long) {
+        heartbeatJob?.cancel()
+        heartbeatJob = scope.launch {
+            while (shouldReconnect && sessionGate.isCurrent(session)) {
+                kotlinx.coroutines.delay(HEARTBEAT_INTERVAL_MS)
+                if (!shouldReconnect || !sessionGate.isCurrent(session)) return@launch
+                val ws = webSocket ?: return@launch
+                if (!isConnected) return@launch
+                val staleFor = System.currentTimeMillis() - lastTrafficAt.get()
+                if (staleFor >= HEARTBEAT_DEAD_AFTER_MS) {
+                    android.util.Log.w("WebSocketClient", "heartbeat: no traffic for ${staleFor}ms, closing stale connection")
+                    runCatching { ws.cancel() }
+                    return@launch
+                }
+                val ping = json.encodeToString(
+                    WsMessage.serializer(),
+                    WsMessage("PING", System.currentTimeMillis().toString())
+                )
+                runCatching { ws.send(ping) }
+            }
+        }
+    }
+
     private fun scheduleReconnect() {
         if (!shouldReconnect || reconnectJob?.isActive == true) return
-        // 达到最大重连次数后停止，避免无限重连耗电
+        // 9.3xx：超过快速重试预算后切换为低频保活重连（每分钟一次），不再永久停止。
         val attempt = reconnectAttempts.incrementAndGet()
-        if (attempt > MAX_RECONNECT_ATTEMPTS) {
-            shouldReconnect = false
-            reconnectAttempts.set(0)
+        val url = serverUrl.get() ?: return
+        if (attempt > MAX_FAST_RECONNECT_ATTEMPTS) {
+            scheduleReconnectAt(url, RECONNECT_SLOW_INTERVAL_MS)
             return
         }
-        val url = serverUrl.get() ?: return
         val baseDelay = reconnectDelayMs.getAndUpdate { (it * 2).coerceAtMost(MAX_RECONNECT_DELAY_MS) }
         scheduleReconnectAt(url, baseDelay)
     }
@@ -539,12 +615,11 @@ object WebSocketClient {
     private fun scheduleReconnectWithBaseDelay(baseDelayMs: Long) {
         if (!shouldReconnect || reconnectJob?.isActive == true) return
         val attempt = reconnectAttempts.incrementAndGet()
-        if (attempt > MAX_RECONNECT_ATTEMPTS) {
-            shouldReconnect = false
-            reconnectAttempts.set(0)
+        val url = serverUrl.get() ?: return
+        if (attempt > MAX_FAST_RECONNECT_ATTEMPTS) {
+            scheduleReconnectAt(url, RECONNECT_SLOW_INTERVAL_MS)
             return
         }
-        val url = serverUrl.get() ?: return
         scheduleReconnectAt(url, baseDelayMs.coerceAtMost(MAX_RECONNECT_DELAY_MS))
     }
 
@@ -659,6 +734,11 @@ object WebSocketClient {
         // 取消整个 parent Job 使所有重连子协程在下一挂起点退出，避免孤立协程继续调用 connect()
         connectionParent.cancel()
         reconnectJob = null
+        heartbeatJob?.cancel()
+        heartbeatJob = null
+        connectWatchdogJob?.cancel()
+        connectWatchdogJob = null
+        lastTrafficAt.set(0L)
         reconnectDelayMs.set(INITIAL_RECONNECT_DELAY_MS)
         reconnectAttempts.set(0)
         serverUrl.set(null)
@@ -861,6 +941,15 @@ object WebSocketClient {
                 try {
                     val data = json.decodeFromString<IncomingFriendRequestEvent>(wsMsg.payload)
                     eventBus.post(WebSocketEvent.FriendRequestUpdated(data.action, data.request))
+                } catch (e: Exception) {
+                    emitError(WebSocketErrorKind.FRIEND_REQUEST_PARSE, e)
+                }
+            }
+
+            "GROUP_INVITE" -> {
+                try {
+                    val data = json.decodeFromString<IncomingGroupInviteEvent>(wsMsg.payload)
+                    eventBus.post(WebSocketEvent.GroupInviteUpdated(data.action, data.invite))
                 } catch (e: Exception) {
                     emitError(WebSocketErrorKind.FRIEND_REQUEST_PARSE, e)
                 }

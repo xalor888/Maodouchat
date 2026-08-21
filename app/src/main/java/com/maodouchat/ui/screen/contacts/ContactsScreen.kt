@@ -290,6 +290,28 @@ fun ContactsScreen(
                             )
                         }
                     }
+                    // 9.3xx：群邀请同意流程——本人接受后才入群
+                    if (state.groupInvites.isNotEmpty()) {
+                        item(key = "group_invites_header", contentType = "section_header") {
+                            Text(
+                                stringResource(R.string.contacts_group_invites_title),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.outline,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                            )
+                        }
+                        items(state.groupInvites, key = { "gi_${it.id}" }, contentType = { "group_invite" }) { invite ->
+                            GroupInviteRow(
+                                invite = invite,
+                                busy = state.isGroupInviteBusy,
+                                onAccept = { viewModel.acceptGroupInvite(invite.id) },
+                                onDecline = { viewModel.declineGroupInvite(invite.id) }
+                            )
+                        }
+                    }
                     // 新群聊
                     item(key = "new_group", contentType = "new_group") {
                         AnimatedVisibility(
@@ -738,6 +760,56 @@ private fun FriendRequestRow(
             TextButton(onClick = onCancel) {
                 Text(stringResource(R.string.contacts_friend_cancel), color = LocalChatPalette.current.textSecondary)
             }
+        }
+    }
+}
+
+/**
+ * 9.3xx：待处理群邀请行——本人接受后才成为群成员。
+ */
+@Composable
+private fun GroupInviteRow(
+    invite: GroupInviteItem,
+    busy: Boolean,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Filled.GroupAdd, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                invite.chatName,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
+            )
+            Text(
+                stringResource(R.string.contacts_group_invite_row_subtitle, invite.inviterName, invite.memberCount),
+                style = MaterialTheme.typography.bodySmall,
+                color = LocalChatPalette.current.textSecondary,
+                maxLines = 1
+            )
+        }
+        TextButton(onClick = onDecline, enabled = !busy) {
+            Text(stringResource(R.string.contacts_group_invite_decline), color = LocalChatPalette.current.textSecondary)
+        }
+        Button(onClick = onAccept, enabled = !busy, modifier = Modifier.padding(start = 4.dp)) {
+            Text(stringResource(R.string.contacts_group_invite_accept))
         }
     }
 }

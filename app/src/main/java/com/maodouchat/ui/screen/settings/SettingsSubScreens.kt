@@ -2358,6 +2358,7 @@ fun NotificationSettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showDndDialog by remember { mutableStateOf(false) }
+    // 9.3xx：后台推送保活模式选择
     val context = LocalContext.current
     val ringtoneDefault = stringResource(R.string.notifications_ringtone_default)
     // 8.48：通知铃声选择（RingtoneManager picker；空 = 系统默认）
@@ -2521,8 +2522,7 @@ fun NotificationSettingsScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
             ) {
-                ActionRow(label = stringResource(R.string.notifications_ringtone_title), subtitle = stringResource(R.string.notifications_ringtone_subtitle), enabled = state.enableNotifications, onClick = { viewModel.setRingtoneEnabled(!state.ringtoneEnabled) })
-                androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
+                // 9.3xx：移除与上方铃声选择器同名的冗余行（无可见开关、点击无反馈的"重复开关"）
                 SwitchRow(
                     title = stringResource(R.string.notifications_dnd_schedule_title),
                     subtitle = stringResource(R.string.notifications_dnd_schedule_subtitle),
@@ -2551,9 +2551,8 @@ fun NotificationSettingsScreen(
         }
 
         if (showDndDialog) {
-            // 以已保存值为键：弹窗打开后 VM 从服务端同步更新 state 时，本地草稿重新初始化为最新值，
-            // 避免出现“已保存 23:30-06:00，弹窗却显示默认 22:00-07:00”的陈旧值。
-            var enabled by remember(state.dndEnabled) { mutableStateOf(state.dndEnabled) }
+            // 9.3xx：弹窗内不再重复放"启用"开关（页面已有同一开关，弹窗只负责选时间段），
+            // 避免同屏出现两个一模一样的开关。
             var startMinute by remember(state.dndStartMinute) { mutableIntStateOf(state.dndStartMinute) }
             var endMinute by remember(state.dndEndMinute) { mutableIntStateOf(state.dndEndMinute) }
             val activity = LocalContext.current.findActivity()
@@ -2576,10 +2575,6 @@ fun NotificationSettingsScreen(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(stringResource(R.string.notifications_dnd_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(stringResource(R.string.notifications_dnd_schedule_title), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-                            Switch(checked = enabled, onCheckedChange = { enabled = it })
-                        }
                         Text(stringResource(R.string.notifications_dnd_presets), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                         Row(
                             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -2599,7 +2594,7 @@ fun NotificationSettingsScreen(
                         DndTimeRow(
                             label = stringResource(R.string.notifications_dnd_start_time),
                             minute = startMinute,
-                            enabled = enabled,
+                            enabled = state.dndEnabled,
                             onPick = {
                                 if (activity != null) {
                                     android.app.TimePickerDialog(
@@ -2615,7 +2610,7 @@ fun NotificationSettingsScreen(
                         DndTimeRow(
                             label = stringResource(R.string.notifications_dnd_end_time),
                             minute = endMinute,
-                            enabled = enabled,
+                            enabled = state.dndEnabled,
                             onPick = {
                                 if (activity != null) {
                                     android.app.TimePickerDialog(
@@ -2637,7 +2632,7 @@ fun NotificationSettingsScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        viewModel.setDndSchedule(enabled, startMinute, endMinute)
+                        viewModel.setDndSchedule(state.dndEnabled, startMinute, endMinute)
                         showDndDialog = false
                     }) { Text(stringResource(R.string.common_save), color = MaterialTheme.colorScheme.primary) }
                 },
@@ -2832,15 +2827,8 @@ fun GeneralSettingsScreen(
                     onChange = viewModel::setChatFontScale
                 )
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
-                // 1.04：语言设置（系统/中文/English，云同步）
-                ActionRow(
-                    label = stringResource(R.string.general_language),
-                    subtitle = when (state.languageMode) {
-                        com.maodouchat.util.AppLocaleManager.MODE_CHINESE -> stringResource(R.string.general_language_chinese)
-                        com.maodouchat.util.AppLocaleManager.MODE_ENGLISH -> stringResource(R.string.general_language_english)
-                        else -> stringResource(R.string.general_language_system)
-                    }
-                ) { showLanguageDialog = true }
+                // 1.04：语言设置已由上方 LanguageRow 内联选择器承载；
+                // 9.3xx：移除重复的"语言"入口（此前同一页两个语言控件）
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 ActionRow(label = stringResource(R.string.general_clear_cache), subtitle = stringResource(R.string.general_cache_summary, state.cacheSizeText)) {
                     showClearConfirm = true

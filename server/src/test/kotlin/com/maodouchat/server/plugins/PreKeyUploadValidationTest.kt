@@ -2,9 +2,9 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.PreKeyData
 import com.maodouchat.server.model.UploadKeysRequest
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
 class PreKeyUploadValidationTest {
 
@@ -36,7 +36,7 @@ class PreKeyUploadValidationTest {
             signedPreKeySignature = "s".repeat(64),
             preKeys = (1..5).map { PreKeyData(it, validBase64Key) }
         )
-        assertFalse("Should reject fewer than 10 preKeys", req.isValid())
+        assertFalse(req.isValid(), "Should reject fewer than 10 preKeys")
     }
 
     @Test
@@ -50,7 +50,7 @@ class PreKeyUploadValidationTest {
             signedPreKeySignature = "s".repeat(64),
             preKeys = (1..10).map { PreKeyData(16_777_216, validBase64Key) }
         )
-        assertFalse("Should reject preKeyId > 16777215", req.isValid())
+        assertFalse(req.isValid(), "Should reject preKeyId > 16777215")
     }
 
     @Test
@@ -64,7 +64,7 @@ class PreKeyUploadValidationTest {
             signedPreKeySignature = "s".repeat(32),
             preKeys = validPreKeys
         )
-        assertFalse("Should reject signature < 64 chars", req.isValid())
+        assertFalse(req.isValid(), "Should reject signature < 64 chars")
     }
 
     @Test
@@ -78,7 +78,7 @@ class PreKeyUploadValidationTest {
             signedPreKeySignature = "s".repeat(513),
             preKeys = validPreKeys
         )
-        assertFalse("Should reject signature > 512 chars", req.isValid())
+        assertFalse(req.isValid(), "Should reject signature > 512 chars")
     }
 
     @Test
@@ -133,6 +133,34 @@ class PreKeyUploadValidationTest {
             signedPreKey = validBase64Key,
             signedPreKeySignature = "s".repeat(64),
             preKeys = (1..10).map { PreKeyData(5, validBase64Key) }
+        )
+        assertFalse(req.isValid())
+    }
+
+    @Test
+    fun `signedPreKeyId exceeding Signal protocol max fails`() {
+        val req = UploadKeysRequest(
+            registrationId = 12345,
+            deviceId = 1,
+            identityKey = validBase64Key,
+            signedPreKeyId = 16_777_216,
+            signedPreKey = validBase64Key,
+            signedPreKeySignature = "s".repeat(64),
+            preKeys = validPreKeys
+        )
+        assertFalse(req.isValid(), "Should reject signedPreKeyId > 16777215")
+    }
+
+    @Test
+    fun `signedPreKeyId zero fails`() {
+        val req = UploadKeysRequest(
+            registrationId = 12345,
+            deviceId = 1,
+            identityKey = validBase64Key,
+            signedPreKeyId = 0,
+            signedPreKey = validBase64Key,
+            signedPreKeySignature = "s".repeat(64),
+            preKeys = validPreKeys
         )
         assertFalse(req.isValid())
     }

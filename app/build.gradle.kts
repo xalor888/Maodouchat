@@ -316,6 +316,8 @@ dependencies {
     // Encrypted SharedPreferences
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
+    // 9.3xx：保活「音乐播放器」模式（MediaSessionCompat 媒体通知）
+    implementation("androidx.media:media:1.7.0")
 
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")

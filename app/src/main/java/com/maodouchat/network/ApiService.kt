@@ -2214,6 +2214,23 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
     suspend fun removeFriend(token: String, friendId: String): Result<Unit> =
         sendUnit(Request.Builder().url("${ApiConfig.BASE_URL}/api/friends/$friendId").addHeader("Authorization", "Bearer $token").delete().build())
 
+    // ─── 9.3xx：群邀请同意流程 ─────────────────
+
+    suspend fun getGroupInvitations(token: String): Result<List<GroupInvitationDto>> =
+        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/group-invitations").addHeader("Authorization", "Bearer $token").get().build(), ListSerializer(GroupInvitationDto.serializer()))
+
+    suspend fun acceptGroupInvitation(token: String, inviteId: String): Result<GroupInviteAcceptResponse> =
+        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/group-invitations/$inviteId/accept").addHeader("Authorization", "Bearer $token").post(ByteArray(0).toRequestBody(null)).build(), GroupInviteAcceptResponse.serializer())
+
+    suspend fun declineGroupInvitation(token: String, inviteId: String): Result<GroupInviteAcceptResponse> =
+        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/group-invitations/$inviteId/decline").addHeader("Authorization", "Bearer $token").post(ByteArray(0).toRequestBody(null)).build(), GroupInviteAcceptResponse.serializer())
+
+    suspend fun cancelGroupInvitation(token: String, inviteId: String): Result<Unit> =
+        sendUnit(Request.Builder().url("${ApiConfig.BASE_URL}/api/group-invitations/$inviteId").addHeader("Authorization", "Bearer $token").delete().build())
+
+    suspend fun getChatGroupInvitations(token: String, chatId: String): Result<List<GroupInvitationDto>> =
+        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/chats/$chatId/invitations").addHeader("Authorization", "Bearer $token").get().build(), ListSerializer(GroupInvitationDto.serializer()))
+
     // ─── 会话文件夹云同步 ─────────────────
 
     suspend fun getChatFolders(token: String): Result<ChatFoldersSyncResponse> =

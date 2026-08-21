@@ -5,6 +5,9 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.authentication
+import io.ktor.server.auth.jwt.JWTPrincipal
+import io.ktor.server.auth.principal
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.util.AttributeKey
@@ -68,6 +71,9 @@ class GlobalRateLimiter(
 
     private val maxBuckets: Int = envInt("RATE_LIMIT_MAX_BUCKETS", 100_000)
     private val cleanupIntervalSeconds: Long = envLong("RATE_LIMIT_CLEANUP_INTERVAL_SECONDS", 60L)
+
+    /** True once the final lifecycle shutdown has run; pools use this to mint a fresh instance. */
+    val isShutdown: Boolean get() = closed.get()
 
     @Volatile
     private var sweeper: ScheduledThreadPoolExecutor? = null
@@ -290,16 +296,25 @@ private fun envLong(name: String, default: Long): Long =
     env(name, default.toString()).toLongOrNull()?.coerceAtLeast(1L) ?: default
 
 /**
- * Configures global per-IP rate limiting for all /api/ routes.
- * Skips attachment chunk uploads (they have their own rate limiting).
+ * Configures rate limiting for all /api/ routes and the /ws handshake.
+ *
+ * Policy (9.3xx rework — production 429 storms):
+ * - Authenticated requests are budgeted PER USER (JWT subject), with a generous limit, so a
+ *   legitimate client burst (chat list + per-chat sync + prekey bundles for every group member)
+ *   can never trip the limiter, and users sharing one NAT IP do not starve each other.
+ * - Unauthenticated requests (login/register/public endpoints, /ws handshake) keep the
+ *   per-IP budget — brute force / unauthenticated DoS protection.
+ * - Attachment chunk uploads have their own per-user limits and are skipped here.
  */
 fun Application.configureRateLimit() {
     if (attributes.contains(RateLimitInstalledKey)) return
     attributes.put(RateLimitInstalledKey, Unit)
-    val (limiter, lifecycleId) = GlobalRateLimiter.acquireLifecycle()
+    val (ipLimiter, ipLifecycle) = RateLimitPools.ipPool()
+    val (userLimiter, userLifecycle) = RateLimitPools.userPool()
     val logger = LoggerFactory.getLogger("RateLimitConfig")
     environment.monitor.subscribe(ApplicationStopped) {
-        limiter.shutdown(lifecycleId)
+        ipLimiter.shutdown(ipLifecycle)
+        userLimiter.shutdown(userLifecycle)
     }
 
     intercept(ApplicationCallPipeline.Plugins) {
@@ -308,7 +323,7 @@ fun Application.configureRateLimit() {
         // DB 查询，不设 IP 限流会成为未认证客户端的免费打点面）
         if (!path.startsWith("/api/") && path != "/ws") return@intercept
         // Skip attachment upload bodies only (per-user limits on session/chunk/one-shot).
-        // Downloads GET /api/attachments/{id} stay under global IP limit (bandwidth DoS).
+        // Downloads GET /api/attachments/{id} stay under the per-user limit (bandwidth DoS).
         val method = call.request.httpMethod.value
         val isAttachmentUploadBody =
             (method == "POST" || method == "PUT" || method == "PATCH") &&
@@ -328,11 +343,21 @@ fun Application.configureRateLimit() {
             finish()
             return@intercept
         }
-        val decision = limiter.tryAcquire(clientIp)
+        // configureAuthentication() is installed before this plugin, so by this point of the
+        // Plugins phase the JWT principal is populated for authenticated routes.
+        val userId = call.authentication.principal<JWTPrincipal>()
+            ?.payload?.subject?.takeIf { it.isNotBlank() }
+        val (decision, budgetKey) = if (userId != null) {
+            userLimiter.tryAcquire("user:$userId") to "user:$userId"
+        } else {
+            ipLimiter.tryAcquire(clientIp) to "ip:$clientIp"
+        }
         if (!decision.allowed) {
-            logger.warn(
-                "Rate limit exceeded for IP: {} on path: {} (retryAfter={}s, remaining={})",
-                clientIp, path, decision.retryAfterSeconds, decision.remaining
+            logThrottled(
+                logger,
+                "$budgetKey|$path",
+                "Rate limit exceeded for {} on path: {} (retryAfter={}s, remaining={})",
+                budgetKey, path, decision.retryAfterSeconds, decision.remaining
             )
             decision.retryAfterSeconds?.let { secs ->
                 call.response.headers.append(HttpHeaders.RetryAfter, secs.toString())
@@ -347,6 +372,45 @@ fun Application.configureRateLimit() {
             )
             finish()
         }
+    }
+}
+
+/** Rate-limit warning logs are throttled per (bucket,path) so a storm does not flood the log. */
+private val rateLimitLogTimes = ConcurrentHashMap<String, Long>()
+private val rateLimitLogGate = Any()
+
+private fun logThrottled(logger: org.slf4j.Logger, key: String, format: String, vararg args: Any?) {
+    val now = System.currentTimeMillis()
+    val last = rateLimitLogTimes[key]
+    if (last == null || now - last >= 5_000L) {
+        synchronized(rateLimitLogGate) {
+            val last2 = rateLimitLogTimes[key]
+            if (last2 == null || now - last2 >= 5_000L) {
+                rateLimitLogTimes[key] = now
+                logger.warn(format, *args)
+            }
+        }
+    }
+}
+
+/**
+ * Process-wide limiter pools for the two budgets. Mirrors the old singleton lifecycle so
+ * repeated configure/unconfigure cycles (tests) share instances and stop sweepers exactly once.
+ */
+private object RateLimitPools {
+    @Volatile private var ip: GlobalRateLimiter? = null
+    @Volatile private var user: GlobalRateLimiter? = null
+
+    @Synchronized
+    fun ipPool(): Pair<GlobalRateLimiter, Long> {
+        val limiter = ip?.takeUnless { it.isShutdown } ?: GlobalRateLimiter(ServerConfig.globalRateLimitPerMinute).also { ip = it }
+        return limiter to limiter.start()
+    }
+
+    @Synchronized
+    fun userPool(): Pair<GlobalRateLimiter, Long> {
+        val limiter = user?.takeUnless { it.isShutdown } ?: GlobalRateLimiter(ServerConfig.authenticatedRateLimitPerMinute).also { user = it }
+        return limiter to limiter.start()
     }
 }
 

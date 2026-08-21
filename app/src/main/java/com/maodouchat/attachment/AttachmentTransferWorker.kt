@@ -231,6 +231,7 @@ class AttachmentTransferWorker(
         const val TAG = "AttachmentTransferWorker"
         const val ERROR_SOURCE_MISSING = "SOURCE_MISSING"
         const val ERROR_INVALID_STATE = "INVALID_STATE"
-        const val MAX_RETRIES = 4
+        // 9.3xx：4→6——服务端限流窗口（429 Retry-After ≤60s）内不再烧光重试次数直接标 FAILED
+        const val MAX_RETRIES = 6
     }
 }

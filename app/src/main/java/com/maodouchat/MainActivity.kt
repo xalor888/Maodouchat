@@ -12,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -130,7 +131,7 @@ class MainActivity : FragmentActivity() {
 
         setContent {
             MaodouchatTheme {
-                Surface(color = Background, modifier = Modifier.fillMaxSize()) {
+                Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
                     when {
                         showFakeChat -> {
                             // 假聊天界面在外层：不暴露真实 App 的锁屏提示，解锁后再按需走 App 锁
@@ -261,7 +262,12 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
-        MaodouchatNavGraph(navController = navController)
+        val startDestination = if (TokenManager.getInstance(this).isLoggedIn()) {
+            Routes.MAIN
+        } else {
+            Routes.LOGIN
+        }
+        MaodouchatNavGraph(navController = navController, startDestination = startDestination)
     }
 
     override fun onNewIntent(intent: Intent) {

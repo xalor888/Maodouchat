@@ -106,7 +106,20 @@ fun Application.configureAdminRouting(
                 if (!AdminAccess.isAdmin(userId)) {
                     // 9.247：自部署高频踩坑——MASTER_ADMINS 填了邮箱而非 userId，
                     // 报错附带配置指引便于自查（不泄露当前配置值）
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要主管理员权限：请确认服务端 MASTER_ADMINS 环境变量包含本账号的 userId（非邮箱），修改后重启服务"))
+                    // 9.4xx：同时记录尝试账号（名+id），运维可据此排查「登的是哪个号」
+                    val who = userRepo.getById(userId)
+                    adminAuditLogger.warn(
+                        "Admin session denied for user {} ({} / {}); not in MASTER_ADMINS",
+                        userId, who?.name.orEmpty(), who?.email.orEmpty()
+                    )
+                    return@post call.respond(
+                        HttpStatusCode.Forbidden,
+                        ErrorResponse(
+                            "需要主管理员权限：当前登录账号为 ${who?.name.orEmpty().ifBlank { "?" }}（${userId}），" +
+                                "请确认服务端 MASTER_ADMINS 环境变量包含该 userId（非邮箱）；" +
+                                "若登录的是其他账号，请改用主管理员账号重新登录"
+                        )
+                    )
                 }
                 if (!adminSessionAttemptLimiter.acquire(userId)) {
                     call.response.headers.append(HttpHeaders.RetryAfter, ADMIN_SESSION_ATTEMPT_WINDOW_SECONDS.toString())
@@ -4365,6 +4378,7 @@ private const val MAX_ADMIN_SESSION_ATTEMPTS = 5
 private const val MAX_ADMIN_SESSION_ATTEMPT_BUCKETS = 10_000
 private val adminJson = Json { ignoreUnknownKeys = true }
 private val adminSessionAttemptLimiter = AdminSessionAttemptLimiter()
+private val adminAuditLogger = org.slf4j.LoggerFactory.getLogger("AdminAudit")
 
 internal class AdminSessionAttemptLimiter {
     private val delegate = BoundedRateLimiter(

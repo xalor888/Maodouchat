@@ -293,6 +293,14 @@
     <string name="error_operation_failed">操作失败</string>
 
     <string name="contacts_add_friend">加好友</string>
+    <!-- 9.3xx：群邀请同意流程 -->
+    <string name="contacts_group_invites_title">群聊邀请</string>
+    <string name="contacts_group_invite_accept">接受</string>
+    <string name="contacts_group_invite_decline">拒绝</string>
+    <string name="contacts_group_invite_accepted">已加入群聊</string>
+    <string name="contacts_group_invite_declined">已拒绝邀请</string>
+    <string name="contacts_group_invite_row_subtitle">%1$s 邀请你加入（%2$d 人已加入）</string>
+    <string name="contacts_group_unnamed">未命名群聊</string>
     <string name="contacts_friend_requests_incoming">新的好友申请</string>
     <string name="contacts_friend_requests_outgoing">已发送的申请</string>
     <string name="contacts_friend_request_sent">好友申请已发送</string>
@@ -2883,4 +2891,19 @@
     <string name="theme_preset_amoled">纯黑</string>
     <string name="theme_preset_dark_violet">暗紫夜</string>
     <string name="theme_preset_dark_forest">暗夜森林</string>
+    <!-- 9.3xx：推送保活（Ideaura 同款：前台服务/媒体播放器/假来电三种模式） -->
+    <string name="push_keepalive_title">后台推送保活</string>
+    <string name="push_keepalive_subtitle">保证消息推送在后台不被系统杀死（实验性）</string>
+    <string name="push_keepalive_channel_name">后台推送服务</string>
+    <string name="push_keepalive_channel_desc">保持连接以接收新消息</string>
+    <string name="push_keepalive_notification_title">推送服务运行中</string>
+    <string name="push_keepalive_notification_text">保持连接以接收新消息</string>
+    <string name="push_keepalive_mode_off">关闭（默认）</string>
+    <string name="push_keepalive_mode_foreground">前台保活</string>
+    <string name="push_keepalive_mode_foreground_desc">前台服务 + 常驻通知 + 网络变化自动重连</string>
+    <string name="push_keepalive_mode_media">音乐播放器模式</string>
+    <string name="push_keepalive_mode_media_desc">挂媒体播放状态（无声音频循环），系统豁免更高</string>
+    <string name="push_keepalive_mode_call">来电模式（最强）</string>
+    <string name="push_keepalive_mode_call_desc">挂起一个静默保持的通话，进程获得通话级优先级</string>
+    <string name="push_keepalive_warning">提示：保活会常驻一条系统通知；来电模式会挂起一个静默通话（获得通话级优先级），真实通话期间自动让位，但可能短暂影响系统音频模式。部分系统/应用商店可能限制此类行为。</string>
 </resources>

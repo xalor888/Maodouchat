@@ -52,8 +52,32 @@ class TokenManager private constructor(private val context: Context) {
     }
 
     fun getToken(): String? =
-        runCatching { prefs.getString(ApiConfig.Prefs.TOKEN_KEY, null) }
-            .getOrNull()
+        readPrefsWithRetry(ApiConfig.Prefs.TOKEN_KEY) { it.getString(ApiConfig.Prefs.TOKEN_KEY, null) }
+
+    /**
+     * 9.3xx：EncryptedSharedPreferences 在部分机型冷启动首次读取可能瞬时失败（Keystore 未就绪），
+     * 此前 runCatching 静默吞掉 → isLoggedIn() 误判 false → 启动路由落 LOGIN，闪登录页；
+     * 这里做 3 次小间隔重试，仍失败才返回 null 并打日志。
+     */
+    private fun <T> readPrefsWithRetry(key: String, block: (android.content.SharedPreferences) -> T): T? {
+        var lastError: Throwable? = null
+        repeat(3) { attempt ->
+            try {
+                return block(prefs)
+            } catch (error: Throwable) {
+                lastError = error
+                if (attempt < 2) {
+                    try {
+                        Thread.sleep(40L * (attempt + 1))
+                    } catch (ignored: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                    }
+                }
+            }
+        }
+        Log.w(TAG, "TokenManager read failed after retries (key=$key)", lastError)
+        return null
+    }
 
     fun saveRefreshToken(refreshToken: String): Boolean {
         return runCatching { prefs.edit().putString(ApiConfig.Prefs.REFRESH_TOKEN_KEY, refreshToken).apply() }
@@ -62,8 +86,7 @@ class TokenManager private constructor(private val context: Context) {
     }
 
     fun getRefreshToken(): String? =
-        runCatching { prefs.getString(ApiConfig.Prefs.REFRESH_TOKEN_KEY, null) }
-            .getOrNull()
+        readPrefsWithRetry(ApiConfig.Prefs.REFRESH_TOKEN_KEY) { it.getString(ApiConfig.Prefs.REFRESH_TOKEN_KEY, null) }
 
     fun saveTokenExpiries(accessTokenExpiresAt: Long, refreshTokenExpiresAt: Long): Boolean {
         return runCatching {
@@ -77,10 +100,10 @@ class TokenManager private constructor(private val context: Context) {
     }
 
     fun getAccessTokenExpiresAt(): Long =
-        runCatching { prefs.getLong(ApiConfig.Prefs.ACCESS_TOKEN_EXPIRES_AT_KEY, 0L) }.getOrDefault(0L)
+        readPrefsWithRetry(ApiConfig.Prefs.ACCESS_TOKEN_EXPIRES_AT_KEY) { it.getLong(ApiConfig.Prefs.ACCESS_TOKEN_EXPIRES_AT_KEY, 0L) } ?: 0L
 
     fun getRefreshTokenExpiresAt(): Long =
-        runCatching { prefs.getLong(ApiConfig.Prefs.REFRESH_TOKEN_EXPIRES_AT_KEY, 0L) }.getOrDefault(0L)
+        readPrefsWithRetry(ApiConfig.Prefs.REFRESH_TOKEN_EXPIRES_AT_KEY) { it.getLong(ApiConfig.Prefs.REFRESH_TOKEN_EXPIRES_AT_KEY, 0L) } ?: 0L
 
     fun saveAuthSession(
         token: String,
@@ -141,8 +164,7 @@ class TokenManager private constructor(private val context: Context) {
     }
 
     fun getUserId(): String? =
-        runCatching { prefs.getString(ApiConfig.Prefs.USER_ID_KEY, null) }
-            .getOrNull()
+        readPrefsWithRetry(ApiConfig.Prefs.USER_ID_KEY) { it.getString(ApiConfig.Prefs.USER_ID_KEY, null) }
 
     fun isLoggedIn(): Boolean {
         if (getToken().isNullOrBlank()) return false

@@ -831,10 +831,11 @@ class ChatDetailViewModel(
                             // Decrypt-failure placeholders must not advance cursor past recoverable ciphertext
                             if (isSyncDecryptFailurePlaceholder(decryptedMessage)) {
                                 // FutureEpoch 是“本地 epoch 落后”的特殊情况：卡住游标会让后面的
-                                // SKDM 永远处理不到，形成死锁。保留原始密文并推进游标，
-                                // SKDM 安装后重开/重载即能重新解密，不落占位文本。
+                                // SKDM 永远处理不到，形成死锁。9.3xx：落库占位文本而非原始密文——
+                                // 此前把 wire envelope 原样入库，气泡整块输出元数据（ciphertext/设备号）。
+                                // SKDM 安装后触发重同步，占位消息会被重新解密。
                                 if (decryptedMessage.content == text(R.string.chat_decrypt_group_newer)) {
-                                    decrypted += wireMessage
+                                    decrypted += decryptedMessage
                                     advanced = TokenManager.SyncCursor(dto.timestamp, dto.id)
                                     continue
                                 }
@@ -8030,12 +8031,13 @@ fun sendCurrentLocation() {
         }
         // 9.146：与 sendMessage 一致的重入守卫——分享 AI 回答与常规发送同帧触发时不产生双气泡
         if (_uiState.value.isSending) return
-        _uiState.update { it.copy(isSending = true, groupEncryptionWarning = null) }
-        // 与其他路径一致：activeChatId 为空时回退构造期 chatId，避免发出 chatId="" 的孤儿消息
+        // 与其他路径一致：activeChatId 为空时回退构造期 chatId，避免发出 chatId="" 的孤儿消息。
+        // 9.312：必须在置 isSending 之前解析 chatId——此前空会话先置位再 return，发送按钮永久禁用。
         val chatId = activeChatId.ifBlank { chatId }.takeIf { it.isNotBlank() } ?: run {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
             return
         }
+        _uiState.update { it.copy(isSending = true, groupEncryptionWarning = null) }
         val msgId = "m_${UUID.randomUUID()}"
         val contentWithMeta = composeContentWithMeta(text, meta)
         val newMessage = Message(id = msgId, chatId = chatId, senderId = sendOwnerUserId, content = contentWithMeta, type = messageType, timestamp = System.currentTimeMillis(), status = MessageStatus.SENDING)

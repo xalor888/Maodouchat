@@ -389,6 +389,11 @@ fun MaodouchatNavGraph(
                     onOpenStarredMessages = { chatId -> navController.navigate(Routes.starredMessages(chatId)) },
                     onOpenMediaCenter = { chatId -> navController.navigate(Routes.mediaCenter(chatId)) },
                     onOpenAiTasks = { chatId -> navController.navigate(Routes.aiTasks(chatId)) },
+                    // 9.3xx：真实群功能页
+                    onOpenGroupPoll = { chatId -> navController.navigate(Routes.groupPoll(chatId)) },
+                    onOpenGroupCheckin = { chatId -> navController.navigate(Routes.groupCheckin(chatId)) },
+                    onOpenGroupChain = { chatId -> navController.navigate(Routes.groupChain(chatId)) },
+                    onOpenGroupPk = { chatId -> navController.navigate(Routes.groupPk(chatId)) },
                     // 1.17：点击消息内名片 → 打开该用户资料
                     onOpenProfile = { userId -> navController.navigate(Routes.authorProfile(userId)) },
                     // 1.29：通话记录
@@ -1681,7 +1686,12 @@ private fun ChatDetailListPaneRoute(navController: NavHostController) {
                                 onOpenGroupDetail = { id -> navController.navigate(Routes.groupDetail(id)) { launchSingleTop = true } },
                                 onOpenStarredMessages = { id -> navController.navigate(Routes.starredMessages(id)) { launchSingleTop = true } },
                                 onOpenMediaCenter = { id -> navController.navigate(Routes.mediaCenter(id)) { launchSingleTop = true } },
-                                onOpenAiTasks = { id -> navController.navigate(Routes.aiTasks(id)) { launchSingleTop = true } }
+                                onOpenAiTasks = { id -> navController.navigate(Routes.aiTasks(id)) { launchSingleTop = true } },
+                                // 9.3xx：真实群功能页
+                                onOpenGroupPoll = { id -> navController.navigate(Routes.groupPoll(id)) { launchSingleTop = true } },
+                                onOpenGroupCheckin = { id -> navController.navigate(Routes.groupCheckin(id)) { launchSingleTop = true } },
+                                onOpenGroupChain = { id -> navController.navigate(Routes.groupChain(id)) { launchSingleTop = true } },
+                                onOpenGroupPk = { id -> navController.navigate(Routes.groupPk(id)) { launchSingleTop = true } }
                             )
                         }
                     }

@@ -6,6 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -52,6 +53,9 @@ class BacklogSyncWorker(
         val token = tokenManager.getToken()?.takeIf(String::isNotBlank)
             ?: return Result.success()
         if (!BackgroundSessionGate.mayContinue(ownerId, token, ownerId)) return Result.success()
+
+        // 9.3xx：周期自愈——保活服务被系统误杀后随 15 分钟周期任务恢复
+        runCatching { com.maodouchat.push.PushKeepAlive.ensureForUser(applicationContext) }
 
         val messageRepo = MessageRepository(app.database.messageDao(), app.database)
         val chats = app.database.chatDao().getAllChatsDirect()
@@ -257,6 +261,21 @@ class BacklogSyncWorker(
                 ExistingPeriodicWorkPolicy.KEEP,
                 request
             )
+        }
+
+        /**
+         * 9.3xx：WS 重连成功后立即补拉断线窗口增量（Ideaura 式断线补拉）——
+         * 一次性工作与周期工作同名（REPLACE 只影响一次性链），周期任务不受影响。
+         */
+        fun requestNow(context: Context) {
+            val request = OneTimeWorkRequestBuilder<BacklogSyncWorker>()
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                )
+                .build()
+            WorkManager.getInstance(context).enqueue(request)
         }
     }
 }

@@ -302,6 +302,29 @@ object Friendships : Table("friendships") {
     }
 }
 
+/**
+ * 9.3xx：群邀请同意流程——成员被拉入群前必须由本人接受。
+ * 状态：PENDING（待接受）/ ACCEPTED / DECLINED / CANCELLED。
+ * 唯一索引 (chat_id, user_id)：同一用户在同一群只能存在一条邀请记录（重复邀请幂等刷新）。
+ */
+object GroupInvitations : Table("group_invitations") {
+    val id = varchar("id", 80)
+    val chatId = varchar("chat_id", 50) references Chats.id
+    val userId = varchar("user_id", 50) references Users.id
+    val inviterId = varchar("inviter_id", 50) references Users.id
+    val status = varchar("status", 20).default("PENDING")
+    val createdAt = long("created_at").default(System.currentTimeMillis())
+    val updatedAt = long("updated_at").default(System.currentTimeMillis())
+    override val primaryKey = PrimaryKey(id)
+
+    init {
+        uniqueIndex("idx_group_invitations_chat_user", chatId, userId)
+        index("idx_group_invitations_user_status", false, userId, status)
+        index("idx_group_invitations_chat_status", false, chatId, status)
+    }
+}
+
+
 /** 会话文件夹云端同步（按用户） */
 object ChatFolders : Table("chat_folders") {
     val userId = varchar("user_id", 50) references Users.id
@@ -713,6 +736,8 @@ fun initDatabase() {
             ReadReceipts, MessageReactions, SenderKeyDistributions, AiPreferences, NotificationPreferences,
             PushTokens, GroupPolls, GroupPollVotes, BotApps, BotCommandLogs, BotUpdateInbox, Reports, ModerationAuditLog, AiAuditLogs, AiSummarySyncEnvelopes, ModerationRules,
             RiskEvents, DirectChatPairs, FriendRequests, Friendships, ChatFolders, ClientPrefs, SystemSettings,
+            // 9.3xx：群邀请同意流程（成员入群前须本人接受）
+            GroupInvitations,
             // 群玩法 B3：群签到 / 群接龙 / 群 PK（表定义见 PollTables.kt）
             GroupCheckins, GroupChains, GroupChainEntries, GroupPkRounds, GroupPkVotes,
             // B6 运维增强：用户标签先于公告建表（公告 target_tag_id 外键引用 user_tags.id）

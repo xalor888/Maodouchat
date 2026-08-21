@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 9.3xx：深色启动主题（此前缺失 values-night/themes.xml，深色模式冷启动必闪白） -->
+    <style name="Theme.Maodouchat" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/splash_dark</item>
+    </style>
+    <color name="splash_dark">#0E1621</color>
+</resources>

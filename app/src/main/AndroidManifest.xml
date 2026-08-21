@@ -23,6 +23,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <!-- 9.3xx：推送保活前台服务（Ideaura 同款 dataSync；音乐播放器模式 mediaPlayback） -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- ConnectionService 系统来电集成 -->
@@ -54,7 +58,8 @@
             android:exported="true"
             android:theme="@style/Theme.Maodouchat"
             android:supportsPictureInPicture="true"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden">
+            android:windowSoftInputMode="adjustResize|stateHidden"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -167,6 +172,41 @@
         <service
             android:name=".widget.ConversationWidgetSyncService"
             android:exported="false" />
+
+        <!-- ===== 9.3xx 推送保活（Ideaura 同款栈）===== -->
+
+        <!-- 保活前台服务：dataSync / 媒体播放器模式 -->
+        <service
+            android:name=".push.PushKeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync|mediaPlayback" />
+
+        <!-- 保活守护服务（独立进程，互相复活） -->
+        <service
+            android:name=".push.PushDaemonService"
+            android:exported="false"
+            android:process=":pushdaemon" />
+
+        <!-- 保活专用的自管理 ConnectionService（假来电 onHold；与真实通话的 MaodouchatConnectionService 相互独立） -->
+        <service
+            android:name=".push.PushKeepAliveConnectionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.ConnectionService" />
+            </intent-filter>
+        </service>
+
+        <!-- 开机/应用更新后恢复保活 -->
+        <receiver
+            android:name=".push.PushKeepAliveBootReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

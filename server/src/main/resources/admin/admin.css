@@ -291,16 +291,18 @@ a:hover {
 .btn-primary,
 .btn.primary {
   border: 1px solid transparent;
-  background: var(--brand);
+  background: linear-gradient(135deg, var(--brand) 0%, #7b5fd6 100%);
   color: #ffffff;
   font-weight: 600;
+  box-shadow: 0 2px 8px -2px var(--brand-glow);
 }
 
 .btn-primary:hover:not(:disabled),
 .btn.primary:hover:not(:disabled) {
-  background: var(--brand-hover);
+  background: linear-gradient(135deg, var(--brand-hover) 0%, #8b6fe6 100%);
   border-color: transparent;
   color: #ffffff;
+  box-shadow: 0 4px 14px -3px var(--brand-glow);
 }
 
 [data-theme="light"] .btn-primary,
@@ -386,9 +388,9 @@ a:hover {
   width: min(400px, 100%);
   position: relative;
   z-index: 1;
-  background: var(--panel);
+  background: linear-gradient(160deg, var(--panel) 0%, var(--bg-subtle) 100%);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   padding: 36px 32px 28px;
   animation: cardEnter 0.32s ease;
@@ -737,17 +739,28 @@ a:hover {
 
 .stat-card {
   position: relative;
-  background: var(--panel-card);
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--panel-card) 0%, var(--bg-subtle) 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px 18px;
   box-shadow: var(--shadow-xs);
-  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+  transition: transform var(--t-normal), border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.stat-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--brand), transparent);
+  opacity: 0.5;
 }
 
 .stat-card:hover {
   border-color: var(--border-strong);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .stat-icon {

@@ -2852,6 +2852,11 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                             requestLoadChats(ChatListReloadPolicy.Trigger.RECONNECT)
                             // Leave-chat SENDING text must not wait for ChatDetail re-open.
                             flushTextOutbox()
+                            // 9.3xx：断线窗口补拉（Ideaura 式）——重连后立即同步各会话增量，
+                            // 否则断线期间的消息要等 15 分钟周期任务或手动打开聊天才出现。
+                            runCatching {
+                                com.maodouchat.sync.BacklogSyncWorker.requestNow(getApplication())
+                            }
                         } else {
                             _uiState.update {
                                 it.copy(realtimeBanner = text(R.string.chat_ws_connection_failed))

@@ -1,5 +1,6 @@
 package com.maodouchat.server.plugins
 
+import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.AiContextMessage
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AiRepository
@@ -63,7 +64,7 @@ internal fun Application.configureAiEnhanceRouting(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_summary_disabled"))
                     return@post
                 }
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 10)) {
+                if (!aiRateLimiter.acquire(uid, maxPerMinute = ServerConfig.aiRateLimitPerMinute)) {
                     aiRepo.recordAudit(uid, null, "conversation_profile", null, "rate_limited", 0, error = "rate_limited")
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
                     return@post
@@ -117,7 +118,7 @@ internal fun Application.configureAiEnhanceRouting(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_group_assistant_disabled"))
                     return@post
                 }
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 6)) {
+                if (!aiRateLimiter.acquire(uid, maxPerMinute = ServerConfig.aiRateLimitPerMinute)) {
                     aiRepo.recordAudit(uid, null, "weekly_report", null, "rate_limited", 0, error = "rate_limited")
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
                     return@post
@@ -172,7 +173,7 @@ internal fun Application.configureAiEnhanceRouting(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_suggest_replies_disabled"))
                     return@post
                 }
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 20)) {
+                if (!aiRateLimiter.acquire(uid, maxPerMinute = ServerConfig.aiRateLimitPerMinute)) {
                     aiRepo.recordAudit(uid, null, "emotion_reply", null, "rate_limited", 0, error = "rate_limited")
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
                     return@post
@@ -227,7 +228,7 @@ internal fun Application.configureAiEnhanceRouting(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_cross_chat_qa_disabled"))
                     return@post
                 }
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 10)) {
+                if (!aiRateLimiter.acquire(uid, maxPerMinute = ServerConfig.aiRateLimitPerMinute)) {
                     aiRepo.recordAudit(uid, null, "cross_chat_qa", null, "rate_limited", 0, error = "rate_limited")
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
                     return@post
@@ -285,7 +286,7 @@ internal fun Application.configureAiEnhanceRouting(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_group_assistant_disabled"))
                     return@post
                 }
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 20)) {
+                if (!aiRateLimiter.acquire(uid, maxPerMinute = ServerConfig.aiRateLimitPerMinute)) {
                     aiRepo.recordAudit(uid, null, "message_classes", null, "rate_limited", 0, error = "rate_limited")
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
                     return@post

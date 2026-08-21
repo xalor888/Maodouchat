@@ -47,11 +47,24 @@ val MaodouLightScheme = lightColorScheme(
 
 private val LightColorScheme = MaodouLightScheme
 
+// 9.3xx：补全深色 token（此前缺 secondaryContainer/tertiary/errorContainer/inverse* 等，
+// 依赖 darkColorScheme 兜底导致弹窗/卡片/进度条等组件深色下配色错乱）。
 val MaodouDarkScheme = darkColorScheme(
-    primary = Color(0xFF0A84FF), onPrimary = Color(0xFFFFFFFF), primaryContainer = Color(0xFF004880), onPrimaryContainer = Color(0xFFD1E4FF),
-    secondary = Color(0xFF8E8E93), onSecondary = Color(0xFFFFFFFF), background = Color(0xFF1C1C1E), onBackground = Color(0xFFF2F2F7),
-    surface = Color(0xFF2C2C2E), onSurface = Color(0xFFF2F2F7), surfaceVariant = Color(0xFF3A3A3C), onSurfaceVariant = Color(0xFFEBEBF5),
-    error = Color(0xFFFF453A), outline = Color(0xFF48484A), outlineVariant = Color(0xFF636366)
+    primary = Color(0xFF0A84FF), onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFF004880), onPrimaryContainer = Color(0xFFD1E4FF),
+    secondary = Color(0xFF8E8E93), onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFF3A3A3C), onSecondaryContainer = Color(0xFFF2F2F7),
+    tertiary = Color(0xFFBF5AF2), onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFF4A2C63), onTertiaryContainer = Color(0xFFF0D9FF),
+    background = Color(0xFF1C1C1E), onBackground = Color(0xFFF2F2F7),
+    surface = Color(0xFF2C2C2E), onSurface = Color(0xFFF2F2F7),
+    surfaceVariant = Color(0xFF3A3A3C), onSurfaceVariant = Color(0xFFEBEBF5),
+    error = Color(0xFFFF453A), onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFF6E1A1A), onErrorContainer = Color(0xFFFFDAD6),
+    outline = Color(0xFF48484A), outlineVariant = Color(0xFF636366),
+    inverseSurface = Color(0xFFF2F2F7), inverseOnSurface = Color(0xFF2C2C2E),
+    inversePrimary = Color(0xFF004880),
+    surfaceTint = Color(0xFF0A84FF), scrim = Color(0xFF000000)
 )
 
 private val DarkColorScheme = MaodouDarkScheme

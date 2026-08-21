@@ -97,6 +97,20 @@ object ChatListPreviewPolicy {
     }
 
     /**
+     * 9.3xx：严格版 Signal 密文判定——详情气泡兜底。此前 FutureEpoch/断线补拉路径把
+     * wire envelope 原样落库，气泡整块输出 ciphertext/设备号等元数据。
+     * 仅当 JSON 结构同时命中 algorithm/ciphertext/distributionMessage 等 Signal 特征才判定，
+     * 避免误伤用户正常发送的 `{...}` 开头的文本。
+     */
+    fun isSignalWireEnvelope(content: String): Boolean {
+        val t = content.trimStart()
+        if (!t.startsWith("{") && !t.startsWith("[{")) return false
+        if (!t.contains("signal-")) return false
+        return t.contains("\"algorithm\"") || t.contains("\"distributionMessage\"") ||
+            t.contains("\"ciphertext\"") || t.contains("\"senderKey")
+    }
+
+    /**
      * Same-message local echo: Room already holds a human-readable body for this message id
      * (plaintext TEXT after local send). Prefer that over WS ciphertext so emitMessageSent
      * plaintext is not overwritten.

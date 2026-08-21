@@ -388,8 +388,13 @@ class SenderKeyRetryManager(
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (error: NoRecipientDevicesException) {
-            // 无其它设备可 fan-out 时：本地已 mint，单设备覆盖视为完成
-            return epoch
+            // 9.3xx：群内还有其他成员、但他们的设备会话尚未建立时，绝不能把本 epoch 视为
+            // "覆盖完成"——否则这些成员永远拿不到 Sender Key（用户侧表现为"缺少 senderKey"、
+            // 群消息永远解密失败）。只有真正没有任何外部收件人（单人/仅自己设备）时才允许
+            // 本地-only 覆盖完成；其余情况抛出并按退避重试（外层 catch 记失败）。
+            val hasOtherRecipients = recipientIds.any { it.isNotBlank() && it != expectedOwnerUserId }
+            if (!hasOtherRecipients) return epoch
+            throw error
         }
         if (distribution.targets.isEmpty()) {
             // 本地 mint 成功且无 peer/其它设备目标：本地-only 覆盖

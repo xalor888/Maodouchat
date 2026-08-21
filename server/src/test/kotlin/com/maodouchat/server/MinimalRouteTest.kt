@@ -68,6 +68,25 @@ import kotlin.test.assertTrue
 private fun freshDbUrl(): String =
     "jdbc:h2:mem:test-${kotlin.random.Random.nextInt(1_000_000)}-${AtomicInteger().incrementAndGet()};DB_CLOSE_DELAY=-1"
 
+/**
+ * 9.3xx：群邀请同意流程——测试辅助：以 token 用户身份接受全部待处理群邀请。
+ * 建群后参与者不再自动入群，必须先本人接受邀请。
+ */
+private suspend fun io.ktor.server.testing.ApplicationTestBuilder.acceptAllGroupInvites(token: String) {
+    val list = client.get("/api/group-invitations") {
+        header(HttpHeaders.Authorization, "Bearer $token")
+    }
+    val invites = runCatching {
+        Json.parseToJsonElement(list.bodyAsText()) as kotlinx.serialization.json.JsonArray
+    }.getOrNull() ?: return
+    invites.forEach { element ->
+        val id = (element as? JsonObject)?.get("id")?.jsonPrimitive?.content ?: return@forEach
+        client.post("/api/group-invitations/$id/accept") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+    }
+}
+
 private fun Application.moduleUnderTest(seedDemoUsers: Boolean = false, aiGateway: AiGateway = FakeAiGateway()) {
     System.setProperty("DATABASE_URL", freshDbUrl())
     System.setProperty("DATABASE_DRIVER", "org.h2.Driver")
@@ -519,6 +538,10 @@ class GroupMeshSignalingRouteTest {
             setBody("""{"participantIds":["u2","u3"],"isGroup":true,"groupName":"Mesh Test"}""")
         }
         val groupId = (Json.parseToJsonElement(created.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        // 9.3xx：参与者先接受群邀请才成为正式成员
+        acceptAllGroupInvites(owner)
+        acceptAllGroupInvites(alice)
+        acceptAllGroupInvites(login("bob@example.com"))
 
         suspend fun send(memberIds: String, groupInvite: Boolean = true): HttpResponse =
             client.post("/api/signaling/send") {
@@ -770,6 +793,9 @@ class PerUserUnreadRouteTest {
         }
         assertEquals(HttpStatusCode.Created, groupResponse.status, groupResponse.bodyAsText())
         val chatId = (Json.parseToJsonElement(groupResponse.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        // 9.3xx：参与者先接受群邀请才成为正式成员
+        acceptAllGroupInvites(aliceToken)
+        acceptAllGroupInvites(bobToken)
 
         val sent = client.post("/api/chats/$chatId/messages") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
@@ -889,6 +915,8 @@ class GroupInviteAndAvatarRouteTest {
             setBody("""{"participantIds":["u2"],"isGroup":true,"groupName":"Invite Guard"}""")
         }
         val chatId = (Json.parseToJsonElement(created.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        // 9.3xx：参与者先接受群邀请才成为正式成员
+        acceptAllGroupInvites(member)
 
         val invite = client.post("/api/chats/$chatId/invite-token") {
             header(HttpHeaders.Authorization, "Bearer $owner")
@@ -964,6 +992,9 @@ class GroupOwnershipRouteTest {
         }
         assertEquals(HttpStatusCode.Created, group.status)
         val chatId = (Json.parseToJsonElement(group.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        // 9.3xx：参与者先接受群邀请才成为正式成员
+        acceptAllGroupInvites(targetToken)
+        acceptAllGroupInvites(memberToken)
 
         val memberRename = client.put("/api/chats/$chatId/name") {
             header(HttpHeaders.Authorization, "Bearer $memberToken")
@@ -1114,6 +1145,9 @@ class GroupMemberConcurrencyRouteTest {
             setBody("""{"participantIds":["u2","u3"],"isGroup":true,"groupName":"Concurrent"}""")
         }
         val chatId = Json.parseToJsonElement(group.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        // 9.3xx：参与者先接受群邀请才成为正式成员
+        acceptAllGroupInvites(adminToken)
+        acceptAllGroupInvites(login("bob@example.com"))
         assertEquals(HttpStatusCode.OK, client.put("/api/chats/$chatId/members/u2/role") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
             contentType(ContentType.Application.Json)
@@ -1181,6 +1215,8 @@ class GroupProfilePermissionRouteTest {
             setBody("""{"participantIds":["u2"],"isGroup":true,"groupName":"Original"}""")
         }
         val chatId = Json.parseToJsonElement(created.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        // 9.3xx：参与者先接受群邀请才成为正式成员
+        acceptAllGroupInvites(member)
         assertEquals(HttpStatusCode.OK, client.put("/api/chats/$chatId/members/u2/role") {
             header(HttpHeaders.Authorization, "Bearer $owner")
             contentType(ContentType.Application.Json)
@@ -1647,6 +1683,13 @@ class NewFeaturesRouteTest {
         }
         assertEquals(HttpStatusCode.Created, groupResp.status)
         val chatId = (Json.parseToJsonElement(groupResp.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        // 9.3xx：参与者先接受群邀请才成为正式成员
+        acceptAllGroupInvites(extractToken(
+            client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"alice@example.com","password":"password123"}""")
+            }.bodyAsText()
+        ))
         
         // 3. Get Members
         val membersResp = client.get("/api/chats/$chatId/members") {
@@ -1922,6 +1965,37 @@ class NewFeaturesRouteTest {
     }
 }
 
+class WsHeartbeatRouteTest {
+    @Test
+    fun `app level ping is answered with pong`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+        val login = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"alex@example.com","password":"password123"}""")
+        }
+        val token = extractToken(login.bodyAsText())
+        val websocketClient = createClient { install(WebSockets) }
+        websocketClient.webSocket(
+            request = {
+                url("/ws")
+                header(HttpHeaders.Authorization, "Bearer $token")
+            }
+        ) {
+            send(Frame.Text("""{"type":"PING","payload":"1787000000000"}"""))
+            val text = withTimeout(5_000L) {
+                while (true) {
+                    val frame = incoming.receive()
+                    if (frame is Frame.Text) return@withTimeout frame.readText()
+                }
+                error("unreachable")
+            }
+            val outer = Json.parseToJsonElement(text).jsonObject
+            assertEquals("PONG", outer["type"]?.jsonPrimitive?.content)
+            assertEquals("1787000000000", outer["payload"]?.jsonPrimitive?.content)
+        }
+    }
+}
+
 class MessageEditRealtimeRouteTest {
     @Test
     fun `edited event includes chat id for client isolation`() = testApplication {
@@ -2095,6 +2169,8 @@ class SenderKeyDistributionRouteTest {
         }
         assertEquals(HttpStatusCode.Created, created.status, created.bodyAsText())
         val chatId = (Json.parseToJsonElement(created.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        // 9.3xx：参与者先接受群邀请才成为正式成员
+        acceptAllGroupInvites(aliceToken)
 
         SignalKeyRepository().apply {
             fun uploadBundle(
@@ -2620,6 +2696,21 @@ class GroupPlayRoutesTest {
         }
         assertEquals(HttpStatusCode.Created, chat.status, chat.bodyAsText())
         val chatId = Json.parseToJsonElement(chat.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        // 9.3xx：参与者先接受群邀请才成为正式成员
+        val aliceInviteToken = extractToken(
+            client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"alice@example.com","password":"password123"}""")
+            }.bodyAsText()
+        )
+        val bobInviteToken = extractToken(
+            client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"bob@example.com","password":"password123"}""")
+            }.bodyAsText()
+        )
+        acceptAllGroupInvites(aliceInviteToken)
+        acceptAllGroupInvites(bobInviteToken)
 
         // 群签到
         val checkin = client.post("/api/chats/$chatId/checkins") {

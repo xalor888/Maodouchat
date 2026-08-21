@@ -158,6 +158,29 @@ data class FriendRequestDto(
     val updatedAt: Long = 0
 )
 
+/** 9.3xx：群邀请同意流程 DTO（与服务端 GroupInvitationDto 对齐）。 */
+@Serializable
+data class GroupInvitationDto(
+    val id: String,
+    val chatId: String,
+    val userId: String,
+    val inviterId: String = "",
+    val inviterName: String = "",
+    val chatName: String = "",
+    val chatAvatar: String? = null,
+    val chatType: String = "GROUP",
+    val memberCount: Int = 0,
+    val status: String = "PENDING",
+    val createdAt: Long = 0,
+    val updatedAt: Long = 0
+)
+
+@Serializable
+data class GroupInviteAcceptResponse(
+    val status: String = "",
+    val chatId: String = ""
+)
+
 @Serializable
 data class ChatFolderDto(
     val id: String,

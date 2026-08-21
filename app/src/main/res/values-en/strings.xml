@@ -300,6 +300,14 @@
     <string name="error_operation_failed">Operation failed</string>
 
     <string name="contacts_add_friend">Add</string>
+    <!-- 9.3xx: group invite consent -->
+    <string name="contacts_group_invites_title">Group invitations</string>
+    <string name="contacts_group_invite_accept">Accept</string>
+    <string name="contacts_group_invite_decline">Decline</string>
+    <string name="contacts_group_invite_accepted">Joined the group</string>
+    <string name="contacts_group_invite_declined">Invitation declined</string>
+    <string name="contacts_group_invite_row_subtitle">%1$s invited you (%2$d members)</string>
+    <string name="contacts_group_unnamed">Unnamed group</string>
     <string name="contacts_friend_requests_incoming">Friend requests</string>
     <string name="contacts_friend_requests_outgoing">Sent requests</string>
     <string name="contacts_friend_request_sent">Friend request sent</string>
@@ -2917,4 +2925,19 @@
     <string name="theme_preset_amoled">Amoled</string>
     <string name="theme_preset_dark_violet">Dark Violet</string>
     <string name="theme_preset_dark_forest">Dark Forest</string>
+    <!-- 9.3xx: push keep-alive (Ideaura-style: foreground / media player / fake call) -->
+    <string name="push_keepalive_title">Background push keep-alive</string>
+    <string name="push_keepalive_subtitle">Keep push alive in background (experimental)</string>
+    <string name="push_keepalive_channel_name">Background push service</string>
+    <string name="push_keepalive_channel_desc">Keep connection to receive new messages</string>
+    <string name="push_keepalive_notification_title">Push service running</string>
+    <string name="push_keepalive_notification_text">Keeping connection to receive new messages</string>
+    <string name="push_keepalive_mode_off">Off (default)</string>
+    <string name="push_keepalive_mode_foreground">Foreground keep-alive</string>
+    <string name="push_keepalive_mode_foreground_desc">Foreground service + ongoing notification + auto reconnect on network change</string>
+    <string name="push_keepalive_mode_media">Music player mode</string>
+    <string name="push_keepalive_mode_media_desc">Active media playback state (silent loop), higher system exemption</string>
+    <string name="push_keepalive_mode_call">Call mode (strongest)</string>
+    <string name="push_keepalive_mode_call_desc">Hold a silent call, giving the process call-level priority</string>
+    <string name="push_keepalive_warning">Note: keep-alive keeps a persistent notification; call mode holds a silent call (call-level priority) and yields during real calls, but may briefly affect system audio mode. Some systems/stores may restrict this behavior.</string>
 </resources>

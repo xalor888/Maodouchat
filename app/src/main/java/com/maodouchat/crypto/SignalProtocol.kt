@@ -125,11 +125,16 @@ class SignalProtocol(
             // 残留时，上传会让所有与该用户建会话的对端永远报「密钥包无效」（签名验证失败）。
             // 实测案例：服务端 bundle 的 signedPreKey 签名对不上 identityKey，导致发图/发消息全挂
             signedPreKey?.let { spk ->
-                val signatureValid = runCatching {
-                    Curve.verifySignature(identityKeyPair.publicKey.publicKey, spk.serialize(), spk.signature)
-                }.getOrDefault(false)
-                if (!signatureValid) {
-                    Log.w(TAG, "Signal init: signed pre-key signature does not match current identity; regenerating to avoid publishing invalid bundle")
+                // 9.312：签名对象是 SPK 公钥字节（与 generateAndStoreSignedPreKey / 服务端验签一致），
+                // 此前误用 spk.serialize()（整条 SignedPreKeyRecord protobuf）→ 每次冷启动验签必失败
+                // → 强制重生 SPK 并上传 → 对端 SessionBuilder 验签失败、消息全是未解密。
+                val signatureValid = signedPreKeySignatureMatchesIdentity(spk)
+                val idValid = SignalPreKeyIdPolicy.isValid(spk.id)
+                if (!signatureValid || !idValid) {
+                    Log.w(
+                        TAG,
+                        "Signal init: signed pre-key unusable (signatureValid=$signatureValid idValid=$idValid id=${spk.id}); regenerating"
+                    )
                     signedPreKey = null
                 }
             }
@@ -140,7 +145,7 @@ class SignalProtocol(
             // 9.301：历史版本可能已铸造 id > 16_777_215 的 PreKey（服务端拒收整批上传），
             // 残留 store 里会让每次 init 上传永远被拒——加载后先剔除超范围条目
             preKeys = (protocolStore as? PersistentSignalProtocolStore)?.remainingPreKeys().orEmpty()
-            val outOfRange = preKeys.filter { it.id !in 1..MAX_PRE_KEY_ID }
+            val outOfRange = preKeys.filter { it.id !in 1..SignalPreKeyIdPolicy.MAX_ID }
             if (outOfRange.isNotEmpty()) {
                 Log.w(TAG, "Signal init: dropping ${outOfRange.size} pre-keys with out-of-range ids")
                 cryptoLock.withLock {
@@ -220,8 +225,18 @@ class SignalProtocol(
         (protocolStore as? PersistentSignalProtocolStore)?.putSignedPreKey(key) ?: protocolStore.storeSignedPreKey(key.id, key)
     }
 
+    private fun signedPreKeySignatureMatchesIdentity(spk: SignedPreKeyRecord): Boolean {
+        return runCatching {
+            Curve.verifySignature(
+                identityKeyPair.publicKey.publicKey,
+                spk.keyPair.publicKey.serialize(),
+                spk.signature
+            )
+        }.getOrDefault(false)
+    }
+
     private fun generateAndStoreSignedPreKey() {
-        val signedPreKeyId = secureRandom.nextInt(Int.MAX_VALUE)
+        val signedPreKeyId = SignalPreKeyIdPolicy.randomSignedPreKeyId(secureRandom::nextInt)
         val spkKeyPair = Curve.generateKeyPair()
         val spkSignature = Curve.calculateSignature(identityKeyPair.privateKey, spkKeyPair.publicKey.serialize())
         val spk = SignedPreKeyRecord(signedPreKeyId, System.currentTimeMillis(), spkKeyPair, spkSignature)
@@ -250,11 +265,7 @@ class SignalProtocol(
         // 随机 startId 可能撞上已上传服务端、尚未被对端消费的 PreKey id，覆盖后对端
         // 按旧 id 发来的 PreKeySignalMessage 永久无法解密
         val maxExistingId = (protocolStore as? PersistentSignalProtocolStore)?.remainingPreKeys()?.maxOfOrNull { it.id } ?: 0
-        // 9.301：服务端校验 PreKey ID 必须 1..16_777_215（Signal 协议上限），此前起点取
-        // Int.MAX_VALUE 区间随机值，约 99% 的批次 id 超范围 → 上传被拒「密钥包无效」→
-        // Signal init 失败 → 所有 E2EE 收发全挂。起点必须钳制在合法区间内。
-        val startId = secureRandom.nextInt((MAX_PRE_KEY_ID - deficit).coerceAtLeast(1) - maxExistingId.coerceAtMost((MAX_PRE_KEY_ID - deficit).coerceAtLeast(1)) + 1)
-            .let { (maxExistingId + 1 + it).coerceAtMost(MAX_PRE_KEY_ID - deficit + 1).coerceAtLeast(1) }
+        val startId = SignalPreKeyIdPolicy.nextBatchStartId(maxExistingId, deficit, secureRandom::nextInt)
         val generated = (0 until deficit).map { offset ->
             PreKeyRecord(startId + offset, Curve.generateKeyPair())
         }
@@ -284,14 +295,10 @@ class SignalProtocol(
             // BUG 3 fix: 持 cryptoLock 保护 preKeys map 的读写，防止与 decrypt 路径的 removePreKey 竞态
             val (newPreKeys, maxExistingId) = cryptoLock.withLock {
                 // 9.301：同样先剔除超范围残留（见 init 路径同名注释），否则 maxId 被脏值抬高且整批上传被拒
-                val outOfRange = (protocolStore as? PersistentSignalProtocolStore)?.remainingPreKeys().orEmpty().filter { it.id !in 1..MAX_PRE_KEY_ID }
+                val outOfRange = (protocolStore as? PersistentSignalProtocolStore)?.remainingPreKeys().orEmpty().filter { it.id !in 1..SignalPreKeyIdPolicy.MAX_ID }
                 outOfRange.forEach { protocolStore.removePreKey(it.id) }
                 val maxId = (protocolStore as? PersistentSignalProtocolStore)?.remainingPreKeys()?.maxOfOrNull { it.id } ?: 0
-                // 9.301：起点钳制在 1..MAX_PRE_KEY_ID-PRE_KEY_COUNT，避免 id 超服务端
-                // 1..16_777_215 合法区间导致整批上传被拒
-                val maxStart = (MAX_PRE_KEY_ID - PRE_KEY_COUNT).coerceAtLeast(maxId + 1)
-                val startId = (maxId + 1).coerceAtLeast(maxId + 1 + secureRandom.nextInt((maxStart - maxId).coerceAtLeast(1)))
-                    .coerceAtMost(maxStart)
+                val startId = SignalPreKeyIdPolicy.nextBatchStartId(maxId, PRE_KEY_COUNT, secureRandom::nextInt)
                 val generated = (0 until PRE_KEY_COUNT).map { offset ->
                     PreKeyRecord(startId + offset, Curve.generateKeyPair())
                 }
@@ -1380,8 +1387,6 @@ class SignalProtocol(
         const val MAX_DEVICE_ID = 255
         const val MAX_DEVICE_ID_ALLOCATION_ATTEMPTS = 4
         const val PRE_KEY_COUNT = 50
-        /** 9.301：PreKey ID 合法上限（Signal 协议 24bit；服务端 isValid() 同步校验 1..16_777_215） */
-        const val MAX_PRE_KEY_ID = 16_777_215
         /** PreKey 数量低于此阈值时触发运行时补充 */
         const val PRE_KEY_REPLENISH_THRESHOLD = 10
         /** Signed PreKey 轮换周期（天） */

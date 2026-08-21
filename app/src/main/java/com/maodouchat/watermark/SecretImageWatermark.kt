@@ -3,7 +3,6 @@ package com.maodouchat.watermark
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
-import kotlin.math.roundToInt
 
 /**
  * 频域盲水印的 Android Bitmap 适配层。
@@ -17,7 +16,8 @@ import kotlin.math.roundToInt
  */
 object SecretImageWatermark {
 
-    /** 对 [src] 嵌入 6 字节载荷，返回新的 ARGB_8888 Bitmap；原图不变。 */
+    /** 对 [src] 嵌入 6 字节载荷，返回新的 ARGB_8888 Bitmap；原图不变。
+     *  9.4xx：算法切换为参考仓库 blind_watermark 的 DWT+SVD 频域盲水印（ReferenceBlindWatermark）。 */
     fun embed(src: Bitmap, payload: ByteArray): Bitmap {
         require(payload.size == FrequencyWatermark.PAYLOAD_BYTES) {
             "payload must be ${FrequencyWatermark.PAYLOAD_BYTES} bytes"
@@ -27,48 +27,23 @@ object SecretImageWatermark {
         val bmp = toMutableArgb(src)
         val pixels = IntArray(w * h)
         bmp.getPixels(pixels, 0, w, 0, 0, w, h)
-
-        val luma = FloatArray(w * h)
-        for (i in pixels.indices) {
-            val p = pixels[i]
-            val r = (p shr 16) and 0xFF
-            val g = (p shr 8) and 0xFF
-            val b = p and 0xFF
-            luma[i] = 0.299f * r + 0.587f * g + 0.114f * b
-        }
-        val outLuma = FrequencyWatermark.embed(luma, w, h, payload)
-
-        for (i in pixels.indices) {
-            val p = pixels[i]
-            val r = (p shr 16) and 0xFF
-            val g = (p shr 8) and 0xFF
-            val b = p and 0xFF
-            val yOld = 0.299f * r + 0.587f * g + 0.114f * b
-            val delta = outLuma[i] - yOld
-            val nr = (r + delta).roundToInt().coerceIn(0, 255)
-            val ng = (g + delta).roundToInt().coerceIn(0, 255)
-            val nb = (b + delta).roundToInt().coerceIn(0, 255)
-            pixels[i] = (p and 0xFF000000.toInt()) or (nr shl 16) or (ng shl 8) or nb
-        }
-        bmp.setPixels(pixels, 0, w, 0, 0, w, h)
+        val out = ReferenceBlindWatermark.embedPixels(pixels, w, h, payload)
+        bmp.setPixels(out, 0, w, 0, 0, w, h)
         return bmp
     }
 
     /** 从 [src] 提取载荷；无水印或图像过小返回 null。 */
     fun extract(src: Bitmap): ByteArray? {
-        val w = src.width
-        val h = src.height
+        // 9.4xx：HARDWARE 位图 getPixels 会抛 IllegalStateException——先统一转为软件位图
+        val soft = toMutableArgb(src)
+        val w = soft.width
+        val h = soft.height
         val pixels = IntArray(w * h)
-        src.getPixels(pixels, 0, w, 0, 0, w, h)
-        val luma = FloatArray(w * h)
-        for (i in pixels.indices) {
-            val p = pixels[i]
-            val r = (p shr 16) and 0xFF
-            val g = (p shr 8) and 0xFF
-            val b = p and 0xFF
-            luma[i] = 0.299f * r + 0.587f * g + 0.114f * b
-        }
-        return FrequencyWatermark.extract(luma, w, h)
+        soft.getPixels(pixels, 0, w, 0, 0, w, h)
+        return ReferenceBlindWatermark.extractPayload(
+            pixels, w, h,
+            payloadBitCount = FrequencyWatermark.PAYLOAD_BYTES * 8
+        )
     }
 
     fun extractHex(src: Bitmap): String? =

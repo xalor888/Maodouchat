@@ -872,12 +872,15 @@ private fun decodeQrFromImage(context: android.content.Context, uri: Uri): Strin
         }
     } else {
         val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, options) }
+        val boundsStream = context.contentResolver.openInputStream(uri) ?: return@runCatching null
+        boundsStream.use { android.graphics.BitmapFactory.decodeStream(it, null, options) }
+        if (options.outWidth <= 0 || options.outHeight <= 0) return@runCatching null
         val maxSide = 1600
         var sample = 1
         while (options.outWidth / sample > maxSide || options.outHeight / sample > maxSide) sample *= 2
         val realOptions = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
-        context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, realOptions) }
+        val decodeStream = context.contentResolver.openInputStream(uri) ?: return@runCatching null
+        decodeStream.use { android.graphics.BitmapFactory.decodeStream(it, null, realOptions) }
             ?: return@runCatching null
     }
     val w = bitmap.width

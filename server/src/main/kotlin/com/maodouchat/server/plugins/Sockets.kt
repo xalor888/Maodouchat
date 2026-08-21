@@ -414,6 +414,13 @@ private suspend fun WebSocketSession.handleWsMessage(
     wsSignalingRateLimiter: BoundedRateLimiter
 ) {
     when (wsMsg.type) {
+        // 9.3xx（Ideaura 式应用层心跳）：客户端每 20s 发 PING，服务端回 PONG。
+        // 协议层 WebSocket ping 经部分 NAT/代理会被吞掉，应用层心跳让客户端能确定性
+        // 检测死连接并快速重连（保证推送不静默中断）。PONG 负载回显客户端时间戳。
+        "PING" -> {
+            val payload = runCatching { wsMsg.payload }.getOrDefault("")
+            sendSafe(this, json.encodeToString(WsMessage("PONG", payload)))
+        }
         "SEND_MESSAGE" -> {
             if (RuntimeConfigService.isMaintenanceMode()) {
                 sendError(
@@ -424,12 +431,16 @@ private suspend fun WebSocketSession.handleWsMessage(
                 return
             }
 
-            // 频率限制：每用户每分钟最多 60 条消息，防止 DoS 和推送风暴
-            if (!wsMessageRateLimiter.acquire(senderId, maxPerMinute = RuntimeConfigService.maxMessagePerMinute())) {
+            // 频率限制：每用户每分钟最多 N 条消息，防止 DoS 和推送风暴。
+            // 9.3xx：幂等重发（断线重连/outbox flush 以相同 messageId 重发）不得消耗配额——
+            // 此前 limiter 在去重之前，一次重连把积压消息整批重发会瞬间烧光 60/分/用户桶，
+            // 用户一条消息没发也报“消息发送过于频繁”。
+            val payload = json.decodeFromString<SendMessagePayload>(wsMsg.payload)
+            val isIdempotentRetry = payload.id != null && messageRepo.getMessageById(payload.id) != null
+            if (!isIdempotentRetry && !wsMessageRateLimiter.acquire(senderId, maxPerMinute = RuntimeConfigService.maxMessagePerMinute())) {
                 sendError("消息发送过于频繁，请稍后再试", json)
                 return
             }
-            val payload = json.decodeFromString<SendMessagePayload>(wsMsg.payload)
             val restriction = userRepo.getMessageRestrictionUntil(senderId).takeIf { it > 0L }
                 ?: userRepo.getSuspendedUntil(senderId).takeIf { it > 0L }
             if (restriction != null) {
@@ -614,8 +625,10 @@ private suspend fun WebSocketSession.handleWsMessage(
                 return
             }
             val isGroup = chatRepo.getChatById(payload.chatId)?.isGroup == true
-            if (isGroup && chatRepo.isMuted(payload.chatId, senderId)) {
-                sendError("你已被禁言，暂时无法拍一拍", json)
+            // 9.3xx：拍一拍仅限单聊——群聊/频道拍一拍会把「你拍了拍XX」广播给全体成员，属于打扰性
+            // 产品缺陷（用户反馈）；群聊一律拒绝，客户端入口同步移除。
+            if (isGroup) {
+                sendError("群聊不支持拍一拍", json)
                 return
             }
             if (!isGroup) {

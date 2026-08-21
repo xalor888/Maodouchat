@@ -44,9 +44,11 @@ object AppNotifier {
     fun ensureChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        // 8.48：用户可选系统通知铃声（RingtoneManager picker）；空 = 渠道默认声音
+        // 8.48：用户可选系统通知铃声（RingtoneManager picker）；未选时使用内置消息提示音
+        // （9.3xx：此前未选时依赖系统默认铃声，部分厂商渠道建好后无声——现在显式设置内置音效）
         val ringtoneUri = com.maodouchat.notification.NotificationPreferences.ringtoneUri(context)
             ?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() }
+            ?: android.net.Uri.parse("android.resource://${context.packageName}/${R.raw.notify_message}")
         // 0.72：群聊独立铃声（回退单聊铃声）
         val groupRingtoneUri = com.maodouchat.notification.NotificationPreferences.groupRingtoneUri(context)
             ?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() }

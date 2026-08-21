@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- 9.3xx：亮色启动主题——显式 windowBackground，冷启动首帧与 Compose 背景同色，杜绝闪白/闪错色 -->
     <style name="Theme.Maodouchat" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/splash_light</item>
         <!-- windowLightStatusBar 由 Compose 主题代码动态设置（跟随 darkTheme） -->
     </style>
+    <color name="splash_light">#FFFFFF</color>
 </resources>

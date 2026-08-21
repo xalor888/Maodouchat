@@ -12,7 +12,7 @@
   var page = { users: 0, chats: 0, posts: 0, comments: 0, reports: 0, audit: 0, 'risk-events': 0, 'ai-usage': 0, 'push-tokens': 0 };
   var pageSize = 25;
   var searchQuery = {};
-  var filterStatus = {};
+  var filter状态 = {};
   var dashboardData = null;
   var systemStatsData = null;
 
@@ -142,7 +142,7 @@
   // ─── Toast ──────────────────────────
   function toast(msg, type) {
     var t = el('toast');
-    t.className = 'toast' + (type ? ' toast-' + type : '');
+    t.class名称 = 'toast' + (type ? ' toast-' + type : '');
     t.querySelector('.toast-text').textContent = msg;
     t.classList.remove('hidden');
     clearTimeout(toast._timer);
@@ -187,20 +187,30 @@
     e.preventDefault();
     el('login-error').textContent = '';
     var btn = e.target.querySelector('button[type="submit"]');
+    var btnLabel = el('login-btn-label');
     btn.disabled = true;
-    btn.textContent = '验证中…';
+    btnLabel.textContent = '验证中…';
     try {
       var password = el('password').value;
+      var totpCode = el('totp-code').value.trim();
       var r = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: el('email').value, password: password })
+        body: JSON.stringify({ email: el('email').value, password: password, totpCode: totpCode })
       });
       // 8.47 修复：与 api() 一致先取文本再容错解析——网关 502/HTML 时 r.json() 抛
       // SyntaxError，错误信息对管理员是乱码
       var rtext = await r.text();
       var d = null;
       if (rtext) { try { d = JSON.parse(rtext); } catch (e) { d = null; } }
+      // 9.3xx：TOTP 二次验证——开启 2FA 的主管理员此前永远登不上（后台不处理 requiresTotp）
+      if (r.ok && d && d.requiresTotp) {
+        el('totp-field').classList.remove('hidden');
+        el('totp-code').focus();
+        btnLabel.textContent = '验证并登录';
+        el('login-error').textContent = '';
+        return;
+      }
       if (!r.ok || !d || !d.token) throw new Error((d && d.error) || ('请求失败 ' + r.status));
 
       var sr = await fetch('/api/admin/session', {
@@ -219,16 +229,18 @@
       el('login').classList.add('hidden');
       el('app').classList.remove('hidden');
       el('password').value = '';
+      el('totp-code').value = '';
       password = '';
       await loadTab();
       loadNavBadges();
     } catch (x) {
       token = '';
       el('password').value = '';
+      el('totp-code').value = '';
       el('login-error').textContent = x.message;
     } finally {
       btn.disabled = false;
-      btn.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 1a2 2 0 012 2v1h1a2 2 0 012 2v2a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2h1V3a2 2 0 012-2zM6 7v1h4V7H6zm0 3v1h4v-1H6z"/></svg>安全登录';
+      btnLabel.innerHTML = '安全登录';
     }
   });
 
@@ -365,7 +377,7 @@
   // ─── 搜索栏 ─────────────────────────
   function searchBar(kind, placeholder, extraFilters) {
     var sq = searchQuery[kind] || '';
-    var fs = filterStatus[kind] || '';
+    var fs = filter状态[kind] || '';
     var html = '<div class="toolbar">' +
       '<input class="search-input" id="search-' + kind + '" value="' + esc(sq) + '" placeholder="' + placeholder + '"/>';
     if (extraFilters) {
@@ -380,7 +392,7 @@
     var filter = el('filter-' + kind);
     function doSearch() {
       searchQuery[kind] = input.value.trim();
-      if (filter) filterStatus[kind] = filter.value;
+      if (filter) filter状态[kind] = filter.value;
       page[kind] = 0;
       loader();
     }
@@ -408,7 +420,7 @@
 
     var memPct = s.jvmMaxMemoryBytes > 0 ? Math.round(s.jvmUsedMemoryBytes / s.jvmMaxMemoryBytes * 100) : 0;
 
-    var statsHtml = '<div style="margin:0 0 12px 0"><button class="btn primary" data-action="admin-broadcast">Broadcast to online</button></div>' +
+    var statsHtml = '<div style="margin:0 0 12px 0"><button class="btn primary" data-action="admin-broadcast">广播给在线用户</button></div>' +
       '<div class="stats-grid">' +
       statCard('users', '总用户数', d.totalUsers, d.activeUsers24h + ' 人 24h 活跃', 'green') +
       statCard('posts', '动态总数', d.totalPosts, s.totalComments + ' 条评论', 'blue') +
@@ -526,7 +538,7 @@
   // ═════════════════════════════════════
   async function loadUsers(seq) {
     var q = searchQuery.users || '';
-    var st = filterStatus.users || '';
+    var st = filter状态.users || '';
     var offset = (page.users || 0) * pageSize;
     var url = '/api/admin/users?limit=' + pageSize + '&offset=' + offset;
     if (q) url += '&q=' + encodeURIComponent(q);
@@ -543,7 +555,7 @@
       '<div class="panel-header">' +
       '<h2>用户管理</h2>' +
       searchBar('users', '搜索用户名或邮箱…', filters) +
-      '<button class="btn btn-ghost btn-sm" id="users-export-btn">Export CSV</button>' +
+      '<button class="btn btn-ghost btn-sm" id="users-export-btn">导出 CSV</button>' +
       '</div>' +
       '<div class="panel-body"><div class="table-wrap"><table>' +
       '<thead><tr><th>用户</th><th>邮箱</th><th>状态</th><th>最近活跃</th><th>操作</th></tr></thead>' +
@@ -565,7 +577,7 @@
           actions += '<button class="btn btn-ghost btn-sm" data-detail="' + esc(u.id) + '">详情</button>';
           actions += '<button class="btn btn-ghost btn-sm" data-ban="' + esc(u.id) + '">封禁/解封</button>';
           actions += '<button class="btn btn-ghost btn-sm" data-post-restrict="' + esc(u.id) + '">禁动态</button>';
-          actions += '<button class="btn btn-ghost btn-sm" data-message-restrict="' + esc(u.id) + '">Msg ban</button>';
+          actions += '<button class="btn btn-ghost btn-sm" data-message-restrict="' + esc(u.id) + '">禁言</button>';
           actions += '<button class="btn btn-danger btn-sm" data-deactivate="' + esc(u.id) + '">停用</button>';
         }
 
@@ -584,7 +596,7 @@
     el('content').innerHTML = html;
     bindSearch('users', loadUsers);
     bindPager('users', rows.length, loadUsers);
-    bindUserActions();
+    bindUser操作();
     var ue = el('users-export-btn');
     if (ue) {
       ue.onclick = async function () {
@@ -607,7 +619,7 @@
     }
   }
 
-  function bindUserActions() {
+  function bindUser操作() {
     document.querySelectorAll('[data-detail]').forEach(function (b) {
       b.onclick = async function () {
         try { await showUserDetail(b.dataset.detail); }
@@ -887,14 +899,14 @@
       detailItem('推送令牌', d.pushTokenCount) +
       detailItem('相关举报', d.reportCount) +
       '</div></div>' +
-      '<div class="detail-section"><h4>Security ops</h4>' +
+      '<div class="detail-section"><h4>安全操作</h4>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
-      '<button class="btn btn-danger" data-ua="force-logout" data-user-id="' + esc(d.id) + '">Force logout</button>' +
+      '<button class="btn btn-danger" data-ua="force-logout" data-user-id="' + esc(d.id) + '">强制下线</button>' +
       '<button class="btn" data-ua="sessions" data-user-id="' + esc(d.id) + '">Sessions</button>' +
-      '<button class="btn btn-danger" data-ua="msg-restrict" data-user-id="' + esc(d.id) + '">Msg ban</button>' +
-      '<button class="btn" data-ua="grant-mod" data-user-id="' + esc(d.id) + '">Grant moderator</button>' +
-      '<button class="btn" data-ua="revoke-mod" data-user-id="' + esc(d.id) + '">Revoke moderator</button>' +
-      '<button class="btn" data-ua="disable-totp" data-user-id="' + esc(d.id) + '">Disable TOTP</button>' +
+      '<button class="btn btn-danger" data-ua="msg-restrict" data-user-id="' + esc(d.id) + '">禁言</button>' +
+      '<button class="btn" data-ua="grant-mod" data-user-id="' + esc(d.id) + '">授予审核员</button>' +
+      '<button class="btn" data-ua="revoke-mod" data-user-id="' + esc(d.id) + '">撤销审核员</button>' +
+      '<button class="btn" data-ua="disable-totp" data-user-id="' + esc(d.id) + '">关闭 TOTP</button>' +
       '</div></div>';
 
     // 8.48 修复：内联 onclick 的 esc() 对 JS 字符串上下文无效（&#39; 属性解析后还原为引号），
@@ -923,14 +935,14 @@
   async function loadMessageSearch(seq) {
     var n = el('page-title'); if (n) n.textContent = 'Message search';
     var q = (searchQuery.messages || '');
-    var html = '<div class="panel"><div class="panel-header"><h2>Message metadata search</h2></div><div class="panel-body">' +
+    var html = '<div class="panel"><div class="panel-header"><h2>消息元数据检索</h2></div><div class="panel-body">' +
       '<p style="color:var(--text-muted);font-size:13px">E2EE payloads are opaque. Search by message id, type, SYSTEM/NUDGE text, chatId, or senderId.</p>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">' +
       '<input id="msg-q" placeholder="query / id / type" value="' + esc(q) + '" style="flex:1;min-width:160px"/>' +
       '<input id="msg-chat" placeholder="chatId" style="width:180px"/>' +
       '<input id="msg-user" placeholder="senderId" style="width:180px"/>' +
       '<button class="btn btn-primary" id="msg-search-btn">Search</button></div>' +
-      '<div id="msg-results"><div class="empty-state"><p>Enter filters and search</p></div></div></div></div>';
+      '<div id="msg-results"><div class="empty-state"><p>输入筛选条件后搜索</p></div></div></div></div>';
     if (staleTab(seq)) return;
     el('content').innerHTML = html;
     async function run() {
@@ -947,7 +959,7 @@
         var data = await api(url);
         var items = data.items || [];
         var table = '<div class="table-wrap"><table><thead><tr><th>Time</th><th>Chat</th><th>Sender</th><th>Type</th><th>Preview</th><th>Flags</th></tr></thead><tbody>';
-        if (!items.length) table += '<tr><td colspan="6"><div class="empty-state"><p>No rows</p></div></td></tr>';
+        if (!items.length) table += '<tr><td colspan="6"><div class="empty-state"><p>暂无数据</p></div></td></tr>';
         items.forEach(function (m) {
           var flags = [];
           if (m.sealedSender) flags.push('sealed');
@@ -982,7 +994,7 @@ async function loadChats(seq) {
     var rows = await api(url);
 
     var html = '<div class="panel">' +
-      '<div class="panel-header"><h2>群聊管理</h2>' + searchBar('chats', '搜索群名称…') + '<button class="btn btn-ghost btn-sm" id="chats-export-btn">Export chats CSV</button>' +
+      '<div class="panel-header"><h2>群聊管理</h2>' + searchBar('chats', '搜索群名称…') + '<button class="btn btn-ghost btn-sm" id="chats-export-btn">导出群聊 CSV</button>' +
       '</div>' +
       '<div class="panel-body"><div class="table-wrap"><table>' +
       '<thead><tr><th>群名称</th><th>类型</th><th>成员数</th><th>最后活动</th><th>操作</th></tr></thead><tbody>';
@@ -993,7 +1005,7 @@ async function loadChats(seq) {
       rows.forEach(function (c) {
         var typeBadge = c.isGroup ? '<span class="badge badge-blue">群聊</span>' : '<span class="badge">单聊</span>';
         html += '<tr>' +
-          '<td><div class="cell-main">' + esc(c.groupName || '(未命名)') + '</div><div class="cell-id">' + esc(c.id) + '</div></td>' +
+          '<td><div class="cell-main">' + esc(c.group名称 || '(未命名)') + '</div><div class="cell-id">' + esc(c.id) + '</div></td>' +
           '<td>' + typeBadge + '</td>' +
           '<td>' + esc(c.memberCount) + ' 人</td>' +
           '<td>' + esc(c.lastActivity ? timeAgo(c.lastActivity) : '—') + '</td>' +
@@ -1047,7 +1059,7 @@ async function loadChats(seq) {
   // ═════════════════════════════════════
   async function loadPosts(seq) {
     var q = searchQuery.posts || '';
-    var st = filterStatus.posts || '';
+    var st = filter状态.posts || '';
     var offset = (page.posts || 0) * pageSize;
     var url = '/api/admin/posts?limit=' + pageSize + '&offset=' + offset;
     if (q) url += '&q=' + encodeURIComponent(q);
@@ -1071,7 +1083,7 @@ async function loadChats(seq) {
           p.status === 'HELD' ? '<span class="badge badge-orange">已暂扣</span>' :
             '<span class="badge badge-red">已删除</span>';
         html += '<tr>' +
-          '<td><div class="cell-main">' + esc(p.authorName) + '</div><div class="cell-id">' + esc(p.authorId) + '</div></td>' +
+          '<td><div class="cell-main">' + esc(p.author名称) + '</div><div class="cell-id">' + esc(p.authorId) + '</div></td>' +
           '<td style="max-width:300px">' + esc(p.content.slice(0, 200)) + (p.content.length > 200 ? '…' : '') + '</td>' +
           '<td>' + statusBadge + '</td>' +
           '<td>' + esc(date(p.createdAt)) + '</td>' +
@@ -1118,7 +1130,7 @@ async function loadChats(seq) {
     } else {
       rows.forEach(function (c) {
         html += '<tr>' +
-          '<td><div class="cell-main">' + esc(c.authorName) + '</div><div class="cell-id">' + esc(c.authorId) + '</div></td>' +
+          '<td><div class="cell-main">' + esc(c.author名称) + '</div><div class="cell-id">' + esc(c.authorId) + '</div></td>' +
           '<td style="max-width:300px">' + esc(c.content.slice(0, 200)) + (c.content.length > 200 ? '…' : '') + '</td>' +
           '<td><span class="cell-id">' + esc(c.postId) + '</span></td>' +
           '<td>' + esc(date(c.createdAt)) + '</td>' +
@@ -1149,7 +1161,7 @@ async function loadChats(seq) {
   // 举报审核
   // ═════════════════════════════════════
   async function loadReports(seq) {
-    var st = filterStatus.reports || '';
+    var st = filter状态.reports || '';
     var offset = (page.reports || 0) * pageSize;
     var url = '/api/admin/reports?limit=' + pageSize + '&offset=' + offset;
     if (st) url += '&status=' + st;
@@ -1201,7 +1213,7 @@ async function loadChats(seq) {
     el('content').innerHTML = html;
 
     var filterEl = el('filter-reports');
-    if (filterEl) filterEl.onchange = function () { filterStatus.reports = filterEl.value; page.reports = 0; loadReports(); };
+    if (filterEl) filterEl.onchange = function () { filter状态.reports = filterEl.value; page.reports = 0; loadReports(); };
     bindPager('reports', rows.length, loadReports);
 
     document.querySelectorAll('[data-report-action]').forEach(function (b) {
@@ -1388,7 +1400,7 @@ async function loadChats(seq) {
   // 风控事件
   // ═════════════════════════════════════
   async function loadRiskEvents(seq) {
-    var pendingOnly = filterStatus['risk-events'] === 'true';
+    var pendingOnly = filter状态['risk-events'] === 'true';
     var offset = (page['risk-events'] || 0) * pageSize;
     var url = '/api/admin/risk-events?limit=' + pageSize + '&offset=' + offset;
     if (pendingOnly) url += '&pending=true';
@@ -1427,7 +1439,7 @@ async function loadChats(seq) {
     el('content').innerHTML = html;
 
     var filterEl = el('filter-risk-events');
-    if (filterEl) filterEl.onchange = function () { filterStatus['risk-events'] = filterEl.value; page['risk-events'] = 0; loadRiskEvents(); };
+    if (filterEl) filterEl.onchange = function () { filter状态['risk-events'] = filterEl.value; page['risk-events'] = 0; loadRiskEvents(); };
     bindPager('risk-events', rows.length, loadRiskEvents);
 
     document.querySelectorAll('[data-risk-resolve]').forEach(function (b) {
@@ -1545,7 +1557,7 @@ async function loadChats(seq) {
   // ═════════════════════════════════════
   async function loadAudit(seq) {
     var offset = (page.audit || 0) * pageSize;
-    var actionF = filterStatus.audit || '';
+    var actionF = filter状态.audit || '';
     var q = searchQuery.audit || '';
     var url = '/api/admin/audit-logs?limit=' + pageSize + '&offset=' + offset;
     if (actionF) url += '&action=' + encodeURIComponent(actionF);
@@ -1623,7 +1635,7 @@ async function loadChats(seq) {
             '<td style="text-align:center;font-weight:600">' + medal + '</td>' +
             '<td><div class="user-cell">' +
               (e.avatar ? '<img class="avatar-sm" src="' + esc(e.avatar) + '"/>' : '<div class="avatar-sm avatar-placeholder"></div>') +
-              '<span>' + esc(e.userName) + '</span>' +
+              '<span>' + esc(e.user名称) + '</span>' +
             '</div></td>' +
             '<td><span class="cell-id">' + esc(e.userId) + '</span></td>' +
             '<td style="text-align:right;font-weight:600">' + (valueFmt ? valueFmt(e.value) : esc(e.value)) + '</td>' +
@@ -1758,7 +1770,7 @@ async function loadChats(seq) {
     el('modal-select-wrap').classList.add('hidden');
 
     var iconWrap = el('modal-icon-wrap');
-    iconWrap.className = 'modal-icon ' + (type || 'info');
+    iconWrap.class名称 = 'modal-icon ' + (type || 'info');
     var iconPaths = {
       warn: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1L1 14h14L8 1zm0 4v4H7V5h1zm0 6v1H7v-1h1z"/></svg>',
       danger: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"/></svg>',
@@ -1767,7 +1779,7 @@ async function loadChats(seq) {
     iconWrap.innerHTML = iconPaths[type] || iconPaths.info;
 
     el('modal-confirm').textContent = '确认';
-    el('modal-confirm').className = 'btn ' + (type === 'danger' ? 'btn-danger' : 'btn-primary');
+    el('modal-confirm').class名称 = 'btn ' + (type === 'danger' ? 'btn-danger' : 'btn-primary');
     el('modal-overlay').classList.remove('hidden');
   }
 
@@ -1782,10 +1794,10 @@ async function loadChats(seq) {
     input.placeholder = placeholder || '';
     el('modal-input-hint').textContent = '';
     el('modal-confirm').textContent = '确认';
-    el('modal-confirm').className = 'btn btn-primary';
+    el('modal-confirm').class名称 = 'btn btn-primary';
 
     var iconWrap = el('modal-icon-wrap');
-    iconWrap.className = 'modal-icon info';
+    iconWrap.class名称 = 'modal-icon info';
     iconWrap.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14 7 7 0 000-14zm0 4a1 1 0 110 2 1 1 0 010-2zm1 4v3H7V9h2z"/></svg>';
 
     el('modal-overlay').classList.remove('hidden');
@@ -1806,9 +1818,9 @@ async function loadChats(seq) {
         esc(opt.label) + '</option>';
     }).join('');
     el('modal-confirm').textContent = '下一步';
-    el('modal-confirm').className = 'btn btn-primary';
+    el('modal-confirm').class名称 = 'btn btn-primary';
     var iconWrap = el('modal-icon-wrap');
-    iconWrap.className = 'modal-icon warn';
+    iconWrap.class名称 = 'modal-icon warn';
     iconWrap.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14 7 7 0 000-14zm0 3a1 1 0 011 1v4a1 1 0 11-2 0V5a1 1 0 011-1zm0 8a1.25 1.25 0 110-2.5A1.25 1.25 0 018 12z"/></svg>';
     el('modal-overlay').classList.remove('hidden');
     setTimeout(function () { select.focus(); }, 100);
@@ -1905,7 +1917,7 @@ async function loadChats(seq) {
         '</strong> <code>' + esc(key) + '</code></div>' +
         '<input data-setting="' + esc(key) + '" value="' + esc(val) + '" style="width:100%;margin-top:4px"/></label>';
     }
-    var html = '<div class="panel"><div class="panel-header"><h2>Runtime settings</h2>' +
+    var html = '<div class="panel"><div class="panel-header"><h2>运行时设置</h2>' +
       '<button class="btn btn-primary" id="settings-save">Save</button></div><div class="panel-body">' +
       '<p style="color:var(--text-muted);font-size:13px">Overrides env defaults without restart. Cached ~5s on server.</p>' +
       row('maintenance_mode', 'Maintenance mode', 'bool') +
@@ -2053,7 +2065,7 @@ async function loadWatermark() {
       '<button class="btn btn-primary" id="wm-extract">\u63d0\u53d6\u6c34\u5370</button>' +
       '<button class="btn btn-ghost" id="wm-selftest">Self-test</button>' +
       '</div>' +
-      '<div id="wm-preview" class="muted">No image</div>' +
+      '<div id="wm-preview" class="muted">暂无图片</div>' +
       '<pre id="wm-result" class="code-block" style="margin-top:12px;white-space:pre-wrap"></pre>' +
       '</div>';
     var fileInput = el('wm-file');
@@ -2061,7 +2073,7 @@ async function loadWatermark() {
     var preview = el('wm-preview');
     fileInput.onchange = function () {
       var f = fileInput.files && fileInput.files[0];
-      preview.textContent = f ? (f.name + ' · ' + fmtBytes(f.size)) : 'No image';
+      preview.textContent = f ? (f.name + ' · ' + fmtBytes(f.size)) : '暂无图片';
     };
     el('wm-extract').onclick = async function () {
       var f = fileInput.files && fileInput.files[0];
@@ -2110,7 +2122,7 @@ async function loadWatermark() {
         el('content').innerHTML = '<div class="empty-state"><p>No bots yet. Developers can create via POST /api/bots</p></div>';
         return;
       }
-      var html = '<div class="card"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">All bots</h3><button class="btn btn-ghost btn-sm" id="runtime-export-btn">Export runtime JSON</button><button class="btn btn-ghost btn-sm" id="bots-export-btn" style="margin-left:8px">Export bots CSV</button><button class="btn btn-ghost btn-sm" id="polls-export-btn" style="margin-left:8px">Export polls CSV</button><button class="btn btn-ghost btn-sm" id="message-stats-export-btn" style="margin-left:8px">Msg stats CSV</button><button class="btn btn-ghost btn-sm" id="reports-export-btn" style="margin-left:8px">Reports CSV</button><button class="btn btn-ghost btn-sm" id="risk-export-btn" style="margin-left:8px">Risk CSV</button><button class="btn btn-ghost btn-sm" id="online-export-btn" style="margin-left:8px">Online CSV</button><button class="btn btn-ghost btn-sm" id="push-tokens-export-btn" style="margin-left:8px">Push tokens CSV</button><button class="btn btn-ghost btn-sm" id="ai-usage-export-btn" style="margin-left:8px">AI usage CSV</button><button class="btn btn-ghost btn-sm" id="sessions-summary-export-btn" style="margin-left:8px">Sessions summary CSV</button><button class="btn btn-ghost btn-sm" id="moderation-audit-export-btn" style="margin-left:8px">Audit CSV</button><button class="btn btn-ghost btn-sm" id="bot-command-stats-export-btn" style="margin-left:8px">Bot cmds CSV</button><button class="btn btn-ghost btn-sm" id="friends-export-btn" style="margin-left:8px">Friends CSV</button><button class="btn btn-ghost btn-sm" id="reports-meta-export-btn" style="margin-left:8px">Reports meta CSV</button><button class="btn btn-ghost btn-sm" id="blocks-export-btn" style="margin-left:8px">Blocks CSV</button><button class="btn btn-ghost btn-sm" id="chat-settings-export-btn" style="margin-left:8px">Chat settings CSV</button><button class="btn btn-ghost btn-sm" id="disappearing-chats-export-btn" style="margin-left:8px">Disappearing chats CSV</button><button class="btn btn-ghost btn-sm" id="muted-chats-export-btn" style="margin-left:8px">Muted chats CSV</button><button class="btn btn-ghost btn-sm" id="pinned-messages-export-btn" style="margin-left:8px">Pinned messages CSV</button><button class="btn btn-ghost btn-sm" id="poll-votes-export-btn" style="margin-left:8px">Poll votes CSV</button><button class="btn btn-ghost btn-sm" id="restricted-users-export-btn" style="margin-left:8px">Restricted users CSV</button><button class="btn btn-ghost btn-sm" id="group-invites-export-btn" style="margin-left:8px">Group invites CSV</button><button class="btn btn-ghost btn-sm" id="totp-users-export-btn" style="margin-left:8px">TOTP users CSV</button><button class="btn btn-ghost btn-sm" id="identity-users-export-btn" style="margin-left:8px">Identity users CSV</button><button class="btn btn-ghost btn-sm" id="privacy-flags-export-btn" style="margin-left:8px">Privacy flags CSV</button><button class="btn btn-ghost btn-sm" id="online-presence-export-btn" style="margin-left:8px">Online presence CSV</button><button class="btn btn-ghost btn-sm" id="ai-feature-flags-export-btn" style="margin-left:8px">AI feature flags CSV</button></div><table class="table"><thead><tr><th>Name</th><th>Username</th><th>Owner</th><th>Token prefix</th><th>Webhook</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+      var html = '<div class="card"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">全部机器人</h3><button class="btn btn-ghost btn-sm" id="runtime-export-btn">导出运行时 JSON</button><button class="btn btn-ghost btn-sm" id="bots-export-btn" style="margin-left:8px">导出机器人 CSV</button><button class="btn btn-ghost btn-sm" id="polls-export-btn" style="margin-left:8px">导出投票 CSV</button><button class="btn btn-ghost btn-sm" id="message-stats-export-btn" style="margin-left:8px">消息统计 CSV</button><button class="btn btn-ghost btn-sm" id="reports-export-btn" style="margin-left:8px">举报 CSV</button><button class="btn btn-ghost btn-sm" id="risk-export-btn" style="margin-left:8px">风控 CSV</button><button class="btn btn-ghost btn-sm" id="online-export-btn" style="margin-left:8px">在线 CSV</button><button class="btn btn-ghost btn-sm" id="push-tokens-export-btn" style="margin-left:8px">推送令牌 CSV</button><button class="btn btn-ghost btn-sm" id="ai-usage-export-btn" style="margin-left:8px">AI 用量 CSV</button><button class="btn btn-ghost btn-sm" id="sessions-summary-export-btn" style="margin-left:8px">会话汇总 CSV</button><button class="btn btn-ghost btn-sm" id="moderation-audit-export-btn" style="margin-left:8px">审计 CSV</button><button class="btn btn-ghost btn-sm" id="bot-command-stats-export-btn" style="margin-left:8px">Bot 指令 CSV</button><button class="btn btn-ghost btn-sm" id="friends-export-btn" style="margin-left:8px">好友 CSV</button><button class="btn btn-ghost btn-sm" id="reports-meta-export-btn" style="margin-left:8px">举报元数据 CSV</button><button class="btn btn-ghost btn-sm" id="blocks-export-btn" style="margin-left:8px">拉黑 CSV</button><button class="btn btn-ghost btn-sm" id="chat-settings-export-btn" style="margin-left:8px">会话设置 CSV</button><button class="btn btn-ghost btn-sm" id="disappearing-chats-export-btn" style="margin-left:8px">阅后即焚 CSV</button><button class="btn btn-ghost btn-sm" id="muted-chats-export-btn" style="margin-left:8px">免打扰 CSV</button><button class="btn btn-ghost btn-sm" id="pinned-messages-export-btn" style="margin-left:8px">置顶消息 CSV</button><button class="btn btn-ghost btn-sm" id="poll-votes-export-btn" style="margin-left:8px">投票明细 CSV</button><button class="btn btn-ghost btn-sm" id="restricted-users-export-btn" style="margin-left:8px">受限用户 CSV</button><button class="btn btn-ghost btn-sm" id="group-invites-export-btn" style="margin-left:8px">群邀请 CSV</button><button class="btn btn-ghost btn-sm" id="totp-users-export-btn" style="margin-left:8px">TOTP 用户 CSV</button><button class="btn btn-ghost btn-sm" id="identity-users-export-btn" style="margin-left:8px">身份密钥 CSV</button><button class="btn btn-ghost btn-sm" id="privacy-flags-export-btn" style="margin-left:8px">隐私开关 CSV</button><button class="btn btn-ghost btn-sm" id="online-presence-export-btn" style="margin-left:8px">在线状态 CSV</button><button class="btn btn-ghost btn-sm" id="ai-feature-flags-export-btn" style="margin-left:8px">AI 功能开关 CSV</button></div><table class="table"><thead><tr><th>名称</th><th>用户名</th><th>所有者</th><th>令牌前缀</th><th>Webhook</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>';
       list.forEach(function (b) {
         html += '<tr><td>' + esc(b.name) + '</td><td>@' + esc(b.username) + '</td><td class="mono">' + esc(b.ownerUserId) + '</td><td class="mono">' + esc(b.tokenPrefix) + '</td><td>' + esc(b.webhookUrl || '-') + '</td><td>' + (b.enabled ? 'on' : 'off') + '</td><td>' + date(b.createdAt) + '</td><td>' +
           '<button class="btn btn-ghost btn-sm" data-bot-enable="' + esc(b.id) + '" data-enabled="' + (b.enabled ? '0' : '1') + '">' + (b.enabled ? 'Disable' : 'Enable') + '</button> ' +
@@ -2153,29 +2165,29 @@ async function loadWatermark() {
       bindCsvExport('bots-export-btn', '/api/admin/bots-export?limit=2000', 'maodouchat-bots-', 'Bots CSV exported');
       bindCsvExport('polls-export-btn', '/api/admin/polls-export?limit=2000', 'maodouchat-polls-', 'Polls CSV exported');
       bindCsvExport('message-stats-export-btn', '/api/admin/message-stats-export', 'maodouchat-message-stats-', 'Message stats CSV exported');
-      bindCsvExport('reports-export-btn', '/api/admin/reports-export?limit=2000', 'maodouchat-reports-', 'Reports CSV exported');
+      bindCsvExport('reports-export-btn', '/api/admin/reports-export?limit=2000', 'maodouchat-reports-', '举报 CSV exported');
       bindCsvExport('risk-export-btn', '/api/admin/risk-events-export?limit=2000', 'maodouchat-risk-', 'Risk events CSV exported');
-      bindCsvExport('online-export-btn', '/api/admin/online-export', 'maodouchat-online-', 'Online CSV exported');
-      bindCsvExport('push-tokens-export-btn', '/api/admin/push-tokens-export?limit=5000', 'maodouchat-push-tokens-', 'Push tokens CSV exported');
-      bindCsvExport('ai-usage-export-btn', '/api/admin/ai-usage-export?limit=2000', 'maodouchat-ai-usage-', 'AI usage CSV exported');
-      bindCsvExport('sessions-summary-export-btn', '/api/admin/sessions-summary-export?limit=5000', 'maodouchat-sessions-', 'Sessions summary CSV exported');
-      bindCsvExport('moderation-audit-export-btn', '/api/admin/moderation-audit-export?limit=2000', 'maodouchat-audit-', 'Audit CSV exported');
+      bindCsvExport('online-export-btn', '/api/admin/online-export', 'maodouchat-online-', '在线 CSV exported');
+      bindCsvExport('push-tokens-export-btn', '/api/admin/push-tokens-export?limit=5000', 'maodouchat-push-tokens-', '推送令牌 CSV exported');
+      bindCsvExport('ai-usage-export-btn', '/api/admin/ai-usage-export?limit=2000', 'maodouchat-ai-usage-', 'AI 用量 CSV exported');
+      bindCsvExport('sessions-summary-export-btn', '/api/admin/sessions-summary-export?limit=5000', 'maodouchat-sessions-', '会话汇总 CSV exported');
+      bindCsvExport('moderation-audit-export-btn', '/api/admin/moderation-audit-export?limit=2000', 'maodouchat-audit-', '审计 CSV exported');
       bindCsvExport('bot-command-stats-export-btn', '/api/admin/bot-command-stats-export?limit=5000', 'maodouchat-bot-cmds-', 'Bot command stats CSV exported');
-      bindCsvExport('friends-export-btn', '/api/admin/friends-export?limit=5000', 'maodouchat-friends-', 'Friends CSV exported');
-      bindCsvExport('reports-meta-export-btn', '/api/admin/reports-meta-export?limit=5000', 'maodouchat-reports-meta-', 'Reports meta CSV exported');
-      bindCsvExport('blocks-export-btn', '/api/admin/blocks-export?limit=5000', 'maodouchat-blocks-', 'Blocks CSV exported');
-      bindCsvExport('chat-settings-export-btn', '/api/admin/chat-settings-export?limit=5000', 'maodouchat-chat-settings-', 'Chat settings CSV exported');
-      bindCsvExport('disappearing-chats-export-btn', '/api/admin/disappearing-chats-export?limit=5000', 'maodouchat-disappearing-chats-', 'Disappearing chats CSV exported');
-      bindCsvExport('muted-chats-export-btn', '/api/admin/muted-chats-export?limit=5000', 'maodouchat-muted-chats-', 'Muted chats CSV exported');
-      bindCsvExport('pinned-messages-export-btn', '/api/admin/pinned-messages-export?limit=5000', 'maodouchat-pinned-messages-', 'Pinned messages CSV exported');
-      bindCsvExport('poll-votes-export-btn', '/api/admin/poll-votes-export?limit=5000', 'maodouchat-poll-votes-', 'Poll votes CSV exported');
-      bindCsvExport('restricted-users-export-btn', '/api/admin/restricted-users-export?limit=5000', 'maodouchat-restricted-users-', 'Restricted users CSV exported');
-      bindCsvExport('group-invites-export-btn', '/api/admin/group-invites-export?limit=5000', 'maodouchat-group-invites-', 'Group invites CSV exported');
-      bindCsvExport('totp-users-export-btn', '/api/admin/totp-users-export?limit=5000', 'maodouchat-totp-users-', 'TOTP users CSV exported');
-      bindCsvExport('identity-users-export-btn', '/api/admin/identity-users-export?limit=5000', 'maodouchat-identity-users-', 'Identity users CSV exported');
-      bindCsvExport('privacy-flags-export-btn', '/api/admin/privacy-flags-export?limit=5000', 'maodouchat-privacy-flags-', 'Privacy flags CSV exported');
-      bindCsvExport('online-presence-export-btn', '/api/admin/online-presence-export?limit=5000', 'maodouchat-online-presence-', 'Online presence CSV exported');
-      bindCsvExport('ai-feature-flags-export-btn', '/api/admin/ai-feature-flags-export', 'maodouchat-ai-feature-flags-', 'AI feature flags CSV exported');
+      bindCsvExport('friends-export-btn', '/api/admin/friends-export?limit=5000', 'maodouchat-friends-', '好友 CSV exported');
+      bindCsvExport('reports-meta-export-btn', '/api/admin/reports-meta-export?limit=5000', 'maodouchat-reports-meta-', '举报元数据 CSV exported');
+      bindCsvExport('blocks-export-btn', '/api/admin/blocks-export?limit=5000', 'maodouchat-blocks-', '拉黑 CSV exported');
+      bindCsvExport('chat-settings-export-btn', '/api/admin/chat-settings-export?limit=5000', 'maodouchat-chat-settings-', '会话设置 CSV exported');
+      bindCsvExport('disappearing-chats-export-btn', '/api/admin/disappearing-chats-export?limit=5000', 'maodouchat-disappearing-chats-', '阅后即焚 CSV exported');
+      bindCsvExport('muted-chats-export-btn', '/api/admin/muted-chats-export?limit=5000', 'maodouchat-muted-chats-', '免打扰 CSV exported');
+      bindCsvExport('pinned-messages-export-btn', '/api/admin/pinned-messages-export?limit=5000', 'maodouchat-pinned-messages-', '置顶消息 CSV exported');
+      bindCsvExport('poll-votes-export-btn', '/api/admin/poll-votes-export?limit=5000', 'maodouchat-poll-votes-', '投票明细 CSV exported');
+      bindCsvExport('restricted-users-export-btn', '/api/admin/restricted-users-export?limit=5000', 'maodouchat-restricted-users-', '受限用户 CSV exported');
+      bindCsvExport('group-invites-export-btn', '/api/admin/group-invites-export?limit=5000', 'maodouchat-group-invites-', '群邀请 CSV exported');
+      bindCsvExport('totp-users-export-btn', '/api/admin/totp-users-export?limit=5000', 'maodouchat-totp-users-', 'TOTP 用户 CSV exported');
+      bindCsvExport('identity-users-export-btn', '/api/admin/identity-users-export?limit=5000', 'maodouchat-identity-users-', '身份密钥 CSV exported');
+      bindCsvExport('privacy-flags-export-btn', '/api/admin/privacy-flags-export?limit=5000', 'maodouchat-privacy-flags-', '隐私开关 CSV exported');
+      bindCsvExport('online-presence-export-btn', '/api/admin/online-presence-export?limit=5000', 'maodouchat-online-presence-', '在线状态 CSV exported');
+      bindCsvExport('ai-feature-flags-export-btn', '/api/admin/ai-feature-flags-export', 'maodouchat-ai-feature-flags-', 'AI 功能开关 CSV exported');
 
       document.querySelectorAll('[data-bot-enable]').forEach(function (btn) {
         btn.onclick = async function () {
@@ -2252,12 +2264,12 @@ async function loadWatermark() {
 
 async function adminForceLogout(userId) {
   if (!userId) return;
-  if (!confirm('Force logout user ' + userId + ' on all devices?')) return;
+  if (!confirm('强制下线 user ' + userId + ' on all devices?')) return;
   try {
     await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/force-logout', { method: 'POST', body: '{}' });
-    window.__b6Admin.toast('Force logout ok');
+    window.__b6Admin.toast('强制下线 ok');
   } catch (e) {
-    window.__b6Admin.toast('Force logout failed: ' + (e && e.message ? e.message : e));
+    window.__b6Admin.toast('强制下线 failed: ' + (e && e.message ? e.message : e));
   }
 }
 
@@ -2272,11 +2284,11 @@ async function adminLoadUserSessions(userId) {
     });
     lines.push('Signal devices: ' + ((data.signalDevices || []).length));
     (data.signalDevices || []).slice(0, 12).forEach(function (d) {
-      lines.push('#' + d.deviceId + ' ' + (d.deviceName || '') + ' ' + (d.status || '') + ' last ' + window.__b6Admin.date(d.lastSeenAt));
+      lines.push('#' + d.deviceId + ' ' + (d.device名称 || '') + ' ' + (d.status || '') + ' last ' + window.__b6Admin.date(d.lastSeenAt));
     });
     lines.push('Push tokens: ' + ((data.pushTokens || []).length));
     var text = lines.join('\n') || 'No sessions';
-    var action = window.prompt(text + '\n\nActions: type session prefix to revoke one, or ALL to force logout all', '');
+    var action = window.prompt(text + '\n\n操作: type session prefix to revoke one, or ALL to force logout all', '');
     if (action == null) return;
     action = String(action).trim();
     if (!action) return;
@@ -2372,12 +2384,12 @@ async function adminLoadUserSessions(userId) {
 
 async function adminDisableTotp(userId) {
   if (!userId) return;
-  if (!confirm('Disable TOTP for user ' + userId + '?')) return;
+  if (!confirm('关闭 TOTP for user ' + userId + '?')) return;
   try {
     await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/disable-totp', { method: 'POST', body: '{}' });
     window.__b6Admin.toast('TOTP disabled');
   } catch (e) {
-    window.__b6Admin.toast('Disable TOTP failed: ' + (e && e.message ? e.message : e));
+    window.__b6Admin.toast('关闭 TOTP failed: ' + (e && e.message ? e.message : e));
   }
 }
 

@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.groupplay
 import android.app.Application
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -185,26 +186,27 @@ fun GroupPkScreen(
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+            // 9.4xx：imePadding 防止键盘遮挡输入框
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp).imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = state.leftTitle,
-                            onValueChange = viewModel::updateLeft,
-                            label = { Text(stringResource(R.string.group_play_pk_left_hint)) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text("vs")
-                        OutlinedTextField(
-                            value = state.rightTitle,
-                            onValueChange = viewModel::updateRight,
-                            label = { Text(stringResource(R.string.group_play_pk_right_hint)) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    // 9.4xx：两个输入框上下排列（此前一行内 weight(1f) 夹 "vs" 被压成窄条）
+                    OutlinedTextField(
+                        value = state.leftTitle,
+                        onValueChange = viewModel::updateLeft,
+                        label = { Text(stringResource(R.string.group_play_pk_left_hint)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = state.rightTitle,
+                        onValueChange = viewModel::updateRight,
+                        label = { Text(stringResource(R.string.group_play_pk_right_hint)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     Button(
                         onClick = { viewModel.createPk() },
                         enabled = !state.creating,

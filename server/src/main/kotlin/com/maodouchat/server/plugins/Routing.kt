@@ -213,10 +213,25 @@ private suspend fun ApplicationCall.respondBotUnavailable() {
     respond(HttpStatusCode.Forbidden, ErrorResponse("bot unavailable or disabled", code = "BOT_UNAVAILABLE"))
 }
 
+/** 9.3xx：群邀请事件（CREATED/ACCEPTED/DECLINED/CANCELLED）实时推送。 */
+private suspend fun notifyGroupInvite(json: Json, invite: GroupInvitationDto, action: String) {
+    val payload = json.encodeToString(
+        GroupInviteEventPayload.serializer(),
+        GroupInviteEventPayload(action = action, invite = invite)
+    )
+    val envelope = json.encodeToString(WsMessage.serializer(), WsMessage("GROUP_INVITE", payload))
+    // 目标用户实时感知邀请；邀请人/管理员侧同步状态（撤销/拒绝）
+    sendToUser(invite.userId, envelope)
+    if (invite.inviterId.isNotBlank() && invite.inviterId != invite.userId) {
+        sendToUser(invite.inviterId, envelope)
+    }
+}
+
 private suspend fun ApplicationCall.respondGroupMemberMutationFailure(
-    result: ChatRepository.GroupMemberMutationResult
+    result: ChatRepository.GroupMemberMutationResult?
 ): Boolean {
     val response = when (result) {
+        null -> return false
         ChatRepository.GroupMemberMutationResult.UPDATED -> return false
         ChatRepository.GroupMemberMutationResult.CHAT_NOT_FOUND,
         ChatRepository.GroupMemberMutationResult.NOT_GROUP ->
@@ -1034,7 +1049,10 @@ put("message", "密码已重置，请使用新密码登录")
         }
 
         post("/api/auth/refresh") {
-            if (!loginIpRateLimiter.acquire(call.remoteHost(), maxPerMinute = ServerConfig.authRateLimitPerMinute)) {
+            // 9.3xx：此前共享 10/分/IP 的登录限流器——多设备/401 重试并发下正常轮换都被 429，
+            // 客户端 refresh 失败即"假登录"（UI 卡在旧数据、无法恢复会话）。
+            // refresh 本身有一次性轮换吊销兜底，这里放宽到 120/分/IP。
+            if (!loginIpRateLimiter.acquire(call.remoteHost(), maxPerMinute = maxOf(ServerConfig.authRateLimitPerMinute, 120))) {
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                 return@post
             }
@@ -1089,7 +1107,9 @@ put("message", "密码已重置，请使用新密码登录")
         }
 
         post("/api/auth/logout") {
-            if (!loginIpRateLimiter.acquire(call.remoteHost(), maxPerMinute = ServerConfig.authRateLimitPerMinute)) {
+            // 9.3xx：登出必须永远可用——共享 10/分/IP 登录限流器导致"假登录"（会话 401 风暴后
+            // logout 429，purge 流程中断，UI 永久卡在旧数据）
+            if (!loginIpRateLimiter.acquire(call.remoteHost(), maxPerMinute = maxOf(ServerConfig.authRateLimitPerMinute, 120))) {
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                 return@post
             }
@@ -2618,16 +2638,46 @@ put("status", "ok")
                         )
                         return@post
                     }
-                    call.respond(
-                        HttpStatusCode.Created,
-                        chatRepo.createChat(
-                            participantIds = allParticipants,
+                    if (isChannel || chatType == ChatType.CHANNEL) {
+                        // 频道：订阅即成员（广播语义不变）
+                        call.respond(
+                            HttpStatusCode.Created,
+                            chatRepo.createChat(
+                                participantIds = allParticipants,
+                                isGroup = true,
+                                groupName = req.groupName,
+                                creatorId = userId,
+                                chatType = chatType
+                            )
+                        )
+                    } else {
+                        // 9.3xx 群聊：创建者立即入群，其余参与者生成 PENDING 邀请，
+                        // 本人接受后才成为正式成员（修复「没同意就被直接拉进群」）。
+                        val created = chatRepo.createChat(
+                            participantIds = listOf(userId),
                             isGroup = true,
                             groupName = req.groupName,
                             creatorId = userId,
                             chatType = chatType
                         )
-                    )
+                        val invitees = requestedParticipants.filter { it != userId }
+                        if (invitees.isNotEmpty()) {
+                            val inviteResult = chatRepo.inviteGroupMembers(created.id, userId, invitees, maxGroupMembers())
+                            if (inviteResult.result != ChatRepository.GroupMemberMutationResult.UPDATED) {
+                                // 邀请失败不影响建群成功；返回群信息（客户端会显示邀请状态）
+                                call.respond(HttpStatusCode.Created, created)
+                                return@post
+                            }
+                            inviteResult.invitedUserIds.forEach { invitedId ->
+                                val inviteDto = chatRepo.listChatGroupInvitations(created.id)
+                                    .firstOrNull { it.userId == invitedId }
+                                if (inviteDto != null) {
+                                    notifyGroupInvite(json, inviteDto, "CREATED")
+                                }
+                            }
+                        }
+                        call.respond(HttpStatusCode.Created, created)
+                    }
                 }
             }
 
@@ -13925,16 +13975,46 @@ put("status", "ok")
                 val addResult = if (chatType == ChatType.CHANNEL) {
                     chatRepo.addGroupMembersAs(cid, uid, requestedIds, MAX_CHANNEL_SUBSCRIBERS)
                 } else {
-                    chatRepo.addGroupMembersAs(cid, uid, requestedIds, maxGroupMembers())
+                    // 9.3xx：群聊加人改为「邀请 + 本人同意」——不再直接把用户写成成员
+                    null
                 }
-                if (addResult.result == ChatRepository.GroupMemberMutationResult.USER_NOT_FOUND) {
+                if (chatType != ChatType.CHANNEL) {
+                    val inviteResult = chatRepo.inviteGroupMembers(cid, uid, requestedIds, maxGroupMembers())
+                    if (inviteResult.result == ChatRepository.GroupMemberMutationResult.USER_NOT_FOUND) {
+                        call.respond(
+                            HttpStatusCode.NotFound,
+                            ErrorResponse("用户不存在: ${inviteResult.invitedUserIds.firstOrNull().orEmpty()}", code = "GROUP_USER_NOT_FOUND")
+                        )
+                        return@post
+                    }
+                    if (inviteResult.result == ChatRepository.GroupMemberMutationResult.BLOCKED) {
+                        call.respond(
+                            HttpStatusCode.Forbidden,
+                            ErrorResponse("无法邀请已屏蔽的用户", code = "GROUP_MEMBER_BLOCKED")
+                        )
+                        return@post
+                    }
+                    if (call.respondGroupMemberMutationFailure(inviteResult.result)) return@post
+                    val allInvites = chatRepo.listChatGroupInvitations(cid)
+                    inviteResult.invitedUserIds.forEach { invitedId ->
+                        allInvites.firstOrNull { it.userId == invitedId }?.let { notifyGroupInvite(json, it, "CREATED") }
+                    }
+                    val updatedChat = chatRepo.getChatById(cid)
+                    if (updatedChat == null) {
+                        call.respond(HttpStatusCode.InternalServerError, ErrorResponse("群聊状态异常，请刷新"))
+                        return@post
+                    }
+                    call.respond(updatedChat)
+                    return@post
+                }
+                if (addResult?.result == ChatRepository.GroupMemberMutationResult.USER_NOT_FOUND) {
                     call.respond(
                         HttpStatusCode.NotFound,
                         ErrorResponse("用户不存在: ${addResult.missingUserId.orEmpty()}", code = "GROUP_USER_NOT_FOUND")
                     )
                     return@post
                 }
-                if (addResult.result == ChatRepository.GroupMemberMutationResult.BLOCKED) {
+                if (addResult?.result == ChatRepository.GroupMemberMutationResult.BLOCKED) {
                     call.respond(
                         HttpStatusCode.Forbidden,
                         ErrorResponse(
@@ -13944,8 +14024,8 @@ put("status", "ok")
                     )
                     return@post
                 }
-                if (call.respondGroupMemberMutationFailure(addResult.result)) return@post
-                val addedIds = addResult.addedUserIds
+                if (call.respondGroupMemberMutationFailure(addResult?.result)) return@post
+                val addedIds = addResult?.addedUserIds.orEmpty()
                 if (addedIds.isNotEmpty()) {
                     notifyGroupRevisionChanged(
                         chatRepo = chatRepo,
@@ -13963,7 +14043,91 @@ put("status", "ok")
                 }
                 call.respond(updatedChat)
             }
-            // 群管理：踢人（OWNER 可踢任何人，ADMIN 只能踢 MEMBER，不能踢 OWNER）
+            // 9.3xx：群邀请同意流程——收到邀请的用户列表
+            get("/api/group-invitations") {
+                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                call.respond(chatRepo.listIncomingGroupInvitations(uid))
+            }
+            // 群内待处理邀请（成员管理页撤销用，仅成员可见）
+            get("/api/chats/{chatId}/invitations") {
+                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val cid = call.parameters["chatId"]!!
+                if (!chatRepo.isParticipant(cid, uid)) {
+                    call.respond(HttpStatusCode.NotFound, ErrorResponse("群聊不存在"))
+                    return@get
+                }
+                call.respond(chatRepo.listChatGroupInvitations(cid))
+            }
+            // 本人接受邀请 → 正式入群
+            post("/api/group-invitations/{inviteId}/accept") {
+                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val inviteId = call.parameters["inviteId"]!!
+                if (call.rejectIfSuspended(userRepo, uid)) return@post
+                val (result, chat) = chatRepo.acceptGroupInvitation(inviteId, uid, maxGroupMembers())
+                when (result) {
+                    ChatRepository.GroupInviteAcceptResult.ACCEPTED -> {
+                        val accepted = chatRepo.getGroupInvitation(inviteId)
+                        if (chat != null) {
+                            notifyGroupRevisionChanged(
+                                chatRepo = chatRepo,
+                                json = json,
+                                chatId = chat.id,
+                                reason = "MEMBER_ADDED",
+                                actorId = uid,
+                                targetUserId = uid
+                            )
+                        }
+                        if (accepted != null) notifyGroupInvite(json, accepted, "ACCEPTED")
+                        call.respond(
+                            buildJsonObject {
+                                put("status", "accepted")
+                                put("chatId", chat?.id ?: "")
+                            }
+                        )
+                    }
+                    ChatRepository.GroupInviteAcceptResult.ALREADY_MEMBER -> call.respond(
+                        buildJsonObject {
+                            put("status", "already_member")
+                            put("chatId", chat?.id ?: "")
+                        }
+                    )
+                    ChatRepository.GroupInviteAcceptResult.NOT_FOUND -> call.respond(HttpStatusCode.NotFound, ErrorResponse("邀请不存在"))
+                    ChatRepository.GroupInviteAcceptResult.NOT_PENDING -> call.respond(HttpStatusCode.Conflict, ErrorResponse("邀请已处理"))
+                    ChatRepository.GroupInviteAcceptResult.NOT_INVITEE -> call.respond(HttpStatusCode.Forbidden, ErrorResponse("该邀请不属于你"))
+                    ChatRepository.GroupInviteAcceptResult.CHAT_NOT_FOUND,
+                    ChatRepository.GroupInviteAcceptResult.NOT_GROUP,
+                    ChatRepository.GroupInviteAcceptResult.CHANNEL_NOT_SUPPORTED ->
+                        call.respond(HttpStatusCode.NotFound, ErrorResponse("群聊不存在"))
+                    ChatRepository.GroupInviteAcceptResult.MEMBER_LIMIT_EXCEEDED ->
+                        call.respond(HttpStatusCode.Conflict, ErrorResponse("群成员数量已达上限", code = "GROUP_MEMBER_LIMIT_EXCEEDED"))
+                    ChatRepository.GroupInviteAcceptResult.BLOCKED ->
+                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("无法加入含已屏蔽用户的群聊", code = "GROUP_INVITE_BLOCKED"))
+                    ChatRepository.GroupInviteAcceptResult.USER_DEACTIVATED ->
+                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("账号状态异常"))
+                }
+            }
+            // 本人拒绝邀请
+            post("/api/group-invitations/{inviteId}/decline") {
+                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val inviteId = call.parameters["inviteId"]!!
+                if (!chatRepo.declineGroupInvitation(inviteId, uid)) {
+                    call.respond(HttpStatusCode.NotFound, ErrorResponse("邀请不存在或已处理"))
+                    return@post
+                }
+                chatRepo.getGroupInvitation(inviteId)?.let { notifyGroupInvite(json, it, "DECLINED") }
+                call.respond(buildJsonObject { put("status", "declined") })
+            }
+            // 邀请人/管理员撤销邀请
+            delete("/api/group-invitations/{inviteId}") {
+                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val inviteId = call.parameters["inviteId"]!!
+                if (!chatRepo.cancelGroupInvitation(inviteId, uid)) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权撤销该邀请"))
+                    return@delete
+                }
+                chatRepo.getGroupInvitation(inviteId)?.let { notifyGroupInvite(json, it, "CANCELLED") }
+                call.respond(buildJsonObject { put("status", "cancelled") })
+            }
             delete("/api/chats/{chatId}/members/{memberId}") {
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject
                 val cid = call.parameters["chatId"]!!; val mid = call.parameters["memberId"]!!

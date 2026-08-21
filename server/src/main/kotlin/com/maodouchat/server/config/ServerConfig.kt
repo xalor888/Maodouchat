@@ -66,8 +66,18 @@ object ServerConfig {
     /** Per-user storage quota in bytes (1 GB default). */
     val userStorageQuotaBytes: Long get() = env("USER_STORAGE_QUOTA_BYTES", "1073741824").toLongOrNull()?.coerceIn(104_857_600L, 10_737_418_240L) ?: 1_073_741_824L
 
-    /** Global API rate limit: requests per minute per IP. */
-    val globalRateLimitPerMinute: Int get() = env("GLOBAL_RATE_LIMIT_PER_MINUTE", "120").toIntOrNull()?.coerceIn(10, 10_000) ?: 120
+    /**
+     * Global API rate limit: requests per minute per IP for UNAUTHENTICATED requests only.
+     * Authenticated requests use [authenticatedRateLimitPerMinute] keyed by user id instead,
+     * so several real users behind one NAT IP can never exhaust each other's budget.
+     */
+    val globalRateLimitPerMinute: Int get() = env("GLOBAL_RATE_LIMIT_PER_MINUTE", "600").toIntOrNull()?.coerceIn(30, 60_000) ?: 600
+    /**
+     * Per-user rate limit: requests per minute for authenticated requests.
+     * Normal client bursts (chat list + per-chat sync + prekey bundles for every group member)
+     * easily reach several hundred requests in a minute, so the budget must be generous.
+     */
+    val authenticatedRateLimitPerMinute: Int get() = env("USER_RATE_LIMIT_PER_MINUTE", "2000").toIntOrNull()?.coerceIn(120, 120_000) ?: 2000
     /** Login/register rate limit: attempts per minute per IP. */
     val authRateLimitPerMinute: Int get() = env("AUTH_RATE_LIMIT_PER_MINUTE", "10").toIntOrNull()?.coerceIn(3, 100) ?: 10
     /** AI endpoint rate limit: requests per minute per user. */
@@ -199,7 +209,7 @@ object ServerConfig {
         require(!databaseUrl.startsWith("jdbc:h2:mem:")) { "Production DATABASE_URL must be persistent; in-memory H2 is not allowed." }
         require(!databaseUrl.startsWith("jdbc:h2:file:")) { "Production DATABASE_URL should use PostgreSQL, not file-based H2." }
         require(!seedDemoUsers) { "Production must not seed demo users." }
-        require(globalRateLimitPerMinute in 10..10_000) { "Production GLOBAL_RATE_LIMIT_PER_MINUTE must be between 10 and 10000." }
+        require(globalRateLimitPerMinute in 30..60_000) { "Production GLOBAL_RATE_LIMIT_PER_MINUTE must be between 30 and 60000." }
 
         if (relaxedVerification) {
             // 宽松模式：允许自托管环境缺 SMTP / TURN / PUSH_HMAC。

@@ -585,11 +585,19 @@ private fun TextBubble(
     onContactCardClick: ((String) -> Unit)? = null,
     /** 1.44：点击消息发送者名称 → 打开其资料。 */
     onSenderClick: ((String) -> Unit)? = null,
-    /** 1.51：点击已读状态图标（✓✓）→ 打开阅读详情。 */
+    /** 9.1xx：点击已读状态图标（✓✓）→ 打开阅读详情。 */
     onStatusClick: ((Message) -> Unit)? = null,
     /** 0.65：发送者群内角色（群主/管理员徽章，仅群聊显示）。 */
     memberRole: String? = null
 ) {
+    // 9.3xx：气泡层密文兜底——任何漏网的 wire envelope（含 FutureEpoch/断线补拉落库的
+    // 原始密文）都渲染为解密失败占位，绝不把 ciphertext/设备号等元数据输出给用户。
+    val message = if (
+        message.type in setOf(MessageType.TEXT, MessageType.MARKDOWN) &&
+        com.maodouchat.ui.screen.chatlist.ChatListPreviewPolicy.isSignalWireEnvelope(message.parsedContent())
+    ) {
+        message.copy(content = stringResource(R.string.chat_decrypt_failed))
+    } else message
     val palette = LocalChatPalette.current
     // 9.252：TG 式动态气泡宽度——此前固定 280dp，大屏上气泡偏窄、长文本折行过多
     // 观感拥挤；参考 TG ChatMessageCell 按屏宽比例（平板封顶 480dp）

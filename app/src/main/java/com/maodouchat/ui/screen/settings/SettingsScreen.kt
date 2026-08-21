@@ -187,11 +187,7 @@ fun SettingsScreen(
                     Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
             },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
-                }
-            },
+            // 9.4xx：设置页是主 Tab，移除无导航作用的摆设返回按钮
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
         )
 
@@ -244,8 +240,7 @@ fun SettingsScreen(
                         HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
                         SettingsItem(icon = Icons.Outlined.PrivacyTip, title = stringResource(R.string.settings_privacy), onClick = { viewModel.openPrivacy() })
                         HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
-                        SettingsItem(icon = Icons.Outlined.Security, title = stringResource(R.string.settings_blocked_users), onClick = { viewModel.openBlockedUsers() })
-                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
+                        // 9.3xx：移除与第一分组重复的"拉黑名单"入口（此前同页两个入口）
                         SettingsItem(icon = Icons.Outlined.AutoAwesome, title = stringResource(R.string.settings_ai_privacy), onClick = onOpenAiPrivacy)
                         HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
                         if (state.isModerator) {

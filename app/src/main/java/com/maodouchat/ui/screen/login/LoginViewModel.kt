@@ -315,6 +315,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         // 8.49：后置步骤各自 best-effort，异常不再中断（isLoggedIn 已置位）
                         runCatching { PushRegistrationManager.refreshRegistration(app) }
                             .onFailure { android.util.Log.w("LoginViewModel", "push registration after login failed", it) }
+                        // 9.3xx：登录成功后按设置恢复推送保活（Ideaura 式）
+                        runCatching { com.maodouchat.push.PushKeepAlive.ensureForUser(app) }
+                            .onFailure { android.util.Log.w("LoginViewModel", "push keepalive start failed", it) }
                         runCatching { AiTaskReminderScheduler.ensureScheduled(app) }
                             .onFailure { android.util.Log.w("LoginViewModel", "ai task reminder scheduling failed", it) }
                         runCatching { com.maodouchat.attachment.AttachmentTransferCoordinator.reconcile(app) }

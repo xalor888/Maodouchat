@@ -30,12 +30,20 @@
         <label for="password">密码</label>
         <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required/>
       </div>
+      <!-- 9.3xx：TOTP 二次验证（开启 2FA 的主管理员登录必需；此前 admin 后台登录不处理 requiresTotp 导致永远登不上） -->
+      <div class="field hidden" id="totp-field">
+        <label for="totp-code">动态验证码（TOTP）</label>
+        <input id="totp-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6 位验证码" maxlength="8"/>
+      </div>
       <button class="btn btn-primary btn-block" type="submit">
         <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 1a2 2 0 012 2v1h1a2 2 0 012 2v2a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2h1V3a2 2 0 012-2zM6 7v1h4V7H6zm0 3v1h4v-1H6z"/></svg>
-        安全登录
+        <span id="login-btn-label">安全登录</span>
       </button>
       <div id="login-error" class="login-error" role="alert"></div>
-      <div class="login-hint">需要主管理员（MASTER_ADMINS）权限，登录后需二次密码确认</div>
+      <!-- 9.4xx：明确登录要求，避免「登不上/403」无从排查——必须是主管理员账号（MASTER_ADMINS 配置的 userId 对应账号） -->
+      <div class="login-hint">
+        使用主管理员账号登录（服务端 MASTER_ADMINS 配置的 userId 对应账号，非邮箱）；开启两步验证的账号需输入 TOTP 动态码。
+      </div>
     </form>
   </div>
 </section>
