@@ -752,6 +752,8 @@ fun initDatabase() {
         widenModerationAuditDetailColumn()
         // 确保 init {} 中的索引被创建（createMissingTablesAndColumns 可能不会自动建）
         ensureIndexes()
+        // 9.4xx：PostgreSQL 全文/模糊搜索索引（pg_trgm；H2 与受限环境自动跳过）
+        ensureSearchIndexes()
         migrateAuthSessionState()
         backfillSignalKeyDeviceIds()
         backfillSignalDeviceConfirmation()
@@ -996,6 +998,27 @@ private fun ensureIndexes() {
         for (sql in partialUniqueIndexes) {
             TransactionManager.current().exec(sql)
         }
+    }
+}
+
+/** 9.4xx：PostgreSQL 模糊搜索索引。pg_trgm GIN 加速 %pattern% 形式的 LIKE（普通 B-tree 无法利用前导通配符）。 */
+private fun ensureSearchIndexes() {
+    if (isH2Db()) return
+    try {
+        TransactionManager.current().exec("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+        TransactionManager.current().exec(
+            "CREATE INDEX IF NOT EXISTS idx_users_name_trgm ON users USING GIN (lower(name) gin_trgm_ops)"
+        )
+        TransactionManager.current().exec(
+            "CREATE INDEX IF NOT EXISTS idx_users_username_trgm ON users USING GIN (lower(username) gin_trgm_ops)"
+        )
+        TransactionManager.current().exec(
+            "CREATE INDEX IF NOT EXISTS idx_users_email_trgm ON users USING GIN (lower(email) gin_trgm_ops)"
+        )
+    } catch (e: Exception) {
+        // 扩展不可用（受限托管 PG / 权限不足）时降级为原 LIKE 全扫描，不影响功能
+        org.slf4j.LoggerFactory.getLogger("Database")
+            .warn("pg_trgm search indexes unavailable; user search falls back to full scan: {}", e.message)
     }
 }
 

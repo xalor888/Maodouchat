@@ -594,7 +594,7 @@ private fun TextBubble(
     // 原始密文）都渲染为解密失败占位，绝不把 ciphertext/设备号等元数据输出给用户。
     val message = if (
         message.type in setOf(MessageType.TEXT, MessageType.MARKDOWN) &&
-        com.maodouchat.ui.screen.chatlist.ChatListPreviewPolicy.isSignalWireEnvelope(message.parsedContent())
+        com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(message.parsedContent())
     ) {
         message.copy(content = stringResource(R.string.chat_decrypt_failed))
     } else message

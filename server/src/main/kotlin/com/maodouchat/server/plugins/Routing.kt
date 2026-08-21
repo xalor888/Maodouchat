@@ -80,13 +80,22 @@ private suspend fun ApplicationCall.respondPublicHtml(page: String, fallback: St
     respondText(loadPublicHtml(page) ?: fallback, ContentType.Text.Html)
 }
 
+private val routingParseLogger = org.slf4j.LoggerFactory.getLogger("RoutingParse")
+
 // 手动 JSON 解析 —— 绕过 Ktor ContentNegotiation 对 receiveNullable / ContentConversion 的歧义。
 // 在 Ktor 2.3 + in-memory testApplication 同进程多次 mount 时行为最稳定。
 // 用法：val req = call.receiveBoundedText()?.let { parseJson<SomeRequest>(it) }
 private inline fun <reified T> parseJson(text: String): T? = try {
     if (text.isBlank()) null
     else routingJson.decodeFromString<T>(text)
-} catch (_: Exception) {
+} catch (e: Exception) {
+    // 9.4xx：不再静默吞掉解析失败——记录类型与错误摘要（正文截断，避免日志膨胀/泄密）
+    routingParseLogger.warn(
+        "JSON parse failed for {}: {} (body head: {})",
+        T::class.simpleName,
+        e.message.orEmpty(),
+        text.take(200).replace('\n', ' ')
+    )
     null
 }
 
@@ -121,7 +130,14 @@ internal suspend fun ApplicationCall.receiveBoundedTextOrEmpty(maxChars: Int = M
         receiveBoundedText(maxChars) ?: ""
     } catch (e: CancellationException) {
         throw e
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        // 9.4xx：记录读取失败（此前静默返回空串，掩盖网络错误/超时）
+        routingParseLogger.warn(
+            "Body read failed on {} {}: {}",
+            request.httpMethod.value,
+            request.path(),
+            e.message.orEmpty()
+        )
         ""
     }
 }

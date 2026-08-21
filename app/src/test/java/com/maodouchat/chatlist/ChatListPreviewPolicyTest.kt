@@ -3,7 +3,7 @@ package com.maodouchat.chatlist
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.ui.screen.chatlist.ChatListPreviewPolicy
+import com.maodouchat.data.repository.ChatListPreviewPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

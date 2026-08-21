@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.data.repository
 
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType

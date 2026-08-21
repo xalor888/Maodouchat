@@ -17,6 +17,8 @@ import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.attachment.AttachmentTransferSummaryRepository
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
+import com.maodouchat.data.repository.resolveDirectOutboxPeerId
+import com.maodouchat.data.repository.shouldMarkOutboxFailed
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.local.entity.hasCompletedUpload
 import com.maodouchat.data.local.entity.AiOperationEntity
@@ -62,7 +64,7 @@ import com.maodouchat.network.shouldApplyTypingEvent
 import com.maodouchat.network.resolveTypingSignalAction
 import com.maodouchat.network.TypingSignalAction
 import com.maodouchat.network.REMOTE_TYPING_TIMEOUT_MS
-import com.maodouchat.ui.screen.chatlist.ChatListPreviewPolicy
+import com.maodouchat.data.repository.ChatListPreviewPolicy
 import com.maodouchat.ui.OwnerSessionPolicy
 import com.maodouchat.ui.OwnerSessionSnapshot
 import com.maodouchat.util.ImagePicker

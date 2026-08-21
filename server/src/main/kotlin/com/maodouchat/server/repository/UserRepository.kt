@@ -752,11 +752,30 @@ class UserRepository {
             .where { ChatParticipants.userId eq userId }
             .orderBy(ChatParticipants.chatId to SortOrder.ASC)
             .map { it[ChatParticipants.chatId] to it[ChatParticipants.role] }
-        memberships.forEach { (chatId, role) ->
-            val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull() ?: return@forEach
-            val others = ChatParticipants.selectAll()
-                .where { (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId neq userId) }
-                .toList()
+        if (memberships.isEmpty()) return orphanedAttachmentIds
+        val chatIds = memberships.map { it.first }
+
+        // 9.4xx 性能修复（N+1 → 2 次批量查询）：
+        // 此前逐会话 SELECT chat + SELECT members（3N 次查询）；
+        // 现一次锁全部 chat 行（保持 chat 先于 participants 的全局锁顺序），
+        // 一次取全部会话的成员，内存中完成继任者计算，写入批量执行。
+        val chatsById = Chats.selectAll()
+            .where { Chats.id inList chatIds }
+            .forUpdate()
+            .associateBy { it[Chats.id] }
+        val participantsByChat = ChatParticipants.selectAll()
+            .where { ChatParticipants.chatId inList chatIds }
+            .groupBy { it[ChatParticipants.chatId] }
+
+        val successorUpdates = mutableListOf<Pair<String, String>>()      // chatId -> successorId
+        val directPairCleanups = mutableListOf<String>()                  // 非空 1:1 chat
+        val revisionBumps = mutableListOf<String>()                       // 非空群聊
+        val auditRows = mutableListOf<Pair<String, Triple<String, String, String>>>() // chatId -> (action, actor, target)
+
+        for ((chatId, role) in memberships) {
+            val chat = chatsById[chatId] ?: continue
+            val others = participantsByChat[chatId].orEmpty()
+                .filter { it[ChatParticipants.userId] != userId }
             if (chat[Chats.isGroup] && role == "OWNER" && others.isNotEmpty()) {
                 val successor = others
                     .sortedWith(
@@ -770,47 +789,51 @@ class UserRepository {
                     )
                     .first()
                 val successorId = successor[ChatParticipants.userId]
-                ChatParticipants.update({
-                    (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq successorId)
-                }) { it[ChatParticipants.role] = "OWNER" }
-                GroupAuditLogs.insert {
-                    it[GroupAuditLogs.id] = "gal_${UUID.randomUUID()}"
-                    it[GroupAuditLogs.chatId] = chatId
-                    it[GroupAuditLogs.actorId] = userId
-                    it[GroupAuditLogs.action] = "OWNERSHIP_TRANSFERRED"
-                    it[GroupAuditLogs.targetUserId] = successorId
-                    it[GroupAuditLogs.createdAt] = now
-                }
-            }
-            ChatUserSettings.deleteWhere {
-                (ChatUserSettings.chatId eq chatId) and (ChatUserSettings.userId eq userId)
-            }
-            ChatParticipants.deleteWhere {
-                (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq userId)
+                successorUpdates += chatId to successorId
+                auditRows += chatId to Triple("OWNERSHIP_TRANSFERRED", userId, successorId)
             }
             if (others.isEmpty()) {
                 orphanedAttachmentIds += tearDownEmptyChat(chatId)
-            } else {
+            } else if (!chat[Chats.isGroup]) {
                 // 1:1 注销后 pair 映射失效，避免对方 getOrCreate 回落到半空 chat
-                if (!chat[Chats.isGroup]) {
-                    DirectChatPairs.deleteWhere { DirectChatPairs.chatId eq chatId }
+                directPairCleanups += chatId
+            } else {
+                revisionBumps += chatId
+                auditRows += chatId to Triple("MEMBER_LEFT", userId, userId)
+            }
+        }
+
+        // 批量写
+        successorUpdates.forEach { (chatId, successorId) ->
+            ChatParticipants.update({
+                (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq successorId)
+            }) { it[ChatParticipants.role] = "OWNER" }
+        }
+        ChatUserSettings.deleteWhere {
+            (ChatUserSettings.chatId inList chatIds) and (ChatUserSettings.userId eq userId)
+        }
+        ChatParticipants.deleteWhere {
+            (ChatParticipants.chatId inList chatIds) and (ChatParticipants.userId eq userId)
+        }
+        if (directPairCleanups.isNotEmpty()) {
+            DirectChatPairs.deleteWhere { DirectChatPairs.chatId inList directPairCleanups }
+        }
+        revisionBumps.forEach { chatId ->
+            val latest = chatsById[chatId]
+            if (latest != null) {
+                Chats.update({ Chats.id eq chatId }) {
+                    it[Chats.memberRevision] = latest[Chats.memberRevision] + 1
                 }
-                if (chat[Chats.isGroup]) {
-                    val latest = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
-                    if (latest != null) {
-                        Chats.update({ Chats.id eq chatId }) {
-                            it[Chats.memberRevision] = latest[Chats.memberRevision] + 1
-                        }
-                    }
-                    GroupAuditLogs.insert {
-                        it[GroupAuditLogs.id] = "gal_${UUID.randomUUID()}"
-                        it[GroupAuditLogs.chatId] = chatId
-                        it[GroupAuditLogs.actorId] = userId
-                        it[GroupAuditLogs.action] = "MEMBER_LEFT"
-                        it[GroupAuditLogs.targetUserId] = userId
-                        it[GroupAuditLogs.createdAt] = now
-                    }
-                }
+            }
+        }
+        auditRows.forEach { (chatId, triple) ->
+            GroupAuditLogs.insert {
+                it[GroupAuditLogs.id] = "gal_${UUID.randomUUID()}"
+                it[GroupAuditLogs.chatId] = chatId
+                it[GroupAuditLogs.action] = triple.first
+                it[GroupAuditLogs.actorId] = triple.second
+                it[GroupAuditLogs.targetUserId] = triple.third
+                it[GroupAuditLogs.createdAt] = now
             }
         }
         return orphanedAttachmentIds

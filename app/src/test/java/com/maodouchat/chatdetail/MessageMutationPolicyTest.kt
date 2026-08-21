@@ -13,8 +13,8 @@ import com.maodouchat.ui.screen.chatdetail.isAlreadyTerminalMutation
 import com.maodouchat.ui.screen.chatdetail.isAmbiguousTransportFailure
 import com.maodouchat.ui.screen.chatdetail.mergeMessageVersions
 import com.maodouchat.ui.screen.chatdetail.toOptimisticEdit
-import com.maodouchat.ui.screen.chatdetail.resolveDirectOutboxPeerId
-import com.maodouchat.ui.screen.chatdetail.shouldMarkOutboxFailed
+import com.maodouchat.data.repository.resolveDirectOutboxPeerId
+import com.maodouchat.data.repository.shouldMarkOutboxFailed
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

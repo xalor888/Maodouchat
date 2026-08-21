@@ -10,8 +10,7 @@ import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
-import com.maodouchat.ui.screen.chatdetail.resolveDirectOutboxPeerId
-import com.maodouchat.ui.screen.chatdetail.shouldMarkOutboxFailed
+// 9.4xx：outbox 判定策略已迁至 data 层（本包内），消除 data→UI 循环依赖
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock

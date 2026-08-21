@@ -8,6 +8,7 @@ import androidx.room.withTransaction
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.ChatDraftEntity
+import com.maodouchat.data.repository.ChatListPreviewPolicy
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
