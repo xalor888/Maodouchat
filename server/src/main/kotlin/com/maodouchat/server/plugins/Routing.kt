@@ -1224,6 +1224,11 @@ put("status", "ok")
                 ?: ""
             call.respondText(css, io.ktor.http.ContentType.Text.CSS)
         }
+        get("/assets/developer.css") {
+            val css = this::class.java.classLoader.getResource("public/assets/developer.css")?.readText()
+                ?: ""
+            call.respondText(css, io.ktor.http.ContentType.Text.CSS)
+        }
         get("/assets/developer.js") {
             val js = this::class.java.classLoader.getResource("public/assets/developer.js")?.readText()
                 ?: ""
