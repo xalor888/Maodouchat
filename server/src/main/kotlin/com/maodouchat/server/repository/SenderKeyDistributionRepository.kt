@@ -34,16 +34,17 @@ class SenderKeyDistributionRepository {
                 .forEach { target ->
                     val id = rowId(chatId, epoch, senderId, target.userId, target.deviceId)
                     val normalizedStatus = normalizeStatus(target.status)
-                    val isH2 = com.maodouchat.server.db.isH2Db()
-                    if (isH2) {
-                        // H2 2.x 不支持 Exposed 单键 upsert 生成的 `MERGE INTO ... USING (VALUES ...)`
-                        // （报 `Database "COM" not found`）。生产用 PostgreSQL，走下方 upsert；
-                        // 测试/H2 用 select→update/insert，幂等语义一致。
-                        // 8.39：冲突时保留原 createdAt（purgeOldRecords 按 createdAt 清理依赖其不无限续期）。
-                        val existing = SenderKeyDistributions.selectAll()
-                            .where { SenderKeyDistributions.id eq id }
-                            .firstOrNull()
-                        if (existing == null) {
+                    // 9.307：此前 PG 分支用 Exposed upsert(onUpdate = createdAt to createdAt)——
+                    // Column 作为更新值被渲染成 Kotlin 对象全限定名，PG 报
+                    // "improper qualified name" 直接 500（H2 不触发 → 本地测试全绿但生产全挂），
+                    // 导致群 SenderKey 分发上报永久失败、群消息发送链路卡死。
+                    // 改为全库通用的 select→update/insert：冲突时保留原 createdAt（purge 依赖），
+                    // 并发 PK 撞车时 insert 失败降级为 update，语义与 upsert 一致。
+                    val existing = SenderKeyDistributions.selectAll()
+                        .where { SenderKeyDistributions.id eq id }
+                        .firstOrNull()
+                    if (existing == null) {
+                        val inserted = runCatching {
                             SenderKeyDistributions.insert {
                                 it[SenderKeyDistributions.id] = id
                                 it[SenderKeyDistributions.chatId] = chatId
@@ -57,7 +58,9 @@ class SenderKeyDistributionRepository {
                                 it[SenderKeyDistributions.createdAt] = now
                                 it[SenderKeyDistributions.updatedAt] = now
                             }
-                        } else {
+                        }.isSuccess
+                        // 并发 report 撞 PK：降级为 update（保留原 createdAt）
+                        if (!inserted) {
                             SenderKeyDistributions.update({ SenderKeyDistributions.id eq id }) {
                                 it[SenderKeyDistributions.chatId] = chatId
                                 it[SenderKeyDistributions.epoch] = epoch
@@ -71,15 +74,7 @@ class SenderKeyDistributionRepository {
                             }
                         }
                     } else {
-                        // upsert：并发 report 撞 PK 不得 abort 整批 targets。
-                        // 8.39：onUpdate 仅列 createdAt → 引用原行（冲突时保持不变）——
-                        // 反复 report 同一 target 若刷新 createdAt，purgeOldRecords 按 createdAt
-                        // 清理会因无限续期而失效，表随活跃目标无限增长；其余列自动用 insert 值更新。
-                        SenderKeyDistributions.upsert(
-                            SenderKeyDistributions.id,
-                            onUpdate = listOf(SenderKeyDistributions.createdAt to SenderKeyDistributions.createdAt)
-                        ) {
-                            it[SenderKeyDistributions.id] = id
+                        SenderKeyDistributions.update({ SenderKeyDistributions.id eq id }) {
                             it[SenderKeyDistributions.chatId] = chatId
                             it[SenderKeyDistributions.epoch] = epoch
                             it[SenderKeyDistributions.senderId] = senderId
@@ -88,7 +83,6 @@ class SenderKeyDistributionRepository {
                             it[SenderKeyDistributions.messageId] = messageId
                             it[SenderKeyDistributions.status] = normalizedStatus
                             it[SenderKeyDistributions.error] = target.error?.take(200)
-                            it[SenderKeyDistributions.createdAt] = now
                             it[SenderKeyDistributions.updatedAt] = now
                         }
                     }
