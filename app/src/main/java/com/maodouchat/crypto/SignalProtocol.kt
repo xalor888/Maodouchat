@@ -458,9 +458,15 @@ class SignalProtocol(
                 // Discovery list may peek OTPKs — never re-process PreKeyBundle for an
                 // existing session (would overwrite ratchet / thrash one-time prekeys).
                 bundles.map { bundle ->
-                    if (!hasSession(recipientId, bundle.deviceId)) {
-                        // Prefer consuming single-device endpoint for real session setup.
-                        ensureSession(token, recipientId, bundle.deviceId).getOrThrow()
+                    when {
+                        // 9.311：自身当前设备无需建会话（不与自己加密通信）；跳过避免旧服务端
+                        // 禁止自取 bundle 时一个 400 拖垮整个自设备 fan-out（第二设备永远收不到密钥）
+                        recipientId == currentUserId && bundle.deviceId == getDeviceId() -> Unit
+                        !hasSession(recipientId, bundle.deviceId) -> {
+                            // Prefer consuming single-device endpoint for real session setup.
+                            ensureSession(token, recipientId, bundle.deviceId).getOrThrow()
+                        }
+                        else -> Unit
                     }
                     bundle.deviceId
                 }

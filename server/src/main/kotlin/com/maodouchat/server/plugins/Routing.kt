@@ -16536,7 +16536,10 @@ put("status", "ok")
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("设备 ID 无效"))
                     return@get
                 }
-                if (!call.canFetchKeys(requesterId, targetUserId, chatRepo, preKeyFetchTracker)) return@get
+                // 9.311：允许自取——多设备 fan-out 需要与自己的其他设备建 Signal 会话
+                // （群 SenderKey 分发到自身多设备）；实测禁止自取导致多设备用户群消息
+                // 覆盖永不完整、第二设备永远收不到解密消息。
+                if (!call.canFetchKeys(requesterId, targetUserId, chatRepo, preKeyFetchTracker, allowSelf = true)) return@get
                 if (!signalKeyRepo.isDeviceConfirmed(targetUserId, deviceId)) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("设备尚未确认"))
                     return@get
