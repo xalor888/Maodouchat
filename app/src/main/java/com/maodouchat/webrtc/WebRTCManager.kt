@@ -205,9 +205,28 @@ class WebRTCManager(
 
         val base = EglBase.create()
         try {
+            // 9.306：默认加载器走 System.loadLibrary（按库名），与 WebRtcNativeLibraryLoader 的
+            // System.load（按绝对路径）被 linker 视为两次独立 dlopen → JNI_OnLoad 重复执行，
+            // 原生层 Check failed: !g_jvm 直接 SIGABRT 闪退。改用自定义加载器按同一路径
+            // System.load，linker 对已加载库直接复用句柄，保证全程只加载一次。
+            val downloadedPath = com.maodouchat.call.WebRtcNativeLibraryLoader.libraryPath(appContext)
             PeerConnectionFactory.initialize(
                 PeerConnectionFactory.InitializationOptions.builder(appContext)
                     .setEnableInternalTracer(false)
+                    .setNativeLibraryLoader { libName ->
+                        val file = java.io.File(downloadedPath)
+                        if (file.isFile) {
+                            runCatching { System.load(file.absolutePath) }.isSuccess
+                        } else {
+                            // 未下载成功时退回默认按名加载（给出 UnsatisfiedLinkError 而非静默）
+                            try {
+                                System.loadLibrary(libName)
+                                true
+                            } catch (_: UnsatisfiedLinkError) {
+                                false
+                            }
+                        }
+                    }
                     .createInitializationOptions()
             )
             val factory = PeerConnectionFactory.builder()

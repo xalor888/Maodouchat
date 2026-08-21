@@ -50,6 +50,9 @@ object WebRtcNativeLibraryLoader {
     /** WebRTC 原生库是否已加载成功（进程内复用）。 */
     fun isLoaded(): Boolean = loaded
 
+    /** 9.306：已落盘 .so 的绝对路径（供 PeerConnectionFactory 自定义加载器 System.load 复用同一句柄）。 */
+    fun libraryPath(context: Context): String = libraryFile(context).absolutePath
+
     /**
      * 确保 WebRTC 原生库可加载，必须在 PeerConnectionFactory.initialize() 之前调用。
      * 优先级：系统已有库（Play 特性模块）→ 本地已下载文件 → 服务器下载。
