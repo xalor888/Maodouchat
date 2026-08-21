@@ -10,7 +10,7 @@
 | **半成品** | 有骨架/门禁/接口，功能未闭环或默认关闭 |
 | **未做** | 代码中不存在或明确不做 |
 
-> **诚实边界**：本表描述「代码里有什么」，**不等于**可发布、不等于已过双机/弱网/公网验收。E2EE 多设备、附件弱网、通话真机等仍以对应 `docs/*-verification.md` 填表为准。
+> **诚实边界**：本表描述「代码里有什么」，不等于可发布、不等于已通过双机/弱网/公网验收。
 
 ---
 
@@ -311,7 +311,6 @@
 | `scripts/check-string-parity.py` | 中英 string name 对齐 |
 | `scripts/admin-e2e.mjs` | 管理后台 Playwright（需自行执行） |
 | `.github/workflows/ci.yml` | CI 配置存在 |
-| 验收清单文档 | `docs/*-verification.md`、`release-checklist.md`、`size-baseline.md` 等（**清单就绪 ≠ 已全部勾选**） |
 
 ---
 
@@ -359,17 +358,6 @@
 | 功能是否「都写了」？ | 主 IM 闭环、安全主干、动态、通话、AI、管理后台 **代码面基本齐全** |
 | 是否等于可发布？ | **否**。须完成设备矩阵、生产拓扑、备份恢复、无障碍、包体等清单证据 |
 | 是否等于 TG/微信/QQ 水平？ | **不得据此宣称**。对标是体验+可靠性+运维共同结果，不是功能 checklist 勾满 |
-
-相关清单（保留，非路线图）：
-
-- `docs/e2ee-multidevice-verification.md`
-- `docs/attachment-reliability-verification.md`
-- `docs/call-reliability-verification.md`
-- `docs/production-topology-acceptance.md`
-- `docs/backup-restore-acceptance.md`
-- `docs/release-checklist.md`
-- `docs/ui-motion-performance-budget.md`
-- `docs/size-baseline.md`
 
 ---
 
@@ -476,9 +464,7 @@
 ## 13. 文档维护约定（更新）
 
 1. **本文件**是功能与完整度主台账；大功能改表行，不靠无限追加 push 日志。  
-2. **阶段进度 / 策略 / 差距**写 `docs/progress-report.md`。  
 3. **Bot 路由契约**写 `docs/bot-developer-api.md`。  
-4. 验收证据只写 `docs/*-verification.md` 等清单，不重复堆功能表。  
 5. 完整度区分：**代码完整** vs **真机/运维已证**。  
 6. 旧 roadmap / 碎片 push 附录 **不再续写**；需要历史时查版本控制。
 

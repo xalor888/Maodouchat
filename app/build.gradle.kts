@@ -292,8 +292,7 @@ dependencies {
     // - com.google.zxing:core 必须保留：QrCodeGenerator 用于安全码/身份指纹/群邀请等 E2EE 核验 QR 的「生成」。
     // - zxing-android-embedded 仅用于 ContactSubScreens 的「扫码」UI（ScanContract/ScanOptions，CaptureActivity）。
     //   其 AAR（布局/主题/解码管线）R8 收缩后仍贡献约 300KB；可替换为 com.maodouchat.slim 自定义 QRCodeReader
-    //   解码器后移除（需同步修改 ContactSubScreens 扫码调用点——该文件不在 B1 允许改动清单内，故本轮保留，
-    //   见 docs/size-baseline.md §3 依赖审计结论）。维持实现以保证扫码功能可用。
+    //   解码器后移除（需同步修改 ContactSubScreens 扫码调用点）。维持实现以保证扫码功能可用。
     implementation("com.google.zxing:core:3.5.3")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 

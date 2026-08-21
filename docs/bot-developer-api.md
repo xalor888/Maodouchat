@@ -169,7 +169,6 @@ Bot 侧 flags 与 public/status **同源** `RuntimeConfigService`。
 |------|------|
 | 本文 | Bot 契约与 flags 索引 |
 | `docs/feature-inventory.md` | 产品功能完整度 |
-| `docs/progress-report.md` | 阶段进度与策略 |
 | `RuntimeConfigService.kt` | 全部 runtime key 权威源 |
 | `Routing.kt` | 路由实现权威源 |
 
