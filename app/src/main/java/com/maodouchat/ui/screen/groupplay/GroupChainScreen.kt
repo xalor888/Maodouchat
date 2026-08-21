@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -38,6 +39,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
+import com.maodouchat.network.WebSocketClient
+import com.maodouchat.network.WebSocketEvent
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -241,6 +244,16 @@ fun GroupChainScreen(
     viewModel: GroupChainViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // 群玩法实时刷新：同群成员的签到/接龙/PK 变化通过 GROUP_PLAY_UPDATE 推送到达时自动刷新，
+    // 此前该事件在客户端无任何处理，界面只能靠退出重进才能看到他人更新。
+    LaunchedEffect(viewModel.chatId) {
+        WebSocketClient.events.collect { event ->
+            if (event is WebSocketEvent.GroupPlayUpdated && event.chatId == viewModel.chatId) {
+                viewModel.refresh()
+            }
+        }
+    }
 
     Scaffold(
         topBar = {

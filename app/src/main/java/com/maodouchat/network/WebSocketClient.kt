@@ -15,6 +15,9 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -80,6 +83,12 @@ sealed class WebSocketEvent {
     data class FriendRequestUpdated(
         val action: String,
         val request: FriendRequestDto
+    ) : WebSocketEvent()
+    /** 群玩法实时事件（checkin_updated / chain_created / chain_updated / pk_created / pk_updated / pk_closed）。 */
+    data class GroupPlayUpdated(
+        val chatId: String,
+        val event: String,
+        val payloadJson: String
     ) : WebSocketEvent()
     /** 9.3xx：群邀请事件（CREATED / ACCEPTED / DECLINED / CANCELLED）。 */
     data class GroupInviteUpdated(
@@ -952,6 +961,19 @@ object WebSocketClient {
                     eventBus.post(WebSocketEvent.GroupInviteUpdated(data.action, data.invite))
                 } catch (e: Exception) {
                     emitError(WebSocketErrorKind.FRIEND_REQUEST_PARSE, e)
+                }
+            }
+
+            "GROUP_PLAY_UPDATE" -> {
+                // 群玩法实时事件（签到/接龙/PK）：payload 为 {event, data} 包装，data 内含 chatId
+                try {
+                    val obj = json.parseToJsonElement(wsMsg.payload).jsonObject
+                    val event = obj["event"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val chatId = obj["data"]?.jsonObject?.get("chatId")
+                        ?.jsonPrimitive?.contentOrNull.orEmpty()
+                    eventBus.post(WebSocketEvent.GroupPlayUpdated(chatId, event, wsMsg.payload))
+                } catch (e: Exception) {
+                    emitError(WebSocketErrorKind.MESSAGE_PARSE, e)
                 }
             }
 

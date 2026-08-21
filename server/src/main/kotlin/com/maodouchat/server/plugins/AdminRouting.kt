@@ -2427,6 +2427,39 @@ put("count", logs.size)
             
             
             
+            get("/bots-export") {
+                if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
+                // 只导出元数据：token 只含前缀，绝不导出 tokenHash
+                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 20000)
+                val rows = transaction {
+                    BotApps.selectAll()
+                        .orderBy(BotApps.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+                        .limit(limit)
+                        .map { row ->
+                            listOf(
+                                csvCell(row[BotApps.id]),
+                                csvCell(row[BotApps.name]),
+                                csvCell(row[BotApps.username]),
+                                csvCell(row[BotApps.ownerUserId]),
+                                csvCell(row[BotApps.tokenPrefix]),
+                                csvCell(row[BotApps.webhookUrl] ?: ""),
+                                csvCell(row[BotApps.enabled].toString()),
+                                csvCell(row[BotApps.createdAt].toString()),
+                                csvCell(row[BotApps.updatedAt].toString())
+                            ).joinToString(",")
+                        }
+                }
+                val csv = buildString {
+                    appendLine("id,name,username,ownerUserId,tokenPrefix,webhookUrl,enabled,createdAt,updatedAt")
+                    rows.forEach { appendLine(it) }
+                }
+                call.response.header(
+                    HttpHeaders.ContentDisposition,
+                    "attachment; filename=\"maodouchat-bots-${System.currentTimeMillis()}.csv\""
+                )
+                call.respondText(csv, io.ktor.http.ContentType.Text.CSV)
+            }
+
             get("/message-stats-export") {
                 if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
                 // Aggregate by type only — never export message bodies (E2EE privacy).
