@@ -812,6 +812,24 @@ class SignalProtocol(
             ?.let { runCatching { UUID.fromString(it) }.isSuccess && savedEpoch == epoch } == true
     }
 
+    /**
+     * 9.310：群 SenderKey 分发是否真正可用——分发元数据存在但 protocol store 里的真实
+     * sender key 状态可能已丢失（identity 重生/损坏密钥自愈清空 store），此时
+     * GroupCipher.encrypt 报 "missing sender key state"，群发送静默失败。元数据+密钥
+     * 状态都在才算可用；否则调用方应走重新分发（mint 会重建同 distributionId 的密钥记录）。
+     */
+    fun groupDistributionUsable(groupId: String, epoch: Long = 0): Boolean {
+        if (!hasGroupDistributionId(groupId, epoch)) return false
+        return cryptoLock.withLock {
+            runCatching {
+                val key = scopedKey("$KEY_GROUP_DISTRIBUTION_PREFIX$groupId")
+                val distributionId = signalKeyDao.getKeyBlocking(key)?.keyData ?: return@withLock false
+                val senderAddress = SignalProtocolAddress(currentUserId ?: ANONYMOUS_ACCOUNT_ID, getDeviceId())
+                protocolStore.loadSenderKey(senderAddress, UUID.fromString(distributionId)) != null
+            }.getOrDefault(false)
+        }
+    }
+
     fun shouldRotateGroupSenderKey(groupId: String, epoch: Long = 0): Boolean {
         if (!hasGroupDistributionId(groupId, epoch)) return false
         val metadata = loadGroupDistributionMetadata(groupId)

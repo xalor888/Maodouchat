@@ -7986,6 +7986,8 @@ fun sendCurrentLocation() {
                 throw error
             } catch (error: Exception) {
                 val terminalFailed = shouldMarkOutboxFailed(error)
+                // 9.310：终态失败此前无日志，实测群发静默标 FAILED 无法定位——全量记录
+                Log.w("ChatDetailViewModel", "sendMessage failed terminal=$terminalFailed: ${error.message}", error)
                 val next = if (terminalFailed) {
                     optimistic.copy(status = MessageStatus.FAILED)
                 } else {

@@ -235,7 +235,7 @@ class SenderKeyRetryManager(
             // 旧 epoch 的附件密文 envelope 不可复用
             clearAttachmentWireForChat(chatId)
         }
-        val hasLocalDistribution = signalProtocol.hasGroupDistributionId(chatId, expectedEpoch)
+        val hasLocalDistribution = signalProtocol.groupDistributionUsable(chatId, expectedEpoch)
         if (hasLocalDistribution) {
             val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
             val coverageResult = ApiService.getSenderKeyDistributionStatus(
@@ -439,7 +439,7 @@ class SenderKeyRetryManager(
         if (!sessionActive(expectedOwnerUserId)) return false
         val coverage = coverageResult.getOrNull() ?: return false
         return !SenderKeyCoveragePolicy.requiresDistribution(
-            hasLocalDistribution = signalProtocol.hasGroupDistributionId(chatId, epoch),
+            hasLocalDistribution = signalProtocol.groupDistributionUsable(chatId, epoch),
             requestedEpoch = epoch,
             statusEpoch = coverage.epoch,
             targetStatuses = coverage.targets.map(SenderKeyDistributionTargetDto::status)
