@@ -1,3 +1,5 @@
+import java.util.zip.ZipFile
+
 plugins {
     kotlin("jvm") version "2.4.0"
     kotlin("plugin.serialization") version "2.4.0"
@@ -14,6 +16,9 @@ repositories {
 
 val ktorVersion = "2.3.7"
 val exposedVersion = "0.46.0"
+
+// 9.303：仅用于提取 WebRTC .so 的独立配置（不进运行时 classpath）
+val webrtcNative by configurations.creating { isTransitive = false }
 
 dependencies {
     // Ktor Server
@@ -55,6 +60,12 @@ dependencies {
     // Verify device-approval signatures made by Signal identity keys.
     implementation("org.signal:libsignal-client:0.41.0")
 
+    // 9.303：WebRTC 原生库仅用于构建期提取 .so（GET /api/webrtc/lib/{abi} 自服下载）。
+    // 此前 .so 靠 scripts/webrtc-sync-native.sh 手工同步到 resources 且被 gitignore/dockerignore
+    // 双重排除 → 生产镜像永远缺库 → 通话首次拉库 503，语音/视频通话全挂。
+    // 现改为构建期从 Maven 依赖自动提取，Docker 构建自足。
+    "webrtcNative"("io.getstream:stream-webrtc-android:1.1.1")
+
     // BCrypt
     implementation("at.favre.lib:bcrypt:0.10.2")
 
@@ -83,6 +94,29 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
     testImplementation("io.ktor:ktor-client-core:$ktorVersion")
 }
+
+// 9.303：构建期从 stream-webrtc-android AAR 提取 arm64-v8a 的 libjingle_peerconnection_so.so
+// 到资源目录（服务端 WebRtcBinaryService 从 classpath /webrtc/... 惰性解压提供下载）。
+// 手工同步的 server/src/main/resources/webrtc/ 被 gitignore，Docker 构建拿不到，
+// 只能靠此任务在 installDist 前落盘。本地已存在的同步文件不重复覆盖。
+val extractWebRtcNativeLib = tasks.register("extractWebRtcNativeLib") {
+    val dest = layout.projectDirectory.file("src/main/resources/webrtc/arm64-v8a/libjingle_peerconnection_so.so")
+    outputs.file(dest)
+    doLast {
+        val aar = webrtcNative.singleFile
+        if (!dest.asFile.isFile) {
+            dest.asFile.parentFile.mkdirs()
+            ZipFile(aar).use { zip ->
+                val entry = zip.getEntry("jni/arm64-v8a/libjingle_peerconnection_so.so")
+                    ?: error("webrtc aar missing jni/arm64-v8a/libjingle_peerconnection_so.so")
+                zip.getInputStream(entry).use { input -> dest.asFile.outputStream().use { input.copyTo(it) } }
+            }
+            logger.lifecycle("extracted WebRTC native lib to ${dest.asFile}")
+        }
+    }
+}
+
+tasks.named("processResources") { dependsOn(extractWebRtcNativeLib) }
 
 tasks.withType<Test> {
     useJUnitPlatform()

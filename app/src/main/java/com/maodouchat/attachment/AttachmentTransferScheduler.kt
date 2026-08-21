@@ -16,6 +16,7 @@ object AttachmentTransferScheduler {
     const val KEY_MESSAGE_ID = "message_id"
     const val KEY_OWNER_USER_ID = "owner_user_id"
     private const val TAG = "attachment_transfer"
+    private const val TAG_LOG = "AttachmentTransferScheduler"
     private const val WORK_PREFIX = "attachment_transfer_"
 
     private val constraints = Constraints.Builder()
@@ -44,6 +45,8 @@ object AttachmentTransferScheduler {
 
     fun cancel(context: Context, messageId: String, ownerUserId: String) {
         if (ownerUserId.isBlank()) return
+        // 9.302：保留轻量日志便于排查传输调度（实测发图曾被误判为卡死）
+        android.util.Log.d(TAG_LOG, "cancel attachment work $messageId")
         WorkManager.getInstance(context.applicationContext).cancelUniqueWork(workName(ownerUserId, messageId))
     }
 

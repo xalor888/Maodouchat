@@ -24,6 +24,36 @@ object ImagePicker {
      * @param quality 压缩质量（默认 70）
      * @return Base64 编码字符串
      */
+    /**
+     * 9.299：file:// URI 直接走 File 流读取——ContentResolver.openInputStream 对
+     * 应用私有目录的 file:// 在新版 Android 上会返回 null（SELinux/FileProvider 策略），
+     * 导致已持久化的草稿图片读取失败无法发布。
+     */
+    private fun openImageStream(context: Context, uri: Uri): java.io.InputStream? =
+        if (uri.scheme == "file") {
+            val path = uri.path
+            if (path == null) {
+                Log.w(TAG, "openImageStream: file:// uri has null path: $uri")
+                null
+            } else {
+                val file = java.io.File(path)
+                try {
+                    file.inputStream()
+                } catch (e: Exception) {
+                    // 9.300：把真实异常打出来（exists/length 一并记录），定位私有目录读取失败根因
+                    Log.w(TAG, "openImageStream: file:// read failed exists=${file.exists()} length=${file.length()} canRead=${file.canRead()} uri=$uri", e)
+                    null
+                }
+            }
+        } else {
+            try {
+                context.contentResolver.openInputStream(uri)
+            } catch (e: Exception) {
+                Log.w(TAG, "openImageStream: contentResolver.openInputStream threw for $uri", e)
+                null
+            }
+        }
+
     fun uriToBase64(context: Context, uri: Uri, maxWidth: Int = 800, quality: Int = 70): String? {
         val bytes = compressedImageBytes(context, uri, maxWidth, quality) ?: return null
         return Base64.encodeToString(bytes, Base64.NO_WRAP)
@@ -49,27 +79,48 @@ object ImagePicker {
         var scaledBitmap: Bitmap? = null
         return try {
             // 文件大小预检：超过 15 MB 直接拒绝，避免后续整图 base64 导致 OOM。
-            val fileSize = context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1
+            // 9.300：file:// 不走 ContentResolver（对私有目录可能返回 null/抛异常），直接 File.length()
+            val fileSize = if (uri.scheme == "file") {
+                uri.path?.let { java.io.File(it).length() } ?: -1
+            } else {
+                runCatching { context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } }.getOrNull() ?: -1
+            }
             if (fileSize > MAX_IMAGE_BYTES) {
                 Log.w(TAG, "Image too large: $fileSize bytes (max $MAX_IMAGE_BYTES)")
                 return null
             }
 
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                BitmapFactory.decodeStream(input, null, bounds)
-            } ?: return null
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+            // 9.300：此前 ?.use{decodeStream} ?: run 写法有逻辑错误——inJustDecodeBounds=true 时
+            // decodeStream 恒返回 null Bitmap，导致流明明打开成功也被误判为"读取失败"，
+            // 所有图片都无法发布。改为先显式判空流，再解码。
+            val boundsStream = openImageStream(context, uri)
+            if (boundsStream == null) {
+                Log.w(TAG, "Image read failed: cannot open stream(bounds) for $uri")
+                return null
+            }
+            boundsStream.use { input -> BitmapFactory.decodeStream(input, null, bounds) }
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                Log.w(TAG, "Image read failed: undecodable bounds ${bounds.outWidth}x${bounds.outHeight} for $uri")
+                return null
+            }
 
-            val orientation = context.contentResolver.openInputStream(uri)?.use { input ->
+            val orientation = openImageStream(context, uri)?.use { input ->
                 ExifInterface(input).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
             } ?: ExifInterface.ORIENTATION_NORMAL
 
             val sampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, maxWidth, MAX_IMAGE_PIXELS)
             val decodeOptions = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-            val decodedBitmap = context.contentResolver.openInputStream(uri)?.use { input ->
-                BitmapFactory.decodeStream(input, null, decodeOptions)
-            } ?: return null
+            val decodeStream = openImageStream(context, uri)
+            if (decodeStream == null) {
+                Log.w(TAG, "Image read failed: cannot open stream(decode) for $uri")
+                return null
+            }
+            val decodedBitmap = decodeStream.use { input -> BitmapFactory.decodeStream(input, null, decodeOptions) }
+            if (decodedBitmap == null) {
+                Log.w(TAG, "Image read failed: decodeStream returned null bitmap for $uri")
+                return null
+            }
             originalBitmap = decodedBitmap
             val orientedBitmap = applyExifOrientation(decodedBitmap, orientation)
             if (orientedBitmap !== decodedBitmap) decodedBitmap.recycle()
@@ -95,7 +146,10 @@ object ImagePicker {
                 scaledBitmap.compress(Bitmap.CompressFormat.JPEG, minOf(quality, 52), outputStream)
                 bytes = outputStream.toByteArray()
             }
-            if (bytes.size > MAX_COMPRESSED_IMAGE_BYTES) return null
+            if (bytes.size > MAX_COMPRESSED_IMAGE_BYTES) {
+                Log.w(TAG, "Image read failed: compressed size ${bytes.size} exceeds cap $MAX_COMPRESSED_IMAGE_BYTES")
+                return null
+            }
 
             bytes
         } catch (e: OutOfMemoryError) {

@@ -876,6 +876,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     /** 1.202：清空发布框（文本 + 已选图片 + 持久化草稿）；1.272：同时恢复默认可见范围。 */
     fun clearComposer() {
         persistDraftComposer("")
+        deleteDraftFiles(_uiState.value.imageDrafts)
         _uiState.update {
             it.copy(
                 composerText = "",
@@ -885,6 +886,15 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 useDefaultPostVisibility = true,
                 isVisibilityReady = false
             )
+        }
+    }
+
+    /** 9.299：清理草稿图片的本地缓存拷贝（persistPickedImage 产物），避免缓存膨胀。 */
+    private fun deleteDraftFiles(drafts: List<PostImageDraft>) {
+        drafts.forEach { draft ->
+            if (draft.uri.scheme == "file") {
+                runCatching { draft.uri.path?.let { p -> java.io.File(p).delete() } }
+            }
         }
     }
 
@@ -929,9 +939,43 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             _uiState.update { it.copy(infoMessage = text(R.string.explore_max_images)) }
             return
         }
-        val drafts = picked.map { PostImageDraft(uri = it) }
-        _uiState.update { it.copy(imageDrafts = it.imageDrafts + drafts, errorMessage = null) }
-        drafts.forEach(::uploadDraftImage)
+        // 9.299：Photo Picker 的 content:// URI 读权限会在回调后失效（uploadDraftImage
+        // 异步读取时 openInputStream 返回 null，草稿卡死无法发布）——回调时刻权限保证有效，
+        // 立即拷贝到应用缓存，后续压缩/上传/重试全用 file:// URI
+        viewModelScope.launch(Dispatchers.IO) {
+            val persisted = picked.mapNotNull { uri -> persistPickedImage(uri) }
+            if (!isCurrentOwner(draftOwnerId()) && draftOwnerId().isNotBlank()) {
+                persisted.forEach { it.path?.let { p -> java.io.File(p).delete() } }
+                return@launch
+            }
+            if (persisted.isEmpty()) {
+                _uiState.update { it.copy(errorMessage = text(R.string.explore_some_images_read_failed)) }
+                return@launch
+            }
+            val room = 9 - _uiState.value.imageDrafts.size
+            val usable = persisted.take(room)
+            persisted.drop(room).forEach { it.path?.let { p -> java.io.File(p).delete() } }
+            val drafts = usable.map { PostImageDraft(uri = it) }
+            _uiState.update { it.copy(imageDrafts = it.imageDrafts + drafts, errorMessage = null) }
+            drafts.forEach(::uploadDraftImage)
+        }
+    }
+
+    /** 9.299：把 picker URI 拷贝到缓存目录；file:// 直接返回。失败返回 null。 */
+    private fun persistPickedImage(uri: Uri): Uri? {
+        if (uri.scheme == "file") return uri
+        return runCatching {
+            val dir = java.io.File(getApplication<android.app.Application>().cacheDir, "post-image-drafts").apply { mkdirs() }
+            val target = java.io.File(dir, "draft_${System.currentTimeMillis()}_${(uri.hashCode() and 0x7fffffff)}.bin")
+            val copied = getApplication<android.app.Application>().contentResolver.openInputStream(uri)?.use { input ->
+                target.outputStream().use { out -> input.copyTo(out) }
+            } ?: return@runCatching null
+            if (copied <= 0L || !target.isFile || target.length() == 0L) {
+                target.delete()
+                return@runCatching null
+            }
+            android.net.Uri.fromFile(target)
+        }.getOrNull()
     }
 
     /** 1.211：重试上传失败/中断的发布图片（复用原 uri 重新压缩上传）。 */
@@ -959,7 +1003,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 }
                 if (!isCurrentOwner(uploadOwnerUserId)) {
                     if (canResetUploadState(uploadOwnerUserId)) {
-                        updateDraft(draft.id) { it.copy(isUploading = false) }
+                        // 9.299：静默重置会让草稿卡死（无 URL 无错误，发布永久禁用零反馈）——必须标错可重试
+                        android.util.Log.w("ExploreViewModel", "draft image upload aborted: owner changed ${draft.id}")
+                        updateDraft(draft.id) { it.copy(isUploading = false, errorMessage = text(R.string.explore_upload_failed)) }
                     }
                     return@launch
                 }
@@ -970,7 +1016,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     )
                 ) {
                     if (canResetUploadState(uploadOwnerUserId)) {
-                        updateDraft(draft.id) { it.copy(isUploading = false) }
+                        android.util.Log.w("ExploreViewModel", "draft image upload aborted: session gate ${draft.id}")
+                        updateDraft(draft.id) { it.copy(isUploading = false, errorMessage = text(R.string.explore_upload_failed)) }
                     }
                     return@launch
                 }
@@ -994,7 +1041,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                                 discardUploadedImage(url, uploadOwnerUserId)
                             }
                         } else if (canResetUploadState(uploadOwnerUserId)) {
-                            updateDraft(draft.id) { it.copy(isUploading = false) }
+                            // 9.299：上传已成功但会话门拦截了结果落库——同样不能静默卡死
+                            android.util.Log.w("ExploreViewModel", "draft image uploaded but session gate blocked commit ${draft.id}")
+                            updateDraft(draft.id) { it.copy(isUploading = false, errorMessage = text(R.string.explore_upload_failed)) }
                         }
                     },
                     onFailure = { error ->
@@ -1006,7 +1055,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                             )
                         ) {
                             if (canResetUploadState(uploadOwnerUserId)) {
-                                updateDraft(draft.id) { it.copy(isUploading = false) }
+                                android.util.Log.w("ExploreViewModel", "draft image upload failed+gate: ${error.message} ${draft.id}")
+                                updateDraft(draft.id) { it.copy(isUploading = false, errorMessage = text(R.string.explore_upload_failed)) }
                             }
                             return@fold
                         }
@@ -1050,12 +1100,14 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         _uiState.update { state ->
             state.copy(imageDrafts = state.imageDrafts.filterNot { it.id == id })
         }
+        draft?.let { deleteDraftFiles(listOf(it)) }
         draft?.uploadUrl?.let { discardUploadedImage(it, draftOwnerId()) }
     }
 
     fun resetPostState() {
         val uploadedUrls = _uiState.value.readyImageUrls
         val ownerUserId = draftOwnerId()
+        deleteDraftFiles(_uiState.value.imageDrafts)
         clearDraftPrefsForOwner()
         _uiState.update { state ->
             val accountDefault = state.defaultPostVisibility
@@ -1127,6 +1179,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                             (state.useDefaultPostVisibility || current.selectedVisibility == state.selectedVisibility)
                         _uiState.update {
                             if (draftUnchanged) {
+                                deleteDraftFiles(current.imageDrafts)
                                 val resolvedDefault = if (state.useDefaultPostVisibility) {
                                     normalizeVisibility(post.visibility)
                                 } else {

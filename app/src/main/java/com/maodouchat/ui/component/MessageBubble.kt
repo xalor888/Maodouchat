@@ -227,13 +227,13 @@ fun MessageBubble(
             message, isOwnMessage, modifier, showAvatar, senderName, onImageClick, onBoundsMeasured,
             fileTransferProgress, fileTransferState, fileTransferError,
             onPauseFileTransfer, onResumeFileTransfer, onCancelFileTransfer, onRequestMediaAttachment, mediaDownloadFailed,
-            currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler
+            currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler, onStatusClick
         )
         MessageType.GIF -> ImageBubble(
             message, isOwnMessage, modifier, showAvatar, senderName, onImageClick, onBoundsMeasured,
             fileTransferProgress, fileTransferState, fileTransferError,
             onPauseFileTransfer, onResumeFileTransfer, onCancelFileTransfer, onRequestMediaAttachment, mediaDownloadFailed,
-            currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler
+            currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler, onStatusClick
         )
         MessageType.STICKER -> StickerBubble(
             message, isOwnMessage, modifier, showAvatar, senderName, onBoundsMeasured, currentUserId, onReactionClick, onStatusClick
@@ -253,7 +253,7 @@ fun MessageBubble(
             message, isOwnMessage, modifier, showAvatar, senderName, onVideoClick, onBoundsMeasured,
             fileTransferProgress, fileTransferState, fileTransferError,
             onPauseFileTransfer, onResumeFileTransfer, onCancelFileTransfer, onRequestMediaAttachment, mediaDownloadFailed,
-            currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler
+            currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler, onStatusClick
         )
         MessageType.FILE -> FileBubble(
             message,
@@ -1211,7 +1211,10 @@ private fun ImageBubble(
     onReactionClick: ((String) -> Unit)? = null,
     secretChatId: String? = null,
     onViewOnceOpened: ((String) -> Unit)? = null,
-    onRevealSpoiler: ((String) -> Unit)? = null
+    onRevealSpoiler: ((String) -> Unit)? = null,
+    /** 9.302：图片/GIF 气泡此前不渲染发送状态图标（文本/语音/文件都有），
+     * 用户发图后看不到已发送/已送达反馈，误以为发图卡死。 */
+    onStatusClick: ((Message) -> Unit)? = null
 ) {
     val palette = LocalChatPalette.current
     val context = LocalContext.current
@@ -1373,6 +1376,17 @@ private fun ImageBubble(
                         color = Color.White
                     )
                     DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = true)
+                    // 9.302：自己的媒体消息补上发送状态图标（与文本/语音/文件气泡一致）
+                    if (isOwnMessage) {
+                        Spacer(modifier = Modifier.width(3.dp))
+                        if (onStatusClick != null) {
+                            Box(modifier = Modifier.clickable { onStatusClick(message) }) {
+                                MessageStatusIcon(message.status)
+                            }
+                        } else {
+                            MessageStatusIcon(message.status)
+                        }
+                    }
                 }
             }
             ReactionSummaryRow(message, currentUserId, isOwnMessage, onReactionClick)
@@ -1799,7 +1813,9 @@ private fun VideoBubble(
     secretChatId: String? = null,
     // 9.146：视频补齐阅后即焚/防剧透守卫（此前 VIDEO 完全缺失，ViewOncePolicy.supports 却包含 VIDEO）
     onViewOnceOpened: ((String) -> Unit)? = null,
-    onRevealSpoiler: ((String) -> Unit)? = null
+    onRevealSpoiler: ((String) -> Unit)? = null,
+    /** 9.302：与图片气泡一致，补上发送状态图标 */
+    onStatusClick: ((Message) -> Unit)? = null
 ) {
     val palette = LocalChatPalette.current
     val context = LocalContext.current
@@ -1957,6 +1973,17 @@ private fun VideoBubble(
                         color = Color.White
                     )
                     DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = true)
+                    // 9.302：自己的媒体消息补上发送状态图标（与文本/语音/文件气泡一致）
+                    if (isOwnMessage) {
+                        Spacer(modifier = Modifier.width(3.dp))
+                        if (onStatusClick != null) {
+                            Box(modifier = Modifier.clickable { onStatusClick(message) }) {
+                                MessageStatusIcon(message.status)
+                            }
+                        } else {
+                            MessageStatusIcon(message.status)
+                        }
+                    }
                 }
             }
             ReactionSummaryRow(message, currentUserId, isOwnMessage, onReactionClick)

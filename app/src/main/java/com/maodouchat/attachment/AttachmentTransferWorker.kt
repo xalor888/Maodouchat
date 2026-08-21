@@ -26,6 +26,8 @@ class AttachmentTransferWorker(
         val expectedOwnerUserId = inputData.getString(AttachmentTransferScheduler.KEY_OWNER_USER_ID)
             ?.takeIf(String::isNotBlank)
             ?: return Result.failure()
+        // 9.302：诊断日志——定位发图 worker 被取消/未重调度问题
+        Log.i(TAG, "doWork start: $messageId attempt=$runAttemptCount")
         val app = applicationContext as? MaodouchatApp ?: return Result.failure()
         val dao = app.database.attachmentTransferDao()
         val tokenManager = TokenManager.getInstance(applicationContext)
