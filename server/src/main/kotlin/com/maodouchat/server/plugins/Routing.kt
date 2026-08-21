@@ -81,6 +81,7 @@ private suspend fun ApplicationCall.respondPublicHtml(page: String, fallback: St
 }
 
 private val routingParseLogger = org.slf4j.LoggerFactory.getLogger("RoutingParse")
+private val loginAuditLogger = org.slf4j.LoggerFactory.getLogger("LoginAudit")
 
 // 手动 JSON 解析 —— 绕过 Ktor ContentNegotiation 对 receiveNullable / ContentConversion 的歧义。
 // 在 Ktor 2.3 + in-memory testApplication 同进程多次 mount 时行为最稳定。
@@ -864,6 +865,16 @@ put("user", Json.parseToJsonElement(Json.encodeToString(user)))
             }
             val loginResult = userRepo.loginWithFactors(req.email, req.password, req.totpCode)
             val authed = loginResult.user != null
+            // 9.5xx：登录全链路日志——管理后台「登不进」排障：每次尝试记录账号/来源/结果
+            loginAuditLogger.info(
+                "login attempt email={} ip={} user={} passwordOk={} totpEnabled={} totpOk={}",
+                emailKey,
+                ip,
+                loginResult.user?.id.orEmpty(),
+                loginResult.passwordOk,
+                loginResult.totpEnabled,
+                loginResult.totpOk
+            )
             if (!authed) {
                 // 密码错误 / TOTP 失败均计入连续失败，达阈值即锁定（按 IP 隔离）
                 recordLoginFailure(emailKey, ip)
