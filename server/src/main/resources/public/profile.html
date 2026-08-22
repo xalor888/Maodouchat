@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{TITLE}}</title>
+  <meta name="description" content="{{DESCRIPTION}}">
+  <link rel="canonical" href="{{CANONICAL}}">
+  <link rel="icon" href="/assets/logo.png">
+  <link rel="apple-touch-icon" href="/assets/icon-512.png">
+  <meta property="og:title" content="{{TITLE}}">
+  <meta property="og:description" content="{{DESCRIPTION}}">
+  <meta property="og:type" content="profile">
+  <meta property="og:site_name" content="毛豆聊天">
+  <meta property="og:url" content="{{OG_URL}}">
+  {{OG_IMAGE_TAGS}}
+  <meta name="twitter:card" content="{{TWITTER_CARD}}">
+  <meta name="twitter:title" content="{{TITLE}}">
+  <meta name="twitter:description" content="{{DESCRIPTION}}">
+  {{TWITTER_IMAGE_TAG}}
+  <meta name="theme-color" content="#087f5b" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0c110e" media="(prefers-color-scheme: dark)">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self' http: https: data:; frame-ancestors 'none'; form-action 'none'; base-uri 'none'">
+  <link rel="stylesheet" href="/assets/profile.css">
+</head>
+<body class="{{BODY_CLASS}}">
+  <a class="skip-link" href="#card">跳到名片</a>
+  <div class="page">
+    <a class="brand" href="{{BASE_HREF}}">
+      <span class="brand-mark" aria-hidden="true">毛</span>
+      毛豆聊天
+    </a>
+
+    <article class="card card-profile" id="card">
+      <div class="avatar" aria-hidden="true">
+        <span>{{INITIAL}}</span>
+        {{AVATAR_IMG}}
+      </div>
+      <h1 class="name">{{NAME}}</h1>
+      <p class="handle">@{{USERNAME}}</p>
+      <p class="status">{{STATUS}}</p>
+      <p class="hint">在毛豆聊天里打开资料，添加好友或发消息。这是公开名片，不会显示在线状态。</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="{{DEEP_LINK}}">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-2h2v2zm2.1-7.7c-.6 1-.9 1.4-1.7 1.9-.8.5-1.4 1.1-1.4 2.3v.5h-2v-.7c0-1.5.7-2.3 1.6-3 .8-.6 1.3-1 1.6-1.9.2-.6-.1-1.4-1.2-1.4-.9 0-1.5.5-1.7 1.4l-2-.4C9 6.4 10.5 5.3 12.5 5.3c2.2 0 3.6 1.2 3.6 2.9 0 .4 0 .7-.3 1.1z"/></svg>
+          在毛豆聊天中打开
+        </a>
+        <a class="btn btn-secondary" href="{{INTENT_LINK}}">使用 App 链接打开</a>
+      </div>
+    </article>
+
+    <article class="card card-error" id="card-error">
+      <div class="error-mark" aria-hidden="true">!</div>
+      <h1 class="error-title">{{ERROR_TITLE}}</h1>
+      <p class="error-desc">{{ERROR_DESC}}</p>
+      <a class="btn btn-primary" href="{{BASE_HREF}}">返回毛豆聊天</a>
+    </article>
+
+    <article class="card card-empty" id="card-empty">
+      <div class="avatar" aria-hidden="true"><span>毛</span></div>
+      <h1 class="empty-title">毛豆聊天</h1>
+      <p class="empty-desc">安全 · 轻量 · 智能的即时通讯。端到端加密，公开名片可分享。</p>
+      <a class="btn btn-primary" href="{{BASE_HREF}}">打开毛豆聊天</a>
+    </article>
+
+    <p class="footer"><a href="{{BASE_HREF}}">毛豆聊天</a> © {{YEAR}}</p>
+  </div>
+</body>
+</html>
