@@ -1823,7 +1823,7 @@
     <string name="notifications_enable_title">接收新消息通知</string>
     <string name="notifications_enable_subtitle">关闭后，应用内不会弹出通知横幅和声音</string>
     <string name="notifications_sound_title">消息声音</string>
-    <string name="notifications_sound_subtitle">收到新消息时播放提示音</string>
+    <string name="notifications_sound_subtitle">收到新消息时播放提示音（含当前打开的会话内短提示）。关闭后不再发声，来电铃声单独由系统通话渠道控制</string>
     <string name="notifications_vibration_title">震动</string>
     <string name="notifications_vibration_subtitle">收到新消息时震动提醒</string>
     <string name="notifications_preview_title">通知预览</string>
