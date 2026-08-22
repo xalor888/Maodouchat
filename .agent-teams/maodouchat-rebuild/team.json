@@ -1,0 +1,130 @@
+{
+  "name": "maodouchat-rebuild",
+  "id": "maodouchat-rebuild",
+  "description": "Stabilize and modernize the Maodouchat client UI and core chat functionality, audit backend usability, test locally, then commit/push and deploy to the specified Hong Kong server after verification.",
+  "captainSessionId": "session-6a14f19c-bda6-498d-9c44-0f81138b835e",
+  "createdAt": 1787385487029,
+  "members": [
+    {
+      "id": "b59c50d0-447e-47bf-8705-4dfaf8f72ddc",
+      "name": "ui-auditor",
+      "role": "Audit current client UI, duplicate switches, dark mode, reference folders, and propose scoped fixes.",
+      "provider": "deepseek-official",
+      "model": "deepseek-chat",
+      "reasoningEffort": "high",
+      "joinedAt": 1787385669497,
+      "status": "working"
+    },
+    {
+      "id": "95c08ce5-5989-4a72-910f-44bc18f3d996",
+      "name": "chat-engineer",
+      "role": "Audit and fix chat sender keys, decryption failures, message key crashes/repetition, and notification sound.",
+      "provider": "deepseek-official",
+      "model": "deepseek-chat",
+      "reasoningEffort": "high",
+      "joinedAt": 1787385679316,
+      "status": "working"
+    },
+    {
+      "id": "76d92d19-9a9e-4b0a-be60-814b9fff11ce",
+      "name": "backend-auditor",
+      "role": "Audit backend management features and stability, identify high-impact usability bugs and tests.",
+      "provider": "deepseek-official",
+      "model": "deepseek-chat",
+      "reasoningEffort": "high",
+      "joinedAt": 1787385679324,
+      "status": "working"
+    },
+    {
+      "id": "98c97094-86f5-4c67-a669-c211e8294c0b",
+      "name": "qa-engineer",
+      "role": "Inspect test/build setup and create a verification plan covering UI and core functions.",
+      "provider": "deepseek-official",
+      "model": "deepseek-chat",
+      "reasoningEffort": "high",
+      "joinedAt": 1787385679337,
+      "status": "working"
+    },
+    {
+      "id": "92703f93-fd35-4f9f-841c-ed665a9e1dff",
+      "name": "deploy-engineer",
+      "role": "Inspect git/deployment configuration and server prerequisites; do not deploy until captain confirms verified changes.",
+      "provider": "deepseek-official",
+      "model": "deepseek-chat",
+      "reasoningEffort": "high",
+      "joinedAt": 1787385679355,
+      "status": "idle"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "subject": "Audit client UI",
+      "description": "Audit the repository client UI, locate duplicate switches and theme issues, inspect Murexide/Telegram reference folders, and report exact files plus a prioritized implementation plan. Do not make edits yet.",
+      "status": "completed",
+      "assignee": "ui-auditor",
+      "dependencies": [],
+      "attempt": 89,
+      "createdAt": 1787385690509,
+      "updatedAt": 1787385950708,
+      "attemptId": "75ee7d0f-17e4-4b3f-bc73-1f45ad67cb73",
+      "reassigning": false,
+      "output": "UI 审计完成（只读，未改任何文件）。仓库：Android Jetpack Compose 客户端，设置层级 SettingsScreen→AccountSecurity/Notifications/General/ThemeEditor/FakeChat。\n\n【A. 重复开关/冲突控件（按优先级）】\n1. 强调色双控（P1，最严重）：General 设置 AccentColorRow（SettingsSubScreens.kt:2927-2979，写 ThemePreferences.accent 7色预设）vs 主题编辑器 accent 槽（ThemeEditorScreen.kt:322-334 + CustomThemeStore.kt:27 SLOTS\"accent\"）。Theme.kt:126-128 先应用强调色预设，:146 applyOverrides 又静默覆盖 primary → 编辑器设过 accent 后，设置页强调色选择\"失灵\"，优先级隐藏、UI 无任何提示。\n2. 发送气泡色双控（P1）：ChatBubbleColorRow（SettingsSubScreens.kt:2811-2816，按账号 bubble_color）vs 编辑器 chat_outBubble 槽。NavGraph.kt:355-378 resolveSentBubble(themeSentSpec, customized, userColor)：设置行 customized 时设置赢、仅编辑器设置时编辑器赢——与强调色优先级相反，规则不一致。\n3. 聊天背景双控（P2）：ChatWallpaperRow（SettingsSubScreens.kt:2795-2809，16预设+自定义图）vs 编辑器 chat_background 槽。ChatDetailScreen.kt:483-487 resolveBackground(preset,dark,fallback=palette.chatBackground)：非默认壁纸赢、默认时编辑器赢。\n4. 未读优先双表面（P2）：General 开关（SettingsSubScreens.kt:3375-3399 → SettingsSubViewModels.kt:1498-1503）vs ChatListScreen.kt:701-719 提示条点击即 setUnreadPriorityEnabled(false)（ChatListViewModel.kt:680-685）——同 pref 两个写入口，提示条无重开路径。\n5. 死代码（P3）：GeneralSettingsScreen showLanguageDialog 弹窗永不可打开（SettingsSubScreens.kt:2697 声明、2887-2920 渲染，全文件无 showLanguageDialog=true 赋值）——9.3xx 语言控件去重后遗留。\n6. 孤儿文件（P3）：app/src/main/java/com/maodouchat/ui/theme/LiquidPress.kt（163行，git status ?? 未跟踪、无引用、git log 无提交）——9.294 Liquid Glass revert 后遗留，仍会被编入 APK。\n7. 冗余双写（P3）：ClientPrefsSync.kt:48-53 setMode 已写 pref 又直接 putString(\"theme_mode\")。\n\n【B. 主题/深色模式】总体健康：isSystemInDarkTheme 仅 Theme.kt:93 默认参数，屏幕层全走 LocalDarkTheme/colorScheme；深色 token 已补全（Theme.kt:52-68）；values-night/themes.xml+splash_dark 已修闪白；widget 日夜色齐。残余：Theme.kt:48/70 私有别名 LightColorScheme/DarkColorScheme 与 Maodou*Scheme 重复（死别名）；Theme.kt:151 themeKey 未含 oledBlack（OLED 切换无帷幕过渡，小视觉）；FakeChatScreen/LoginScreen 硬编码白多为有意设计，无实锤 bug。\n\n【C. reference 文件夹】reference/ 经 .git/info/exclude 忽略（本地参考不提交）：Telegram 官方 Android 全源码（TMessagesProj，.attheme 资产 day/night/arctic/bluebubbles/darkblue）；Murexide（云湖 M3 客户端，ui/theme/liquidglass、SettingsStorage 单一 datastore、ThemeModeTest/ThemeBoundaryTest）。本 app 已对齐 TG .attheme 导入导出（CustomThemeStore.TG_KEY_MAP 子集）与 Murexide 对比度机制（MIN_TEXT_CONTRAST=4.5）。架构差距：本 app 7+ 个零散 Preferences 对象（全局/按账号/云同步三套并存）是重复开关根因；Murexide 单一 SettingsStorage 可作收敛参照；TG 主题编辑器有逐元素预览说明而本 app ThemeEditor 的 slot 未映射展示 TG 键名。\n\n【D. 优先实施计划】\nP1（正确性）：①统一强调色双控——编辑器 accent 槽写入时联动清 ThemePreferences.accent 或在 AccentColorRow 显示\"被自定义主题覆盖\"态+一键清除（文件：Theme.kt:123-146、SettingsSubScreens.kt:2927、ThemeEditorScreen.kt、CustomThemeStore.kt）；②统一气泡色/背景优先级规则（建议编辑器覆盖层最后生效=编辑器赢，与 accent 一致），NavGraph.kt:355-378 与 ChatDetailScreen.kt:483-487 同步；③未读优先提示条改为不写 pref（仅\"知道了\"），或加回设置入口。\nP2（清理）：④删 showLanguageDialog 死弹窗；⑤删除或正式接入 LiquidPress.kt；⑥删 Theme.kt 重复别名；⑦ClientPrefsSync 去冗余双写；⑧themeKey 补 oledBlack。\nP3（架构防再犯）：⑨参照 Murexide SettingsStorage 收敛偏好存储为单一对象，杜绝\"两个控件写同一视觉属性\"。"
+    },
+    {
+      "id": "t2",
+      "subject": "Stabilize chat crypto",
+      "description": "Audit chat message rendering, sender key lookup, decryption, message key lifecycle, duplicate/repeated messages, and notification sound implementation. Identify root causes and propose or implement focused fixes with tests where feasible.",
+      "status": "in_progress",
+      "assignee": "chat-engineer",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1787385690540,
+      "updatedAt": 1787385694723,
+      "attemptId": "54bbe47c-75c9-416b-bee6-a5923d8e9379",
+      "reassigning": false
+    },
+    {
+      "id": "t3",
+      "subject": "Audit backend flows",
+      "description": "Audit backend management features and stability. Identify concrete broken flows, crashes, API mismatches, and highest-impact fixes. Implement focused fixes only after understanding existing patterns; report files and tests.",
+      "status": "in_progress",
+      "assignee": "backend-auditor",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1787385690565,
+      "updatedAt": 1787385694520,
+      "attemptId": "b631e3b2-9a6d-43f3-af55-faf41df7d596",
+      "reassigning": false,
+      "output": "Auditing backend management flows: discovering project structure, backend entry points, management features, and stability risks."
+    },
+    {
+      "id": "t4",
+      "subject": "Establish QA baseline",
+      "description": "Inspect package scripts, test suites, local run instructions, and build setup. Establish a practical verification matrix for UI, chat, backend, and deployment; run baseline checks and report failures.",
+      "status": "in_progress",
+      "assignee": "qa-engineer",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1787385690588,
+      "updatedAt": 1787385694577,
+      "attemptId": "0d6d84f2-221e-46b8-968f-aaf57c1081bc",
+      "reassigning": false
+    },
+    {
+      "id": "t5",
+      "subject": "Inspect deployment path",
+      "description": "Inspect git remotes, deployment scripts, service layout assumptions, and server access feasibility. Do not modify or deploy anything. Report safe deployment prerequisites and exact commands, without exposing credentials.",
+      "status": "completed",
+      "assignee": "deploy-engineer",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1787385690611,
+      "updatedAt": 1787385778699,
+      "attemptId": "b93d1f5a-34ff-4225-9338-2a17cdf0f5f5",
+      "reassigning": false,
+      "output": "Deployment path inspected (read-only). Findings:\n1) GIT: repo /Users/xalor/Documents/Maodouchat, origin=https://github.com/xalor888/Maodouchat.git (HTTPS), branch main, 4 commits ahead of origin/main (f01bac1, 8b99dea, f4af222, 64b5874). Push path works: gh CLI authed as xalor888 (repo scope), `git push --dry-run origin main` succeeded (b486b69..f01bac1).\n2) GIT HYGIENE RISK: `.agent-teams/` is untracked and NOT in .gitignore — a plain `git add -A` would commit team state (inbox messages) to the public repo. Must add `.agent-teams/` to .gitignore before any commit. `app/src/main/java/com/maodouchat/ui/theme/LiquidPress.kt` is untracked source that should be committed (it is not ignored).\n3) DEPLOY MODEL: Docker Compose stack (docker-compose.yml): caddy:2.10.2-alpine TLS proxy (host ports 80/443) → Ktor server (builds from server/Dockerfile, eclipse-temurin:21, internal 8080 only, read-only rootfs, cap_drop ALL, /health/live + /health/ready) + postgres:16-alpine + optional coturn (3478, 49160-49200/udp). Named volumes: postgres_data, server_uploads, caddy_data, caddy_config. Production mode enforces: HTTPS BASE_URL == PUBLIC_HOST, JWT_SECRET>=32, Postgres, SEED_DEMO_USERS=false; RELAXED_VERIFICATION=true waives SMTP/TURN/PUSH.\n4) SCRIPTS (run ON the server at repo root): `scripts/deploy.sh` (idempotent one-click; --doctor read-only preflight, --dry-run, --relaxed, --bootstrap-admin, --no-build; requires Docker 24+ and Compose v2; auto-generates .env secrets); `scripts/update.sh` (backup → git pull fast-forward → rebuild → redeploy; requires existing .env + git checkout); plus status.sh / backup-production.sh / restore-production.sh. CI validates compose config; release.yml ships selfhost kit on v* tags.\n5) SERVER ACCESS — BLOCKER: ~/.ssh/config_maodou defines alias `maodou` → root@64.90.12.166:22 (ControlMaster). Port 22 TCP is OPEN. But key auth failed (\"Permission denied (password)\"): no private key on disk (~/.ssh has no id_*), ssh-agent has no identities. Automated SSH/deploy from this environment is NOT possible until the user supplies a key (place it in ~/.ssh, add IdentityFile to config_maodou, or ssh-add) or a password. No docker on this Mac either — deployment happens on the server, not locally.\n6) SAFE COMMANDS (after creds provided): local `git add` (excluding .agent-teams) → `git commit` → `git push origin main`; server preflight `bash scripts/deploy.sh --doctor`; first-time `bash scripts/deploy.sh --host <PUBLIC_HOST> --email <EMAIL> --relaxed` (existing stack: `bash scripts/update.sh`). Open firewall ports 80/443 (and 3478+49160-49200/udp if TURN wanted)."
+    }
+  ],
+  "taskSeq": 5
+}

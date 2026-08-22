@@ -1,0 +1,153 @@
+{
+  "name": "maodouchat-recovery",
+  "id": "maodouchat-recovery",
+  "description": "Rewrite and stabilize Maodouchat client UI using the Murexide and Telegram references, fix duplicate controls, dark mode, sharing UI, notification sound, chat sender-key/decryption/message-key crashes and duplication, repair backend management usability and stability, comprehensively test locally, commit and push, then deploy to the authorized Hong Kong 4c4g server at 64.90.12.166.",
+  "captainSessionId": "session-ea7a0392-b516-404e-bfcb-89786e664658",
+  "createdAt": 1787386284051,
+  "members": [
+    {
+      "id": "542a8192-7953-4aab-ba94-fd98a92cc234",
+      "name": "ui-lead",
+      "role": "Lead frontend engineer: analyze reference designs, audit duplicate controls/dark mode/share UI, implement modern client rewrite.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787386302292,
+      "status": "idle"
+    },
+    {
+      "id": "2e2b26fb-e732-4232-99bb-407ffbb4be38",
+      "name": "crypto-lead",
+      "role": "Messaging and cryptography engineer: diagnose sender-key, decryption, message-key crash and duplication defects; implement reliable fixes and tests.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787386302316,
+      "status": "idle"
+    },
+    {
+      "id": "4a6b8e2f-e10d-4862-962b-7f77cd60233a",
+      "name": "backend-lead",
+      "role": "Backend/admin engineer: audit management features, APIs and stability; implement fixes and tests.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787386302329,
+      "status": "idle"
+    },
+    {
+      "id": "ad1da93e-b088-4ec9-9d16-ab07c6de6657",
+      "name": "qa-release",
+      "role": "Independent QA and release engineer: build test matrix, review integrated changes, verify local UI/functions, commit/push/deploy and smoke-test server when authorized tasks are ready.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787386302348,
+      "status": "idle"
+    },
+    {
+      "id": "5dd6cdb9-67eb-4cc3-bb62-7202d7949db6",
+      "name": "harness-diagnostician",
+      "role": "DSH tooling diagnostician: inspect the installed harness implementation read-only to explain why shell/edit/write force sandbox escalation in an already danger-full-access session and identify a sanctioned recovery path.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787386759577,
+      "status": "idle"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "subject": "Rewrite and modernize client UI",
+      "description": "Audit the existing client, reference/Murexide, and reference/Telegram UI patterns. Identify duplicate switches, dark-mode defects, unusable flows, chat layout/key crash surfaces, and sharing-link UI. Then implement a cohesive modern client/share UI rewrite within frontend-owned files. Preserve functionality and add/update focused tests. Do not touch cryptography/backend-owned files unless coordinating first. Report exact changed files and commands/tests.",
+      "status": "claimed",
+      "assignee": "captain",
+      "dependencies": [],
+      "attempt": 2,
+      "createdAt": 1787386444794,
+      "updatedAt": 1787387230327,
+      "reassigning": false,
+      "attemptId": "d2198157-2abd-4d18-acd0-b1973c934a5e"
+    },
+    {
+      "id": "t2",
+      "subject": "Repair chat crypto and notification reliability",
+      "description": "Trace all chat sender-key, message-key, encryption/decryption, retry/replay and notification paths. Reproduce or statically identify missing sender keys, undecryptable messages, repeated keys/messages, crash paths, and poor notification audio. Implement robust fixes and focused regression tests. Coordinate UI-facing changes with ui-lead and avoid broad visual edits. Report root causes, changed files and verification.",
+      "status": "claimed",
+      "assignee": "captain",
+      "dependencies": [],
+      "attempt": 2,
+      "createdAt": 1787386444823,
+      "updatedAt": 1787387327019,
+      "reassigning": false,
+      "attemptId": "a43da42f-572d-4692-a841-1064c94a059e"
+    },
+    {
+      "id": "t3",
+      "subject": "Stabilize backend management features",
+      "description": "Audit backend APIs and management/admin features for unusable operations, crashes, bad validation/error handling, missing state synchronization, and stability issues. Implement the highest-impact comprehensive fixes with tests, staying primarily in backend/admin server ownership. Coordinate any shared contracts before editing. Report changed files, root causes and verification.",
+      "status": "claimed",
+      "assignee": "captain",
+      "dependencies": [],
+      "attempt": 2,
+      "createdAt": 1787386444854,
+      "updatedAt": 1787387230337,
+      "reassigning": false,
+      "attemptId": "eb924791-1a4c-4634-839f-6cf4a0e9d862"
+    },
+    {
+      "id": "t4",
+      "subject": "Baseline QA and release inventory",
+      "description": "Establish a baseline independently: inventory package scripts, build/test/lint commands, current git branch/remotes/dirty state, app startup method, and deployment configuration. Create a comprehensive functional test matrix covering client pages, duplicate switches, light/dark themes, chat/send/decrypt/key lifecycle, notifications, sharing links, and admin operations. Do not commit, push or deploy yet. Report baseline failures and release risks.",
+      "status": "completed",
+      "assignee": "qa-release",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1787386444884,
+      "updatedAt": 1787387077496,
+      "attemptId": "2cf4a13a-6def-4a81-93fa-8e4e96793414",
+      "reassigning": false,
+      "output": "Completed baseline inventory and comprehensive release-gate matrix. Mapped npm/Gradle/CI/startup/deploy/SSH configuration; HEAD main=f01bac1 vs origin/main=b486b69. Existing reports show app 660/660 pass, server 134 executed pass with 1 ignored of 135, connected 13/13 pass, lint 0 errors/516 warnings/1 hint, but fresh commands/browser E2E/exact dirty state were blocked by DSH bash sandbox-argument deadlock. Flagged critical gaps: no Android UI or multi-device crypto E2E; release workflow publishes with placeholder URL/debug signing fallback; PostgreSQL/browser/admin coverage incomplete. No commit/push/deploy/source edits."
+    },
+    {
+      "id": "t5",
+      "subject": "Integrate and comprehensively verify release",
+      "description": "After all implementation and baseline tasks complete, review every diff for ownership conflicts and regressions. Run the full local verification matrix: Android compile/unit tests, server compile/tests, static web/admin E2E, string parity, targeted sender-key/decryption/message duplication tests, and screenshots/visual inspection where feasible. Fix only integration or test issues, coordinating ownership. Produce a release-readiness report; do not deploy unless all critical checks pass.",
+      "status": "pending",
+      "assignee": "qa-release",
+      "dependencies": [
+        "t1",
+        "t2",
+        "t3",
+        "t4"
+      ],
+      "attempt": 0,
+      "createdAt": 1787386531747,
+      "updatedAt": 1787386531747
+    },
+    {
+      "id": "t6",
+      "subject": "Commit push deploy and smoke-test",
+      "description": "Once local verification passes, inspect remote 64.90.12.166 read-only first, back up production data/config, identify current deployment and health, ensure git state is committed and pushed to the intended remote branch, deploy using the repository's production method without overwriting secrets or volumes, then smoke-test health, admin, public site/API and inspect logs. Roll back on failed health. Report commit hash, remote branch, deployment commands, backup location and smoke-test evidence.",
+      "status": "pending",
+      "assignee": "qa-release",
+      "dependencies": [
+        "t5"
+      ],
+      "attempt": 0,
+      "createdAt": 1787386531757,
+      "updatedAt": 1787386531757
+    },
+    {
+      "id": "t7",
+      "subject": "Diagnose sandbox tool argument deadlock",
+      "description": "Inspect /opt/homebrew/lib/node_modules/@deepseek-ai/dsh read-only and the current runtime facts. Determine why functions.bash/edit/write require sandbox_permissions in their generated calls while the session already runs danger-full-access, producing 'not strictly wider' or empty-justification failures. Find a sanctioned fix/recovery (configuration/session restart/tool argument handling), without bypassing denied approvals or modifying DSH. Report exact diagnosis and recommended action quickly.",
+      "status": "completed",
+      "assignee": "harness-diagnostician",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1787386772187,
+      "updatedAt": 1787387009271,
+      "attemptId": "61405346-6006-4e63-8a02-1c7b31b8bfd8",
+      "reassigning": false,
+      "output": "Read-only diagnosis complete. Installed rc.2 tool definitions make sandbox_permissions/justification optional, but the delegated functions schema incorrectly exposes all fields as required. Forced escalation against standing danger-full-access is necessarily rejected as non-widening; empty justification is also correctly rejected. No valid in-child recovery because scope is fixed and approvals disabled. Recommended fresh session after optional-schema bridge fix; immediate sanctioned workaround is top-level human session switched to workspace-write/ask, with explicit danger-full escalation and approval per mutation. Profile-level alternative: unconfined backend + host/session restart."
+    }
+  ],
+  "taskSeq": 7
+}
