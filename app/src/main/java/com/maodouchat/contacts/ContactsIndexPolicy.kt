@@ -17,8 +17,26 @@ object ContactsIndexPolicy {
     }
 
     /**
+     * Rows that sit above the first letter header in ContactsScreen:
+     * incoming requests (header + N), outgoing (header + M), group invites
+     * (header + K), then the always-on "new group" and "new channel" rows.
+     */
+    fun leadingFixedItemCount(
+        incomingCount: Int,
+        outgoingCount: Int,
+        groupInviteCount: Int,
+        trailingActionRows: Int = 2
+    ): Int {
+        var n = trailingActionRows.coerceAtLeast(0)
+        if (incomingCount > 0) n += incomingCount + 1
+        if (outgoingCount > 0) n += outgoingCount + 1
+        if (groupInviteCount > 0) n += groupInviteCount + 1
+        return n
+    }
+
+    /**
      * Absolute LazyColumn index for [targetLetter] when the list is:
-     * item 0 = new-group row, then for each letter: header + N contacts.
+     * [leadingFixedItems] action/request rows, then for each letter: header + N contacts.
      */
     fun letterListIndex(
         orderedLetters: List<String>,

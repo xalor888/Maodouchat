@@ -104,6 +104,14 @@ class MyQrCodeViewModel(application: Application) : AndroidViewModel(application
             } catch (error: kotlinx.coroutines.CancellationException) {
                 _uiState.update { it.copy(isLoading = false) }
                 throw error
+            } catch (error: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message
+                            ?: getApplication<Application>().getString(R.string.contacts_qr_generation_failed)
+                    )
+                }
             }
         }
     }

@@ -37,6 +37,26 @@ class QrScanFeedbackPolicyTest {
     }
 
     @Test
+    fun `user lookup maps session miss network`() {
+        assertEquals(
+            QrScanFeedbackPolicy.Kind.SESSION_EXPIRED,
+            QrScanFeedbackPolicy.forUserLookup(401).kind
+        )
+        assertEquals(
+            QrScanFeedbackPolicy.Kind.USER_NOT_FOUND,
+            QrScanFeedbackPolicy.forUserLookup(404).kind
+        )
+        val net = QrScanFeedbackPolicy.forUserLookup(null, isNetwork = true)
+        assertEquals(QrScanFeedbackPolicy.Kind.NETWORK, net.kind)
+        assertTrue(net.retryable)
+        val timeout = QrScanFeedbackPolicy.forUserLookup(500, isTimeout = true)
+        assertEquals(QrScanFeedbackPolicy.Kind.NETWORK, timeout.kind)
+        val unknown = QrScanFeedbackPolicy.forUserLookup(500)
+        assertEquals(QrScanFeedbackPolicy.Kind.UNKNOWN, unknown.kind)
+        assertTrue(unknown.retryable)
+    }
+
+    @Test
     fun `unknown join is retryable without leaking success`() {
         val fb = QrScanFeedbackPolicy.forJoinInvite(500, null, "boom")
         assertEquals(QrScanFeedbackPolicy.Kind.UNKNOWN, fb.kind)

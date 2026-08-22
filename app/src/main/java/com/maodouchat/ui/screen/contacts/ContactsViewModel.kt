@@ -53,7 +53,9 @@ data class ContactsUiState(
     val isFriendActionBusy: Boolean = false,
     /** 9.3xx：待处理的群邀请（需本人接受才能入群）。 */
     val groupInvites: List<GroupInviteItem> = emptyList(),
-    val isGroupInviteBusy: Boolean = false
+    val isGroupInviteBusy: Boolean = false,
+    /** True when the last directory search failed with no usable cache (do not pretend "no matches"). */
+    val searchFailed: Boolean = false
 ) {
     val onlineCount: Int
         get() = contacts.count { it.isOnline }
@@ -229,7 +231,7 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
         searchJob?.cancel()
         val trimmed = query.trim()
         if (trimmed.length < 2) {
-            _uiState.update { it.copy(searchResults = emptyList(), isSearching = false) }
+            _uiState.update { it.copy(searchResults = emptyList(), isSearching = false, searchFailed = false) }
             return
         }
         val searchOwnerUserId = tokenManager.getUserId().orEmpty()
@@ -243,12 +245,13 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
                     it.copy(
                         searchResults = emptyList(),
                         isSearching = false,
+                        searchFailed = true,
                         errorMessage = text(R.string.error_session_expired)
                     )
                 }
                 return@launch
             }
-            _uiState.update { it.copy(isSearching = true, errorMessage = null) }
+            _uiState.update { it.copy(isSearching = true, searchFailed = false, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = searchOwnerUserId,
@@ -278,7 +281,7 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
                                 catch (e: Exception) { null }
                             if (nick.isNullOrBlank()) u else u.copy(nickname = nick)
                         }
-                        _uiState.update { it.copy(searchResults = merged, isSearching = false, errorMessage = null) }
+                        _uiState.update { it.copy(searchResults = merged, isSearching = false, searchFailed = false, errorMessage = null) }
                         if (users.isNotEmpty()) userRepo.insertUsers(users)
                     },
                     onFailure = { _ ->
@@ -290,6 +293,7 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
                             it.copy(
                                 searchResults = cached,
                                 isSearching = false,
+                                searchFailed = cached.isEmpty(),
                                 errorMessage = if (cached.isEmpty()) text(R.string.contacts_search_failed) else null
                             )
                         }
@@ -304,7 +308,11 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
             } catch (_: Exception) {
                 if (isCurrentOwner(searchOwnerUserId)) {
                     _uiState.update {
-                        it.copy(isSearching = false, errorMessage = text(R.string.contacts_search_failed))
+                        it.copy(
+                            isSearching = false,
+                            searchFailed = true,
+                            errorMessage = text(R.string.contacts_search_failed)
+                        )
                     }
                 }
             }
@@ -538,6 +546,15 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
             } catch (error: kotlinx.coroutines.CancellationException) {
                 if (isCurrentOwner(ownerUserId)) _uiState.update { it.copy(isFriendActionBusy = false) }
                 throw error
+            } catch (error: Exception) {
+                if (isCurrentOwner(ownerUserId)) {
+                    _uiState.update {
+                        it.copy(
+                            isFriendActionBusy = false,
+                            errorMessage = error.message ?: text(R.string.contacts_friend_request_failed)
+                        )
+                    }
+                }
             }
         }
     }
@@ -693,6 +710,7 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
                 ApiService.removeFriend(liveToken, user.id).fold(
                     onSuccess = {
                         if (!isCurrentOwner(ownerUserId)) return@fold
+                        com.maodouchat.data.repository.FriendCacheStore.remove(getApplication(), user.id)
                         _uiState.update { st ->
                             st.copy(
                                 isFriendActionBusy = false,
@@ -714,6 +732,15 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
             } catch (error: kotlinx.coroutines.CancellationException) {
                 if (isCurrentOwner(ownerUserId)) _uiState.update { it.copy(isFriendActionBusy = false) }
                 throw error
+            } catch (error: Exception) {
+                if (isCurrentOwner(ownerUserId)) {
+                    _uiState.update {
+                        it.copy(
+                            isFriendActionBusy = false,
+                            errorMessage = error.message ?: text(R.string.error_operation_failed)
+                        )
+                    }
+                }
             }
         }
     }
@@ -736,6 +763,7 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
                 ApiService.blockUser(liveToken, user.id).fold(
                     onSuccess = {
                         if (!isCurrentOwner(ownerUserId)) return@fold
+                        com.maodouchat.data.repository.FriendCacheStore.remove(getApplication(), user.id)
                         _uiState.update { st ->
                             st.copy(
                                 isFriendActionBusy = false,
@@ -757,6 +785,15 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
             } catch (error: kotlinx.coroutines.CancellationException) {
                 if (isCurrentOwner(ownerUserId)) _uiState.update { it.copy(isFriendActionBusy = false) }
                 throw error
+            } catch (error: Exception) {
+                if (isCurrentOwner(ownerUserId)) {
+                    _uiState.update {
+                        it.copy(
+                            isFriendActionBusy = false,
+                            errorMessage = error.message ?: text(R.string.error_operation_failed)
+                        )
+                    }
+                }
             }
         }
     }
@@ -764,7 +801,10 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
     fun cancelFriendRequest(requestId: String) {
         val token = tokenManager.getToken().orEmpty()
         val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank()) return
+        if (token.isBlank() || ownerUserId.isBlank()) {
+            _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
+            return
+        }
         if (_uiState.value.isFriendActionBusy) return
         viewModelScope.launch {
             if (!isCurrentOwner(ownerUserId)) return@launch
@@ -791,6 +831,15 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
             } catch (error: kotlinx.coroutines.CancellationException) {
                 if (isCurrentOwner(ownerUserId)) _uiState.update { it.copy(isFriendActionBusy = false) }
                 throw error
+            } catch (error: Exception) {
+                if (isCurrentOwner(ownerUserId)) {
+                    _uiState.update {
+                        it.copy(
+                            isFriendActionBusy = false,
+                            errorMessage = error.message ?: text(R.string.error_operation_failed)
+                        )
+                    }
+                }
             }
         }
     }
@@ -798,7 +847,10 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
     private fun mutateFriendRequest(requestId: String, accept: Boolean) {
         val token = tokenManager.getToken().orEmpty()
         val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank()) return
+        if (token.isBlank() || ownerUserId.isBlank()) {
+            _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
+            return
+        }
         if (_uiState.value.isFriendActionBusy) return
         viewModelScope.launch {
             if (!isCurrentOwner(ownerUserId)) return@launch
@@ -854,6 +906,15 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
             } catch (error: kotlinx.coroutines.CancellationException) {
                 if (isCurrentOwner(ownerUserId)) _uiState.update { it.copy(isFriendActionBusy = false) }
                 throw error
+            } catch (error: Exception) {
+                if (isCurrentOwner(ownerUserId)) {
+                    _uiState.update {
+                        it.copy(
+                            isFriendActionBusy = false,
+                            errorMessage = error.message ?: text(R.string.error_operation_failed)
+                        )
+                    }
+                }
             } finally {
                 // 8.53：return@fold / return@launch 提前退出时若账号已切换则复位 busy
                 if (!isCurrentOwner(ownerUserId)) _uiState.update { it.copy(isFriendActionBusy = false) }
@@ -927,6 +988,15 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
             } catch (error: kotlinx.coroutines.CancellationException) {
                 if (isCurrentOwner(ownerUserId)) _uiState.update { it.copy(isCreatingChat = false) }
                 throw error
+            } catch (error: Exception) {
+                if (isCurrentOwner(ownerUserId)) {
+                    _uiState.update {
+                        it.copy(
+                            isCreatingChat = false,
+                            errorMessage = error.message ?: text(R.string.contacts_create_chat_failed)
+                        )
+                    }
+                }
             }
         }
     }

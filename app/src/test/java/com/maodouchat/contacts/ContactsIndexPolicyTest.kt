@@ -25,6 +25,15 @@ class ContactsIndexPolicyTest {
     }
 
     @Test
+    fun `leadingFixedItemCount includes requests invites and both action rows`() {
+        // 默认始终有「新群聊」+「新频道」两行
+        assertEquals(2, ContactsIndexPolicy.leadingFixedItemCount(0, 0, 0))
+        // 2 incoming → header+2；1 outgoing → header+1；1 invite → header+1；+2 action rows
+        assertEquals(2 + 3 + 2 + 2, ContactsIndexPolicy.leadingFixedItemCount(2, 1, 1))
+        assertEquals(0, ContactsIndexPolicy.leadingFixedItemCount(0, 0, 0, trailingActionRows = 0))
+    }
+
+    @Test
     fun `groupByInitial sorts keys`() {
         val grouped = ContactsIndexPolicy.groupByInitial(
             listOf("u1" to "bob", "u2" to "alice", "u3" to "张三", "u4" to "9bot")

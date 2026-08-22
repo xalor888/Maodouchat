@@ -368,6 +368,8 @@ fun ScanScreen(
     var scannedTarget by remember { mutableStateOf<QrCodeGenerator.QrTarget?>(null) }
     var scannedUser by remember { mutableStateOf<User?>(null) }
     var scannedUserError by remember { mutableStateOf<String?>(null) }
+    var scannedUserFriendBusy by remember { mutableStateOf(false) }
+    var scannedUserFriendMessage by remember { mutableStateOf<String?>(null) }
     var joinedChat by remember { mutableStateOf<ChatDto?>(null) }
     var inviteError by remember { mutableStateOf<String?>(null) }
     var safetyScanResult by remember { mutableStateOf<SafetyScanResult?>(null) }
@@ -381,6 +383,9 @@ fun ScanScreen(
         if (target == null) {
             scannedTarget = null
             scannedUser = null
+            scannedUserError = null
+            scannedUserFriendBusy = false
+            scannedUserFriendMessage = null
             joinedChat = null
             inviteError = null
             safetyScanResult = null
@@ -494,6 +499,8 @@ fun ScanScreen(
             is QrCodeGenerator.QrTarget.User -> {
                 scannedTarget = target
                 scannedUserError = null
+                scannedUserFriendBusy = false
+                scannedUserFriendMessage = null
                 loading = true
                 // 解析对方资料（用 Composable 内的 CoroutineScope，离开页面会自动取消）
                 val tokenManager = TokenManager.getInstance(context)
@@ -505,33 +512,50 @@ fun ScanScreen(
                         val userRepo = com.maodouchat.data.repository.UserRepository(app.database.userDao())
                         val cached = userRepo.getUserById(target.userId)
                         if (cached != null) scannedUser = cached
-                        if (token.isNotBlank() && scanOwnerUserId.isNotBlank() &&
-                            com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        if (token.isBlank() || scanOwnerUserId.isBlank()) {
+                            if (cached == null) {
+                                scannedUserError = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
+                            }
+                            return@launch
+                        }
+                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = scanOwnerUserId,
                                 liveToken = tokenManager.getToken(),
                                 liveUserId = tokenManager.getUserId(),
                             )
                         ) {
-                            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                            // 8.38：改用按 id 定向查询——此前全量 getUsers() 在非好友/网络失败时
-                            // 会把「有效用户码」误判为「查不到用户」，且无法区分网络错误
-                            ApiService.getUser(liveToken, target.userId).onSuccess { dto ->
-                                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                        expectedUserId = scanOwnerUserId,
-                                        liveToken = tokenManager.getToken(),
-                                        liveUserId = tokenManager.getUserId(),
+                            if (cached == null) {
+                                scannedUserError = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
+                            }
+                            return@launch
+                        }
+                        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+                        // 8.38：改用按 id 定向查询——此前全量 getUsers() 在非好友/网络失败时
+                        // 会把「有效用户码」误判为「查不到用户」，且无法区分网络错误
+                        ApiService.getUser(liveToken, target.userId).onSuccess { dto ->
+                            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                                    expectedUserId = scanOwnerUserId,
+                                    liveToken = tokenManager.getToken(),
+                                    liveUserId = tokenManager.getUserId(),
+                                )
+                            ) {
+                                return@onSuccess
+                            }
+                            val u = User(dto.id, dto.name, dto.avatar, dto.email, dto.isOnline, dto.status, lastSeen = dto.lastSeen)
+                            scannedUser = u
+                            userRepo.insertUsers(listOf(u))
+                        }.onFailure { error ->
+                            // 8.38：网络错误保留缓存，不覆盖为「查不到用户」；无缓存时给出具体错误
+                            if (cached == null) {
+                                val api = error as? ApiException
+                                scannedUserError = qrScanMessage(
+                                    context,
+                                    QrScanFeedbackPolicy.forUserLookup(
+                                        httpStatus = api?.statusCode,
+                                        isNetwork = api?.kind == ApiFailureKind.NETWORK,
+                                        isTimeout = api?.kind == ApiFailureKind.TIMEOUT
                                     )
-                                ) {
-                                    return@onSuccess
-                                }
-                                val u = User(dto.id, dto.name, dto.avatar, dto.email, dto.isOnline, dto.status, lastSeen = dto.lastSeen)
-                                scannedUser = u
-                                userRepo.insertUsers(listOf(u))
-                            }.onFailure { error ->
-                                // 8.38：网络错误保留缓存，不覆盖为「查不到用户」；无缓存时给出具体错误
-                                if (cached == null) {
-                                    scannedUserError = error.message ?: context.getString(R.string.contacts_user_not_found)
-                                }
+                                )
                             }
                         }
                     } catch (error: kotlinx.coroutines.CancellationException) {
@@ -685,8 +709,11 @@ fun ScanScreen(
     // 扫描结果弹窗
     val user = scannedUser
     if (scannedTarget is QrCodeGenerator.QrTarget.User && user != null) {
+        val alreadyFriend = remember(user.id) {
+            com.maodouchat.data.repository.FriendCacheStore.getFriendIds(context).contains(user.id)
+        }
         AlertDialog(
-            onDismissRequest = { scannedTarget = null; scannedUser = null },
+            onDismissRequest = { scannedTarget = null; scannedUser = null; scannedUserFriendMessage = null },
             title = { Text(stringResource(R.string.contacts_found)) },
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
@@ -699,16 +726,79 @@ fun ScanScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(user.id, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
+                    scannedUserFriendMessage?.let { msg ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val ok = msg == stringResource(R.string.contacts_friend_request_sent)
+                        Text(
+                            msg,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    scannedTarget = null
-                    onAddContact(user)
-                }) { Text(stringResource(R.string.contacts_start_chat), color = MaterialTheme.colorScheme.primary) }
+                Column(horizontalAlignment = Alignment.End) {
+                    if (!alreadyFriend) {
+                        TextButton(
+                            enabled = !scannedUserFriendBusy,
+                            onClick = {
+                                if (!RuntimeFlags.isEnabled(context, RuntimeFlags.FRIEND_REQUESTS)) {
+                                    scannedUserFriendMessage = context.getString(R.string.friend_requests_disabled)
+                                    return@TextButton
+                                }
+                                val tokenManager = TokenManager.getInstance(context)
+                                val token = tokenManager.getToken().orEmpty()
+                                val ownerUserId = tokenManager.getUserId().orEmpty()
+                                if (token.isBlank() || ownerUserId.isBlank()) {
+                                    scannedUserFriendMessage = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
+                                    return@TextButton
+                                }
+                                scannedUserFriendBusy = true
+                                scannedUserFriendMessage = null
+                                scope.launch {
+                                    try {
+                                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                                                expectedUserId = ownerUserId,
+                                                liveToken = tokenManager.getToken(),
+                                                liveUserId = tokenManager.getUserId(),
+                                            )
+                                        ) {
+                                            scannedUserFriendMessage = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
+                                            return@launch
+                                        }
+                                        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+                                        ApiService.sendFriendRequest(liveToken, user.id, "").fold(
+                                            onSuccess = {
+                                                scannedUserFriendMessage = context.getString(R.string.contacts_friend_request_sent)
+                                            },
+                                            onFailure = { error ->
+                                                scannedUserFriendMessage = error.message
+                                                    ?: context.getString(R.string.contacts_friend_request_failed)
+                                            }
+                                        )
+                                    } catch (error: kotlinx.coroutines.CancellationException) {
+                                        throw error
+                                    } catch (error: Exception) {
+                                        scannedUserFriendMessage = error.message
+                                            ?: context.getString(R.string.contacts_friend_request_failed)
+                                    } finally {
+                                        scannedUserFriendBusy = false
+                                    }
+                                }
+                            }
+                        ) { Text(stringResource(R.string.contacts_add_friend), color = MaterialTheme.colorScheme.primary) }
+                    }
+                    TextButton(onClick = {
+                        scannedTarget = null
+                        onAddContact(user)
+                    }) { Text(stringResource(R.string.contacts_start_chat), color = MaterialTheme.colorScheme.primary) }
+                }
             },
             dismissButton = {
-                TextButton(onClick = { scannedTarget = null; scannedUser = null }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
+                TextButton(onClick = { scannedTarget = null; scannedUser = null; scannedUserFriendMessage = null }) {
+                    Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary)
+                }
             }
         )
     } else if (scannedTarget is QrCodeGenerator.QrTarget.User && loading) {
