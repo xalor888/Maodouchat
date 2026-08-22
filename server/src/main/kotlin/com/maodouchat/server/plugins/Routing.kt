@@ -1233,6 +1233,11 @@ put("status", "ok")
                 ?: ""
             call.respondText(css, io.ktor.http.ContentType.Text.CSS)
         }
+        get("/assets/profile.css") {
+            val css = this::class.java.classLoader.getResource("public/assets/profile.css")?.readText()
+                ?: ""
+            call.respondText(css, io.ktor.http.ContentType.Text.CSS)
+        }
         get("/assets/style.css") {
             val css = this::class.java.classLoader.getResource("public/assets/style.css")?.readText()
                 ?: ""
@@ -17240,6 +17245,41 @@ private fun escapeHtml(value: String): String {
     return sb.toString()
 }
 
+private val profilePageTokens = Regex("\\{\\{([A-Z0-9_]+)\\}\\}")
+
+private val profilePageTemplate: String by lazy {
+    Thread.currentThread().contextClassLoader?.getResource("public/profile.html")?.readText()
+        ?: object {}.javaClass.classLoader.getResource("public/profile.html")?.readText()
+        ?: ""
+}
+
+private fun renderProfileTemplate(values: Map<String, String>): String {
+    val template = profilePageTemplate
+    if (template.isBlank()) {
+        val title = values["TITLE"].orEmpty()
+        val description = values["DESCRIPTION"].orEmpty()
+        return "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"UTF-8\"><title>$title</title></head><body><p>$description</p></body></html>"
+    }
+    return profilePageTokens.replace(template) { match ->
+        values[match.groupValues[1]].orEmpty()
+    }
+}
+
+private fun profileErrorDescription(error: String): String = when (error) {
+    "用户不存在" -> "该用户不存在，或这张分享名片已经失效。"
+    "用户名无效" -> "这个分享链接的用户名格式不正确。"
+    "请求过于频繁，请稍后再试" -> "访问过于频繁，请稍后再打开这张名片。"
+    else -> "暂时无法打开这张公开名片。"
+}
+
+private fun resolvePublicBaseUrl(baseUrl: String?): String {
+    val raw = baseUrl?.trim().orEmpty()
+    return when {
+        raw == "/" || raw.startsWith("http://") || raw.startsWith("https://") -> raw.trimEnd('/')
+        else -> ""
+    }.ifBlank { "/" }.let { if (it == "/") "/" else it }
+}
+
 /**
  * 8.52 修复 AI-1：多模态 AI 输入 token 保守估算（防绕过日预算）。
  * 视觉/音频/文件按解码字节 256:1 折算（偏保守，接近真实成本量级），
@@ -17253,244 +17293,93 @@ private fun estimateMultimodalTokens(byteCount: Long, extraText: String? = null)
 }
 
 private fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: String?): String {
-    // 8.51 修复 H1：公开主页存储型 XSS——所有用户字段完整 HTML 转义（含 " '）后再拼模板
-    val escapedError = error?.let(::escapeHtml)
-    val escapedBase = baseUrl?.let(::escapeHtml) ?: "/"
-    val safeName = user?.name?.let(::escapeHtml)
-    val safeStatus = user?.status?.let(::escapeHtml)
-    val safeUsername = user?.username?.let(::escapeHtml)
-    val safeAvatarUrl = user?.avatar?.let { avatar ->
-        escapeHtml(if (avatar.startsWith("http")) avatar else "${baseUrl ?: ""}$avatar")
-    } ?: ""
-    val title = if (user != null) "${safeName} (@$safeUsername) — 毛豆聊天" else "毛豆聊天"
-    val description = user?.let {
-        val statusText = safeStatus?.takeIf { s -> s.isNotBlank() } ?: "毛豆聊天用户"
-        val username = safeUsername ?: escapeHtml(it.id)
-        "$statusText · @$username 在毛豆聊天上的个人主页"
-    } ?: (escapedError ?: "毛豆聊天 — 安全 · 轻量 · 智能的即时通讯")
+    // 8.51 修复 H1：公开主页存储型 XSS——所有用户字段完整 HTML 转义（含 " '）后再填模板
+    val rawBase = resolvePublicBaseUrl(baseUrl)
+    val escapedBase = escapeHtml(rawBase)
+    val year = escapeHtml(java.time.Year.now().value.toString())
+    val bodyClass = when {
+        error != null -> "state-error"
+        user != null -> "state-profile"
+        else -> "state-empty"
+    }
+    val escapedError = error?.let(::escapeHtml).orEmpty()
+    val errorDesc = error?.let { escapeHtml(profileErrorDescription(it)) }.orEmpty()
+    val safeName = user?.name?.let(::escapeHtml).orEmpty()
+    val safeStatus = user?.status?.let(::escapeHtml).orEmpty()
+    val safeUsername = user?.username?.let(::escapeHtml).orEmpty()
+    val rawAvatar = user?.avatar.orEmpty().trim()
+    val isHttpAvatar = rawAvatar.startsWith("http://") || rawAvatar.startsWith("https://")
+    val isSameOriginPath = rawAvatar.startsWith("/") && !rawAvatar.startsWith("//")
+    val resolvedAvatar = when {
+        isHttpAvatar -> rawAvatar
+        isSameOriginPath && rawBase != "/" -> "$rawBase$rawAvatar"
+        isSameOriginPath -> rawAvatar
+        else -> ""
+    }
+    val safeAvatarUrl = if (resolvedAvatar.isNotBlank()) escapeHtml(resolvedAvatar) else ""
+    val avatarImg = if (safeAvatarUrl.isNotBlank()) {
+        """<img src="$safeAvatarUrl" alt="$safeName">"""
+    } else ""
+    val title = when {
+        user != null -> "$safeName (@$safeUsername) — 毛豆聊天"
+        error != null -> "$escapedError — 毛豆聊天"
+        else -> "毛豆聊天"
+    }
+    val description = when {
+        user != null -> {
+            val statusText = safeStatus.takeIf { it.isNotBlank() } ?: "毛豆聊天用户"
+            "$statusText · @$safeUsername 在毛豆聊天上的个人主页"
+        }
+        error != null -> errorDesc
+        else -> "毛豆聊天 — 安全 · 轻量 · 智能的即时通讯"
+    }
+    val profileUrl = if (user != null && safeUsername.isNotBlank()) {
+        if (rawBase == "/") "/u/$safeUsername" else "$escapedBase/u/$safeUsername"
+    } else {
+        escapedBase
+    }
+    val ogImageTags = if (safeAvatarUrl.isNotBlank()) {
+        """<meta property="og:image" content="$safeAvatarUrl">"""
+    } else ""
+    val twitterCard = if (safeAvatarUrl.isNotBlank()) "summary_large_image" else "summary"
+    val twitterImageTag = if (safeAvatarUrl.isNotBlank()) {
+        """<meta name="twitter:image" content="$safeAvatarUrl">"""
+    } else ""
+    val classes = buildList {
+        add(bodyClass)
+        if (safeAvatarUrl.isBlank()) add("no-avatar")
+        if (safeStatus.isNotBlank()) add("has-status")
+    }.joinToString(" ")
+    val initial = escapeHtml(user?.name?.firstOrNull()?.toString() ?: "?")
+    val deepLink = if (safeUsername.isNotBlank()) "maodouchat://u/$safeUsername" else "maodouchat://"
+    val intentLink = if (safeUsername.isNotBlank()) {
+        "intent://u/$safeUsername#Intent;scheme=maodouchat;package=com.maodouchat;end"
+    } else escapedBase
 
-    return """<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>$title</title>
-    <meta name="description" content="$description">
-    <meta property="og:title" content="$title">
-    <meta property="og:description" content="$description">
-    <meta property="og:type" content="profile">
-    <meta property="og:site_name" content="毛豆聊天">
-    ${if (safeAvatarUrl.isNotBlank()) """<meta property="og:image" content="$safeAvatarUrl">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="$safeAvatarUrl">""" else """<meta name="twitter:card" content="summary">"""}
-    <meta name="theme-color" content="#3390EC">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' http: https: data:; frame-ancestors 'none'; form-action 'none'">
-    <style>
-        :root {
-            --accent: #3390ec;
-            --accent-strong: #1f7ce0;
-            --accent-soft: rgba(51, 144, 236, 0.12);
-            --bg: #f2f4f8;
-            --card: #ffffff;
-            --text: #17212b;
-            --text-2: #707b86;
-            --text-3: #9aa4ae;
-            --border: rgba(23, 33, 43, 0.08);
-            --shadow-lg: 0 24px 64px -16px rgba(23, 33, 43, 0.18), 0 4px 16px -4px rgba(23, 33, 43, 0.06);
-            --ring: rgba(51, 144, 236, 0.22);
-        }
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg: #0e1621;
-                --card: #17212b;
-                --text: #f1f5f9;
-                --text-2: #8fa3b3;
-                --text-3: #647480;
-                --border: rgba(255, 255, 255, 0.07);
-                --shadow-lg: 0 24px 64px -16px rgba(0, 0, 0, 0.55), 0 4px 16px -4px rgba(0, 0, 0, 0.3);
-                --ring: rgba(51, 144, 236, 0.32);
-            }
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { -webkit-text-size-adjust: 100%; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'PingFang SC', 'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif;
-            background: var(--bg);
-            min-height: 100vh;
-            color: var(--text);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            overflow-x: hidden;
-        }
-        /* 顶部品牌色渐变光晕 */
-        body::before {
-            content: '';
-            position: absolute;
-            inset: 0 0 auto 0;
-            height: 46vh;
-            background:
-                radial-gradient(60% 90% at 20% 0%, rgba(51,144,236,0.16), transparent 62%),
-                radial-gradient(50% 80% at 85% 10%, rgba(155,110,240,0.13), transparent 60%);
-            pointer-events: none;
-        }
-        .container {
-            position: relative;
-            width: 100%;
-            max-width: 430px;
-            padding: clamp(24px, 6vh, 56px) 20px 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .brand {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-2);
-            letter-spacing: 0.2px;
-            margin-bottom: 26px;
-            animation: rise 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
-        }
-        .brand-dot {
-            width: 22px; height: 22px; border-radius: 7px;
-            background: linear-gradient(135deg, var(--accent), #7b5ce0);
-            display: inline-flex; align-items: center; justify-content: center;
-            color: #fff; font-size: 12px; font-weight: 700;
-        }
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 36px 28px 28px;
-            width: 100%;
-            text-align: center;
-            box-shadow: var(--shadow-lg);
-            animation: pop 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
-            animation-delay: 60ms;
-        }
-        .avatar {
-            width: 96px; height: 96px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--accent), #7b5ce0);
-            margin: 0 auto 16px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 38px; color: #fff; font-weight: 600;
-            overflow: hidden;
-            box-shadow: 0 0 0 5px var(--ring), 0 10px 24px -8px rgba(51,144,236,0.45);
-        }
-        .avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .name { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 4px; }
-        .username { font-size: 15px; font-weight: 500; color: var(--accent); margin-bottom: 12px; }
-        .status {
-            display: inline-block;
-            font-size: 14px; line-height: 1.55; color: var(--text-2);
-            background: var(--accent-soft);
-            border-radius: 999px;
-            padding: 6px 14px;
-            max-width: 100%;
-            overflow-wrap: anywhere;
-        }
-        .hint { font-size: 13px; color: var(--text-3); margin: 20px 0 18px; line-height: 1.55; }
-        .btn {
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            width: 100%;
-            padding: 14px;
-            border-radius: 14px;
-            font-size: 15px; font-weight: 600;
-            cursor: pointer; text-decoration: none;
-            transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 160ms ease, background 160ms ease;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .btn:active { transform: scale(0.975); }
-        .btn-primary {
-            background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-            color: #fff;
-            box-shadow: 0 8px 20px -6px rgba(51,144,236,0.5);
-        }
-        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 26px -6px rgba(51,144,236,0.55); }
-        .btn-secondary {
-            margin-top: 10px;
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--accent);
-        }
-        .btn-secondary:hover { background: var(--accent-soft); }
-        .btn svg { flex: none; }
-        .error-icon {
-            width: 64px; height: 64px; border-radius: 50%;
-            background: rgba(230, 80, 80, 0.12);
-            margin: 0 auto 16px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 26px; font-weight: 700; color: #e05c5c;
-        }
-        .error-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
-        .error-desc { font-size: 13px; color: var(--text-3); margin-bottom: 20px; }
-        .footer { margin-top: auto; padding: 26px 0 10px; text-align: center; font-size: 12px; color: var(--text-3); }
-        .footer a { color: var(--text-2); font-weight: 500; text-decoration: none; }
-        @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-        @keyframes pop { from { opacity: 0; transform: translateY(16px) scale(0.97); } to { opacity: 1; transform: none; } }
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="brand"><span class="brand-dot">毛</span>毛豆聊天</div>
-
-        ${if (error != null) {
-            """
-            <div class="card">
-                <div class="error-icon">!</div>
-                <div class="error-title">$escapedError</div>
-                <div class="error-desc">该用户不存在或链接无效</div>
-                <a href="$escapedBase" class="btn btn-primary">返回毛豆聊天</a>
-            </div>
-            """
-        } else if (user != null) {
-            val initial = escapeHtml(user.name.firstOrNull()?.toString() ?: "?")
-            // safeName/safeStatus/safeUsername/safeAvatarUrl 已在函数头完整转义（含 " '）
-            // 9.288：在线徽标移除——匿名访问本就拿不到真实在线态（隐私策略强制隐藏），
-            // 旧页面永远显示「离线」属于错误信息，不如不显示
-            """
-            <div class="card">
-                <div class="avatar">
-                    ${if (safeAvatarUrl.isNotBlank()) "<img src=\"$safeAvatarUrl\" alt=\"$safeName\" />" else initial}
-                </div>
-                <div class="name">$safeName</div>
-                <div class="username">@$safeUsername</div>
-                ${if (safeStatus?.isNotBlank() == true) """<div class="status">$safeStatus</div>""" else ""}
-                <div class="hint">点击下方按钮，在毛豆聊天中查看资料并添加好友</div>
-                <a href="maodouchat://u/$safeUsername" class="btn btn-primary">
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-2h2v2zm2.1-7.7c-.6 1-.9 1.4-1.7 1.9-.8.5-1.4 1.1-1.4 2.3v.5h-2v-.7c0-1.5.7-2.3 1.6-3 .8-.6 1.3-1 1.6-1.9.2-.6-.1-1.4-1.2-1.4-.9 0-1.5.5-1.7 1.4l-2-.4C9 6.4 10.5 5.3 12.5 5.3c2.2 0 3.6 1.2 3.6 2.9 0 .4 0 .7-.3 1.1z"/></svg>
-                    在毛豆聊天中打开
-                </a>
-                <a href="$escapedBase/u/$safeUsername" class="btn btn-secondary">使用 App 链接打开</a>
-            </div>
-            """
-        } else {
-            """
-            <div class="card">
-                <div class="avatar">毛</div>
-                <div class="name">毛豆聊天</div>
-                <div class="status">安全 · 轻量 · 智能的即时通讯</div>
-                <div class="hint">端到端加密 · 密聊防截图 · 开放机器人平台</div>
-                <a href="$escapedBase" class="btn btn-primary">打开毛豆聊天</a>
-            </div>
-            """
-        }}
-
-        <div class="footer">
-            <a href="$escapedBase">毛豆聊天</a> &copy; ${java.time.Year.now().value}
-        </div>
-    </div>
-</body>
-</html>"""
+    return renderProfileTemplate(
+        mapOf(
+            "TITLE" to title,
+            "DESCRIPTION" to description,
+            "CANONICAL" to profileUrl,
+            "OG_URL" to profileUrl,
+            "OG_IMAGE_TAGS" to ogImageTags,
+            "TWITTER_CARD" to twitterCard,
+            "TWITTER_IMAGE_TAG" to twitterImageTag,
+            "BODY_CLASS" to classes,
+            "BASE_HREF" to escapedBase,
+            "INITIAL" to initial,
+            "AVATAR_URL" to safeAvatarUrl,
+            "AVATAR_IMG" to avatarImg,
+            "NAME" to safeName,
+            "USERNAME" to safeUsername,
+            "STATUS" to safeStatus,
+            "DEEP_LINK" to deepLink,
+            "INTENT_LINK" to intentLink,
+            "ERROR_TITLE" to escapedError,
+            "ERROR_DESC" to errorDesc,
+            "YEAR" to year,
+        )
+    )
 }
 
 /** 9.131：bot 卡片/Hint 端点补齐实时 WS fanout（与 sendMessage/sendTable 等经典端点一致）。 */
