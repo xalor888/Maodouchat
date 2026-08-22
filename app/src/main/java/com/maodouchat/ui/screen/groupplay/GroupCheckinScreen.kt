@@ -89,33 +89,43 @@ class GroupCheckinViewModel(application: Application, savedStateHandle: SavedSta
         if (chatId.isBlank()) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(loading = true, error = null)
-            val meText = GroupPlayHttp.get(token(), "/api/chats/$chatId/checkins/me")
-            val rankText = GroupPlayHttp.get(token(), "/api/chats/$chatId/checkins/rank")
-            if (meText == null || rankText == null) {
+            val meResp = GroupPlayHttp.get(token(), "/api/chats/$chatId/checkins/me")
+            val rankResp = GroupPlayHttp.get(token(), "/api/chats/$chatId/checkins/rank")
+            if (!meResp.ok || !rankResp.ok) {
+                _uiState.value = _uiState.value.copy(
+                    loading = false,
+                    error = meResp.errorText ?: rankResp.errorText ?: str(R.string.group_play_load_failed)
+                )
+                return@launch
+            }
+            val me = runCatching { JSONObject(meResp.body) }.getOrNull()
+            val ranking = runCatching { parseRanking(rankResp.body) }.getOrNull()
+            if (me == null || ranking == null) {
                 _uiState.value = _uiState.value.copy(loading = false, error = str(R.string.group_play_load_failed))
                 return@launch
             }
-            val me = runCatching { JSONObject(meText) }.getOrNull()
-            val ranking = runCatching { parseRanking(rankText) }.getOrDefault(emptyList())
             _uiState.value = _uiState.value.copy(
                 loading = false,
-                checkedIn = me?.optBoolean("alreadyCheckedIn") == true,
-                streak = me?.optInt("streak") ?: 0,
-                totalCount = me?.optInt("totalCount") ?: 0,
-                todayRank = me?.optInt("todayRank") ?: 0,
-                todayCount = me?.optInt("todayCount") ?: 0,
+                checkedIn = me.optBoolean("alreadyCheckedIn"),
+                streak = me.optInt("streak"),
+                totalCount = me.optInt("totalCount"),
+                todayRank = me.optInt("todayRank"),
+                todayCount = me.optInt("todayCount"),
                 ranking = ranking
             )
         }
     }
 
     fun checkIn() {
-        if (_uiState.value.checking) return
-        _uiState.value = _uiState.value.copy(checking = true)
+        if (_uiState.value.checking || _uiState.value.checkedIn) return
+        _uiState.value = _uiState.value.copy(checking = true, error = null)
         viewModelScope.launch {
-            val text = GroupPlayHttp.post(token(), "/api/chats/$chatId/checkins", "{}")
-            if (text == null) {
-                _uiState.value = _uiState.value.copy(checking = false, error = str(R.string.group_play_checkin_failed))
+            val resp = GroupPlayHttp.post(token(), "/api/chats/$chatId/checkins", "{}")
+            if (!resp.ok) {
+                _uiState.value = _uiState.value.copy(
+                    checking = false,
+                    error = resp.errorText ?: str(R.string.group_play_checkin_failed)
+                )
             } else {
                 _uiState.value = _uiState.value.copy(checking = false)
                 refresh()
@@ -124,7 +134,7 @@ class GroupCheckinViewModel(application: Application, savedStateHandle: SavedSta
     }
 
     private fun parseRanking(text: String): List<CheckinRankItem> {
-        val arr = JSONArray(text)
+        val arr = JSONArray(GroupPlayJson.arrayText(text))
         return (0 until arr.length()).mapNotNull { i ->
             val o = arr.optJSONObject(i) ?: return@mapNotNull null
             CheckinRankItem(
@@ -191,9 +201,23 @@ fun GroupCheckinScreen(
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
-                    if (state.checkedIn && state.todayRank > 0) {
+                    if (state.todayRank > 0) {
                         Text(
-                            stringResource(R.string.group_play_checkin_rank, state.todayRank, state.todayCount),
+                            stringResource(
+                                R.string.group_play_checkin_rank,
+                                state.todayRank,
+                                state.todayCount.coerceAtLeast(state.todayRank)
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Text(
+                            pluralStringResource(
+                                R.plurals.group_play_voters_count,
+                                state.todayCount,
+                                state.todayCount
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary
                         )

@@ -111,12 +111,19 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
         if (chatId.isBlank()) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(loading = true, error = null)
-            val text = GroupPlayHttp.get(token(), "/api/chats/$chatId/chains")
-            if (text == null) {
+            val resp = GroupPlayHttp.get(token(), "/api/chats/$chatId/chains")
+            if (!resp.ok) {
+                _uiState.value = _uiState.value.copy(
+                    loading = false,
+                    error = resp.errorText ?: text(R.string.group_play_load_failed)
+                )
+                return@launch
+            }
+            val chains = runCatching { parseList(resp.body) }.getOrNull()
+            if (chains == null) {
                 _uiState.value = _uiState.value.copy(loading = false, error = text(R.string.group_play_load_failed))
                 return@launch
             }
-            val chains = runCatching { parseList(text) }.getOrDefault(emptyList())
             _uiState.value = _uiState.value.copy(loading = false, chains = chains)
         }
     }
@@ -145,9 +152,12 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
                 put("topic", topic)
                 put("maxEntries", 200)
             }.toString()
-            val text = GroupPlayHttp.post(token(), "/api/chats/$chatId/chains", body)
-            if (text == null) {
-                _uiState.value = _uiState.value.copy(creating = false, error = text(R.string.group_play_create_failed))
+            val resp = GroupPlayHttp.post(token(), "/api/chats/$chatId/chains", body)
+            if (!resp.ok) {
+                _uiState.value = _uiState.value.copy(
+                    creating = false,
+                    error = resp.errorText ?: text(R.string.group_play_create_failed)
+                )
             } else {
                 _uiState.value = _uiState.value.copy(creating = false, title = "", topic = "")
                 refresh()
@@ -157,12 +167,12 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
 
     fun openChain(chainId: String) {
         viewModelScope.launch {
-            val text = GroupPlayHttp.get(token(), "/api/chains/$chainId")
-            if (text == null) {
-                _uiState.value = _uiState.value.copy(error = text(R.string.group_play_chain_not_found))
+            val resp = GroupPlayHttp.get(token(), "/api/chains/$chainId")
+            if (!resp.ok) {
+                _uiState.value = _uiState.value.copy(error = resp.errorText ?: text(R.string.group_play_chain_not_found))
                 return@launch
             }
-            val o = runCatching { JSONObject(text) }.getOrNull()
+            val o = runCatching { JSONObject(resp.body) }.getOrNull()
             if (o == null) {
                 _uiState.value = _uiState.value.copy(error = text(R.string.group_play_chain_not_found))
                 return@launch
@@ -192,23 +202,38 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
 
     fun joinChain() {
         val detail = _uiState.value.detail ?: return
-        if (detail.submitting || detail.myJoined || !detail.active) return
+        if (detail.submitting) return
+        if (detail.myJoined || !detail.active) {
+            _uiState.value = _uiState.value.copy(error = text(R.string.group_play_chain_entry_failed))
+            return
+        }
         val content = _uiState.value.entryInput.trim()
-        if (content.isBlank() || content.length > 500) return
-        _uiState.value = _uiState.value.copy(detail = detail.copy(submitting = true))
+        if (content.isBlank() || content.length > 500) {
+            _uiState.value = _uiState.value.copy(error = text(R.string.group_play_chain_entry_failed))
+            return
+        }
+        _uiState.value = _uiState.value.copy(detail = detail.copy(submitting = true), error = null)
         viewModelScope.launch {
             val body = JSONObject().put("content", content).toString()
-            val text = GroupPlayHttp.post(token(), "/api/chains/${detail.chainId}/entries", body)
-            if (text != null) {
+            val resp = GroupPlayHttp.post(token(), "/api/chains/${detail.chainId}/entries", body)
+            if (resp.ok) {
+                _uiState.value = _uiState.value.copy(
+                    entryInput = "",
+                    detail = detail.copy(submitting = false, myJoined = true)
+                )
                 openChain(detail.chainId)
+                refresh()
             } else {
-                _uiState.value = _uiState.value.copy(detail = detail.copy(submitting = false), error = text(R.string.group_play_chain_entry_failed))
+                _uiState.value = _uiState.value.copy(
+                    detail = detail.copy(submitting = false),
+                    error = resp.errorText ?: text(R.string.group_play_chain_entry_failed)
+                )
             }
         }
     }
 
     private fun parseList(text: String): List<ChainListItem> {
-        val arr = JSONArray(text)
+        val arr = JSONArray(GroupPlayJson.arrayText(text))
         return (0 until arr.length()).mapNotNull { i ->
             val o = arr.optJSONObject(i) ?: return@mapNotNull null
             ChainListItem(

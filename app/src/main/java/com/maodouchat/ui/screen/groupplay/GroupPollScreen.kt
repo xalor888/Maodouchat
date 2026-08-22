@@ -79,6 +79,7 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
     data class UiState(
         val loading: Boolean = true,
         val error: String? = null,
+        val notice: String? = null,
         val polls: List<PollListItem> = emptyList(),
         val question: String = "",
         val options: MutableList<String> = mutableListOf("", ""),
@@ -106,12 +107,19 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
             _uiState.value = _uiState.value.copy(loading = true, error = null)
             // 9.4xx：/polls/sync 的 PollSnapshot 不含 myVotes（已投状态永远不显示），
             // 改用 /polls 端点（PollDto 含 myVotes）
-            val text = GroupPlayHttp.get(token(), "/api/chats/$chatId/polls")
-            if (text == null) {
+            val resp = GroupPlayHttp.get(token(), "/api/chats/$chatId/polls")
+            if (!resp.ok) {
+                _uiState.value = _uiState.value.copy(
+                    loading = false,
+                    error = resp.errorText ?: str(R.string.group_play_load_failed)
+                )
+                return@launch
+            }
+            val polls = runCatching { parsePolls(resp.body) }.getOrNull()
+            if (polls == null) {
                 _uiState.value = _uiState.value.copy(loading = false, error = str(R.string.group_play_load_failed))
                 return@launch
             }
-            val polls = runCatching { parsePolls(text) }.getOrDefault(emptyList())
             _uiState.value = _uiState.value.copy(loading = false, polls = polls)
         }
     }
@@ -151,11 +159,11 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
         val question = s.question.trim()
         val options = GroupPollPolicy.sanitizePollOptions(s.options)
         if (!GroupPollPolicy.isValidPollQuestion(question) || !GroupPollPolicy.isValidPollOptions(options)) {
-            _uiState.value = s.copy(error = str(R.string.group_play_poll_invalid))
+            _uiState.value = s.copy(error = str(R.string.group_play_poll_invalid), notice = null)
             return
         }
         if (s.creating) return
-        _uiState.value = s.copy(creating = true, error = null)
+        _uiState.value = s.copy(creating = true, error = null, notice = null)
         viewModelScope.launch {
             val result = ApiService.createGroupPoll(token(), chatId, question, options, s.multi, s.anonymous)
             // 9.4xx：接口返回整段 PollDto JSON（executeForText 原始 body），
@@ -165,7 +173,12 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
                     .getOrNull()?.takeIf { it.isNotBlank() }
             }
             if (pollId == null) {
-                _uiState.value = _uiState.value.copy(creating = false, error = str(R.string.group_play_create_failed))
+                val fail = result.exceptionOrNull()?.message.orEmpty()
+                val serverError = GroupPlayJson.errorMessage(fail.substringAfter(':', missingDelimiterValue = fail))
+                _uiState.value = _uiState.value.copy(
+                    creating = false,
+                    error = serverError ?: str(R.string.group_play_create_failed)
+                )
             } else {
                 val share = GroupPollPolicy.formatPollShare(pollId, question, options, s.multi)
                 _uiState.value = _uiState.value.copy(
@@ -185,20 +198,23 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
 
     fun vote(pollId: String, indexes: List<Int>) {
         if (_uiState.value.votingPollId != null) return
-        _uiState.value = _uiState.value.copy(votingPollId = pollId)
+        _uiState.value = _uiState.value.copy(votingPollId = pollId, error = null, notice = null)
         viewModelScope.launch {
             val result = ApiService.voteGroupPoll(token(), pollId, indexes)
-            // 9.135：成功路径也必须复位投票中标记（此前仅失败分支清除——
-            // 首次投票成功后 spinner 永久卡住且 guard 拦截后续所有投票）
             _uiState.value = _uiState.value.copy(votingPollId = null)
-            if (result.isSuccess) refresh() else {
-                _uiState.value = _uiState.value.copy(error = str(R.string.group_play_vote_failed))
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(notice = str(R.string.group_play_vote_ok), error = null)
+                refresh()
+            } else {
+                val fail = result.exceptionOrNull()?.message.orEmpty()
+                val serverError = GroupPlayJson.errorMessage(fail.substringAfter(':', missingDelimiterValue = fail))
+                _uiState.value = _uiState.value.copy(error = serverError ?: str(R.string.group_play_vote_failed))
             }
         }
     }
 
     private fun parsePolls(text: String): List<PollListItem> {
-        val arr = JSONArray(text)
+        val arr = JSONArray(GroupPlayJson.arrayText(text))
         return (0 until arr.length()).mapNotNull { i ->
             val o = arr.optJSONObject(i) ?: return@mapNotNull null
             val options = o.optJSONArray("options")?.let { ja ->
@@ -328,6 +344,9 @@ fun GroupPollScreen(
                 }
             }
 
+            state.notice?.let { msg ->
+                item { Text(msg, color = MaterialTheme.colorScheme.primary) }
+            }
             state.error?.let { err ->
                 item { Text(err, color = MaterialTheme.colorScheme.error) }
             }
@@ -338,6 +357,15 @@ fun GroupPollScreen(
 
             item {
                 Text(stringResource(R.string.group_play_poll_vote), style = MaterialTheme.typography.titleMedium)
+            }
+            if (!state.loading && state.polls.isEmpty() && state.error == null) {
+                item {
+                    Text(
+                        stringResource(R.string.group_play_vote_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
             }
             items(state.polls, key = { it.id }) { poll ->
                 PollCard(
