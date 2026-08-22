@@ -16,8 +16,11 @@ import android.util.Log
 class PushDaemonService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // 用户已关闭保活或未登录：守护立即退出，不做幽灵服务
-        if (!PushKeepAliveModeStore.isEnabled(this)) {
+        val hasToken = !com.maodouchat.network.TokenManager.getInstance(this).getToken().isNullOrBlank()
+        if (
+            PushKeepAlive.suppressResurrection ||
+            !PushKeepAlivePolicy.shouldStartService(PushKeepAliveModeStore.mode(this), hasToken)
+        ) {
             stopSelf()
             return START_NOT_STICKY
         }

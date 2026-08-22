@@ -25,6 +25,12 @@ object FakeCallKeepAlive {
     @Volatile
     private var fakeCallActive = false
 
+    /** addNewIncomingCall 已发出、Connection 尚未 track 的时间戳；超时后允许自愈重挂。 */
+    @Volatile
+    private var pendingSinceMs = 0L
+
+    private const val PENDING_RETRY_MS = 15_000L
+
     /** 当前挂起的假 Connection（用于干净地断开，而非 endCall() 一刀切误伤真实通话）。 */
     private val heldConnections = CopyOnWriteArrayList<Connection>()
 
@@ -53,15 +59,19 @@ object FakeCallKeepAlive {
 
     /** 挂起假来电（Ideaura addNewIncomingCall 同款；onHold，不响铃不弹 UI）。 */
     fun addFakeCall(context: Context) {
-        if (fakeCallActive) return
+        if (heldConnections.isNotEmpty()) return
+        val now = System.currentTimeMillis()
+        if (pendingSinceMs != 0L && now - pendingSinceMs < PENDING_RETRY_MS) return
         val telecomManager =
             context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager ?: return
         try {
             registerPhoneAccount(context)
             telecomManager.addNewIncomingCall(accountHandle(context), null)
-            fakeCallActive = true
-            Log.i(TAG, "fake call added")
+            pendingSinceMs = now
+            Log.i(TAG, "fake call requested")
         } catch (error: Exception) {
+            pendingSinceMs = 0L
+            fakeCallActive = false
             Log.w(TAG, "add fake call failed", error)
         }
     }
@@ -69,6 +79,7 @@ object FakeCallKeepAlive {
     /** 移除假来电：只断开我们自己的 Connection，不动真实通话。 */
     fun removeFakeCall() {
         fakeCallActive = false
+        pendingSinceMs = 0L
         val connections = heldConnections.toList()
         heldConnections.clear()
         connections.forEach { connection ->
@@ -92,6 +103,8 @@ object FakeCallKeepAlive {
     /** 由 PushKeepAliveConnectionService 在创建 Connection 时登记，便于干净拆除。 */
     fun trackConnection(connection: Connection) {
         heldConnections += connection
+        fakeCallActive = true
+        pendingSinceMs = 0L
     }
 
     /** 连接被系统挂断（超时/注销）时回调：清空登记，保活服务周期性重挂。 */
@@ -100,11 +113,11 @@ object FakeCallKeepAlive {
         if (heldConnections.isEmpty()) fakeCallActive = false
     }
 
-    fun isActive(): Boolean = fakeCallActive
+    fun isActive(): Boolean = heldConnections.isNotEmpty() || fakeCallActive
 
     /** 真实通话开始：让位（挂断假来电，避免占线/账号冲突）。 */
     fun suspendForRealCall() {
-        if (!fakeCallActive) return
+        if (!isActive() && pendingSinceMs == 0L) return
         Log.i(TAG, "real call started, suspending fake call")
         removeFakeCall()
     }

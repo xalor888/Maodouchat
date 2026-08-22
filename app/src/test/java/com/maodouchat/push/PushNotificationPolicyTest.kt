@@ -1,7 +1,9 @@
 package com.maodouchat.push
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PushNotificationPolicyTest {
@@ -124,5 +126,13 @@ class PushNotificationPolicyTest {
                 currentUserId = null,
             )
         )
+    }
+
+    @Test
+    fun resolveChatIdDropsBlank() {
+        assertNull(PushNotificationPolicy.resolveChatId(null))
+        assertNull(PushNotificationPolicy.resolveChatId(""))
+        assertNull(PushNotificationPolicy.resolveChatId("  "))
+        assertEquals("c1", PushNotificationPolicy.resolveChatId(" c1 "))
     }
 }

@@ -32,4 +32,7 @@ object PushNotificationPolicy {
         if (chatNotificationsMuted == true) return false
         return true
     }
+
+    /** FCM / 托盘 extras 用的会话 id：空白视为无效，避免点进错误会话。 */
+    fun resolveChatId(raw: String?): String? = raw?.trim()?.takeIf { it.isNotEmpty() }
 }

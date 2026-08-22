@@ -40,8 +40,8 @@ object PushKeepAliveModeStore {
         PushKeepAlive.applyMode(context)
     }
 
-    /** 9.4xx：保活恒启用（未登录由服务内 token 校验自行退出）。 */
-    fun isEnabled(context: Context): Boolean = true
+    /** MODE_OFF 或非法模式视为关闭，避免 logout/stop 后 daemon 仍复活 FGS。 */
+    fun isEnabled(context: Context): Boolean = PushKeepAlivePolicy.isEnabled(mode(context))
 
     /** 当前模式是否要求挂 MediaSession（音乐播放器伪装）。 */
     fun wantsMedia(context: Context): Boolean = mode(context) == MODE_MEDIA

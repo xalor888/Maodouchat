@@ -8,6 +8,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.network.TokenManager
 import com.maodouchat.notification.NotificationPreferences
+import com.maodouchat.notification.NotificationSoundPolicy
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.security.SecureSessionManager
 import com.maodouchat.util.AppNotifier
@@ -41,7 +42,7 @@ class MaodouFirebaseMessagingService : FirebaseMessagingService() {
             "NEW_MESSAGE" -> {
                 // Messages honor global-off + DND quiet hours.
                 if (shouldSuppressQuietHours()) return
-                val chatId = data["chatId"]?.takeIf(String::isNotBlank) ?: return
+                val chatId = PushNotificationPolicy.resolveChatId(data["chatId"]) ?: return
                 // Room mute (and active chat / SK_DIST) — server filters too; client is defense-in-depth.
                 // Do not use runCatching around runBlocking: it would swallow CancellationException.
                 val muted = try {
@@ -111,7 +112,12 @@ class MaodouFirebaseMessagingService : FirebaseMessagingService() {
                         senderName = getString(R.string.app_name),
                         preview = getString(R.string.notification_encrypted_message),
                         messageId = messageId,
-                        soundEnabled = NotificationPreferences.soundEnabled(this) && data["soundEnabled"] != "false",
+                        soundEnabled = NotificationSoundPolicy.trayMessageSoundEnabled(
+                            runtimeFlagEnabled = RuntimeFlags.isEnabled(this, RuntimeFlags.NOTIFICATION_SOUND),
+                            userPreferenceEnabled = NotificationPreferences.soundEnabled(this) &&
+                                data["soundEnabled"] != "false",
+                            chatMuted = muted == true,
+                        ),
                         expectedUserId = pushOwnerUserId,
                         isGroup = isGroup,
                     )
@@ -131,7 +137,11 @@ class MaodouFirebaseMessagingService : FirebaseMessagingService() {
                     context = this,
                     callId = callId,
                     isVideo = data["callType"] == "VIDEO",
-                    soundEnabled = NotificationPreferences.ringtoneEnabled(this) && data["soundEnabled"] != "false",
+                    soundEnabled = NotificationSoundPolicy.ringtoneEnabled(
+                        runtimeFlagEnabled = RuntimeFlags.isEnabled(this, RuntimeFlags.RINGTONE),
+                        userPreferenceEnabled = NotificationPreferences.ringtoneEnabled(this) &&
+                            data["soundEnabled"] != "false",
+                    ),
                     senderId = senderId,
                     expectedUserId = pushOwnerUserId,
                 )
@@ -148,7 +158,7 @@ class MaodouFirebaseMessagingService : FirebaseMessagingService() {
                     interaction = data["interaction"].orEmpty().ifBlank { "LIKE" },
                     preview = data["preview"],
                     commentId = data["commentId"],
-                    soundEnabled = NotificationPreferences.soundEnabled(this) && data["soundEnabled"] != "false",
+                    soundEnabled = fcmMessageSoundEnabled(data),
                     expectedUserId = pushOwnerUserId,
                 )
             }
@@ -163,7 +173,7 @@ class MaodouFirebaseMessagingService : FirebaseMessagingService() {
                     context = this,
                     requestId = requestId,
                     action = data["action"].orEmpty().ifBlank { "CREATED" },
-                    soundEnabled = NotificationPreferences.soundEnabled(this) && data["soundEnabled"] != "false",
+                    soundEnabled = fcmMessageSoundEnabled(data),
                     expectedUserId = pushOwnerUserId,
                 )
             }
@@ -177,9 +187,9 @@ class MaodouFirebaseMessagingService : FirebaseMessagingService() {
                 AppNotifier.showGroupInvite(
                     context = this,
                     inviteId = inviteId,
-                    chatId = data["chatId"].orEmpty(),
+                    chatId = PushNotificationPolicy.resolveChatId(data["chatId"]).orEmpty(),
                     action = data["action"].orEmpty().ifBlank { "CREATED" },
-                    soundEnabled = NotificationPreferences.soundEnabled(this) && data["soundEnabled"] != "false",
+                    soundEnabled = fcmMessageSoundEnabled(data),
                     expectedUserId = pushOwnerUserId,
                 )
             }
@@ -195,12 +205,18 @@ class MaodouFirebaseMessagingService : FirebaseMessagingService() {
                     announcementId = announcementId,
                     title = title,
                     level = level,
-                    soundEnabled = NotificationPreferences.soundEnabled(this) && data["soundEnabled"] != "false",
+                    soundEnabled = fcmMessageSoundEnabled(data),
                     expectedUserId = pushOwnerUserId,
                 )
             }
         }
     }
+
+    private fun fcmMessageSoundEnabled(data: Map<String, String>): Boolean =
+        NotificationSoundPolicy.messageSoundEnabled(
+            runtimeFlagEnabled = RuntimeFlags.isEnabled(this, RuntimeFlags.NOTIFICATION_SOUND),
+            userPreferenceEnabled = NotificationPreferences.soundEnabled(this),
+        ) && data["soundEnabled"] != "false"
 
     private fun mayHandlePush(
         tokenManager: TokenManager,
