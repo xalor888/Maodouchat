@@ -71,6 +71,7 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
     data class UiState(
         val loading: Boolean = true,
         val error: String? = null,
+        val notice: String? = null,
         val pks: List<PkListItem> = emptyList(),
         val leftTitle: String = "",
         val rightTitle: String = "",
@@ -93,12 +94,19 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
         if (chatId.isBlank()) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(loading = true, error = null)
-            val text = GroupPlayHttp.get(token(), "/api/chats/$chatId/pk")
-            if (text == null) {
+            val resp = GroupPlayHttp.get(token(), "/api/chats/$chatId/pk")
+            if (!resp.ok) {
+                _uiState.value = _uiState.value.copy(
+                    loading = false,
+                    error = resp.errorText ?: str(R.string.group_play_load_failed)
+                )
+                return@launch
+            }
+            val pks = runCatching { parseList(resp.body) }.getOrNull()
+            if (pks == null) {
                 _uiState.value = _uiState.value.copy(loading = false, error = str(R.string.group_play_load_failed))
                 return@launch
             }
-            val pks = runCatching { parseList(text) }.getOrDefault(emptyList())
             _uiState.value = _uiState.value.copy(loading = false, pks = pks)
         }
     }
@@ -117,18 +125,21 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
         val left = s.leftTitle.trim()
         val right = s.rightTitle.trim()
         if (left.isBlank() || right.isBlank() || left.length > 120 || right.length > 120) {
-            _uiState.value = s.copy(error = str(R.string.group_play_pk_titles_invalid))
+            _uiState.value = s.copy(error = str(R.string.group_play_pk_titles_invalid), notice = null)
             return
         }
-        _uiState.value = s.copy(creating = true, error = null)
+        _uiState.value = s.copy(creating = true, error = null, notice = null)
         viewModelScope.launch {
             val body = JSONObject().apply {
                 put("leftTitle", left)
                 put("rightTitle", right)
             }.toString()
-            val text = GroupPlayHttp.post(token(), "/api/chats/$chatId/pk", body)
-            if (text == null) {
-                _uiState.value = _uiState.value.copy(creating = false, error = str(R.string.group_play_create_failed))
+            val resp = GroupPlayHttp.post(token(), "/api/chats/$chatId/pk", body)
+            if (!resp.ok) {
+                _uiState.value = _uiState.value.copy(
+                    creating = false,
+                    error = resp.errorText ?: str(R.string.group_play_create_failed)
+                )
             } else {
                 _uiState.value = _uiState.value.copy(creating = false, leftTitle = "", rightTitle = "")
                 refresh()
@@ -138,19 +149,24 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
 
     fun vote(pkId: String, choice: String) {
         if (_uiState.value.votingPkId != null) return
-        _uiState.value = _uiState.value.copy(votingPkId = pkId)
+        _uiState.value = _uiState.value.copy(votingPkId = pkId, error = null, notice = null)
         viewModelScope.launch {
             val body = JSONObject().put("choice", choice).toString()
-            val text = GroupPlayHttp.post(token(), "/api/pk/$pkId/vote", body)
+            val resp = GroupPlayHttp.post(token(), "/api/pk/$pkId/vote", body)
             _uiState.value = _uiState.value.copy(votingPkId = null)
-            if (text != null) refresh() else {
-                _uiState.value = _uiState.value.copy(error = str(R.string.group_play_vote_failed))
+            if (resp.ok) {
+                _uiState.value = _uiState.value.copy(notice = str(R.string.group_play_vote_ok), error = null)
+                refresh()
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    error = resp.errorText ?: str(R.string.group_play_vote_failed)
+                )
             }
         }
     }
 
     private fun parseList(text: String): List<PkListItem> {
-        val arr = JSONArray(text)
+        val arr = JSONArray(GroupPlayJson.arrayText(text))
         return (0 until arr.length()).mapNotNull { i ->
             val o = arr.optJSONObject(i) ?: return@mapNotNull null
             PkListItem(
@@ -231,6 +247,9 @@ fun GroupPkScreen(
                 }
             }
 
+            state.notice?.let { msg ->
+                item { Text(msg, color = MaterialTheme.colorScheme.primary) }
+            }
             state.error?.let { err ->
                 item { Text(err, color = MaterialTheme.colorScheme.error) }
             }
