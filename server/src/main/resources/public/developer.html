@@ -14,24 +14,6 @@
         if (!initialTheme) {
           initialTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
-        if (initialTheme === 'dark') {
-          document.documentElement.setAttribute('data-theme', 'dark');
-          var tc = document.getElementById('themeColor');
-          if (tc) tc.setAttribute('content', '#0b100e');
-        } else {
-          document.documentElement.setAttribute('data-theme', 'light');
-        }
-      } catch (error) {}
-    })();
-  </script>
-  <link rel="stylesheet" href="/assets/style.css?v=113"/>
-  <script>
-    (function() {
-      try {
-        var initialTheme = localStorage.getItem('maodou-theme');
-        if (!initialTheme) {
-          initialTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        }
         var root = document.documentElement;
         root.setAttribute('data-theme', initialTheme === 'dark' ? 'dark' : 'light');
         var tc = document.getElementById('themeColor');
