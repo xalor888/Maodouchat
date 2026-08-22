@@ -29,7 +29,7 @@ import kotlinx.serialization.json.Json
 object AiWeeklyReport {
 
     fun isAllowed(context: Context): Boolean =
-        AiPrivacyPreferences.consentAccepted(context) &&
+        AiPrivacyPreferences.mayUploadCloudContext(context) &&
             RuntimeFlags.isEnabled(context, RuntimeFlags.AI_SUMMARY)
 
     data class WeeklyReport(

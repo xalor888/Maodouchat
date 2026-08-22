@@ -18,6 +18,13 @@ object AiPrivacyPreferences {
     fun consentAccepted(context: Context): Boolean =
         account(context)?.let { it.prefs.getBoolean(scopedKey(KEY_CONSENT, it.userId), false) } ?: false
 
+    /**
+     * Fail-closed 云端上下文上传门闩。
+     * 无登录账号、未明确同意、或已撤销时一律 false——后台 OCR / 画像 / 情绪回复 / 周报
+     * 不得把消息正文 POST 到 enhance 端点。
+     */
+    fun mayUploadCloudContext(context: Context): Boolean = consentAccepted(context)
+
     fun localSafetyEnabled(context: Context): Boolean =
         account(context)?.let { it.prefs.getBoolean(scopedKey(KEY_LOCAL_SAFETY, it.userId), false) } ?: false
 

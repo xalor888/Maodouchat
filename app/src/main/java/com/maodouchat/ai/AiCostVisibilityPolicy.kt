@@ -57,9 +57,12 @@ object AiCostVisibilityPolicy {
         val code = serverCode?.trim().orEmpty()
         val message = serverMessage?.trim().orEmpty()
         val blob = "$code $message".uppercase()
-        val isQuota = blob.contains("QUOTA") ||
+        val isQuota = statusCode == 402 ||
+            blob.contains("QUOTA") ||
             blob.contains("BUDGET") ||
-            blob.contains("INSUFFICIENT") && blob.contains("FUND")
+            blob.contains("PAYMENT_REQUIRED") ||
+            blob.contains("BILLING") ||
+            (blob.contains("INSUFFICIENT") && (blob.contains("FUND") || blob.contains("CREDIT") || blob.contains("BALANCE")))
         val isRate = statusCode == 429 ||
             blob.contains("RATE_LIMIT") ||
             blob.contains("RATE LIMITED") ||
@@ -113,8 +116,14 @@ object AiCostVisibilityPolicy {
         return when {
             isStreaming -> BillingHint.IN_FLIGHT_MAY_BILL
             code == ERROR_CANCELLED -> BillingHint.CANCELLED_PARTIAL_MAY_BILL
-            code == ERROR_RATE_LIMIT || code.startsWith("RATE_LIMIT") -> BillingHint.RATE_LIMITED_WAIT
-            code == ERROR_QUOTA || code.contains("QUOTA") || code.contains("BUDGET") ->
+            code == ERROR_RATE_LIMIT || code.startsWith("RATE_LIMIT") || code.contains("TOO_MANY") ->
+                BillingHint.RATE_LIMITED_WAIT
+            code == ERROR_QUOTA ||
+                code.contains("QUOTA") ||
+                code.contains("BUDGET") ||
+                code.contains("PAYMENT") ||
+                code.contains("BILLING") ||
+                code.contains("INSUFFICIENT") ->
                 BillingHint.QUOTA_EXCEEDED
             code in setOf(
                 "OUTCOME_UNKNOWN",
@@ -128,12 +137,49 @@ object AiCostVisibilityPolicy {
         }
     }
 
+    /**
+     * 给状态栏/流式条用的展示信号：错误基码 + 等待秒数 + 计费提示。
+     * ChatDetail 已读 waitSecondsFor / shouldWarnRetryBills；此函数把三者绑在一起，
+     * 避免配额被当成普通失败而看不见。
+     */
+    data class DisplaySignal(
+        val errorCode: String,
+        val waitSeconds: Long,
+        val hint: BillingHint,
+        val warnRetryBills: Boolean
+    )
+
+    fun displaySignalFor(
+        errorCode: String?,
+        isStreaming: Boolean = false,
+        isFailed: Boolean = false,
+        hasScheduledAutoRetry: Boolean = false,
+        serverRetryAfterSeconds: Long? = null,
+        localRemainingMs: Long? = null
+    ): DisplaySignal {
+        val code = baseErrorCode(errorCode).ifBlank { "" }
+        val wait = waitSecondsFor(errorCode, serverRetryAfterSeconds, localRemainingMs)
+        val hint = billingHintFor(errorCode, isStreaming, isFailed, hasScheduledAutoRetry)
+        return DisplaySignal(
+            errorCode = code,
+            waitSeconds = wait,
+            hint = hint,
+            warnRetryBills = shouldWarnRetryBills(errorCode)
+        )
+    }
+
     /** 手动重试按钮旁是否应展示「可能再次计费」 */
     fun shouldWarnRetryBills(errorCode: String?): Boolean {
         val code = baseErrorCode(errorCode)
         if (code.isBlank() || code == "CONNECTION_NOT_ESTABLISHED") return false
         if (code == ERROR_RATE_LIMIT || code.startsWith("RATE_LIMIT")) return true
-        if (code == ERROR_QUOTA || code.contains("QUOTA") || code.contains("BUDGET")) return true
+        if (code == ERROR_QUOTA ||
+            code.contains("QUOTA") ||
+            code.contains("BUDGET") ||
+            code.contains("PAYMENT") ||
+            code.contains("BILLING") ||
+            code.contains("INSUFFICIENT")
+        ) return true
         return code in setOf(
             "OUTCOME_UNKNOWN",
             "TIMEOUT",

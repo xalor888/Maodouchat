@@ -29,7 +29,7 @@ import kotlinx.coroutines.withContext
  * 运行条件（任一不满足即整体跳过/中止）：
  * - 已登录；
  * - RuntimeFlags.AI_IMAGE_OCR 与 AI_ANALYZE_IMAGE 开启；
- * - [AiPrivacyPreferences.consentAccepted]（用户同意过 AI 处理——与手动 AI 入口一致）；
+ * - [AiPrivacyPreferences.mayUploadCloudContext]（同意过 AI 处理；未登录 / 已撤销 fail-closed）；
  * - [ImageOcrPreferences.isEnabled]（本机开关，默认开）。
  *
  * 其余约束：
@@ -67,7 +67,7 @@ class ImageOcrAutoIndexer(
     private fun preconditionsMet(): Boolean {
         if (!RuntimeFlags.isEnabled(context, RuntimeFlags.AI_IMAGE_OCR)) return false
         if (!RuntimeFlags.isEnabled(context, RuntimeFlags.AI_ANALYZE_IMAGE)) return false
-        if (!AiPrivacyPreferences.consentAccepted(context)) return false
+        if (!AiPrivacyPreferences.mayUploadCloudContext(context)) return false
         if (!ImageOcrPreferences.isEnabled(context)) return false
         return true
     }

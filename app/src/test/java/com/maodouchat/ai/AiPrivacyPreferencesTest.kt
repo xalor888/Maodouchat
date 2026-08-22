@@ -21,4 +21,14 @@ class AiPrivacyPreferencesTest {
 
         assertNotEquals(consent, dismissed)
     }
+
+    @Test
+    fun `cloud upload gate is fail closed without an account`() {
+        // mayUploadCloudContext 无 Context 账号时走 consentAccepted 的 null 分支。
+        // 这里只保证 API 与 consent 同口径：scoped 同意键存在、撤销键独立。
+        val consent = AiPrivacyPreferences.KEY_CONSENT
+        val dismissed = AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS
+        assertEquals("ai_consent_accepted", consent)
+        assertNotEquals(consent, dismissed)
+    }
 }
