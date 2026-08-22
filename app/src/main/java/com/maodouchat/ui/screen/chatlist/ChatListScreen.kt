@@ -8,7 +8,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -25,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -59,7 +59,6 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Badge
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,12 +69,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -127,8 +123,10 @@ import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
+import com.maodouchat.ui.component.FloatingBottomBarContentPadding
+import com.maodouchat.ui.component.LiquidBottomTabItem
+import com.maodouchat.ui.component.LiquidBottomTabs
 import com.maodouchat.ui.component.PullToRefreshLayout
-import com.maodouchat.ui.component.AnimatedNotificationBadge
 import com.maodouchat.ui.component.SwipeableChatItem
 import com.maodouchat.ui.component.SearchBar
 import com.maodouchat.ui.component.ShimmerChatRow
@@ -766,7 +764,7 @@ fun ChatListScreen(
                                 onScan = onOpenScan
                             )
                         } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 88.dp)) {
+                        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = FloatingBottomBarContentPadding)) {
                             items(state.filteredChats, key = { it.id }) { chat ->
                                 // 0.73：会话左滑操作（置顶/静音/归档 + 全滑删除）——组件早已存在未接入
                                 SwipeableChatItem(
@@ -1751,134 +1749,42 @@ private fun MissedCallsSheet(
 }
 
 @Composable
-fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
-    // 9.201：玻璃悬浮底栏（可开关）——半透明圆角悬浮卡片，关闭则回退传统贴底样式
-    val glassEnabled by com.maodouchat.util.GlassBottomBarPreferences.enabled.collectAsState()
-    if (glassEnabled) {
-        val surface = MaterialTheme.colorScheme.surface
-        val isLightSurface = (surface.red + surface.green + surface.blue) / 3f > 0.5f
-        // 9.293：悬浮感重做——白底上纯白半透明等于隐形，改为带轻微主色调的磨砂色，
-        // 配合大留白 + 强投影让底栏真正「飘」起来（此前 12dp 留白 + 白透明，视觉与普通贴底栏无差）
-        val tint = MaterialTheme.colorScheme.primary
-        val glassColor = if (isLightSurface) {
-            androidx.compose.ui.graphics.lerp(Color.White, tint, 0.05f).copy(alpha = 0.94f)
-        } else {
-            androidx.compose.ui.graphics.lerp(surface, tint, 0.12f).copy(alpha = 0.82f)
-        }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(26.dp),
-                color = glassColor,
-                border = BorderStroke(
-                    1.dp,
-                    androidx.compose.ui.graphics.Brush.linearGradient(
-                        listOf(
-                            Color.White.copy(alpha = if (isLightSurface) 0.6f else 0.28f),
-                            Color.White.copy(alpha = 0.08f),
-                            Color.White.copy(alpha = if (isLightSurface) 0.2f else 0.1f)
-                        )
-                    )
-                ),
-                // 9.293：投影加重到 22dp，让底栏与页面间出现明显的「悬浮阴影」
-                shadowElevation = 22.dp,
-                tonalElevation = 0.dp
-            ) {
-                // 9.273：Murexide 液态玻璃轻量移植——内高光 + 内底影叠加层
-                // （借鉴 LiquidGlass highlight/innerShadow 思路，纯 Compose 无 backdrop 依赖）
-                Box {
-                    NavigationBar(containerColor = Color.Transparent) {
-                        BottomNavBarItems(selectedTab = selectedTab, onTabSelected = onTabSelected)
-                    }
-                    // 顶部内侧高光：自上而下渐隐，模拟玻璃受光面
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .clip(RoundedCornerShape(26.dp))
-                            .background(
-                                androidx.compose.ui.graphics.Brush.verticalGradient(
-                                    listOf(
-                                        Color.White.copy(alpha = if (isLightSurface) 0.22f else 0.10f),
-                                        Color.White.copy(alpha = 0f)
-                                    ),
-                                    startY = 0f,
-                                    endY = 60f
-                                )
-                            )
-                    )
-                    // 底部内侧暗影：自下而上渐隐，模拟玻璃厚度投影
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .clip(RoundedCornerShape(26.dp))
-                            .background(
-                                androidx.compose.ui.graphics.Brush.verticalGradient(
-                                    listOf(
-                                        Color.Black.copy(alpha = 0f),
-                                        Color.Black.copy(alpha = if (isLightSurface) 0.05f else 0.12f)
-                                    ),
-                                    startY = 0f,
-                                    endY = 50f
-                                )
-                            )
-                    )
-                }
-            }
-        }
-    } else {
-        NavigationBar {
-            BottomNavBarItems(selectedTab = selectedTab, onTabSelected = onTabSelected)
-        }
-    }
-}
-
-@Composable
-private fun androidx.compose.foundation.layout.RowScope.BottomNavBarItems(
+fun BottomNavBar(
     selectedTab: Int,
-    onTabSelected: (Int) -> Unit
+    onTabSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    // 1.54：会话未读角标（ChatListViewModel 推送）
     val unreadTotal by UnreadBadgeStore.totalUnread.collectAsState()
-    NavigationBarItem(
-        selected = selectedTab == MainTab.CHATS,
-        onClick = { onTabSelected(MainTab.CHATS) },
-        icon = {
-            Box {
-                Icon(Icons.Outlined.ChatBubbleOutline, null)
-                if (unreadTotal > 0) {
-                    // 9.220：接入弹跳动画角标（尊重系统动效开关，替换静态 Badge）
-                    AnimatedNotificationBadge(
-                        count = unreadTotal,
-                        modifier = Modifier.align(Alignment.TopEnd)
-                    )
-                }
-            }
-        },
-        label = { Text(stringResource(R.string.nav_chats)) }
-    )
-    NavigationBarItem(selected = selectedTab == MainTab.CONTACTS, onClick = { onTabSelected(MainTab.CONTACTS) }, icon = { Icon(Icons.Outlined.Group, null) }, label = { Text(stringResource(R.string.nav_contacts)) })
-    // 1.112：动态未读互动角标
     val exploreBadge by ExploreBadgeStore.count.collectAsState()
-    NavigationBarItem(
-        selected = selectedTab == MainTab.EXPLORE,
-        onClick = { onTabSelected(MainTab.EXPLORE) },
-        icon = {
-            Box {
-                Icon(Icons.Outlined.Explore, null)
-                if (exploreBadge > 0) {
-                    AnimatedNotificationBadge(
-                        count = exploreBadge,
-                        modifier = Modifier.align(Alignment.TopEnd)
-                    )
-                }
-            }
-        },
-        label = { Text(stringResource(R.string.nav_explore)) }
+    val tabs = listOf(
+        LiquidBottomTabItem(
+            icon = Icons.Outlined.ChatBubbleOutline,
+            label = stringResource(R.string.nav_chats),
+            badgeCount = unreadTotal
+        ),
+        LiquidBottomTabItem(
+            icon = Icons.Outlined.Group,
+            label = stringResource(R.string.nav_contacts)
+        ),
+        LiquidBottomTabItem(
+            icon = Icons.Outlined.Explore,
+            label = stringResource(R.string.nav_explore),
+            badgeCount = exploreBadge
+        ),
+        LiquidBottomTabItem(
+            icon = Icons.Outlined.Settings,
+            label = stringResource(R.string.nav_settings)
+        )
     )
-    NavigationBarItem(selected = selectedTab == MainTab.SETTINGS, onClick = { onTabSelected(MainTab.SETTINGS) }, icon = { Icon(Icons.Outlined.Settings, null) }, label = { Text(stringResource(R.string.nav_settings)) })
+    LiquidBottomTabs(
+        selectedTabIndex = selectedTab,
+        onTabSelected = onTabSelected,
+        tabs = tabs,
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(start = 20.dp, top = 8.dp, end = 20.dp, bottom = 10.dp)
+    )
 }
 
 private fun relativeTime(ts: Long): String {

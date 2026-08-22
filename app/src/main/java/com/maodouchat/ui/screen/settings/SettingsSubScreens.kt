@@ -2770,11 +2770,6 @@ fun GeneralSettingsScreen(
                     subtitle = stringResource(R.string.theme_editor_hint)
                 ) { onOpenThemeEditor() }
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
-                GlassBottomBarSwitchRow(
-                    enabled = state.glassBottomBar,
-                    onEnabledChange = viewModel::setGlassBottomBar
-                )
-                androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 LanguageRow(
                     currentLanguage = state.languageMode,
                     onLanguageChange = { mode ->
@@ -3012,33 +3007,6 @@ private fun ChatBubbleShapeRow(
             ThemeChoiceChip(stringResource(R.string.general_bubble_shape_tg), selected = current == "tg", onClick = { onChange("tg") })
             ThemeChoiceChip(stringResource(R.string.general_bubble_shape_round), selected = current == "round", onClick = { onChange("round") })
         }
-    }
-}
-
-@Composable
-private fun GlassBottomBarSwitchRow(
-    enabled: Boolean,
-    onEnabledChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                stringResource(R.string.general_glass_bottom_bar_title),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                stringResource(R.string.general_glass_bottom_bar_subtitle),
-                style = MaterialTheme.typography.bodySmall,
-                color = LocalChatPalette.current.textSecondary
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Switch(checked = enabled, onCheckedChange = onEnabledChange)
     }
 }
 
