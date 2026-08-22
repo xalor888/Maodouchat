@@ -89,14 +89,59 @@ object NotificationPreferences {
 
     // ---- 勿扰计划（DND schedule）：分钟级 + 显式开关 ----
 
-    /** 勿扰计划是否启用。默认 false = 未设置计划（与旧版"关闭 DND"语义一致）。 */
-    fun dndEnabled(context: Context): Boolean = getBoolean(context, KEY_DND_ENABLED, false)
+    /**
+     * 勿扰计划是否启用。
+     * 显式 [KEY_DND_ENABLED] 优先；缺失时若账号已有小时窗口且 start≠end，视为旧版已开启计划
+     * （升级后未写入开关时 FCM/WS 仍按窗口抑制，避免「设了时段却仍响」）。
+     */
+    fun dndEnabled(context: Context): Boolean {
+        val account = accountPreferences(context) ?: return false
+        val enabledKey = scopedKey(KEY_DND_ENABLED, account.userId)
+        val stored = if (account.prefs.contains(enabledKey)) {
+            account.prefs.getBoolean(enabledKey, false)
+        } else {
+            null
+        }
+        val startKey = scopedKey(KEY_DND_START, account.userId)
+        val endKey = scopedKey(KEY_DND_END, account.userId)
+        return DndPreferenceResolve.enabled(
+            enabledStored = stored,
+            startHourPresent = account.prefs.contains(startKey),
+            endHourPresent = account.prefs.contains(endKey),
+            startHour = account.prefs.getInt(startKey, 22),
+            endHour = account.prefs.getInt(endKey, 7),
+        )
+    }
 
-    /** 勿扰开始分钟（0-1439）。默认 22:00。 */
-    fun dndStartMinute(context: Context): Int = getInt(context, KEY_DND_START_MINUTE, 22 * 60).coerceIn(0, 1439)
+    /** 勿扰开始分钟（0-1439）。分钟 key 缺失时从小时 key 派生，避免读到默认 22:00 盖住用户窗口。 */
+    fun dndStartMinute(context: Context): Int {
+        val account = accountPreferences(context) ?: return 22 * 60
+        val minuteKey = scopedKey(KEY_DND_START_MINUTE, account.userId)
+        val stored = if (account.prefs.contains(minuteKey)) {
+            account.prefs.getInt(minuteKey, 22 * 60)
+        } else {
+            null
+        }
+        return DndPreferenceResolve.startMinute(
+            storedMinute = stored,
+            startHour = account.prefs.getInt(scopedKey(KEY_DND_START, account.userId), 22),
+        )
+    }
 
-    /** 勿扰结束分钟（0-1439）。默认 07:00。 */
-    fun dndEndMinute(context: Context): Int = getInt(context, KEY_DND_END_MINUTE, 7 * 60).coerceIn(0, 1439)
+    /** 勿扰结束分钟（0-1439）。分钟 key 缺失时从小时 key 派生。 */
+    fun dndEndMinute(context: Context): Int {
+        val account = accountPreferences(context) ?: return 7 * 60
+        val minuteKey = scopedKey(KEY_DND_END_MINUTE, account.userId)
+        val stored = if (account.prefs.contains(minuteKey)) {
+            account.prefs.getInt(minuteKey, 7 * 60)
+        } else {
+            null
+        }
+        return DndPreferenceResolve.endMinute(
+            storedMinute = stored,
+            endHour = account.prefs.getInt(scopedKey(KEY_DND_END, account.userId), 7),
+        )
+    }
 
     /**
      * 迁移并保存勿扰计划。写入分钟级字段与开关；同时回写小时级 key，
@@ -206,6 +251,55 @@ object NotificationPreferences {
                     editor.putInt(target, prefs.getInt(key, if (key == KEY_DND_START) 22 else 7))
                 }
                 editor.remove(key)
+            }
+            val enabledTarget = scopedKey(KEY_DND_ENABLED, userId)
+            if (!prefs.contains(enabledTarget) && prefs.contains(KEY_DND_ENABLED)) {
+                editor.putBoolean(enabledTarget, prefs.getBoolean(KEY_DND_ENABLED, false))
+            }
+            editor.remove(KEY_DND_ENABLED)
+            val startHour = when {
+                prefs.contains(scopedKey(KEY_DND_START, userId)) ->
+                    prefs.getInt(scopedKey(KEY_DND_START, userId), 22)
+                prefs.contains(KEY_DND_START) -> prefs.getInt(KEY_DND_START, 22)
+                else -> null
+            }
+            val endHour = when {
+                prefs.contains(scopedKey(KEY_DND_END, userId)) ->
+                    prefs.getInt(scopedKey(KEY_DND_END, userId), 7)
+                prefs.contains(KEY_DND_END) -> prefs.getInt(KEY_DND_END, 7)
+                else -> null
+            }
+            val startMinuteTarget = scopedKey(KEY_DND_START_MINUTE, userId)
+            val endMinuteTarget = scopedKey(KEY_DND_END_MINUTE, userId)
+            if (!prefs.contains(startMinuteTarget)) {
+                when {
+                    prefs.contains(KEY_DND_START_MINUTE) ->
+                        editor.putInt(startMinuteTarget, prefs.getInt(KEY_DND_START_MINUTE, 22 * 60).coerceIn(0, 1439))
+                    startHour != null ->
+                        editor.putInt(startMinuteTarget, DndPreferenceResolve.startMinute(null, startHour))
+                }
+            }
+            editor.remove(KEY_DND_START_MINUTE)
+            if (!prefs.contains(endMinuteTarget)) {
+                when {
+                    prefs.contains(KEY_DND_END_MINUTE) ->
+                        editor.putInt(endMinuteTarget, prefs.getInt(KEY_DND_END_MINUTE, 7 * 60).coerceIn(0, 1439))
+                    endHour != null ->
+                        editor.putInt(endMinuteTarget, DndPreferenceResolve.endMinute(null, endHour))
+                }
+            }
+            editor.remove(KEY_DND_END_MINUTE)
+            if (!prefs.contains(enabledTarget) && !prefs.contains(KEY_DND_ENABLED)) {
+                editor.putBoolean(
+                    enabledTarget,
+                    DndPreferenceResolve.enabled(
+                        enabledStored = null,
+                        startHourPresent = startHour != null,
+                        endHourPresent = endHour != null,
+                        startHour = startHour ?: 22,
+                        endHour = endHour ?: 7,
+                    ),
+                )
             }
             editor.putBoolean(marker, true).commit()
         }

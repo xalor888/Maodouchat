@@ -85,4 +85,62 @@ class LocalNotificationSuppressPolicyTest {
             )
         )
     }
+
+    @Test
+    fun explicitDndOffNeverSuppressesWhenNotificationsOn() {
+        assertFalse(
+            LocalNotificationSuppressPolicy.shouldSuppress(
+                notificationsEnabled = true,
+                dndStartHour = 22,
+                dndEndHour = 7,
+                hourOfDay = 23,
+                dndEnabled = false,
+                startMinute = 22 * 60,
+                endMinute = 7 * 60,
+                currentMinute = 23 * 60
+            )
+        )
+    }
+
+    @Test
+    fun minutePrecisionInsideOvernightWindow() {
+        assertTrue(
+            LocalNotificationSuppressPolicy.shouldSuppress(
+                notificationsEnabled = true,
+                dndStartHour = 22,
+                dndEndHour = 7,
+                hourOfDay = 22,
+                dndEnabled = true,
+                startMinute = 22 * 60 + 30,
+                endMinute = 7 * 60,
+                currentMinute = 22 * 60 + 45
+            )
+        )
+        assertFalse(
+            LocalNotificationSuppressPolicy.shouldSuppress(
+                notificationsEnabled = true,
+                dndStartHour = 22,
+                dndEndHour = 7,
+                hourOfDay = 22,
+                dndEnabled = true,
+                startMinute = 22 * 60 + 30,
+                endMinute = 7 * 60,
+                currentMinute = 22 * 60 + 10
+            )
+        )
+    }
+
+    @Test
+    fun runtimeFlagOffBypassesDndWindow() {
+        assertFalse(
+            LocalNotificationSuppressPolicy.shouldSuppress(
+                notificationsEnabled = true,
+                dndStartHour = 22,
+                dndEndHour = 7,
+                hourOfDay = 23,
+                dndRuntimeEnabled = false,
+                dndEnabled = true
+            )
+        )
+    }
 }

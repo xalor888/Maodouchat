@@ -48,9 +48,28 @@ class PushKeepAliveService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    /** 仅在成功进前台且登录态有效时允许 onDestroy 拉 daemon，避免后台 FGS 崩溃环。 */
+    @Volatile
+    private var allowDaemonResurrection = false
+
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "onCreate mode=${PushKeepAliveModeStore.mode(this)}")
+
+        createChannel()
+        // startForegroundService 合同：5s 内必须进前台，即使马上因无 token 退出。
+        val promoted = startAsForeground()
+        val shouldRun = PushKeepAlivePolicy.shouldStartService(
+            PushKeepAliveModeStore.mode(this),
+            !TokenManager.getInstance(this).getToken().isNullOrBlank(),
+        )
+        if (!promoted || !shouldRun) {
+            Log.w(TAG, "keepalive not eligible (promoted=$promoted); stopSelf")
+            allowDaemonResurrection = false
+            stopSelf()
+            return
+        }
+        allowDaemonResurrection = true
 
         runCatching {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -62,9 +81,6 @@ class PushKeepAliveService : Service() {
         }
         wakeLock?.acquire(10 * 60 * 1000L)
         wifiLock?.acquire()
-
-        createChannel()
-        startAsForeground()
 
         // Ideaura 同款：网络变化 → 绑定网络 + 重连推送长连接
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -116,9 +132,12 @@ class PushKeepAliveService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // 每次被系统拉起（进程被杀后 START_STICKY 重建）都重新校验模式：
         // 用户已关闭/已登出则不再前台，避免幽灵保活
-        if (!PushKeepAliveModeStore.isEnabled(this) ||
-            TokenManager.getInstance(this).getToken().isNullOrBlank()
+        if (!PushKeepAlivePolicy.shouldStartService(
+                PushKeepAliveModeStore.mode(this),
+                !TokenManager.getInstance(this).getToken().isNullOrBlank(),
+            )
         ) {
+            allowDaemonResurrection = false
             stopSelf()
             return START_NOT_STICKY
         }
@@ -135,12 +154,15 @@ class PushKeepAliveService : Service() {
             PushKeepAliveModeStore.wantsMedia(this) -> {
                 // 前台类型切到 mediaPlayback（媒体豁免），再挂静音循环
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    runCatching {
+                    val ok = runCatching {
                         startForeground(
                             NOTIFICATION_ID,
                             buildNotification(),
                             android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
                         )
+                    }.isSuccess
+                    if (!ok) {
+                        Log.w(TAG, "media startForeground failed; leaving dataSync type")
                     }
                 }
                 mediaKeepAlive = mediaKeepAlive ?: MediaKeepAlive(this)
@@ -158,6 +180,7 @@ class PushKeepAliveService : Service() {
             val token = TokenManager.getInstance(this@PushKeepAliveService).getToken()
             if (token.isNullOrBlank()) {
                 Log.w(TAG, "no token; stopping keepalive")
+                allowDaemonResurrection = false
                 stopSelf()
                 return@launch
             }
@@ -182,10 +205,10 @@ class PushKeepAliveService : Service() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    private fun startAsForeground() {
+    /** @return true 已进入前台；false 两次都失败，调用方必须 stopSelf 且禁止拉 daemon。 */
+    private fun startAsForeground(): Boolean {
         val notification = buildNotification()
-        // 9.4xx：任何失败（后台启动限制 ForegroundServiceStartNotAllowedException /
-        // FGS 类型权限 SecurityException）都不允许带崩进程——降级重试一次无类型版本
+        // 后台启动限制 / FGS 类型权限失败不得带崩进程；全失败则放弃保活。
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val type = if (PushKeepAliveModeStore.wantsMedia(this)) {
                 android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
@@ -193,13 +216,15 @@ class PushKeepAliveService : Service() {
                 android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
             }
             val ok = runCatching { startForeground(NOTIFICATION_ID, notification, type) }.isSuccess
-            if (!ok) {
-                Log.w(TAG, "typed startForeground failed; falling back to untyped")
-                runCatching { startForeground(NOTIFICATION_ID, notification) }
+            if (ok) return true
+            Log.w(TAG, "typed startForeground failed; falling back to untyped")
+            val fallback = runCatching { startForeground(NOTIFICATION_ID, notification) }.isSuccess
+            if (!fallback) {
+                Log.w(TAG, "untyped startForeground also failed")
             }
-        } else {
-            runCatching { startForeground(NOTIFICATION_ID, notification) }
+            return fallback
         }
+        return runCatching { startForeground(NOTIFICATION_ID, notification) }.isSuccess
     }
 
     private fun buildNotification(): Notification {
@@ -232,9 +257,17 @@ class PushKeepAliveService : Service() {
         runCatching { if (wifiLock?.isHeld == true) wifiLock?.release() }
         networkCallback?.let { runCatching { connectivityManager?.unregisterNetworkCallback(it) } }
         runCatching { connectivityManager?.bindProcessToNetwork(null) }
-        // Ideaura 同款：被销毁时拉起守护服务互相复活
-        // （用户主动关闭/登出时 PushKeepAlive.stop 会先清模式，守护服务启动后自行退出）
-        runCatching { startService(Intent(this, PushDaemonService::class.java)) }
+        val shouldResurrect = allowDaemonResurrection &&
+            !PushKeepAlive.suppressResurrection &&
+            PushKeepAlivePolicy.shouldResurrectDaemon(
+                PushKeepAliveModeStore.mode(this),
+                !TokenManager.getInstance(this).getToken().isNullOrBlank(),
+            )
+        if (shouldResurrect) {
+            runCatching { startService(Intent(this, PushDaemonService::class.java)) }
+        } else {
+            Log.i(TAG, "skip daemon resurrection (logout/off/no token)")
+        }
     }
 
     companion object {

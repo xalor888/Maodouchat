@@ -17,10 +17,14 @@ import com.maodouchat.network.TokenManager
  */
 object PushKeepAlive {
 
+    @Volatile
+    internal var suppressResurrection = false
+
     fun ensureForUser(context: Context) {
-        if (!PushKeepAliveModeStore.isEnabled(context)) return
-        val token = TokenManager.getInstance(context).getToken()
-        if (token.isNullOrBlank()) return
+        val mode = PushKeepAliveModeStore.mode(context)
+        val hasToken = !TokenManager.getInstance(context).getToken().isNullOrBlank()
+        if (!PushKeepAlivePolicy.shouldStartService(mode, hasToken)) return
+        suppressResurrection = false
         val intent = Intent(context.applicationContext, PushKeepAliveService::class.java)
         runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -28,12 +32,13 @@ object PushKeepAlive {
             } else {
                 context.applicationContext.startService(intent)
             }
-        }.onSuccess { Log.i(PushKeepAliveService.TAG, "keepalive started (mode=${PushKeepAliveModeStore.mode(context)})") }
+        }.onSuccess { Log.i(PushKeepAliveService.TAG, "keepalive started (mode=$mode)") }
             .onFailure { Log.w(PushKeepAliveService.TAG, "keepalive start failed (bg limit?): ${it.message}") }
     }
 
-    /** 用户关闭保活或登出：清干净（服务自行 stopSelf 并移除假来电/媒体会话）。 */
+    /** 用户关闭保活或登出：清干净，禁止 daemon 互拉把 FGS 再拉起来。 */
     fun stop(context: Context) {
+        suppressResurrection = true
         context.applicationContext.stopService(
             Intent(context.applicationContext, PushKeepAliveService::class.java)
         )
@@ -57,7 +62,9 @@ object PushKeepAlive {
 
     /** 真实通话结束：重启服务按模式恢复保活策略（onStartCommand 内 applyStrategy）。 */
     fun onRealCallEnded(context: Context) {
-        if (PushKeepAliveModeStore.isEnabled(context)) {
+        val mode = PushKeepAliveModeStore.mode(context)
+        val hasToken = !TokenManager.getInstance(context).getToken().isNullOrBlank()
+        if (PushKeepAlivePolicy.shouldStartService(mode, hasToken)) {
             ensureForUser(context)
         }
     }
