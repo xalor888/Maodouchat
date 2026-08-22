@@ -59,6 +59,7 @@ class SignalProtocol(
     private val sessionSetupLocks = java.util.concurrent.ConcurrentHashMap<String, SessionSetupLock>()
 
     private lateinit var protocolStore: SignalProtocolStore
+    private val decryptRetryTracker = DecryptRetryTracker()
 
     @Volatile private var currentUserId: String? = null
     /** True only after a successful initialize() for [currentUserId]; never after failed upload/restore. */
@@ -186,6 +187,7 @@ class SignalProtocol(
                 throw kotlinx.coroutines.CancellationException("signal_init_account_changed")
             }
             initializationSucceeded = accountId != null
+            decryptRetryTracker.clearAll()
             true
         } catch (error: kotlinx.coroutines.CancellationException) {
             // Upload/DB suspend cancel must not be logged as init failure or freeze half-init.
@@ -392,6 +394,9 @@ class SignalProtocol(
     }
 
     suspend fun ensureSession(token: String, recipientId: String, deviceId: Int = DEFAULT_DEVICE_ID): Result<Unit> {
+        if (!SignalSessionPolicy.shouldEstablishSession(recipientId, deviceId, currentUserId, getDeviceId())) {
+            return Result.success(Unit)
+        }
         if (hasSession(recipientId, deviceId)) return Result.success(Unit)
         val lockKey = "$recipientId:$deviceId"
         val setupLock = sessionSetupLocks.compute(lockKey) { _, existing ->
@@ -468,7 +473,9 @@ class SignalProtocol(
                     when {
                         // 9.311：自身当前设备无需建会话（不与自己加密通信）；跳过避免旧服务端
                         // 禁止自取 bundle 时一个 400 拖垮整个自设备 fan-out（第二设备永远收不到密钥）
-                        recipientId == currentUserId && bundle.deviceId == getDeviceId() -> Unit
+                        !SignalSessionPolicy.shouldEstablishSession(
+                            recipientId, bundle.deviceId, currentUserId, getDeviceId()
+                        ) -> Unit
                         !hasSession(recipientId, bundle.deviceId) -> {
                             // Prefer consuming single-device endpoint for real session setup.
                             ensureSession(token, recipientId, bundle.deviceId).getOrThrow()
@@ -667,35 +674,49 @@ class SignalProtocol(
         }
     }
 
+    /**
+     * AI 同步等队列：终态或达重试上限时应 ACK，避免同一信封死循环重拉。
+     * [envelopeId] 用服务端队列 id，与密文 fingerprint 分开计数。
+     */
+    fun shouldAcknowledgeDecrypt(envelopeId: String, result: DecryptResult): Boolean =
+        decryptRetryTracker.shouldAcknowledge(envelopeId, result)
+
     fun decryptTextEnvelope(senderId: String, content: String): DecryptResult {
         return decryptContentEnvelope(senderId, content)
     }
 
     fun decryptContentEnvelope(senderId: String, content: String): DecryptResult {
-        return try {
+        val fingerprint = DecryptFailurePolicy.envelopeFingerprint(senderId, content)
+        if (DecryptFailurePolicy.shouldSkipCryptoAttempt(decryptRetryTracker.failureCount(fingerprint))) {
+            return DecryptResult.Failed
+        }
+        val result = try {
             val multiDeviceEnvelope = runCatching { json.decodeFromString(MultiDeviceMessageEnvelope.serializer(), content) }.getOrNull()
             if (multiDeviceEnvelope?.version == MULTI_DEVICE_ENVELOPE_VERSION && multiDeviceEnvelope.algorithm == ALGORITHM_SIGNAL_MULTI_DEVICE) {
-                return decryptMultiDeviceEnvelope(senderId, multiDeviceEnvelope)
-            }
-
-            val envelope = json.decodeFromString(EncryptedMessageEnvelope.serializer(), content)
-            when (envelope.version) {
-                1 -> DecryptResult.Success(
-                    decryptMessage(senderId, Base64.decode(envelope.ciphertext, Base64.NO_WRAP), envelope.senderDeviceId)
-                )
-                ENVELOPE_VERSION -> {
-                    if (envelope.algorithm != ALGORITHM_SIGNAL) return DecryptResult.UnsupportedEnvelope
-                    val ciphertext = Base64.decode(envelope.ciphertext, Base64.NO_WRAP)
-                    DecryptResult.Success(
-                        decryptMessage(
-                            senderId = senderId,
-                            ciphertext = ciphertext,
-                            deviceId = envelope.senderDeviceId,
-                            ciphertextType = envelope.ciphertextType
-                        )
+                decryptMultiDeviceEnvelope(senderId, multiDeviceEnvelope)
+            } else {
+                val envelope = json.decodeFromString(EncryptedMessageEnvelope.serializer(), content)
+                when (envelope.version) {
+                    1 -> DecryptResult.Success(
+                        decryptMessage(senderId, Base64.decode(envelope.ciphertext, Base64.NO_WRAP), envelope.senderDeviceId)
                     )
+                    ENVELOPE_VERSION -> {
+                        if (envelope.algorithm != ALGORITHM_SIGNAL) {
+                            DecryptResult.UnsupportedEnvelope
+                        } else {
+                            val ciphertext = Base64.decode(envelope.ciphertext, Base64.NO_WRAP)
+                            DecryptResult.Success(
+                                decryptMessage(
+                                    senderId = senderId,
+                                    ciphertext = ciphertext,
+                                    deviceId = envelope.senderDeviceId,
+                                    ciphertextType = envelope.ciphertextType
+                                )
+                            )
+                        }
+                    }
+                    else -> DecryptResult.UnsupportedEnvelope
                 }
-                else -> DecryptResult.UnsupportedEnvelope
             }
         } catch (e: NoSessionException) {
             DecryptResult.NoSession
@@ -710,6 +731,8 @@ class SignalProtocol(
             Log.w(TAG, "decryptContentEnvelope unexpected failure", e)
             DecryptResult.Failed
         }
+        rememberDecryptOutcome(fingerprint, result)
+        return result
     }
 
     private fun decryptMultiDeviceEnvelope(senderId: String, envelope: MultiDeviceMessageEnvelope): DecryptResult {
@@ -926,7 +949,11 @@ class SignalProtocol(
     }
 
     fun decryptGroupContentEnvelope(senderId: String, content: String, expectedGroupId: String? = null, currentEpoch: Long? = null): DecryptResult {
-        return cryptoLock.withLock {
+        val fingerprint = DecryptFailurePolicy.envelopeFingerprint(senderId, content)
+        if (DecryptFailurePolicy.shouldSkipCryptoAttempt(decryptRetryTracker.failureCount(fingerprint))) {
+            return DecryptResult.Failed
+        }
+        val result = cryptoLock.withLock {
             try {
                 val envelope = json.decodeFromString(SenderKeyMessageEnvelope.serializer(), content)
                 if (envelope.version != SENDER_KEY_ENVELOPE_VERSION || envelope.algorithm != ALGORITHM_SENDER_KEY) {
@@ -955,6 +982,17 @@ class SignalProtocol(
                 Log.w(TAG, "decryptGroupContentEnvelope unexpected failure", e)
                 DecryptResult.Failed
             }
+        }
+        rememberDecryptOutcome(fingerprint, result)
+        return result
+    }
+
+    private fun rememberDecryptOutcome(fingerprint: String, result: DecryptResult) {
+        when {
+            result is DecryptResult.Success || result == DecryptResult.Duplicate -> decryptRetryTracker.clear(fingerprint)
+            DecryptFailurePolicy.disposition(result) == DecryptFailurePolicy.Disposition.RETRY ->
+                decryptRetryTracker.recordCryptoFailure(fingerprint)
+            else -> decryptRetryTracker.clear(fingerprint)
         }
     }
 

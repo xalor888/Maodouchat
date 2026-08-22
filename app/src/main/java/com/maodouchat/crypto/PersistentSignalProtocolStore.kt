@@ -45,9 +45,16 @@ class PersistentSignalProtocolStore(
     suspend fun loadPersistedState(): Int {
         var droppedCorruptKeys = 0
         signalKeyDao.getKeysWithPrefix(prefix()).forEach { entity ->
+            if (!SignalStoreLoadPolicy.shouldLoadRow(entity.keyType, entity.keyData)) {
+                droppedCorruptKeys++
+                runCatching { signalKeyDao.deleteKey(entity.keyType) }
+                return@forEach
+            }
             val loaded = runCatching {
-                val rawKey = entity.keyType.removePrefix(prefix())
+                val rawKey = SignalStoreLoadPolicy.logicalKeyOrNull(entity.keyType, prefix())
+                    ?: return@runCatching
                 val data = Base64.decode(entity.keyData, Base64.NO_WRAP)
+                if (data.isEmpty()) error("empty key payload")
                 when {
                     rawKey.startsWith(KEY_IDENTITY_PREFIX) -> {
                         identities[rawKey.removePrefix(KEY_IDENTITY_PREFIX)] = IdentityKey(data)
@@ -75,7 +82,7 @@ class PersistentSignalProtocolStore(
             }
             if (loaded.isFailure) {
                 droppedCorruptKeys++
-                signalKeyDao.deleteKey(entity.keyType)
+                runCatching { signalKeyDao.deleteKey(entity.keyType) }
             }
         }
         return droppedCorruptKeys
@@ -295,16 +302,22 @@ class PersistentSignalProtocolStore(
     fun hasKyberPreKeyBeenUsed(kyberPreKeyId: Int): Boolean = usedKyberPreKeys.contains(kyberPreKeyId)
 
     private fun persist(keyType: String, data: ByteArray) {
-        signalKeyDao.insertKeyBlocking(
-            SignalKeyEntity(
-                keyType = prefix() + keyType,
-                keyData = Base64.encodeToString(data, Base64.NO_WRAP)
+        if (!SignalStoreLoadPolicy.isPersistable(keyType, data)) return
+        runCatching {
+            signalKeyDao.insertKeyBlocking(
+                SignalKeyEntity(
+                    keyType = prefix() + keyType,
+                    keyData = Base64.encodeToString(data, Base64.NO_WRAP)
+                )
             )
-        )
+        }
     }
 
     private fun delete(keyType: String) {
-        signalKeyDao.deleteKeyBlocking(prefix() + keyType)
+        if (keyType.isBlank()) return
+        runCatching {
+            signalKeyDao.deleteKeyBlocking(prefix() + keyType)
+        }
     }
 
     // 9.236：accountId 为服务端返回不可信数据，前缀经 escapeForPrefix 转义后与 DAO
