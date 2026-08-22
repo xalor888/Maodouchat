@@ -35,7 +35,9 @@ class PushTokenRepository {
         // 8.46 修复：FCM token 长度/格式校验——此前任意字符串直接入库（列宽 512），
         // 攻击者可灌大量垃圾 token 占存储，FCM 侧逐个 400 后才被清理。
         val safeToken = token.trim()
-        if (safeToken.isBlank() || safeToken.length > 255) return false
+        // 与路由 32..512、列宽 varchar(512) 对齐。此前上限 255 会把合法 FCM token
+        // 判失败，路由把任意 false 映射成 401「登录会话已被撤销」。
+        if (safeToken.length !in 32..512) return false
         if (!safeToken.all { it.isLetterOrDigit() || it == ':' || it == '_' || it == '-' || it == '.' }) {
             return false
         }
