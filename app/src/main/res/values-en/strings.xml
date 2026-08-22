@@ -298,6 +298,9 @@
     <string name="error_send_code_failed">Could not send the code</string>
     <string name="error_session_persist_failed">Could not save your session. Try again or restart the app.</string>
     <string name="error_operation_failed">Operation failed</string>
+    <string name="error_network">Network unavailable. Check your connection and try again.</string>
+    <string name="error_timeout">The request timed out. Please try again.</string>
+    <string name="error_invalid_response">The server returned an invalid response. Please try again.</string>
 
     <string name="contacts_add_friend">Add</string>
     <!-- 9.3xx: group invite consent -->
@@ -2646,6 +2649,7 @@
     <string name="fake_chat_pin_title">Verify</string>
     <string name="fake_chat_pin_hint">Enter your unlock PIN</string>
     <string name="fake_chat_wrong_pin">Wrong PIN, please try again</string>
+    <string name="fake_chat_pin_lockout">Too many attempts. Try again in %1$d seconds</string>
     <string name="fake_chat_pin_setup_title">Set unlock PIN</string>
     <string name="fake_chat_pin_setup_hint">Choose a 4–12 digit PIN. It is stored on this device only. Prefer one different from your screen lock</string>
     <string name="fake_chat_pin_new">New PIN</string>
