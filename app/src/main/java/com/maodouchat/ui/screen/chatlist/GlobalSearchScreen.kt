@@ -260,6 +260,13 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
         requestAiSearch()
     }
 
+    fun retryLastKeywordSearch() {
+        val query = _uiState.value.query
+        if (query.isBlank() || _uiState.value.mode != GlobalSearchMode.KEYWORD) return
+        _uiState.update { it.copy(error = null) }
+        scheduleLocalSearch(query)
+    }
+
     fun requestAiSearch() {
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.GLOBAL_SEARCH)) {
             _uiState.update { it.copy(error = text(R.string.global_search_disabled)) }
@@ -351,10 +358,12 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
 
     private fun scheduleLocalSearch(query: String) {
         localSearchJob?.cancel()
-        if (query.isBlank() || _uiState.value.isIndexing) {
-            _uiState.update { it.copy(results = emptyList()) }
+        if (query.isBlank()) {
+            _uiState.update { it.copy(results = emptyList(), error = null) }
             return
         }
+        // Indexing in progress is not "no hits" — keep the spinner, reschedule from refreshIndex.
+        if (_uiState.value.isIndexing) return
         val expectedGeneration = generation
         val searchOwnerUserId = tokenManager.getUserId().orEmpty()
         if (
@@ -369,50 +378,65 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
             return
         }
         localSearchJob = viewModelScope.launch {
-            delay(180)
-            if (
-                expectedGeneration != generation ||
-                _uiState.value.mode != GlobalSearchMode.KEYWORD ||
-                !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = searchOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) {
-                return@launch
-            }
-            recordRecentSearch(query)
-            val (documents, redactedChatCount) = withContext(Dispatchers.IO) {
-                val locked = app.database.chatLockDao().listLockedChatIds().toSet()
-                val secret = app.database.secretChatDao().listSecretChatIds().toSet()
-                val redacted = locked + secret
-                val filterType = _uiState.value.filterType
-                val all = filterToMessageTypes(filterType)?.let { types ->
-                    searchRepository.searchByTypes(query, types, limit = 80)
-                } ?: searchRepository.search(query, limit = 80)
-                val visible = all
-                    .filterNot { it.chatId in redacted }
-                    .let { applyTypeFilter(it, filterType) }
-                val redactedHitChats = all.map { it.chatId }.distinct().count { it in redacted }
-                visible to redactedHitChats
-            }
-            if (
-                expectedGeneration != generation ||
-                _uiState.value.mode != GlobalSearchMode.KEYWORD ||
-                !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = searchOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) {
-                return@launch
-            }
-            _uiState.update {
-                it.copy(
-                    results = documents.map(::toHit),
-                    excludedChatCount = redactedChatCount,
-                    error = null
-                )
+            try {
+                delay(180)
+                if (
+                    expectedGeneration != generation ||
+                    _uiState.value.mode != GlobalSearchMode.KEYWORD ||
+                    !com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = searchOwnerUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = tokenManager.getUserId(),
+                    )
+                ) {
+                    return@launch
+                }
+                recordRecentSearch(query)
+                val (documents, redactedChatCount) = withContext(Dispatchers.IO) {
+                    val locked = app.database.chatLockDao().listLockedChatIds().toSet()
+                    val secret = app.database.secretChatDao().listSecretChatIds().toSet()
+                    val redacted = locked + secret
+                    val filterType = _uiState.value.filterType
+                    val all = filterToMessageTypes(filterType)?.let { types ->
+                        searchRepository.searchByTypes(query, types, limit = 80)
+                    } ?: searchRepository.search(query, limit = 80)
+                    val visible = all
+                        .filterNot { it.chatId in redacted }
+                        .let { applyTypeFilter(it, filterType) }
+                    val redactedHitChats = all.map { it.chatId }.distinct().count { it in redacted }
+                    visible to redactedHitChats
+                }
+                if (
+                    expectedGeneration != generation ||
+                    _uiState.value.mode != GlobalSearchMode.KEYWORD ||
+                    !com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = searchOwnerUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = tokenManager.getUserId(),
+                    )
+                ) {
+                    return@launch
+                }
+                _uiState.update {
+                    it.copy(
+                        results = documents.map(::toHit),
+                        excludedChatCount = redactedChatCount,
+                        error = null
+                    )
+                }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                if (expectedGeneration != generation || _uiState.value.mode != GlobalSearchMode.KEYWORD) {
+                    return@launch
+                }
+                android.util.Log.w("GlobalSearchViewModel", "keyword search failed", error)
+                _uiState.update {
+                    it.copy(
+                        results = emptyList(),
+                        error = text(R.string.contacts_search_failed)
+                    )
+                }
             }
         }
     }
@@ -448,6 +472,9 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
                         liveUserId = tokenManager.getUserId(),
                     )
                 ) {
+                    _uiState.update {
+                        it.copy(isSearching = false, error = text(R.string.error_session_expired))
+                    }
                     return@launch
                 }
                 val settingsToken = tokenManager.getToken().orEmpty().ifBlank { token }
@@ -480,6 +507,9 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
                             liveUserId = tokenManager.getUserId(),
                         )
                     ) {
+                        _uiState.update {
+                            it.copy(isSearching = false, error = text(R.string.error_session_expired))
+                        }
                         return@launch
                     }
                     val liveToken = tokenManager.getToken() ?: token
@@ -757,9 +787,15 @@ fun GlobalSearchScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = LocalChatPalette.current.unreadRed
                     )
-                    if (state.mode == GlobalSearchMode.AI && state.query.isNotBlank() && !state.isSearching) {
-                        TextButton(onClick = viewModel::retryLastAiSearch) {
-                            Text(stringResource(R.string.global_search_ai_retry), color = MaterialTheme.colorScheme.primary)
+                    if (state.query.isNotBlank() && !state.isSearching && !state.isIndexing) {
+                        if (state.mode == GlobalSearchMode.AI) {
+                            TextButton(onClick = viewModel::retryLastAiSearch) {
+                                Text(stringResource(R.string.global_search_ai_retry), color = MaterialTheme.colorScheme.primary)
+                            }
+                        } else {
+                            TextButton(onClick = viewModel::retryLastKeywordSearch) {
+                                Text(stringResource(R.string.global_search_ai_retry), color = MaterialTheme.colorScheme.primary)
+                            }
                         }
                     }
                 }
@@ -792,6 +828,7 @@ fun GlobalSearchScreen(
                 state.isIndexing || state.isSearching -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
+                state.results.isEmpty() && state.error != null -> { /* 失败横幅已展示，避免误报「无结果」 */ }
                 state.results.isEmpty() -> GlobalSearchEmpty(
                     stringResource(
                         if (state.mode == GlobalSearchMode.AI && !state.aiSearchCompleted) R.string.global_search_ai_ready

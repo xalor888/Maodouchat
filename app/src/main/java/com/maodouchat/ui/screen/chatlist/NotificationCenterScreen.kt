@@ -111,19 +111,37 @@ class NotificationCenterViewModel(application: Application) : AndroidViewModel(a
         dismissTrayFor(snapshot)
     }
 
-    fun markRead(id: String) {
-        val item = repo.snapshot().firstOrNull { it.id == id }
-        repo.markRead(id)
+    /**
+     * Merge can rewrite [NotificationCenterItem.id] to the incoming head while Compose
+     * still holds the pre-merge id. Resolve by id first, then type + mergeKey.
+     */
+    private fun resolveLiveItem(id: String, hint: NotificationCenterItem? = null): NotificationCenterItem? {
+        val snapshot = repo.snapshot()
+        snapshot.firstOrNull { it.id == id }?.let { return it }
+        val type = hint?.type
+        val mergeKey = hint?.mergeKey
+        if (!type.isNullOrBlank() && !mergeKey.isNullOrBlank()) {
+            snapshot.firstOrNull { it.type == type && it.mergeKey == mergeKey }?.let { return it }
+        }
+        return null
+    }
+
+    fun markRead(id: String, hint: NotificationCenterItem? = null) {
+        val item = resolveLiveItem(id, hint)
+        val targetId = item?.id ?: id
+        repo.markRead(targetId)
         if (item != null) dismissTrayFor(listOf(item))
     }
 
-    fun markUnread(id: String) {
-        repo.markUnread(id)
+    fun markUnread(id: String, hint: NotificationCenterItem? = null) {
+        val item = resolveLiveItem(id, hint)
+        repo.markUnread(item?.id ?: id)
     }
 
-    fun remove(id: String) {
-        val item = repo.snapshot().firstOrNull { it.id == id }
-        repo.remove(id)
+    fun remove(id: String, hint: NotificationCenterItem? = null) {
+        val item = resolveLiveItem(id, hint)
+        val targetId = item?.id ?: id
+        repo.remove(targetId)
         if (item != null) dismissTrayFor(listOf(item))
     }
 
@@ -217,7 +235,7 @@ fun NotificationCenterScreen(
     // 1.170：长按某条通知 → 清除该会话全部通知
     var clearChatId by remember { mutableStateOf<String?>(null) }
     // 1.268：长按操作菜单（复制 / 清除该会话通知）
-    var notifyMenuFor by remember { mutableStateOf<Pair<NotificationCenterItem, String>?>(null) }
+    var notifyMenuFor by remember { mutableStateOf<Pair<NotificationCenterItem, String?>?>(null) }
     var filter by rememberSaveable { mutableStateOf(NotifFilter.ALL) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val motion = LocalMotionSettings.current
@@ -319,21 +337,17 @@ fun NotificationCenterScreen(
                                 DayHeader(dayBucket.displayLabel())
                             }
                             items(dayItems, key = NotificationCenterItem::id, contentType = { "notification" }) { item ->
-                                val itemChatId = item.extra["chatId"]
+                                val itemChatId = resolvedNotificationChatId(item)
                                 NotificationRow(
                                     item = item,
                                     // 1.284：搜索关键词高亮（与 Explore/收藏/会话列表一致）
                                     highlightQuery = searchQuery,
                                     onClick = {
-                                        viewModel.markRead(item.id)
+                                        viewModel.markRead(item.id, item)
                                         onOpenItem(item)
                                     },
-                                    onDismiss = { viewModel.remove(item.id) },
-                                    // 1.170：长按清除该会话全部通知
-                                    onLongClick = itemChatId?.takeIf(String::isNotBlank)?.let { chatId ->
-                                        // 1.268：长按弹出操作菜单（复制 / 清除该会话通知）
-                                        { notifyMenuFor = item to chatId }
-                                    },
+                                    onDismiss = { viewModel.remove(item.id, item) },
+                                    onLongClick = { notifyMenuFor = item to itemChatId },
                                     modifier = Modifier.animateItem(
                                         fadeInSpec = if (motion.animationsEnabled) tween(motion.duration(MotionTokens.Standard)) else null,
                                         fadeOutSpec = if (motion.animationsEnabled) tween(motion.duration(MotionTokens.Fast)) else null,
@@ -411,15 +425,17 @@ fun NotificationCenterScreen(
                     }, modifier = Modifier.fillMaxWidth()) {
                         Text(stringResource(R.string.chat_copy), modifier = Modifier.fillMaxWidth())
                     }
-                    TextButton(onClick = {
-                        notifyMenuFor = null
-                        clearChatId = chatId
-                    }, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.notif_center_clear_chat_title), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.error)
+                    if (!chatId.isNullOrBlank()) {
+                        TextButton(onClick = {
+                            notifyMenuFor = null
+                            clearChatId = chatId
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.notif_center_clear_chat_title), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.error)
+                        }
                     }
                     if (item.read) {
                         TextButton(onClick = {
-                            viewModel.markUnread(item.id)
+                            viewModel.markUnread(item.id, item)
                             notifyMenuFor = null
                         }, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.notif_center_mark_unread), modifier = Modifier.fillMaxWidth())
@@ -555,6 +571,27 @@ private fun EmptyNotificationCenter(modifier: Modifier) {
             Text(stringResource(R.string.notif_center_empty_subtitle), style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
         }
     }
+}
+
+/** extra.chatId → deeplink → mergeKey（msg_/ai_tasks_） */
+internal fun resolvedNotificationChatId(item: NotificationCenterItem): String? {
+    item.extra["chatId"]?.takeIf { it.isNotBlank() }?.let { return it }
+    val deeplink = item.deeplink.orEmpty()
+    when {
+        deeplink.startsWith("maodouchat:chat:") ->
+            deeplink.removePrefix("maodouchat:chat:").substringBefore(':')
+                .takeIf { it.isNotBlank() }?.let { return it }
+        deeplink.startsWith("maodouchat:ai_tasks:") ->
+            deeplink.removePrefix("maodouchat:ai_tasks:").substringBefore(':')
+                .takeIf { it.isNotBlank() }?.let { return it }
+    }
+    if (item.mergeKey.startsWith("msg_") && item.mergeKey.length > 4) {
+        return item.mergeKey.removePrefix("msg_").takeIf { it.isNotBlank() }
+    }
+    if (item.mergeKey.startsWith("ai_tasks_") && item.mergeKey.length > 9) {
+        return item.mergeKey.removePrefix("ai_tasks_").takeIf { it.isNotBlank() }
+    }
+    return null
 }
 
 private enum class NotifFilter {

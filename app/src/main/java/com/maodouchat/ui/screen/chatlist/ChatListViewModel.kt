@@ -968,16 +968,30 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 _uiState.update { it.copy(messageMatchedChatIds = emptySet()) }
                 return@launch
             }
-            val matchedIds = withContext(Dispatchers.IO) {
-                val locked = app.database.chatLockDao().listLockedChatIds().toSet()
-                val secret = app.database.secretChatDao().listSecretChatIds().toSet()
-                app.database.messageDao().searchChatIdsByMessageContent(escaped)
-                    .filterNot { it in locked || it in secret }
+            try {
+                val matchedIds = withContext(Dispatchers.IO) {
+                    val locked = app.database.chatLockDao().listLockedChatIds().toSet()
+                    val secret = app.database.secretChatDao().listSecretChatIds().toSet()
+                    app.database.messageDao().searchChatIdsByMessageContent(escaped)
+                        .filterNot { it in locked || it in secret }
+                }
+                // Drop if user kept typing past this snapshot or account switched mid-search.
+                if (_uiState.value.searchQuery != clipped) return@launch
+                if (tokenManager.getUserId().orEmpty() != searchOwnerUserId) return@launch
+                _uiState.update { it.copy(messageMatchedChatIds = matchedIds.toSet()) }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                if (_uiState.value.searchQuery != clipped) return@launch
+                if (tokenManager.getUserId().orEmpty() != searchOwnerUserId) return@launch
+                android.util.Log.w("ChatListViewModel", "list message search failed", error)
+                _uiState.update {
+                    it.copy(
+                        messageMatchedChatIds = emptySet(),
+                        errorMessage = text(R.string.contacts_search_failed)
+                    )
+                }
             }
-            // Drop if user kept typing past this snapshot or account switched mid-search.
-            if (_uiState.value.searchQuery != clipped) return@launch
-            if (tokenManager.getUserId().orEmpty() != searchOwnerUserId) return@launch
-            _uiState.update { it.copy(messageMatchedChatIds = matchedIds.toSet()) }
         }
     }
 
@@ -2994,9 +3008,26 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         if (showLoading) {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         } else {
-            _uiState.update { it.copy(errorMessage = null) }
+            // 静默刷新会取消进行中的可见加载；必须顺带关掉 shimmer，否则空白列表卡死。
+            _uiState.update { it.copy(isLoading = false, errorMessage = null) }
         }
         loadChatsJob = viewModelScope.launch {
+            fun stillCurrent(): Boolean = requestId == loadChatsRequestId &&
+                com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                    expectedUserId = loadOwnerUserId,
+                    liveToken = tokenManager.getToken(),
+                    liveUserId = tokenManager.getUserId(),
+                )
+            fun finishIfCurrent(errorMessage: String? = null, chats: List<Chat>? = null) {
+                if (requestId != loadChatsRequestId) return
+                _uiState.update { state ->
+                    state.copy(
+                        chats = chats ?: state.chats,
+                        isLoading = false,
+                        errorMessage = errorMessage
+                    )
+                }
+            }
             try {
                 if (token.isBlank() || loadOwnerUserId.isBlank()) {
                     // 无 Token，从本地加载（只取一次）；空缓存时提示会话过期，避免“空白列表无反馈”。
@@ -3004,7 +3035,10 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     if (requestId != loadChatsRequestId ||
                         tokenManager.getUserId().orEmpty() != loadOwnerUserId ||
                         !tokenManager.getToken().isNullOrBlank()
-                    ) return@launch
+                    ) {
+                        finishIfCurrent()
+                        return@launch
+                    }
                     _uiState.update {
                         it.copy(
                             chats = chats,
@@ -3015,13 +3049,11 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     return@launch
                 }
 
-                if (requestId != loadChatsRequestId || loadOwnerUserId.isBlank() ||
-                    !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = loadOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) {
+                if (requestId != loadChatsRequestId) {
+                    return@launch
+                }
+                if (!stillCurrent()) {
+                    finishIfCurrent(errorMessage = text(R.string.error_session_expired))
                     return@launch
                 }
                 val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
@@ -3034,13 +3066,9 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 val result = ApiService.getChats(liveToken)
                 result.fold(
                     onSuccess = { chatDtos ->
-                        if (requestId != loadChatsRequestId ||
-                            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = loadOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
+                        if (requestId != loadChatsRequestId) return@fold
+                        if (!stillCurrent()) {
+                            finishIfCurrent(errorMessage = text(R.string.error_session_expired))
                             return@fold
                         }
                         val currentUserId = tokenManager.getUserId().orEmpty()
@@ -3050,7 +3078,10 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                         val activeId = com.maodouchat.MaodouchatApp.activeChatId
                         val chats = chatDtos.map { dto ->
                             val participants = dto.participants.map { User(it.id, it.name, it.avatar, it.email, it.isOnline, it.status) }
-                            val local = localById[dto.id] ?: uiById[dto.id]
+                            // Prefer in-memory UI (optimistic read/unread) over Room: a lagged
+                            // cache row must not resurrect a badge the list already cleared, nor
+                            // wipe a badge the list just incremented before Room caught up.
+                            val local = uiById[dto.id] ?: localById[dto.id]
                             val isActive = !activeId.isNullOrBlank() && activeId == dto.id
                             val mergedUnread = ChatListUnreadPolicy.mergeUnreadCount(
                                 serverUnread = dto.unreadCount,
@@ -3116,62 +3147,53 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                         val staleChatIds = chatRepo.getAllChats().firstOrNull().orEmpty()
                             .map { it.id }
                             .filterNot(serverChatIds::contains)
-                        if (requestId != loadChatsRequestId ||
-                            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = loadOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) return@fold
+                        if (requestId != loadChatsRequestId) return@fold
+                        if (!stillCurrent()) {
+                            finishIfCurrent(errorMessage = text(R.string.error_session_expired))
+                            return@fold
+                        }
                         // 服务端列表已到手：过期会话清理 + 缓存 + 列表 UI 收敛必须跑完，
                         // 避免 cancel 留下「半清本地 / UI 仍显示幽灵会话 / isLoading 卡死」
                         withContext(kotlinx.coroutines.NonCancellable) {
                             // BUG 2.1 fix: cleanup 可能抛异常，包裹 try-catch 确保 isLoading 总能被清除
                             try {
                                 for (staleId in staleChatIds) {
-                                    if (requestId != loadChatsRequestId ||
-                                        !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                            expectedUserId = loadOwnerUserId,
-                                            liveToken = tokenManager.getToken(),
-                                            liveUserId = tokenManager.getUserId(),
-                                        )
-                                    ) return@withContext
+                                    if (requestId != loadChatsRequestId) return@withContext
+                                    if (!stillCurrent()) {
+                                        finishIfCurrent(errorMessage = text(R.string.error_session_expired))
+                                        return@withContext
+                                    }
                                     cleanupLocalChat(staleId, loadOwnerUserId)
                                 }
-                                if (requestId != loadChatsRequestId ||
-                                    !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                        expectedUserId = loadOwnerUserId,
-                                        liveToken = tokenManager.getToken(),
-                                        liveUserId = tokenManager.getUserId(),
-                                    )
-                                ) return@withContext
+                                if (requestId != loadChatsRequestId) return@withContext
+                                if (!stillCurrent()) {
+                                    finishIfCurrent(errorMessage = text(R.string.error_session_expired))
+                                    return@withContext
+                                }
                                 // 8.49 修复：写库与 UI 一律使用 filteredChats——此前用未过滤的 chats，
                                 // 刚被 stale 清理删掉的本地行又被插回 Room，幽灵会话+角标复活
                                 chatRepo.cacheChats(filteredChats)
                             } catch (cleanupError: kotlinx.coroutines.CancellationException) {
+                                if (requestId == loadChatsRequestId) finishIfCurrent()
                                 throw cleanupError
                             } catch (cleanupError: Exception) {
                                 android.util.Log.w("ChatListViewModel", "Chat cleanup failed", cleanupError)
                             }
-                            if (requestId != loadChatsRequestId ||
-                                !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                    expectedUserId = loadOwnerUserId,
-                                    liveToken = tokenManager.getToken(),
-                                    liveUserId = tokenManager.getUserId(),
-                                )
-                            ) return@withContext
+                            if (requestId != loadChatsRequestId) return@withContext
+                            if (!stillCurrent()) {
+                                finishIfCurrent(errorMessage = text(R.string.error_session_expired))
+                                return@withContext
+                            }
                             // cacheChats 合并本地备注后，从 Room 回读标题用 displayName
                             val nickMerged = filteredChats.map { c ->
                                 chatRepo.getChatById(c.id) ?: c
                             }
-                            if (requestId != loadChatsRequestId ||
-                                !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                    expectedUserId = loadOwnerUserId,
-                                    liveToken = tokenManager.getToken(),
-                                    liveUserId = tokenManager.getUserId(),
-                                )
-                            ) return@withContext
-                            _uiState.update { it.copy(chats = nickMerged, isLoading = false) }
+                            if (requestId != loadChatsRequestId) return@withContext
+                            if (!stillCurrent()) {
+                                finishIfCurrent(errorMessage = text(R.string.error_session_expired))
+                                return@withContext
+                            }
+                            _uiState.update { it.copy(chats = nickMerged, isLoading = false, errorMessage = null) }
                             refreshIdentityWarnings()
                         }
                         // 离线/漏 WS 时：列表侧回放 mutation 日志（不依赖打开详情）；可取消
@@ -3190,37 +3212,39 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     },
                     onFailure = { error ->
                         if (error is kotlinx.coroutines.CancellationException) throw error
-                        if (requestId != loadChatsRequestId ||
-                            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = loadOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) return@fold
+                        if (requestId != loadChatsRequestId) return@fold
+                        if (!stillCurrent()) {
+                            finishIfCurrent(errorMessage = text(R.string.error_session_expired))
+                            return@fold
+                        }
                         // API 失败，从本地加载
                         val chats = chatRepo.getAllChats().firstOrNull() ?: emptyList()
-                        if (requestId != loadChatsRequestId ||
-                            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = loadOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) return@fold
-                        _uiState.update {
-                            it.copy(
-                                chats = chats,
-                                isLoading = false,
-                                errorMessage = error.message?.takeIf { message -> message.isNotBlank() } ?: text(R.string.chat_refresh_failed_cached)
-                            )
-                        }
+                        if (requestId != loadChatsRequestId) return@fold
+                        finishIfCurrent(
+                            errorMessage = error.message?.takeIf { message -> message.isNotBlank() }
+                                ?: text(R.string.chat_refresh_failed_cached),
+                            chats = chats
+                        )
                         refreshIdentityWarnings()
                         // 仍可尝试用本地 chat 缓存加密 flush（网络失败时 send 仍可能短暂可用）
                         flushTextOutbox()
                     }
                 )
             } catch (error: kotlinx.coroutines.CancellationException) {
-                // Superseded by a newer loadChats — do not clear isLoading here (race with winner).
+                // 被更新的 loadChats 取代时不要清 isLoading，以免和胜者抢状态；
+                // 若当前 request 仍是自己（VM 清空 / 无继任者），必须关掉 shimmer，否则空白卡死。
+                if (requestId == loadChatsRequestId) finishIfCurrent()
                 throw error
+            } catch (error: Exception) {
+                android.util.Log.w("ChatListViewModel", "loadChats failed", error)
+                if (requestId != loadChatsRequestId) throw error
+                val chats = runCatching { chatRepo.getAllChats().firstOrNull() ?: emptyList() }
+                    .getOrDefault(emptyList())
+                finishIfCurrent(
+                    errorMessage = error.message?.takeIf { message -> message.isNotBlank() }
+                        ?: text(R.string.chat_refresh_failed_cached),
+                    chats = chats
+                )
             }
         }
     }
