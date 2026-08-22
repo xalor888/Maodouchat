@@ -223,6 +223,18 @@
         </div>
       </div>
 
+      <!-- Delete Bot Dialog -->
+      <div id="deleteBotDialog" class="dev-dialog hidden">
+        <div class="dev-dialog-card">
+          <h3>删除机器人</h3>
+          <p id="deleteBotMessage">确认删除该机器人？此操作不可逆。</p>
+          <div class="dev-dialog-actions">
+            <button class="dev-btn dev-btn-ghost" onclick="DevApp.hideDeleteBot()">取消</button>
+            <button class="dev-btn dev-btn-danger" onclick="DevApp.confirmDeleteBot()">确认删除</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Rotate Token Dialog -->
       <div id="rotateTokenDialog" class="dev-dialog hidden">
         <div class="dev-dialog-card">
@@ -439,6 +451,6 @@
     }
   })();
 </script>
-<script src="/assets/developer.js?v=113"></script>
+<script src="/assets/developer.js?v=114"></script>
 </body>
 </html>

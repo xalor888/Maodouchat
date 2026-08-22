@@ -1843,12 +1843,22 @@ async function loadChats(seq) {
   // ═════════════════════════════════════
   var modalCallback = null;
 
+  function resetModalChrome() {
+    el('modal-box').classList.remove('wide');
+    el('modal-input-wrap').classList.add('hidden');
+    el('modal-select-wrap').classList.add('hidden');
+    var formWrap = el('modal-form-wrap');
+    if (formWrap) {
+      formWrap.classList.add('hidden');
+      formWrap.innerHTML = '';
+    }
+  }
+
   function showConfirm(title, body, type, callback) {
     modalCallback = callback;
     el('modal-title').textContent = title;
     el('modal-body').textContent = body;
-    el('modal-input-wrap').classList.add('hidden');
-    el('modal-select-wrap').classList.add('hidden');
+    resetModalChrome();
 
     var iconWrap = el('modal-icon-wrap');
     iconWrap.className = 'modal-icon ' + (type || 'info');
@@ -1868,8 +1878,8 @@ async function loadChats(seq) {
     modalCallback = callback;
     el('modal-title').textContent = title;
     el('modal-body').textContent = body;
+    resetModalChrome();
     el('modal-input-wrap').classList.remove('hidden');
-    el('modal-select-wrap').classList.add('hidden');
     var input = el('modal-input');
     input.value = defaultVal || '';
     input.placeholder = placeholder || '';
@@ -1890,7 +1900,7 @@ async function loadChats(seq) {
     modalCallback = callback;
     el('modal-title').textContent = title;
     el('modal-body').textContent = body;
-    el('modal-input-wrap').classList.add('hidden');
+    resetModalChrome();
     el('modal-select-wrap').classList.remove('hidden');
     var select = el('modal-select');
     select.innerHTML = (options || []).map(function (opt) {
@@ -1905,6 +1915,49 @@ async function loadChats(seq) {
     iconWrap.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14 7 7 0 000-14zm0 3a1 1 0 011 1v4a1 1 0 11-2 0V5a1 1 0 011-1zm0 8a1.25 1.25 0 110-2.5A1.25 1.25 0 018 12z"/></svg>';
     el('modal-overlay').classList.remove('hidden');
     setTimeout(function () { select.focus(); }, 100);
+  }
+
+  /** fields: [{name, label, type, value, placeholder, options, required, hint}] */
+  function showForm(title, body, fields, callback) {
+    modalCallback = callback;
+    el('modal-title').textContent = title;
+    el('modal-body').textContent = body || '';
+    resetModalChrome();
+    el('modal-box').classList.add('wide');
+    var wrap = el('modal-form-wrap');
+    wrap.classList.remove('hidden');
+    wrap.innerHTML = (fields || []).map(function (f) {
+      var id = 'modal-field-' + esc(f.name);
+      var html = '<div class="form-field"><label class="label" for="' + id + '">' + esc(f.label || f.name) +
+        (f.required ? ' *' : '') + '</label>';
+      if (f.type === 'select') {
+        html += '<select class="modal-select" id="' + id + '" data-field="' + esc(f.name) + '">' +
+          (f.options || []).map(function (opt) {
+            return '<option value="' + esc(opt.value) + '"' +
+              (String(opt.value) === String(f.value) ? ' selected' : '') + '>' +
+              esc(opt.label) + '</option>';
+          }).join('') + '</select>';
+      } else if (f.type === 'textarea') {
+        html += '<textarea id="' + id + '" data-field="' + esc(f.name) + '" placeholder="' +
+          esc(f.placeholder || '') + '">' + esc(f.value || '') + '</textarea>';
+      } else {
+        html += '<input type="' + esc(f.type || 'text') + '" id="' + id + '" data-field="' + esc(f.name) +
+          '" value="' + esc(f.value || '') + '" placeholder="' + esc(f.placeholder || '') + '"/>';
+      }
+      if (f.hint) html += '<div class="modal-input-hint">' + esc(f.hint) + '</div>';
+      html += '</div>';
+      return html;
+    }).join('');
+    el('modal-confirm').textContent = '确认';
+    el('modal-confirm').className = 'btn btn-primary';
+    var iconWrap = el('modal-icon-wrap');
+    iconWrap.className = 'modal-icon info';
+    iconWrap.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14 7 7 0 000-14zm0 4a1 1 0 110 2 1 1 0 010-2zm1 4v3H7V9h2z"/></svg>';
+    el('modal-overlay').classList.remove('hidden');
+    setTimeout(function () {
+      var first = wrap.querySelector('input, textarea, select');
+      if (first) first.focus();
+    }, 100);
   }
 
   el('modal-cancel').onclick = function () {
@@ -1927,7 +1980,15 @@ async function loadChats(seq) {
     var select = el('modal-select');
     var cb = modalCallback;
     try {
-      if (!el('modal-input-wrap').classList.contains('hidden')) {
+      var formWrap = el('modal-form-wrap');
+      if (formWrap && !formWrap.classList.contains('hidden')) {
+        var values = {};
+        formWrap.querySelectorAll('[data-field]').forEach(function (node) {
+          values[node.getAttribute('data-field')] = node.value;
+        });
+        var formResult = await cb(values);
+        if (formResult === false) { el('modal-confirm').disabled = false; return; }
+      } else if (!el('modal-input-wrap').classList.contains('hidden')) {
         var val = input.value;
         var result = await cb(val);
         if (result === false) { el('modal-confirm').disabled = false; return; } // callback can return false to keep modal open
@@ -1935,7 +1996,8 @@ async function loadChats(seq) {
         var selResult = await cb(select.value);
         if (selResult === false) { el('modal-confirm').disabled = false; return; }
       } else {
-        await cb();
+        var confirmResult = await cb();
+        if (confirmResult === false) { el('modal-confirm').disabled = false; return; }
       }
     } catch (e) {
       el('modal-confirm').disabled = false;
@@ -2338,6 +2400,8 @@ async function loadChats(seq) {
     // 此前仅暴露 api/toast/esc/date/el，adminForceLogout 等引用闭包内变量 → ReferenceError
     showSelect: showSelect,
     showPrompt: showPrompt,
+    showConfirm: showConfirm,
+    showForm: showForm,
     ensureDispositionTemplates: ensureDispositionTemplates,
     loadUsers: loadUsers,
     // 8.48 补全：B6 模块与主模块共享同一 tab 渲染序号——主/B6 tab 互切时，
@@ -2353,13 +2417,19 @@ async function loadChats(seq) {
 
 async function adminForceLogout(userId) {
   if (!userId) return;
-  if (!confirm('强制下线 user ' + userId + ' on all devices?')) return;
-  try {
-    await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/force-logout', { method: 'POST', body: '{}' });
-    window.__b6Admin.toast('强制下线 ok');
-  } catch (e) {
-    window.__b6Admin.toast('强制下线 failed: ' + (e && e.message ? e.message : e));
-  }
+  window.__b6Admin.showConfirm(
+    '强制下线',
+    '强制下线 user ' + userId + ' on all devices?',
+    'warn',
+    async function () {
+      try {
+        await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/force-logout', { method: 'POST', body: '{}' });
+        window.__b6Admin.toast('强制下线 ok');
+      } catch (e) {
+        window.__b6Admin.toast('强制下线 failed: ' + (e && e.message ? e.message : e));
+      }
+    }
+  );
 }
 
 async function adminLoadUserSessions(userId) {
@@ -2377,23 +2447,29 @@ async function adminLoadUserSessions(userId) {
     });
     lines.push('Push tokens: ' + ((data.pushTokens || []).length));
     var text = lines.join('\n') || 'No sessions';
-    var action = window.prompt(text + '\n\n操作: type session prefix to revoke one, or ALL to force logout all', '');
-    if (action == null) return;
-    action = String(action).trim();
-    if (!action) return;
-    if (action.toUpperCase() === 'ALL') {
-      await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/sessions/revoke', {
-        method: 'POST',
-        body: JSON.stringify({ all: true })
-      });
-      window.__b6Admin.toast('All sessions revoked', 'success');
-    } else {
-      await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/sessions/revoke', {
-        method: 'POST',
-        body: JSON.stringify({ tokenHashPrefix: action })
-      });
-      window.__b6Admin.toast('Session revoke requested for prefix ' + action, 'success');
-    }
+    window.__b6Admin.showPrompt(
+      '用户会话',
+      text + '\n\n操作：输入 session prefix 撤销一条，或 ALL 强制下线全部',
+      '',
+      'prefix 或 ALL',
+      async function (action) {
+        action = String(action || '').trim();
+        if (!action) return false;
+        if (action.toUpperCase() === 'ALL') {
+          await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/sessions/revoke', {
+            method: 'POST',
+            body: JSON.stringify({ all: true })
+          });
+          window.__b6Admin.toast('All sessions revoked', 'success');
+        } else {
+          await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/sessions/revoke', {
+            method: 'POST',
+            body: JSON.stringify({ tokenHashPrefix: action })
+          });
+          window.__b6Admin.toast('Session revoke requested for prefix ' + action, 'success');
+        }
+      }
+    );
   } catch (e) {
     window.__b6Admin.toast('Sessions failed: ' + (e && e.message ? e.message : e), 'error');
   }
@@ -2473,25 +2549,41 @@ async function adminLoadUserSessions(userId) {
 
 async function adminDisableTotp(userId) {
   if (!userId) return;
-  if (!confirm('关闭 TOTP for user ' + userId + '?')) return;
-  try {
-    await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/disable-totp', { method: 'POST', body: '{}' });
-    window.__b6Admin.toast('TOTP disabled');
-  } catch (e) {
-    window.__b6Admin.toast('关闭 TOTP failed: ' + (e && e.message ? e.message : e));
-  }
+  window.__b6Admin.showConfirm(
+    '关闭 TOTP',
+    '关闭 TOTP for user ' + userId + '?',
+    'warn',
+    async function () {
+      try {
+        await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/disable-totp', { method: 'POST', body: '{}' });
+        window.__b6Admin.toast('TOTP disabled');
+      } catch (e) {
+        window.__b6Admin.toast('关闭 TOTP failed: ' + (e && e.message ? e.message : e));
+      }
+    }
+  );
 }
 
 
 async function adminBroadcast() {
-  var text = prompt('Broadcast message to all online users:');
-  if (!text || !text.trim()) return;
-  try {
-    var res = await window.__b6Admin.api('/api/admin/broadcast', { method: 'POST', body: JSON.stringify({ text: text.trim(), title: 'System' }) });
-    window.__b6Admin.toast('Broadcast delivered to ' + (res.delivered || 0) + ' online sessions');
-  } catch (e) {
-    window.__b6Admin.toast('Broadcast failed: ' + (e && e.message ? e.message : e));
-  }
+  window.__b6Admin.showPrompt(
+    '全员广播',
+    'Broadcast message to all online users:',
+    '',
+    '消息内容',
+    async function (text) {
+      if (!text || !String(text).trim()) {
+        window.__b6Admin.toast('消息不能为空', 'error');
+        return false;
+      }
+      try {
+        var res = await window.__b6Admin.api('/api/admin/broadcast', { method: 'POST', body: JSON.stringify({ text: String(text).trim(), title: 'System' }) });
+        window.__b6Admin.toast('Broadcast delivered to ' + (res.delivered || 0) + ' online sessions');
+      } catch (e) {
+        window.__b6Admin.toast('Broadcast failed: ' + (e && e.message ? e.message : e));
+      }
+    }
+  );
 }
 
 async function adminSetModerator(userId, enabled) {
@@ -2516,6 +2608,7 @@ async function adminSetModerator(userId, enabled) {
   var H = window.__b6Admin;
   var api = H.api, toast = H.toast, esc = H.esc, date = H.date;
   var el = H.el;
+  var showConfirm = H.showConfirm, showPrompt = H.showPrompt, showForm = H.showForm, showSelect = H.showSelect;
   var currentTab = '';
   var pg = { announcements: 0, 'user-tags': 0, 'user-tag-users': 0, 'device-consistency': 0 };
   var pageSize = 25;
@@ -2609,14 +2702,16 @@ async function adminSetModerator(userId, enabled) {
     });
     document.querySelectorAll('[data-b6-cancel]').forEach(function (b) {
       b.onclick = function () {
-        if (!confirm('确认取消公告 ' + b.dataset.b6Cancel + '？')) return;
-        api('/api/admin/announcements/' + encodeURIComponent(b.dataset.b6Cancel) + '/cancel', { method: 'POST', body: '{}' }).then(function () { toast('已取消', 'success'); loadAnnouncements(); }).catch(function (e) { toast('取消失败: ' + e.message, 'error'); });
+        showConfirm('取消公告', '确认取消公告 ' + b.dataset.b6Cancel + '？', 'warn', function () {
+          return api('/api/admin/announcements/' + encodeURIComponent(b.dataset.b6Cancel) + '/cancel', { method: 'POST', body: '{}' }).then(function () { toast('已取消', 'success'); loadAnnouncements(); });
+        });
       };
     });
     document.querySelectorAll('[data-b6-del]').forEach(function (b) {
       b.onclick = function () {
-        if (!confirm('确认删除草稿 ' + b.dataset.b6Del + '？仅未发布草稿可删除。')) return;
-        api('/api/admin/announcements/' + encodeURIComponent(b.dataset.b6Del), { method: 'DELETE' }).then(function () { toast('已删除', 'success'); loadAnnouncements(); }).catch(function (e) { toast('删除失败: ' + e.message, 'error'); });
+        showConfirm('删除草稿', '确认删除草稿 ' + b.dataset.b6Del + '？仅未发布草稿可删除。', 'danger', function () {
+          return api('/api/admin/announcements/' + encodeURIComponent(b.dataset.b6Del), { method: 'DELETE' }).then(function () { toast('已删除', 'success'); loadAnnouncements(); });
+        });
       };
     });
     document.querySelectorAll('[data-b6-stats]').forEach(function (b) {
@@ -2628,35 +2723,42 @@ async function adminSetModerator(userId, enabled) {
       };
     });
 
-    document.getElementById('b6-ann-create').onclick = async function () {
-      var title = prompt('公告标题：');
-      if (!title || !title.trim()) return;
-      var content = prompt('公告内容（平台明文广播，不含会话正文）：');
-      if (!content || !content.trim()) return;
-      var level = prompt('级别（INFO / WARNING / MAINTENANCE / EMERGENCY，默认 INFO）:', 'INFO');
-      level = LEVELS.indexOf((level || 'INFO').toUpperCase()) >= 0 ? (level || 'INFO').toUpperCase() : 'INFO';
-      var audience = prompt('受众（ALL 全员 / TAGGED 按标签，默认 ALL）:', 'ALL');
-      audience = (audience || 'ALL').toUpperCase() === 'TAGGED' ? 'TAGGED' : 'ALL';
-      var tagId = null;
-      if (audience === 'TAGGED') {
-        tagId = prompt('定向标签 ID（先在「用户标签」页创建标签，填其 id）：');
-        if (!tagId || !tagId.trim()) { toast('按标签公告必须指定 tagId', 'error'); return; }
-        tagId = tagId.trim();
-      }
-      var startsAt = prompt('生效时间戳（毫秒，留空立即生效）：');
-      var expiresAt = prompt('失效时间戳（毫秒，留空默认 7 天）：');
-      var body = {
-        title: title.trim(), content: content.trim(), level: level,
-        audience: audience, tagId: tagId,
-        startsAt: startsAt && Number.isFinite(Number(startsAt)) ? Number(startsAt) : null,
-        expiresAt: expiresAt && Number.isFinite(Number(expiresAt)) ? Number(expiresAt) : null
-      };
-      try {
-        await api('/api/admin/announcements', { method: 'POST', body: JSON.stringify(body) });
-        toast('公告已创建', 'success');
-        pg.announcements = 0;
-        loadAnnouncements();
-      } catch (e) { toast('创建失败: ' + e.message, 'error'); }
+    document.getElementById('b6-ann-create').onclick = function () {
+      showForm(
+        '新建公告',
+        '平台明文广播，不含会话正文。',
+        [
+          { name: 'title', label: '标题', type: 'text', required: true, placeholder: '公告标题' },
+          { name: 'content', label: '内容', type: 'textarea', required: true, placeholder: '公告内容' },
+          { name: 'level', label: '级别', type: 'select', value: 'INFO', options: LEVELS.map(function (lv) { return { value: lv, label: lv }; }) },
+          { name: 'audience', label: '受众', type: 'select', value: 'ALL', options: [{ value: 'ALL', label: '全员' }, { value: 'TAGGED', label: '按标签' }] },
+          { name: 'tagId', label: '定向标签 ID', type: 'text', placeholder: '受众为「按标签」时必填', hint: '先在「用户标签」页创建标签' },
+          { name: 'startsAt', label: '生效时间戳（毫秒）', type: 'text', placeholder: '留空立即生效' },
+          { name: 'expiresAt', label: '失效时间戳（毫秒）', type: 'text', placeholder: '留空默认 7 天' }
+        ],
+        async function (values) {
+          var title = String(values.title || '').trim();
+          var content = String(values.content || '').trim();
+          if (!title) { toast('请填写标题', 'error'); return false; }
+          if (!content) { toast('请填写内容', 'error'); return false; }
+          var level = LEVELS.indexOf(String(values.level || 'INFO').toUpperCase()) >= 0 ? String(values.level).toUpperCase() : 'INFO';
+          var audience = String(values.audience || 'ALL').toUpperCase() === 'TAGGED' ? 'TAGGED' : 'ALL';
+          var tagId = String(values.tagId || '').trim() || null;
+          if (audience === 'TAGGED' && !tagId) { toast('按标签公告必须指定 tagId', 'error'); return false; }
+          var startsAt = String(values.startsAt || '').trim();
+          var expiresAt = String(values.expiresAt || '').trim();
+          var body = {
+            title: title, content: content, level: level,
+            audience: audience, tagId: tagId,
+            startsAt: startsAt && Number.isFinite(Number(startsAt)) ? Number(startsAt) : null,
+            expiresAt: expiresAt && Number.isFinite(Number(expiresAt)) ? Number(expiresAt) : null
+          };
+          await api('/api/admin/announcements', { method: 'POST', body: JSON.stringify(body) });
+          toast('公告已创建', 'success');
+          pg.announcements = 0;
+          loadAnnouncements();
+        }
+      );
     };
   }
 
@@ -2700,34 +2802,49 @@ async function adminSetModerator(userId, enabled) {
     if (H.isStaleTab(seq)) return;
     el('content').innerHTML = html;
 
-    document.getElementById('b6-tag-create').onclick = async function () {
-      var name = prompt('标签名称：');
-      if (!name || !name.trim()) return;
-      var riskLevel = prompt('风控级别（NONE/LOW/MEDIUM/HIGH/CRITICAL，默认 LOW）:', 'LOW');
-      riskLevel = RISK.indexOf((riskLevel || 'LOW').toUpperCase()) >= 0 ? (riskLevel || 'LOW').toUpperCase() : 'LOW';
-      var color = prompt('标签颜色（十六进制，默认 #64748b）:', '#64748b') || '#64748b';
-      var desc = prompt('描述（可留空）：');
-      try {
-        await api('/api/admin/user-tags', { method: 'POST', body: JSON.stringify({ name: name.trim(), riskLevel: riskLevel, color: color, description: desc || null }) });
-        toast('标签已创建', 'success');
-        loadUserTags();
-      } catch (e) { toast('创建失败: ' + e.message, 'error'); }
+    document.getElementById('b6-tag-create').onclick = function () {
+      showForm(
+        '新建标签',
+        '自定义用户标签，可联动风控。',
+        [
+          { name: 'name', label: '名称', type: 'text', required: true, placeholder: '标签名称' },
+          { name: 'riskLevel', label: '风控级别', type: 'select', value: 'LOW', options: RISK.map(function (lv) { return { value: lv, label: lv }; }) },
+          { name: 'color', label: '颜色', type: 'text', value: '#64748b', placeholder: '#64748b' },
+          { name: 'description', label: '描述', type: 'textarea', placeholder: '可留空' }
+        ],
+        async function (values) {
+          var name = String(values.name || '').trim();
+          if (!name) { toast('请填写标签名称', 'error'); return false; }
+          var riskLevel = RISK.indexOf(String(values.riskLevel || 'LOW').toUpperCase()) >= 0 ? String(values.riskLevel).toUpperCase() : 'LOW';
+          var color = String(values.color || '').trim() || '#64748b';
+          var desc = String(values.description || '').trim() || null;
+          await api('/api/admin/user-tags', { method: 'POST', body: JSON.stringify({ name: name, riskLevel: riskLevel, color: color, description: desc }) });
+          toast('标签已创建', 'success');
+          loadUserTags();
+        }
+      );
     };
     document.querySelectorAll('[data-b6-tag-edit]').forEach(function (b) {
-      b.onclick = async function () {
-        var newRisk = prompt('修改风控级别（NONE/LOW/MEDIUM/HIGH/CRITICAL）:', 'MEDIUM');
-        newRisk = RISK.indexOf((newRisk || 'MEDIUM').toUpperCase()) >= 0 ? (newRisk || 'MEDIUM').toUpperCase() : 'MEDIUM';
-        try {
-          await api('/api/admin/user-tags/' + encodeURIComponent(b.dataset.b6TagEdit), { method: 'PUT', body: JSON.stringify({ riskLevel: newRisk }) });
-          toast('标签已更新', 'success');
-          loadUserTags();
-        } catch (e) { toast('更新失败: ' + e.message, 'error'); }
+      b.onclick = function () {
+        showSelect(
+          '修改风控级别',
+          '标签 ' + b.dataset.b6TagEdit,
+          RISK.map(function (lv) { return { value: lv, label: lv }; }),
+          'MEDIUM',
+          async function (newRisk) {
+            newRisk = RISK.indexOf(String(newRisk || 'MEDIUM').toUpperCase()) >= 0 ? String(newRisk).toUpperCase() : 'MEDIUM';
+            await api('/api/admin/user-tags/' + encodeURIComponent(b.dataset.b6TagEdit), { method: 'PUT', body: JSON.stringify({ riskLevel: newRisk }) });
+            toast('标签已更新', 'success');
+            loadUserTags();
+          }
+        );
       };
     });
     document.querySelectorAll('[data-b6-tag-del]').forEach(function (b) {
       b.onclick = function () {
-        if (!confirm('确认删除标签 ' + b.dataset.b6TagDel + '？会移除所有用户上的该标签。')) return;
-        api('/api/admin/user-tags/' + encodeURIComponent(b.dataset.b6TagDel), { method: 'DELETE' }).then(function () { toast('标签已删除', 'success'); loadUserTags(); }).catch(function (e) { toast('删除失败: ' + e.message, 'error'); });
+        showConfirm('删除标签', '确认删除标签 ' + b.dataset.b6TagDel + '？会移除所有用户上的该标签。', 'danger', function () {
+          return api('/api/admin/user-tags/' + encodeURIComponent(b.dataset.b6TagDel), { method: 'DELETE' }).then(function () { toast('标签已删除', 'success'); loadUserTags(); });
+        });
       };
     });
     document.querySelectorAll('[data-b6-tag-users]').forEach(function (b) {
@@ -2756,19 +2873,19 @@ async function adminSetModerator(userId, enabled) {
     el('content').innerHTML = html;
     bindPager('user-tag-users', rows.length, function () { showTagUsers(tagId); });
     document.getElementById('b6-tag-users-back').onclick = loadUserTags;
-    document.getElementById('b6-tag-users-add').onclick = async function () {
-      var userId = prompt('用户 ID：');
-      if (!userId || !userId.trim()) return;
-      try {
-        await api('/api/admin/users/' + encodeURIComponent(userId.trim()) + '/tags', { method: 'POST', body: JSON.stringify({ tagIds: [tagId] }) });
+    document.getElementById('b6-tag-users-add').onclick = function () {
+      showPrompt('添加用户', '将该标签打到指定用户。', '', '用户 ID', async function (userId) {
+        if (!userId || !String(userId).trim()) { toast('请填写用户 ID', 'error'); return false; }
+        await api('/api/admin/users/' + encodeURIComponent(String(userId).trim()) + '/tags', { method: 'POST', body: JSON.stringify({ tagIds: [tagId] }) });
         toast('已打标', 'success');
         showTagUsers(tagId);
-      } catch (e) { toast('打标失败: ' + e.message, 'error'); }
+      });
     };
     document.querySelectorAll('[data-b6-unassign]').forEach(function (b) {
       b.onclick = function () {
-        if (!confirm('移除用户 ' + b.dataset.b6Unassign + ' 的该标签？')) return;
-        api('/api/admin/users/' + encodeURIComponent(b.dataset.b6Unassign) + '/tags/' + encodeURIComponent(tagId), { method: 'DELETE' }).then(function () { toast('已移除', 'success'); showTagUsers(tagId); }).catch(function (e) { toast('移除失败: ' + e.message, 'error'); });
+        showConfirm('移除标签', '移除用户 ' + b.dataset.b6Unassign + ' 的该标签？', 'warn', function () {
+          return api('/api/admin/users/' + encodeURIComponent(b.dataset.b6Unassign) + '/tags/' + encodeURIComponent(tagId), { method: 'DELETE' }).then(function () { toast('已移除', 'success'); showTagUsers(tagId); });
+        });
       };
     });
   }
