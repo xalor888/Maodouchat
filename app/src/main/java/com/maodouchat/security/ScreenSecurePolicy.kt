@@ -46,8 +46,58 @@ object ScreenSecurePolicy {
         } else {
             null
         }
-        if (!pathChatId.isNullOrBlank()) return pathChatId
-        return queryParam(query, "chatId")?.let(::decodeSegment)
+        if (!pathChatId.isNullOrBlank()) return takeRealChatId(pathChatId)
+        return takeRealChatId(queryParam(query, "chatId")?.let(::decodeSegment))
+    }
+
+    /**
+     * Nav Compose `destination.route` is the pattern (`chat_detail/{chatId}`), not the
+     * filled URL. Treating `{chatId}` as a real id makes `isSecret("{chatId}")` fail-open
+     * and drop FLAG_SECURE after the optimistic window.
+     */
+    fun isNavPlaceholder(chatId: String?): Boolean {
+        if (chatId.isNullOrBlank()) return false
+        return chatId.startsWith("{") && chatId.endsWith("}")
+    }
+
+    fun takeRealChatId(chatId: String?): String? =
+        chatId?.takeIf { it.isNotBlank() && !isNavPlaceholder(it) }
+
+    /**
+     * Prefer filled Nav arguments over destination.route pattern.
+     * Two-pane parent `chat_detail_list_pane` has no chatId; nested ChatDetail notify fills that hole.
+     */
+    fun resolveChatId(
+        argumentChatId: String?,
+        filledRoute: String?,
+        routePattern: String?
+    ): String? {
+        val fromArgs = takeRealChatId(argumentChatId)
+        if (fromArgs != null) return fromArgs
+        return extractChatIdFromRoute(filledRoute) ?: extractChatIdFromRoute(routePattern)
+    }
+
+    /**
+     * Substitute `{arg}` tokens in a Nav pattern with filled argument values.
+     */
+    fun fillRoutePattern(pattern: String?, arguments: Map<String, String?>): String? {
+        if (pattern.isNullOrBlank()) return pattern
+        return pattern.replace(Regex("\\{([^}]+)\\}")) { match ->
+            val key = match.groupValues[1]
+            val value = arguments[key]
+            if (value.isNullOrBlank()) match.value else value
+        }
+    }
+
+    /**
+     * Optimistic FLAG_SECURE only on surfaces that can immediately show a specific chat's
+     * messages. List-pane / incoming-call / forensic have no filled chatId and must not
+     * force secret protection (normal chats stay screenshotable unless the global switch is on).
+     */
+    fun isOptimisticSecretSurface(route: String?): Boolean {
+        if (route.isNullOrBlank()) return false
+        val head = route.substringBefore('?').substringBefore('/')
+        return head in OPTIMISTIC_SECRET_HEADS
     }
 
     private fun queryParam(query: String, name: String): String? {
@@ -85,6 +135,19 @@ object ScreenSecurePolicy {
     )
 
     private val PATH_CHAT_ID_PREFIXES = setOf(
+        "chat_detail",
+        "chat_detail_two_pane",
+        "group_detail",
+        "starred_messages",
+        "ai_tasks",
+        "media_center",
+        "group_poll",
+        "group_checkin",
+        "group_chain",
+        "group_pk"
+    )
+
+    private val OPTIMISTIC_SECRET_HEADS = setOf(
         "chat_detail",
         "chat_detail_two_pane",
         "group_detail",

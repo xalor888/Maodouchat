@@ -13,29 +13,52 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.maodouchat.ui.theme.LocalDarkTheme
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+/** Dark-on-light default; previously used on dark bubbles and was effectively invisible. */
+val BlindWatermarkColorLightSurface = Color(0xFF1A1A1A)
+/** Light-on-dark so the tile remains perceivable on secret-chat dark bubbles. */
+val BlindWatermarkColorDarkSurface = Color(0xFFE8E8E8)
+
+const val BLIND_WATERMARK_ALPHA_DEFAULT = 0.26f
+const val BLIND_WATERMARK_ALPHA_MIN = 0.12f
+const val BLIND_WATERMARK_ALPHA_MAX = 0.38f
+
+fun shouldDrawBlindWatermark(enabled: Boolean, label: String): Boolean =
+    enabled && label.isNotBlank()
+
+fun coerceBlindWatermarkAlpha(alpha: Float): Float =
+    alpha.coerceIn(BLIND_WATERMARK_ALPHA_MIN, BLIND_WATERMARK_ALPHA_MAX)
+
+fun blindWatermarkTextColor(darkTheme: Boolean): Color =
+    if (darkTheme) BlindWatermarkColorDarkSurface else BlindWatermarkColorLightSurface
+
 /**
  * Diagonal tiled blind watermark drawn above content without consuming pointer events.
  * Label should include user id + wall-clock time so leaked captures remain attributable.
+ *
+ * Contrast is theme-aware: light text on dark surfaces, dark text on light.
+ * Alpha is high enough to be readable in a still capture, low enough not to block reading.
  */
 @Composable
 fun Modifier.blindWatermark(
     label: String,
     enabled: Boolean,
-    alpha: Float = 0.14f,
-    textColor: Color = Color(0xFF1A1A1A)
+    alpha: Float = BLIND_WATERMARK_ALPHA_DEFAULT,
+    textColor: Color? = null
 ): Modifier {
-    if (!enabled || label.isBlank()) return this
+    if (!shouldDrawBlindWatermark(enabled, label)) return this
     val density = LocalDensity.current
+    val resolvedColor = textColor ?: blindWatermarkTextColor(LocalDarkTheme.current)
     val textSizePx = with(density) { 11.dp.toPx() }
     val stepX = with(density) { 148.dp.toPx() }
     val stepY = with(density) { 72.dp.toPx() }
-    val paintColor = textColor.copy(alpha = alpha.coerceIn(0.04f, 0.22f)).toArgb()
+    val paintColor = resolvedColor.copy(alpha = coerceBlindWatermarkAlpha(alpha)).toArgb()
     val paint = remember(paintColor, textSizePx) {
         android.graphics.Paint().apply {
             isAntiAlias = true

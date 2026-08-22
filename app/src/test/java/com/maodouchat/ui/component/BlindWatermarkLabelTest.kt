@@ -35,4 +35,37 @@ class BlindWatermarkLabelTest {
         assertFalse(label.endsWith("·"))
         assertTrue(label.startsWith("MC·"))
     }
+
+    @Test
+    fun `label is never empty for secret attribution`() {
+        val label = buildBlindWatermarkLabel("u1", "c1", null, fixedTs)
+        assertTrue(label.isNotBlank())
+        assertTrue(label.contains("u1"))
+        assertTrue(label.contains("c1"))
+    }
+
+    @Test
+    fun `visible overlay is skipped when disabled or label blank`() {
+        assertFalse(shouldDrawBlindWatermark(enabled = false, label = "MC·u·c"))
+        assertFalse(shouldDrawBlindWatermark(enabled = true, label = ""))
+        assertFalse(shouldDrawBlindWatermark(enabled = true, label = "   "))
+        assertTrue(shouldDrawBlindWatermark(enabled = true, label = "MC·u·c"))
+    }
+
+    @Test
+    fun `theme-aware colors differ for dark and light`() {
+        val dark = blindWatermarkTextColor(darkTheme = true)
+        val light = blindWatermarkTextColor(darkTheme = false)
+        assertEquals(BlindWatermarkColorDarkSurface, dark)
+        assertEquals(BlindWatermarkColorLightSurface, light)
+        assertTrue(dark != light)
+    }
+
+    @Test
+    fun `alpha clamp is perceivable but not opaque`() {
+        assertEquals(BLIND_WATERMARK_ALPHA_MIN, coerceBlindWatermarkAlpha(0.01f), 0f)
+        assertEquals(BLIND_WATERMARK_ALPHA_MAX, coerceBlindWatermarkAlpha(1f), 0f)
+        assertEquals(BLIND_WATERMARK_ALPHA_DEFAULT, coerceBlindWatermarkAlpha(BLIND_WATERMARK_ALPHA_DEFAULT), 0f)
+        assertTrue(coerceBlindWatermarkAlpha(BLIND_WATERMARK_ALPHA_DEFAULT) > 0.22f)
+    }
 }

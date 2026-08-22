@@ -951,7 +951,7 @@
     <string name="settings_sensitive_gate">Require verification for sensitive actions</string>
     <string name="settings_sensitive_gate_subtitle">Verify with biometrics or device credentials before logout, export, turning off App lock, or deleting the account; preference syncs across devices</string>
     <string name="settings_screen_secure">Block screenshots &amp; recording</string>
-    <string name="settings_screen_secure_subtitle">On chat screens, block system screenshots and screen recording (recents blur too); preference syncs across devices</string>
+    <string name="settings_screen_secure_subtitle">For normal chats only: system screenshots/recordings are typically black frames and are not saved. Secret chat always forces FLAG_SECURE even when this switch is off. External cameras and some OEM capture apps cannot be blocked</string>
     <string name="schedule_send">Schedule send</string>
     <string name="schedule_title">Choose send time</string>
     <string name="message_reminder_menu">Remind me later</string>
@@ -1031,7 +1031,7 @@
     <string name="about_security">Security</string>
     <string name="about_security_value">Signal Protocol + SQLCipher</string>
     <string name="about_limits_title">Product bounds (summary)</string>
-    <string name="about_limits_body">Group calls are mesh (not SFU); push is FCM-only; secret chat is local FLAG_SECURE + blind watermark; safety codes use a custom layout; no last-seen, vendor push, or payments.</string>
+    <string name="about_limits_body">Group calls are mesh (not SFU); push is FCM-only; secret chat is local FLAG_SECURE (system captures are usually black frames) plus a visible watermark and a frequency-domain image watermark. Blocked system screenshots do not fire the detector — it only covers bypass paths. External cameras cannot be stopped. Safety codes use a custom layout; no last-seen, vendor push, or payments.</string>
         <string name="about_tagline">Simple, secure and fast messaging</string>
 <string name="about_copyright">© 2026 Maodouchat</string>
     <string name="chat_group_announcement_updated">Group announcement updated</string>
@@ -1367,12 +1367,12 @@
     <string name="secret_chat_copy_blocked">Messages in secret chats cannot be copied</string>
     <string name="secret_chat_media_export_blocked">Media in secret chats cannot be saved or shared</string>
     <string name="secret_chat_confirm_enable_title">Enable secret chat?</string>
-    <string name="secret_chat_confirm_enable_body">This device will force anti-screenshot/recording and show a blind watermark. Notification previews are redacted; export, forward, copy, and media save/share are blocked. This mode is local-only and is not synced to the other party.</string>
+    <string name="secret_chat_confirm_enable_body">This device forces FLAG_SECURE (system screenshots/recordings are typically black and not saved) and shows a visible watermark. Images also get a frequency-domain watermark. Capture toasts only fire on bypasses (OEM/adb/external camera); blocked system screenshots do not toast. Notification previews are redacted; export, forward, copy, and media save/share are blocked. Local-only — not synced to the other party.</string>
     <string name="secret_chat_confirm_disable_title">Disable secret chat?</string>
     <string name="secret_chat_confirm_disable_body">Restores normal display for this chat. The global anti-screenshot switch still applies on its own.</string>
-    <string name="secret_chat_banner">Secret chat · anti-screenshot and blind watermark on</string>
-    <string name="secret_chat_banner_limit">This device only · cannot stop external cameras</string>
-    <string name="secret_chat_screenshot_detected">Screenshot/screen recording attempt detected (secret chat)</string>
+    <string name="secret_chat_banner">Secret chat · system captures are black frames · visible watermark on</string>
+    <string name="secret_chat_banner_limit">Blocked system screenshots do not alert; the detector only covers bypasses. External cameras cannot be stopped. AOSP recording is typically black frames — not a guarantee against every OEM capture app</string>
+    <string name="secret_chat_screenshot_detected">Bypass screenshot/recording attempt detected (secret chat)</string>
     <string name="starred_load_failed">Could not load starred messages</string>
     <string name="starred_empty">No starred messages yet</string>
     <string name="starred_search_hint">Search starred messages</string>

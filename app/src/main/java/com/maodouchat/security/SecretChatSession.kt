@@ -47,6 +47,26 @@ object SecretChatSession {
         activeSurfaceChatIds.clear()
     }
 
+    /** Drop a surface marker without deleting decrypted media (leave screen / two-pane deselect). */
+    fun clearSurfaceMarker(chatId: String) {
+        if (chatId.isBlank()) return
+        activeSurfaceChatIds.remove(chatId)
+    }
+
+    /**
+     * Drop stale surface markers but keep [keepChatId] so a concurrent ChatDetail notify
+     * (nested two-pane NavHost, menu toggle) is not wiped by the parent-route lookup.
+     */
+    fun clearSurfaceMarkersExcept(keepChatId: String?) {
+        val keep = keepChatId?.takeIf { it.isNotBlank() }
+        if (keep == null) {
+            activeSurfaceChatIds.clear()
+            return
+        }
+        val stale = activeSurfaceChatIds.filter { it != keep }
+        stale.forEach { activeSurfaceChatIds.remove(it) }
+    }
+
     fun hasActiveSecretSurface(): Boolean = activeSurfaceChatIds.isNotEmpty()
 
     fun activeSecretSurfaceChatIds(): Set<String> = activeSurfaceChatIds.toSet()

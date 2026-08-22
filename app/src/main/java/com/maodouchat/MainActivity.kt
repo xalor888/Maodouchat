@@ -170,9 +170,18 @@ class MainActivity : FragmentActivity() {
     private fun AppNav() {
         val navController = rememberNavController()
         val backStackEntry by navController.currentBackStackEntryAsState()
-        val route = backStackEntry?.destination?.route
+        val routePattern = backStackEntry?.destination?.route
+        // Nav Compose destination.route 是模式串（chat_detail/{chatId}），不是填充后的 URL。
+        // FLAG_SECURE 查库必须用 arguments 里的真实 chatId；否则 isSecret("{chatId}") 恒为 false，
+        // 乐观窗口结束后会清掉密聊 FLAG_SECURE。
+        val filledRoute = backStackEntry?.let { entry ->
+            val args = entry.arguments
+            val keys = args?.keySet().orEmpty()
+            val map = keys.associateWith { key -> args?.getString(key) }
+            ScreenSecurePolicy.fillRoutePattern(entry.destination.route, map)
+        } ?: routePattern
         // 8.48：记录当前路由供 onUserLeaveHint 判断是否在通话（进 PiP 的前提）
-        currentNavRoute = route
+        currentNavRoute = filledRoute ?: routePattern
         // 首帧渲染完成后通知系统，让 startup 指标更准确
         LaunchedEffect(Unit) {
             com.maodouchat.perf.StartupTracer.mark("firstFrame")
@@ -182,16 +191,24 @@ class MainActivity : FragmentActivity() {
         }
         // key 含 sessionGeneration：账号切换（route 不变但数据库归属变化）时重新查库，
         // 避免旧账号的密聊 FLAG_SECURE 残留或新账号密聊未被保护。
-        LaunchedEffect(route, MaodouchatApp.currentSessionGeneration()) {
-            onChatSurface = ScreenSecurePolicy.isChatSurfaceRoute(route)
-            val chatId = ScreenSecurePolicy.extractChatIdFromRoute(route)
-            // 失败闭合：进入聊天 surface 立即乐观加 FLAG_SECURE，避免异步查库间隙密聊内容被截图 /
-            // 进入最近任务缩略图。即便全局截屏防护关闭，密聊也必须在查库确认前就进入安全态；
-            // 查库确认非密聊后再降级（去掉 FLAG_SECURE）。
-            onSecretChatSurface = chatId != null
+        // two-pane 父 NavHost 路由是 chat_detail_list_pane（无 chatId）；嵌套密聊靠 ChatDetail
+        // notifySecretChatSurfaceChanged + Activity unwrap 补 FLAG_SECURE，此处不得把列表页乐观当密聊。
+        LaunchedEffect(filledRoute, routePattern, MaodouchatApp.currentSessionGeneration()) {
+            onChatSurface = ScreenSecurePolicy.isChatSurfaceRoute(filledRoute)
+                || ScreenSecurePolicy.isChatSurfaceRoute(routePattern)
+            val chatId = ScreenSecurePolicy.resolveChatId(
+                argumentChatId = backStackEntry?.arguments?.getString("chatId"),
+                filledRoute = filledRoute,
+                routePattern = routePattern
+            )
+            val onChatDetailSurface = ScreenSecurePolicy.isOptimisticSecretSurface(filledRoute)
+                || ScreenSecurePolicy.isOptimisticSecretSurface(routePattern)
+            // 失败闭合：进入含消息内容的详情（chat_detail / two_pane 等）立即乐观 FLAG_SECURE，
+            // 即便 arguments 尚未填好、全局开关关闭。列表页不乐观。
+            // 查库确认非密聊后再降级。
+            onSecretChatSurface = onChatDetailSurface
             onChatLockSurface = false
             refreshWindowPrivacy()
-            // 先查库再清空 surface，避免异步查库间隙 FLAG_SECURE 短暂丢失导致密聊内容在最近任务缩略图泄露
             val isSecret = if (chatId != null) {
                 withContext(Dispatchers.IO) {
                     try {
@@ -199,21 +216,31 @@ class MainActivity : FragmentActivity() {
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (_: Exception) {
-                        false
+                        // 查库异常失败闭合：保持乐观 FLAG_SECURE，避免密聊内容在异常窗口被截。
+                        true
                     }
                 }
             } else false
-            // 8.42：路由变化只清 surface 标记（FLAG_SECURE 释放依据），不删磁盘/索引——
-            // 此前 clearAllSurfaces 会销毁仍在返回栈中的其它密聊会话的媒体缓存与搜索索引，
-            // 返回 A 时图片需重新下载、密聊消息从搜索中消失。磁盘清除由离开单 surface /
-            // 登出 / SIM 变更 / 密聊禁用承担。
+            // 8.42：路由变化只清 surface 标记（FLAG_SECURE 释放依据），不删磁盘/索引。
+            // 父 NavHost 是 chat_detail_list_pane 时没有 chatId——不得清空嵌套 ChatDetail 刚写入的标记。
+            // 离开全部聊天表面时才全清，避免 FLAG_SECURE 残留。
+            val keepChatId = if (isSecret && chatId != null) chatId else null
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                SecretChatSession.clearSurfaceMarkers()
+                when {
+                    !onChatSurface -> SecretChatSession.clearSurfaceMarkers()
+                    chatId != null -> SecretChatSession.clearSurfaceMarkersExcept(keepChatId)
+                }
             }
             if (isSecret && chatId != null) {
                 SecretChatSession.markSurfaceActive(chatId)
             }
-            onSecretChatSurface = isSecret
+            // 有真实 chatId：以查库为准。无 chatId 但仍在详情模式（arguments 未填好的
+            // chat_detail/{chatId}）：保持乐观，等 ChatDetail notify 确认。列表页走 session 标记。
+            onSecretChatSurface = when {
+                chatId != null -> isSecret
+                onChatDetailSurface -> true
+                else -> SecretChatSession.hasActiveSecretSurface()
+            }
             refreshWindowPrivacy()
         }
         LaunchedEffect(navController) {
@@ -480,8 +507,23 @@ class MainActivity : FragmentActivity() {
 
     /** Detail screens call this after toggling 密聊 so FLAG_SECURE updates without re-nav. */
     fun notifySecretChatSurfaceChanged(chatId: String, isSecret: Boolean) {
-        if (isSecret) SecretChatSession.markSurfaceActive(chatId)
-        else SecretChatSession.markSurfaceInactive(chatId, this)
+        if (isSecret) {
+            SecretChatSession.markSurfaceActive(chatId)
+        } else {
+            // 只放 FLAG_SECURE 标记。真正删解密缓存由 disable / logout / SIM 路径承担，
+            // 避免 ChatDetail 在 isSecretChat 尚未查完时把密聊误降成 false 并烧掉媒体。
+            SecretChatSession.clearSurfaceMarker(chatId)
+        }
+        onSecretChatSurface = SecretChatSession.hasActiveSecretSurface()
+        refreshWindowPrivacy()
+    }
+
+    /**
+     * ChatDetail leaving composition (two-pane deselect / back). Drops FLAG_SECURE markers
+     * without deleting decrypted media — disk clear stays with disable / logout / SIM.
+     */
+    fun notifySecretChatSurfaceLeft(chatId: String) {
+        SecretChatSession.clearSurfaceMarker(chatId)
         onSecretChatSurface = SecretChatSession.hasActiveSecretSurface()
         refreshWindowPrivacy()
     }

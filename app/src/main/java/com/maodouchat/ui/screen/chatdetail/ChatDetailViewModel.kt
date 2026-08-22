@@ -8644,12 +8644,13 @@ fun sendCurrentLocation() {
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (_: Exception) {
-                false
+                // 查库异常失败闭合：保持密聊表面（FLAG_SECURE / 水印），不要误降成 false 并焚缓存。
+                true
             }
             if (secret) {
                 com.maodouchat.security.SecretChatSession.markSurfaceActive(targetChatId)
             } else {
-                com.maodouchat.security.SecretChatSession.markSurfaceInactive(targetChatId, getApplication())
+                com.maodouchat.security.SecretChatSession.clearSurfaceMarker(targetChatId)
             }
             _uiState.update { it.copy(isSecretChat = secret) }
         }

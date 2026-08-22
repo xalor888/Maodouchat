@@ -379,7 +379,7 @@ class GroupDetailViewModel(
                         } catch (e: kotlinx.coroutines.CancellationException) {
                             throw e
                         } catch (_: Exception) {
-                            false
+                            true
                         }
                         if (secret) {
                             com.maodouchat.security.SecretChatSession.markSurfaceActive(chatId)
