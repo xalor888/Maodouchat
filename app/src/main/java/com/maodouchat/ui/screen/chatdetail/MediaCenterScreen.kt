@@ -88,7 +88,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.maodouchat.ui.component.OwnerScopedImageKeys
 import com.maodouchat.ui.component.ZoomableAsyncImage
-import com.maodouchat.ui.component.blindWatermark
+import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
+import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
@@ -308,14 +309,14 @@ fun MediaCenterScreen(
     var exportTarget by remember { mutableStateOf<Message?>(null) }
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val mediaSecretLabel = com.maodouchat.ui.component.rememberSecretBlindWatermarkLabel(
+    val secretPagePayload = rememberSecretPageWatermarkPayload(
+        isSecretChat = state.isSecretChat,
         userId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
         chatId = viewModel.chatId,
         deviceHint = android.provider.Settings.Secure.getString(
             context.contentResolver,
             android.provider.Settings.Secure.ANDROID_ID
-        ),
-        enabled = state.isSecretChat
+        )
     )
 
     val categoryItems = remember(state.items, category, searchQuery) {
@@ -352,11 +353,7 @@ fun MediaCenterScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .then(
-                if (state.isSecretChat && mediaSecretLabel.isNotBlank()) {
-                    Modifier.blindWatermark(label = mediaSecretLabel, enabled = RuntimeFlags.isEnabled(LocalContext.current, RuntimeFlags.VISIBLE_WATERMARK))
-                } else Modifier
-            )
+            .secretPageBlindWatermark(secretPagePayload)
     ) {
     Scaffold(
         containerColor = LocalChatPalette.current.chatBackground,
