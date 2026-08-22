@@ -13,7 +13,6 @@ import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
 import io.ktor.http.isSuccess
 import java.io.File
 import java.io.FileInputStream
@@ -45,7 +44,10 @@ class FcmPushService(
     private val pushTokenRepository: PushTokenRepository,
     private val preferenceRepository: NotificationPreferenceRepository,
     private val projectId: String = ServerConfig.fcmProjectId,
-    private val serviceAccountFile: String = ServerConfig.fcmServiceAccountFile
+    private val serviceAccountFile: String = ServerConfig.fcmServiceAccountFile,
+    private val nowMillis: () -> Long = { System.currentTimeMillis() },
+    private val retryDelayMs: Long = 1_000L,
+    private val startWorkers: Boolean = true
 ) {
     private val logger = LoggerFactory.getLogger(FcmPushService::class.java)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -54,6 +56,7 @@ class FcmPushService(
     private val droppedDeliveries = AtomicLong(0)
     private val droppedCallDeliveries = AtomicLong(0)
     private val closed = AtomicBoolean(false)
+    internal var onQueued: ((Delivery) -> Unit)? = null
     private val clientLock = Any()
     private val clientDelegate = lazy {
         // 8.31 运维修复：显式超时（CIO 默认值偏长且不可控）；FCM 是兜底通道，
@@ -70,8 +73,10 @@ class FcmPushService(
     init {
         // 8.48 修复 H8：批量预取 settings/tokens 后逐个投递（此前逐收件人各 2 次 DB 查询，
         // 群消息 200 人离线 → 400 次查询）。worker 每次尽量取满一批共享一次批量查询。
-        repeat(DELIVERY_WORKERS) { launchWorker(deliveries, isCall = false) }
-        repeat(CALL_DELIVERY_WORKERS) { launchWorker(callDeliveries, isCall = true) }
+        if (startWorkers) {
+            repeat(DELIVERY_WORKERS) { launchWorker(deliveries, isCall = false) }
+            repeat(CALL_DELIVERY_WORKERS) { launchWorker(callDeliveries, isCall = true) }
+        }
     }
 
     /** 8.50 修复 L4：worker 循环显式 catch——deliverBatch 内部 runCatching 只重抛
@@ -127,7 +132,11 @@ class FcmPushService(
         sealedSender: Boolean = false
     ) {
         if (closed.get() || !isConfigured) return
-        val recipients = recipientIds.asSequence().filter { it != senderId }.distinct().toList()
+        if (chatId.isBlank() || messageId.isBlank()) return
+        val recipients = recipientIds.asSequence()
+            .filter { it.isNotBlank() && it != senderId }
+            .distinct()
+            .toList()
         if (recipients.isEmpty()) return
         val pushSender = if (sealedSender) SealedSenderDelivery.REDACTED_SENDER else senderId
         recipients.forEach { recipientId ->
@@ -150,7 +159,7 @@ class FcmPushService(
     }
 
     fun enqueueIncomingCall(recipientId: String, senderId: String, isVideo: Boolean, callId: String = "") {
-        if (closed.get() || !isConfigured || recipientId == senderId) return
+        if (closed.get() || !isConfigured || recipientId.isBlank() || recipientId == senderId) return
         enqueueDelivery(
             Delivery(
                 recipientId = recipientId,
@@ -167,7 +176,9 @@ class FcmPushService(
     }
 
     fun enqueuePostInteraction(recipientId: String, actorId: String, postId: String, interaction: String, preview: String? = null, commentId: String? = null) {
-        if (closed.get() || !isConfigured || recipientId == actorId || interaction !in setOf("LIKE", "COMMENT", "COMMENT_LIKE", "REPLY")) return
+        if (closed.get() || !isConfigured || recipientId.isBlank() || postId.isBlank() || recipientId == actorId ||
+            interaction !in setOf("LIKE", "COMMENT", "COMMENT_LIKE", "REPLY")
+        ) return
         val data = mutableMapOf(
             "type" to "POST_INTERACTION",
             "postId" to postId,
@@ -218,7 +229,7 @@ class FcmPushService(
     /** Friend request / accept wake — routing only, no free-text verification message. */
     fun enqueueFriendRequest(recipientId: String, fromUserId: String, requestId: String, action: String) {
         if (closed.get() || !isConfigured || recipientId.isBlank() || recipientId == fromUserId) return
-        if (action !in setOf("CREATED", "ACCEPTED")) return
+        if (action !in setOf("CREATED", "ACCEPTED") || requestId.isBlank()) return
         enqueueDelivery(
             Delivery(
                 recipientId = recipientId,
@@ -246,7 +257,7 @@ class FcmPushService(
                 data = mapOf(
                     "type" to "ANNOUNCEMENT",
                     "announcementId" to announcementId,
-                    "title" to title,
+                    "title" to title.trim().take(ANNOUNCEMENT_TITLE_MAX),
                     "level" to level,
                     "recipientId" to recipientId
                 )
@@ -257,7 +268,10 @@ class FcmPushService(
     private fun enqueueDelivery(delivery: Delivery) {
         if (closed.get()) return
         val queue = if (delivery.isCall) callDeliveries else deliveries
-        if (queue.trySend(delivery).isSuccess) return
+        if (queue.trySend(delivery).isSuccess) {
+            onQueued?.invoke(delivery)
+            return
+        }
         val counter = if (delivery.isCall) droppedCallDeliveries else droppedDeliveries
         val dropped = counter.incrementAndGet()
         if (dropped == 1L || dropped % 100L == 0L) {
@@ -280,7 +294,7 @@ class FcmPushService(
                 //（客户端本地 DND 才是权威）。注册时间超过 14 天的 token 跳过服务端 DND（fail-open），
                 // 客户端本地判定兜底；fresh token 仍走服务端 DND（省 FCM 配额）。
                 val tzStale = record.updatedAt > 0L &&
-                    System.currentTimeMillis() - record.updatedAt > TIMEZONE_FRESHNESS_MS
+                    nowMillis() - record.updatedAt > TIMEZONE_FRESHNESS_MS
                 val quiet = !isCall && !breakthroughDnd &&
                     !tzStale &&
                     isInDoNotDisturb(settings, record.timezoneOffsetMinutes)
@@ -305,7 +319,7 @@ class FcmPushService(
                 if (!settings.enableNotifications) continue
                 (tokensByUser[delivery.recipientId] ?: emptyList()).forEach { record ->
                     val tzStale = record.updatedAt > 0L &&
-                        System.currentTimeMillis() - record.updatedAt > TIMEZONE_FRESHNESS_MS
+                        nowMillis() - record.updatedAt > TIMEZONE_FRESHNESS_MS
                     val quiet = !delivery.isCall && !delivery.breakthroughDnd &&
                         !tzStale &&
                         isInDoNotDisturb(settings, record.timezoneOffsetMinutes)
@@ -326,16 +340,15 @@ class FcmPushService(
         val httpClient = synchronized(clientLock) {
             if (closed.get()) null else clientDelegate.value
         } ?: return
+        val ttl = ttlFor(data["type"])
         val body = buildJsonObject {
             put("message", buildJsonObject {
                 put("token", record.token)
                 put("data", buildJsonObject { signed.forEach { (key, value) -> put(key, value) } })
                 put("android", buildJsonObject {
                     put("priority", "HIGH")
-                    // TTL 60s 会让 Doze/弱网设备的延迟投递被 FCM 直接丢弃 → 通知永久丢失。
-                    // 提到 24h：客户端 WS 断开期间的推送可等设备唤醒后补达（消息正文仍可
-                    // 由打开聊天时拉取；tray 通知以 FCM 为最终兜底）。
-                    put("ttl", "86400s")
+                    // 来电只在短窗口内有意义；普通消息保留 24h，避免 Doze/弱网把延迟投递直接丢掉。
+                    put("ttl", ttl)
                 })
             })
         }.toString()
@@ -351,10 +364,10 @@ class FcmPushService(
             }
             val responseBody = response.bodyAsText()
             if (!response.status.isSuccess()) {
-                if (isPermanentTokenFailure(responseBody)) {
+                if (isPermanentTokenFailure(response.status.value, responseBody)) {
                     pushTokenRepository.removeToken(record.token)
                     logger.info("Removed invalid FCM token for device {}", record.deviceId)
-                } else if (response.status.value == 429 || response.status.value >= 500) {
+                } else if (isTransientHttpFailure(response.status.value)) {
                     transientFailure = true
                 } else {
                     logger.warn("FCM returned {} for device {}: {}", response.status.value, record.deviceId, responseBody.take(500))
@@ -367,16 +380,17 @@ class FcmPushService(
             logger.warn("FCM request failed for device {}", record.deviceId, error)
         }
         if (transientFailure) {
-            kotlinx.coroutines.delay(1_000)
+            if (retryDelayMs > 0L) kotlinx.coroutines.delay(retryDelayMs)
+            val retryToken = getAccessToken() ?: accessToken
             runCatching {
                 val retry = httpClient.post("https://fcm.googleapis.com/v1/projects/$projectId/messages:send") {
-                    bearerAuth(accessToken)
+                    bearerAuth(retryToken)
                     header("Content-Type", "application/json")
                     setBody(body)
                 }
                 val retryBody = retry.bodyAsText()
                 if (!retry.status.isSuccess()) {
-                    if (isPermanentTokenFailure(retryBody)) {
+                    if (isPermanentTokenFailure(retry.status.value, retryBody)) {
                         pushTokenRepository.removeToken(record.token)
                         logger.info("Removed invalid FCM token for device {}", record.deviceId)
                     } else {
@@ -394,7 +408,7 @@ class FcmPushService(
         runCatching {
             synchronized(credentials) {
                 val current = credentials.accessToken
-                if (current != null && (current.expirationTime?.time ?: 0L) > System.currentTimeMillis() + 60_000L) {
+                if (current != null && (current.expirationTime?.time ?: 0L) > nowMillis() + 60_000L) {
                     current.tokenValue
                 } else {
                     credentials.refreshAccessToken().tokenValue
@@ -407,24 +421,11 @@ class FcmPushService(
         }
     }
 
-    private fun isInDoNotDisturb(settings: NotificationSettingsResponse, offsetMinutes: Int): Boolean {
-        if (!settings.dndEnabled) return false
-        val start = settings.dndStartMinute.coerceIn(0, 1439)
-        val end = settings.dndEndMinute.coerceIn(0, 1439)
-        if (start == end) return false
-        val safeOffset = offsetMinutes.coerceIn(-18 * 60, 18 * 60)
-        val local = Instant.now().atOffset(ZoneOffset.ofTotalSeconds(safeOffset * 60))
-        val minute = local.hour * 60 + local.minute
-        return if (start < end) minute in start until end else minute >= start || minute < end
-    }
+    private fun isInDoNotDisturb(settings: NotificationSettingsResponse, offsetMinutes: Int): Boolean =
+        isInDoNotDisturb(settings, offsetMinutes, nowMillis())
 
     private fun soundEnabled(settings: NotificationSettingsResponse, isCall: Boolean): Boolean {
         return if (isCall) settings.ringtoneEnabled else settings.soundEnabled
-    }
-
-    private fun isPermanentTokenFailure(body: String): Boolean {
-        return body.contains("UNREGISTERED", ignoreCase = true) ||
-            body.contains("registration-token-not-registered", ignoreCase = true)
     }
 
     companion object {
@@ -437,6 +438,51 @@ class FcmPushService(
         const val FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
         /** 推送 token 上报时区超过该时长视为过期：跳过服务端 DND（8.37）。 */
         const val TIMEZONE_FRESHNESS_MS = 14L * 24L * 60L * 60L * 1_000L
+        const val MESSAGE_TTL = "86400s"
+        /** 来电超过短窗口后已无意义，避免 Doze 醒来再弹过期呼叫。 */
+        const val CALL_TTL = "60s"
+        const val ANNOUNCEMENT_TITLE_MAX = 80
+
+        fun isTransientHttpFailure(status: Int): Boolean = status == 429 || status >= 500
+
+        fun ttlFor(type: String?): String =
+            if (type == "INCOMING_CALL") CALL_TTL else MESSAGE_TTL
+
+        fun isInDoNotDisturb(
+            settings: NotificationSettingsResponse,
+            offsetMinutes: Int,
+            nowMillis: Long
+        ): Boolean {
+            if (!settings.dndEnabled) return false
+            val start = settings.dndStartMinute.coerceIn(0, 1439)
+            val end = settings.dndEndMinute.coerceIn(0, 1439)
+            if (start == end) return false
+            val safeOffset = offsetMinutes.coerceIn(-18 * 60, 18 * 60)
+            val local = Instant.ofEpochMilli(nowMillis).atOffset(ZoneOffset.ofTotalSeconds(safeOffset * 60))
+            val minute = local.hour * 60 + local.minute
+            return if (start < end) minute in start until end else minute >= start || minute < end
+        }
+
+        /**
+         * FCM HTTP v1 把失效 token 标成 UNREGISTERED / NOT_FOUND / SENDER_ID_MISMATCH。
+         * INVALID_ARGUMENT 只有在明确指向 token/registration 时才清 token，避免 payload 编码错误误删全部设备。
+         */
+        fun isPermanentTokenFailure(status: Int, body: String): Boolean {
+            if (status != 400 && status != 404) return false
+            val text = body.lowercase()
+            if ("unregistered" in text ||
+                "not_found" in text ||
+                "notfound" in text ||
+                "registration-token-not-registered" in text ||
+                "requested entity was not found" in text ||
+                "sender_id_mismatch" in text ||
+                "senderidmismatch" in text
+            ) {
+                return true
+            }
+            val invalidArg = "invalid_argument" in text || "invalidargument" in text
+            return invalidArg && ("registration" in text || "token" in text)
+        }
 
         /**
          * 对推送 data 计算 HMAC-SHA256 签名，附加 sig + ts 字段。
@@ -474,7 +520,7 @@ class FcmPushService(
         }
     }
 
-    private data class Delivery(
+    internal data class Delivery(
         val recipientId: String,
         val isCall: Boolean,
         val data: Map<String, String>,
