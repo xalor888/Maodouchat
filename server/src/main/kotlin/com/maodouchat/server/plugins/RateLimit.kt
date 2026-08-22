@@ -1,5 +1,6 @@
 package com.maodouchat.server.plugins
 
+import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.service.RuntimeConfigService
@@ -117,10 +118,10 @@ class GlobalRateLimiter(
     fun tryAcquire(ip: String, now: Long = System.currentTimeMillis()): RateLimitDecision {
         check(!closed.get()) { "Rate limiter is shut down" }
         ensureSweeper()
-        if (ip.isBlank()) {
-            rejectedCount.incrementAndGet()
-            return RateLimitDecision(allowed = false, retryAfterSeconds = null, remaining = 0)
-        }
+        // Blank / unknown client addresses share one IP-class bucket instead of a hard reject.
+        // remoteHost() already falls back to "unknown"; a 429 here used to mis-kill probes
+        // and clients whose address could not be parsed.
+        val bucketKey = ip.trim().ifBlank { UNKNOWN_CLIENT_KEY }
         val windowStart = now - WINDOW_MS
         if (bucketCount.get() >= maxBuckets) sweepAtCapacityIfDue(now)
 
@@ -128,7 +129,7 @@ class GlobalRateLimiter(
         var oldest: Long? = null
         var allowed = false
         var capacityRejected = false
-        val mapped = buckets.compute(ip) { _, existing ->
+        val mapped = buckets.compute(bucketKey) { _, existing ->
             val timestamps = existing ?: if (reserveBucket()) {
                 mutableListOf()
             } else {
@@ -158,7 +159,7 @@ class GlobalRateLimiter(
                     )
                 }
             }
-            return RateLimitDecision(allowed = false, retryAfterSeconds = null, remaining = 0)
+            return RateLimitDecision(allowed = false, retryAfterSeconds = 1, remaining = 0)
         }
 
         return if (allowed) {
@@ -170,9 +171,17 @@ class GlobalRateLimiter(
             )
         } else {
             rejectedCount.incrementAndGet()
-            val retryAfter = oldest?.let { ((it + WINDOW_MS - now).coerceAtLeast(1) + 999) / 1000 }
-            RateLimitDecision(allowed = false, retryAfterSeconds = retryAfter, remaining = 0)
+            RateLimitDecision(
+                allowed = false,
+                retryAfterSeconds = retryAfterSeconds(oldest, now),
+                remaining = 0
+            )
         }
+    }
+
+    private fun retryAfterSeconds(oldest: Long?, now: Long): Long {
+        val ms = oldest?.let { it + WINDOW_MS - now }?.coerceAtLeast(1L) ?: 1L
+        return ((ms + 999) / 1000).coerceAtLeast(1L)
     }
 
     /** Boolean convenience for callers that don't need Retry-After. */
@@ -181,8 +190,10 @@ class GlobalRateLimiter(
     /** Alias of [acquire] matching the classic allow/tryAcquire boolean style. */
     fun allow(ip: String, now: Long = System.currentTimeMillis()): Boolean = acquire(ip, now)
 
-    /** Observability snapshot for /health/metrics. */
-    fun stats(): RateLimitStats = RateLimitStats(
+    /** Observability snapshot for /health/metrics and the admin minute-bucket sampler. */
+    fun stats(): RateLimitStats = RateLimitPools.combinedStatsFor(this) ?: snapshot()
+
+    internal fun snapshot(): RateLimitStats = RateLimitStats(
         allowed = allowedCount.get(),
         rejected = rejectedCount.get(),
         totalBuckets = buckets.size,
@@ -219,7 +230,8 @@ class GlobalRateLimiter(
     private fun sweepAtCapacityIfDue(now: Long) {
         while (true) {
             val previous = lastCapacitySweepAt.get()
-            if (previous != Long.MIN_VALUE && now - previous in 0 until CAPACITY_SWEEP_MIN_INTERVAL_MS) return
+            // Clock going backwards must not skip the sweep (negative delta fails the 0 until INTERVAL check).
+            if (previous != Long.MIN_VALUE && now >= previous && now - previous < CAPACITY_SWEEP_MIN_INTERVAL_MS) return
             if (lastCapacitySweepAt.compareAndSet(previous, now)) {
                 sweep(now)
                 return
@@ -247,19 +259,44 @@ class GlobalRateLimiter(
     companion object {
         private const val CAPACITY_SWEEP_MIN_INTERVAL_MS = 1_000L
         private const val WINDOW_MS = 60_000L
+        private const val UNKNOWN_CLIENT_KEY = "unknown"
 
         @Volatile
         private var instance: GlobalRateLimiter? = null
 
-        /** Process-wide singleton bound to [ServerConfig.globalRateLimitPerMinute]. */
-        fun getInstance(): GlobalRateLimiter = instance ?: synchronized(this) {
-            instance ?: GlobalRateLimiter(ServerConfig.globalRateLimitPerMinute).also { instance = it }
+        /**
+         * Observability handle used by `/health/metrics` and [com.maodouchat.server.repository.RateLimitStatsRepository].
+         *
+         * After the 9.4xx IP/user pool split, the intercept no longer calls this singleton.
+         * Prefer the live IP pool (whose [stats] also fold in the user pool) so dashboard
+         * minute buckets track real traffic instead of a leftover unused singleton.
+         * Fall back to a lazy companion instance only before [configureRateLimit] has
+         * started the pools (sampler initial delay is 60s).
+         *
+         * Counters are process-lifetime cumulative. RateLimitStatsRepository.summarize
+         * diffs adjacent snapshots, so the first stored minute-bucket's delta is still 0
+         * (no previous row). That is repository math; this file cannot rewrite it. The
+         * production "first bucket is always empty" bug was the dead singleton.
+         */
+        fun getInstance(): GlobalRateLimiter {
+            RateLimitPools.ipOrNull()?.let { return it }
+            return instance ?: synchronized(this) {
+                RateLimitPools.ipOrNull()?.let { return it }
+                instance ?: GlobalRateLimiter(ServerConfig.globalRateLimitPerMinute).also { instance = it }
+            }
         }
 
         internal fun acquireLifecycle(): Pair<GlobalRateLimiter, Long> = synchronized(this) {
-            val limiter = instance?.takeUnless { it.closed.get() }
+            val limiter = RateLimitPools.ipOrNull()
+                ?: instance?.takeUnless { it.closed.get() }
                 ?: GlobalRateLimiter(ServerConfig.globalRateLimitPerMinute).also { instance = it }
             limiter to limiter.start()
+        }
+
+        internal fun bindInstance(limiter: GlobalRateLimiter) {
+            synchronized(this) {
+                instance = limiter
+            }
         }
 
         private fun clearInstance(limiter: GlobalRateLimiter) {
@@ -302,9 +339,15 @@ private fun envLong(name: String, default: Long): Long =
  * - Authenticated requests are budgeted PER USER (JWT subject), with a generous limit, so a
  *   legitimate client burst (chat list + per-chat sync + prekey bundles for every group member)
  *   can never trip the limiter, and users sharing one NAT IP do not starve each other.
- * - Unauthenticated requests (login/register/public endpoints, /ws handshake) keep the
+ * - Unauthenticated requests (login/register/public endpoints, invalid JWT) keep the
  *   per-IP budget — brute force / unauthenticated DoS protection.
+ * - `/ws` is authenticated-only; a valid Bearer is billed per user so NAT reconnects
+ *   do not share the 600/min IP budget. Invalid/missing JWT stays on the IP budget.
  * - Attachment chunk uploads have their own per-user limits and are skipped here.
+ *
+ * JWT is resolved from the Authorization header here: [ApplicationCallPipeline.Plugins]
+ * runs before `authenticate { }` route pipelines, so [JWTPrincipal] is almost always
+ * null at this intercept (9.3xx dual-budget never engaged; NAT users were 429'd).
  */
 fun Application.configureRateLimit() {
     if (attributes.contains(RateLimitInstalledKey)) return
@@ -343,10 +386,7 @@ fun Application.configureRateLimit() {
             finish()
             return@intercept
         }
-        // configureAuthentication() is installed before this plugin, so by this point of the
-        // Plugins phase the JWT principal is populated for authenticated routes.
-        val userId = call.authentication.principal<JWTPrincipal>()
-            ?.payload?.subject?.takeIf { it.isNotBlank() }
+        val userId = authenticatedUserId(call)
         val (decision, budgetKey) = if (userId != null) {
             userLimiter.tryAcquire("user:$userId") to "user:$userId"
         } else {
@@ -360,19 +400,34 @@ fun Application.configureRateLimit() {
                 budgetKey, path, decision.retryAfterSeconds, decision.remaining
             )
             decision.retryAfterSeconds?.let { secs ->
-                call.response.headers.append(HttpHeaders.RetryAfter, secs.toString())
+                call.response.headers.append(HttpHeaders.RetryAfter, secs.coerceAtLeast(1).toString())
             }
             call.respond(
                 HttpStatusCode.TooManyRequests,
                 ErrorResponse(
                     "请求过于频繁，请稍后重试",
                     code = "rate_limited",
-                    retryAfterSeconds = decision.retryAfterSeconds
+                    retryAfterSeconds = decision.retryAfterSeconds?.coerceAtLeast(1)
                 )
             )
             finish()
         }
     }
+}
+
+/**
+ * Prefer an already-populated [JWTPrincipal] (if a future pipeline order change fills it),
+ * otherwise verify the Bearer token the same way sockets / routes do. Invalid JWTs
+ * return null and stay on the unauthenticated IP budget.
+ */
+private fun authenticatedUserId(call: ApplicationCall): String? {
+    call.authentication.principal<JWTPrincipal>()
+        ?.payload?.subject?.takeIf { it.isNotBlank() }
+        ?.let { return it }
+    return call.request.headers[HttpHeaders.Authorization]
+        .bearerTokenOrNull()
+        ?.let { JwtConfig.getUserIdFromToken(it) }
+        ?.takeIf { it.isNotBlank() }
 }
 
 /** Rate-limit warning logs are throttled per (bucket,path) so a storm does not flood the log. */
@@ -401,9 +456,14 @@ private object RateLimitPools {
     @Volatile private var ip: GlobalRateLimiter? = null
     @Volatile private var user: GlobalRateLimiter? = null
 
+    fun ipOrNull(): GlobalRateLimiter? = ip?.takeUnless { it.isShutdown }
+
     @Synchronized
     fun ipPool(): Pair<GlobalRateLimiter, Long> {
-        val limiter = ip?.takeUnless { it.isShutdown } ?: GlobalRateLimiter(ServerConfig.globalRateLimitPerMinute).also { ip = it }
+        val limiter = ip?.takeUnless { it.isShutdown } ?: GlobalRateLimiter(ServerConfig.globalRateLimitPerMinute).also {
+            ip = it
+            GlobalRateLimiter.bindInstance(it)
+        }
         return limiter to limiter.start()
     }
 
@@ -411,6 +471,21 @@ private object RateLimitPools {
     fun userPool(): Pair<GlobalRateLimiter, Long> {
         val limiter = user?.takeUnless { it.isShutdown } ?: GlobalRateLimiter(ServerConfig.authenticatedRateLimitPerMinute).also { user = it }
         return limiter to limiter.start()
+    }
+
+    fun combinedStatsFor(caller: GlobalRateLimiter): RateLimitStats? {
+        val ipLimiter = ip?.takeUnless { it.isShutdown } ?: return null
+        if (caller !== ipLimiter) return null
+        val ipStats = ipLimiter.snapshot()
+        val userStats = user?.takeUnless { it.isShutdown }?.snapshot() ?: return ipStats
+        return RateLimitStats(
+            allowed = ipStats.allowed + userStats.allowed,
+            rejected = ipStats.rejected + userStats.rejected,
+            totalBuckets = ipStats.totalBuckets + userStats.totalBuckets,
+            maxBuckets = ipStats.maxBuckets + userStats.maxBuckets,
+            // Keep the historical field as the unauthenticated IP budget.
+            maxPerMinute = ipStats.maxPerMinute
+        )
     }
 }
 
