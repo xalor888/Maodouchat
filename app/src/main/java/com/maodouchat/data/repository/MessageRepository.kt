@@ -65,15 +65,11 @@ class MessageRepository(
      */
     suspend fun insertMessage(message: Message) {
         if (database == null) {
-            val existing = messageDao.getMessageById(message.id)?.toDomain()
-            val merged = if (existing == null) message else mergeMessageForPersistence(existing, message)
-            messageDao.insertMessage(merged.toEntity())
+            persistMerged(message)
             return
         }
         database.withTransaction {
-            val existing = messageDao.getMessageById(message.id)?.toDomain()
-            val merged = if (existing == null) message else mergeMessageForPersistence(existing, message)
-            messageDao.insertMessage(merged.toEntity())
+            persistMerged(message)
         }
     }
 
@@ -81,7 +77,7 @@ class MessageRepository(
     suspend fun insertMessages(messages: List<Message>) {
         if (messages.isEmpty()) return
         if (database == null) {
-            messages.forEach { insertMessage(it) }
+            messages.forEach { persistMerged(it) }
             return
         }
         database.withTransaction {
@@ -92,11 +88,35 @@ class MessageRepository(
                 messageDao.getMessagesByIds(chunk).forEach { existingById[it.id] = it }
             }
             messages.forEach { msg ->
-                val existing = existingById[msg.id]?.toDomain()
-                val merged = if (existing == null) msg else mergeMessageForPersistence(existing, msg)
-                messageDao.insertMessage(merged.toEntity())
+                persistMerged(msg, existingById)
             }
         }
+    }
+
+    private suspend fun persistMerged(
+        message: Message,
+        existingById: MutableMap<String, MessageEntity>? = null,
+    ) {
+        val existingByPrimary = existingById?.get(message.id)?.toDomain()
+            ?: messageDao.getMessageById(message.id)?.toDomain()
+        val existing = existingByPrimary ?: findSameDelivery(message)
+        val incoming = when {
+            existing == null || existing.id == message.id -> message
+            else -> MessageDuplicatePolicy.pickCanonical(existing, message)
+        }
+        val merged = if (existing == null) incoming else mergeMessageForPersistence(existing, incoming)
+        if (existing != null && MessageDuplicatePolicy.isRedundantWrite(existing, merged)) return
+        val entity = merged.toEntity()
+        messageDao.insertMessage(entity)
+        existingById?.put(entity.id, entity)
+    }
+
+    private suspend fun findSameDelivery(message: Message): Message? {
+        if (message.chatId.isBlank() || message.senderId.isBlank() || message.timestamp <= 0L) return null
+        return messageDao.getMessagesByDeliveryHint(message.chatId, message.senderId, message.timestamp)
+            .asSequence()
+            .map { it.toDomain() }
+            .firstOrNull { it.id != message.id && MessageDuplicatePolicy.isSameDelivery(it, message) }
     }
 
     /** 9.213：批量查重——返回已存在于库中的消息 id 集合（断线收敛新消息判定，消除逐条 SELECT）。 */

@@ -43,6 +43,23 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE id IN (:ids)")
     suspend fun getMessagesByIds(ids: List<String>): List<MessageEntity>
 
+    /**
+     * 同会话/发送者/时间戳的候选行（WS + REST / 乐观发送双写时 id 不同）。
+     * LIMIT 防止异常时间戳碰撞扫全表。
+     */
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE chatId = :chatId AND senderId = :senderId AND timestamp = :timestamp
+        LIMIT 8
+        """
+    )
+    suspend fun getMessagesByDeliveryHint(
+        chatId: String,
+        senderId: String,
+        timestamp: Long
+    ): List<MessageEntity>
+
     /** 目标时间点（含）之后的第一条消息，用于日历/日期跳转精确定位。 */
     @Query(
         """

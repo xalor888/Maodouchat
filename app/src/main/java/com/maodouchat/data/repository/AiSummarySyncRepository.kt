@@ -161,15 +161,18 @@ class AiSummarySyncRepository(
                             acknowledgedIds += remote.id
                         }
                         SignalProtocol.DecryptResult.NoSession,
-                        SignalProtocol.DecryptResult.UntrustedIdentity -> Unit
-                        // Duplicate = 该信封已被消费（重复/乱序投递），ACK 避免服务端无限重投。
-                        SignalProtocol.DecryptResult.Duplicate -> acknowledgedIds += remote.id
-                        // 8.41：Failed 不再 ACK——瞬时解密失败（ratchet 在途等）跨设备数据永久丢失；
-                        // 与 NoSession 一样重试。服务端 envelope 有 30 天保留期，不会无限堆积。
+                        SignalProtocol.DecryptResult.UntrustedIdentity,
                         SignalProtocol.DecryptResult.UnsupportedEnvelope,
                         SignalProtocol.DecryptResult.NotForThisDevice,
                         SignalProtocol.DecryptResult.FutureEpoch,
-                        SignalProtocol.DecryptResult.Failed -> Unit
+                        SignalProtocol.DecryptResult.Failed,
+                        SignalProtocol.DecryptResult.Duplicate -> {
+                            // Duplicate / Unsupported / NotForThisDevice 立即 ACK；
+                            // Failed / NoSession / FutureEpoch 有限次重试，达上限后 ACK 打断死循环。
+                            if (signalProtocol.shouldAcknowledgeDecrypt(remote.id, decrypted)) {
+                                acknowledgedIds += remote.id
+                            }
+                        }
                     }
                 }
                 acknowledgedIds.chunked(100).forEach { ids ->
