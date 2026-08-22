@@ -105,46 +105,83 @@ class ScreenshotBurnDetector(
     private fun inspectCapture(uri: Uri?, images: Boolean) {
         try {
             val nowSec = System.currentTimeMillis() / 1000L
-            val projection = mutableListOf(
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.DATE_ADDED
-            )
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                projection += MediaStore.Images.Media.RELATIVE_PATH
+            if (images) {
+                inspectImage(uri, nowSec)
             } else {
-                @Suppress("DEPRECATION")
-                projection += MediaStore.Images.Media.DATA
-            }
-            val target = if (images) {
-                uri ?: MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-            } else {
-                uri ?: MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-            }
-            context.contentResolver.query(
-                target, projection.toTypedArray(), null, null,
-                "${MediaStore.Images.Media.DATE_ADDED} DESC"
-            )?.use { cursor ->
-                if (!cursor.moveToFirst()) return
-                val dateAdded = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED))
-                if (nowSec - dateAdded > (if (images) 5 else 8)) return
-                val pathIdx = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
-                } else {
-                    @Suppress("DEPRECATION")
-                    cursor.getColumnIndex(MediaStore.Images.Media.DATA)
-                }
-                val path = if (pathIdx >= 0) cursor.getString(pathIdx).orEmpty() else ""
-                val nameIdx = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                val name = if (nameIdx >= 0) cursor.getString(nameIdx).orEmpty() else ""
-                val isCapture = if (images) {
-                    ScreenshotDetector.isScreenshotPath(path, name)
-                } else {
-                    ScreenshotDetector.isScreenRecordPath(path, name)
-                }
-                if (isCapture) burnAll()
+                inspectVideo(uri, nowSec)
             }
         } catch (e: Exception) {
             Log.w(TAG, "Burn check failed", e)
+        }
+    }
+
+    private fun inspectImage(uri: Uri?, nowSec: Long) {
+        val target = uri ?: MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        val projection = mutableListOf(
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.DATE_ADDED,
+            MediaStore.Images.Media.MIME_TYPE
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            projection += MediaStore.Images.Media.RELATIVE_PATH
+        } else {
+            @Suppress("DEPRECATION")
+            projection += MediaStore.Images.Media.DATA
+        }
+        context.contentResolver.query(
+            target, projection.toTypedArray(), null, null,
+            "${MediaStore.Images.Media.DATE_ADDED} DESC"
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) return
+            val mimeType = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.MIME_TYPE)).orEmpty()
+            if (!mimeType.startsWith("image/")) return
+            val dateAdded = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED))
+            if (nowSec - dateAdded > 5) return
+            val pathIdx = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+            } else {
+                @Suppress("DEPRECATION")
+                cursor.getColumnIndex(MediaStore.Images.Media.DATA)
+            }
+            val path = if (pathIdx >= 0) cursor.getString(pathIdx).orEmpty() else ""
+            val nameIdx = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+            val name = if (nameIdx >= 0) cursor.getString(nameIdx).orEmpty() else ""
+            if (ScreenshotDetector.isScreenshotPath(path, name)) burnAll()
+        }
+    }
+
+    private fun inspectVideo(uri: Uri?, nowSec: Long) {
+        val target = uri ?: MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        val projection = mutableListOf(
+            MediaStore.Video.Media.DISPLAY_NAME,
+            MediaStore.Video.Media.DATE_ADDED,
+            MediaStore.Video.Media.MIME_TYPE
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            projection += MediaStore.Video.Media.RELATIVE_PATH
+        } else {
+            @Suppress("DEPRECATION")
+            projection += MediaStore.Video.Media.DATA
+        }
+        context.contentResolver.query(
+            target, projection.toTypedArray(), null, null,
+            "${MediaStore.Video.Media.DATE_ADDED} DESC"
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) return
+            val mimeType = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE)).orEmpty()
+            if (!mimeType.startsWith("video/")) return
+            val dateAdded = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED))
+            if (nowSec - dateAdded > 8) return
+            val pathIdx = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                cursor.getColumnIndex(MediaStore.Video.Media.RELATIVE_PATH)
+            } else {
+                @Suppress("DEPRECATION")
+                cursor.getColumnIndex(MediaStore.Video.Media.DATA)
+            }
+            val path = if (pathIdx >= 0) cursor.getString(pathIdx).orEmpty() else ""
+            val nameIdx = cursor.getColumnIndex(MediaStore.Video.Media.DISPLAY_NAME)
+            val name = if (nameIdx >= 0) cursor.getString(nameIdx).orEmpty() else ""
+            if (ScreenshotDetector.isScreenRecordPath(path, name)) burnAll()
         }
     }
 

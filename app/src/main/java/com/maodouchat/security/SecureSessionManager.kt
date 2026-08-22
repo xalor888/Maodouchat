@@ -75,6 +75,18 @@ class SecureSessionManager(
             // become stale for the next account.
             // Capture before token clear so notification-center disk key can be wiped.
             val accountUserId = tokenManager.getUserId()
+            // 桌面图标是包级组件状态：A 隐藏后换到 B 仍会找不到入口。
+            try {
+                accountUserId?.takeIf { it.isNotBlank() }?.let { uid ->
+                    FakeChatManager.restoreLauncherIfHiddenForUser(context, uid)
+                    ScreenSecureManager.clearForUser(context, uid)
+                    SensitiveActionGate.clearForUser(context, uid)
+                }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w(TAG, "Failed to restore launcher / clear per-user security prefs", error)
+            }
             val refreshToken = tokenManager.getRefreshToken()
             val accessToken = tokenManager.getToken()
             val pushDeviceId = runCatching { PushRegistrationManager.currentDeviceId(context) }.getOrDefault("")
