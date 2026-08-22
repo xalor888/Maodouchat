@@ -90,7 +90,7 @@ internal fun Application.configureAiEnhanceRouting(
                     return@post
                 }
                 val startedAt = System.currentTimeMillis()
-                if (call.budgetExceeded(aiGateway, uid, req.messages, "conversation_profile", startedAt)) return@post
+                if (call.budgetExceeded(aiGateway, aiRepo, uid, req.messages, "conversation_profile", startedAt, req.chatId)) return@post
                 when (val result = service.conversationProfile(req.messages, req.chatId)) {
                     is AiEnhanceResult.Success -> {
                         aiRepo.recordAudit(uid, req.chatId, "conversation_profile", result.value.model, "success", inputChars(req.messages), req.messages.size, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
@@ -100,7 +100,7 @@ internal fun Application.configureAiEnhanceRouting(
                         aiRepo.recordAudit(uid, req.chatId, "conversation_profile", null, "not_configured", inputChars(req.messages), durationMs = System.currentTimeMillis() - startedAt)
                         call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
                     }
-                    is AiEnhanceResult.Upstream -> call.respondUpstream(uid, req.chatId, "conversation_profile", result.error, req.messages, startedAt)
+                    is AiEnhanceResult.Upstream -> call.respondUpstream(aiRepo, uid, req.chatId, "conversation_profile", result.error, req.messages, startedAt)
                     is AiEnhanceResult.Invalid -> {
                         aiRepo.recordAudit(uid, req.chatId, "conversation_profile", null, "invalid_response", inputChars(req.messages), durationMs = System.currentTimeMillis() - startedAt, error = result.message)
                         call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
@@ -145,7 +145,7 @@ internal fun Application.configureAiEnhanceRouting(
                     return@post
                 }
                 val startedAt = System.currentTimeMillis()
-                if (call.budgetExceeded(aiGateway, uid, req.messages, "weekly_report", startedAt)) return@post
+                if (call.budgetExceeded(aiGateway, aiRepo, uid, req.messages, "weekly_report", startedAt, req.chatId)) return@post
                 when (val result = service.weeklyReport(req.messages, req.weekStart, req.weekEnd)) {
                     is AiEnhanceResult.Success -> {
                         aiRepo.recordAudit(uid, req.chatId, "weekly_report", result.value.model, "success", inputChars(req.messages), req.messages.size, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
@@ -155,7 +155,7 @@ internal fun Application.configureAiEnhanceRouting(
                         aiRepo.recordAudit(uid, req.chatId, "weekly_report", null, "not_configured", inputChars(req.messages), durationMs = System.currentTimeMillis() - startedAt)
                         call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
                     }
-                    is AiEnhanceResult.Upstream -> call.respondUpstream(uid, req.chatId, "weekly_report", result.error, req.messages, startedAt)
+                    is AiEnhanceResult.Upstream -> call.respondUpstream(aiRepo, uid, req.chatId, "weekly_report", result.error, req.messages, startedAt)
                     is AiEnhanceResult.Invalid -> {
                         aiRepo.recordAudit(uid, req.chatId, "weekly_report", null, "invalid_response", inputChars(req.messages), durationMs = System.currentTimeMillis() - startedAt, error = result.message)
                         call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
@@ -200,7 +200,7 @@ internal fun Application.configureAiEnhanceRouting(
                     return@post
                 }
                 val startedAt = System.currentTimeMillis()
-                if (call.budgetExceeded(aiGateway, uid, req.messages, "emotion_reply", startedAt)) return@post
+                if (call.budgetExceeded(aiGateway, aiRepo, uid, req.messages, "emotion_reply", startedAt, chatId)) return@post
                 when (val result = service.emotionReply(req.messages, req.emotion)) {
                     is AiEnhanceResult.Success -> {
                         aiRepo.recordAudit(uid, chatId, "emotion_reply", result.value.model, "success", inputChars(req.messages), req.messages.size, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
@@ -210,7 +210,7 @@ internal fun Application.configureAiEnhanceRouting(
                         aiRepo.recordAudit(uid, chatId, "emotion_reply", null, "not_configured", inputChars(req.messages), durationMs = System.currentTimeMillis() - startedAt)
                         call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
                     }
-                    is AiEnhanceResult.Upstream -> call.respondUpstream(uid, chatId, "emotion_reply", result.error, req.messages, startedAt)
+                    is AiEnhanceResult.Upstream -> call.respondUpstream(aiRepo, uid, chatId, "emotion_reply", result.error, req.messages, startedAt)
                     is AiEnhanceResult.Invalid -> {
                         aiRepo.recordAudit(uid, chatId, "emotion_reply", null, "invalid_response", inputChars(req.messages), durationMs = System.currentTimeMillis() - startedAt, error = result.message)
                         call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
@@ -241,36 +241,52 @@ internal fun Application.configureAiEnhanceRouting(
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("跨聊天问答参数无效"))
                     return@post
                 }
-                // 8.47：候选 chatId 必须是该用户可访问的会话——否则响应会把任意 chatId 回显为
-                // 来源，且一旦未来按 messageId 服务端取文即升级为越权
+                // 8.47 / XAL-36：候选与主 chatId 都必须是当前用户可访问的会话。空白 chatId
+                // 不得放行（否则 sources 会回显任意/空会话，且未来若按 messageId 取文即越权）。
+                if (!chatRepo.isParticipant(req.chatId, uid)) {
+                    aiRepo.recordAudit(uid, req.chatId, "cross_chat_qa", null, "forbidden", inputChars(req.candidates), error = "not_participant")
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
+                    return@post
+                }
+                if (!aiRepo.isEnabled(uid, req.chatId)) {
+                    aiRepo.recordAudit(uid, req.chatId, "cross_chat_qa", null, "disabled", inputChars(req.candidates))
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("AI 功能已关闭"))
+                    return@post
+                }
                 val accessibleCandidates = req.candidates.filter { candidate ->
-                    candidate.chatId.isBlank() || chatRepo.isParticipant(candidate.chatId, uid)
+                    candidate.chatId.isNotBlank() && chatRepo.isParticipant(candidate.chatId, uid)
                 }
                 if (accessibleCandidates.isEmpty()) {
-                    aiRepo.recordAudit(uid, null, "cross_chat_qa", null, "forbidden", 0, error = "no_accessible_chat")
+                    aiRepo.recordAudit(uid, req.chatId, "cross_chat_qa", null, "forbidden", 0, error = "no_accessible_chat")
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问候选会话"))
                     return@post
                 }
                 val startedAt = System.currentTimeMillis()
-                if (call.budgetExceeded(aiGateway, uid, accessibleCandidates, "cross_chat_qa", startedAt)) return@post
+                if (call.budgetExceeded(aiGateway, aiRepo, uid, accessibleCandidates, "cross_chat_qa", startedAt, req.chatId)) return@post
                 when (val result = service.crossChatQa(req.query, accessibleCandidates, req.chatId)) {
                     is AiEnhanceResult.Success -> {
-                        aiRepo.recordAudit(uid, null, "cross_chat_qa", result.value.model, "success", inputChars(accessibleCandidates), accessibleCandidates.size, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
+                        val sources = result.value.sources
+                            .filter { source ->
+                                source.chatId.isNotBlank() &&
+                                    accessibleCandidates.any { it.chatId == source.chatId && it.messageId == source.messageId }
+                            }
+                            .map { CrossChatQaSource(it.chatId, it.messageId) }
+                        aiRepo.recordAudit(uid, req.chatId, "cross_chat_qa", result.value.model, "success", inputChars(accessibleCandidates), accessibleCandidates.size, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
                         call.respond(
                             CrossChatQaResponse(
                                 answer = result.value.answer,
-                                sources = result.value.sources.map { CrossChatQaSource(it.chatId, it.messageId) },
+                                sources = sources,
                                 model = result.value.model
                             )
                         )
                     }
                     AiEnhanceResult.NotConfigured -> {
-                        aiRepo.recordAudit(uid, null, "cross_chat_qa", null, "not_configured", inputChars(req.candidates), durationMs = System.currentTimeMillis() - startedAt)
+                        aiRepo.recordAudit(uid, req.chatId, "cross_chat_qa", null, "not_configured", inputChars(accessibleCandidates), durationMs = System.currentTimeMillis() - startedAt)
                         call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
                     }
-                    is AiEnhanceResult.Upstream -> call.respondUpstream(uid, null, "cross_chat_qa", result.error, req.candidates, startedAt)
+                    is AiEnhanceResult.Upstream -> call.respondUpstream(aiRepo, uid, req.chatId, "cross_chat_qa", result.error, accessibleCandidates, startedAt)
                     is AiEnhanceResult.Invalid -> {
-                        aiRepo.recordAudit(uid, null, "cross_chat_qa", null, "invalid_response", inputChars(req.candidates), durationMs = System.currentTimeMillis() - startedAt, error = result.message)
+                        aiRepo.recordAudit(uid, req.chatId, "cross_chat_qa", null, "invalid_response", inputChars(accessibleCandidates), durationMs = System.currentTimeMillis() - startedAt, error = result.message)
                         call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
                     }
                 }
@@ -312,10 +328,10 @@ internal fun Application.configureAiEnhanceRouting(
                     return@post
                 }
                 val startedAt = System.currentTimeMillis()
-                if (call.budgetExceeded(aiGateway, uid, req.messages, "message_classes", startedAt)) return@post
+                if (call.budgetExceeded(aiGateway, aiRepo, uid, req.messages, "message_classes", startedAt, req.chatId)) return@post
                 when (val result = service.messageClasses(req.messages, req.chatId)) {
                     is AiEnhanceResult.Success -> {
-                        aiRepo.recordAudit(uid, req.chatId, "message_classes", null, "success", inputChars(req.messages), req.messages.size, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
+                        aiRepo.recordAudit(uid, req.chatId, "message_classes", result.model, "success", inputChars(req.messages), req.messages.size, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
                         call.respond(
                             MessageClassesResponse(
                                 result.value.map { MessageClassEntry(it.category, it.count, it.confidence) }
@@ -326,7 +342,7 @@ internal fun Application.configureAiEnhanceRouting(
                         aiRepo.recordAudit(uid, req.chatId, "message_classes", null, "not_configured", inputChars(req.messages), durationMs = System.currentTimeMillis() - startedAt)
                         call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
                     }
-                    is AiEnhanceResult.Upstream -> call.respondUpstream(uid, req.chatId, "message_classes", result.error, req.messages, startedAt)
+                    is AiEnhanceResult.Upstream -> call.respondUpstream(aiRepo, uid, req.chatId, "message_classes", result.error, req.messages, startedAt)
                     is AiEnhanceResult.Invalid -> {
                         aiRepo.recordAudit(uid, req.chatId, "message_classes", null, "invalid_response", inputChars(req.messages), durationMs = System.currentTimeMillis() - startedAt, error = result.message)
                         call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
@@ -379,7 +395,8 @@ private fun isValidWeekRange(weekStart: Long, weekEnd: Long): Boolean =
 
 private fun isValidCrossChatQaPayload(req: CrossChatQaPayload): Boolean {
     val pairs = req.candidates.map { it.chatId to it.messageId }
-    return req.query.isNotBlank() &&
+    return isValidChatRef(req.chatId) &&
+        req.query.isNotBlank() &&
         req.query.length <= MAX_ENHANCE_QUERY_CHARS &&
         req.candidates.isNotEmpty() &&
         req.candidates.size <= MAX_ENHANCE_CANDIDATES &&
@@ -405,16 +422,18 @@ private fun inputChars(candidates: List<CrossChatQaCandidate>): Int =
 
 private suspend fun ApplicationCall.budgetExceeded(
     gateway: AiGateway,
+    aiRepo: AiRepository,
     uid: String,
     messages: List<AiContextMessage>,
     feature: String,
-    startedAt: Long
+    startedAt: Long,
+    chatId: String? = null
 ): Boolean {
     val estTokens = AiStreamingService.estimateTokens(messages.joinToString(" ") { it.text }).toLong()
     val budget = gateway.checkBudget(uid, estTokens)
     if (budget is BudgetResult.Exceeded) {
         response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
-        AiRepository().recordAudit(uid, null, feature, null, "budget_exceeded", inputChars(messages), durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
+        aiRepo.recordAudit(uid, chatId, feature, null, "budget_exceeded", inputChars(messages), durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
         respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 用量已达每日上限", code = "AI_BUDGET_EXCEEDED"))
         return true
     }
@@ -424,16 +443,18 @@ private suspend fun ApplicationCall.budgetExceeded(
 @JvmName("budgetExceededCandidates")
 private suspend fun ApplicationCall.budgetExceeded(
     gateway: AiGateway,
+    aiRepo: AiRepository,
     uid: String,
     candidates: List<CrossChatQaCandidate>,
     feature: String,
-    startedAt: Long
+    startedAt: Long,
+    chatId: String? = null
 ): Boolean {
     val estTokens = AiStreamingService.estimateTokens(candidates.joinToString(" ") { it.text }).toLong()
     val budget = gateway.checkBudget(uid, estTokens)
     if (budget is BudgetResult.Exceeded) {
         response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
-        AiRepository().recordAudit(uid, null, feature, null, "budget_exceeded", inputChars(candidates), durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
+        aiRepo.recordAudit(uid, chatId, feature, null, "budget_exceeded", inputChars(candidates), durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
         respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 用量已达每日上限", code = "AI_BUDGET_EXCEEDED"))
         return true
     }
@@ -441,6 +462,7 @@ private suspend fun ApplicationCall.budgetExceeded(
 }
 
 private suspend fun ApplicationCall.respondUpstream(
+    aiRepo: AiRepository,
     uid: String,
     chatId: String?,
     feature: String,
@@ -448,7 +470,7 @@ private suspend fun ApplicationCall.respondUpstream(
     messages: List<AiContextMessage>,
     startedAt: Long
 ) {
-    AiRepository().recordAudit(uid, chatId, feature, null, "upstream_error", inputChars(messages), durationMs = System.currentTimeMillis() - startedAt, error = error.message)
+    aiRepo.recordAudit(uid, chatId, feature, null, "upstream_error", inputChars(messages), durationMs = System.currentTimeMillis() - startedAt, error = error.message)
     // 8.31 运维修复：AI 上游失败此前只写审计表，应用日志零痕迹 → 加结构化日志行
     org.slf4j.LoggerFactory.getLogger("AiUpstream")
         .error("AI upstream failed [feature={}] [userId={}] [statusCode={}] [durationMs={}] : {}",
@@ -462,6 +484,7 @@ private suspend fun ApplicationCall.respondUpstream(
 
 @JvmName("respondUpstreamCandidates")
 private suspend fun ApplicationCall.respondUpstream(
+    aiRepo: AiRepository,
     uid: String,
     chatId: String?,
     feature: String,
@@ -469,7 +492,7 @@ private suspend fun ApplicationCall.respondUpstream(
     candidates: List<CrossChatQaCandidate>,
     startedAt: Long
 ) {
-    AiRepository().recordAudit(uid, chatId, feature, null, "upstream_error", inputChars(candidates), durationMs = System.currentTimeMillis() - startedAt, error = error.message)
+    aiRepo.recordAudit(uid, chatId, feature, null, "upstream_error", inputChars(candidates), durationMs = System.currentTimeMillis() - startedAt, error = error.message)
     // 8.31 运维修复：同上，AI 上游失败留应用日志
     org.slf4j.LoggerFactory.getLogger("AiUpstream")
         .error("AI upstream failed [feature={}] [userId={}] [statusCode={}] [durationMs={}] : {}",
