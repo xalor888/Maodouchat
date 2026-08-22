@@ -17,6 +17,7 @@ import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.notification.NotificationPreferences
+import com.maodouchat.notification.NotificationSoundPolicy
 import com.maodouchat.security.AppLockManager
 import com.maodouchat.ui.screen.chatlist.NotificationCenterType
 
@@ -169,7 +170,7 @@ object AppNotifier {
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!soundEnabled)
+            .setSilent(!effectiveSoundEnabled(context, soundEnabled))
         // 9.209：第三方服务器模式标注服务器名——服务器身份非隐私内容，脱敏模式下也展示，
         // 避免同时连多个自建服务器的用户分不清通知来自哪台
         if (com.maodouchat.network.ServerIdentity.isThirdPartyServer) {
@@ -248,7 +249,7 @@ object AppNotifier {
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(false)
+            .setSilent(!effectiveSoundEnabled(context, NotificationPreferences.soundEnabled(context)))
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return false
         safeNotify(context, NOTIFICATION_TAG_PREFIX + "reminder_$chatId", messageId.hashCode(), notification, expectedUserId)
@@ -360,7 +361,7 @@ object AppNotifier {
             .setOngoing(true)
             .setTimeoutAfter(35_000L)
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setSilent(!soundEnabled)
+            .setSilent(!effectiveRingtoneEnabled(context, soundEnabled))
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             builder.setDefaults(NotificationCompat.DEFAULT_ALL)
         }
@@ -443,7 +444,7 @@ object AppNotifier {
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!soundEnabled)
+            .setSilent(!effectiveSoundEnabled(context, soundEnabled))
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return
         // 8.44：动态互动通知独立 tag
@@ -489,7 +490,7 @@ object AppNotifier {
             .setContentText(context.getString(R.string.notifications_test_body))
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!NotificationPreferences.soundEnabled(context))
+            .setSilent(!effectiveSoundEnabled(context, NotificationPreferences.soundEnabled(context)))
             .build()
         safeNotify(context, NOTIFY_TAG_TEST, System.currentTimeMillis().toInt(), notification, expectedUserId)
     }
@@ -535,7 +536,7 @@ object AppNotifier {
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!soundEnabled)
+            .setSilent(!effectiveSoundEnabled(context, soundEnabled))
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return
         safeNotify(context, ANNOUNCEMENT_NOTIFICATION_TAG, announcementId.hashCode(), notification, expectedUserId)
@@ -580,7 +581,7 @@ object AppNotifier {
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!soundEnabled)
+            .setSilent(!effectiveSoundEnabled(context, soundEnabled))
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return
         safeNotify(context, FRIEND_REQUEST_NOTIFICATION_TAG, requestId.hashCode(), notification, expectedUserId)
@@ -652,7 +653,7 @@ object AppNotifier {
             .setShowWhen(true)
             .setGroup("ai_tasks_$chatId")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setSilent(!soundEnabled)
+            .setSilent(!effectiveSoundEnabled(context, soundEnabled))
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return false
         safeNotify(context, AI_TASK_NOTIFICATION_TAG, taskId.hashCode(), notification, expectedUserId)
@@ -757,6 +758,18 @@ object AppNotifier {
             NotificationManagerCompat.from(context).cancelAll()
         }
     }
+
+    private fun effectiveSoundEnabled(context: Context, preferenceEnabled: Boolean): Boolean =
+        NotificationSoundPolicy.messageSoundEnabled(
+            runtimeFlagEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.NOTIFICATION_SOUND),
+            userPreferenceEnabled = preferenceEnabled,
+        )
+
+    private fun effectiveRingtoneEnabled(context: Context, preferenceEnabled: Boolean): Boolean =
+        NotificationSoundPolicy.ringtoneEnabled(
+            runtimeFlagEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.RINGTONE),
+            userPreferenceEnabled = preferenceEnabled,
+        )
 
     private fun canPostNotifications(context: Context): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
