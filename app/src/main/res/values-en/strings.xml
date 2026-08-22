@@ -2057,6 +2057,8 @@
     <string name="notification_friend_request_body">Someone wants to add you as a friend</string>
     <string name="notification_friend_accepted">Friend request accepted</string>
     <string name="notification_friend_accepted_body">Your friend request was accepted</string>
+    <string name="notification_group_invite">Group invite</string>
+    <string name="notification_group_invite_body">Someone invited you to a group chat</string>
     <string name="ai_tasks_title">AI Tasks</string>
     <string name="ai_tasks_menu">View AI tasks</string>
     <plurals name="ai_tasks_preview_count">

@@ -168,6 +168,22 @@ class MaodouFirebaseMessagingService : FirebaseMessagingService() {
                 )
             }
 
+            "GROUP_INVITE" -> {
+                if (shouldSuppressQuietHours()) return
+                if (!mayHandlePush(tokenManager, pushOwnerUserId, data["recipientId"])) return
+                val inviteId = data["inviteId"]?.takeIf(String::isNotBlank)
+                    ?: message.messageId
+                    ?: return
+                AppNotifier.showGroupInvite(
+                    context = this,
+                    inviteId = inviteId,
+                    chatId = data["chatId"].orEmpty(),
+                    action = data["action"].orEmpty().ifBlank { "CREATED" },
+                    soundEnabled = NotificationPreferences.soundEnabled(this) && data["soundEnabled"] != "false",
+                    expectedUserId = pushOwnerUserId,
+                )
+            }
+
             "ANNOUNCEMENT" -> {
                 if (shouldSuppressQuietHours()) return
                 if (!mayHandlePush(tokenManager, pushOwnerUserId, data["recipientId"])) return

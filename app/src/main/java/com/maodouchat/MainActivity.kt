@@ -413,6 +413,7 @@ class MainActivity : FragmentActivity() {
         }
         if (openContacts) {
             AppNotifier.cancelAllFriendRequests(this)
+            AppNotifier.cancelAllGroupInvites(this)
             MaodouchatApp.emitOpenContacts()
         }
         // Drop tray immediately on tap so badge/shade clear before the target screen mounts.
