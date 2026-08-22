@@ -2291,6 +2291,91 @@ class SenderKeyDistributionRouteTest {
         assertTrue(afterDeviceRemoval.bodyAsText().contains("\"total\":1"), afterDeviceRemoval.bodyAsText())
         assertTrue(afterDeviceRemoval.bodyAsText().contains("\"sent\":1"), afterDeviceRemoval.bodyAsText())
     }
+
+    @Test
+    fun `omitted currentDeviceId without bound session still lists own other devices`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+
+        suspend fun login(email: String): String {
+            val response = client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"$email","password":"password123"}""")
+            }
+            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+            return extractToken(response.bodyAsText())
+        }
+
+        val alexToken = login("alex@example.com")
+        val aliceToken = login("alice@example.com")
+        val created = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":["u2"],"isGroup":true,"groupName":"SKD unbound session"}""")
+        }
+        assertEquals(HttpStatusCode.Created, created.status, created.bodyAsText())
+        val chatId = (Json.parseToJsonElement(created.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        acceptAllGroupInvites(aliceToken)
+
+        SignalKeyRepository().apply {
+            fun uploadBundle(userId: String, deviceId: Int, identityKey: String? = null, identityPrivateKey: org.signal.libsignal.protocol.ecc.ECPrivateKey? = null) {
+                val generatedPair = if (identityKey == null) Curve.generateKeyPair() else null
+                val actualIdentityKey = identityKey
+                    ?: Base64.getEncoder().encodeToString(generatedPair!!.publicKey.serialize())
+                val signingKey = identityPrivateKey ?: generatedPair!!.privateKey
+                val spkPair = Curve.generateKeyPair()
+                val spkSignature = Curve.calculateSignature(signingKey, spkPair.publicKey.serialize())
+                val sessionId = "test-session-unbound-$userId-$deviceId"
+                org.jetbrains.exposed.sql.transactions.transaction {
+                    com.maodouchat.server.db.AuthSessions.insert {
+                        it[com.maodouchat.server.db.AuthSessions.id] = sessionId
+                        it[com.maodouchat.server.db.AuthSessions.userId] = userId
+                        it[com.maodouchat.server.db.AuthSessions.signalDeviceId] = deviceId
+                        it[com.maodouchat.server.db.AuthSessions.createdAt] = System.currentTimeMillis()
+                        it[com.maodouchat.server.db.AuthSessions.updatedAt] = System.currentTimeMillis()
+                    }
+                }
+                val uploadResult = uploadKeyPackage(
+                    userId = userId,
+                    authSessionId = sessionId,
+                    deviceId = deviceId,
+                    identityKey = actualIdentityKey,
+                    registrationId = 20_000 + deviceId,
+                    signedPreKeyId = deviceId,
+                    signedPreKey = Base64.getEncoder().encodeToString(spkPair.publicKey.serialize()),
+                    signedPreKeySignature = Base64.getEncoder().encodeToString(spkSignature),
+                    preKeys = emptyList()
+                )
+                check(uploadResult == SignalKeyRepository.UploadKeyPackageResult.UPLOADED) { "uploadKeyPackage failed: $uploadResult" }
+            }
+            val firstKeyPair = Curve.generateKeyPair()
+            val firstIdentity = Base64.getEncoder().encodeToString(firstKeyPair.publicKey.serialize())
+            val secondKeyPair = Curve.generateKeyPair()
+            val secondIdentity = Base64.getEncoder().encodeToString(secondKeyPair.publicKey.serialize())
+            uploadBundle("u1", 1, firstIdentity, firstKeyPair.privateKey)
+            touchDevice("u1", 1)
+            uploadBundle("u1", 2, secondIdentity, secondKeyPair.privateKey)
+            touchDevice("u1", 2)
+            val proofPayload = "maodouchat-device-confirm:v1\nu1\n1\n2\n$secondIdentity".toByteArray()
+            val proof = Base64.getEncoder().encodeToString(Curve.calculateSignature(firstKeyPair.privateKey, proofPayload))
+            assertEquals(SignalKeyRepository.ConfirmDeviceResult.CONFIRMED, confirmDevice("u1", 2, 1, proof))
+            uploadBundle("u2", 1)
+            touchDevice("u2", 1)
+        }
+
+        val coverage = client.get("/api/chats/$chatId/sender-key-distributions?epoch=1") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+        }
+        assertEquals(HttpStatusCode.OK, coverage.status, coverage.bodyAsText())
+        val body = coverage.bodyAsText()
+        // 登录会话尚未绑定 signalDeviceId，省略 currentDeviceId 时不得把自身全部设备从覆盖清单抹掉。
+        assertTrue(body.contains("\"userId\":\"u1\""), body)
+        assertTrue(body.contains("\"deviceId\":2"), body)
+        assertTrue(body.contains("\"userId\":\"u2\""), body)
+        assertTrue(body.contains("device_not_covered"), body)
+        val parsed = Json.parseToJsonElement(body).jsonObject
+        assertEquals(3, parsed["total"]!!.jsonPrimitive.content.toInt(), body)
+        assertEquals(3, parsed["pending"]!!.jsonPrimitive.content.toInt(), body)
+    }
 }
 
 class AdminSessionAttemptLimiterTest {
@@ -3027,6 +3112,49 @@ class MessageIdempotencyRouteTest {
         assertEquals(1, messages.size, history.bodyAsText())
         assertEquals(messageId, messages[0].jsonObject["id"]!!.jsonPrimitive.content)
         assertEquals("cipher-v1", messages[0].jsonObject["content"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `rest idempotent retry does not consume message send quota`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+        val login = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"alex@example.com","password":"password123"}""")
+        }
+        val token = extractToken(login.bodyAsText())
+        val chatResp = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":["u2"],"isGroup":false}""")
+        }
+        assertEquals(HttpStatusCode.Created, chatResp.status, chatResp.bodyAsText())
+        val chatId = (Json.parseToJsonElement(chatResp.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        val keepId = "m_rest_quota_keep"
+
+        suspend fun send(id: String, content: String) = client.post("/api/chats/$chatId/messages") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody("""{"chatId":"$chatId","content":"$content","type":"TEXT","id":"$id"}""")
+        }
+
+        val first = send(keepId, "cipher-keep")
+        assertEquals(HttpStatusCode.Created, first.status, first.bodyAsText())
+        // 打满 message_send 120/min 桶：首条 + 119 条唯一消息。
+        for (i in 1..119) {
+            val filled = send("m_rest_quota_$i", "cipher-$i")
+            assertEquals(HttpStatusCode.Created, filled.status, filled.bodyAsText())
+        }
+
+        val retry = send(keepId, "cipher-keep")
+        assertEquals(HttpStatusCode.Created, retry.status, retry.bodyAsText())
+        assertEquals(
+            keepId,
+            Json.parseToJsonElement(retry.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        )
+
+        val overflow = send("m_rest_quota_overflow", "cipher-overflow")
+        assertEquals(HttpStatusCode.TooManyRequests, overflow.status, overflow.bodyAsText())
+        assertTrue(overflow.bodyAsText().contains("发送过于频繁"), overflow.bodyAsText())
     }
 }
 

@@ -13689,11 +13689,6 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
             post("/api/chats/{chatId}/messages") {
                 if (call.rejectIfMaintenance()) return@post
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
-                // 每用户发消息限流 - 防核心接口被刷/DoS（参照 attachment 限流模式）
-                if (!aiRateLimiter.acquire("message_send:$userId", maxPerMinute = 120)) {
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("发送过于频繁，请稍后再试"))
-                    return@post
-                }
                 val chatId = call.parameters["chatId"]!!
                 if (call.rejectIfMessageRestricted(userRepo, userId)) return@post
                 if (!chatRepo.isParticipant(chatId, userId)) {
@@ -13710,6 +13705,18 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
                 }
                 if (!isValidMessagePayload(req.content, req.type, req.id)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("消息内容无效"))
+                    return@post
+                }
+                // 与 WS SEND_MESSAGE 对齐：断线重连/outbox flush 以相同 messageId 重发不得消耗
+                // message_send 配额。此前 limiter 在幂等判断之前，REST 补偿通道会把积压重试打成 429。
+                val existingById = req.id?.takeIf { it.isNotBlank() }?.let(messageRepo::getMessageById)
+                val isIdempotentRetry = existingById != null &&
+                    existingById.chatId == chatId &&
+                    existingById.senderId == userId &&
+                    existingById.content == req.content &&
+                    existingById.type == req.type
+                if (!isIdempotentRetry && !aiRateLimiter.acquire("message_send:$userId", maxPerMinute = 120)) {
+                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("发送过于频繁，请稍后再试"))
                     return@post
                 }
                 val isGroup = chatRepo.getChatById(chatId)?.isGroup == true
@@ -14358,7 +14365,9 @@ put("avatarUrl", avatarUrl)
                 val participants = chatRepo.getParticipantIds(cid)
                 val expectedTargets = signalKeyRepo.getConfirmedDeviceTargets(participants)
                     .filterNot { (userId, deviceId) ->
-                        userId == uid && (currentDeviceId == null || deviceId == currentDeviceId)
+                        // 仅排除已识别的当前设备。currentDeviceId 未知时不得把自身其它设备
+                        // 从覆盖清单抹掉，否则多设备账号会把缺口误报为 COMPLETE。
+                        userId == uid && currentDeviceId != null && deviceId == currentDeviceId
                     }
                     .toSet()
                 call.respond(senderKeyDistributionRepo.getStatus(cid, uid, epoch, expectedTargets))
