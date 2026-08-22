@@ -41,14 +41,33 @@ class AiEntryPolicyTest {
             AiEntryPolicy.contextActionsFor("FILE")
         )
         assertTrue(AiEntryPolicy.contextActionsFor("STICKER").isEmpty())
+        assertEquals(
+            listOf(AiEntryPolicy.MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor(" system ")
+        )
+        assertEquals(
+            listOf(AiEntryPolicy.MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("text")
+        )
     }
 
     @Test
     fun `composer and run gates`() {
         assertTrue(AiEntryPolicy.isComposerEntryActive(true))
         assertFalse(AiEntryPolicy.isComposerEntryActive(false))
+        // 入口必须可点：会话关 / 总开关关都不能变成死按钮，busy 才挡住。
         assertTrue(AiEntryPolicy.canRunContextAction(chatAiEnabled = true, isBusy = false))
-        assertFalse(AiEntryPolicy.canRunContextAction(chatAiEnabled = false, isBusy = false))
+        assertTrue(AiEntryPolicy.canRunContextAction(chatAiEnabled = false, isBusy = false))
         assertFalse(AiEntryPolicy.canRunContextAction(chatAiEnabled = true, isBusy = true))
+        assertTrue(
+            AiEntryPolicy.canRunContextAction(
+                masterEnabled = false,
+                chatAiEnabled = false,
+                isBusy = false
+            )
+        )
+        assertTrue(AiEntryPolicy.canOpenComposerMenu(isBusy = false, isUpdatingSetting = false))
+        assertFalse(AiEntryPolicy.canOpenComposerMenu(isBusy = true))
+        assertFalse(AiEntryPolicy.canOpenComposerMenu(isBusy = false, isUpdatingSetting = true))
     }
 }

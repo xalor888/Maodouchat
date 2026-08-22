@@ -30,7 +30,7 @@ import kotlinx.serialization.json.Json
 object AiEmotionReply {
 
     fun isAllowed(context: Context): Boolean =
-        AiPrivacyPreferences.consentAccepted(context) &&
+        AiPrivacyPreferences.mayUploadCloudContext(context) &&
             RuntimeFlags.isEnabled(context, RuntimeFlags.AI_SUGGEST_REPLIES)
 
     enum class Emotion(val wire: String) {

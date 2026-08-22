@@ -26,7 +26,9 @@ object AiRetryPolicy {
     data class RetryDecision(
         val shouldRetry: Boolean,
         val delayMs: Long,
-        val explanation: String
+        val explanation: String,
+        /** 给 UI 的错误码；限流/配额时为 RATE_LIMITED / QUOTA_EXCEEDED，避免静默失败。 */
+        val visibleErrorCode: String? = null
     )
 
     private val perChatLastCall = HashMap<String, Long>()
@@ -74,8 +76,19 @@ object AiRetryPolicy {
             Category.HEAVY -> HEAVY_MIN_INTERVAL_MS
         }
         val key = "$category:$chatId"
-        val last = perChatLastCall[key] ?: return 0L
-        return (minInterval - (now - last)).coerceAtLeast(0L)
+        val perChat = perChatLastCall[key]?.let { last ->
+            (minInterval - (now - last)).coerceAtLeast(0L)
+        } ?: 0L
+        while (globalWindow.isNotEmpty() && now - globalWindow.first() > GLOBAL_WINDOW_MS) {
+            globalWindow.removeFirst()
+        }
+        val global = if (globalWindow.size >= GLOBAL_WINDOW_SIZE) {
+            val oldest = globalWindow.first()
+            (GLOBAL_WINDOW_MS - (now - oldest)).coerceAtLeast(1L)
+        } else {
+            0L
+        }
+        return maxOf(perChat, global)
     }
 
     /**
@@ -85,24 +98,56 @@ object AiRetryPolicy {
     fun decide(errorCode: String?, attempts: Int): RetryDecision {
         val normalized = AiCostVisibilityPolicy.baseErrorCode(errorCode).ifBlank { "UNKNOWN" }
         if (attempts >= MAX_TOTAL_ATTEMPTS) {
-            return RetryDecision(false, 0L, "reached max auto retries; user must retry")
+            return RetryDecision(
+                shouldRetry = false,
+                delayMs = 0L,
+                explanation = "reached max auto retries; user must retry",
+                visibleErrorCode = normalized
+            )
         }
         return when {
-            normalized.startsWith("RATE_LIMITED") || normalized.contains("TOO_MANY") -> {
-                RetryDecision(false, 0L, "rate-limited; ask user to wait")
+            normalized.startsWith("RATE_LIMITED") ||
+                normalized.contains("TOO_MANY") -> {
+                val waitMs = AiCostVisibilityPolicy.waitSecondsFor(errorCode) * 1_000L
+                RetryDecision(
+                    shouldRetry = false,
+                    delayMs = waitMs,
+                    explanation = "rate-limited; ask user to wait",
+                    visibleErrorCode = AiCostVisibilityPolicy.ERROR_RATE_LIMIT
+                )
             }
             normalized.contains("UNAUTHORIZED") || normalized.contains("AUTH") -> {
-                RetryDecision(false, 0L, "auth required; do not auto-retry")
+                RetryDecision(false, 0L, "auth required; do not auto-retry", normalized)
             }
-            normalized.contains("QUOTA") || normalized.contains("BUDGET") -> {
-                RetryDecision(false, 0L, "quota exceeded; do not auto-retry")
+            normalized.contains("QUOTA") ||
+                normalized.contains("BUDGET") ||
+                normalized.contains("INSUFFICIENT") ||
+                normalized.contains("PAYMENT") ||
+                normalized.contains("BILLING") -> {
+                val waitMs = AiCostVisibilityPolicy.waitSecondsFor(errorCode) * 1_000L
+                RetryDecision(
+                    shouldRetry = false,
+                    delayMs = waitMs,
+                    explanation = "quota exceeded; do not auto-retry",
+                    visibleErrorCode = AiCostVisibilityPolicy.ERROR_QUOTA
+                )
             }
             normalized == SAFE_CONNECTION_FAILURE -> {
                 val completedRetries = (attempts - 1).coerceAtLeast(0)
                 val delay = AUTO_RETRY_BASE_MS * (1L shl completedRetries.coerceAtMost(5))
-                RetryDecision(true, delay, "connection was not established; safe to retry")
+                RetryDecision(
+                    shouldRetry = true,
+                    delayMs = delay,
+                    explanation = "connection was not established; safe to retry",
+                    visibleErrorCode = SAFE_CONNECTION_FAILURE
+                )
             }
-            else -> RetryDecision(false, 0L, "non-transient error")
+            else -> RetryDecision(
+                shouldRetry = false,
+                delayMs = 0L,
+                explanation = "non-transient error",
+                visibleErrorCode = normalized
+            )
         }
     }
 

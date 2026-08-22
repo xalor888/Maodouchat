@@ -35,7 +35,7 @@ object AiConversationProfile {
 
     /** 本地画像开关（与 AI 处理同意独立，默认开，纯本机）。 */
     fun isAllowed(context: Context): Boolean =
-        AiPrivacyPreferences.consentAccepted(context) && isLocalProfileEnabled(context)
+        AiPrivacyPreferences.mayUploadCloudContext(context) && isLocalProfileEnabled(context)
 
     fun isLocalProfileEnabled(context: Context): Boolean =
         RuntimeFlags.isEnabled(context, RuntimeFlags.AI_SUMMARY)

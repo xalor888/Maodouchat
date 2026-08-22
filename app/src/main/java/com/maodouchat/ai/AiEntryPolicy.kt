@@ -39,14 +39,15 @@ object AiEntryPolicy {
 
     /**
      * 长按消息可用的 AI 动作（不含复制结果等非 AI 项）。
-     * 总开关关闭时仍返回列表，由 UI 决定灰显或提示。
+     * 总开关关闭时仍返回列表，由 UI 决定灰显或提示——不要在这里把入口抹掉，
+     * 否则用户会感觉「点不了」。
      */
     fun contextActionsFor(
         messageType: String?,
         hasTranscript: Boolean = false
     ): List<MessageAiAction> {
-        return when (messageType?.uppercase()) {
-            "TEXT", "MARKDOWN" -> listOf(MessageAiAction.TRANSLATE)
+        return when (messageType?.trim()?.uppercase()) {
+            "TEXT", "MARKDOWN", "SYSTEM" -> listOf(MessageAiAction.TRANSLATE)
             "VOICE" -> if (hasTranscript) emptyList() else listOf(MessageAiAction.TRANSCRIBE)
             "IMAGE", "GIF" -> listOf(MessageAiAction.ANALYZE_IMAGE)
             "FILE" -> listOf(MessageAiAction.ANALYZE_FILE)
@@ -60,28 +61,52 @@ object AiEntryPolicy {
     ): Boolean = contextActionsFor(messageType, hasTranscript).isNotEmpty()
 
     /**
-     * 主入口是否应呈现为可用（本地会话开关）。
-     * 全局服务端开关由设置页单独控制，不在此折叠。
+     * 主入口是否应高亮为「当前会话 AI 已开」。
+     * 关闭时入口仍必须可点（由 UI toast / 同意框解释），不要把按钮 disable 掉。
      */
     fun isComposerEntryActive(chatAiEnabled: Boolean): Boolean = chatAiEnabled
 
     /**
-     * 主入口可用性（服务端 AI 总开关 + 本地会话开关）。
-     * 服务端 aiEnabled=false（RuntimeFlags.AI_MASTER）时整体折叠入口。
+     * 主入口高亮（服务端 AI 总开关 + 本地会话开关）。
+     * 总开关关闭时只取消高亮，不折叠按钮本身。
      */
     fun isComposerEntryActive(context: Context, chatAiEnabled: Boolean): Boolean =
         RuntimeFlags.isEnabled(context, RuntimeFlags.AI_MASTER) && chatAiEnabled
 
-    /** 场景动作是否允许触发（会话 AI 开 + 非进行中） */
+    /**
+     * 输入栏 ✨ 是否允许打开菜单。进行中才挡住；开关关闭仍可打开，
+     * 以便 UI 给出「已关闭」提示，而不是死按钮。
+     */
+    fun canOpenComposerMenu(isBusy: Boolean, isUpdatingSetting: Boolean = false): Boolean =
+        !isBusy && !isUpdatingSetting
+
+    /**
+     * 场景动作是否允许点击。进行中才挡住点击；会话 AI 关闭时仍返回 true，
+     * 由调用方 toast（ChatDetail 已有 `chat_ai_disabled_short`）。
+     */
     fun canRunContextAction(
         chatAiEnabled: Boolean,
         isBusy: Boolean
-    ): Boolean = chatAiEnabled && !isBusy
+    ): Boolean = canRunContextAction(masterEnabled = true, chatAiEnabled = chatAiEnabled, isBusy = isBusy)
 
-    /** 场景动作是否允许触发（服务端 AI 总开关 + 会话 AI 开 + 非进行中） */
+    /** 场景动作是否允许点击（服务端总开关仅影响高亮，不吞掉点击）。 */
     fun canRunContextAction(
         context: Context,
         chatAiEnabled: Boolean,
         isBusy: Boolean
-    ): Boolean = RuntimeFlags.isEnabled(context, RuntimeFlags.AI_MASTER) && chatAiEnabled && !isBusy
+    ): Boolean = canRunContextAction(
+        masterEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.AI_MASTER),
+        chatAiEnabled = chatAiEnabled,
+        isBusy = isBusy
+    )
+
+    @Suppress("UNUSED_PARAMETER")
+    fun canRunContextAction(
+        masterEnabled: Boolean,
+        chatAiEnabled: Boolean,
+        isBusy: Boolean
+    ): Boolean {
+        // 开关只决定高亮与 toast，不吞掉点击。进行中才挡住。
+        return !isBusy
+    }
 }

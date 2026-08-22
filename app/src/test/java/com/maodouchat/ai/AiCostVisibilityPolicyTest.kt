@@ -125,4 +125,25 @@ class AiCostVisibilityPolicyTest {
             AiCostVisibilityPolicy.waitSecondsFor("RATE_LIMITED:45")
         )
     }
+
+    @Test
+    fun `http 402 and billing phrases are quota not generic failure`() {
+        val payment = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 402,
+            serverCode = "payment_required",
+            serverMessage = "insufficient credit"
+        )
+        assertTrue(payment.isQuota)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, AiCostVisibilityPolicy.mapToErrorCode(payment))
+        assertEquals(
+            AiCostVisibilityPolicy.BillingHint.QUOTA_EXCEEDED,
+            AiCostVisibilityPolicy.billingHintFor("PAYMENT_REQUIRED")
+        )
+        assertTrue(AiCostVisibilityPolicy.shouldWarnRetryBills("PAYMENT_REQUIRED"))
+        val display = AiCostVisibilityPolicy.displaySignalFor("QUOTA_EXCEEDED", isFailed = true)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, display.errorCode)
+        assertEquals(AiCostVisibilityPolicy.DEFAULT_QUOTA_WAIT_SECONDS, display.waitSeconds)
+        assertEquals(AiCostVisibilityPolicy.BillingHint.QUOTA_EXCEEDED, display.hint)
+        assertTrue(display.warnRetryBills)
+    }
 }
