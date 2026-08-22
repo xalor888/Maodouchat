@@ -115,6 +115,7 @@ fun LoginScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val motion = LocalMotionSettings.current
+    val formScrollState = rememberScrollState()
 
     var animationPlayed by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { animationPlayed = true }
@@ -162,6 +163,11 @@ fun LoginScreen(
     LaunchedEffect(state.isLoggedIn) {
         if (state.isLoggedIn) onLoginSuccess()
     }
+    LaunchedEffect(state.errorMessage, state.infoMessage) {
+        if (!state.errorMessage.isNullOrBlank() || !state.infoMessage.isNullOrBlank()) {
+            formScrollState.animateScrollTo(formScrollState.maxValue)
+        }
+    }
 
     Box(
         modifier = Modifier.fillMaxSize().background(
@@ -176,7 +182,7 @@ fun LoginScreen(
             verticalArrangement = Arrangement.Top,
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(formScrollState)
                 .imePadding()
                 // 9.247：edge-to-edge 下此前只有硬编码 top 56dp 没有状态栏 insets——
                 // 打孔屏/刘海屏（状态栏 30-40dp）上 logo 顶到状态栏，普通机型又偏空；

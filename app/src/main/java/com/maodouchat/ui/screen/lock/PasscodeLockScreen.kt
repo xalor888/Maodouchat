@@ -99,6 +99,8 @@ fun PasscodeLockScreen(
                 }
 
                 override fun onAuthenticationFailed() {
+                    // 失败不关系统弹窗，但必须放开本页按钮，否则取消/失败后像「打不开」
+                    isAuthenticating = false
                     errorMessage = lockAuthFailedMsg
                     triggerErrorShake()
                     currentOnFailed()

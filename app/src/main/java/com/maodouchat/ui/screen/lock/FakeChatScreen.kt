@@ -121,10 +121,12 @@ fun FakeChatScreen(
                     showPinDialog = false
                     FakeChatManager.markUnlocked(context)
                     onUnlocked()
+                    true
                 } else {
                     // 假装是输错密码的普通弹窗，不暴露任何真实信息
                     failedPulse = !failedPulse
                     onFailed()
+                    false
                 }
             },
             onDismiss = { showPinDialog = false }
@@ -318,12 +320,27 @@ private fun FakeChatInputBar() {
 
 @Composable
 private fun FakePinDialog(
-    onConfirm: (String) -> Unit,
+    onConfirm: (String) -> Boolean,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     var pin by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
+    var lockoutMs by remember { mutableStateOf(FakeChatManager.lockoutRemainingMs(context)) }
     val wrongPinMsg = stringResource(R.string.fake_chat_wrong_pin)
+    val lockoutSeconds = ((lockoutMs + 999L) / 1000L).toInt().coerceAtLeast(1)
+    val supportingMsg = if (lockoutMs > 0L) {
+        stringResource(R.string.fake_chat_pin_lockout, lockoutSeconds)
+    } else if (error) {
+        wrongPinMsg
+    } else {
+        null
+    }
+    LaunchedEffect(lockoutMs) {
+        if (lockoutMs <= 0L) return@LaunchedEffect
+        kotlinx.coroutines.delay(250L)
+        lockoutMs = FakeChatManager.lockoutRemainingMs(context)
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -365,18 +382,23 @@ private fun FakePinDialog(
                         focusedTextColor = OnSurface,
                         unfocusedTextColor = OnSurface
                     ),
-                    isError = error,
-                    supportingText = if (error) {
-                        { Text(wrongPinMsg, color = MaterialTheme.colorScheme.error) }
-                    } else null,
+                    isError = error || lockoutMs > 0L,
+                    supportingText = supportingMsg?.let { msg ->
+                        { Text(msg, color = MaterialTheme.colorScheme.error) }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
             TextButton(
-                enabled = FakeChatManager.isPinValid(pin),
-                onClick = { onConfirm(pin) }
+                enabled = FakeChatManager.isPinValid(pin) && lockoutMs <= 0L,
+                onClick = {
+                    if (!onConfirm(pin)) {
+                        error = true
+                        lockoutMs = FakeChatManager.lockoutRemainingMs(context)
+                    }
+                }
             ) { Text(stringResource(R.string.common_confirm)) }
         },
         dismissButton = {

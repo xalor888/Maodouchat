@@ -30,35 +30,44 @@ class LoginViewModelTest {
 
     @Test
     fun `validation blank email returns before IO`() {
-        // 模拟 submit 的参数校验前置条件（与 LoginViewModel.submit 中的前两条校验一致）
-        val blankEmail = ""
-        val validPassword = "password123"
-        val error = runValidation(blankEmail, validPassword)
-        assertTrue(error == "请输入邮箱地址" || error == "请输入有效的邮箱地址")
+        val error = runValidation("", "password123")
+        assertEquals("请输入邮箱地址", error)
+    }
+
+    @Test
+    fun `validation incomplete email returns before IO`() {
+        val error = runValidation("a@", "password123")
+        assertEquals("请输入有效的邮箱地址", error)
     }
 
     @Test
     fun `validation short password returns before IO`() {
-        val validEmail = "u@x.com"
-        val shortPassword = "123"
-        val error = runValidation(validEmail, shortPassword)
-        assertEquals("密码至少需要6位", error)
+        val error = runValidation("u@x.com", "123")
+        assertEquals("密码至少需要 6 位", error)
     }
 
     @Test
     fun `validation valid input passes`() {
-        val validEmail = "u@x.com"
-        val validPassword = "password123"
-        val error = runValidation(validEmail, validPassword)
+        val error = runValidation("u@x.com", "password123")
         assertNull(error)
     }
 
-    /** 与 LoginViewModel.submit 内的校验逻辑保持一致的纯函数镜像，用于回归守护。 */
+    /**
+     * 与 LoginViewModel.submit 内的校验逻辑保持一致的纯函数镜像。
+     * 邮箱规则对齐 Patterns.EMAIL_ADDRESS 的最低要求：local@host.tld。
+     */
     private fun runValidation(email: String, password: String): String? {
         if (email.isBlank()) return "请输入邮箱地址"
-        if (!email.contains("@")) return "请输入有效的邮箱地址"
+        if (!isPlausibleEmail(email)) return "请输入有效的邮箱地址"
         if (password.isBlank()) return "请输入密码"
-        if (password.length < 6) return "密码至少需要6位"
+        if (password.length < 6) return "密码至少需要 6 位"
         return null
+    }
+
+    private fun isPlausibleEmail(email: String): Boolean {
+        val at = email.indexOf('@')
+        if (at <= 0 || at != email.lastIndexOf('@')) return false
+        val domain = email.substring(at + 1)
+        return domain.contains('.') && !domain.startsWith('.') && !domain.endsWith('.')
     }
 }

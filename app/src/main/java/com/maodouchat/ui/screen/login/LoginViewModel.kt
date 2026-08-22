@@ -8,6 +8,7 @@ import com.maodouchat.R
 import com.maodouchat.ai.AiTaskReminderScheduler
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
+import com.maodouchat.network.toUserFacingMessage
 import com.maodouchat.push.PushRegistrationManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -56,8 +57,30 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             // 置 true，密钥库加载慢时用户先进聊天页看到解密失败占位
             viewModelScope.launch {
                 val userId = tokenManager.getUserId()
-                val token = tokenManager.getToken()
-                if (!userId.isNullOrBlank() && !app.signalProtocol.isInitializedFor(userId)) {
+                var token = tokenManager.getToken()
+                if (userId.isNullOrBlank() || token.isNullOrBlank()) {
+                    _uiState.update {
+                        it.copy(isLoggedIn = false, errorMessage = text(R.string.error_session_expired))
+                    }
+                    return@launch
+                }
+                val accessExp = tokenManager.getAccessTokenExpiresAt()
+                if (accessExp > 0L && accessExp <= System.currentTimeMillis()) {
+                    val refreshed = runCatching {
+                        ApiService.refreshAccessTokenForCurrentSession()
+                    }.getOrNull()
+                    if (!refreshed.isNullOrBlank()) {
+                        token = refreshed
+                    } else if (!tokenManager.isLoggedIn()) {
+                        // 死会话（无 refresh / refresh 过期 / 服务端 401）——留在登录页并提示
+                        _uiState.update {
+                            it.copy(isLoggedIn = false, errorMessage = text(R.string.error_session_expired))
+                        }
+                        return@launch
+                    }
+                    // 瞬时网络失败：isLoggedIn 仍 true，允许本地恢复，后续 401 再走 tokenExpired
+                }
+                if (!app.signalProtocol.isInitializedFor(userId)) {
                     try {
                         app.signalProtocol.initialize(token, userId)
                     } catch (error: kotlinx.coroutines.CancellationException) {
@@ -70,6 +93,14 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    private fun userFacingError(error: Throwable, fallback: String): String =
+        error.toUserFacingMessage(
+            networkMessage = text(R.string.error_network),
+            timeoutMessage = text(R.string.error_timeout),
+            invalidResponseMessage = text(R.string.error_invalid_response),
+            fallbackMessage = fallback,
+        )
 
     fun onEmailChange(email: String) {
         // 8.61：改邮箱后重置验证码状态/倒计时，避免旧邮箱的「已发送/倒计时」串到新邮箱
@@ -165,7 +196,12 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     },
                     onFailure = { error ->
-                        _uiState.update { it.copy(isCodeSending = false, errorMessage = error.message ?: text(R.string.error_send_code_failed)) }
+                        _uiState.update {
+                            it.copy(
+                                isCodeSending = false,
+                                errorMessage = userFacingError(error, text(R.string.error_send_code_failed)),
+                            )
+                        }
                     }
                 )
             } catch (error: kotlinx.coroutines.CancellationException) {
@@ -173,7 +209,12 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 throw error
             } catch (error: Exception) {
                 // 兜底：未预期异常（如 IOException、NPE）也会重置 isCodeSending，避免 spinner 永久卡住
-                _uiState.update { it.copy(isCodeSending = false, errorMessage = error.message ?: text(R.string.error_send_code_failed)) }
+                _uiState.update {
+                    it.copy(
+                        isCodeSending = false,
+                        errorMessage = userFacingError(error, text(R.string.error_send_code_failed)),
+                    )
+                }
             }
         }
     }
@@ -229,7 +270,10 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         },
                         onFailure = { error ->
                             _uiState.update {
-                                it.copy(isLoading = false, errorMessage = error.message ?: text(R.string.error_operation_failed))
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = userFacingError(error, text(R.string.error_operation_failed)),
+                                )
                             }
                         }
                     )
@@ -238,7 +282,12 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     throw error
                 } catch (error: Exception) {
                     // 兜底：未预期异常也会重置 isLoading，避免 spinner 永久卡住
-                    _uiState.update { it.copy(isLoading = false, errorMessage = error.message ?: text(R.string.error_operation_failed)) }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = userFacingError(error, text(R.string.error_operation_failed)),
+                        )
+                    }
                 }
             }
             return
@@ -324,7 +373,12 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                             .onFailure { android.util.Log.w("LoginViewModel", "attachment reconcile after login failed", it) }
                     },
                     onFailure = { error ->
-                        _uiState.update { it.copy(isLoading = false, errorMessage = error.message ?: text(R.string.error_operation_failed)) }
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = userFacingError(error, text(R.string.error_operation_failed)),
+                            )
+                        }
                     }
                 )
             } catch (error: kotlinx.coroutines.CancellationException) {
@@ -333,7 +387,12 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 throw error
             } catch (error: Exception) {
                 // 兜底：未预期异常也会重置 isLoading，避免 spinner 永久卡住
-                _uiState.update { it.copy(isLoading = false, errorMessage = error.message ?: text(R.string.error_operation_failed)) }
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = userFacingError(error, text(R.string.error_operation_failed)),
+                    )
+                }
             }
         }
     }

@@ -166,20 +166,13 @@ class TokenManager private constructor(private val context: Context) {
     fun getUserId(): String? =
         readPrefsWithRetry(ApiConfig.Prefs.USER_ID_KEY) { it.getString(ApiConfig.Prefs.USER_ID_KEY, null) }
 
-    fun isLoggedIn(): Boolean {
-        if (getToken().isNullOrBlank()) return false
-        val now = System.currentTimeMillis()
-        val accessExp = getAccessTokenExpiresAt()
-        // 8.47 修复：access 未过期即视为已登录（正常使用中）——此前 refresh 本地记录
-        // 过期就判未登录，即便 access（15min TTL）仍有效也会被误踢回登录页
-        //（refresh 记录失准/被篡改时）。access 已过期才需要 refresh 兜底。
-        if (accessExp <= 0L || accessExp > now) return true
-        // access 已过期：仅当 refresh 也明确过期才判未登录；
-        // refresh 仍有效视为已登录（ApiService 收到 401 会自动刷新 access）
-        val refreshExp = getRefreshTokenExpiresAt()
-        if (refreshExp > 0L && refreshExp <= now) return false
-        return true
-    }
+    fun isLoggedIn(): Boolean = SessionPresencePolicy.isLoggedIn(
+        token = getToken(),
+        userId = getUserId(),
+        accessTokenExpiresAt = getAccessTokenExpiresAt(),
+        refreshToken = getRefreshToken(),
+        refreshTokenExpiresAt = getRefreshTokenExpiresAt(),
+    )
 
     /** @deprecated Prefer per-chat cursors via [saveLastSyncAtMs]/chatId] / [getLastSyncAtMs]. */
     fun saveLastSyncAtMs(timestamp: Long): Boolean =
