@@ -22,43 +22,78 @@ object ScreenSecurePolicy {
         return globalEnabled && onChatSurface
     }
 
-    /** 会话详情 / 群详情 / 媒体中心 / 星标 / AI 任务 / 水印取证等含消息内容的界面 */
+    /** 会话详情 / 群详情 / 媒体中心 / 星标 / AI 任务 / 水印取证 / 来电 / 群玩法等含消息内容的界面 */
     fun isChatSurfaceRoute(route: String?): Boolean {
         if (route.isNullOrBlank()) return false
         val path = route.substringBefore('?')
-        return path.startsWith("chat_detail") ||
-            path.startsWith("group_detail") ||
-            path.startsWith("starred_messages") ||
-            path.startsWith("ai_tasks") ||
-            path.startsWith("media_center") ||
-            path.startsWith("watermark_forensic") ||
-            path.startsWith("call")
+        val head = path.substringBefore('/')
+        return head in CHAT_SURFACE_HEADS
     }
 
     /**
      * Extract chatId from chat-surface routes.
-     * Patterns: chat_detail/{id}, media_center/{id}, ai_tasks/{id}, …
+     * Path: chat_detail/{id}, chat_detail_two_pane/{id}, group_poll/{id}, …
+     * Query: starred_messages?chatId={id}
      */
     fun extractChatIdFromRoute(route: String?): String? {
         if (route.isNullOrBlank()) return null
         val path = route.substringBefore('?')
+        val query = route.substringAfter('?', missingDelimiterValue = "")
         val segments = path.split('/').filter { it.isNotBlank() }
-        if (segments.size < 2) return null
-        val prefix = segments[0]
-        if (
-            prefix != "chat_detail" &&
-            prefix != "group_detail" &&
-            prefix != "starred_messages" &&
-            prefix != "ai_tasks" &&
-            prefix != "media_center"
-        ) {
-            return null
+        val prefix = segments.getOrNull(0)
+        val pathChatId = if (prefix != null && prefix in PATH_CHAT_ID_PREFIXES && segments.size >= 2) {
+            decodeSegment(segments[1])
+        } else {
+            null
         }
-        return runCatching {
+        if (!pathChatId.isNullOrBlank()) return pathChatId
+        return queryParam(query, "chatId")?.let(::decodeSegment)
+    }
+
+    private fun queryParam(query: String, name: String): String? {
+        if (query.isBlank()) return null
+        return query.split('&').firstNotNullOfOrNull { part ->
+            val key = part.substringBefore('=')
+            val value = part.substringAfter('=', missingDelimiterValue = "")
+            value.takeIf { key == name && it.isNotBlank() }
+        }
+    }
+
+    private fun decodeSegment(raw: String): String? =
+        runCatching {
             java.net.URLDecoder.decode(
-                segments[1].replace("+", "%2B"),
+                raw.replace("+", "%2B"),
                 java.nio.charset.StandardCharsets.UTF_8.name()
             )
         }.getOrNull()?.takeIf { it.isNotBlank() }
-    }
+
+    private val CHAT_SURFACE_HEADS = setOf(
+        "chat_detail",
+        "chat_detail_two_pane",
+        "chat_detail_list_pane",
+        "group_detail",
+        "starred_messages",
+        "ai_tasks",
+        "media_center",
+        "watermark_forensic",
+        "call",
+        "incoming_call",
+        "group_poll",
+        "group_checkin",
+        "group_chain",
+        "group_pk"
+    )
+
+    private val PATH_CHAT_ID_PREFIXES = setOf(
+        "chat_detail",
+        "chat_detail_two_pane",
+        "group_detail",
+        "starred_messages",
+        "ai_tasks",
+        "media_center",
+        "group_poll",
+        "group_checkin",
+        "group_chain",
+        "group_pk"
+    )
 }

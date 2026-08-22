@@ -26,6 +26,23 @@ import java.util.Base64
  * 密码以 PBKDF2 哈希存储（salt + iterations + hash），不再保存明文；
  * 连续失败 [MAX_FAILURES] 次后进入 [LOCKOUT_MS] 退避，防暴力尝试。
  */
+object FakeChatPolicy {
+    fun shouldShowFake(
+        enabled: Boolean,
+        hasPin: Boolean,
+        unlockedForCurrentUser: Boolean,
+        relockOnBackground: Boolean,
+        backgroundAtMillis: Long
+    ): Boolean {
+        if (!enabled || !hasPin) return false
+        if (unlockedForCurrentUser) {
+            if (!relockOnBackground) return false
+            if (backgroundAtMillis <= 0L) return false
+        }
+        return true
+    }
+}
+
 object FakeChatManager {
     private const val PREFS = "fake_chat"
 
@@ -67,9 +84,11 @@ object FakeChatManager {
         return prefs(ctx).getBoolean(key(KEY_ENABLED, userId), false)
     }
 
-    fun setEnabled(ctx: Context, enabled: Boolean) {
+    /** 开启必须已设置 PIN，否则返回 false 且不写入，避免无解锁口的死锁入口。 */
+    fun setEnabled(ctx: Context, enabled: Boolean): Boolean {
         val userId = userId(ctx)
-        if (userId.isBlank()) return
+        if (userId.isBlank()) return false
+        if (enabled && !hasPin(ctx)) return false
         prefs(ctx).edit()
             .putBoolean(key(KEY_ENABLED, userId), enabled)
             .remove(key(KEY_BACKGROUND_AT, userId))
@@ -77,6 +96,7 @@ object FakeChatManager {
         if (!enabled) {
             if (unlockedUserId == userId) unlockedUserId = null
         }
+        return true
     }
 
     // ---- 解锁密码（PBKDF2 哈希） ----
@@ -87,11 +107,11 @@ object FakeChatManager {
         return prefs(ctx).contains(key(KEY_PIN, userId))
     }
 
-    /** 设置/更新解锁密码。拒绝默认弱密码与非法格式；仅存 salt+hash。 */
-    fun setPin(ctx: Context, pin: String) {
+    /** 设置/更新解锁密码。拒绝默认弱密码与非法格式；仅存 salt+hash。成功返回 true。 */
+    fun setPin(ctx: Context, pin: String): Boolean {
         val userId = userId(ctx)
-        if (userId.isBlank() || !isPinValid(pin)) return
-        if (pin == "0000" || pin == "1234") return
+        if (userId.isBlank() || !isPinValid(pin)) return false
+        if (pin == "0000" || pin == "1234") return false
         val salt = ByteArray(SALT_BYTES).also { SecureRandom().nextBytes(it) }
         val hash = pbkdf2(pin, salt, PBKDF2_ITERATIONS)
         prefs(ctx).edit()
@@ -102,6 +122,7 @@ object FakeChatManager {
             .remove(key(KEY_FAILURES, userId))
             .remove(key(KEY_LOCKED_UNTIL, userId))
             .apply()
+        return true
     }
 
     /** 校验解锁密码；失败退避 + 失败计数。旧明文存储自动迁移为哈希。 */
@@ -181,18 +202,18 @@ object FakeChatManager {
         prefs(ctx).edit().putBoolean(key(KEY_RELOCK_BACKGROUND, userId), value).apply()
     }
 
-    /** 是否应该用假聊天界面拦截前台（冷启动 / 从后台返回）。 */
+    /** 是否应该用假聊天界面拦截前台（冷启动 / 从后台返回）。无 PIN 时绝不拦截，避免死锁。 */
     fun shouldShowFake(ctx: Context, nowMillis: Long = System.currentTimeMillis()): Boolean {
         val userId = userId(ctx)
-        if (userId.isBlank() || !isEnabled(ctx)) return false
-        if (unlockedUserId == userId) {
-            // 不重锁：解锁状态在进程存活期间持续有效
-            if (!isRelockOnBackground(ctx)) return false
-            // 重锁：退后台后失效；从未退后台（backgroundAt==0）则保持解锁
-            val backgroundAt = prefs(ctx).getLong(key(KEY_BACKGROUND_AT, userId), 0L)
-            if (backgroundAt <= 0L) return false
-        }
-        return true
+        if (userId.isBlank()) return false
+        val backgroundAt = prefs(ctx).getLong(key(KEY_BACKGROUND_AT, userId), 0L)
+        return FakeChatPolicy.shouldShowFake(
+            enabled = isEnabled(ctx),
+            hasPin = hasPin(ctx),
+            unlockedForCurrentUser = unlockedUserId == userId,
+            relockOnBackground = isRelockOnBackground(ctx),
+            backgroundAtMillis = backgroundAt
+        )
     }
 
     /** 假界面内通过密码验证成功后调用，进入真实 App。 */
@@ -236,6 +257,32 @@ object FakeChatManager {
         val userId = userId(ctx)
         if (userId.isBlank()) return
         prefs(ctx).edit().remove(key(KEY_HIDE_ICON, userId)).apply()
+    }
+
+    /**
+     * 登出/换号：若该账号曾隐藏桌面图标，恢复全局 Launcher 组件，避免下一账号找不到入口。
+     * 组件状态是进程级/包级的，不是按账号隔离的。
+     */
+    fun restoreLauncherIfHiddenForUser(ctx: Context, userId: String) {
+        if (userId.isBlank()) return
+        val hidden = prefs(ctx).getBoolean(key(KEY_HIDE_ICON, userId), false)
+        if (!hidden) return
+        val restored = runCatching {
+            val pm = ctx.packageManager
+            val component = ComponentName(ctx, MainActivity::class.java)
+            pm.setComponentEnabledSetting(
+                component,
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP
+            )
+            true
+        }.getOrElse {
+            Log.w("FakeChatManager", "restore launcher icon failed", it)
+            false
+        }
+        if (restored) {
+            prefs(ctx).edit().remove(key(KEY_HIDE_ICON, userId)).apply()
+        }
     }
 
     /**
