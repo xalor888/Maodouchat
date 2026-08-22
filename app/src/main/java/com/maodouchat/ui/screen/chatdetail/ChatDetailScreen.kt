@@ -3317,7 +3317,11 @@ if (showGroupCallTypeDialog) {
             ChatInputBar(
                 value = state.inputText,
                 onValueChange = { viewModel.onInputChange(it) },
-                onSend = { viewModel.sendMessage(replyTarget = replyTarget); replyTarget = null },
+                onSend = {
+                    if (state.isSending) return@ChatInputBar
+                    viewModel.sendMessage(replyTarget = replyTarget)
+                    replyTarget = null
+                },
                 onScheduleSend = {
                     if (state.inputText.isBlank()) {
                         Toast.makeText(context, context.getString(R.string.schedule_need_text), Toast.LENGTH_SHORT).show()
@@ -3453,6 +3457,7 @@ if (showGroupCallTypeDialog) {
                 },
                 silentSend = state.silentSend,
                 onToggleSilentSend = viewModel::toggleSilentSend,
+                isSending = state.isSending,
                 readOnly = state.chat?.isChannel == true && state.myMemberRole != "OWNER",
             )
             }
@@ -8112,6 +8117,7 @@ private fun ChatInputBar(
     disabledAttachmentMessage: String? = null,
     silentSend: Boolean = false,
     onToggleSilentSend: () -> Unit = {},
+    isSending: Boolean = false,
     /** 只读模式（广播频道订阅者）：隐藏输入区，显示单向广播提示。 */
     readOnly: Boolean = false,
     readOnlyMessage: String? = null,
@@ -8617,7 +8623,7 @@ private fun ChatInputBar(
                         imeAction = if (enterToSend) androidx.compose.ui.text.input.ImeAction.Send else androidx.compose.ui.text.input.ImeAction.Default
                     ),
                     keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                        onSend = { if (enterToSend) onSend() }
+                        onSend = { if (enterToSend && !isSending) onSend() }
                     ),
                     trailingIcon = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -8878,6 +8884,7 @@ private fun ChatInputBar(
                         com.maodouchat.util.HapticGate.perform(hapticContext, haptic, HapticFeedbackType.TextHandleMove)
                         onToggleSilentSend()
                     },
+                    enabled = !isSending,
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
@@ -8905,8 +8912,9 @@ private fun ChatInputBar(
                             scaleY = sendScale
                         }
                         .shadow(2.dp, CircleShape)
-                        .background(if (silentSend) Outline else Primary, CircleShape)
+                        .background(if (silentSend || isSending) Outline else Primary, CircleShape)
                         .combinedClickable(
+                            enabled = !isSending,
                             interactionSource = sendInteraction,
                             indication = null,
                             onClick = {

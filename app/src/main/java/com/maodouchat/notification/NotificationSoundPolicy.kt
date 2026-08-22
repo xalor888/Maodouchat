@@ -14,6 +14,17 @@ object NotificationSoundPolicy {
     fun messageSoundEnabled(runtimeFlagEnabled: Boolean, userPreferenceEnabled: Boolean): Boolean =
         runtimeFlagEnabled && userPreferenceEnabled
 
+    /**
+     * 后台补发托盘通知（BacklogSyncWorker）的发声判定。
+     * 在 [messageSoundEnabled] 之上再叠加会话静音：静音会话即使 flag/偏好都开也不响。
+     */
+    fun trayMessageSoundEnabled(
+        runtimeFlagEnabled: Boolean,
+        userPreferenceEnabled: Boolean,
+        chatMuted: Boolean,
+    ): Boolean =
+        messageSoundEnabled(runtimeFlagEnabled, userPreferenceEnabled) && !chatMuted
+
     /** 来电铃声：服务端 ringtone flag（RuntimeFlags.RINGTONE）与用户偏好同时为真才响铃。 */
     fun ringtoneEnabled(runtimeFlagEnabled: Boolean, userPreferenceEnabled: Boolean): Boolean =
         runtimeFlagEnabled && userPreferenceEnabled

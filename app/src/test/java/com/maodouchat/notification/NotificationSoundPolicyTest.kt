@@ -93,4 +93,36 @@ class NotificationSoundPolicyTest {
             )
         )
     }
+
+    @Test
+    fun trayMessageSoundRequiresFlagPreferenceAndUnmutedChat() {
+        assertTrue(
+            NotificationSoundPolicy.trayMessageSoundEnabled(
+                runtimeFlagEnabled = true,
+                userPreferenceEnabled = true,
+                chatMuted = false,
+            )
+        )
+        assertFalse(
+            NotificationSoundPolicy.trayMessageSoundEnabled(
+                runtimeFlagEnabled = false,
+                userPreferenceEnabled = true,
+                chatMuted = false,
+            )
+        )
+        assertFalse(
+            NotificationSoundPolicy.trayMessageSoundEnabled(
+                runtimeFlagEnabled = true,
+                userPreferenceEnabled = false,
+                chatMuted = false,
+            )
+        )
+        assertFalse(
+            NotificationSoundPolicy.trayMessageSoundEnabled(
+                runtimeFlagEnabled = true,
+                userPreferenceEnabled = true,
+                chatMuted = true,
+            )
+        )
+    }
 }

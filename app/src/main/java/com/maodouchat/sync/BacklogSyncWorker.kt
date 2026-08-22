@@ -19,6 +19,7 @@ import com.maodouchat.network.ApiService
 import com.maodouchat.network.MessageDto
 import com.maodouchat.network.TokenManager
 import com.maodouchat.notification.NotificationPreferences
+import com.maodouchat.notification.NotificationSoundPolicy
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.AppNotifier
 import com.maodouchat.util.RuntimeFlags
@@ -189,7 +190,11 @@ class BacklogSyncWorker(
                         senderName = senderName,
                         preview = app.getString(com.maodouchat.R.string.notification_encrypted_message),
                         messageId = notifyMessageId,
-                        soundEnabled = NotificationPreferences.soundEnabled(app) && chat.notificationsMuted != true,
+                        soundEnabled = NotificationSoundPolicy.trayMessageSoundEnabled(
+                            runtimeFlagEnabled = RuntimeFlags.isEnabled(app, RuntimeFlags.NOTIFICATION_SOUND),
+                            userPreferenceEnabled = NotificationPreferences.soundEnabled(app),
+                            chatMuted = chat.notificationsMuted == true,
+                        ),
                         expectedUserId = ownerId,
                         // 0.72：群聊走独立通知渠道（独立铃声）
                         isGroup = chat.isGroup,
