@@ -256,7 +256,8 @@ object BotWebhookService {
                                 com.maodouchat.server.repository.BotRepository.enqueueUpdate(t.botId, body)
                             } catch (cancel: CancellationException) {
                                 throw cancel
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                logger.warn("Bot inbox enqueue failed for bot {}", t.botId, e)
                             }
                         }
                         // Audit slash commands for developer console.
@@ -272,32 +273,21 @@ object BotWebhookService {
                                 )
                             } catch (cancel: CancellationException) {
                                 throw cancel
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                logger.warn("Bot command audit failed for bot {}", t.botId, e)
                             }
                         }
                         if (!url.isNullOrBlank()) {
                             // 投递重试（指数退避）+ 失败回退收件箱：事件不允许一次性丢失。
                             // bot 配置了 webhook 但服务端暂时失败时，回退写 inbox 供 bot 轮询兜底。
-                            var delivered = false
-                            for (attempt in 1..WEBHOOK_MAX_ATTEMPTS) {
-                                try {
-                                    postJson(url, body, ts, t.tokenHash, t.botId)
-                                    delivered = true
-                                    break
-                                } catch (cancel: CancellationException) {
-                                    throw cancel
-                                } catch (_: Exception) {
-                                    if (attempt < WEBHOOK_MAX_ATTEMPTS) {
-                                        delay(WEBHOOK_RETRY_BASE_MS * attempt)
-                                    }
-                                }
-                            }
+                            val delivered = deliverWebhook(url, body, ts, t.tokenHash, t.botId)
                             if (!delivered) {
                                 try {
                                     com.maodouchat.server.repository.BotRepository.enqueueUpdate(t.botId, body)
                                 } catch (cancel: CancellationException) {
                                     throw cancel
-                                } catch (_: Exception) {
+                                } catch (e: Exception) {
+                                    logger.warn("Bot inbox fallback failed for bot {}", t.botId, e)
                                 }
                             }
                         }
@@ -326,36 +316,62 @@ object BotWebhookService {
             // Inbox already enqueued by caller; only fire webhook here if configured.
             val url = target.second
             if (!url.isNullOrBlank()) {
-                // 与 notifyChatEvent 一致：重试 + 失败回退 inbox，事件不丢失。
-                var delivered = false
-                for (attempt in 1..WEBHOOK_MAX_ATTEMPTS) {
-                    try {
-                        postJson(url, bodyJson, ts, target.third, target.first)
-                        delivered = true
-                        break
-                    } catch (cancel: CancellationException) {
-                        throw cancel
-                    } catch (_: Exception) {
-                        if (attempt < WEBHOOK_MAX_ATTEMPTS) {
-                            delay(WEBHOOK_RETRY_BASE_MS * attempt)
-                        }
-                    }
-                }
+                val delivered = deliverWebhook(url, bodyJson, ts, target.third, target.first)
                 if (!delivered) {
                     // 8.39：不再补写收件箱——调用方（enqueueCallbackIfAuthorized）已入队，
                     // 此处补投会造成同一条事件重复入 inbox（bot 用 getUpdates 拉取收到两次）。
                     // 只记日志，bot 仍可从既有收件箱行取到该事件。
-                    java.util.logging.Logger.getLogger("BotWebhookService")
-                        .warning("webhook delivery failed for bot ${target.first}; inbox fallback already enqueued")
+                    logger.warn(
+                        "webhook delivery failed for bot {}; inbox fallback already enqueued",
+                        target.first
+                    )
                 }
             }
         }
     }
 
+    private suspend fun deliverWebhook(
+        url: String,
+        body: String,
+        ts: Long,
+        tokenHash: String,
+        botId: String
+    ): Boolean {
+        for (attempt in 1..WEBHOOK_MAX_ATTEMPTS) {
+            try {
+                postJson(url, body, ts, tokenHash, botId)
+                return true
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (e: Exception) {
+                val retry = isRetryableWebhookFailure(e) && attempt < WEBHOOK_MAX_ATTEMPTS
+                if (retry) {
+                    logger.warn(
+                        "Bot webhook attempt {}/{} failed for bot {}; retrying",
+                        attempt,
+                        WEBHOOK_MAX_ATTEMPTS,
+                        botId,
+                        e
+                    )
+                    delay(WEBHOOK_RETRY_BASE_MS * attempt)
+                } else {
+                    logger.warn(
+                        "Bot webhook delivery failed for bot {} after {} attempt(s)",
+                        botId,
+                        attempt,
+                        e
+                    )
+                    return false
+                }
+            }
+        }
+        return false
+    }
+
     private fun postJson(url: String, body: String, ts: Long, tokenHash: String, botId: String) {
         val signingInput = "$ts.$body"
         val signature = hmacSha256Hex(tokenHash, signingInput)
-        com.maodouchat.server.plugins.postPinnedWebhookJson(
+        val response = com.maodouchat.server.plugins.postPinnedWebhookJson(
             url = url,
             body = body,
             headers = mapOf(
@@ -367,14 +383,32 @@ object BotWebhookService {
             connectTimeoutMs = 3_000,
             readTimeoutMs = 3_000
         )
+        if (response.statusCode !in 200..299) {
+            throw WebhookHttpException(response.statusCode, botId)
+        }
     }
 
     private fun hmacSha256Hex(secret: String, message: String): String {
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(secret.toByteArray(StandardCharsets.UTF_8), "HmacSHA256"))
         val raw = mac.doFinal(message.toByteArray(StandardCharsets.UTF_8))
-        return raw.joinToString("") { "%02x".format(it) }
+        // Byte 是有符号的：`"%02x".format(it)` 会对 0x80..0xFF 符号扩展成 "ffffff80"。
+        return raw.joinToString("") { "%02x".format(it.toInt() and 0xff) }
     }
+
+    private fun isRetryableWebhookFailure(error: Exception): Boolean {
+        if (error is SecurityException || error is IllegalArgumentException) return false
+        if (error is WebhookHttpException) {
+            val code = error.statusCode
+            return code == 408 || code == 429 || code in 500..599
+        }
+        return true
+    }
+
+    private class WebhookHttpException(
+        val statusCode: Int,
+        botId: String
+    ) : Exception("webhook HTTP $statusCode for bot $botId")
 
     /** Helper for docs / self-test: hash of raw bot token (same as BotRepository). */
     fun hashTokenLike(token: String): String {
