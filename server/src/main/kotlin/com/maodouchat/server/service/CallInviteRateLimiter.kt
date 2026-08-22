@@ -21,8 +21,8 @@ class CallInviteRateLimiter(
     @Synchronized
     fun tryAcquire(userId: String, callId: String): CallInviteRateLimitDecision {
         val now = nowMillis()
-        // 定期清理不再活跃用户的条目，防止内存泄漏
-        if (now - lastSweepAt > SWEEP_INTERVAL_MS) {
+        // 定期清理不再活跃用户的条目，防止内存泄漏。时钟回拨时也扫一次，避免 lastSweepAt 卡在未来。
+        if (lastSweepAt == 0L || now < lastSweepAt || now - lastSweepAt > SWEEP_INTERVAL_MS) {
             lastSweepAt = now
             val cutoff = now - TEN_MINUTES_MS
             attemptsByUser.entries.removeIf { (_, attempts) ->
@@ -45,7 +45,9 @@ class CallInviteRateLimiter(
             // 超过 64 成员的群（默认上限 200/硬上限 500）第 65+ 收件人被回落常规限流
             //（5 次/分钟），大群通话邀请后半段全部失败。上限提到群硬上限，并限定在
             // 首次尝试后 60s 的 fan-out 窗口内，防 1:1 复用 callId 的长时刷量。
-            if (hits < MAX_DEDUP_HITS && first != null && now - first.timestamp < FANOUT_WINDOW_MS) {
+            // XAL-38：1:1 sessionKey 带 `d:` 前缀，去重只允许少量 offer 重试；群 `g:` 仍 500。
+            val maxDedupHits = if (callId.startsWith(GROUP_SESSION_PREFIX)) MAX_GROUP_DEDUP_HITS else MAX_DIRECT_DEDUP_HITS
+            if (hits < maxDedupHits && first != null && now - first.timestamp in 0 until FANOUT_WINDOW_MS) {
                 dedupHitsByKey[dedupKey] = DedupEntry(hits = hits + 1, lastAccess = now)
                 return CallInviteRateLimitDecision(allowed = true)
             }
@@ -61,7 +63,7 @@ class CallInviteRateLimiter(
         if (blockedBy != null) {
             return CallInviteRateLimitDecision(
                 allowed = false,
-                retryAfterSeconds = ((blockedBy - now).coerceAtLeast(1) + 999) / 1000
+                retryAfterSeconds = retryAfterSeconds(blockedBy, now)
             )
         }
 
@@ -74,14 +76,30 @@ class CallInviteRateLimiter(
         private const val TEN_MINUTES_MS = 10 * ONE_MINUTE_MS
         private const val SWEEP_INTERVAL_MS = 60_000L
         /** 9.165：去重上限对齐群成员硬上限（500）——大群通话 fan-out 不再被 64 截断。 */
-        private const val MAX_DEDUP_HITS = 500
+        private const val MAX_GROUP_DEDUP_HITS = 500
+        /** 1:1 同 session 仅允许少量 offer 重试；再刷则计入 5/min、20/10min。 */
+        private const val MAX_DIRECT_DEDUP_HITS = 3
         /** 9.165：fan-out 去重窗口——同 callId 仅在首次尝试后 60s 内免计次。 */
         private const val FANOUT_WINDOW_MS = 60_000L
+        private const val GROUP_SESSION_PREFIX = "g:"
+        private const val DIRECT_SESSION_PREFIX = "d:"
 
         fun isInitialInvite(type: String, groupId: String, groupInvite: Boolean): Boolean =
             type.equals("offer", ignoreCase = true) && (groupId.isBlank() || groupInvite)
 
         fun sessionKey(callId: String, groupId: String, toUserId: String): String =
-            if (groupId.isBlank()) "${callId.ifBlank { "legacy" }}:$toUserId" else "$groupId:$callId"
+            if (groupId.isBlank()) {
+                // Blank 1:1 callId must not collapse onto a shared "legacy" key (invite spam
+                // and cross-call mis-dedup). Group fan-out keeps a stable id so recipients share one session.
+                val id = callId.ifBlank { "legacy_${UUID.randomUUID()}" }
+                "$DIRECT_SESSION_PREFIX$id:$toUserId"
+            } else {
+                "$GROUP_SESSION_PREFIX$groupId:${callId.ifBlank { "legacy" }}"
+            }
+
+        internal fun retryAfterSeconds(blockedBy: Long, now: Long): Long {
+            val ms = (blockedBy - now).coerceAtLeast(1L)
+            return ((ms + 999) / 1000).coerceAtLeast(1L)
+        }
     }
 }
