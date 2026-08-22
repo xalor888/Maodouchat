@@ -1,0 +1,10 @@
+{
+  "name": "verification-run",
+  "id": "verification-run",
+  "description": "Run read-only Gradle and Node verification commands in the repository and report exact outputs, statuses, timings, and worktree changes.",
+  "captainSessionId": "3d93ac59-399c-4265-ad07-17038b1622cd",
+  "createdAt": 1787388111105,
+  "members": [],
+  "tasks": [],
+  "taskSeq": 0
+}

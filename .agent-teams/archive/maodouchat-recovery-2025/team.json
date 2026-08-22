@@ -1,0 +1,119 @@
+{
+  "name": "maodouchat-recovery-2025",
+  "id": "maodouchat-recovery-2025",
+  "description": "Stabilize and modernize the Maodouchat client UI and core chat/backend reliability, validate locally, then commit/push and deploy to the explicitly provided Hong Kong server after verification.",
+  "captainSessionId": "session-d0247094-e62e-41b0-aaf9-0d9e91047e92",
+  "createdAt": 1787390117847,
+  "members": [
+    {
+      "id": "2325ff42-83af-4041-a6b9-17704a40ce99",
+      "name": "ui-auditor",
+      "role": "Audit and modernize client UI, duplicate switches, dark mode, sharing-link flows; inspect reference folders and implement scoped fixes.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787390193819,
+      "status": "removed"
+    },
+    {
+      "id": "e4337614-1c72-4e34-a881-e98cd04be819",
+      "name": "chat-reliability",
+      "role": "Investigate sender keys, decryption failures, message key crashes/repeats, notification sound; implement and test reliability fixes.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787390193853,
+      "status": "removed"
+    },
+    {
+      "id": "d2bcd7b5-ec95-4c65-8c29-76c40f3589c9",
+      "name": "backend-stability",
+      "role": "Audit backend management functions and stability, identify/fix high-impact issues, add focused tests.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787390193874,
+      "status": "removed"
+    },
+    {
+      "id": "6166ac8e-af73-4f35-9c66-42e26a429adc",
+      "name": "qa-deploy",
+      "role": "Inspect repository structure, local test/build/deploy setup, prepare verification and deployment plan; do not deploy until captain approval.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787390193891,
+      "status": "removed"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "subject": "Modernize client UI",
+      "description": "Inspect the repository and reference folders for Murexide/Telegram. Audit duplicate switches, theme tokens, navigation, chat layout, sharing-link UI, and major unusable client flows. Implement the highest-impact UI fixes in your owned files, preserving concurrent work boundaries. Run focused checks and report changed files and remaining risks.",
+      "status": "failed",
+      "assignee": "captain",
+      "dependencies": [],
+      "attempt": 2,
+      "createdAt": 1787390214064,
+      "updatedAt": 1787390515889,
+      "reassigning": false,
+      "attemptId": "6c22545b-2a42-4794-a4cd-caddc3b7a55c",
+      "output": "UI audit identified two concrete fixes (scrollable theme/language chip rows; move QR share chooser launch from IO to Main), but captain file-edit tools are unavailable because every write/edit/bash attempt is rejected as an invalid sandbox escalation while runtime is already danger-full-access. No files changed."
+    },
+    {
+      "id": "t2",
+      "subject": "Repair chat encryption",
+      "description": "Trace sender-key provisioning, decrypt failures, message-key crash/repetition loops, and notification sound handling. Implement robust fixes with focused tests or diagnostics in owned files. Avoid broad UI rewrites; report exact behavior and verification.",
+      "status": "pending",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1787390214077,
+      "updatedAt": 1787390545859,
+      "reassigning": false,
+      "handoffId": "93889788-c3bc-489c-aab1-c729db03f2dd"
+    },
+    {
+      "id": "t3",
+      "subject": "Stabilize backend flows",
+      "description": "Audit backend management endpoints/services and runtime stability. Identify the most severe broken functions, implement scoped fixes and focused tests, and report any blockers. Avoid overlapping UI and crypto files unless required by a clear contract.",
+      "status": "completed",
+      "assignee": "backend-stability",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1787390214101,
+      "updatedAt": 1787390481222,
+      "attemptId": "c14c24ec-faa4-4917-ab7c-142e5311199e",
+      "reassigning": false,
+      "output": "Audited backend management/runtime paths. Found high-impact defect: Admin PUT /api/admin/settings reports success and audits even when submitted keys are unknown because RuntimeConfigService.setMany silently filters them. Sent captain exact fix and focused test proposal. File edits/tests blocked by tool sandbox rejecting all write escalation in current danger-full-access context."
+    },
+    {
+      "id": "t4",
+      "subject": "Map QA and deployment",
+      "description": "Inspect repo structure, package scripts, reference assets, local build/test commands, git remote/branch state, and deployment configuration. Produce a verification/deployment checklist and identify risks. Do not modify files or deploy yet.",
+      "status": "completed",
+      "assignee": "qa-deploy",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1787390214128,
+      "updatedAt": 1787390473057,
+      "attemptId": "c4fda367-670d-4697-99ad-1040c894b002",
+      "reassigning": false,
+      "output": "Mapped repo and ops: root Android Compose Gradle project (Gradle 8.14.5/JDK21/compileSdk36), independent server Ktor Gradle project, npm Playwright E2Es, CI/release jobs, Docker Compose and maintenance scripts. Read-only git refs show main f01bac1e ahead of origin/main b486b694 by four local commits; origin remote is GitHub HTTPS and no Hong Kong target config exists. Reference assets are local gitignored material (Ideaura/Murexide/Telegram/blind_watermark). Sent captain complete verification/deployment checklist and risks: run CI-equivalent Gradle/server/Postgres/browser/compose/Caddy gates; target doctor + DNS/ports/secrets/SMTP-TURN checks; backup before update; health/live-ready/status/admin/WS/E2EE/attachments/calls smoke after deploy. Flagged release unsigned/temporary debug signing fallback, local-ahead remote risk, and backup --dry-run creating temporary backup directories despite read-only docs. No files modified or deployment performed."
+    },
+    {
+      "id": "t5",
+      "subject": "Integrate and deploy",
+      "description": "After all audits and fixes complete, coordinate full local verification, resolve integration issues, prepare commit/push, and deploy only after captain confirms tests/build and target-server access.",
+      "status": "pending",
+      "dependencies": [
+        "t1",
+        "t2",
+        "t3",
+        "t4"
+      ],
+      "attempt": 0,
+      "createdAt": 1787390227228,
+      "updatedAt": 1787390545859,
+      "handoffId": "d5ea6147-377b-4539-a13a-736a9f996d83",
+      "reassigning": false
+    }
+  ],
+  "taskSeq": 5
+}

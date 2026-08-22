@@ -1,0 +1,1 @@
+{"id":"7ac934d0-a6d5-499d-8153-8f12c16e398d","from":"captain","to":"qa-deploy","content":"Please report exact Gradle/server commands, git state, deployment artifacts, and whether the provided host is reachable. Do not deploy yet.","ts":1787390339119,"deliveredAt":1787390339120,"readAt":1787390339120}

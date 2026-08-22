@@ -159,6 +159,12 @@ object AppNotifier {
         }
         // 0.72：群聊消息走独立渠道（独立铃声）
         val channelId = if (isGroup) CHANNEL_GROUP_MESSAGES else CHANNEL_MESSAGES
+        // 9.4xx：服务端 notification_sound_enabled flag 此前只拦设置页开关、发声路径从未生效——
+        // 管理员关闭后存量用户仍响铃。所有消息类通知统一经 NotificationSoundPolicy 判定。
+        val effectiveSoundEnabled = com.maodouchat.notification.NotificationSoundPolicy.messageSoundEnabled(
+            runtimeFlagEnabled = com.maodouchat.util.RuntimeFlags.isEnabled(context, com.maodouchat.util.RuntimeFlags.NOTIFICATION_SOUND),
+            userPreferenceEnabled = soundEnabled
+        )
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(displayTitle)
@@ -169,7 +175,7 @@ object AppNotifier {
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!soundEnabled)
+            .setSilent(!effectiveSoundEnabled)
         // 9.209：第三方服务器模式标注服务器名——服务器身份非隐私内容，脱敏模式下也展示，
         // 避免同时连多个自建服务器的用户分不清通知来自哪台
         if (com.maodouchat.network.ServerIdentity.isThirdPartyServer) {
@@ -347,6 +353,11 @@ object AppNotifier {
             context, incomingCallNotifyId(callId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        // 9.4xx：来电铃声与设置页同门禁——服务端 ringtone flag 关闭时静音来电通知
+        val effectiveSoundEnabled = com.maodouchat.notification.NotificationSoundPolicy.ringtoneEnabled(
+            runtimeFlagEnabled = com.maodouchat.util.RuntimeFlags.isEnabled(context, com.maodouchat.util.RuntimeFlags.RINGTONE),
+            userPreferenceEnabled = soundEnabled
+        )
         val builder = NotificationCompat.Builder(context, CHANNEL_CALLS)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(if (isVideo) R.string.notification_encrypted_video_call else R.string.notification_encrypted_audio_call))
@@ -360,7 +371,7 @@ object AppNotifier {
             .setOngoing(true)
             .setTimeoutAfter(35_000L)
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setSilent(!soundEnabled)
+            .setSilent(!effectiveSoundEnabled)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             builder.setDefaults(NotificationCompat.DEFAULT_ALL)
         }
@@ -434,6 +445,11 @@ object AppNotifier {
         // 1.130：有内容预览时追加到文案（通知栏一行）
         val contentText = if (hideDetails) baseText
         else preview?.takeIf(String::isNotBlank)?.let { "$baseText：$it" } ?: baseText
+        // 9.4xx：与 showMessage 同门禁——服务端 flag 关闭时互动通知同样静音
+        val effectiveSoundEnabled = com.maodouchat.notification.NotificationSoundPolicy.messageSoundEnabled(
+            runtimeFlagEnabled = com.maodouchat.util.RuntimeFlags.isEnabled(context, com.maodouchat.util.RuntimeFlags.NOTIFICATION_SOUND),
+            userPreferenceEnabled = soundEnabled
+        )
         val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.notification_post_interaction))
@@ -443,7 +459,7 @@ object AppNotifier {
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!soundEnabled)
+            .setSilent(!effectiveSoundEnabled)
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return
         // 8.44：动态互动通知独立 tag
@@ -525,6 +541,11 @@ object AppNotifier {
             else -> context.getString(R.string.announcement_level_info)
         }
         val body = "$levelLabel · $title"
+        // 9.4xx：与 showMessage 同门禁——服务端 flag 关闭时公告通知静音
+        val effectiveSoundEnabled = com.maodouchat.notification.NotificationSoundPolicy.messageSoundEnabled(
+            runtimeFlagEnabled = com.maodouchat.util.RuntimeFlags.isEnabled(context, com.maodouchat.util.RuntimeFlags.NOTIFICATION_SOUND),
+            userPreferenceEnabled = soundEnabled
+        )
         val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.notification_announcement_title))
@@ -535,7 +556,7 @@ object AppNotifier {
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!soundEnabled)
+            .setSilent(!effectiveSoundEnabled)
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return
         safeNotify(context, ANNOUNCEMENT_NOTIFICATION_TAG, announcementId.hashCode(), notification, expectedUserId)
@@ -571,6 +592,11 @@ object AppNotifier {
         } else {
             R.string.notification_friend_request_body
         }
+        // 9.4xx：与 showMessage 同门禁——服务端 flag 关闭时好友请求通知静音
+        val effectiveSoundEnabled = com.maodouchat.notification.NotificationSoundPolicy.messageSoundEnabled(
+            runtimeFlagEnabled = com.maodouchat.util.RuntimeFlags.isEnabled(context, com.maodouchat.util.RuntimeFlags.NOTIFICATION_SOUND),
+            userPreferenceEnabled = soundEnabled
+        )
         val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(titleRes))
@@ -580,7 +606,7 @@ object AppNotifier {
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!soundEnabled)
+            .setSilent(!effectiveSoundEnabled)
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return
         safeNotify(context, FRIEND_REQUEST_NOTIFICATION_TAG, requestId.hashCode(), notification, expectedUserId)

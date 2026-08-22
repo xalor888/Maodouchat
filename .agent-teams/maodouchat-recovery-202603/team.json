@@ -1,0 +1,197 @@
+{
+  "name": "maodouchat-recovery-202603",
+  "id": "maodouchat-recovery-202603",
+  "description": "Audit, repair, redesign, test, ship, and deploy Maodouchat end to end, including client/share UI, encryption reliability, notification sound, admin/backend stability, and production verification.",
+  "captainSessionId": "session-f4be19e2-8354-4f2b-9ec9-2c30dec6cec5",
+  "createdAt": 1787387666685,
+  "members": [
+    {
+      "id": "06239932-b5f5-46e4-b96e-57928b408709",
+      "name": "client-ui",
+      "role": "Lead frontend engineer: audit and rebuild client and share-link UI against reference designs, responsive and dark mode.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787387687446,
+      "status": "removed"
+    },
+    {
+      "id": "282d4979-9da0-4cc4-961f-3243784539f5",
+      "name": "crypto-chat",
+      "role": "Chat reliability engineer: diagnose sender-key, decrypt failures, repeated keys, message crashes, realtime state, notification audio.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787387687476,
+      "status": "removed"
+    },
+    {
+      "id": "64ba9548-39df-4175-8268-9aff2b307a12",
+      "name": "backend-admin",
+      "role": "Backend and admin engineer: audit management APIs/UI integration, stability, permissions, and tests.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787387687500,
+      "status": "working"
+    },
+    {
+      "id": "8f021802-8974-4da3-8025-b320f89d4b78",
+      "name": "qa-release",
+      "role": "QA and release engineer: inventory functions, build test matrix, inspect deployment workflow and production verification plan.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787387687525,
+      "status": "idle"
+    },
+    {
+      "id": "8611d699-c88e-4bc4-8e9b-55cb682b5c37",
+      "name": "ui-implementer",
+      "role": "Frontend implementation engineer: execute the already-audited client/share UI repair task only, with tests.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787388427166,
+      "status": "idle"
+    },
+    {
+      "id": "b0b7778c-ef6c-43cc-a146-ced8460a5b25",
+      "name": "crypto-implementer",
+      "role": "Implement the completed crypto/chat/notification repair plan under t6 only; do not revisit audit task t2.",
+      "provider": "weiloo",
+      "model": "gpt-5.6-sol",
+      "joinedAt": 1787389146213,
+      "status": "idle"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "subject": "Audit client UI and references",
+      "description": "Audit the current client and share-link UI, locate duplicate switches, dark-mode/theme defects, broken flows, and inspect reference/Murexide and reference/Telegram (or the actual matching reference directories). Produce a concrete component/file-level redesign plan and identify any safe first implementation slice. Do not edit until reporting the audit to captain.",
+      "status": "completed",
+      "assignee": "client-ui",
+      "dependencies": [],
+      "attempt": 2,
+      "createdAt": 1787387713135,
+      "updatedAt": 1787388266708,
+      "reassigning": false,
+      "attemptId": "dc55dd5c-f261-47d6-bce9-d1c95dec1d4c",
+      "output": "Read-only audit completed. Findings: public profile API leaks email via full UserResponse; self-host share URLs use current BASE_URL but Android deep links/MainActivity/NavGraph hard-code chat.mdou.me; PublicProfileScreen and several Explore/Profile/Search/Notification/Settings screens use fixed light theme tokens, breaking dark mode; AdaptiveLayout divider drag divides by its own 4dp width causing huge jumps; public HTML disables user zoom and lacks proper Android-app fallback CTA; no focused tests cover deep-link/profile HTML/dark-mode/adaptive behavior. Reference review: Murexide Material3 dynamic/OLED and big-screen pane patterns; Telegram theme/editor patterns. No files edited."
+    },
+    {
+      "id": "t2",
+      "subject": "Audit crypto and chat reliability",
+      "description": "Audit chat message encryption/decryption, sender-key lifecycle, key repetition/crashes, realtime message state and notification audio. Reproduce or identify root causes from code/tests/logging. Return file-level findings and a focused repair/test plan; do not edit yet.",
+      "status": "completed",
+      "assignee": "crypto-chat",
+      "dependencies": [],
+      "attempt": 2,
+      "createdAt": 1787387713149,
+      "updatedAt": 1787388831796,
+      "reassigning": false,
+      "attemptId": "784f037f-6d9f-44f0-a713-db225579ed64",
+      "output": "Read-only audit complete. P0: inactive ChatList drops SK_DIST without installing; receiver sender-key loss is permanently unrecoverable because replayed encrypted distribution becomes Duplicate while server sender-reported SENT remains complete. P1: legacy v1 duplicate PreKey messages are swallowed by InvalidMessage fallback and misclassified Failed; NoSession recovery ignores envelope senderDeviceId and group NoSession incorrectly attempts pairwise session; coverage policy supports reportedTotal but callers omit it; restored login ignores initialize=false; realtime WS group notification omits isGroup. P2: failed redistributions orphan sender-key rows; distribution outer/embedded IDs are not cross-validated; timeline builder does not defensively dedupe IDs before Compose keys; persistence wire detection does not trim; ChatDetail event branch can lose collector on post-decrypt DB error. Repair/test plan delivered to captain with file/line locations. No files edited. Focused Gradle tests could not run because delegated bash wrapper rejected current sandbox mode as an escalation; no test output available."
+    },
+    {
+      "id": "t3",
+      "subject": "Audit backend and admin",
+      "description": "Audit backend management features and admin interface/API integration for unusable flows, validation, permissions, error handling, and stability. Run relevant existing tests where practical. Return prioritized findings and repair plan; do not edit yet.",
+      "status": "completed",
+      "assignee": "backend-admin",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1787387713156,
+      "updatedAt": 1787388246085,
+      "attemptId": "19ef45f1-ad85-4c44-ad83-5cfd5dea2b02",
+      "reassigning": false,
+      "output": "Read-only backend/admin audit completed. P0: shipped HTML nav tabs content/moderation/system/diagnostics have no dispatcher mapping; most admin flows are unreachable and stale E2E still targets removed rules tab. P1: immediate announcements are created ACTIVE/published, bypassing publish-only FCM fanout; DRAFT/delete unreachable; TAGGED accepts nonexistent tag. P1: report is marked resolved before deletion/restriction/session-revoke side effects, results ignored, so partial failure is permanent. P1/P2: audit writes are often separate after mutation, risking committed action + 500/no audit; UI uses `class名称` instead of className on toast/modal/danger buttons. P2: settings accept invalid typed values and silently ignore unknown keys while returning success; API helper does not centrally expire/relogin on 401/403; device summary is unbounded. Authorization itself is strong: admin-jwt step-up, 5-minute token, live AdminAccess check, master-account protections; no direct privilege bypass found. Existing XML artifacts show AdminRouteAuthenticationTest and AdminEnhanceRoutesTest passing, but fresh Gradle/node checks could not launch due sandbox tool-mode rejection; browser unavailable (Electron missing). Repair order: restore nav contract + E2E every visible tab; explicit DRAFT→publish CAS with validated tag and durable push outbox; atomic/idempotent report disposition and audit/outbox; typed runtime-setting schema; centralized session expiry; paginate diagnostics; expand negative/failure-injection tests."
+    },
+    {
+      "id": "t4",
+      "subject": "Build QA and release plan",
+      "description": "Inventory the repository architecture, scripts, tests, major user/admin workflows, current git/deployment setup, and reference folders. Design a local validation matrix and a safe push/deploy/rollback procedure for the Hong Kong host. Do not modify production or code.",
+      "status": "completed",
+      "assignee": "qa-release",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1787387713171,
+      "updatedAt": 1787388043943,
+      "attemptId": "8658de61-b270-4843-a3b6-9f3f98077a98",
+      "reassigning": false,
+      "output": "Completed read-only QA/release inventory and delivered detailed plan. Key findings: 137 Android JVM test files/662 tests, 3 instrumentation files omitted from CI, 34 server files/136 tests, 3 browser suites, strong compose/ops checks; release workflow can publish placeholder-URL/debug-signed APK and is not gated on CI; local main f01bac1 differs from cached origin/main b486b69; no HK SSH host configured. Provided P0/P1 local matrix, exact-SHA backup/deploy/live verification runbook, and distinct code-only vs destructive data rollback procedures."
+    },
+    {
+      "id": "t5",
+      "subject": "Implement client and share UI recovery",
+      "description": "Implement the approved frontend recovery slice in frontend-owned files: remove duplicate settings controls and conflicting theme surfaces by establishing one clear source of truth; fix dark/custom theme tokens; redesign Settings profile sharing with copy/share states; repair public profile/share page accessibility and redundant CTA; fix self-host deep-link handling where safe; fix adaptive tablet divider math; add focused policy/unit tests. Preserve existing functionality and do not edit crypto/backend-owned code. Run targeted Android compile/tests and report exact files/results.",
+      "status": "failed",
+      "assignee": "ui-implementer",
+      "dependencies": [
+        "t1"
+      ],
+      "attempt": 4,
+      "createdAt": 1787388138290,
+      "updatedAt": 1787389523759,
+      "reassigning": false,
+      "attemptId": "3f1c0d25-f9a3-40e0-90e5-27b96a4ebb28",
+      "output": "Blocked by tool-runtime schema defect: bash/write/edit all force sandbox escalation parameters, but session already runs danger-full-access with approvals disabled, so every file/shell call is rejected. Zero source edits; no tests ran. Analysis identified exact affected files and backend web-template handoff to t7."
+    },
+    {
+      "id": "t6",
+      "subject": "Repair crypto chat and notification",
+      "description": "Implement verified chat reliability fixes: process inactive-chat SK_DIST safely without unread/preview effects; preserve senderDeviceId during NoSession recovery; classify duplicate legacy messages correctly; validate SenderKey coverage total; trim persistence classification; deduplicate timeline messages deterministically before Compose keys; complete notification sound gating and improve actual sound asset/channel behavior if supported. Add focused regression tests and run targeted Android tests/compile. Avoid broad UI/admin edits.",
+      "status": "failed",
+      "assignee": "crypto-implementer",
+      "dependencies": [
+        "t2"
+      ],
+      "attempt": 3,
+      "createdAt": 1787388138300,
+      "updatedAt": 1787389501947,
+      "reassigning": false,
+      "attemptId": "cf79e1ab-ecb1-4428-82ff-a74924d4d843",
+      "output": "Blocked by worker executor mismatch: edit/bash require sandbox_permissions, but both danger-full-access and workspace-write are rejected as not wider than current danger-full-access. No files changed. Root causes and exact patch locations mapped; captain notified for takeover/runtime correction."
+    },
+    {
+      "id": "t7",
+      "subject": "Repair backend and admin flows",
+      "description": "Implement verified backend/admin fixes: reconnect current grouped navigation tabs to their loaders; correct className styling bugs; update E2E to current nav contract; make report actions failure-safe/retryable and validate side effects; repair announcement lifecycle and other highest-impact validated admin CRUD/API mismatches within scope. Add focused server/browser tests and run them. Avoid Android client files.",
+      "status": "claimed",
+      "assignee": "backend-admin",
+      "dependencies": [
+        "t3"
+      ],
+      "attempt": 21,
+      "createdAt": 1787388138310,
+      "updatedAt": 1787389779136,
+      "attemptId": "31616f1c-4a6c-432b-81bf-1476722090dc",
+      "reassigning": false
+    },
+    {
+      "id": "t8",
+      "subject": "Integrate and verify release candidate",
+      "description": "Review integrated diffs for conflicts, secrets and regressions. Run Android compile/unit/lint/build gates, server compile/tests, browser E2E suites, string parity and topology checks. Inspect UI via available emulator/browser where feasible. Fix only integration/test issues after coordinating ownership. Produce release readiness result and exact blockers; do not push or deploy yet.",
+      "status": "pending",
+      "assignee": "qa-release",
+      "dependencies": [
+        "t5",
+        "t6",
+        "t7"
+      ],
+      "attempt": 0,
+      "createdAt": 1787388138317,
+      "updatedAt": 1787388138317
+    },
+    {
+      "id": "t9",
+      "subject": "Commit push deploy and smoke test",
+      "description": "After captain confirms the verified release candidate, fetch/reconcile origin, review and commit only intended files (never .agent-teams, reference, secrets, build outputs), push the exact reviewed main SHA, then inspect the Hong Kong host read-only, create and verify a production backup, deploy exact SHA with existing compose/scripts, and smoke-test health/admin/public/share/API/logs. Preserve .env and named volumes, record old/new SHA and rollback on failed health. Use supplied server credentials only through sanctioned noninteractive tooling and never expose them in output.",
+      "status": "pending",
+      "assignee": "qa-release",
+      "dependencies": [
+        "t8"
+      ],
+      "attempt": 0,
+      "createdAt": 1787388150082,
+      "updatedAt": 1787388150082
+    }
+  ],
+  "taskSeq": 9
+}
