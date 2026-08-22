@@ -194,6 +194,14 @@ internal class MaodouchatConnection(
             finish(DisconnectCause(DisconnectCause.ERROR))
             return
         }
+        // IncomingCallRoute 只认 pending.autoAnswer；来电页已打开时 poll alreadyHandled
+        // 不会再带 autoAnswer 导航。必须 CAS 替换 pending 对象才能触发自动接听。
+        val marked = IncomingCallCoordinator.markAutoAnswer(pending.callId.ifBlank { callId })
+        if (!marked) {
+            Log.w("MaodouConn", "onAnswer: markAutoAnswer failed, dropping callId=$callId")
+            finish(DisconnectCause(DisconnectCause.ERROR))
+            return
+        }
         // 路由到应用内 CallScreen 完成实际接听
         try {
             val openIntent = Intent(applicationContext, MainActivity::class.java).apply {

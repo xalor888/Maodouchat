@@ -32,6 +32,13 @@ object CallReliabilityPolicy {
     fun shouldAcceptHangUpAction(activeCallId: String, requestedCallId: String): Boolean =
         activeCallId == requestedCallId
 
+    fun normalizeSignalingType(type: String): String = type.trim().lowercase()
+
+    private val CRITICAL_SIGNALING_TYPES = setOf("offer", "answer", "reject", "busy", "hang-up")
+
+    fun isCriticalSignalingType(type: String): Boolean =
+        normalizeSignalingType(type) in CRITICAL_SIGNALING_TYPES
+
     /**
      * ICE state transitions for the single reconnect grace window.
      * - DISCONNECTED -> start/refresh grace (ICE restart 已在 WebRTCManager 内自动触发)

@@ -50,11 +50,31 @@ object IncomingCallCoordinator {
         return if (System.currentTimeMillis() - current.receivedAtMillis > STALE_MS) null else current
     }
 
+    /**
+     * Telecom 系统接听后把同一 pending **替换**成 autoAnswer=true 的新对象。
+     * IncomingCallRoute 用 peek 快照 + LaunchedEffect(incomingCall)，必须换实例才能重跑自动接听。
+     */
+    fun markAutoAnswer(callId: String): Boolean {
+        while (true) {
+            val current = _pending.value ?: return false
+            if (System.currentTimeMillis() - current.receivedAtMillis > STALE_MS) {
+                clear()
+                return false
+            }
+            if (callId.isNotBlank() && current.callId.isNotBlank() && current.callId != callId) {
+                return false
+            }
+            if (current.autoAnswer) return true
+            val updated = current.copy(autoAnswer = true)
+            if (_pending.compareAndSet(current, updated)) return true
+        }
+    }
+
     /** 非消费读 — 用于 LaunchedEffect 重建 answer 参数（rotation 后 consumePending 已消耗） */
     fun peekPending(): PendingIncomingCall? {
         val current = _pending.value ?: return null
         if (System.currentTimeMillis() - current.receivedAtMillis > STALE_MS) {
-            _pending.value = null
+            clear()
             return null
         }
         return current

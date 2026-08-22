@@ -465,6 +465,15 @@ class WebRTCManager(
 
     fun selectAudioRoute(route: CallAudioRoute): Boolean = audioController.selectRoute(route)
 
+    /** 1:1 ICE FAILED / 弱网：由 CallViewModel 按 iceReconnectAction 预算调用。 */
+    fun restartIce() {
+        if (released) return
+        try {
+            peerConnection?.restartIce()
+        } catch (_: Exception) {
+        }
+    }
+
     /**
      * 开关摄像头
      */
@@ -1006,9 +1015,8 @@ class WebRTCManager(
                     try { peerConnection?.restartIce() } catch (_: Exception) {}
                     invokeSafely { onIceConnectionDisconnected?.invoke() }
                 } else if (state == PeerConnection.IceConnectionState.FAILED) {
-                    // FAILED 时也尝试一次 ICE 重启，给弱网最后一次恢复机会
-                    try { peerConnection?.restartIce() } catch (_: Exception) {}
-                    _callState.value = CallState.DISCONNECTED
+                    // 不在 restart 预算用尽前把 manager 标 DISCONNECTED——否则 VM 若尚未
+                    // 抢先 CONNECTED 会直接丢掉 FAILED 回调，通话在 RINGING/CALLING 就死。
                     invokeSafely { onIceConnectionFailed?.invoke() }
                 }
             }
@@ -1024,7 +1032,7 @@ class WebRTCManager(
                         // 缓存远端视频轨道，解决 onTrack 先于 attachRemoteRenderer 的竞态
                         // attach/detachRemoteRenderer 都持 this 锁；onTrack 必须同一把锁，
                         // 避免信令线程与 UI 线程的可见性/复合读写竞态。
-                        synchronized(this) {
+                        synchronized(this@WebRTCManager) {
                             if (released) return@let
                             remoteVideoTrack = track
                             // 如果 renderer 已就绪，立即添加 sink；否则等 attachRemoteRenderer 时补上
