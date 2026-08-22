@@ -507,8 +507,13 @@ class MainActivity : FragmentActivity() {
 
     /** Detail screens call this after toggling 密聊 so FLAG_SECURE updates without re-nav. */
     fun notifySecretChatSurfaceChanged(chatId: String, isSecret: Boolean) {
-        if (isSecret) SecretChatSession.markSurfaceActive(chatId)
-        else SecretChatSession.markSurfaceInactive(chatId, this)
+        if (isSecret) {
+            SecretChatSession.markSurfaceActive(chatId)
+        } else {
+            // 只放 FLAG_SECURE 标记。真正删解密缓存由 disable / logout / SIM 路径承担，
+            // 避免 ChatDetail 在 isSecretChat 尚未查完时把密聊误降成 false 并烧掉媒体。
+            SecretChatSession.clearSurfaceMarker(chatId)
+        }
         onSecretChatSurface = SecretChatSession.hasActiveSecretSurface()
         refreshWindowPrivacy()
     }

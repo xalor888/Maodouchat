@@ -36,4 +36,13 @@ class SecretChatSessionTest {
         SecretChatSession.markSurfaceActive(" ")
         assertFalse(SecretChatSession.hasActiveSecretSurface())
     }
+
+    @Test
+    fun `clearSurfaceMarker does not imply media wipe and leaves others`() {
+        SecretChatSession.markSurfaceActive("keep")
+        SecretChatSession.markSurfaceActive("drop")
+        SecretChatSession.clearSurfaceMarker("drop")
+        SecretChatSession.clearSurfaceMarker("")
+        assertEquals(setOf("keep"), SecretChatSession.activeSecretSurfaceChatIds())
+    }
 }

@@ -183,6 +183,18 @@ class ScreenSecurePolicyTest {
     }
 
     @Test
+    fun `chat lock surface forces secure even when global off`() {
+        assertTrue(
+            ScreenSecurePolicy.shouldSecureWindow(
+                appLockShowing = false,
+                globalEnabled = false,
+                onChatSurface = false,
+                chatLockSurfaceActive = true
+            )
+        )
+    }
+
+    @Test
     fun `optimistic secret surface excludes list pane`() {
         assertTrue(ScreenSecurePolicy.isOptimisticSecretSurface("chat_detail/{chatId}"))
         assertTrue(ScreenSecurePolicy.isOptimisticSecretSurface("chat_detail/abc"))

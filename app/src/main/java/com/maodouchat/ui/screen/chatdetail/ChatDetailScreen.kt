@@ -1059,15 +1059,16 @@ fun ChatDetailScreen(
 
     // Keep FLAG_SECURE in sync when 密聊 toggles without navigation.
     // LocalContext is usually a ContextWrapper — unwrap, do not cast directly.
+    // isSecretChat == null 是尚未查库：不得当成非密聊去清标记（会在乐观窗口里拆掉 FLAG_SECURE）。
     DisposableEffect(state.isSecretChat, state.chat?.id) {
         val chatId = state.chat?.id
-        val isSecret = state.isSecretChat == true
+        val secretState = state.isSecretChat
         val activity = context.findActivity() as? com.maodouchat.MainActivity
-        if (chatId != null) {
-            activity?.notifySecretChatSurfaceChanged(chatId, isSecret)
+        if (chatId != null && secretState != null) {
+            activity?.notifySecretChatSurfaceChanged(chatId, secretState)
         }
         onDispose {
-            if (chatId != null && isSecret) {
+            if (chatId != null && secretState == true) {
                 activity?.notifySecretChatSurfaceLeft(chatId)
             }
         }

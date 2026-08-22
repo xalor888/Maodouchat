@@ -193,11 +193,11 @@ class AiTasksViewModel(
             catch (_: Exception) { false }
         val secret = try { secretChatRepo.isSecret(chatId) }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (_: Exception) { false }
+            catch (_: Exception) { true }
         if (secret) {
             com.maodouchat.security.SecretChatSession.markSurfaceActive(chatId)
         } else {
-            com.maodouchat.security.SecretChatSession.markSurfaceInactive(chatId, getApplication())
+            com.maodouchat.security.SecretChatSession.clearSurfaceMarker(chatId)
         }
         val unlocked = !locked || com.maodouchat.security.ChatLockSession.isUnlocked(chatId)
         val displayName = resolveChatName()
