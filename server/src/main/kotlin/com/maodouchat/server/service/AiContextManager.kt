@@ -29,7 +29,7 @@ class AiContextManager(
      */
     fun selectContext(messages: List<AiContextMessage>, budgetTokens: Int): List<AiContextMessage> {
         if (messages.isEmpty()) return emptyList()
-        val budget = budgetTokens.coerceAtLeast(0)
+        val budget = budgetTokens.coerceIn(0, (maxContextTokens - reservedOutputTokens).coerceAtLeast(0))
         val selected = ArrayDeque<AiContextMessage>()
         var used = 0
         // 从尾部（最新）向前贪心选取
@@ -52,7 +52,7 @@ class AiContextManager(
         budgetTokens: Int
     ): List<AiSemanticSearchCandidate> {
         if (candidates.isEmpty()) return emptyList()
-        val budget = budgetTokens.coerceAtLeast(0)
+        val budget = budgetTokens.coerceIn(0, (maxContextTokens - reservedOutputTokens).coerceAtLeast(0))
         val selected = mutableListOf<AiSemanticSearchCandidate>()
         var used = 0
         for (candidate in candidates) {

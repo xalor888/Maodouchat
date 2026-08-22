@@ -4,8 +4,11 @@ import com.maodouchat.server.model.AiContextMessage
 import com.maodouchat.server.model.AiGroupAssistantResult
 import com.maodouchat.server.model.AiSemanticSearchCandidate
 import com.maodouchat.server.model.AiSemanticSearchMatch
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeout
 
 /**
  * B4 · AI 增强能力服务端编排（复用 AiGateway）。
@@ -36,7 +39,7 @@ class AiEnhanceService(
         if (safe.isEmpty()) return AiEnhanceResult.Invalid("无有效上下文")
         return when (val result = gateway.summarize(safe, "detailed")) {
             is AiGatewayResult.Success ->
-                AiEnhanceResult.Success(ConversationProfileOutput(result.value.take(MAX_OUTPUT_CHARS), result.model), result.inputTokens, result.outputTokens)
+                AiEnhanceResult.Success(ConversationProfileOutput(result.value.take(MAX_OUTPUT_CHARS), result.model), result.inputTokens, result.outputTokens, result.model)
             AiGatewayResult.NotConfigured -> AiEnhanceResult.NotConfigured
             is AiGatewayResult.UpstreamError -> AiEnhanceResult.Upstream(result)
             is AiGatewayResult.InvalidResponse -> AiEnhanceResult.Invalid(result.message)
@@ -59,7 +62,7 @@ class AiEnhanceService(
         return when (result) {
             is AiGatewayResult.Success -> {
                 val report = renderWeeklyReport(result.value)
-                AiEnhanceResult.Success(WeeklyReportOutput(report, result.model), result.inputTokens, result.outputTokens)
+                AiEnhanceResult.Success(WeeklyReportOutput(report, result.model), result.inputTokens, result.outputTokens, result.model)
             }
             AiGatewayResult.NotConfigured -> AiEnhanceResult.NotConfigured
             is AiGatewayResult.UpstreamError -> AiEnhanceResult.Upstream(result)
@@ -79,7 +82,7 @@ class AiEnhanceService(
             is AiGatewayResult.Success -> {
                 val reply = replyResult.value.firstOrNull()?.take(MAX_OUTPUT_CHARS).orEmpty()
                 if (reply.isBlank()) AiEnhanceResult.Invalid("情绪回复为空")
-                else AiEnhanceResult.Success(EmotionReplyOutput(reply, emotion, replyResult.model), replyResult.inputTokens, replyResult.outputTokens)
+                else AiEnhanceResult.Success(EmotionReplyOutput(reply, emotion, replyResult.model), replyResult.inputTokens, replyResult.outputTokens, replyResult.model)
             }
             AiGatewayResult.NotConfigured -> AiEnhanceResult.NotConfigured
             is AiGatewayResult.UpstreamError -> AiEnhanceResult.Upstream(replyResult)
@@ -109,26 +112,32 @@ class AiEnhanceService(
         // 8.52 修复 AI-2：并行化各会话语义重排 + 会话数上限 + 整体超时——原逐 chatId 串行
         //（最多 60 次 LLM 往返）命中 60s 读超时，且客户端放弃后服务端仍继续付费
         val perChat = safeCandidates.groupBy { it.chatId }.toList().take(MAX_CROSS_CHAT_CHATS)
-        val perChatResults = kotlinx.coroutines.withTimeoutOrNull(CROSS_CHAT_TOTAL_TIMEOUT_MS) {
-            kotlinx.coroutines.coroutineScope {
-                perChat.map { (_, group) ->
-                    async {
-                        gateway.semanticSearch(
-                            safeQuery,
-                            group.map { candidate ->
-                                AiSemanticSearchCandidate(
-                                    messageId = candidate.messageId,
-                                    sender = candidate.sender,
-                                    text = candidate.text,
-                                    timestamp = candidate.timestamp
-                                )
-                            },
-                            limit = TOP_MATCHES_PER_CHAT
-                        )
-                    }
-                }.awaitAll()
+        // XAL-36：withTimeout（而非 withTimeoutOrNull + 外层 async）让超时取消子协程，
+        // 避免客户端已 408 后第一跳仍继续打上游。
+        val perChatResults = try {
+            withTimeout(CROSS_CHAT_TOTAL_TIMEOUT_MS) {
+                coroutineScope {
+                    perChat.map { (_, group) ->
+                        async {
+                            gateway.semanticSearch(
+                                safeQuery,
+                                group.map { candidate ->
+                                    AiSemanticSearchCandidate(
+                                        messageId = candidate.messageId,
+                                        sender = candidate.sender,
+                                        text = candidate.text,
+                                        timestamp = candidate.timestamp
+                                    )
+                                },
+                                limit = TOP_MATCHES_PER_CHAT
+                            )
+                        }
+                    }.awaitAll()
+                }
             }
-        } ?: return AiEnhanceResult.Upstream(AiGatewayResult.UpstreamError(408, "AI 处理超时"))
+        } catch (_: TimeoutCancellationException) {
+            return AiEnhanceResult.Upstream(AiGatewayResult.UpstreamError(408, "AI 处理超时"))
+        }
         val matches = mutableListOf<AiSemanticSearchMatch>()
         var firstHopInputTokens = 0L
         var firstHopOutputTokens = 0L
@@ -180,7 +189,8 @@ class AiEnhanceService(
                     ),
                     // 9.139：两跳 token 合计上报——审计与每日预算按此计数
                     firstHopInputTokens + (answerResult.inputTokens ?: 0L),
-                    firstHopOutputTokens + (answerResult.outputTokens ?: 0L)
+                    firstHopOutputTokens + (answerResult.outputTokens ?: 0L),
+                    answerResult.model
                 )
             }
             AiGatewayResult.NotConfigured -> AiEnhanceResult.NotConfigured
@@ -205,7 +215,7 @@ class AiEnhanceService(
             is AiGatewayResult.Success -> {
                 val classes = normalizeClasses(result.value.answer)
                 if (classes.isEmpty()) AiEnhanceResult.Invalid("分类结果无效")
-                else AiEnhanceResult.Success(classes, result.inputTokens, result.outputTokens)
+                else AiEnhanceResult.Success(classes, result.inputTokens, result.outputTokens, result.model)
             }
             AiGatewayResult.NotConfigured -> AiEnhanceResult.NotConfigured
             is AiGatewayResult.UpstreamError -> AiEnhanceResult.Upstream(result)
@@ -218,7 +228,8 @@ class AiEnhanceService(
         maxMessages: Int,
         maxChars: Int
     ): List<AiContextMessage> =
-        messages.take(maxMessages).mapNotNull { message ->
+        // 最近优先：与网关 selectContext 从尾部贪心一致，避免截掉最新消息。
+        messages.takeLast(maxMessages).mapNotNull { message ->
             val text = message.text.trim().take(maxChars)
             if (text.isBlank()) null
             else AiContextMessage(sender = message.sender.trim().take(MAX_SENDER_CHARS), text = text)
@@ -316,7 +327,8 @@ sealed interface AiEnhanceResult<out T> {
     data class Success<T>(
         val value: T,
         val inputTokens: Long? = null,
-        val outputTokens: Long? = null
+        val outputTokens: Long? = null,
+        val model: String? = null
     ) : AiEnhanceResult<T>
     data object NotConfigured : AiEnhanceResult<Nothing>
     data class Upstream(val error: AiGatewayResult.UpstreamError) : AiEnhanceResult<Nothing>

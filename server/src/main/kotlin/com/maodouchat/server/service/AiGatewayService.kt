@@ -43,14 +43,11 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
-import java.security.MessageDigest
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Base64
-import java.util.Collections
-import java.util.LinkedHashMap
 import java.util.concurrent.ConcurrentHashMap
 
 interface AiGateway {
@@ -214,57 +211,8 @@ class AiGatewayService(
             "low"
         }
 
-    // ── 幂等缓存（仅 translate / summarize，依赖实时状态的 rewrite/suggest 不缓存） ──
-    private data class CachedSuccess(
-        val value: String,
-        val model: String,
-        val inputTokens: Long?,
-        val outputTokens: Long?,
-        val createdAt: Long
-    )
-
-    private val idempotencyCache = Collections.synchronizedMap(
-        object : LinkedHashMap<String, CachedSuccess>(256, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CachedSuccess>?): Boolean {
-                val e = eldest ?: return false
-                if (size > 256) return true
-                return System.currentTimeMillis() - e.value.createdAt > IDEMPOTENCY_TTL_MS
-            }
-        }
-    )
-
-    private fun idempotencyKey(feature: String, chatId: String, content: String, mode: String): String {
-        val md = MessageDigest.getInstance("SHA-256")
-        val contentHash = md.digest(content.toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
-        val raw = "$feature|$chatId|$contentHash|$mode"
-        return md.digest(raw.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
-    }
-
-    private fun cacheGet(key: String): AiGatewayResult.Success<String>? {
-        if (!RuntimeConfigService.isAiCacheEnabled()) return null
-        synchronized(idempotencyCache) {
-            val entry = idempotencyCache[key] ?: return null
-            if (System.currentTimeMillis() - entry.createdAt > IDEMPOTENCY_TTL_MS) {
-                idempotencyCache.remove(key)
-                return null
-            }
-            return AiGatewayResult.Success(entry.value, entry.model, entry.inputTokens, entry.outputTokens)
-        }
-    }
-
-    private fun cachePut(key: String, success: AiGatewayResult.Success<String>) {
-        if (!RuntimeConfigService.isAiCacheEnabled()) return
-        synchronized(idempotencyCache) {
-            idempotencyCache[key] = CachedSuccess(
-                value = success.value,
-                model = success.model,
-                inputTokens = success.inputTokens,
-                outputTokens = success.outputTokens,
-                createdAt = System.currentTimeMillis()
-            )
-        }
-    }
+    // XAL-36：translate/summarize 接口无 userId，进程内幂等缓存会把明文结果交给其他用户。
+    // 关闭该缓存；rewrite/suggest 本就不缓存。开关 isAiCacheEnabled 仍保留给未来可隔离路径。
 
     override suspend fun rewrite(
         text: String,
@@ -306,8 +254,7 @@ class AiGatewayService(
     )
 
     override suspend fun translate(text: String, targetLanguage: String): AiGatewayResult<String> {
-        val cacheKey = idempotencyKey("translate", "", text, targetLanguage)
-        cacheGet(cacheKey)?.let { return it }
+        // 接口无 userId：无法按用户隔离缓存。关闭跨请求命中，避免把 A 的译文交给 B。
         val result = createResponse(
             developerMessage = """
                 You translate individual chat messages for Maodouchat.
@@ -320,7 +267,6 @@ class AiGatewayService(
             maxOutputTokens = 500,
             task = AiTask.TRANSLATE
         )
-        if (result is AiGatewayResult.Success) cachePut(cacheKey, result)
         return result
     }
 
@@ -329,7 +275,9 @@ class AiGatewayService(
         tone: String,
         count: Int
     ): AiGatewayResult<List<String>> {
-        val context = messages.takeLast(16).joinToString("\n") { message ->
+        val selected = contextManager.selectContext(messages.takeLast(16), CONTEXT_BUDGET_TOKENS)
+            .ifEmpty { messages.takeLast(16) }
+        val context = selected.joinToString("\n") { message ->
             val sender = message.sender.ifBlank { "user" }.take(40)
             "$sender: ${message.text.trim().take(1_000)}"
         }
@@ -368,7 +316,9 @@ class AiGatewayService(
         count: Int,
         onReply: suspend (String) -> Unit
     ): AiGatewayResult<List<String>> {
-        val context = messages.takeLast(16).joinToString("\n") { message ->
+        val selected = contextManager.selectContext(messages.takeLast(16), CONTEXT_BUDGET_TOKENS)
+            .ifEmpty { messages.takeLast(16) }
+        val context = selected.joinToString("\n") { message ->
             val sender = message.sender.ifBlank { "user" }.take(40)
             "$sender: ${message.text.trim().take(1_000)}"
         }
@@ -433,13 +383,7 @@ class AiGatewayService(
             val sender = message.sender.ifBlank { "user" }.take(40)
             "$sender: ${message.text.trim().take(1_500)}"
         }
-        val cacheKey = idempotencyKey(
-            "summarize",
-            "",
-            selected.joinToString("\n") { "${it.sender}:${it.text}" },
-            style
-        )
-        cacheGet(cacheKey)?.let { return it }
+        // 接口无 userId：摘要缓存会把会话明文结果跨用户复用，关闭此路径。
         val instruction = when (style) {
             "detailed" -> "Summarize the conversation with key points, open questions, and follow-ups."
             "decisions" -> "Extract decisions, tasks, owners if mentioned, deadlines if mentioned, and unresolved questions."
@@ -466,7 +410,6 @@ class AiGatewayService(
             },
             task = AiTask.SUMMARIZE
         )
-        if (result is AiGatewayResult.Success) cachePut(cacheKey, result)
         return result
     }
 
@@ -956,8 +899,12 @@ class AiGatewayService(
         }
 
         suspend fun runOnce(model: String): StreamOutcome {
-            // 8.52 修复 AI-4：流式调用同样受全局并发信号量约束（整个流生命周期持有令牌）
-            if (!llmSemaphore.tryAcquire(LLM_ACQUIRE_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+            // 8.52 / XAL-36：流式 tryAcquire 与 performRequest 一致，放到 IO 调度器，
+            // 避免在 Netty 事件循环上阻塞最长 5s 导致流式中断/整站延迟。
+            if (!withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    llmSemaphore.tryAcquire(LLM_ACQUIRE_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+                }
+            ) {
                 return StreamOutcome(AiGatewayResult.UpstreamError(429, "AI 并发已满，请稍后再试"), false)
             }
             return try {
@@ -1381,8 +1328,6 @@ class AiGatewayService(
         const val RETRY_AFTER_CAP_MS = 30_000L
         /** 上下文 token 预算（为输出预留空间）。 */
         const val CONTEXT_BUDGET_TOKENS = 8_000
-        /** 幂等缓存 TTL（15 分钟）。 */
-        const val IDEMPOTENCY_TTL_MS = 15L * 60L * 1000L
         /** 8.46：流式响应分块读取超时（与 AiStreamingService 对齐，防上游不发数据挂起）。 */
         const val CHUNK_TIMEOUT_MS = 30_000L
 
