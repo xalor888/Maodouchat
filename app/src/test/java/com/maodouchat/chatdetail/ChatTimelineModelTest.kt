@@ -71,6 +71,40 @@ class ChatTimelineModelTest {
         assertTrue(rows[1].showAvatar)
     }
 
+    @Test
+    fun `duplicate message ids keep first occurrence and unique list keys`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m1", "u1", 2L),
+                message("m2", "u2", 3L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+        assertEquals(listOf("m1", "m2"), rows.map { it.message.id })
+        assertEquals(rows.size, rows.map { it.listKey }.toSet().size)
+        assertTrue(items.map { it.listKey }.toSet().size == items.size)
+        assertTrue(items.all { it.listKey.startsWith("date_") || it.listKey.startsWith("msg_") || it.listKey.startsWith("unread_") })
+    }
+
+    @Test
+    fun `blank ids and unread separator never collide with message keys`() {
+        val items = buildChatItems(
+            listOf(
+                message("", "u1", 1L),
+                message("", "u2", 2L),
+                message("m3", "u3", 3L)
+            ),
+            labelForTimestamp = { "day-1" },
+            unreadSeparatorId = "missing"
+        )
+        val keys = items.map { it.listKey }
+        assertEquals(keys.size, keys.toSet().size)
+        assertTrue(items.any { it is ChatItem.UnreadSeparator })
+        assertEquals(2, items.filterIsInstance<ChatItem.Msg>().count { it.message.id.isBlank() })
+    }
+
     private fun message(
         id: String,
         senderId: String,

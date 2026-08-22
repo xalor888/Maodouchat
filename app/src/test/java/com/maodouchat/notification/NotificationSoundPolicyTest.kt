@@ -57,4 +57,40 @@ class NotificationSoundPolicyTest {
             )
         )
     }
+
+    @Test
+    fun inAppReceiveToneRequiresFlagsNotificationsAndSoundPreference() {
+        assertTrue(
+            NotificationSoundPolicy.inAppReceiveToneEnabled(
+                inAppSoundsFlag = true,
+                notificationsEnabled = true,
+                notificationSoundFlag = true,
+                soundPreference = true,
+            )
+        )
+        assertFalse(
+            NotificationSoundPolicy.inAppReceiveToneEnabled(
+                inAppSoundsFlag = false,
+                notificationsEnabled = true,
+                notificationSoundFlag = true,
+                soundPreference = true,
+            )
+        )
+        assertFalse(
+            NotificationSoundPolicy.inAppReceiveToneEnabled(
+                inAppSoundsFlag = true,
+                notificationsEnabled = false,
+                notificationSoundFlag = true,
+                soundPreference = true,
+            )
+        )
+        assertFalse(
+            NotificationSoundPolicy.inAppReceiveToneEnabled(
+                inAppSoundsFlag = true,
+                notificationsEnabled = true,
+                notificationSoundFlag = true,
+                soundPreference = false,
+            )
+        )
+    }
 }

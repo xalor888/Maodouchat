@@ -559,6 +559,19 @@ fun ChatDetailScreen(
             base
         }
     }
+    val unknownSenderLabel = stringResource(R.string.chat_unknown)
+    val groupMemberLabel = stringResource(R.string.chat_group_member)
+    fun resolveSenderName(
+        message: Message,
+        isOwn: Boolean = message.senderId == state.currentUserId,
+    ): String? = senderDisplayName(
+        state = state,
+        message = message,
+        isOwn = isOwn,
+        participantNamesById = participantNamesById,
+        unknownLabel = unknownSenderLabel,
+        groupMemberLabel = groupMemberLabel,
+    )
     val headerStatus = resolveChatHeaderStatus(
         typingUserId = state.typingContact,
         isOnline = state.contact.isOnline,
@@ -2422,7 +2435,11 @@ if (showGroupCallTypeDialog) {
                                     val exportText = com.maodouchat.util.ChatExport.buildText(
                                         chatName = chatName,
                                         ownerId = state.currentUserId,
-                                        resolveSenderName = { sid -> participantNamesById[sid] ?: sid },
+                                        resolveSenderName = { sid ->
+                                            participantNamesById[sid]?.trim()?.takeIf { it.isNotEmpty() }
+                                                ?: truncatedSenderId(sid)
+                                                ?: unknownSenderLabel
+                                        },
                                         messages = state.messages
                                     )
                                     val file = com.maodouchat.util.ChatExport.write(
@@ -2860,7 +2877,7 @@ if (showGroupCallTypeDialog) {
                 ) {
                 itemsIndexed(
                     reversedChatItems,
-                    key = { _, item -> when (item) { is ChatItem.DateSeparator -> "date_${item.dateKey}"; is ChatItem.Msg -> item.message.id; is ChatItem.UnreadSeparator -> "unread_${item.messageId}" } },
+                    key = { _, item -> item.listKey },
                     contentType = { _, item -> when (item) {
                         is ChatItem.DateSeparator -> "date_separator"
                         is ChatItem.Msg -> "message_${item.message.type.name}"
@@ -2948,10 +2965,11 @@ if (showGroupCallTypeDialog) {
                                 state = ChatMessageRowState(
                                     message = displayMessage,
                                     isOwn = isOwn,
-                                    showAvatar = item.showAvatar,                                    senderName = senderDisplayName(state, message, isOwn, participantNamesById),
+                                    showAvatar = item.showAvatar,
+                                    senderName = resolveSenderName(message, isOwn),
                                     replyToPreview = meta.replyToId?.let(messagesById::get)?.let {
                                         ReplyPreview(
-                                            senderName = senderDisplayName(state, it, false, participantNamesById) ?: "",
+                                            senderName = resolveSenderName(it, isOwn = false) ?: "",
                                             preview = it.parsedContent().take(60)
                                         )
                                     },
@@ -2980,7 +2998,7 @@ if (showGroupCallTypeDialog) {
                                     replyTarget = message
                                     // 1.47：群聊回复时自动 @ 发送者（输入未包含时前置，对标微信/QQ）
                                     if (state.chatIsGroup && message.senderId != state.currentUserId) {
-                                        val senderName = senderDisplayName(state, message, isOwn = false, participantNamesById)
+                                        val senderName = resolveSenderName(message, isOwn = false)
                                         if (!senderName.isNullOrBlank()) {
                                             val mentionToken = "@$senderName"
                                             if (!state.inputText.contains(mentionToken)) {
@@ -3163,7 +3181,7 @@ if (showGroupCallTypeDialog) {
             // 引用中提示
             replyTarget?.let { target ->
                 ReplyTargetBar(
-                    senderName = senderDisplayName(state, target, target.senderId == state.currentUserId, participantNamesById) ?: "",
+                    senderName = resolveSenderName(target) ?: "",
                     // 1.71：媒体消息引用预览显示可读占位（避免裸密文/编码串）
                     preview = when (target.type) {
                         MessageType.IMAGE -> stringResource(R.string.message_preview_image)
@@ -3579,7 +3597,7 @@ if (showGroupCallTypeDialog) {
                         // 1.73：复制带发送者（引用/记录用，格式「发送者: 内容」）
                         TextButton(
                             onClick = {
-                                val sender = senderDisplayName(state, msg, msg.senderId == state.currentUserId, participantNamesById) ?: ""
+                                val sender = resolveSenderName(msg) ?: ""
                                 val label = if (sender.isBlank()) msg.parsedContent() else "$sender: ${msg.parsedContent()}"
                                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, label))
@@ -3591,7 +3609,7 @@ if (showGroupCallTypeDialog) {
                         // 1.160：复制带发送者与时间（格式「MM-dd HH:mm 发送者: 内容」）
                         TextButton(
                             onClick = {
-                                val sender = senderDisplayName(state, msg, msg.senderId == state.currentUserId, participantNamesById) ?: ""
+                                val sender = resolveSenderName(msg) ?: ""
                                 val time = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(msg.timestamp))
                                 val body = msg.parsedContent()
                                 val label = when {

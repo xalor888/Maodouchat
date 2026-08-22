@@ -40,11 +40,41 @@ internal fun senderDisplayName(
     state: ChatDetailUiState,
     message: Message,
     isOwn: Boolean,
-    participantNamesById: Map<String, String>
+    participantNamesById: Map<String, String>,
+    unknownLabel: String = "",
+    groupMemberLabel: String = "",
 ): String? {
     if (isOwn) return null
-    if (!state.chatIsGroup) return state.contact.name
-    return participantNamesById[message.senderId]
+    val mapped = participantNamesById[message.senderId]?.trim()?.takeIf { it.isNotEmpty() }
+    val truncatedId = truncatedSenderId(message.senderId)
+    if (!state.chatIsGroup) {
+        return firstNonBlank(
+            state.contact.displayName,
+            mapped,
+            truncatedId,
+            unknownLabel,
+        )
+    }
+    return firstNonBlank(
+        mapped,
+        truncatedId,
+        groupMemberLabel,
+        unknownLabel,
+    )
+}
+
+internal fun truncatedSenderId(senderId: String): String? {
+    val id = senderId.trim()
+    if (id.isEmpty()) return null
+    return if (id.length <= 8) id else id.take(8)
+}
+
+private fun firstNonBlank(vararg values: String?): String? {
+    for (value in values) {
+        val trimmed = value?.trim().orEmpty()
+        if (trimmed.isNotEmpty()) return trimmed
+    }
+    return null
 }
 
 internal fun forwardTargetName(context: Context, chat: Chat, currentUserId: String): String {

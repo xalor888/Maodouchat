@@ -17,4 +17,18 @@ object NotificationSoundPolicy {
     /** 来电铃声：服务端 ringtone flag（RuntimeFlags.RINGTONE）与用户偏好同时为真才响铃。 */
     fun ringtoneEnabled(runtimeFlagEnabled: Boolean, userPreferenceEnabled: Boolean): Boolean =
         runtimeFlagEnabled && userPreferenceEnabled
+
+    /**
+     * 当前打开的会话内短提示音（ToneGenerator，避开系统通知渠道 / Web autoplay）。
+     * 需同时满足：应用内音效 flag、总通知开关、消息声音 flag+偏好。
+     */
+    fun inAppReceiveToneEnabled(
+        inAppSoundsFlag: Boolean,
+        notificationsEnabled: Boolean,
+        notificationSoundFlag: Boolean,
+        soundPreference: Boolean,
+    ): Boolean =
+        inAppSoundsFlag &&
+            notificationsEnabled &&
+            messageSoundEnabled(notificationSoundFlag, soundPreference)
 }

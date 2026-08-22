@@ -1353,10 +1353,20 @@ private fun ActionRow(label: String, subtitle: String? = null, enabled: Boolean 
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.bodyLarge, color = if (enabled) OnSurface else TextHint)
-            if (!subtitle.isNullOrBlank()) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = if (enabled) TextSecondary else TextHint)
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else LocalChatPalette.current.textHint
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (enabled) LocalChatPalette.current.textSecondary else LocalChatPalette.current.textHint
+                )
+            }
         }
-        Text("›", color = if (enabled) TextHint else TextHint, fontSize = 18.sp)
+        Text("›", color = LocalChatPalette.current.textHint, fontSize = 18.sp)
     }
 }
 
@@ -2420,7 +2430,7 @@ fun NotificationSettingsScreen(
                     } ?: "",
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (state.errorMessage != null) Error else TextSecondary
+                    color = if (state.errorMessage != null) MaterialTheme.colorScheme.error else LocalChatPalette.current.textSecondary
                 )
             }
             Column(
@@ -2668,8 +2678,16 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onCheck
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, color = if (enabled) OnSurface else TextHint)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = if (enabled) TextSecondary else TextHint)
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else LocalChatPalette.current.textHint
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (enabled) LocalChatPalette.current.textSecondary else LocalChatPalette.current.textHint
+            )
         }
         androidx.compose.material3.Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
