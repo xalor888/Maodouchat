@@ -20,8 +20,9 @@ import java.util.Locale
 import java.util.TimeZone
 
 /**
- * Diagonal tiled blind watermark drawn above content without consuming pointer events.
- * Label should include user id + wall-clock time so leaked captures remain attributable.
+ * Legacy readable diagonal overlay. Secret-chat surfaces no longer use this
+ * (XAL-45: full-page invisible DWT+SVD via [secretPageBlindWatermark]).
+ * Kept for unit tests of [buildBlindWatermarkLabel] and any non-secret caller.
  */
 @Composable
 fun Modifier.blindWatermark(

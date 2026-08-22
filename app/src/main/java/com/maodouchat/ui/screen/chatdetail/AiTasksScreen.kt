@@ -82,7 +82,8 @@ import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.data.repository.AiTaskRepository
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
-import com.maodouchat.ui.component.blindWatermark
+import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
+import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Outline
@@ -408,14 +409,14 @@ fun AiTasksScreen(
         }
     }
 
-    val secretLabel = com.maodouchat.ui.component.rememberSecretBlindWatermarkLabel(
+    val secretPagePayload = rememberSecretPageWatermarkPayload(
+        isSecretChat = state.isSecretChat,
         userId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
         chatId = viewModel.chatId,
         deviceHint = android.provider.Settings.Secure.getString(
             context.contentResolver,
             android.provider.Settings.Secure.ANDROID_ID
-        ),
-        enabled = state.isSecretChat
+        )
     )
 
     if (state.isChatLocked == true) {
@@ -442,11 +443,7 @@ fun AiTasksScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .then(
-                if (state.isSecretChat && secretLabel.isNotBlank()) {
-                    Modifier.blindWatermark(label = secretLabel, enabled = RuntimeFlags.isEnabled(LocalContext.current, RuntimeFlags.VISIBLE_WATERMARK))
-                } else Modifier
-            )
+            .secretPageBlindWatermark(secretPagePayload)
     ) {
     Scaffold(
         containerColor = LocalChatPalette.current.chatBackground,

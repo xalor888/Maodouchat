@@ -2029,7 +2029,7 @@ async function loadChats(seq) {
       row('secret_media_export_block_enabled', 'Secret media export block (clients)', 'bool') +
       row('secret_forward_block_enabled', 'Secret chat forward block (clients)', 'bool') +
       row('secret_chat_export_block_enabled', 'Secret chat history export block (clients)', 'bool') +
-      row('visible_watermark_enabled', 'Visible secret surface watermark (clients)', 'bool') +
+      row('visible_watermark_enabled', 'Visible watermark leftover flag (clients, default off; secret chat uses full-page blind watermark)', 'bool') +
       row('secret_auto_disappear_enabled', 'Secret chat auto 24h disappear (clients)', 'bool') +
       row('secret_link_preview_block_enabled', 'Secret chat link preview block (clients)', 'bool') +
       row('secret_external_link_block_enabled', 'Secret chat external link open block (clients)', 'bool') +

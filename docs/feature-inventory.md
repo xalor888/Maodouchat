@@ -386,7 +386,7 @@
 | 60 | 复制 / 媒体导出 | `secret_copy_block_enabled`, `secret_media_export_block_enabled` | `leakz` + hint 路由 | `SecretCopyBlockPrefs` / `SecretMediaExportBlockPrefs` |
 | 61 | 转发 / 会话导出 | `secret_forward_block_enabled`, `secret_chat_export_block_enabled` | `vaultz` | `SecretForwardBlockPrefs` / `SecretChatExportBlockPrefs` |
 | 62 | Sealed / PQXDH 开关 | `sealed_sender_enabled`, `pqxdh_preview` | `sealz` | `SealedSenderPrefs` / `PqxdhPreviewPrefs` |
-| 63 | 可见水印 / 自动消失 | `visible_watermark_enabled`, `secret_auto_disappear_enabled` | `markz` | `VisibleWatermarkPrefs` / `SecretAutoDisappearPrefs` |
+| 63 | 密聊整页盲水印 / 自动消失 | `blind_watermark_enabled`（整页 DWT+SVD）；`visible_watermark_enabled` 默认关、密聊表面不绘制 | `markz` | `SecretPageWatermark` / `SecretAutoDisappearPrefs` |
 | 64 | 链接隐私 | `secret_link_preview_block_enabled`, `secret_external_link_block_enabled` | `linkz` | `SecretLinkPreviewBlockPrefs` / `SecretExternalLinkBlockPrefs` |
 | 65 | 通知 / 列表预览 | `secret_notif_preview_block_enabled`, `secret_list_preview_block_enabled` | `privz` | `SecretNotifPreviewBlockPrefs` / `SecretListPreviewBlockPrefs` |
 | 66 | 反应 / 标星 | `secret_reaction_block_enabled`, `secret_star_block_enabled` | `metaz` | `SecretReactionBlockPrefs` / `SecretStarBlockPrefs` |

@@ -209,7 +209,8 @@ import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.InlineTypingDots
-import com.maodouchat.ui.component.blindWatermark
+import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
+import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.security.MessageSafetyScanner
 import com.maodouchat.security.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
@@ -1067,14 +1068,14 @@ fun ChatDetailScreen(
     LaunchedEffect(chatLockBlocking) {
         (context as? com.maodouchat.MainActivity)?.notifyChatLockSurfaceChanged(chatLockBlocking)
     }
-    val secretWatermarkLabel = com.maodouchat.ui.component.rememberSecretBlindWatermarkLabel(
+    val secretPagePayload = rememberSecretPageWatermarkPayload(
+        isSecretChat = state.isSecretChat == true,
         userId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
         chatId = state.chat?.id,
         deviceHint = android.provider.Settings.Secure.getString(
             context.contentResolver,
             android.provider.Settings.Secure.ANDROID_ID
-        ),
-        enabled = state.isSecretChat == true
+        )
     )
 
     LaunchedEffect(searchResults, searchIndex) {
@@ -2156,13 +2157,7 @@ if (showGroupCallTypeDialog) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .then(
-                if (state.isSecretChat == true && secretWatermarkLabel.isNotBlank()) {
-                    Modifier.blindWatermark(label = secretWatermarkLabel, enabled = RuntimeFlags.isEnabled(LocalContext.current, RuntimeFlags.VISIBLE_WATERMARK))
-                } else {
-                    Modifier
-                }
-            )
+            .secretPageBlindWatermark(secretPagePayload)
     ) {
     if (showClearHistoryConfirm) {
         AlertDialog(

@@ -358,7 +358,7 @@ fun ChatListScreen(
             val videoCallEnabledOn = if (o.has("videoCallEnabled")) o.optBoolean("videoCallEnabled", true) else true
             val videoSendEnabledOn = if (o.has("videoSendEnabled")) o.optBoolean("videoSendEnabled", true) else true
             val viewOnceEnabledOn = if (o.has("viewOnceEnabled")) o.optBoolean("viewOnceEnabled", true) else true
-            val visibleWatermarkEnabledOn = if (o.has("visibleWatermarkEnabled")) o.optBoolean("visibleWatermarkEnabled", true) else true
+            val visibleWatermarkEnabledOn = if (o.has("visibleWatermarkEnabled")) o.optBoolean("visibleWatermarkEnabled", false) else false
             val voiceCallEnabledOn = if (o.has("voiceCallEnabled")) o.optBoolean("voiceCallEnabled", true) else true
             val voiceMessagesEnabledOn = if (o.has("voiceMessagesEnabled")) o.optBoolean("voiceMessagesEnabled", true) else true
             RuntimeFlags.setEnabled(context, RuntimeFlags.AI_ANALYZE_FILE, aiAnalyzeFileEnabledOn)
