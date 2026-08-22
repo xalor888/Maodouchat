@@ -264,14 +264,18 @@
   var tabTitles = {
     dashboard: '仪表盘',
     users: '用户管理',
+    content: '内容',
     chats: '群聊管理',
     posts: '动态管理',
     comments: '评论管理',
+    moderation: '审核',
     reports: '举报审核',
     rules: '风控规则',
     'risk-events': '风控事件',
     'ai-usage': 'AI 审计',
     'push-tokens': '推送令牌',
+    system: '系统',
+    diagnostics: '诊断',
     audit: '操作审计'
   };
 
@@ -297,7 +301,7 @@
     var seq = ++loadSeq;
     // 8.47 修复：B6 专属 tab（announcements/user-tags/rate-limit/device-consistency）
     // 由 B6 模块独立渲染——主模块不设 loading、不覆盖，避免与 B6 模块竞态双重重渲染
-    var ownTabs = ['dashboard', 'ranking', 'online', 'users', 'chats', 'messages', 'posts', 'comments', 'reports', 'rules', 'risk-events', 'storage', 'ai-usage', 'push-tokens', 'audit', 'watermark', 'bots', 'settings'];
+    var ownTabs = ['dashboard', 'ranking', 'online', 'users', 'content', 'chats', 'messages', 'posts', 'comments', 'moderation', 'reports', 'rules', 'risk-events', 'storage', 'ai-usage', 'push-tokens', 'system', 'diagnostics', 'audit', 'watermark', 'bots', 'settings'];
     if (ownTabs.indexOf(activeTab) < 0) return;
     el('content').innerHTML = '<div class="loading-state"><div class="spinner"></div><span>加载中…</span></div>';
     try {
@@ -306,12 +310,15 @@
         case 'ranking': await loadRanking(seq); break;
         case 'online': await loadOnline(seq); break;
         case 'users': await loadUsers(seq); break;
+        case 'content':
+        case 'posts': await loadPosts(seq); break;
         case 'chats': await loadChats(seq); break;
         case 'messages': await loadMessageSearch(seq); break;
-        case 'posts': await loadPosts(seq); break;
         case 'comments': await loadComments(seq); break;
+        case 'moderation':
         case 'reports': await loadReports(seq); break;
         case 'rules': await loadRules(seq); break;
+        case 'diagnostics':
         case 'risk-events': await loadRiskEvents(seq); break;
         case 'storage': await loadStorage(seq); break;
         case 'ai-usage': await loadAiUsage(seq); break;
@@ -319,6 +326,7 @@
         case 'audit': await loadAudit(seq); break;
         case 'watermark': await loadWatermark(seq); break;
         case 'bots': await loadBots(seq); break;
+        case 'system':
         case 'settings': await loadSettings(seq); break;
       }
     } catch (x) {

@@ -109,40 +109,27 @@ try {
   await page.locator("tbody tr").first().waitFor();
   assert.ok(await page.locator("tbody").innerText().then(text => text.includes("u1")));
 
-  const ruleName = "e2e-rule-" + Date.now();
-  const editedRuleName = ruleName + "-edited";
-  await page.locator('nav button[data-tab="rules"]').click();
-  await page.locator("#rule-form").waitFor();
-  await page.locator("#rule-name").fill(ruleName);
-  await page.locator("#rule-scope").selectOption("POST");
-  await page.locator("#rule-type").selectOption("KEYWORD");
-  await page.locator("#rule-pattern").fill("e2e-pattern");
-  await page.locator("#rule-action").selectOption("WARN_MOD");
-  async function acceptConfirm() {
-    await page.locator("#modal-overlay:not(.hidden)").waitFor();
-    await page.locator("#modal-confirm").click();
-    await page.locator("#modal-overlay:not(.hidden)").waitFor({ state: "hidden" });
+  const navTabs = ["dashboard", "users", "content", "moderation", "announcements", "system", "diagnostics", "audit"];
+  for (const tab of navTabs) {
+    assert.equal(await page.locator(`nav button[data-tab="${tab}"]`).count(), 1);
   }
+  assert.equal(await page.locator('nav button[data-tab="rules"]').count(), 0);
 
-  await page.locator("#rule-submit").click();
-  await acceptConfirm();
-  let ruleRow = page.locator("tbody tr").filter({ hasText: ruleName });
-  await ruleRow.waitFor();
+  await page.locator('nav button[data-tab="content"]').click();
+  // loadPosts 通过 searchBar('posts') 动态写入 #search-btn-posts
+  await page.locator("#search-btn-posts").waitFor();
 
-  await ruleRow.locator("[data-rule-edit]").click();
-  await page.locator("#rule-name").fill(editedRuleName);
-  await page.locator("#rule-pattern").fill("e2e-pattern-edited");
-  await page.locator("#rule-submit").click();
-  await acceptConfirm();
-  ruleRow = page.locator("tbody tr").filter({ hasText: editedRuleName });
-  await ruleRow.waitFor();
-  assert.match(await ruleRow.innerText(), /e2e-pattern-edited/);
+  await page.locator('nav button[data-tab="moderation"]').click();
+  await page.locator("#filter-reports").waitFor();
 
-  await ruleRow.locator("[data-rule-toggle]").click();
-  await acceptConfirm();
-  ruleRow = page.locator("tbody tr").filter({ hasText: editedRuleName });
-  await ruleRow.waitFor();
-  assert.match(await ruleRow.innerText(), /停用/);
+  await page.locator('nav button[data-tab="announcements"]').click();
+  await page.locator("#b6-ann-create").waitFor();
+
+  await page.locator('nav button[data-tab="system"]').click();
+  await page.locator("#settings-save").waitFor();
+
+  await page.locator('nav button[data-tab="diagnostics"]').click();
+  await page.locator("#filter-risk-events").waitFor();
 
   await page.locator('nav button[data-tab="audit"]').click();
   await page.locator("#audit-export").waitFor();
@@ -155,19 +142,11 @@ try {
   const csv = readFileSync(downloadPath, "utf8");
   assert.ok(csv.startsWith("\uFEFFid,actorId,targetUserId"));
   assert.match(csv, /ADMIN_SESSION_ISSUED/);
-  assert.match(csv, /ADMIN_RULE_UPDATED/);
 
   await page.screenshot({
     path: path.join(reportDir, "admin-e2e.png"),
     fullPage: true
   });
-
-  await page.locator('nav button[data-tab="rules"]').click();
-  ruleRow = page.locator("tbody tr").filter({ hasText: editedRuleName });
-  await ruleRow.waitFor();
-  await ruleRow.locator("[data-rule-delete]").click();
-  await acceptConfirm();
-  await page.locator("tbody tr").filter({ hasText: editedRuleName }).waitFor({ state: "detached" });
 
   await page.locator("#logout").click();
   await page.locator("#login:not(.hidden)").waitFor();
