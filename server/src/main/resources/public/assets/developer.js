@@ -15,6 +15,7 @@
   var rotateTargetId = '';
   var webhookTargetId = '';
   var commandsTargetId = '';
+  var deleteTargetId = '';
   var activePage = 'dashboard';
   var SESSION_KEY = 'maodou-dev-session';
 
@@ -694,9 +695,23 @@
     },
 
     deleteBot: function (id) {
-      if (!confirm('确认删除机器人 ' + id + '？此操作不可逆。')) return;
+      deleteTargetId = id;
+      var msg = el('deleteBotMessage');
+      if (msg) msg.textContent = '确认删除机器人 ' + id + '？此操作不可逆。';
+      el('deleteBotDialog').classList.remove('hidden');
+      el('deleteBotDialog').style.display = 'grid';
+    },
+    hideDeleteBot: function () {
+      el('deleteBotDialog').classList.add('hidden');
+      el('deleteBotDialog').style.display = '';
+      deleteTargetId = '';
+    },
+    confirmDeleteBot: function () {
+      var id = deleteTargetId;
+      if (!id) return;
       api('/api/developer-account/bots/' + encodeURIComponent(id), { method: 'DELETE' })
         .then(function () {
+          DevApp.hideDeleteBot();
           toast('机器人已删除', 'success');
           if (session.selectedBotId === id) {
             var remaining = (session.bots || []).filter(function (b) { return b.id !== id; });

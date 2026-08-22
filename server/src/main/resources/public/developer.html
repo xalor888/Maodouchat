@@ -14,24 +14,6 @@
         if (!initialTheme) {
           initialTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
-        if (initialTheme === 'dark') {
-          document.documentElement.setAttribute('data-theme', 'dark');
-          var tc = document.getElementById('themeColor');
-          if (tc) tc.setAttribute('content', '#0b100e');
-        } else {
-          document.documentElement.setAttribute('data-theme', 'light');
-        }
-      } catch (error) {}
-    })();
-  </script>
-  <link rel="stylesheet" href="/assets/style.css?v=113"/>
-  <script>
-    (function() {
-      try {
-        var initialTheme = localStorage.getItem('maodou-theme');
-        if (!initialTheme) {
-          initialTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        }
         var root = document.documentElement;
         root.setAttribute('data-theme', initialTheme === 'dark' ? 'dark' : 'light');
         var tc = document.getElementById('themeColor');
@@ -237,6 +219,18 @@
           <div class="dev-dialog-actions">
             <button class="dev-btn dev-btn-ghost" onclick="DevApp.hideCreateBot()">取消</button>
             <button class="dev-btn dev-btn-primary" onclick="DevApp.createBot()">创建</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delete Bot Dialog -->
+      <div id="deleteBotDialog" class="dev-dialog hidden">
+        <div class="dev-dialog-card">
+          <h3>删除机器人</h3>
+          <p id="deleteBotMessage">确认删除该机器人？此操作不可逆。</p>
+          <div class="dev-dialog-actions">
+            <button class="dev-btn dev-btn-ghost" onclick="DevApp.hideDeleteBot()">取消</button>
+            <button class="dev-btn dev-btn-danger" onclick="DevApp.confirmDeleteBot()">确认删除</button>
           </div>
         </div>
       </div>
@@ -457,6 +451,6 @@
     }
   })();
 </script>
-<script src="/assets/developer.js?v=113"></script>
+<script src="/assets/developer.js?v=114"></script>
 </body>
 </html>

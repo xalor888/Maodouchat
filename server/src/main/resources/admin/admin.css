@@ -612,7 +612,8 @@ body {
   border-bottom: 1px solid var(--border);
 }
 .search-input, .filter-select, .form-field input, .form-field select, .form-field textarea,
-.field input, .field select, .field textarea, .modal-input, .modal-select {
+.field input, .field select, .field textarea, .modal-input, .modal-select,
+.modal-form-wrap input, .modal-form-wrap select, .modal-form-wrap textarea {
   padding: calc(8px * var(--density)) calc(12px * var(--density));
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -624,7 +625,8 @@ body {
 }
 .search-input { min-width: 200px; }
 .search-input:focus, .filter-select:focus, .form-field input:focus, .form-field select:focus, .form-field textarea:focus,
-.field input:focus, .field select:focus, .field textarea:focus, .modal-input:focus, .modal-select:focus {
+.field input:focus, .field select:focus, .field textarea:focus, .modal-input:focus, .modal-select:focus,
+.modal-form-wrap input:focus, .modal-form-wrap select:focus, .modal-form-wrap textarea:focus {
   outline: none;
   border-color: var(--brand-border);
   box-shadow: 0 0 0 3px var(--brand-soft);
@@ -776,6 +778,8 @@ body {
 .modal {
   width: 100%;
   max-width: 420px;
+  max-height: 86vh;
+  overflow-y: auto;
   background: var(--panel-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
@@ -783,6 +787,7 @@ body {
   box-shadow: var(--shadow-lg);
   animation: modalIn 300ms var(--ease-out) both;
 }
+.modal.wide { max-width: 520px; }
 @keyframes modalIn { from { opacity: 0; transform: translateY(14px) scale(0.96); } to { opacity: 1; transform: none; } }
 .modal-icon {
   width: 44px; height: 44px;
@@ -795,12 +800,14 @@ body {
 }
 .modal-icon.danger { background: var(--danger-soft); color: var(--danger-light); }
 .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 7px; letter-spacing: -0.01em; }
-.modal-body { font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; overflow-wrap: anywhere; }
+.modal-body { font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
 .modal-input-wrap { margin-top: 15px; }
 .modal-input { width: 100%; }
 .modal-input-hint { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
 .modal-select-wrap { margin-top: 15px; }
 .modal-select { width: 100%; cursor: pointer; }
+.modal-form-wrap { margin-top: 15px; display: flex; flex-direction: column; gap: 12px; }
+.modal-form-wrap textarea { width: 100%; min-height: 88px; resize: vertical; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: calc(20px * var(--density)); }
 
 /* ═══ 弹层：右侧抽屉 ═════════════════════════════════ */

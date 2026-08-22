@@ -12,9 +12,55 @@
   var page = { users: 0, chats: 0, posts: 0, comments: 0, reports: 0, audit: 0, 'risk-events': 0, 'ai-usage': 0, 'push-tokens': 0 };
   var pageSize = 25;
   var searchQuery = {};
-  var filter状态 = {};
+  var filterState = {};
   var dashboardData = null;
   var systemStatsData = null;
+  var paneState = { content: 'posts', diagnostics: 'risk-events', system: 'settings' };
+  var SUBTAB_DEFS = {
+    content: [
+      { id: 'posts', label: '动态' },
+      { id: 'comments', label: '评论' },
+      { id: 'chats', label: '群聊' },
+      { id: 'messages', label: '消息检索' }
+    ],
+    diagnostics: [
+      { id: 'risk-events', label: '风控事件' },
+      { id: 'ai-usage', label: 'AI 审计' },
+      { id: 'push-tokens', label: '推送令牌' },
+      { id: 'storage', label: '存储' },
+      { id: 'watermark', label: '水印取证' },
+      { id: 'rules', label: '风控规则' }
+    ],
+    system: [
+      { id: 'settings', label: '运行时设置' },
+      { id: 'bots', label: '机器人' },
+      { id: 'user-tags', label: '用户标签' },
+      { id: 'rate-limit', label: '限流' },
+      { id: 'device-consistency', label: '设备一致性' }
+    ]
+  };
+  var B6_SYSTEM_PANES = { 'user-tags': 1, 'rate-limit': 1, 'device-consistency': 1 };
+
+  function attachSubtabs() {
+    var kind = activeTab;
+    if (!SUBTAB_DEFS[kind]) return;
+    var host = el('content');
+    if (!host) return;
+    if (host.querySelector('[data-subtabs="' + kind + '"]')) return;
+    var bar = document.createElement('div');
+    bar.className = 'subtabs';
+    bar.setAttribute('data-subtabs', kind);
+    bar.innerHTML = SUBTAB_DEFS[kind].map(function (p) {
+      return '<button type="button" class="subtab' + (p.id === paneState[kind] ? ' active' : '') + '" data-pane="' + p.id + '">' + p.label + '</button>';
+    }).join('');
+    host.insertBefore(bar, host.firstChild);
+    bar.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-pane]');
+      if (!b) return;
+      paneState[kind] = b.dataset.pane;
+      loadTab();
+    });
+  }
 
   // ─── DOM 辅助 ───────────────────────
   var el = function (id) { return document.getElementById(id); };
@@ -142,7 +188,7 @@
   // ─── Toast ──────────────────────────
   function toast(msg, type) {
     var t = el('toast');
-    t.class名称 = 'toast' + (type ? ' toast-' + type : '');
+    t.className = 'toast' + (type ? ' toast-' + type : '');
     t.querySelector('.toast-text').textContent = msg;
     t.classList.remove('hidden');
     clearTimeout(toast._timer);
@@ -240,7 +286,7 @@
       el('login-error').textContent = x.message;
     } finally {
       btn.disabled = false;
-      btnLabel.innerHTML = '安全登录';
+      btnLabel.textContent = '登录';
     }
   });
 
@@ -265,6 +311,7 @@
     dashboard: '仪表盘',
     users: '用户管理',
     content: '内容',
+    announcements: '公告',
     chats: '群聊管理',
     posts: '动态管理',
     comments: '评论管理',
@@ -283,6 +330,9 @@
     var b = e.target.closest('button[data-tab]');
     if (!b) return;
     activeTab = b.dataset.tab;
+    if (activeTab === 'content') paneState.content = 'posts';
+    if (activeTab === 'diagnostics') paneState.diagnostics = 'risk-events';
+    if (activeTab === 'system') paneState.system = 'settings';
     document.querySelectorAll('.nav-item').forEach(function (x) { x.classList.toggle('active', x === b); });
     el('page-title').textContent = tabTitles[activeTab] || '';
     // 移动端关闭侧边栏
@@ -299,6 +349,11 @@
   function staleTab(seq) { return typeof seq === 'number' && seq !== loadSeq; }
   async function loadTab() {
     var seq = ++loadSeq;
+    var stayOnB6 = activeTab === 'announcements' ||
+      (activeTab === 'system' && B6_SYSTEM_PANES[paneState.system]);
+    if (!stayOnB6 && window.__b6Admin && typeof window.__b6Admin.clearTab === 'function') {
+      window.__b6Admin.clearTab();
+    }
     // 8.47 修复：B6 专属 tab（announcements/user-tags/rate-limit/device-consistency）
     // 由 B6 模块独立渲染——主模块不设 loading、不覆盖，避免与 B6 模块竞态双重重渲染
     var ownTabs = ['dashboard', 'ranking', 'online', 'users', 'content', 'chats', 'messages', 'posts', 'comments', 'moderation', 'reports', 'rules', 'risk-events', 'storage', 'ai-usage', 'push-tokens', 'system', 'diagnostics', 'audit', 'watermark', 'bots', 'settings'];
@@ -311,6 +366,11 @@
         case 'online': await loadOnline(seq); break;
         case 'users': await loadUsers(seq); break;
         case 'content':
+          if (paneState.content === 'comments') await loadComments(seq);
+          else if (paneState.content === 'chats') await loadChats(seq);
+          else if (paneState.content === 'messages') await loadMessageSearch(seq);
+          else await loadPosts(seq);
+          break;
         case 'posts': await loadPosts(seq); break;
         case 'chats': await loadChats(seq); break;
         case 'messages': await loadMessageSearch(seq); break;
@@ -319,6 +379,13 @@
         case 'reports': await loadReports(seq); break;
         case 'rules': await loadRules(seq); break;
         case 'diagnostics':
+          if (paneState.diagnostics === 'ai-usage') await loadAiUsage(seq);
+          else if (paneState.diagnostics === 'push-tokens') await loadPushTokens(seq);
+          else if (paneState.diagnostics === 'storage') await loadStorage(seq);
+          else if (paneState.diagnostics === 'watermark') await loadWatermark(seq);
+          else if (paneState.diagnostics === 'rules') await loadRules(seq);
+          else await loadRiskEvents(seq);
+          break;
         case 'risk-events': await loadRiskEvents(seq); break;
         case 'storage': await loadStorage(seq); break;
         case 'ai-usage': await loadAiUsage(seq); break;
@@ -327,12 +394,19 @@
         case 'watermark': await loadWatermark(seq); break;
         case 'bots': await loadBots(seq); break;
         case 'system':
+          if (paneState.system === 'bots') await loadBots(seq);
+          else if (B6_SYSTEM_PANES[paneState.system] && window.__b6Admin && typeof window.__b6Admin.openTab === 'function') {
+            window.__b6Admin.openTab(paneState.system, seq);
+            return;
+          } else await loadSettings(seq);
+          break;
         case 'settings': await loadSettings(seq); break;
       }
     } catch (x) {
       if (seq !== loadSeq) return;
       el('content').innerHTML = '<div class="empty-state"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14 7 7 0 000-14zm0 4a1 1 0 110 2 1 1 0 010-2zm1 4v3H7V9h2z"/></svg><p>' + esc(x.message) + '</p></div>';
     }
+    if (seq === loadSeq) attachSubtabs();
   }
 
   // ─── 导航角标 ───────────────────────
@@ -385,7 +459,7 @@
   // ─── 搜索栏 ─────────────────────────
   function searchBar(kind, placeholder, extraFilters) {
     var sq = searchQuery[kind] || '';
-    var fs = filter状态[kind] || '';
+    var fs = filterState[kind] || '';
     var html = '<div class="toolbar">' +
       '<input class="search-input" id="search-' + kind + '" value="' + esc(sq) + '" placeholder="' + placeholder + '"/>';
     if (extraFilters) {
@@ -400,7 +474,7 @@
     var filter = el('filter-' + kind);
     function doSearch() {
       searchQuery[kind] = input.value.trim();
-      if (filter) filter状态[kind] = filter.value;
+      if (filter) filterState[kind] = filter.value;
       page[kind] = 0;
       loader();
     }
@@ -546,7 +620,7 @@
   // ═════════════════════════════════════
   async function loadUsers(seq) {
     var q = searchQuery.users || '';
-    var st = filter状态.users || '';
+    var st = filterState.users || '';
     var offset = (page.users || 0) * pageSize;
     var url = '/api/admin/users?limit=' + pageSize + '&offset=' + offset;
     if (q) url += '&q=' + encodeURIComponent(q);
@@ -604,7 +678,7 @@
     el('content').innerHTML = html;
     bindSearch('users', loadUsers);
     bindPager('users', rows.length, loadUsers);
-    bindUser操作();
+    bindUserActions();
     var ue = el('users-export-btn');
     if (ue) {
       ue.onclick = async function () {
@@ -627,7 +701,7 @@
     }
   }
 
-  function bindUser操作() {
+  function bindUserActions() {
     document.querySelectorAll('[data-detail]').forEach(function (b) {
       b.onclick = async function () {
         try { await showUserDetail(b.dataset.detail); }
@@ -910,7 +984,7 @@
       '<div class="detail-section"><h4>安全操作</h4>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
       '<button class="btn btn-danger" data-ua="force-logout" data-user-id="' + esc(d.id) + '">强制下线</button>' +
-      '<button class="btn" data-ua="sessions" data-user-id="' + esc(d.id) + '">Sessions</button>' +
+      '<button class="btn" data-ua="sessions" data-user-id="' + esc(d.id) + '">会话</button>' +
       '<button class="btn btn-danger" data-ua="msg-restrict" data-user-id="' + esc(d.id) + '">禁言</button>' +
       '<button class="btn" data-ua="grant-mod" data-user-id="' + esc(d.id) + '">授予审核员</button>' +
       '<button class="btn" data-ua="revoke-mod" data-user-id="' + esc(d.id) + '">撤销审核员</button>' +
@@ -941,15 +1015,14 @@
   // ═════════════════════════════════════
   
   async function loadMessageSearch(seq) {
-    var n = el('page-title'); if (n) n.textContent = 'Message search';
     var q = (searchQuery.messages || '');
     var html = '<div class="panel"><div class="panel-header"><h2>消息元数据检索</h2></div><div class="panel-body">' +
-      '<p style="color:var(--text-muted);font-size:13px">E2EE payloads are opaque. Search by message id, type, SYSTEM/NUDGE text, chatId, or senderId.</p>' +
+      '<p style="color:var(--text-muted);font-size:13px">端到端加密载荷不可读。可按消息 ID、类型、系统/拍一拍文本、会话 ID 或发送者 ID 检索元数据。</p>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">' +
-      '<input id="msg-q" placeholder="query / id / type" value="' + esc(q) + '" style="flex:1;min-width:160px"/>' +
-      '<input id="msg-chat" placeholder="chatId" style="width:180px"/>' +
-      '<input id="msg-user" placeholder="senderId" style="width:180px"/>' +
-      '<button class="btn btn-primary" id="msg-search-btn">Search</button></div>' +
+      '<input id="msg-q" placeholder="关键词 / ID / 类型" value="' + esc(q) + '" style="flex:1;min-width:160px"/>' +
+      '<input id="msg-chat" placeholder="会话 ID" style="width:180px"/>' +
+      '<input id="msg-user" placeholder="发送者 ID" style="width:180px"/>' +
+      '<button class="btn btn-primary" id="msg-search-btn">搜索</button></div>' +
       '<div id="msg-results"><div class="empty-state"><p>输入筛选条件后搜索</p></div></div></div></div>';
     if (staleTab(seq)) return;
     el('content').innerHTML = html;
@@ -958,7 +1031,7 @@
       var chatId = (el('msg-chat').value || '').trim();
       var userId = (el('msg-user').value || '').trim();
       searchQuery.messages = qq;
-      if (!qq && !chatId && !userId) { toast('Need q, chatId, or userId', 'error'); return; }
+      if (!qq && !chatId && !userId) { toast('请填写关键词、会话 ID 或发送者 ID', 'error'); return; }
       var url = '/api/admin/messages/search?limit=50&offset=0';
       if (qq) url += '&q=' + encodeURIComponent(qq);
       if (chatId) url += '&chatId=' + encodeURIComponent(chatId);
@@ -966,7 +1039,7 @@
       try {
         var data = await api(url);
         var items = data.items || [];
-        var table = '<div class="table-wrap"><table><thead><tr><th>Time</th><th>Chat</th><th>Sender</th><th>Type</th><th>Preview</th><th>Flags</th></tr></thead><tbody>';
+        var table = '<div class="table-wrap"><table><thead><tr><th>时间</th><th>会话</th><th>发送者</th><th>类型</th><th>预览</th><th>标记</th></tr></thead><tbody>';
         if (!items.length) table += '<tr><td colspan="6"><div class="empty-state"><p>暂无数据</p></div></td></tr>';
         items.forEach(function (m) {
           var flags = [];
@@ -987,7 +1060,7 @@
         }
         el('msg-results').innerHTML = table;
       } catch (e) {
-        toast('Search failed: ' + (e && e.message ? e.message : e), 'error');
+        toast('搜索失败: ' + (e && e.message ? e.message : e), 'error');
       }
     }
     el('msg-search-btn').onclick = run;
@@ -1013,7 +1086,7 @@ async function loadChats(seq) {
       rows.forEach(function (c) {
         var typeBadge = c.isGroup ? '<span class="badge badge-blue">群聊</span>' : '<span class="badge">单聊</span>';
         html += '<tr>' +
-          '<td><div class="cell-main">' + esc(c.group名称 || '(未命名)') + '</div><div class="cell-id">' + esc(c.id) + '</div></td>' +
+          '<td><div class="cell-main">' + esc(c.groupName || '(未命名)') + '</div><div class="cell-id">' + esc(c.id) + '</div></td>' +
           '<td>' + typeBadge + '</td>' +
           '<td>' + esc(c.memberCount) + ' 人</td>' +
           '<td>' + esc(c.lastActivity ? timeAgo(c.lastActivity) : '—') + '</td>' +
@@ -1067,7 +1140,7 @@ async function loadChats(seq) {
   // ═════════════════════════════════════
   async function loadPosts(seq) {
     var q = searchQuery.posts || '';
-    var st = filter状态.posts || '';
+    var st = filterState.posts || '';
     var offset = (page.posts || 0) * pageSize;
     var url = '/api/admin/posts?limit=' + pageSize + '&offset=' + offset;
     if (q) url += '&q=' + encodeURIComponent(q);
@@ -1091,7 +1164,7 @@ async function loadChats(seq) {
           p.status === 'HELD' ? '<span class="badge badge-orange">已暂扣</span>' :
             '<span class="badge badge-red">已删除</span>';
         html += '<tr>' +
-          '<td><div class="cell-main">' + esc(p.author名称) + '</div><div class="cell-id">' + esc(p.authorId) + '</div></td>' +
+          '<td><div class="cell-main">' + esc(p.authorName) + '</div><div class="cell-id">' + esc(p.authorId) + '</div></td>' +
           '<td style="max-width:300px">' + esc(p.content.slice(0, 200)) + (p.content.length > 200 ? '…' : '') + '</td>' +
           '<td>' + statusBadge + '</td>' +
           '<td>' + esc(date(p.createdAt)) + '</td>' +
@@ -1138,7 +1211,7 @@ async function loadChats(seq) {
     } else {
       rows.forEach(function (c) {
         html += '<tr>' +
-          '<td><div class="cell-main">' + esc(c.author名称) + '</div><div class="cell-id">' + esc(c.authorId) + '</div></td>' +
+          '<td><div class="cell-main">' + esc(c.authorName) + '</div><div class="cell-id">' + esc(c.authorId) + '</div></td>' +
           '<td style="max-width:300px">' + esc(c.content.slice(0, 200)) + (c.content.length > 200 ? '…' : '') + '</td>' +
           '<td><span class="cell-id">' + esc(c.postId) + '</span></td>' +
           '<td>' + esc(date(c.createdAt)) + '</td>' +
@@ -1169,7 +1242,7 @@ async function loadChats(seq) {
   // 举报审核
   // ═════════════════════════════════════
   async function loadReports(seq) {
-    var st = filter状态.reports || '';
+    var st = filterState.reports || '';
     var offset = (page.reports || 0) * pageSize;
     var url = '/api/admin/reports?limit=' + pageSize + '&offset=' + offset;
     if (st) url += '&status=' + st;
@@ -1221,7 +1294,7 @@ async function loadChats(seq) {
     el('content').innerHTML = html;
 
     var filterEl = el('filter-reports');
-    if (filterEl) filterEl.onchange = function () { filter状态.reports = filterEl.value; page.reports = 0; loadReports(); };
+    if (filterEl) filterEl.onchange = function () { filterState.reports = filterEl.value; page.reports = 0; loadReports(); };
     bindPager('reports', rows.length, loadReports);
 
     document.querySelectorAll('[data-report-action]').forEach(function (b) {
@@ -1408,7 +1481,7 @@ async function loadChats(seq) {
   // 风控事件
   // ═════════════════════════════════════
   async function loadRiskEvents(seq) {
-    var pendingOnly = filter状态['risk-events'] === 'true';
+    var pendingOnly = filterState['risk-events'] === 'true';
     var offset = (page['risk-events'] || 0) * pageSize;
     var url = '/api/admin/risk-events?limit=' + pageSize + '&offset=' + offset;
     if (pendingOnly) url += '&pending=true';
@@ -1447,7 +1520,7 @@ async function loadChats(seq) {
     el('content').innerHTML = html;
 
     var filterEl = el('filter-risk-events');
-    if (filterEl) filterEl.onchange = function () { filter状态['risk-events'] = filterEl.value; page['risk-events'] = 0; loadRiskEvents(); };
+    if (filterEl) filterEl.onchange = function () { filterState['risk-events'] = filterEl.value; page['risk-events'] = 0; loadRiskEvents(); };
     bindPager('risk-events', rows.length, loadRiskEvents);
 
     document.querySelectorAll('[data-risk-resolve]').forEach(function (b) {
@@ -1565,7 +1638,7 @@ async function loadChats(seq) {
   // ═════════════════════════════════════
   async function loadAudit(seq) {
     var offset = (page.audit || 0) * pageSize;
-    var actionF = filter状态.audit || '';
+    var actionF = filterState.audit || '';
     var q = searchQuery.audit || '';
     var url = '/api/admin/audit-logs?limit=' + pageSize + '&offset=' + offset;
     if (actionF) url += '&action=' + encodeURIComponent(actionF);
@@ -1643,7 +1716,7 @@ async function loadChats(seq) {
             '<td style="text-align:center;font-weight:600">' + medal + '</td>' +
             '<td><div class="user-cell">' +
               (e.avatar ? '<img class="avatar-sm" src="' + esc(e.avatar) + '"/>' : '<div class="avatar-sm avatar-placeholder"></div>') +
-              '<span>' + esc(e.user名称) + '</span>' +
+              '<span>' + esc(e.userName) + '</span>' +
             '</div></td>' +
             '<td><span class="cell-id">' + esc(e.userId) + '</span></td>' +
             '<td style="text-align:right;font-weight:600">' + (valueFmt ? valueFmt(e.value) : esc(e.value)) + '</td>' +
@@ -1770,15 +1843,25 @@ async function loadChats(seq) {
   // ═════════════════════════════════════
   var modalCallback = null;
 
+  function resetModalChrome() {
+    el('modal-box').classList.remove('wide');
+    el('modal-input-wrap').classList.add('hidden');
+    el('modal-select-wrap').classList.add('hidden');
+    var formWrap = el('modal-form-wrap');
+    if (formWrap) {
+      formWrap.classList.add('hidden');
+      formWrap.innerHTML = '';
+    }
+  }
+
   function showConfirm(title, body, type, callback) {
     modalCallback = callback;
     el('modal-title').textContent = title;
     el('modal-body').textContent = body;
-    el('modal-input-wrap').classList.add('hidden');
-    el('modal-select-wrap').classList.add('hidden');
+    resetModalChrome();
 
     var iconWrap = el('modal-icon-wrap');
-    iconWrap.class名称 = 'modal-icon ' + (type || 'info');
+    iconWrap.className = 'modal-icon ' + (type || 'info');
     var iconPaths = {
       warn: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1L1 14h14L8 1zm0 4v4H7V5h1zm0 6v1H7v-1h1z"/></svg>',
       danger: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"/></svg>',
@@ -1787,7 +1870,7 @@ async function loadChats(seq) {
     iconWrap.innerHTML = iconPaths[type] || iconPaths.info;
 
     el('modal-confirm').textContent = '确认';
-    el('modal-confirm').class名称 = 'btn ' + (type === 'danger' ? 'btn-danger' : 'btn-primary');
+    el('modal-confirm').className = 'btn ' + (type === 'danger' ? 'btn-danger' : 'btn-primary');
     el('modal-overlay').classList.remove('hidden');
   }
 
@@ -1795,17 +1878,17 @@ async function loadChats(seq) {
     modalCallback = callback;
     el('modal-title').textContent = title;
     el('modal-body').textContent = body;
+    resetModalChrome();
     el('modal-input-wrap').classList.remove('hidden');
-    el('modal-select-wrap').classList.add('hidden');
     var input = el('modal-input');
     input.value = defaultVal || '';
     input.placeholder = placeholder || '';
     el('modal-input-hint').textContent = '';
     el('modal-confirm').textContent = '确认';
-    el('modal-confirm').class名称 = 'btn btn-primary';
+    el('modal-confirm').className = 'btn btn-primary';
 
     var iconWrap = el('modal-icon-wrap');
-    iconWrap.class名称 = 'modal-icon info';
+    iconWrap.className = 'modal-icon info';
     iconWrap.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14 7 7 0 000-14zm0 4a1 1 0 110 2 1 1 0 010-2zm1 4v3H7V9h2z"/></svg>';
 
     el('modal-overlay').classList.remove('hidden');
@@ -1817,7 +1900,7 @@ async function loadChats(seq) {
     modalCallback = callback;
     el('modal-title').textContent = title;
     el('modal-body').textContent = body;
-    el('modal-input-wrap').classList.add('hidden');
+    resetModalChrome();
     el('modal-select-wrap').classList.remove('hidden');
     var select = el('modal-select');
     select.innerHTML = (options || []).map(function (opt) {
@@ -1826,12 +1909,55 @@ async function loadChats(seq) {
         esc(opt.label) + '</option>';
     }).join('');
     el('modal-confirm').textContent = '下一步';
-    el('modal-confirm').class名称 = 'btn btn-primary';
+    el('modal-confirm').className = 'btn btn-primary';
     var iconWrap = el('modal-icon-wrap');
-    iconWrap.class名称 = 'modal-icon warn';
+    iconWrap.className = 'modal-icon warn';
     iconWrap.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14 7 7 0 000-14zm0 3a1 1 0 011 1v4a1 1 0 11-2 0V5a1 1 0 011-1zm0 8a1.25 1.25 0 110-2.5A1.25 1.25 0 018 12z"/></svg>';
     el('modal-overlay').classList.remove('hidden');
     setTimeout(function () { select.focus(); }, 100);
+  }
+
+  /** fields: [{name, label, type, value, placeholder, options, required, hint}] */
+  function showForm(title, body, fields, callback) {
+    modalCallback = callback;
+    el('modal-title').textContent = title;
+    el('modal-body').textContent = body || '';
+    resetModalChrome();
+    el('modal-box').classList.add('wide');
+    var wrap = el('modal-form-wrap');
+    wrap.classList.remove('hidden');
+    wrap.innerHTML = (fields || []).map(function (f) {
+      var id = 'modal-field-' + esc(f.name);
+      var html = '<div class="form-field"><label class="label" for="' + id + '">' + esc(f.label || f.name) +
+        (f.required ? ' *' : '') + '</label>';
+      if (f.type === 'select') {
+        html += '<select class="modal-select" id="' + id + '" data-field="' + esc(f.name) + '">' +
+          (f.options || []).map(function (opt) {
+            return '<option value="' + esc(opt.value) + '"' +
+              (String(opt.value) === String(f.value) ? ' selected' : '') + '>' +
+              esc(opt.label) + '</option>';
+          }).join('') + '</select>';
+      } else if (f.type === 'textarea') {
+        html += '<textarea id="' + id + '" data-field="' + esc(f.name) + '" placeholder="' +
+          esc(f.placeholder || '') + '">' + esc(f.value || '') + '</textarea>';
+      } else {
+        html += '<input type="' + esc(f.type || 'text') + '" id="' + id + '" data-field="' + esc(f.name) +
+          '" value="' + esc(f.value || '') + '" placeholder="' + esc(f.placeholder || '') + '"/>';
+      }
+      if (f.hint) html += '<div class="modal-input-hint">' + esc(f.hint) + '</div>';
+      html += '</div>';
+      return html;
+    }).join('');
+    el('modal-confirm').textContent = '确认';
+    el('modal-confirm').className = 'btn btn-primary';
+    var iconWrap = el('modal-icon-wrap');
+    iconWrap.className = 'modal-icon info';
+    iconWrap.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14 7 7 0 000-14zm0 4a1 1 0 110 2 1 1 0 010-2zm1 4v3H7V9h2z"/></svg>';
+    el('modal-overlay').classList.remove('hidden');
+    setTimeout(function () {
+      var first = wrap.querySelector('input, textarea, select');
+      if (first) first.focus();
+    }, 100);
   }
 
   el('modal-cancel').onclick = function () {
@@ -1854,7 +1980,15 @@ async function loadChats(seq) {
     var select = el('modal-select');
     var cb = modalCallback;
     try {
-      if (!el('modal-input-wrap').classList.contains('hidden')) {
+      var formWrap = el('modal-form-wrap');
+      if (formWrap && !formWrap.classList.contains('hidden')) {
+        var values = {};
+        formWrap.querySelectorAll('[data-field]').forEach(function (node) {
+          values[node.getAttribute('data-field')] = node.value;
+        });
+        var formResult = await cb(values);
+        if (formResult === false) { el('modal-confirm').disabled = false; return; }
+      } else if (!el('modal-input-wrap').classList.contains('hidden')) {
         var val = input.value;
         var result = await cb(val);
         if (result === false) { el('modal-confirm').disabled = false; return; } // callback can return false to keep modal open
@@ -1862,7 +1996,8 @@ async function loadChats(seq) {
         var selResult = await cb(select.value);
         if (selResult === false) { el('modal-confirm').disabled = false; return; }
       } else {
-        await cb();
+        var confirmResult = await cb();
+        if (confirmResult === false) { el('modal-confirm').disabled = false; return; }
       }
     } catch (e) {
       el('modal-confirm').disabled = false;
@@ -1904,7 +2039,6 @@ async function loadChats(seq) {
 
   
   async function loadSettings(seq) {
-    var n = el('page-title'); if (n) n.textContent = 'System settings';
     var data = await api('/api/admin/settings');
     var s = data.settings || {};
     var def = data.defaults || {};
@@ -1925,123 +2059,133 @@ async function loadChats(seq) {
         '</strong> <code>' + esc(key) + '</code></div>' +
         '<input data-setting="' + esc(key) + '" value="' + esc(val) + '" style="width:100%;margin-top:4px"/></label>';
     }
+    function group(title, body) {
+      return '<div class="settings-group"><h3>' + esc(title) + '</h3>' + body + '</div>';
+    }
     var html = '<div class="panel"><div class="panel-header"><h2>运行时设置</h2>' +
-      '<button class="btn btn-primary" id="settings-save">Save</button></div><div class="panel-body">' +
-      '<p style="color:var(--text-muted);font-size:13px">Overrides env defaults without restart. Cached ~5s on server.</p>' +
-      row('maintenance_mode', 'Maintenance mode', 'bool') +
-      row('maintenance_message', 'Maintenance message', 'textarea') +
-      row('allow_registration', 'Allow registration', 'bool') +
-      row('invite_only_hint', 'Registration closed hint', 'textarea') +
-      row('global_banner', 'Global banner', 'textarea') +
-      row('max_group_size', 'Max group size', 'text') +
-      row('sealed_sender_enabled', 'Sealed sender certificates', 'bool') +
-      row('allow_bots', 'Allow bot platform', 'bool') +
-      row('force_e2ee_banner', 'Force E2EE banner text', 'textarea') +
-      row('max_message_per_min', 'Max messages / user / min', 'text') +
-      row('ip_blocklist', 'IP blocklist (comma/newline)', 'textarea') +
-      row('ai_enabled', 'Cloud AI features', 'bool') +
-      row('public_announcement', 'Public announcement', 'textarea') +
-      row('pqxdh_preview', 'PQXDH preview flag (clients)', 'bool') +
-      row('min_app_version', 'Min app version code', 'text') +
-      row('secret_chat_required', 'Require secret chat for 1:1 (client banner)', 'bool') +
-      row('capture_alert_enabled', 'Peer capture alerts', 'bool') +
-      row('max_bots_per_user', 'Max bots per user', 'text') +
-      row('media_upload_enabled', 'Allow media uploads', 'bool') +
-      row('group_play_enabled', 'Allow group play features', 'bool') +
-      row('link_preview_enabled', 'Link previews (clients)', 'bool') +
-      row('voice_messages_enabled', 'Voice messages (clients)', 'bool') +
-      row('reactions_enabled', 'Message reactions (clients)', 'bool') +
-      row('stickers_enabled', 'Stickers (clients)', 'bool') +
-      row('silent_send_enabled', 'Silent send (clients)', 'bool') +
-      row('calls_enabled', 'Voice/video calls (clients)', 'bool') +
-      row('scheduled_messages_enabled', 'Scheduled messages (clients)', 'bool') +
-      row('view_once_enabled', 'View-once media (clients)', 'bool') +
-      row('live_location_enabled', 'Live location (clients)', 'bool') +
-      row('markdown_enabled', 'Markdown rendering (clients/bots)', 'bool') +
-      row('typing_indicators_enabled', 'Typing indicators (clients)', 'bool') +
-      row('read_receipts_enabled', 'Read receipts (clients)', 'bool') +
-      row('presence_enabled', 'Online presence (clients)', 'bool') +
-      row('message_starring_enabled', 'Message starring (clients)', 'bool') +
-      row('chat_export_enabled', 'Chat export (clients)', 'bool') +
-      row('message_forwarding_enabled', 'Message forwarding (clients)', 'bool') +
-      row('global_search_enabled', 'Global search (clients)', 'bool') +
-      row('friend_requests_enabled', 'Friend requests (clients)', 'bool') +
-      row('chat_folders_enabled', 'Chat folders (clients)', 'bool') +
-      row('posts_enabled', 'Moments / posts (clients)', 'bool') +
-      row('block_report_enabled', 'Block & report (clients)', 'bool') +
-      row('chat_archive_enabled', 'Chat archive (clients)', 'bool') +
-      row('nearby_enabled', 'Nearby people (clients)', 'bool') +
-      row('chat_pin_enabled', 'Chat pin (clients)', 'bool') +
-      row('marked_unread_enabled', 'Marked unread (clients)', 'bool') +
-      row('chat_mute_enabled', 'Chat mute (clients)', 'bool') +
-      row('disappearing_messages_enabled', 'Disappearing messages (clients)', 'bool') +
-      row('chat_lock_enabled', 'Chat lock (clients)', 'bool') +
-      row('message_edit_enabled', 'Message edit (clients)', 'bool') +
-      row('message_pin_enabled', 'Message pin (clients)', 'bool') +
-      row('message_revoke_enabled', 'Message revoke/delete (clients)', 'bool') +
-      row('polls_enabled', 'Polls (clients)', 'bool') +
-      row('app_lock_enabled', 'App lock (clients)', 'bool') +
-      row('chat_drafts_enabled', 'Chat drafts (clients)', 'bool') +
-      row('ai_translate_enabled', 'AI translate (clients)', 'bool') +
-      row('group_invites_enabled', 'Group invites (clients)', 'bool') +
-      row('mentions_enabled', 'Mentions (clients)', 'bool') +
-      row('nudge_enabled', 'Nudge / 拍一拍 (clients)', 'bool') +
-      row('safety_code_enabled', 'Safety code (clients)', 'bool') +
-      row('qr_code_enabled', 'QR code (clients)', 'bool') +
-      row('contact_card_enabled', 'Contact cards (clients)', 'bool') +
-      row('spoiler_media_enabled', 'Spoiler media (clients)', 'bool') +
-      row('auto_download_enabled', 'Auto-download (clients)', 'bool') +
-      row('static_location_enabled', 'Static location (clients)', 'bool') +
-      row('file_share_enabled', 'File share (clients)', 'bool') +
-      row('secret_chat_enabled', 'Secret chat (clients)', 'bool') +
-      row('screen_secure_runtime_enabled', 'Screen secure runtime (clients)', 'bool') +
-      row('image_send_enabled', 'Image send (clients)', 'bool') +
-      row('video_send_enabled', 'Video send (clients)', 'bool') +
-      row('ai_summary_enabled', 'AI summary (clients)', 'bool') +
-      row('ai_rewrite_enabled', 'AI rewrite (clients)', 'bool') +
-      row('ai_suggest_replies_enabled', 'AI suggest replies (clients)', 'bool') +
-      row('ai_transcribe_enabled', 'AI transcribe (clients)', 'bool') +
-      row('ai_analyze_image_enabled', 'AI analyze image (clients)', 'bool') +
-      row('ai_group_assistant_enabled', 'AI group assistant (clients)', 'bool') +
-      row('ai_analyze_file_enabled', 'AI analyze file (clients)', 'bool') +
-      row('ai_semantic_search_enabled', 'AI semantic search (clients)', 'bool') +
-      row('gif_send_enabled', 'GIF send (clients)', 'bool') +
-      row('blind_watermark_enabled', 'Blind watermark (clients)', 'bool') +
-      row('voice_call_enabled', 'Voice call fine gate (clients)', 'bool') +
-      row('video_call_enabled', 'Video call fine gate (clients)', 'bool') +
-      row('chat_wallpaper_enabled', 'Chat wallpaper (clients)', 'bool') +
-      row('chat_font_scale_enabled', 'Chat font scale (clients)', 'bool') +
-      row('unread_priority_enabled', 'Unread priority (clients)', 'bool') +
-      row('ringtone_enabled', 'Ringtone settings (clients)', 'bool') +
-      row('notification_sound_enabled', 'Notification sound (clients)', 'bool') +
-      row('notification_preview_enabled', 'Notification preview (clients)', 'bool') +
-      row('push_notifications_enabled', 'Push notifications master (clients)', 'bool') +
-      row('task_reminders_enabled', 'Task reminders (clients)', 'bool') +
-      row('dnd_enabled', 'Do-not-disturb windows (clients)', 'bool') +
-      row('offline_ai_enabled', 'Offline AI fallbacks (clients)', 'bool') +
-      row('in_app_sounds_enabled', 'In-app sounds (clients)', 'bool') +
-      row('haptics_enabled', 'Haptics feedback (clients)', 'bool') +
-      row('chat_animations_enabled', 'Chat animations (clients)', 'bool') +
-      row('nav_transitions_enabled', 'Nav transitions (clients)', 'bool') +
-      row('screenshot_detect_enabled', 'Screenshot detect (clients)', 'bool') +
-      row('recents_exclusion_enabled', 'Recents exclusion (clients)', 'bool') +
-      row('secret_copy_block_enabled', 'Secret chat copy block (clients)', 'bool') +
-      row('secret_media_export_block_enabled', 'Secret media export block (clients)', 'bool') +
-      row('secret_forward_block_enabled', 'Secret chat forward block (clients)', 'bool') +
-      row('secret_chat_export_block_enabled', 'Secret chat history export block (clients)', 'bool') +
-      row('visible_watermark_enabled', 'Visible secret surface watermark (clients)', 'bool') +
-      row('secret_auto_disappear_enabled', 'Secret chat auto 24h disappear (clients)', 'bool') +
-      row('secret_link_preview_block_enabled', 'Secret chat link preview block (clients)', 'bool') +
-      row('secret_external_link_block_enabled', 'Secret chat external link open block (clients)', 'bool') +
-      row('secret_notif_preview_block_enabled', 'Secret chat notification preview block (clients)', 'bool') +
-      row('secret_list_preview_block_enabled', 'Secret chat list preview block (clients)', 'bool') +
-      row('secret_reaction_block_enabled', 'Secret chat reaction block (clients)', 'bool') +
-      row('secret_star_block_enabled', 'Secret chat star/favorite block (clients)', 'bool') +
-      row('secret_typing_block_enabled', 'Secret chat typing indicator block (clients)', 'bool') +
-      row('secret_read_receipt_block_enabled', 'Secret chat read receipt block (clients)', 'bool') +
-      row('secret_presence_block_enabled', 'Secret chat presence/online block (clients)', 'bool') +
-      row('secret_last_seen_block_enabled', 'Secret chat last seen block (clients)', 'bool') +
-      '<div style="margin-top:12px;font-size:12px;color:var(--text-muted)">Env allowRegistration: ' +
+      '<button class="btn btn-primary" id="settings-save">保存</button></div><div class="panel-body">' +
+      '<p style="color:var(--text-muted);font-size:13px">覆盖环境默认值，无需重启。服务端约 5 秒缓存。</p>' +
+      group('接入与注册',
+        row('maintenance_mode', '维护模式', 'bool') +
+        row('maintenance_message', '维护提示文案', 'textarea') +
+        row('allow_registration', '允许注册', 'bool') +
+        row('invite_only_hint', '关闭注册时的提示', 'textarea') +
+        row('global_banner', '全局横幅', 'textarea') +
+        row('public_announcement', '公开公告', 'textarea') +
+        row('min_app_version', '最低客户端版本号', 'text') +
+        row('ip_blocklist', 'IP 黑名单（逗号或换行）', 'textarea')) +
+      group('群与机器人',
+        row('max_group_size', '群人数上限', 'text') +
+        row('allow_bots', '开放机器人平台', 'bool') +
+        row('max_bots_per_user', '每用户机器人上限', 'text') +
+        row('group_play_enabled', '群玩法', 'bool') +
+        row('group_invites_enabled', '群邀请', 'bool')) +
+      group('消息与媒体',
+        row('sealed_sender_enabled', '密封发送者证书', 'bool') +
+        row('force_e2ee_banner', '强制端到端横幅文案', 'textarea') +
+        row('max_message_per_min', '每用户每分钟消息上限', 'text') +
+        row('media_upload_enabled', '允许媒体上传', 'bool') +
+        row('image_send_enabled', '发图', 'bool') +
+        row('video_send_enabled', '发视频', 'bool') +
+        row('gif_send_enabled', '发 GIF', 'bool') +
+        row('voice_messages_enabled', '语音消息', 'bool') +
+        row('file_share_enabled', '文件分享', 'bool') +
+        row('link_preview_enabled', '链接预览', 'bool') +
+        row('reactions_enabled', '消息反应', 'bool') +
+        row('stickers_enabled', '贴纸', 'bool') +
+        row('silent_send_enabled', '静默发送', 'bool') +
+        row('scheduled_messages_enabled', '定时消息', 'bool') +
+        row('view_once_enabled', '阅后即焚媒体', 'bool') +
+        row('live_location_enabled', '实时位置', 'bool') +
+        row('static_location_enabled', '静态位置', 'bool') +
+        row('spoiler_media_enabled', '剧透媒体', 'bool') +
+        row('auto_download_enabled', '自动下载', 'bool') +
+        row('markdown_enabled', 'Markdown 渲染', 'bool') +
+        row('polls_enabled', '投票', 'bool') +
+        row('mentions_enabled', '@提及', 'bool') +
+        row('nudge_enabled', '拍一拍', 'bool') +
+        row('message_edit_enabled', '编辑消息', 'bool') +
+        row('message_pin_enabled', '置顶消息', 'bool') +
+        row('message_revoke_enabled', '撤回/删除消息', 'bool') +
+        row('message_forwarding_enabled', '转发消息', 'bool') +
+        row('message_starring_enabled', '收藏消息', 'bool') +
+        row('disappearing_messages_enabled', '限时消息', 'bool') +
+        row('contact_card_enabled', '名片', 'bool')) +
+      group('客户端功能',
+        row('calls_enabled', '音视频通话总开关', 'bool') +
+        row('voice_call_enabled', '语音通话', 'bool') +
+        row('video_call_enabled', '视频通话', 'bool') +
+        row('typing_indicators_enabled', '正在输入', 'bool') +
+        row('read_receipts_enabled', '已读回执', 'bool') +
+        row('presence_enabled', '在线状态', 'bool') +
+        row('chat_export_enabled', '导出聊天', 'bool') +
+        row('global_search_enabled', '全局搜索', 'bool') +
+        row('friend_requests_enabled', '好友请求', 'bool') +
+        row('chat_folders_enabled', '会话文件夹', 'bool') +
+        row('posts_enabled', '动态 / 朋友圈', 'bool') +
+        row('block_report_enabled', '拉黑与举报', 'bool') +
+        row('chat_archive_enabled', '归档会话', 'bool') +
+        row('nearby_enabled', '附近的人', 'bool') +
+        row('chat_pin_enabled', '置顶会话', 'bool') +
+        row('marked_unread_enabled', '标为未读', 'bool') +
+        row('chat_mute_enabled', '会话免打扰', 'bool') +
+        row('chat_lock_enabled', '会话锁', 'bool') +
+        row('app_lock_enabled', '应用锁', 'bool') +
+        row('chat_drafts_enabled', '会话草稿', 'bool') +
+        row('safety_code_enabled', '安全码', 'bool') +
+        row('qr_code_enabled', '二维码', 'bool') +
+        row('chat_wallpaper_enabled', '聊天壁纸', 'bool') +
+        row('chat_font_scale_enabled', '聊天字号', 'bool') +
+        row('unread_priority_enabled', '未读优先', 'bool') +
+        row('pqxdh_preview', 'PQXDH 预览开关', 'bool')) +
+      group('AI',
+        row('ai_enabled', '云端 AI 功能', 'bool') +
+        row('offline_ai_enabled', '离线 AI 回退', 'bool') +
+        row('ai_translate_enabled', 'AI 翻译', 'bool') +
+        row('ai_summary_enabled', 'AI 摘要', 'bool') +
+        row('ai_rewrite_enabled', 'AI 改写', 'bool') +
+        row('ai_suggest_replies_enabled', 'AI 建议回复', 'bool') +
+        row('ai_transcribe_enabled', 'AI 转写', 'bool') +
+        row('ai_analyze_image_enabled', 'AI 识图', 'bool') +
+        row('ai_group_assistant_enabled', 'AI 群助手', 'bool') +
+        row('ai_analyze_file_enabled', 'AI 读文件', 'bool') +
+        row('ai_semantic_search_enabled', 'AI 语义搜索', 'bool')) +
+      group('密聊与安全',
+        row('secret_chat_enabled', '密聊', 'bool') +
+        row('secret_chat_required', '单聊强制密聊（客户端横幅）', 'bool') +
+        row('capture_alert_enabled', '对端截屏提醒', 'bool') +
+        row('screen_secure_runtime_enabled', '运行时防截屏', 'bool') +
+        row('screenshot_detect_enabled', '截屏检测', 'bool') +
+        row('recents_exclusion_enabled', '从最近任务排除', 'bool') +
+        row('blind_watermark_enabled', '盲水印', 'bool') +
+        row('visible_watermark_enabled', '密聊可见水印', 'bool') +
+        row('secret_copy_block_enabled', '密聊禁止复制', 'bool') +
+        row('secret_media_export_block_enabled', '密聊禁止导出媒体', 'bool') +
+        row('secret_forward_block_enabled', '密聊禁止转发', 'bool') +
+        row('secret_chat_export_block_enabled', '密聊禁止导出历史', 'bool') +
+        row('secret_auto_disappear_enabled', '密聊 24 小时自动消失', 'bool') +
+        row('secret_link_preview_block_enabled', '密聊禁止链接预览', 'bool') +
+        row('secret_external_link_block_enabled', '密聊禁止打开外链', 'bool') +
+        row('secret_notif_preview_block_enabled', '密聊通知不展示预览', 'bool') +
+        row('secret_list_preview_block_enabled', '密聊列表不展示预览', 'bool') +
+        row('secret_reaction_block_enabled', '密聊禁止反应', 'bool') +
+        row('secret_star_block_enabled', '密聊禁止收藏', 'bool') +
+        row('secret_typing_block_enabled', '密聊隐藏正在输入', 'bool') +
+        row('secret_read_receipt_block_enabled', '密聊隐藏已读', 'bool') +
+        row('secret_presence_block_enabled', '密聊隐藏在线', 'bool') +
+        row('secret_last_seen_block_enabled', '密聊隐藏最后上线', 'bool')) +
+      group('通知与体验',
+        row('push_notifications_enabled', '推送总开关', 'bool') +
+        row('notification_sound_enabled', '通知声音', 'bool') +
+        row('notification_preview_enabled', '通知预览', 'bool') +
+        row('ringtone_enabled', '铃声设置', 'bool') +
+        row('task_reminders_enabled', '任务提醒', 'bool') +
+        row('dnd_enabled', '免打扰时段', 'bool') +
+        row('in_app_sounds_enabled', '应用内音效', 'bool') +
+        row('haptics_enabled', '触感反馈', 'bool') +
+        row('chat_animations_enabled', '聊天动画', 'bool') +
+        row('nav_transitions_enabled', '导航转场', 'bool')) +
+      '<div style="margin-top:12px;font-size:12px;color:var(--text-muted)">环境变量 allowRegistration: ' +
       esc(String(data.envAllowRegistration)) + '</div></div></div>';
     if (staleTab(seq)) return;
     el('content').innerHTML = html;
@@ -2054,28 +2198,27 @@ async function loadChats(seq) {
       });
       try {
         await api('/api/admin/settings', { method: 'PUT', body: JSON.stringify({ settings: updates }) });
-        toast('Settings saved', 'success');
+        toast('设置已保存', 'success');
         await loadSettings();
+        attachSubtabs();
       } catch (e) {
-        toast('Save failed: ' + (e && e.message ? e.message : e), 'error');
+        toast('保存失败: ' + (e && e.message ? e.message : e), 'error');
       }
     };
   }
 
-async function loadWatermark() {
-    var n = el('page-title'); if (n) n.textContent = '\u6c34\u5370\u53d6\u8bc1';
+  async function loadWatermark() {
     el('content').innerHTML =
-      '<div class="card">' +
-      '<h3>\u5bc6\u804a\u76f2\u6c34\u5370\u63d0\u53d6</h3>' +
-      '<p class="muted">Upload a suspected secret-chat screenshot. Server uses the same DCT-QIM algorithm as the app (48-bit user/chat/device hash). On-screen tiles also include user id + timestamp.</p>' +
+      '<div class="panel"><div class="panel-header"><h2>水印取证</h2></div><div class="panel-body">' +
+      '<p style="color:var(--text-muted);font-size:13px">上传疑似密聊截图。服务端与客户端使用同一套 DCT-QIM 算法（48-bit 用户/会话/设备哈希）。屏幕水印还会带用户 id 与时间戳。</p>' +
       '<div class="row" style="gap:12px;flex-wrap:wrap;margin:12px 0">' +
       '<input type="file" id="wm-file" accept="image/*"/>' +
-      '<button class="btn btn-primary" id="wm-extract">\u63d0\u53d6\u6c34\u5370</button>' +
-      '<button class="btn btn-ghost" id="wm-selftest">Self-test</button>' +
+      '<button class="btn btn-primary" id="wm-extract">提取水印</button>' +
+      '<button class="btn btn-ghost" id="wm-selftest">自检</button>' +
       '</div>' +
       '<div id="wm-preview" class="muted">暂无图片</div>' +
       '<pre id="wm-result" class="code-block" style="margin-top:12px;white-space:pre-wrap"></pre>' +
-      '</div>';
+      '</div></div>';
     var fileInput = el('wm-file');
     var result = el('wm-result');
     var preview = el('wm-preview');
@@ -2085,8 +2228,8 @@ async function loadWatermark() {
     };
     el('wm-extract').onclick = async function () {
       var f = fileInput.files && fileInput.files[0];
-      if (!f) { toast('Pick an image first', 'error'); return; }
-      result.textContent = 'Extracting...';
+      if (!f) { toast('请先选择图片', 'error'); return; }
+      result.textContent = '提取中…';
       try {
         var b64 = await fileToBase64(f);
         var data = await api('/api/admin/watermark/extract', {
@@ -2095,14 +2238,14 @@ async function loadWatermark() {
           body: JSON.stringify({ imageBase64: b64 })
         });
         result.textContent = JSON.stringify(data, null, 2);
-        toast(data.found ? 'Watermark found' : 'No watermark');
+        toast(data.found ? '已找到水印' : '未检测到水印');
       } catch (e) {
         result.textContent = String(e.message || e);
-        toast('Extract failed', 'error');
+        toast('提取失败', 'error');
       }
     };
     el('wm-selftest').onclick = async function () {
-      result.textContent = 'Self-testing...';
+      result.textContent = '自检中…';
       try {
         var data = await api('/api/admin/watermark/self-test');
         result.textContent = JSON.stringify({
@@ -2111,30 +2254,29 @@ async function loadWatermark() {
           message: data.message,
           sampleLen: (data.samplePngBase64 || '').length
         }, null, 2);
-        toast(data.found ? 'Self-test OK' : 'Self-test failed', data.found ? undefined : 'error');
+        toast(data.found ? '自检通过' : '自检失败', data.found ? undefined : 'error');
       } catch (e) {
         result.textContent = String(e.message || e);
-        toast('Self-test failed', 'error');
+        toast('自检失败', 'error');
       }
     };
   }
 
   async function loadBots(seq) {
-    var n = el('page-title'); if (n) n.textContent = 'Bots';
-    el('content').innerHTML = '<div class="loading-state"><div class="spinner"></div><span>Loading...</span></div>';
+    el('content').innerHTML = '<div class="loading-state"><div class="spinner"></div><span>加载中…</span></div>';
     try {
       var rows = await api('/api/admin/bots?limit=100');
       var list = Array.isArray(rows) ? rows : (rows.items || rows.bots || []);
       if (!list.length) {
         if (staleTab(seq)) return;
-        el('content').innerHTML = '<div class="empty-state"><p>No bots yet. Developers can create via POST /api/bots</p></div>';
+        el('content').innerHTML = '<div class="empty-state"><p>还没有机器人。开发者可在开发者中心或通过 POST /api/bots 创建。</p></div>';
         return;
       }
       var html = '<div class="card"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">全部机器人</h3><button class="btn btn-ghost btn-sm" id="runtime-export-btn">导出运行时 JSON</button><button class="btn btn-ghost btn-sm" id="bots-export-btn" style="margin-left:8px">导出机器人 CSV</button><button class="btn btn-ghost btn-sm" id="polls-export-btn" style="margin-left:8px">导出投票 CSV</button><button class="btn btn-ghost btn-sm" id="message-stats-export-btn" style="margin-left:8px">消息统计 CSV</button><button class="btn btn-ghost btn-sm" id="reports-export-btn" style="margin-left:8px">举报 CSV</button><button class="btn btn-ghost btn-sm" id="risk-export-btn" style="margin-left:8px">风控 CSV</button><button class="btn btn-ghost btn-sm" id="online-export-btn" style="margin-left:8px">在线 CSV</button><button class="btn btn-ghost btn-sm" id="push-tokens-export-btn" style="margin-left:8px">推送令牌 CSV</button><button class="btn btn-ghost btn-sm" id="ai-usage-export-btn" style="margin-left:8px">AI 用量 CSV</button><button class="btn btn-ghost btn-sm" id="sessions-summary-export-btn" style="margin-left:8px">会话汇总 CSV</button><button class="btn btn-ghost btn-sm" id="moderation-audit-export-btn" style="margin-left:8px">审计 CSV</button><button class="btn btn-ghost btn-sm" id="bot-command-stats-export-btn" style="margin-left:8px">Bot 指令 CSV</button><button class="btn btn-ghost btn-sm" id="friends-export-btn" style="margin-left:8px">好友 CSV</button><button class="btn btn-ghost btn-sm" id="reports-meta-export-btn" style="margin-left:8px">举报元数据 CSV</button><button class="btn btn-ghost btn-sm" id="blocks-export-btn" style="margin-left:8px">拉黑 CSV</button><button class="btn btn-ghost btn-sm" id="chat-settings-export-btn" style="margin-left:8px">会话设置 CSV</button><button class="btn btn-ghost btn-sm" id="disappearing-chats-export-btn" style="margin-left:8px">阅后即焚 CSV</button><button class="btn btn-ghost btn-sm" id="muted-chats-export-btn" style="margin-left:8px">免打扰 CSV</button><button class="btn btn-ghost btn-sm" id="pinned-messages-export-btn" style="margin-left:8px">置顶消息 CSV</button><button class="btn btn-ghost btn-sm" id="poll-votes-export-btn" style="margin-left:8px">投票明细 CSV</button><button class="btn btn-ghost btn-sm" id="restricted-users-export-btn" style="margin-left:8px">受限用户 CSV</button><button class="btn btn-ghost btn-sm" id="group-invites-export-btn" style="margin-left:8px">群邀请 CSV</button><button class="btn btn-ghost btn-sm" id="totp-users-export-btn" style="margin-left:8px">TOTP 用户 CSV</button><button class="btn btn-ghost btn-sm" id="identity-users-export-btn" style="margin-left:8px">身份密钥 CSV</button><button class="btn btn-ghost btn-sm" id="privacy-flags-export-btn" style="margin-left:8px">隐私开关 CSV</button><button class="btn btn-ghost btn-sm" id="online-presence-export-btn" style="margin-left:8px">在线状态 CSV</button><button class="btn btn-ghost btn-sm" id="ai-feature-flags-export-btn" style="margin-left:8px">AI 功能开关 CSV</button></div><table class="table"><thead><tr><th>名称</th><th>用户名</th><th>所有者</th><th>令牌前缀</th><th>Webhook</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>';
       list.forEach(function (b) {
-        html += '<tr><td>' + esc(b.name) + '</td><td>@' + esc(b.username) + '</td><td class="mono">' + esc(b.ownerUserId) + '</td><td class="mono">' + esc(b.tokenPrefix) + '</td><td>' + esc(b.webhookUrl || '-') + '</td><td>' + (b.enabled ? 'on' : 'off') + '</td><td>' + date(b.createdAt) + '</td><td>' +
-          '<button class="btn btn-ghost btn-sm" data-bot-enable="' + esc(b.id) + '" data-enabled="' + (b.enabled ? '0' : '1') + '">' + (b.enabled ? 'Disable' : 'Enable') + '</button> ' +
-          '<button class="btn btn-ghost btn-sm" data-bot-logs="' + esc(b.id) + '">Logs</button></td></tr>';
+        html += '<tr><td>' + esc(b.name) + '</td><td>@' + esc(b.username) + '</td><td class="mono">' + esc(b.ownerUserId) + '</td><td class="mono">' + esc(b.tokenPrefix) + '</td><td>' + esc(b.webhookUrl || '-') + '</td><td>' + (b.enabled ? '启用' : '停用') + '</td><td>' + date(b.createdAt) + '</td><td>' +
+          '<button class="btn btn-ghost btn-sm" data-bot-enable="' + esc(b.id) + '" data-enabled="' + (b.enabled ? '0' : '1') + '">' + (b.enabled ? '停用' : '启用') + '</button> ' +
+          '<button class="btn btn-ghost btn-sm" data-bot-logs="' + esc(b.id) + '">日志</button></td></tr>';
       });
       html += '</tbody></table><pre id="bot-logs-view" class="mono" style="max-height:280px;overflow:auto;margin-top:12px;white-space:pre-wrap"></pre></div>';
       if (staleTab(seq)) return;
@@ -2148,7 +2290,7 @@ async function loadWatermark() {
           a.href = URL.createObjectURL(blob);
           a.download = 'maodouchat-runtime-' + Date.now() + '.json';
           a.click();
-          toast('Runtime exported');
+          toast('已导出运行时 JSON');
         } catch (e) { toast(String(e.message || e), 'error'); }
       };
       function bindCsvExport(btnId, url, filenamePrefix, successMsg) {
@@ -2166,36 +2308,36 @@ async function loadWatermark() {
             URL.revokeObjectURL(a.href);
             toast(successMsg, 'success');
           } catch (e) {
-            toast('Export failed: ' + (e && e.message ? e.message : e), 'error');
+            toast('导出失败: ' + (e && e.message ? e.message : e), 'error');
           }
         };
       }
-      bindCsvExport('bots-export-btn', '/api/admin/bots-export?limit=2000', 'maodouchat-bots-', 'Bots CSV exported');
-      bindCsvExport('polls-export-btn', '/api/admin/polls-export?limit=2000', 'maodouchat-polls-', 'Polls CSV exported');
-      bindCsvExport('message-stats-export-btn', '/api/admin/message-stats-export', 'maodouchat-message-stats-', 'Message stats CSV exported');
-      bindCsvExport('reports-export-btn', '/api/admin/reports-export?limit=2000', 'maodouchat-reports-', '举报 CSV exported');
-      bindCsvExport('risk-export-btn', '/api/admin/risk-events-export?limit=2000', 'maodouchat-risk-', 'Risk events CSV exported');
-      bindCsvExport('online-export-btn', '/api/admin/online-export', 'maodouchat-online-', '在线 CSV exported');
-      bindCsvExport('push-tokens-export-btn', '/api/admin/push-tokens-export?limit=5000', 'maodouchat-push-tokens-', '推送令牌 CSV exported');
-      bindCsvExport('ai-usage-export-btn', '/api/admin/ai-usage-export?limit=2000', 'maodouchat-ai-usage-', 'AI 用量 CSV exported');
-      bindCsvExport('sessions-summary-export-btn', '/api/admin/sessions-summary-export?limit=5000', 'maodouchat-sessions-', '会话汇总 CSV exported');
-      bindCsvExport('moderation-audit-export-btn', '/api/admin/moderation-audit-export?limit=2000', 'maodouchat-audit-', '审计 CSV exported');
-      bindCsvExport('bot-command-stats-export-btn', '/api/admin/bot-command-stats-export?limit=5000', 'maodouchat-bot-cmds-', 'Bot command stats CSV exported');
-      bindCsvExport('friends-export-btn', '/api/admin/friends-export?limit=5000', 'maodouchat-friends-', '好友 CSV exported');
-      bindCsvExport('reports-meta-export-btn', '/api/admin/reports-meta-export?limit=5000', 'maodouchat-reports-meta-', '举报元数据 CSV exported');
-      bindCsvExport('blocks-export-btn', '/api/admin/blocks-export?limit=5000', 'maodouchat-blocks-', '拉黑 CSV exported');
-      bindCsvExport('chat-settings-export-btn', '/api/admin/chat-settings-export?limit=5000', 'maodouchat-chat-settings-', '会话设置 CSV exported');
-      bindCsvExport('disappearing-chats-export-btn', '/api/admin/disappearing-chats-export?limit=5000', 'maodouchat-disappearing-chats-', '阅后即焚 CSV exported');
-      bindCsvExport('muted-chats-export-btn', '/api/admin/muted-chats-export?limit=5000', 'maodouchat-muted-chats-', '免打扰 CSV exported');
-      bindCsvExport('pinned-messages-export-btn', '/api/admin/pinned-messages-export?limit=5000', 'maodouchat-pinned-messages-', '置顶消息 CSV exported');
-      bindCsvExport('poll-votes-export-btn', '/api/admin/poll-votes-export?limit=5000', 'maodouchat-poll-votes-', '投票明细 CSV exported');
-      bindCsvExport('restricted-users-export-btn', '/api/admin/restricted-users-export?limit=5000', 'maodouchat-restricted-users-', '受限用户 CSV exported');
-      bindCsvExport('group-invites-export-btn', '/api/admin/group-invites-export?limit=5000', 'maodouchat-group-invites-', '群邀请 CSV exported');
-      bindCsvExport('totp-users-export-btn', '/api/admin/totp-users-export?limit=5000', 'maodouchat-totp-users-', 'TOTP 用户 CSV exported');
-      bindCsvExport('identity-users-export-btn', '/api/admin/identity-users-export?limit=5000', 'maodouchat-identity-users-', '身份密钥 CSV exported');
-      bindCsvExport('privacy-flags-export-btn', '/api/admin/privacy-flags-export?limit=5000', 'maodouchat-privacy-flags-', '隐私开关 CSV exported');
-      bindCsvExport('online-presence-export-btn', '/api/admin/online-presence-export?limit=5000', 'maodouchat-online-presence-', '在线状态 CSV exported');
-      bindCsvExport('ai-feature-flags-export-btn', '/api/admin/ai-feature-flags-export', 'maodouchat-ai-feature-flags-', 'AI 功能开关 CSV exported');
+      bindCsvExport('bots-export-btn', '/api/admin/bots-export?limit=2000', 'maodouchat-bots-', '已导出机器人 CSV');
+      bindCsvExport('polls-export-btn', '/api/admin/polls-export?limit=2000', 'maodouchat-polls-', '已导出投票 CSV');
+      bindCsvExport('message-stats-export-btn', '/api/admin/message-stats-export', 'maodouchat-message-stats-', '已导出消息统计 CSV');
+      bindCsvExport('reports-export-btn', '/api/admin/reports-export?limit=2000', 'maodouchat-reports-', '已导出举报 CSV');
+      bindCsvExport('risk-export-btn', '/api/admin/risk-events-export?limit=2000', 'maodouchat-risk-', '已导出风控 CSV');
+      bindCsvExport('online-export-btn', '/api/admin/online-export', 'maodouchat-online-', '已导出在线 CSV');
+      bindCsvExport('push-tokens-export-btn', '/api/admin/push-tokens-export?limit=5000', 'maodouchat-push-tokens-', '已导出推送令牌 CSV');
+      bindCsvExport('ai-usage-export-btn', '/api/admin/ai-usage-export?limit=2000', 'maodouchat-ai-usage-', '已导出 AI 用量 CSV');
+      bindCsvExport('sessions-summary-export-btn', '/api/admin/sessions-summary-export?limit=5000', 'maodouchat-sessions-', '已导出会话汇总 CSV');
+      bindCsvExport('moderation-audit-export-btn', '/api/admin/moderation-audit-export?limit=2000', 'maodouchat-audit-', '已导出审计 CSV');
+      bindCsvExport('bot-command-stats-export-btn', '/api/admin/bot-command-stats-export?limit=5000', 'maodouchat-bot-cmds-', '已导出 Bot 指令 CSV');
+      bindCsvExport('friends-export-btn', '/api/admin/friends-export?limit=5000', 'maodouchat-friends-', '已导出好友 CSV');
+      bindCsvExport('reports-meta-export-btn', '/api/admin/reports-meta-export?limit=5000', 'maodouchat-reports-meta-', '已导出举报元数据 CSV');
+      bindCsvExport('blocks-export-btn', '/api/admin/blocks-export?limit=5000', 'maodouchat-blocks-', '已导出拉黑 CSV');
+      bindCsvExport('chat-settings-export-btn', '/api/admin/chat-settings-export?limit=5000', 'maodouchat-chat-settings-', '已导出会话设置 CSV');
+      bindCsvExport('disappearing-chats-export-btn', '/api/admin/disappearing-chats-export?limit=5000', 'maodouchat-disappearing-chats-', '已导出阅后即焚 CSV');
+      bindCsvExport('muted-chats-export-btn', '/api/admin/muted-chats-export?limit=5000', 'maodouchat-muted-chats-', '已导出免打扰 CSV');
+      bindCsvExport('pinned-messages-export-btn', '/api/admin/pinned-messages-export?limit=5000', 'maodouchat-pinned-messages-', '已导出置顶消息 CSV');
+      bindCsvExport('poll-votes-export-btn', '/api/admin/poll-votes-export?limit=5000', 'maodouchat-poll-votes-', '已导出投票明细 CSV');
+      bindCsvExport('restricted-users-export-btn', '/api/admin/restricted-users-export?limit=5000', 'maodouchat-restricted-users-', '已导出受限用户 CSV');
+      bindCsvExport('group-invites-export-btn', '/api/admin/group-invites-export?limit=5000', 'maodouchat-group-invites-', '已导出群邀请 CSV');
+      bindCsvExport('totp-users-export-btn', '/api/admin/totp-users-export?limit=5000', 'maodouchat-totp-users-', '已导出 TOTP 用户 CSV');
+      bindCsvExport('identity-users-export-btn', '/api/admin/identity-users-export?limit=5000', 'maodouchat-identity-users-', '已导出身份密钥 CSV');
+      bindCsvExport('privacy-flags-export-btn', '/api/admin/privacy-flags-export?limit=5000', 'maodouchat-privacy-flags-', '已导出隐私开关 CSV');
+      bindCsvExport('online-presence-export-btn', '/api/admin/online-presence-export?limit=5000', 'maodouchat-online-presence-', '已导出在线状态 CSV');
+      bindCsvExport('ai-feature-flags-export-btn', '/api/admin/ai-feature-flags-export', 'maodouchat-ai-feature-flags-', '已导出 AI 功能开关 CSV');
 
       document.querySelectorAll('[data-bot-enable]').forEach(function (btn) {
         btn.onclick = async function () {
@@ -2207,7 +2349,7 @@ async function loadWatermark() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ enabled: en })
             });
-            toast(en ? 'Bot enabled' : 'Bot disabled');
+            toast(en ? '已启用机器人' : '已停用机器人');
             loadBots();
           } catch (e) {
             toast(String(e.message || e), 'error');
@@ -2218,13 +2360,13 @@ async function loadWatermark() {
         btn.onclick = async function () {
           var id = btn.getAttribute('data-bot-logs');
           var view = el('bot-logs-view');
-          if (view) view.textContent = 'Loading logs...';
+          if (view) view.textContent = '加载日志…';
           try {
             var data = await api('/api/admin/bots/' + encodeURIComponent(id) + '/command-logs?limit=80');
             var lines = (data.logs || []).map(function (r) {
               return date(r.createdAt) + '  ' + (r.command || '') + '  chat=' + (r.chatId || '-') + ' user=' + (r.userId || '-');
             });
-            if (view) view.textContent = lines.length ? lines.join('\n') : '(no command logs)';
+            if (view) view.textContent = lines.length ? lines.join('\n') : '（暂无指令日志）';
           } catch (e) {
             if (view) view.textContent = String(e.message || e);
           }
@@ -2258,12 +2400,15 @@ async function loadWatermark() {
     // 此前仅暴露 api/toast/esc/date/el，adminForceLogout 等引用闭包内变量 → ReferenceError
     showSelect: showSelect,
     showPrompt: showPrompt,
+    showConfirm: showConfirm,
+    showForm: showForm,
     ensureDispositionTemplates: ensureDispositionTemplates,
     loadUsers: loadUsers,
     // 8.48 补全：B6 模块与主模块共享同一 tab 渲染序号——主/B6 tab 互切时，
     // 任一侧的旧响应都不得覆盖另一侧的新页面
     nextTabSeq: function () { return ++loadSeq; },
     isStaleTab: staleTab,
+    attachSubtabs: attachSubtabs,
     get dispositionTemplates() { return dispositionTemplates; }
   };
 
@@ -2272,13 +2417,19 @@ async function loadWatermark() {
 
 async function adminForceLogout(userId) {
   if (!userId) return;
-  if (!confirm('强制下线 user ' + userId + ' on all devices?')) return;
-  try {
-    await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/force-logout', { method: 'POST', body: '{}' });
-    window.__b6Admin.toast('强制下线 ok');
-  } catch (e) {
-    window.__b6Admin.toast('强制下线 failed: ' + (e && e.message ? e.message : e));
-  }
+  window.__b6Admin.showConfirm(
+    '强制下线',
+    '强制下线 user ' + userId + ' on all devices?',
+    'warn',
+    async function () {
+      try {
+        await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/force-logout', { method: 'POST', body: '{}' });
+        window.__b6Admin.toast('强制下线 ok');
+      } catch (e) {
+        window.__b6Admin.toast('强制下线 failed: ' + (e && e.message ? e.message : e));
+      }
+    }
+  );
 }
 
 async function adminLoadUserSessions(userId) {
@@ -2292,27 +2443,33 @@ async function adminLoadUserSessions(userId) {
     });
     lines.push('Signal devices: ' + ((data.signalDevices || []).length));
     (data.signalDevices || []).slice(0, 12).forEach(function (d) {
-      lines.push('#' + d.deviceId + ' ' + (d.device名称 || '') + ' ' + (d.status || '') + ' last ' + window.__b6Admin.date(d.lastSeenAt));
+      lines.push('#' + d.deviceId + ' ' + (d.deviceName || '') + ' ' + (d.status || '') + ' last ' + window.__b6Admin.date(d.lastSeenAt));
     });
     lines.push('Push tokens: ' + ((data.pushTokens || []).length));
     var text = lines.join('\n') || 'No sessions';
-    var action = window.prompt(text + '\n\n操作: type session prefix to revoke one, or ALL to force logout all', '');
-    if (action == null) return;
-    action = String(action).trim();
-    if (!action) return;
-    if (action.toUpperCase() === 'ALL') {
-      await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/sessions/revoke', {
-        method: 'POST',
-        body: JSON.stringify({ all: true })
-      });
-      window.__b6Admin.toast('All sessions revoked', 'success');
-    } else {
-      await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/sessions/revoke', {
-        method: 'POST',
-        body: JSON.stringify({ tokenHashPrefix: action })
-      });
-      window.__b6Admin.toast('Session revoke requested for prefix ' + action, 'success');
-    }
+    window.__b6Admin.showPrompt(
+      '用户会话',
+      text + '\n\n操作：输入 session prefix 撤销一条，或 ALL 强制下线全部',
+      '',
+      'prefix 或 ALL',
+      async function (action) {
+        action = String(action || '').trim();
+        if (!action) return false;
+        if (action.toUpperCase() === 'ALL') {
+          await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/sessions/revoke', {
+            method: 'POST',
+            body: JSON.stringify({ all: true })
+          });
+          window.__b6Admin.toast('All sessions revoked', 'success');
+        } else {
+          await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/sessions/revoke', {
+            method: 'POST',
+            body: JSON.stringify({ tokenHashPrefix: action })
+          });
+          window.__b6Admin.toast('Session revoke requested for prefix ' + action, 'success');
+        }
+      }
+    );
   } catch (e) {
     window.__b6Admin.toast('Sessions failed: ' + (e && e.message ? e.message : e), 'error');
   }
@@ -2392,25 +2549,41 @@ async function adminLoadUserSessions(userId) {
 
 async function adminDisableTotp(userId) {
   if (!userId) return;
-  if (!confirm('关闭 TOTP for user ' + userId + '?')) return;
-  try {
-    await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/disable-totp', { method: 'POST', body: '{}' });
-    window.__b6Admin.toast('TOTP disabled');
-  } catch (e) {
-    window.__b6Admin.toast('关闭 TOTP failed: ' + (e && e.message ? e.message : e));
-  }
+  window.__b6Admin.showConfirm(
+    '关闭 TOTP',
+    '关闭 TOTP for user ' + userId + '?',
+    'warn',
+    async function () {
+      try {
+        await window.__b6Admin.api('/api/admin/users/' + encodeURIComponent(userId) + '/disable-totp', { method: 'POST', body: '{}' });
+        window.__b6Admin.toast('TOTP disabled');
+      } catch (e) {
+        window.__b6Admin.toast('关闭 TOTP failed: ' + (e && e.message ? e.message : e));
+      }
+    }
+  );
 }
 
 
 async function adminBroadcast() {
-  var text = prompt('Broadcast message to all online users:');
-  if (!text || !text.trim()) return;
-  try {
-    var res = await window.__b6Admin.api('/api/admin/broadcast', { method: 'POST', body: JSON.stringify({ text: text.trim(), title: 'System' }) });
-    window.__b6Admin.toast('Broadcast delivered to ' + (res.delivered || 0) + ' online sessions');
-  } catch (e) {
-    window.__b6Admin.toast('Broadcast failed: ' + (e && e.message ? e.message : e));
-  }
+  window.__b6Admin.showPrompt(
+    '全员广播',
+    'Broadcast message to all online users:',
+    '',
+    '消息内容',
+    async function (text) {
+      if (!text || !String(text).trim()) {
+        window.__b6Admin.toast('消息不能为空', 'error');
+        return false;
+      }
+      try {
+        var res = await window.__b6Admin.api('/api/admin/broadcast', { method: 'POST', body: JSON.stringify({ text: String(text).trim(), title: 'System' }) });
+        window.__b6Admin.toast('Broadcast delivered to ' + (res.delivered || 0) + ' online sessions');
+      } catch (e) {
+        window.__b6Admin.toast('Broadcast failed: ' + (e && e.message ? e.message : e));
+      }
+    }
+  );
 }
 
 async function adminSetModerator(userId, enabled) {
@@ -2435,6 +2608,7 @@ async function adminSetModerator(userId, enabled) {
   var H = window.__b6Admin;
   var api = H.api, toast = H.toast, esc = H.esc, date = H.date;
   var el = H.el;
+  var showConfirm = H.showConfirm, showPrompt = H.showPrompt, showForm = H.showForm, showSelect = H.showSelect;
   var currentTab = '';
   var pg = { announcements: 0, 'user-tags': 0, 'user-tag-users': 0, 'device-consistency': 0 };
   var pageSize = 25;
@@ -2528,14 +2702,16 @@ async function adminSetModerator(userId, enabled) {
     });
     document.querySelectorAll('[data-b6-cancel]').forEach(function (b) {
       b.onclick = function () {
-        if (!confirm('确认取消公告 ' + b.dataset.b6Cancel + '？')) return;
-        api('/api/admin/announcements/' + encodeURIComponent(b.dataset.b6Cancel) + '/cancel', { method: 'POST', body: '{}' }).then(function () { toast('已取消', 'success'); loadAnnouncements(); }).catch(function (e) { toast('取消失败: ' + e.message, 'error'); });
+        showConfirm('取消公告', '确认取消公告 ' + b.dataset.b6Cancel + '？', 'warn', function () {
+          return api('/api/admin/announcements/' + encodeURIComponent(b.dataset.b6Cancel) + '/cancel', { method: 'POST', body: '{}' }).then(function () { toast('已取消', 'success'); loadAnnouncements(); });
+        });
       };
     });
     document.querySelectorAll('[data-b6-del]').forEach(function (b) {
       b.onclick = function () {
-        if (!confirm('确认删除草稿 ' + b.dataset.b6Del + '？仅未发布草稿可删除。')) return;
-        api('/api/admin/announcements/' + encodeURIComponent(b.dataset.b6Del), { method: 'DELETE' }).then(function () { toast('已删除', 'success'); loadAnnouncements(); }).catch(function (e) { toast('删除失败: ' + e.message, 'error'); });
+        showConfirm('删除草稿', '确认删除草稿 ' + b.dataset.b6Del + '？仅未发布草稿可删除。', 'danger', function () {
+          return api('/api/admin/announcements/' + encodeURIComponent(b.dataset.b6Del), { method: 'DELETE' }).then(function () { toast('已删除', 'success'); loadAnnouncements(); });
+        });
       };
     });
     document.querySelectorAll('[data-b6-stats]').forEach(function (b) {
@@ -2547,35 +2723,42 @@ async function adminSetModerator(userId, enabled) {
       };
     });
 
-    document.getElementById('b6-ann-create').onclick = async function () {
-      var title = prompt('公告标题：');
-      if (!title || !title.trim()) return;
-      var content = prompt('公告内容（平台明文广播，不含会话正文）：');
-      if (!content || !content.trim()) return;
-      var level = prompt('级别（INFO / WARNING / MAINTENANCE / EMERGENCY，默认 INFO）:', 'INFO');
-      level = LEVELS.indexOf((level || 'INFO').toUpperCase()) >= 0 ? (level || 'INFO').toUpperCase() : 'INFO';
-      var audience = prompt('受众（ALL 全员 / TAGGED 按标签，默认 ALL）:', 'ALL');
-      audience = (audience || 'ALL').toUpperCase() === 'TAGGED' ? 'TAGGED' : 'ALL';
-      var tagId = null;
-      if (audience === 'TAGGED') {
-        tagId = prompt('定向标签 ID（先在「用户标签」页创建标签，填其 id）：');
-        if (!tagId || !tagId.trim()) { toast('按标签公告必须指定 tagId', 'error'); return; }
-        tagId = tagId.trim();
-      }
-      var startsAt = prompt('生效时间戳（毫秒，留空立即生效）：');
-      var expiresAt = prompt('失效时间戳（毫秒，留空默认 7 天）：');
-      var body = {
-        title: title.trim(), content: content.trim(), level: level,
-        audience: audience, tagId: tagId,
-        startsAt: startsAt && Number.isFinite(Number(startsAt)) ? Number(startsAt) : null,
-        expiresAt: expiresAt && Number.isFinite(Number(expiresAt)) ? Number(expiresAt) : null
-      };
-      try {
-        await api('/api/admin/announcements', { method: 'POST', body: JSON.stringify(body) });
-        toast('公告已创建', 'success');
-        pg.announcements = 0;
-        loadAnnouncements();
-      } catch (e) { toast('创建失败: ' + e.message, 'error'); }
+    document.getElementById('b6-ann-create').onclick = function () {
+      showForm(
+        '新建公告',
+        '平台明文广播，不含会话正文。',
+        [
+          { name: 'title', label: '标题', type: 'text', required: true, placeholder: '公告标题' },
+          { name: 'content', label: '内容', type: 'textarea', required: true, placeholder: '公告内容' },
+          { name: 'level', label: '级别', type: 'select', value: 'INFO', options: LEVELS.map(function (lv) { return { value: lv, label: lv }; }) },
+          { name: 'audience', label: '受众', type: 'select', value: 'ALL', options: [{ value: 'ALL', label: '全员' }, { value: 'TAGGED', label: '按标签' }] },
+          { name: 'tagId', label: '定向标签 ID', type: 'text', placeholder: '受众为「按标签」时必填', hint: '先在「用户标签」页创建标签' },
+          { name: 'startsAt', label: '生效时间戳（毫秒）', type: 'text', placeholder: '留空立即生效' },
+          { name: 'expiresAt', label: '失效时间戳（毫秒）', type: 'text', placeholder: '留空默认 7 天' }
+        ],
+        async function (values) {
+          var title = String(values.title || '').trim();
+          var content = String(values.content || '').trim();
+          if (!title) { toast('请填写标题', 'error'); return false; }
+          if (!content) { toast('请填写内容', 'error'); return false; }
+          var level = LEVELS.indexOf(String(values.level || 'INFO').toUpperCase()) >= 0 ? String(values.level).toUpperCase() : 'INFO';
+          var audience = String(values.audience || 'ALL').toUpperCase() === 'TAGGED' ? 'TAGGED' : 'ALL';
+          var tagId = String(values.tagId || '').trim() || null;
+          if (audience === 'TAGGED' && !tagId) { toast('按标签公告必须指定 tagId', 'error'); return false; }
+          var startsAt = String(values.startsAt || '').trim();
+          var expiresAt = String(values.expiresAt || '').trim();
+          var body = {
+            title: title, content: content, level: level,
+            audience: audience, tagId: tagId,
+            startsAt: startsAt && Number.isFinite(Number(startsAt)) ? Number(startsAt) : null,
+            expiresAt: expiresAt && Number.isFinite(Number(expiresAt)) ? Number(expiresAt) : null
+          };
+          await api('/api/admin/announcements', { method: 'POST', body: JSON.stringify(body) });
+          toast('公告已创建', 'success');
+          pg.announcements = 0;
+          loadAnnouncements();
+        }
+      );
     };
   }
 
@@ -2619,34 +2802,49 @@ async function adminSetModerator(userId, enabled) {
     if (H.isStaleTab(seq)) return;
     el('content').innerHTML = html;
 
-    document.getElementById('b6-tag-create').onclick = async function () {
-      var name = prompt('标签名称：');
-      if (!name || !name.trim()) return;
-      var riskLevel = prompt('风控级别（NONE/LOW/MEDIUM/HIGH/CRITICAL，默认 LOW）:', 'LOW');
-      riskLevel = RISK.indexOf((riskLevel || 'LOW').toUpperCase()) >= 0 ? (riskLevel || 'LOW').toUpperCase() : 'LOW';
-      var color = prompt('标签颜色（十六进制，默认 #64748b）:', '#64748b') || '#64748b';
-      var desc = prompt('描述（可留空）：');
-      try {
-        await api('/api/admin/user-tags', { method: 'POST', body: JSON.stringify({ name: name.trim(), riskLevel: riskLevel, color: color, description: desc || null }) });
-        toast('标签已创建', 'success');
-        loadUserTags();
-      } catch (e) { toast('创建失败: ' + e.message, 'error'); }
+    document.getElementById('b6-tag-create').onclick = function () {
+      showForm(
+        '新建标签',
+        '自定义用户标签，可联动风控。',
+        [
+          { name: 'name', label: '名称', type: 'text', required: true, placeholder: '标签名称' },
+          { name: 'riskLevel', label: '风控级别', type: 'select', value: 'LOW', options: RISK.map(function (lv) { return { value: lv, label: lv }; }) },
+          { name: 'color', label: '颜色', type: 'text', value: '#64748b', placeholder: '#64748b' },
+          { name: 'description', label: '描述', type: 'textarea', placeholder: '可留空' }
+        ],
+        async function (values) {
+          var name = String(values.name || '').trim();
+          if (!name) { toast('请填写标签名称', 'error'); return false; }
+          var riskLevel = RISK.indexOf(String(values.riskLevel || 'LOW').toUpperCase()) >= 0 ? String(values.riskLevel).toUpperCase() : 'LOW';
+          var color = String(values.color || '').trim() || '#64748b';
+          var desc = String(values.description || '').trim() || null;
+          await api('/api/admin/user-tags', { method: 'POST', body: JSON.stringify({ name: name, riskLevel: riskLevel, color: color, description: desc }) });
+          toast('标签已创建', 'success');
+          loadUserTags();
+        }
+      );
     };
     document.querySelectorAll('[data-b6-tag-edit]').forEach(function (b) {
-      b.onclick = async function () {
-        var newRisk = prompt('修改风控级别（NONE/LOW/MEDIUM/HIGH/CRITICAL）:', 'MEDIUM');
-        newRisk = RISK.indexOf((newRisk || 'MEDIUM').toUpperCase()) >= 0 ? (newRisk || 'MEDIUM').toUpperCase() : 'MEDIUM';
-        try {
-          await api('/api/admin/user-tags/' + encodeURIComponent(b.dataset.b6TagEdit), { method: 'PUT', body: JSON.stringify({ riskLevel: newRisk }) });
-          toast('标签已更新', 'success');
-          loadUserTags();
-        } catch (e) { toast('更新失败: ' + e.message, 'error'); }
+      b.onclick = function () {
+        showSelect(
+          '修改风控级别',
+          '标签 ' + b.dataset.b6TagEdit,
+          RISK.map(function (lv) { return { value: lv, label: lv }; }),
+          'MEDIUM',
+          async function (newRisk) {
+            newRisk = RISK.indexOf(String(newRisk || 'MEDIUM').toUpperCase()) >= 0 ? String(newRisk).toUpperCase() : 'MEDIUM';
+            await api('/api/admin/user-tags/' + encodeURIComponent(b.dataset.b6TagEdit), { method: 'PUT', body: JSON.stringify({ riskLevel: newRisk }) });
+            toast('标签已更新', 'success');
+            loadUserTags();
+          }
+        );
       };
     });
     document.querySelectorAll('[data-b6-tag-del]').forEach(function (b) {
       b.onclick = function () {
-        if (!confirm('确认删除标签 ' + b.dataset.b6TagDel + '？会移除所有用户上的该标签。')) return;
-        api('/api/admin/user-tags/' + encodeURIComponent(b.dataset.b6TagDel), { method: 'DELETE' }).then(function () { toast('标签已删除', 'success'); loadUserTags(); }).catch(function (e) { toast('删除失败: ' + e.message, 'error'); });
+        showConfirm('删除标签', '确认删除标签 ' + b.dataset.b6TagDel + '？会移除所有用户上的该标签。', 'danger', function () {
+          return api('/api/admin/user-tags/' + encodeURIComponent(b.dataset.b6TagDel), { method: 'DELETE' }).then(function () { toast('标签已删除', 'success'); loadUserTags(); });
+        });
       };
     });
     document.querySelectorAll('[data-b6-tag-users]').forEach(function (b) {
@@ -2675,19 +2873,19 @@ async function adminSetModerator(userId, enabled) {
     el('content').innerHTML = html;
     bindPager('user-tag-users', rows.length, function () { showTagUsers(tagId); });
     document.getElementById('b6-tag-users-back').onclick = loadUserTags;
-    document.getElementById('b6-tag-users-add').onclick = async function () {
-      var userId = prompt('用户 ID：');
-      if (!userId || !userId.trim()) return;
-      try {
-        await api('/api/admin/users/' + encodeURIComponent(userId.trim()) + '/tags', { method: 'POST', body: JSON.stringify({ tagIds: [tagId] }) });
+    document.getElementById('b6-tag-users-add').onclick = function () {
+      showPrompt('添加用户', '将该标签打到指定用户。', '', '用户 ID', async function (userId) {
+        if (!userId || !String(userId).trim()) { toast('请填写用户 ID', 'error'); return false; }
+        await api('/api/admin/users/' + encodeURIComponent(String(userId).trim()) + '/tags', { method: 'POST', body: JSON.stringify({ tagIds: [tagId] }) });
         toast('已打标', 'success');
         showTagUsers(tagId);
-      } catch (e) { toast('打标失败: ' + e.message, 'error'); }
+      });
     };
     document.querySelectorAll('[data-b6-unassign]').forEach(function (b) {
       b.onclick = function () {
-        if (!confirm('移除用户 ' + b.dataset.b6Unassign + ' 的该标签？')) return;
-        api('/api/admin/users/' + encodeURIComponent(b.dataset.b6Unassign) + '/tags/' + encodeURIComponent(tagId), { method: 'DELETE' }).then(function () { toast('已移除', 'success'); showTagUsers(tagId); }).catch(function (e) { toast('移除失败: ' + e.message, 'error'); });
+        showConfirm('移除标签', '移除用户 ' + b.dataset.b6Unassign + ' 的该标签？', 'warn', function () {
+          return api('/api/admin/users/' + encodeURIComponent(b.dataset.b6Unassign) + '/tags/' + encodeURIComponent(tagId), { method: 'DELETE' }).then(function () { toast('已移除', 'success'); showTagUsers(tagId); });
+        });
       };
     });
   }
@@ -2783,38 +2981,56 @@ async function adminSetModerator(userId, enabled) {
     bindPager('device-consistency', evs.length, loadDeviceConsistency);
   }
 
+  function runB6Tab(name, seq) {
+    if (!TABS[name]) return;
+    currentTab = name;
+    if (typeof seq !== 'number') seq = H.nextTabSeq();
+    return TABS[name].fn(seq)
+      .catch(function (x) { if (!H.isStaleTab(seq)) fail(x); })
+      .then(function () { if (!H.isStaleTab(seq) && H.attachSubtabs) H.attachSubtabs(); });
+  }
+  H.openTab = function (name, seq) {
+    if (!TABS[name]) return;
+    el('content').innerHTML = '<div class="loading-state"><div class="spinner"></div><span>加载中…</span></div>';
+    return runB6Tab(name, seq);
+  };
+  H.clearTab = function () { currentTab = ''; };
+
   // ─── 导航接线（B6 标签页 + 全局刷新联动）────────────────
   document.getElementById('nav').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-tab]');
     if (!b) return;
     var tab = b.dataset.tab;
-    if (!TABS[tab]) return;
-    currentTab = tab;
+    if (!TABS[tab]) {
+      currentTab = '';
+      return;
+    }
     el('page-title').textContent = TABS[tab].title;
     el('content').innerHTML = '<div class="loading-state"><div class="spinner"></div><span>加载中…</span></div>';
     // 8.48：共享主模块的 tab 渲染序号——主/B6 tab 互切时旧响应不得覆盖新页面
     var seq = H.nextTabSeq();
-    TABS[tab].fn(seq).catch(function (x) { if (!H.isStaleTab(seq)) fail(x); });
+    runB6Tab(tab, seq);
   });
   document.getElementById('refresh-btn').addEventListener('click', function () {
-    if (currentTab && TABS[currentTab]) {
+    // 一级 nav 里只有 announcements 由 B6 独占；系统子栏走主模块 loadTab → openTab，避免刷新双请求
+    if (currentTab === 'announcements' && TABS.announcements) {
       el('content').innerHTML = '<div class="loading-state"><div class="spinner"></div><span>加载中…</span></div>';
       var seq = H.nextTabSeq();
-      TABS[currentTab].fn(seq).catch(function (x) { if (!H.isStaleTab(seq)) fail(x); });
+      runB6Tab('announcements', seq);
     }
   });
 
   // ─── B2 密聊防泄漏（Surface #71–#78）：设置页自动追加 8 个开关行 ───
   // 服务端只存开关位、不接触密聊明文；行保存复用 settings-save 的 [data-setting] 收集。
   var b2SecretRows = [
-    { key: 'secret_screenshot_burn_enabled', label: 'Secret chat screenshot burn (clients)', def: true },
-    { key: 'secret_auto_destroy_enabled', label: 'Secret chat auto session destroy TTL (clients)', def: true },
-    { key: 'secret_forward_whitelist_enabled', label: 'Secret chat forward whitelist (clients)', def: true },
-    { key: 'secret_sim_change_protection_enabled', label: 'Secret chat SIM change protection (clients)', def: true },
-    { key: 'secret_2fa_gate_enabled', label: 'Secret chat 2FA gate (clients)', def: false },
-    { key: 'secret_new_device_risk_enabled', label: 'Secret chat new device risk (clients)', def: true },
-    { key: 'secret_device_verify_enabled', label: 'Secret chat device verify (clients)', def: true },
-    { key: 'secret_session_notice_enabled', label: 'Secret chat two-way session notice (clients)', def: true }
+    { key: 'secret_screenshot_burn_enabled', label: '密聊截屏后烧毁', def: true },
+    { key: 'secret_auto_destroy_enabled', label: '密聊会话到期自动销毁', def: true },
+    { key: 'secret_forward_whitelist_enabled', label: '密聊转发白名单', def: true },
+    { key: 'secret_sim_change_protection_enabled', label: '密聊 SIM 更换防护', def: true },
+    { key: 'secret_2fa_gate_enabled', label: '密聊二次验证门槛', def: false },
+    { key: 'secret_new_device_risk_enabled', label: '密聊新设备风险提示', def: true },
+    { key: 'secret_device_verify_enabled', label: '密聊设备核验', def: true },
+    { key: 'secret_session_notice_enabled', label: '密聊双向会话通知', def: true }
   ];
   function injectB2SecretRows(settings) {
     var host = document.querySelector('#content .panel-body');
