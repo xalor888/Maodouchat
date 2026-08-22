@@ -50,9 +50,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.util.CustomThemeStore
@@ -187,6 +187,7 @@ fun ThemeEditorScreen(onBack: () -> Unit = {}) {
     // 回调里用捕获的 LocalContext 查资源会被 compose lint（LocalContextGetResourceValueCall）判为 error 导致 CI 挂
     var importOutcome by remember { mutableStateOf<Int?>(null) } // null=无事件，0=导入空，n=导入 n 槽位
     var exportDone by remember { mutableStateOf(false) }
+    var savedSlotCount by remember { mutableStateOf<Int?>(null) }
 
     // .attheme 导入（SAF）
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
@@ -194,7 +195,7 @@ fun ThemeEditorScreen(onBack: () -> Unit = {}) {
             val text = runCatching {
                 context.contentResolver.openInputStream(uri)?.use { it.bufferedReader().readText() }
             }.getOrNull().orEmpty()
-            val parsed = CustomThemeStore.parseAtTheme(text)
+            val parsed = parseThemeFile(text)
             parsed.forEach { (slot, color) -> CustomThemeStore.setColor(context, variant, slot, color) }
             importOutcome = parsed.size
         }
@@ -216,6 +217,7 @@ fun ThemeEditorScreen(onBack: () -> Unit = {}) {
         outcome == 0 -> stringResource(R.string.theme_import_no_keys)
         outcome != null && outcome > 0 -> stringResource(R.string.theme_import_ok, outcome)
         exportDone -> stringResource(R.string.theme_export_ok)
+        savedSlotCount != null && savedSlotCount!! > 0 -> stringResource(R.string.theme_import_ok, savedSlotCount!!)
         else -> null
     }
     LaunchedEffect(toastMsg) {
@@ -224,6 +226,7 @@ fun ThemeEditorScreen(onBack: () -> Unit = {}) {
             android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
             importOutcome = null
             exportDone = false
+            savedSlotCount = null
         }
     }
 
@@ -237,13 +240,13 @@ fun ThemeEditorScreen(onBack: () -> Unit = {}) {
             },
             actions = {
                 TextButton(onClick = { runCatching { importLauncher.launch(arrayOf("*/*")) } }) {
-                    Text(stringResource(R.string.theme_import))
+                    Text(stringResource(R.string.theme_import), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 TextButton(onClick = { runCatching { exportLauncher.launch("maodouchat-$variant.attheme") } }) {
-                    Text(stringResource(R.string.theme_export))
+                    Text(stringResource(R.string.theme_export), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 TextButton(onClick = { CustomThemeStore.clearAll(context, variant) }) {
-                    Text(stringResource(R.string.theme_reset_all))
+                    Text(stringResource(R.string.theme_reset_all), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -293,6 +296,7 @@ fun ThemeEditorScreen(onBack: () -> Unit = {}) {
                             preset.slots.forEach { (slot, color) ->
                                 CustomThemeStore.setColor(context, variant, slot, color)
                             }
+                            savedSlotCount = preset.slots.size
                         }
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -345,6 +349,7 @@ fun ThemeEditorScreen(onBack: () -> Unit = {}) {
             onPick = { color ->
                 CustomThemeStore.setColor(context, variant, slot, color)
                 editingSlot = null
+                savedSlotCount = 1
             }
         )
     }
@@ -498,12 +503,12 @@ private fun ColorPickerDialog(
                 OutlinedTextField(
                     value = hexInput,
                     onValueChange = { v ->
-                        hexInput = v.take(8)
+                        hexInput = v.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }.take(8)
                         runCatching {
                             if (hexInput.length == 6 || hexInput.length == 8) {
-                                val full = if (hexInput.length == 6) "FF$hexInput" else hexInput
-                                val c = Color(full.toLong(16).toInt())
-                                r = c.red; g = c.green; b = c.blue
+                                parseHexColor(hexInput)?.let { c ->
+                                    r = c.red; g = c.green; b = c.blue
+                                }
                             }
                         }
                     },
@@ -516,6 +521,38 @@ private fun ColorPickerDialog(
         confirmButton = { TextButton(onClick = { onPick(picked) }) { Text(stringResource(R.string.common_confirm)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } }
     )
+}
+
+/**
+ * 屏幕层解析：先吃 [CustomThemeStore.parseAtTheme] 的 TG 键，再补原生槽位名
+ * （`parseAtTheme` 只认 TG_KEY_MAP，导出/手写 native slot 会被丢掉）。
+ */
+private fun parseThemeFile(text: String): Map<String, Color> {
+    val out = LinkedHashMap(CustomThemeStore.parseAtTheme(text))
+    val known = CustomThemeStore.SLOTS.toSet()
+    text.lineSequence().forEach { line ->
+        val trimmed = line.trim()
+        if (trimmed.isEmpty() || trimmed.startsWith("//")) return@forEach
+        val eq = trimmed.indexOf('=')
+        if (eq <= 0) return@forEach
+        val key = trimmed.substring(0, eq).trim()
+        if (key !in known || out.containsKey(key)) return@forEach
+        val value = trimmed.substring(eq + 1).trim()
+        val color = parseHexColor(value) ?: runCatching { Color(value.toInt()) }.getOrNull()
+        if (color != null) out[key] = color
+    }
+    return out
+}
+
+private fun parseHexColor(raw: String): Color? {
+    val hex = raw.trim().removePrefix("#").filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
+    return runCatching {
+        when (hex.length) {
+            6 -> Color(("FF$hex").toLong(16).toInt())
+            8 -> Color(hex.toLong(radix = 16).toInt())
+            else -> null
+        }
+    }.getOrNull()
 }
 
 @Composable

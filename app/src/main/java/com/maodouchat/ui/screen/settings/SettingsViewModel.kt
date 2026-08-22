@@ -1298,7 +1298,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     /** B5 悬浮球开关：未授权时 setEnabled 内部会引导到系统悬浮窗授权页。 */
     fun toggleFloatingBall() {
         val context = app
-        val enabled = com.maodouchat.floating.FloatingBallController.isEnabled(context)
-        com.maodouchat.floating.FloatingBallController.setEnabled(context, !enabled)
+        setFloatingBallEnabled(!com.maodouchat.floating.FloatingBallController.isEnabled(context))
+    }
+
+    fun setFloatingBallEnabled(enabled: Boolean) {
+        com.maodouchat.floating.FloatingBallController.setEnabled(app, enabled)
     }
 }

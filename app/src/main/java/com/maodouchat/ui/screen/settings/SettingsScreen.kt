@@ -261,12 +261,7 @@ fun SettingsScreen(
                             onClick = onOpenFakeChat
                         )
                         HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
-                        SettingsItem(
-                            icon = Icons.Outlined.ChatBubbleOutline,
-                            title = stringResource(R.string.settings_floating_ball),
-                            subtitle = stringResource(R.string.settings_floating_ball_subtitle),
-                            onClick = { viewModel.toggleFloatingBall() }
-                        )
+                        FloatingBallSwitchItem(viewModel = viewModel)
                         HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
                         SettingsItem(
                             icon = Icons.Outlined.Public,
@@ -855,6 +850,58 @@ private fun SettingsGroup(content: @Composable () -> Unit) {
             .shadow(2.dp, RoundedCornerShape(MaodouDimens.CardRadius)).clip(RoundedCornerShape(MaodouDimens.CardRadius))
             .background(MaterialTheme.colorScheme.surface)
     ) { content() }
+}
+
+@Composable
+private fun FloatingBallSwitchItem(viewModel: SettingsViewModel) {
+    val context = LocalContext.current
+    var enabled by remember {
+        mutableStateOf(com.maodouchat.floating.FloatingBallController.isEnabled(context))
+    }
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val pressScale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (pressed) 0.97f else 1f,
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 400f),
+        label = "floatingBallPressScale"
+    )
+    val icon = Icons.Outlined.ChatBubbleOutline
+    val iconTint = settingsIconTint(icon)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = pressScale
+                scaleY = pressScale
+            }
+            .padding(horizontal = MaodouDimens.ScreenPadding, vertical = MaodouDimens.ItemGap)
+            .clickable(interactionSource = interactionSource, indication = androidx.compose.material3.ripple()) {
+                val next = !enabled
+                viewModel.setFloatingBallEnabled(next)
+                enabled = com.maodouchat.floating.FloatingBallController.isEnabled(context)
+            }
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(32.dp).background(iconTint.copy(alpha = 0.16f), RoundedCornerShape(8.dp))) {
+            Icon(icon, contentDescription = stringResource(R.string.settings_floating_ball), tint = iconTint, modifier = Modifier.size(20.dp))
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(stringResource(R.string.settings_floating_ball), style = MaterialTheme.typography.bodyLarge, color = OnSurface)
+            Text(
+                stringResource(R.string.settings_floating_ball_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = LocalChatPalette.current.textSecondary
+            )
+        }
+        Switch(
+            checked = enabled,
+            onCheckedChange = { next ->
+                viewModel.setFloatingBallEnabled(next)
+                enabled = com.maodouchat.floating.FloatingBallController.isEnabled(context)
+            }
+        )
+    }
 }
 
 @Composable

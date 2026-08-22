@@ -1687,6 +1687,12 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
 
     fun showComingSoon() { _uiState.update { it.copy(infoMessage = getApplication<Application>().getString(R.string.general_about_summary)) } }
 
+    fun consumeInfoMessage() {
+        if (_uiState.value.infoMessage != null) {
+            _uiState.update { it.copy(infoMessage = null) }
+        }
+    }
+
     private fun refreshCacheSize() {
         val generation = ++cacheRefreshGeneration
         cacheRefreshJob?.cancel()
