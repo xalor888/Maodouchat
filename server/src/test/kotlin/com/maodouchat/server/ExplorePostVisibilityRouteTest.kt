@@ -151,7 +151,8 @@ class ExplorePostVisibilityRouteTest {
         assertFalse(privateId in ids0, bobFeed0.bodyAsText())
         assertFalse(contactsId in ids0, bobFeed0.bodyAsText())
 
-        // CONTACTS 按完整 1:1 私聊判定，不是好友关系。
+        // CONTACTS = 已建立好友 ∪ 完整 1:1 私聊对方。加好友不会自动建 1:1，
+        // 探索 feed 必须把 Friendships 算进联系人。
         val friendReq = client.post("/api/friends/requests") {
             header(HttpHeaders.Authorization, "Bearer $aliceToken")
             contentType(ContentType.Application.Json)
@@ -169,7 +170,7 @@ class ExplorePostVisibilityRouteTest {
         }
         val idsFriendsOnly = feedIds(bobFeedFriendsOnly.bodyAsText())
         assertTrue(publicId in idsFriendsOnly, bobFeedFriendsOnly.bodyAsText())
-        assertFalse(contactsId in idsFriendsOnly, bobFeedFriendsOnly.bodyAsText())
+        assertTrue(contactsId in idsFriendsOnly, bobFeedFriendsOnly.bodyAsText())
         assertFalse(privateId in idsFriendsOnly, bobFeedFriendsOnly.bodyAsText())
 
         val chat = client.post("/api/chats") {
