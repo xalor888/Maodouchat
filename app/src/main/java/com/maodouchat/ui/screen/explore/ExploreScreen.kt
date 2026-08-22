@@ -121,15 +121,13 @@ import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
+import com.maodouchat.ui.component.FloatingBottomBarContentPadding
 import com.maodouchat.ui.component.ShimmerPostCard
-import com.maodouchat.ui.theme.Background
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MaodouchatTheme
-import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.Secondary
-import com.maodouchat.ui.theme.Surface
 import com.maodouchat.ui.theme.TextSecondary
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -238,14 +236,14 @@ fun ExploreScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         // 1.178：回到最新
         floatingActionButton = {
             if (showScrollToTop) {
                 SmallFloatingActionButton(
                     onClick = { scope.launch { listState.animateScrollToItem(0) } },
-                    containerColor = Surface,
-                    contentColor = Primary
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary
                 ) {
                     Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.explore_back_to_top))
                 }
@@ -263,7 +261,7 @@ fun ExploreScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = FloatingBottomBarContentPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(key = "entry_grid", contentType = "entry_grid") { EntryGrid(onEntryClick = viewModel::onEntryClick) }

@@ -22,10 +22,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -1495,13 +1493,9 @@ private fun MainContainer(navController: NavHostController) {
         )
     }
 
-    Scaffold(
-        bottomBar = { BottomNavBar(selectedTab = selectedTab, onTabSelected = { selectedTab = it }) }
-    ) { paddingValues ->
-        // 9.249：关键适配修复——padding(paddingValues) 只加边距不声明消费，内层每个 tab 的
-        // Scaffold/TopAppBar 会把状态栏 insets 再加一遍，顶部出现双倍状态栏留白（错位/遮挡感）；
-        // consumeWindowInsets 后内层不再重复应用，全机型顶部对齐
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues).consumeWindowInsets(paddingValues)) {
+    // 悬浮胶囊底栏叠在内容之上，不走 Scaffold.bottomBar（否则会变成贴底 NavigationBar）。
+    // 状态栏由各一级页自己的 TopAppBar/Scaffold 消费，避免外层再垫一层造成双倍留白。
+    Box(modifier = Modifier.fillMaxSize()) {
         AnimatedContent(
             targetState = selectedTab,
             transitionSpec = {
@@ -1588,8 +1582,12 @@ private fun MainContainer(navController: NavHostController) {
                         }
                     )
                 }
-            }
         }
+        BottomNavBar(
+            selectedTab = selectedTab,
+            onTabSelected = { selectedTab = it },
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
 

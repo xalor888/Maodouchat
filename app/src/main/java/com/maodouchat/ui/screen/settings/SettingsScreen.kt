@@ -107,7 +107,7 @@ import com.maodouchat.security.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
-import com.maodouchat.ui.theme.Background
+import com.maodouchat.ui.component.FloatingBottomBarContentPadding
 import com.maodouchat.ui.theme.Divider
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.MaodouDimens
@@ -311,7 +311,7 @@ fun SettingsScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(FloatingBottomBarContentPadding))
             }
 
             SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))

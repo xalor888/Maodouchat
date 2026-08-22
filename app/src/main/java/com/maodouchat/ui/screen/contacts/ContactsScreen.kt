@@ -16,6 +16,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -82,6 +83,7 @@ import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
+import com.maodouchat.ui.component.FloatingBottomBarContentPadding
 import com.maodouchat.ui.component.SearchBar
 import com.maodouchat.ui.component.ShimmerContactRow
 import com.maodouchat.ui.theme.Background
@@ -232,7 +234,11 @@ fun ContactsScreen(
                             req.message.contains(requestQuery, ignoreCase = true)
                     }
                 }
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = FloatingBottomBarContentPadding)
+                ) {
                     if (visibleIncoming.isNotEmpty()) {
                         item(key = "incoming_header", contentType = "section_header") {
                             Row(
@@ -662,7 +668,10 @@ private fun SearchResultList(
             )
             return
         }
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = FloatingBottomBarContentPadding)
+        ) {
             items(results, key = { it.id }, contentType = { "contact_result" }) { user ->
                 Column(modifier = Modifier.animateItem(
                     fadeInSpec = motion.listItemFadeInSpec(),
