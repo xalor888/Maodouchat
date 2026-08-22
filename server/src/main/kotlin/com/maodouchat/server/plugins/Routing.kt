@@ -14339,9 +14339,21 @@ put("avatarUrl", avatarUrl)
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权查看密钥分发状态")); return@get
                 }
                 val epoch = call.request.queryParameters["epoch"]?.toLongOrNull()
-                val currentDeviceId = call.request.queryParameters["currentDeviceId"]?.toIntOrNull()
-                if (currentDeviceId != null && currentDeviceId !in 1..255) {
+                val requestedDeviceId = call.request.queryParameters["currentDeviceId"]?.toIntOrNull()
+                if (requestedDeviceId != null && requestedDeviceId !in 1..255) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("设备参数无效")); return@get
+                }
+                // 省略 currentDeviceId 时按 JWT 绑定的登录设备过滤，避免把自身其他设备
+                // 从 expectedTargets 一并抹掉（覆盖缺口会被误报为 COMPLETE）。
+                val currentDeviceId = requestedDeviceId ?: run {
+                    val authSessionId = JwtConfig.authSessionId(call.principal<JWTPrincipal>()!!.payload)
+                    if (authSessionId.isNullOrBlank()) null
+                    else org.jetbrains.exposed.sql.transactions.transaction {
+                        com.maodouchat.server.db.AuthSessions.selectAll()
+                            .where { com.maodouchat.server.db.AuthSessions.id eq authSessionId }
+                            .firstOrNull()
+                            ?.get(com.maodouchat.server.db.AuthSessions.signalDeviceId)
+                    }?.takeIf { it in 1..255 }
                 }
                 val participants = chatRepo.getParticipantIds(cid)
                 val expectedTargets = signalKeyRepo.getConfirmedDeviceTargets(participants)
@@ -16590,7 +16602,10 @@ put("status", "ok")
             get("/api/keys/{userId}/prekey-bundle") {
                 val requesterId = call.principal<JWTPrincipal>()!!.payload.subject
                 val targetUserId = call.parameters["userId"]!!
-                if (!call.canFetchKeys(requesterId, targetUserId, chatRepo, preKeyFetchTracker)) return@get
+                // 9.311 / XAL-7：与 per-device 路径一致允许自取。客户端 ensureSession 在
+                // DEFAULT_DEVICE_ID 时 fallback 到本接口；禁止自取会让多设备 SenderKey fan-out
+                // 无法建会话。缺密钥仍 404，不改成 400。
+                if (!call.canFetchKeys(requesterId, targetUserId, chatRepo, preKeyFetchTracker, allowSelf = true)) return@get
                 // 仅已确认设备；禁止默认 deviceId=1 消费未确认/幽灵设备的 one-time prekey
                 val deviceId = signalKeyRepo.getDeviceIds(targetUserId, confirmedOnly = true).firstOrNull()
                 if (deviceId == null || !signalKeyRepo.isDeviceConfirmed(targetUserId, deviceId)) {

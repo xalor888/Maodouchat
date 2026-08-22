@@ -2981,3 +2981,225 @@ class CommentEditRouteTest {
         assertTrue(!editComment.bodyAsText().contains("first version"))
     }
 }
+
+class MessageIdempotencyRouteTest {
+    @Test
+    fun `text retry with same id is created once and conflicting payload is 409`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+        val login = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"alex@example.com","password":"password123"}""")
+        }
+        val token = extractToken(login.bodyAsText())
+        val chatResp = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":["u2"],"isGroup":false}""")
+        }
+        assertEquals(HttpStatusCode.Created, chatResp.status, chatResp.bodyAsText())
+        val chatId = (Json.parseToJsonElement(chatResp.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        val messageId = "m_text_idempotent_xal7"
+
+        suspend fun send(content: String) = client.post("/api/chats/$chatId/messages") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody("""{"chatId":"$chatId","content":"$content","type":"TEXT","id":"$messageId"}""")
+        }
+
+        val first = send("cipher-v1")
+        assertEquals(HttpStatusCode.Created, first.status, first.bodyAsText())
+        val retry = send("cipher-v1")
+        assertEquals(HttpStatusCode.Created, retry.status, retry.bodyAsText())
+        assertEquals(
+            Json.parseToJsonElement(first.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content,
+            Json.parseToJsonElement(retry.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        )
+
+        val conflict = send("cipher-other")
+        assertEquals(HttpStatusCode.Conflict, conflict.status, conflict.bodyAsText())
+        assertTrue(conflict.bodyAsText().contains("消息 ID 已存在"), conflict.bodyAsText())
+
+        val history = client.get("/api/chats/$chatId/messages") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, history.status, history.bodyAsText())
+        val messages = Json.parseToJsonElement(history.bodyAsText()).jsonArray
+        assertEquals(1, messages.size, history.bodyAsText())
+        assertEquals(messageId, messages[0].jsonObject["id"]!!.jsonPrimitive.content)
+        assertEquals("cipher-v1", messages[0].jsonObject["content"]!!.jsonPrimitive.content)
+    }
+}
+
+class WsMessageIdempotencyRouteTest {
+    @Test
+    fun `websocket retry with same id acks sent without a second new message`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+
+        suspend fun login(email: String): String {
+            val response = client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"$email","password":"password123"}""")
+            }
+            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+            return extractToken(response.bodyAsText())
+        }
+
+        val alexToken = login("alex@example.com")
+        val aliceToken = login("alice@example.com")
+        val chatResp = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":["u2"],"isGroup":false}""")
+        }
+        assertEquals(HttpStatusCode.Created, chatResp.status, chatResp.bodyAsText())
+        val chatId = (Json.parseToJsonElement(chatResp.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        val messageId = "m_ws_idempotent_xal7"
+        val sendFrame =
+            """{"type":"SEND_MESSAGE","payload":"{\"id\":\"$messageId\",\"chatId\":\"$chatId\",\"content\":\"cipher-ws\",\"type\":\"TEXT\"}"}"""
+        val websocketClient = createClient { install(WebSockets) }
+
+        websocketClient.webSocket(
+            request = {
+                url("/ws")
+                header(HttpHeaders.Authorization, "Bearer $aliceToken")
+            }
+        ) {
+            websocketClient.webSocket(
+                request = {
+                    url("/ws")
+                    header(HttpHeaders.Authorization, "Bearer $alexToken")
+                }
+            ) {
+                send(Frame.Text(sendFrame))
+                val firstAck = withTimeout(5_000L) {
+                    while (true) {
+                        val text = (incoming.receive() as? Frame.Text)?.readText() ?: continue
+                        val outer = Json.parseToJsonElement(text).jsonObject
+                        if (outer["type"]?.jsonPrimitive?.content == "MESSAGE_STATUS") {
+                            return@withTimeout Json.parseToJsonElement(outer["payload"]!!.jsonPrimitive.content).jsonObject
+                        }
+                    }
+                    error("unreachable")
+                }
+                assertEquals(messageId, firstAck["messageId"]!!.jsonPrimitive.content)
+                assertEquals("SENT", firstAck["status"]!!.jsonPrimitive.content)
+
+                send(Frame.Text(sendFrame))
+                val retryAck = withTimeout(5_000L) {
+                    while (true) {
+                        val text = (incoming.receive() as? Frame.Text)?.readText() ?: continue
+                        val outer = Json.parseToJsonElement(text).jsonObject
+                        if (outer["type"]?.jsonPrimitive?.content == "MESSAGE_STATUS") {
+                            return@withTimeout Json.parseToJsonElement(outer["payload"]!!.jsonPrimitive.content).jsonObject
+                        }
+                    }
+                    error("unreachable")
+                }
+                assertEquals(messageId, retryAck["messageId"]!!.jsonPrimitive.content)
+                assertEquals("SENT", retryAck["status"]!!.jsonPrimitive.content)
+            }
+
+            var newMessageCount = 0
+            withTimeout(5_000L) {
+                while (newMessageCount < 1) {
+                    val text = (incoming.receive() as? Frame.Text)?.readText() ?: continue
+                    val outer = Json.parseToJsonElement(text).jsonObject
+                    if (outer["type"]?.jsonPrimitive?.content == "NEW_MESSAGE") {
+                        val payload = Json.parseToJsonElement(outer["payload"]!!.jsonPrimitive.content).jsonObject
+                        if (payload["id"]?.jsonPrimitive?.content == messageId) newMessageCount++
+                    }
+                }
+            }
+            val duplicate = runCatching {
+                withTimeout(800L) {
+                    while (true) {
+                        val text = (incoming.receive() as? Frame.Text)?.readText() ?: continue
+                        val outer = Json.parseToJsonElement(text).jsonObject
+                        if (outer["type"]?.jsonPrimitive?.content == "NEW_MESSAGE") {
+                            val payload = Json.parseToJsonElement(outer["payload"]!!.jsonPrimitive.content).jsonObject
+                            if (payload["id"]?.jsonPrimitive?.content == messageId) return@withTimeout true
+                        }
+                    }
+                    error("unreachable")
+                }
+            }
+            assertEquals(1, newMessageCount)
+            assertTrue(duplicate.isFailure, "idempotent WS retry must not fan-out a second NEW_MESSAGE")
+        }
+    }
+}
+
+class PreKeyBundleStabilityRouteTest {
+    @Test
+    fun `self compatible prekey bundle is allowed after upload`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+        val login = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"alex@example.com","password":"password123"}""")
+        }
+        assertEquals(HttpStatusCode.OK, login.status, login.bodyAsText())
+        val token = extractToken(login.bodyAsText())
+        val jwt = checkNotNull(com.maodouchat.server.auth.JwtConfig.verifyToken(token))
+        val sessionId = checkNotNull(com.maodouchat.server.auth.JwtConfig.authSessionId(jwt))
+        val identityPair = Curve.generateKeyPair()
+        val identityKey = Base64.getEncoder().encodeToString(identityPair.publicKey.serialize())
+        val spkPair = Curve.generateKeyPair()
+        val spkSignature = Curve.calculateSignature(identityPair.privateKey, spkPair.publicKey.serialize())
+        assertEquals(
+            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            SignalKeyRepository().uploadKeyPackage(
+                userId = "u1",
+                authSessionId = sessionId,
+                deviceId = 1,
+                identityKey = identityKey,
+                registrationId = 12_345,
+                signedPreKeyId = 1,
+                signedPreKey = Base64.getEncoder().encodeToString(spkPair.publicKey.serialize()),
+                signedPreKeySignature = Base64.getEncoder().encodeToString(spkSignature),
+                preKeys = emptyList()
+            )
+        )
+
+        val selfBundle = client.get("/api/keys/u1/prekey-bundle") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, selfBundle.status, selfBundle.bodyAsText())
+        assertFalse(selfBundle.bodyAsText().contains("不能获取自己的密钥包"), selfBundle.bodyAsText())
+        val body = Json.parseToJsonElement(selfBundle.bodyAsText()).jsonObject
+        assertEquals(identityKey, body["identityKey"]!!.jsonPrimitive.content)
+        assertEquals(1, body["deviceId"]!!.jsonPrimitive.content.toInt())
+    }
+
+    @Test
+    fun `missing keys return 404 not 500`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+        val login = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"alex@example.com","password":"password123"}""")
+        }
+        val token = extractToken(login.bodyAsText())
+        val chatResp = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":["u2"],"isGroup":false}""")
+        }
+        assertEquals(HttpStatusCode.Created, chatResp.status, chatResp.bodyAsText())
+
+        val peerMissing = client.get("/api/keys/u2/prekey-bundle") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.NotFound, peerMissing.status, peerMissing.bodyAsText())
+        assertTrue(
+            peerMissing.bodyAsText().contains("用户密钥未上传") ||
+                peerMissing.bodyAsText().contains("设备未确认"),
+            peerMissing.bodyAsText()
+        )
+        assertFalse(peerMissing.status.value in 500..599)
+
+        val unknown = client.get("/api/keys/no-such-user/prekey-bundle") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.Forbidden, unknown.status, unknown.bodyAsText())
+        assertFalse(unknown.status.value in 500..599)
+    }
+}
