@@ -107,7 +107,12 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
     private fun text(id: Int, vararg args: Any): String = getApplication<Application>().getString(id, *args)
 
     fun load(authorId: String) {
-        if (authorId.isBlank()) return
+        if (authorId.isBlank()) {
+            _uiState.update {
+                it.copy(isLoading = false, errorMessage = text(R.string.explore_author_load_failed))
+            }
+            return
+        }
         val token = tokenManager.getToken().orEmpty()
         val loadOwnerUserId = tokenManager.getUserId().orEmpty()
         if (token.isBlank() || loadOwnerUserId.isBlank()) {

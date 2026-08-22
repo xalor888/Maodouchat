@@ -106,28 +106,47 @@ fun PublicProfileScreen(
     // 重试计数：自增后触发 LaunchedEffect 重新拉取
     var retryKey by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(username, retryKey) {
+    val normalizedUsername = remember(username) { ExplorePublicProfilePolicy.normalizeUsername(username) }
+
+    LaunchedEffect(normalizedUsername, retryKey) {
         loading = true
         error = null
+        profile = null
         try {
-            val response = ApiService.getPublicProfile(username).getOrNull()
-            if (response?.ok == true && response.user != null) {
-                val u = response.user
-                profile = PublicProfileData(
-                    id = u.id,
-                    name = u.name,
-                    username = u.username,
-                    avatar = u.avatar,
-                    status = u.status,
-                    isOnline = u.isOnline,
-                    isModerator = u.isModerator,
-                    lastSeen = u.lastSeen
-                )
-            } else {
+            if (!ExplorePublicProfilePolicy.isValidUsername(normalizedUsername)) {
                 error = context.getString(R.string.public_profile_not_found)
+                return@LaunchedEffect
             }
+            ApiService.getPublicProfile(normalizedUsername).fold(
+                onSuccess = { response ->
+                    val u = response.user
+                    if (response.ok && u != null) {
+                        profile = PublicProfileData(
+                            id = u.id,
+                            name = u.name,
+                            username = u.username ?: normalizedUsername,
+                            avatar = u.avatar,
+                            status = u.status,
+                            isOnline = u.isOnline,
+                            isModerator = u.isModerator,
+                            lastSeen = u.lastSeen
+                        )
+                    } else {
+                        error = context.getString(R.string.public_profile_not_found)
+                    }
+                },
+                onFailure = { failure ->
+                    error = ExplorePublicProfilePolicy.displayLoadError(
+                        failure = failure,
+                        notFound = context.getString(R.string.public_profile_not_found),
+                        loadFailed = context.getString(R.string.public_profile_load_failed),
+                        networkError = context.getString(R.string.public_profile_network_error)
+                    )
+                }
+            )
         } catch (e: Exception) {
-            error = context.getString(R.string.public_profile_load_failed) + ": " + (e.localizedMessage ?: context.getString(R.string.public_profile_network_error))
+            error = context.getString(R.string.public_profile_load_failed) + ": " +
+                (e.localizedMessage ?: context.getString(R.string.public_profile_network_error))
         } finally {
             loading = false
         }
@@ -175,7 +194,8 @@ fun PublicProfileScreen(
                     // 9.219：守卫处单次断言捕获局部 profile——回调延迟执行时不再重复 !!（委托属性无法智能转换）
                     val loadedProfile = profile!!
                     // 9.289：主页链接跟随当前服务器地址（自建部署不再复制/分享无效的官服域名）
-                    val profileLink = com.maodouchat.network.ApiConfig.BASE_URL.trimEnd('/') + "/u/" + username
+                    val profileLink = com.maodouchat.network.ApiConfig.BASE_URL.trimEnd('/') + "/u/" +
+                        (loadedProfile.username?.takeIf { it.isNotBlank() } ?: normalizedUsername)
                     ProfileContentView(
                         profile = loadedProfile,
                         onStartChat = { onStartChat(loadedProfile.id) },

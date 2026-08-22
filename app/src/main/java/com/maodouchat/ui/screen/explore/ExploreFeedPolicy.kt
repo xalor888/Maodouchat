@@ -61,12 +61,15 @@ object ExploreFeedPolicy {
         if (n <= 0) return "0"
         return when {
             n < 1000 -> n.toString()
-            n < 10000 -> {
-                val v = (n / 100.0).roundToOneDecimal()
-                if (v.endsWith(".0")) v.dropLast(2) else v
-            }
-            else -> "${n / 1000}K"
+            n < 10_000 -> compactUnit(n / 1000.0, "K")
+            else -> compactUnit(n / 10_000.0, "万")
         }
+    }
+
+    private fun compactUnit(value: Double, suffix: String): String {
+        val v = value.roundToOneDecimal()
+        val number = if (v.endsWith(".0")) v.dropLast(2) else v
+        return number + suffix
     }
 
     private fun Double.roundToOneDecimal(): String =
