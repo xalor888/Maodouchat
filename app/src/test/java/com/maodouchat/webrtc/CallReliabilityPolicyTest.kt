@@ -105,6 +105,18 @@ class CallReliabilityPolicyTest {
     }
 
     @Test
+    fun `signaling types are normalized case-insensitively for REST fallback`() {
+        assertEquals("offer", CallReliabilityPolicy.normalizeSignalingType("OFFER"))
+        assertEquals("hang-up", CallReliabilityPolicy.normalizeSignalingType(" Hang-Up "))
+        assertTrue(CallReliabilityPolicy.isCriticalSignalingType("ANSWER"))
+        assertTrue(CallReliabilityPolicy.isCriticalSignalingType(" reject "))
+        assertTrue(CallReliabilityPolicy.isCriticalSignalingType("BUSY"))
+        assertTrue(CallReliabilityPolicy.isCriticalSignalingType("hang-up"))
+        assertFalse(CallReliabilityPolicy.isCriticalSignalingType("ice-candidate"))
+        assertFalse(CallReliabilityPolicy.isCriticalSignalingType("hangup"))
+    }
+
+    @Test
     fun `ice reconnect grace transitions`() {
         assertEquals(IceReconnectAction.START_GRACE, CallReliabilityPolicy.iceReconnectAction("DISCONNECTED"))
         assertEquals(IceReconnectAction.CANCEL_GRACE, CallReliabilityPolicy.iceReconnectAction("connected"))

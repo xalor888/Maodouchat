@@ -19,6 +19,7 @@ import com.maodouchat.call.WebRtcNativeLibraryLoader
 import com.maodouchat.webrtc.CallState
 import com.maodouchat.webrtc.CallType
 import com.maodouchat.webrtc.CallReliabilityPolicy
+import com.maodouchat.webrtc.IceReconnectAction
 import com.maodouchat.webrtc.CallNetworkQualityPolicy
 import com.maodouchat.webrtc.CallSessionGate
 import com.maodouchat.webrtc.CallIceServer
@@ -550,24 +551,34 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         if (endingCall) return
         iceReconnectJob?.cancel()
         iceReconnectJob = null
-        if (_uiState.value.callState != CallState.CONNECTED) return
-        // 弱网重连优化：ICE FAILED 时 WebRTCManager 内部已自动触发 restartIce，
-        // 这里给予宽限期等待恢复；超过最大重连次数才立即结束通话。
-        iceRestartAttempts++
-        if (iceRestartAttempts > CallReliabilityPolicy.ICE_MAX_RESTART_ATTEMPTS) {
-            endCall(notifyPeer = false, errorMessage = text(R.string.call_network_disconnected))
+        val current = _uiState.value
+        if (
+            current.callState == CallState.IDLE ||
+            current.callState == CallState.DISCONNECTED
+        ) {
             return
         }
-        _uiState.update { it.copy(networkReconnecting = true) }
-        iceReconnectJob = viewModelScope.launch {
-            delay(CallReliabilityPolicy.ICE_RESTART_INTERVAL_MS)
-            if (callSessionGate.isCurrent(activeCallSession) &&
-                _uiState.value.networkReconnecting &&
-                _uiState.value.callState == CallState.CONNECTED
-            ) {
-                // 宽限期结束仍未恢复，结束通话
+        when (CallReliabilityPolicy.iceReconnectAction("FAILED", iceRestartAttempts)) {
+            IceReconnectAction.RESTART_ICE -> {
+                iceRestartAttempts++
+                _uiState.update { it.copy(networkReconnecting = true) }
+                webRTCManager?.restartIce()
+                iceReconnectJob = viewModelScope.launch {
+                    delay(CallReliabilityPolicy.ICE_RESTART_INTERVAL_MS)
+                    if (
+                        callSessionGate.isCurrent(activeCallSession) &&
+                        _uiState.value.networkReconnecting &&
+                        _uiState.value.callState != CallState.IDLE &&
+                        _uiState.value.callState != CallState.DISCONNECTED
+                    ) {
+                        onIceConnectionFailed()
+                    }
+                }
+            }
+            IceReconnectAction.END_NOW -> {
                 endCall(notifyPeer = false, errorMessage = text(R.string.call_network_disconnected))
             }
+            else -> Unit
         }
     }
 
@@ -740,9 +751,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                             if (!isCurrentCallSession(session, manager)) return@acceptGroupOffer
                             ringingTimeoutJob?.cancel()
                             pendingOfferSdp = null
-                            _uiState.update { it.copy(callState = CallState.CONNECTED, isInitializing = false) }
+                            _uiState.update { it.copy(isInitializing = false) }
                             sendSdp(targetContactId, "answer", sdp)
-                            startDurationTimer()
                         }
                     )
                     startDeterministicMeshEdges(manager, targetContactId, session)
@@ -759,10 +769,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                         if (!isCurrentCallSession(session, manager)) return@answerCall
                         ringingTimeoutJob?.cancel()
                         pendingOfferSdp = null
-                        _uiState.update { it.copy(callState = CallState.CONNECTED, isInitializing = false) }
+                        _uiState.update { it.copy(isInitializing = false) }
                         sendSdp(targetContactId, "answer", sdp)
-                        startDurationTimer()
-                        startNetworkStatsPolling()
                     }
                 )
                 observeSignaling()
@@ -865,20 +873,20 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
             // 关键信令（offer/answer/hang-up 等）不能只信 OkHttp 本地 enqueue 成功；
             // WS 缓冲接受 ≠ 服务端处理。关键类型始终补 REST，ICE 保持 WS-first。
-            val criticalTypes = setOf("offer", "answer", "reject", "busy", "hang-up")
+            val normalizedType = CallReliabilityPolicy.normalizeSignalingType(type)
             val sentByWebSocket = WebRTCSignaling.sendViaWebSocket(toUserId, type, payload, callId, groupId, groupMembers, groupInvite)
-            val needRest = type in criticalTypes || !sentByWebSocket
+            val needRest = CallReliabilityPolicy.isCriticalSignalingType(normalizedType) || !sentByWebSocket
             if (needRest) {
                 WebRTCSignaling.sendViaRest(token, toUserId, type, payload, callId, groupId, groupMembers, groupInvite).onFailure { error ->
-                    if (!callSessionGate.isCurrent(sourceSession) && type != "hang-up") return@onFailure
+                    if (!callSessionGate.isCurrent(sourceSession) && normalizedType != "hang-up") return@onFailure
                     val message = text(R.string.call_error_with_reason, errorPrefix, failureReason(error))
                     if (
-                        type == "offer" &&
+                        normalizedType == "offer" &&
                         error is WebRTCSignaling.SignalingException &&
                         error.code == "CALL_INVITE_RATE_LIMITED"
                     ) {
                         endCall(notifyPeer = false, errorMessage = failureReason(error))
-                    } else if (type != "hang-up") {
+                    } else if (normalizedType != "hang-up") {
                         _uiState.update { it.copy(errorMessage = message) }
                     }
                 }
@@ -1082,11 +1090,12 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val currentState = _uiState.value
         val expectedContactId = currentState.contactId
+        val normalizedType = CallReliabilityPolicy.normalizeSignalingType(type)
         // 群通话模式不限制 fromUserId（每个对端独立）
         val isGroup = currentState.isGroupCall
         if (!CallReliabilityPolicy.shouldAcceptSignal(isGroup, expectedContactId, fromUserId)) return
         if (!GroupCallPolicy.shouldAcceptMetadata(activeGroupId, groupId, meshGroupMemberIds, groupMemberIds)) {
-            if (type == "offer" && fromUserId.isNotBlank()) {
+            if (normalizedType == "offer" && fromUserId.isNotBlank()) {
                 sendSignalWithFallback(
                     fromUserId,
                     "busy",
@@ -1100,7 +1109,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         if (!CallReliabilityPolicy.shouldAcceptCallId(activeCallId, callId)) {
-            if (type == "offer" && fromUserId.isNotBlank()) {
+            if (normalizedType == "offer" && fromUserId.isNotBlank()) {
                 sendSignalWithFallback(
                     fromUserId,
                     "busy",
@@ -1116,7 +1125,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
         // 8.39：去重 key 用完整 payload 而非 payload.hashCode()——群 mesh 候选量大（数百~上千），
         // String.hashCode 碰撞概率可达百分之几，不同 ICE 候选碰撞时后到者被静默丢弃导致连接卡死
-        val messageKey = "$callId|$fromUserId|$type|$payload"
+        val messageKey = "$callId|$fromUserId|$normalizedType|$payload"
         if (!handledSignalingMessages.add(messageKey)) return
         if (handledSignalingMessages.size > 128) {
             val iterator = handledSignalingMessages.iterator()
@@ -1127,7 +1136,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         try {
-            when (type) {
+            when (normalizedType) {
                 "answer" -> {
                     val st = _uiState.value
                     if (st.callState == CallState.DISCONNECTED || st.callState == CallState.IDLE) return

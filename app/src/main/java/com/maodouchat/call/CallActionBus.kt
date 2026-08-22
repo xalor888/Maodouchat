@@ -13,7 +13,7 @@ object CallActionBus {
         val sessionGeneration: Long = MaodouchatApp.currentSessionGeneration(),
     )
 
-    private val _hangUpRequests = MutableSharedFlow<HangUpRequest>(extraBufferCapacity = 4)
+    private val _hangUpRequests = MutableSharedFlow<HangUpRequest>(extraBufferCapacity = 16)
     val hangUpRequests: SharedFlow<HangUpRequest> = _hangUpRequests.asSharedFlow()
 
     fun requestHangUp(callId: String, notifyPeer: Boolean = true): Boolean =
