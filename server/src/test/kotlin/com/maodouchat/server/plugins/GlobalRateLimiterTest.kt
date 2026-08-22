@@ -36,18 +36,38 @@ class GlobalRateLimiterTest {
     }
 
     @Test
-    fun `blank ip is rejected with remaining 0 and no retry-after`() {
+    fun `blank ip shares the unknown bucket and is allowed with remaining`() {
         val limiter = newLimiter(maxPerMinute = 5)
         val now = 1_000L
         val blank = limiter.tryAcquire("", now)
-        assertFalse(blank.allowed)
-        assertEquals(0, blank.remaining)
+        assertTrue(blank.allowed)
+        assertEquals(4, blank.remaining)
         assertNull(blank.retryAfterSeconds)
 
+        // 空白与纯空格折叠到同一 unknown 桶，不另开配额。
         val whitespace = limiter.tryAcquire("   ", now)
-        assertFalse(whitespace.allowed)
-        assertEquals(0, whitespace.remaining)
+        assertTrue(whitespace.allowed)
+        assertEquals(3, whitespace.remaining)
         assertNull(whitespace.retryAfterSeconds)
+
+        val namedUnknown = limiter.tryAcquire("unknown", now)
+        assertTrue(namedUnknown.allowed)
+        assertEquals(2, namedUnknown.remaining)
+
+        // 打满 unknown 桶后拒绝，Retry-After 至少 1 秒。
+        assertTrue(limiter.tryAcquire("", now).allowed)
+        assertTrue(limiter.tryAcquire("", now).allowed)
+        val exhausted = limiter.tryAcquire("", now)
+        assertFalse(exhausted.allowed)
+        assertEquals(0, exhausted.remaining)
+        val retryAfter = exhausted.retryAfterSeconds
+        assertNotNull(retryAfter)
+        assertTrue(retryAfter >= 1L)
+
+        // 其他 IP 仍独立。
+        val otherIp = limiter.tryAcquire("1.2.3.4", now)
+        assertTrue(otherIp.allowed)
+        assertEquals(4, otherIp.remaining)
     }
 
     @Test
