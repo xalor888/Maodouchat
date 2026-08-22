@@ -7,9 +7,8 @@ import android.graphics.Paint
 /**
  * 频域盲水印的 Android Bitmap 适配层。
  *
- * - 嵌入：把 Bitmap 的亮度平面抽出，交给 [FrequencyWatermark] 做 DCT-QIM 嵌入，
- *   再把亮度增量等量叠加回 R/G/B（色度不变，提升不可见性）。
- * - 提取：从 Bitmap 亮度平面恢复载荷，用于取证比对泄露截图。
+ * - 嵌入/提取：ARGB 像素交给 [ReferenceBlindWatermark]（DWT+SVD，与 blind_watermark 对齐）。
+ * - 载荷仍是 [FrequencyWatermark] 的 6 字节 FNV 归因哈希，便于管理端解码 hex。
  *
  * 适用于密聊图片：渲染前对显示用 Bitmap 注入不可见水印，即便 FLAG_SECURE 被绕过
  * （root 截屏 / adb / 外部相机翻拍后转发的截图），仍可从像素中提取归因载荷。

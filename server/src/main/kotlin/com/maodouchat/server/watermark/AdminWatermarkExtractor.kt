@@ -5,11 +5,11 @@ import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.util.Base64
 import javax.imageio.ImageIO
-import kotlin.math.roundToInt
 
 /**
  * Server-side blind watermark extraction for admin forensics.
- * Mirrors app SecretImageWatermark.extract using Java ImageIO (no Android).
+ * Mirrors app SecretImageWatermark.extract using Java ImageIO (no Android):
+ * DWT+SVD first, DCT-QIM fallback for legacy screenshots.
  */
 object AdminWatermarkExtractor {
     // 8.46 修复：解压炸弹防御——与 FileStorageService 同标准（维度 ≤ 8192、像素 ≤ 16M），
@@ -69,15 +69,34 @@ object AdminWatermarkExtractor {
         val g = argb.createGraphics()
         g.drawImage(image, 0, 0, null)
         g.dispose()
+        val pixels = IntArray(w * h)
+        argb.getRGB(0, 0, w, h, pixels, 0, w)
+        // 客户端 SecretImageWatermark 已切到 DWT+SVD（ReferenceBlindWatermark）。
+        // 管理端取证优先走同一算法，失败再回退 DCT-QIM，兼容旧截图。
+        val dwtPayload = runCatching {
+            ReferenceBlindWatermark.extractPayload(
+                pixels,
+                w,
+                h,
+                payloadBitCount = FrequencyWatermark.PAYLOAD_BYTES * 8
+            )
+        }.getOrNull()
+        if (dwtPayload != null) {
+            return ExtractResult(
+                found = true,
+                payloadHex = FrequencyWatermark.decodePayloadHex(dwtPayload),
+                width = w,
+                height = h,
+                message = "ok"
+            )
+        }
         val luma = FloatArray(w * h)
-        for (y in 0 until h) {
-            for (x in 0 until w) {
-                val p = argb.getRGB(x, y)
-                val r = (p shr 16) and 0xFF
-                val gch = (p shr 8) and 0xFF
-                val b = p and 0xFF
-                luma[y * w + x] = 0.299f * r + 0.587f * gch + 0.114f * b
-            }
+        for (i in pixels.indices) {
+            val p = pixels[i]
+            val r = (p shr 16) and 0xFF
+            val gch = (p shr 8) and 0xFF
+            val b = p and 0xFF
+            luma[i] = 0.299f * r + 0.587f * gch + 0.114f * b
         }
         val payload = FrequencyWatermark.extract(luma, w, h)
             ?: return ExtractResult(false, width = w, height = h, message = "no_watermark")
@@ -124,31 +143,11 @@ object AdminWatermarkExtractor {
         g.color = Color(40, 90, 200)
         g.fillOval(40, 40, 176, 176)
         g.dispose()
-        val luma = FloatArray(w * h)
         val pixels = IntArray(w * h)
         img.getRGB(0, 0, w, h, pixels, 0, w)
-        for (i in pixels.indices) {
-            val p = pixels[i]
-            val r = (p shr 16) and 0xFF
-            val gc = (p shr 8) and 0xFF
-            val b = p and 0xFF
-            luma[i] = 0.299f * r + 0.587f * gc + 0.114f * b
-        }
         val payload = FrequencyWatermark.buildPayload(userId, chatId, deviceHint)
-        val outLuma = FrequencyWatermark.embed(luma, w, h, payload)
-        for (i in pixels.indices) {
-            val p = pixels[i]
-            val r = (p shr 16) and 0xFF
-            val gc = (p shr 8) and 0xFF
-            val b = p and 0xFF
-            val yOld = 0.299f * r + 0.587f * gc + 0.114f * b
-            val delta = outLuma[i] - yOld
-            val nr = (r + delta).roundToInt().coerceIn(0, 255)
-            val ng = (gc + delta).roundToInt().coerceIn(0, 255)
-            val nb = (b + delta).roundToInt().coerceIn(0, 255)
-            pixels[i] = (0xFF shl 24) or (nr shl 16) or (ng shl 8) or nb
-        }
-        img.setRGB(0, 0, w, h, pixels, 0, w)
+        val embedded = ReferenceBlindWatermark.embedPixels(pixels, w, h, payload)
+        img.setRGB(0, 0, w, h, embedded, 0, w)
         val baos = java.io.ByteArrayOutputStream()
         ImageIO.write(img, "png", baos)
         return Base64.getEncoder().encodeToString(baos.toByteArray())

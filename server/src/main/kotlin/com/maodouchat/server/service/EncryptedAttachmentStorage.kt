@@ -141,6 +141,9 @@ object EncryptedAttachmentStorage {
 
     private fun finalizeUploadLocked(id: String, tempFile: File): File {
         val target = checkedFile("$id.bin")
+        // 一次性 POST 在磁盘 move 成功、调用方后续失败后重试：.bin 已在、.part 已无。
+        // 此前 require(!target.exists()) / require(tempFile.isFile) 会把幂等重试打成 500。
+        if (target.isFile && !tempFile.isFile) return target
         require(tempFile.isFile) { "附件临时文件不存在" }
         require(!target.exists()) { "附件已完成" }
         try {
