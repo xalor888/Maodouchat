@@ -15,6 +15,7 @@ import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.or
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -86,8 +87,7 @@ class UserTagRepository {
         val tagIds = rows.map { it[UserTags.id] }
         val countByTag = if (tagIds.isEmpty()) emptyMap() else
             UserTagAssignments
-                .slice(UserTagAssignments.tagId, UserTagAssignments.userId.count())
-                .selectAll()
+                .select(UserTagAssignments.tagId, UserTagAssignments.userId.count())
                 .where { UserTagAssignments.tagId inList tagIds }
                 .groupBy(UserTagAssignments.tagId)
                 .associate { it[UserTagAssignments.tagId] to it[UserTagAssignments.userId.count()] }

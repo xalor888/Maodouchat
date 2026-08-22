@@ -59,10 +59,7 @@ class FriendRepository {
                 }
                 // 接收方好友数上限保护：超限拒绝新申请，防止超大数据集的 fanout 资源耗尽。
                 // 上限对主动添加方不生效（自己少好友不影响），只保护「好友很多的人」。
-                if (Friendships.selectAll().where {
-                        (Friendships.userLowId eq toUserId) or (Friendships.userHighId eq toUserId)
-                    }.count() >= MAX_FRIENDS_PER_USER
-                ) {
+                if (friendCountInTransaction(toUserId) >= MAX_FRIENDS_PER_USER) {
                     return@transaction Result.Failure("对方好友数量已达上限", "FRIEND_LIMIT_EXCEEDED")
                 }
                 val pending = FriendRequests.selectAll().where {
@@ -90,7 +87,9 @@ class FriendRepository {
                     it[createdAt] = now
                     it[updatedAt] = now
                 }
-                Result.Success(loadRequest(id)!!)
+                val created = loadRequest(id)
+                    ?: return@transaction Result.Failure("用户不存在", "USER_NOT_FOUND")
+                Result.Success(created)
             }
         } catch (conflict: org.jetbrains.exposed.exceptions.ExposedSQLException) {
             // Postgres 部分唯一索引 uidx_friend_requests_pending 兜底：并发双向申请时
@@ -142,12 +141,13 @@ class FriendRepository {
         if (isBlockedEitherWay(fromId, toId)) {
             return@transaction Result.Failure("存在屏蔽关系，无法成为好友", "BLOCKED")
         }
-        // 8.40：受理时复查接收方好友上限——sendRequest 只检查发送时刻，请求积压期间
-        // 接收方可能已通过其他路径累积到上限，接受后不可回滚
-        if (Friendships.selectAll().where {
-                (Friendships.userLowId eq toId) or (Friendships.userHighId eq toId)
-            }.count() >= MAX_FRIENDS_PER_USER
-        ) {
+        // 8.40：受理时复查双方好友上限——sendRequest 只检查发送时刻，请求积压期间
+        // 任一方可能已通过其他路径累积到上限，接受后不可回滚。
+        // toId 是当前操作者（接收方），超限文案用「好友数量已达上限」；fromId 是申请方。
+        if (friendCountInTransaction(toId) >= MAX_FRIENDS_PER_USER) {
+            return@transaction Result.Failure("好友数量已达上限", "FRIEND_LIMIT_EXCEEDED")
+        }
+        if (friendCountInTransaction(fromId) >= MAX_FRIENDS_PER_USER) {
             return@transaction Result.Failure("对方好友数量已达上限", "FRIEND_LIMIT_EXCEEDED")
         }
         val now = System.currentTimeMillis()
@@ -156,7 +156,9 @@ class FriendRepository {
             it[updatedAt] = now
         }
         ensureFriendship(fromId, toId, now)
-        Result.Success(loadRequest(requestId)!!)
+        val accepted = loadRequest(requestId)
+            ?: return@transaction Result.Failure("用户不存在", "USER_NOT_FOUND")
+        Result.Success(accepted)
     }
 
     fun rejectRequest(userId: String, requestId: String): Result = transaction {
@@ -175,7 +177,9 @@ class FriendRepository {
             it[status] = "REJECTED"
             it[updatedAt] = now
         }
-        Result.Success(loadRequest(requestId)!!)
+        val rejected = loadRequest(requestId)
+            ?: return@transaction Result.Failure("用户不存在", "USER_NOT_FOUND")
+        Result.Success(rejected)
     }
 
     fun cancelRequest(userId: String, requestId: String): Result = transaction {
@@ -193,7 +197,9 @@ class FriendRepository {
             it[status] = "CANCELLED"
             it[updatedAt] = now
         }
-        Result.Success(loadRequest(requestId)!!)
+        val cancelled = loadRequest(requestId)
+            ?: return@transaction Result.Failure("用户不存在", "USER_NOT_FOUND")
+        Result.Success(cancelled)
     }
 
     fun listIncoming(userId: String, status: String = "PENDING", limit: Int = 50): List<FriendRequestResponse> =
@@ -289,6 +295,11 @@ class FriendRepository {
         deleted > 0
     }
 
+    private fun friendCountInTransaction(userId: String): Long =
+        Friendships.selectAll().where {
+            (Friendships.userLowId eq userId) or (Friendships.userHighId eq userId)
+        }.count()
+
     private fun areFriendsInTransaction(a: String, b: String): Boolean {
         if (a == b) return false
         val (low, high) = orderedPair(a, b)
@@ -313,17 +324,23 @@ class FriendRepository {
 
     private fun loadRequest(id: String): FriendRequestResponse? =
         FriendRequests.selectAll().where { FriendRequests.id eq id }.firstOrNull()?.let {
-            mapRequest(it, emptyMap())
+            // 写路径（accept/reject/cancel/send）必须能返回 DTO：对端刚注销时
+            // 过滤 deletedAt 会让 mapRequest 返回 null，调用方再 !! 就是 500。
+            mapRequest(it, emptyMap(), includeDeleted = true)
         }
 
-    private fun mapRequest(row: ResultRow, userMap: Map<String, ResultRow>): FriendRequestResponse? {
+    private fun mapRequest(
+        row: ResultRow,
+        userMap: Map<String, ResultRow>,
+        includeDeleted: Boolean = false
+    ): FriendRequestResponse? {
         val fromId = row[FriendRequests.fromUserId]
         val toId = row[FriendRequests.toUserId]
-        // 列表路径已由 mapRequestList 批量取回；单条路径（userMap 空）在此回查
+        // 列表路径已由 mapRequestList 批量取回（不含注销用户）；单条路径（userMap 空）在此回查
         val userRows = if (userMap.isNotEmpty()) userMap else {
-            Users.selectAll()
-                .where { (Users.id inList listOf(fromId, toId)) and Users.deletedAt.isNull() }
-                .associateBy { it[Users.id] }
+            val base = Users.selectAll().where { Users.id inList listOf(fromId, toId) }
+            val query = if (includeDeleted) base else base.andWhere { Users.deletedAt.isNull() }
+            query.associateBy { it[Users.id] }
         }
         val fromUser = userRows[fromId] ?: return null
         val toUser = userRows[toId] ?: return null
