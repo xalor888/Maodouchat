@@ -92,5 +92,14 @@ class NotificationSoundPolicyTest {
                 soundPreference = false,
             )
         )
+        // 服务端 notification_sound flag 关闭时，应用内短提示音也必须静音
+        assertFalse(
+            NotificationSoundPolicy.inAppReceiveToneEnabled(
+                inAppSoundsFlag = true,
+                notificationsEnabled = true,
+                notificationSoundFlag = false,
+                soundPreference = true,
+            )
+        )
     }
 }
