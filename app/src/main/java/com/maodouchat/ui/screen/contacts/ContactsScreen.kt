@@ -141,7 +141,13 @@ fun ContactsScreen(
     var scrollToLetter by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(scrollToLetter) {
         scrollToLetter?.let { letter ->
-            val index = findLetterIndex(grouped, state.incomingRequests.size, state.outgoingRequests.size, letter)
+            val index = findLetterIndex(
+                grouped,
+                state.incomingRequests.size,
+                state.outgoingRequests.size,
+                state.groupInvites.size,
+                letter
+            )
             if (index >= 0) {
                 if (motion.animationsEnabled) listState.animateScrollToItem(index)
                 else listState.scrollToItem(index)
@@ -210,7 +216,10 @@ fun ContactsScreen(
                 SearchResultList(
                     results = state.searchResults,
                     isSearching = state.isSearching,
+                    searchFailed = state.searchFailed,
                     query = state.searchQuery.trim(),
+                    friendIds = remember(state.contacts) { state.contacts.map { it.id }.toSet() },
+                    pendingOutgoingIds = remember(state.outgoingRequests) { state.outgoingRequests.map { it.user.id }.toSet() },
                     onOpenChat = { viewModel.createDirectChat(it) },
                     onAddFriend = { friendRequestTarget = it }
                 )
@@ -492,7 +501,7 @@ fun ContactsScreen(
                 onDismiss = { showChannelDialog = false },
                 onConfirm = { channelName, members ->
                     viewModel.createChannelChat(channelName, members)
-                    if (channelName.isNotBlank() && members.isNotEmpty()) showChannelDialog = false
+                    if (channelName.isNotBlank()) showChannelDialog = false
                 }
             )
         }
@@ -641,7 +650,10 @@ fun ContactsScreen(
 private fun SearchResultList(
     results: List<User>,
     isSearching: Boolean,
+    searchFailed: Boolean,
     query: String,
+    friendIds: Set<String>,
+    pendingOutgoingIds: Set<String>,
     onOpenChat: (User) -> Unit,
     onAddFriend: (User) -> Unit
 ) {
@@ -660,10 +672,12 @@ private fun SearchResultList(
             return
         }
         if (results.isEmpty()) {
-            // 8.52 UX：搜索无结果空态（图标 + 文案，与全局搜索一致）
             EmptyState(
                 type = EmptyStateType.SEARCH,
-                title = stringResource(R.string.contacts_no_matching_users),
+                title = stringResource(
+                    if (searchFailed) R.string.contacts_search_failed
+                    else R.string.contacts_no_matching_users
+                ),
                 modifier = Modifier.fillMaxSize().padding(32.dp)
             )
             return
@@ -680,8 +694,9 @@ private fun SearchResultList(
                 )) {
                 SearchUserRow(
                     user = user,
-                    // 1.286：搜索关键词高亮（与 Explore/收藏/通知中心/会话列表一致）
                     highlightQuery = query,
+                    isFriend = user.id in friendIds,
+                    requestPending = user.id in pendingOutgoingIds,
                     onOpenChat = { onOpenChat(user) },
                     onAddFriend = { onAddFriend(user) }
                 )
@@ -698,8 +713,9 @@ private fun SearchUserRow(
     user: User,
     onOpenChat: () -> Unit,
     onAddFriend: () -> Unit,
-    // 1.286：搜索关键词高亮
-    highlightQuery: String = ""
+    highlightQuery: String = "",
+    isFriend: Boolean = false,
+    requestPending: Boolean = false
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -722,8 +738,24 @@ private fun SearchUserRow(
                 Text(user.status, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary, maxLines = 1)
             }
         }
-        TextButton(onClick = onAddFriend) {
-            Text(stringResource(R.string.contacts_add_friend), color = MaterialTheme.colorScheme.primary)
+        when {
+            isFriend -> {
+                TextButton(onClick = onOpenChat) {
+                    Text(stringResource(R.string.contacts_start_chat), color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            requestPending -> {
+                Text(
+                    stringResource(R.string.contacts_friend_request_pending),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = LocalChatPalette.current.textSecondary
+                )
+            }
+            else -> {
+                TextButton(onClick = onAddFriend) {
+                    Text(stringResource(R.string.contacts_add_friend), color = MaterialTheme.colorScheme.primary)
+                }
+            }
         }
     }
 }
@@ -1190,13 +1222,14 @@ internal fun findLetterIndex(
     grouped: Map<String, List<User>>,
     incomingCount: Int,
     outgoingCount: Int,
+    groupInviteCount: Int,
     targetLetter: String
 ): Int {
-    // 字母分组前实际固定的前置项数：
-    // 新群聊(1) + 若有收到请求则 [请求头(1) + N] + 若有发出请求则 [请求头(1) + M]
-    val leadingFixedItems = 1 +
-        (if (incomingCount > 0) incomingCount + 1 else 0) +
-        (if (outgoingCount > 0) outgoingCount + 1 else 0)
+    val leadingFixedItems = com.maodouchat.contacts.ContactsIndexPolicy.leadingFixedItemCount(
+        incomingCount = incomingCount,
+        outgoingCount = outgoingCount,
+        groupInviteCount = groupInviteCount
+    )
     val ordered = grouped.keys.toList()
     val sizes = grouped.mapValues { it.value.size }
     return com.maodouchat.contacts.ContactsIndexPolicy.letterListIndex(

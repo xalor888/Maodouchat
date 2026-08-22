@@ -29,6 +29,22 @@ object QrScanFeedbackPolicy {
 
     fun forSessionExpired(): Feedback = Feedback(Kind.SESSION_EXPIRED)
 
+    /** User QR lookup via GET /users/{id} — keep miss vs session vs network distinct. */
+    fun forUserLookup(
+        httpStatus: Int?,
+        isNetwork: Boolean = false,
+        isTimeout: Boolean = false
+    ): Feedback {
+        if (isNetwork || isTimeout) {
+            return Feedback(Kind.NETWORK, retryable = true)
+        }
+        return when (httpStatus) {
+            401 -> forSessionExpired()
+            404 -> forUserLookupMiss()
+            else -> Feedback(Kind.UNKNOWN, retryable = true)
+        }
+    }
+
     fun forJoinInvite(
         httpStatus: Int?,
         serverCode: String?,
