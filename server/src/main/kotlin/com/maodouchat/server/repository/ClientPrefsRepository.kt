@@ -44,11 +44,14 @@ class ClientPrefsRepository {
     }
 
     fun update(userId: String, request: ClientPrefsUpdateRequest): ClientPrefsDto = transaction {
-        Users.selectAll()
+        val user = Users.selectAll()
             .where { Users.id eq userId }
             .forUpdate()
             .firstOrNull()
-            ?: return@transaction ClientPrefsDto()
+            ?: throw IllegalArgumentException("user not found")
+        if (user[Users.deletedAt] != null) {
+            throw IllegalArgumentException("user not found")
+        }
         val existing = ClientPrefs.selectAll()
             .where { ClientPrefs.userId eq userId }
             .forUpdate()

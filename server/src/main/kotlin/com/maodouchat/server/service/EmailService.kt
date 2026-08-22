@@ -176,8 +176,9 @@ object EmailService {
                 return@withCacheKeyLock false
             }
 
-            // 常量时间比较，防时序攻击（原本 storedCode == code 的 String.equals 非恒定时间）
-            if (constantTimeEquals(storedCode, code)) {
+            // 常量时间比较，防时序攻击（原本 storedCode == code 的 String.equals 非恒定时间）。
+            // 只去掉首尾空白：输入框/粘贴常带空格或换行，不 trim 会把正确验证码判失败。
+            if (constantTimeEquals(storedCode, code.trim())) {
                 attemptCounter.remove(cacheKey)
                 return@withCacheKeyLock codeCache.remove(cacheKey, cached)
             }

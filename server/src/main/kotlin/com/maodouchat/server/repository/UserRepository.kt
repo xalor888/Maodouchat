@@ -169,6 +169,11 @@ class UserRepository {
     fun beginTotpSetup(userId: String): Pair<String, String>? = transaction {
         val row = Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull() ?: return@transaction null
         if (row[Users.deletedAt] != null) return@transaction null
+        // 已启用的 2FA 不得被 setup 静默关闭：此前无条件写 totpEnabled=false 并替换 secret，
+        // 未 confirm 也会立刻关掉登录第二因子。重新绑定须先走 disable。
+        if (row[Users.totpEnabled] && !row[Users.totpSecret].isNullOrBlank()) {
+            throw IllegalArgumentException("TOTP already enabled")
+        }
         val secret = com.maodouchat.server.service.TotpService.generateSecret()
         Users.update({ Users.id eq userId }) {
             it[totpSecret] = secret
@@ -407,6 +412,9 @@ class UserRepository {
 
     fun updateProfile(userId: String, name: String? = null, status: String? = null) {
         transaction {
+            val row = Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
+                ?: return@transaction
+            if (row[Users.deletedAt] != null) return@transaction
             Users.update({ Users.id eq userId }) {
                 name?.trim()?.takeIf { it.isNotBlank() }?.let { value -> it[Users.name] = value.take(MAX_NAME_LENGTH) }
                 status?.trim()?.let { value -> it[Users.status] = value.take(MAX_STATUS_LENGTH) }

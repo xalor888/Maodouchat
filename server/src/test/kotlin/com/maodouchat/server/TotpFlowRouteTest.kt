@@ -275,6 +275,40 @@ class TotpFlowRouteTest {
         assertEquals(HttpStatusCode.OK, plain.status, plain.bodyAsText())
         assertTrue(extractToken(plain.bodyAsText()).isNotBlank(), plain.bodyAsText())
     }
+
+    @Test
+    fun `second totp setup is rejected without disabling existing 2fa`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+        val alexToken = extractToken(
+            client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"alex@example.com","password":"password123"}""")
+            }.bodyAsText()
+        )
+
+        val setup = client.post("/api/auth/totp/setup") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+        }
+        assertEquals(HttpStatusCode.OK, setup.status, setup.bodyAsText())
+        val secret = json.parseToJsonElement(setup.bodyAsText()).jsonObject["secret"]!!.jsonPrimitive.content
+        val confirm = client.post("/api/auth/totp/confirm") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"code":"${testTotpCode(secret)}"}""")
+        }
+        assertEquals(HttpStatusCode.OK, confirm.status, confirm.bodyAsText())
+
+        val second = client.post("/api/auth/totp/setup") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+        }
+        assertEquals(HttpStatusCode.BadRequest, second.status, second.bodyAsText())
+
+        val status = client.get("/api/auth/totp/status") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+        }
+        assertEquals(HttpStatusCode.OK, status.status, status.bodyAsText())
+        assertTrue(status.bodyAsText().contains("\"enabled\":true"), status.bodyAsText())
+    }
 }
 
 private class TotpFlowFakeAiGateway : AiGateway {
