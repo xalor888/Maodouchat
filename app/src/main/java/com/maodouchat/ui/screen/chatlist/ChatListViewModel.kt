@@ -51,6 +51,17 @@ internal const val GROUP_OWNER_TRANSFER_REQUIRED = "GROUP_OWNER_TRANSFER_REQUIRE
 internal fun requiresGroupOwnershipTransfer(error: Throwable?): Boolean =
     (error as? ApiException)?.serverCode == GROUP_OWNER_TRANSFER_REQUIRED
 
+/** Notification / nudge sender label: nickname → name → truncated id, never a blank title. */
+internal fun listSenderLabel(chat: Chat?, senderId: String, unknownLabel: String = ""): String {
+    val fromParticipant = chat?.participants
+        ?.firstOrNull { it.id == senderId }
+        ?.displayName
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+    val truncated = com.maodouchat.ui.screen.chatdetail.truncatedSenderId(senderId)
+    return fromParticipant ?: truncated ?: unknownLabel.ifBlank { senderId }
+}
+
 data class ChatListUiState(
     val chats: List<Chat> = emptyList(),
     val searchQuery: String = "",
@@ -1166,9 +1177,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         chatHint: Chat? = null
     ): String {
         val chat = chatHint ?: _uiState.value.chats.find { it.id == chatId }
-        val senderName = chat?.participants?.firstOrNull { it.id == senderId }?.name
-            ?.takeIf { it.isNotBlank() }
-            ?: senderId
+        val senderName = listSenderLabel(chat, senderId)
         val appCtx = getApplication<Application>()
         return com.maodouchat.ui.screen.chatdetail.NudgeDisplayPolicy.displayText(
             isOwnMessage = isOwnMessage,
@@ -2436,6 +2445,18 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                 // 系统通知：仅当不是当前活跃聊天且不是自己发时
                                 // 注意：静音分支必须用局部 continue，不能 return@collect（否则整个 events collector 永久退出）
                                 // 去重：同一条消息因重连重发时（existingSameMessage != null）不再重复弹通知
+                                if (!isOwnMessage && isActiveChat && existingSameMessage == null) {
+                                    val ctx = getApplication<Application>()
+                                    if (com.maodouchat.notification.NotificationSoundPolicy.inAppReceiveToneEnabled(
+                                            inAppSoundsFlag = RuntimeFlags.isEnabled(ctx, RuntimeFlags.IN_APP_SOUNDS),
+                                            notificationsEnabled = com.maodouchat.notification.NotificationPreferences.notificationsEnabled(ctx),
+                                            notificationSoundFlag = RuntimeFlags.isEnabled(ctx, RuntimeFlags.NOTIFICATION_SOUND),
+                                            soundPreference = com.maodouchat.notification.NotificationPreferences.soundEnabled(ctx),
+                                        )
+                                    ) {
+                                        com.maodouchat.util.InAppSoundPlayer.playReceiveTone()
+                                    }
+                                }
                                 if (!isOwnMessage && !isActiveChat && existingSameMessage == null) {
                                     val target = _uiState.value.chats.find { it.id == targetId }
                                     val ctx = getApplication<Application>()
@@ -2472,9 +2493,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                     val silentUntilSuppress =
                                         com.maodouchat.notification.ChatQuietHoursStore.silentUntil(ctx, targetId) > System.currentTimeMillis()
                                     if (target?.notificationsMuted != true && !suppressLocal && !quietHoursSuppress && !silentUntilSuppress) {
-                                        val senderName = target?.participants
-                                            ?.firstOrNull { it.id == event.message.senderId }?.name
-                                            ?: event.message.senderId
+                                        val senderName = listSenderLabel(target, event.message.senderId)
                                         // 解密后的 meta.mentions：@我 / @所有人 时标题强调（E2EE 服务端不可见）
                                         val mentionIds = runCatching {
                                             val contentForMeta = decryptedPlain ?: event.message.content

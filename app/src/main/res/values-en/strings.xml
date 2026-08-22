@@ -1843,7 +1843,7 @@
     <string name="notifications_enable_title">Allow message notifications</string>
     <string name="notifications_enable_subtitle">Turn off notification banners and sounds</string>
     <string name="notifications_sound_title">Message sounds</string>
-    <string name="notifications_sound_subtitle">Play a sound for new messages</string>
+    <string name="notifications_sound_subtitle">Play a sound for new messages, including a short in-chat cue. Incoming-call ringing uses a separate system channel</string>
     <string name="notifications_vibration_title">Vibration</string>
     <string name="notifications_vibration_subtitle">Vibrate for new messages</string>
     <string name="notifications_preview_title">Notification previews</string>
