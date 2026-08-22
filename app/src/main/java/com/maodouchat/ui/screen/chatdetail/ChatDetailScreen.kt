@@ -213,6 +213,7 @@ import com.maodouchat.ui.component.blindWatermark
 import com.maodouchat.security.MessageSafetyScanner
 import com.maodouchat.security.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
+import com.maodouchat.security.findActivity
 import com.maodouchat.ui.component.MessageBubble
 import com.maodouchat.ui.component.ReplyPreview
 import com.maodouchat.ui.component.ReplyTargetBar
@@ -992,7 +993,13 @@ fun ChatDetailScreen(
     val screenshotMsgSecret = stringResource(R.string.secret_chat_screenshot_detected)
     LaunchedEffect(captureGuardActive, disappearingActive, secretActive) {
         if (!captureGuardActive) return@LaunchedEffect
-        if (!RuntimeFlags.isEnabled(context, RuntimeFlags.SCREENSHOT_DETECT)) return@LaunchedEffect
+        // 密聊必须始终启动检测器：FLAG_SECURE 挡住系统截屏时不会有 MediaStore 事件，
+        // 检测器只覆盖 OEM / adb / 外置相机等绕过。SCREENSHOT_DETECT 只闸非密聊阅后即焚。
+        val detectEnabled = com.maodouchat.security.ScreenshotDetector.shouldStart(
+            secretActive = secretActive,
+            screenshotDetectFlag = RuntimeFlags.isEnabled(context, RuntimeFlags.SCREENSHOT_DETECT)
+        )
+        if (!detectEnabled) return@LaunchedEffect
         val detector = com.maodouchat.security.ScreenshotDetector(context) {
             val msg = when {
                 secretActive && disappearingActive ->
@@ -1051,11 +1058,19 @@ fun ChatDetailScreen(
     }
 
     // Keep FLAG_SECURE in sync when 密聊 toggles without navigation.
-    LaunchedEffect(state.isSecretChat, state.chat?.id) {
-        val chatId = state.chat?.id ?: return@LaunchedEffect
+    // LocalContext is usually a ContextWrapper — unwrap, do not cast directly.
+    DisposableEffect(state.isSecretChat, state.chat?.id) {
+        val chatId = state.chat?.id
         val isSecret = state.isSecretChat == true
-        (context as? com.maodouchat.MainActivity)
-            ?.notifySecretChatSurfaceChanged(chatId, isSecret)
+        val activity = context.findActivity() as? com.maodouchat.MainActivity
+        if (chatId != null) {
+            activity?.notifySecretChatSurfaceChanged(chatId, isSecret)
+        }
+        onDispose {
+            if (chatId != null && isSecret) {
+                activity?.notifySecretChatSurfaceLeft(chatId)
+            }
+        }
     }
 
     val chatLockPending = state.isChatLocked == null
@@ -1064,8 +1079,14 @@ fun ChatDetailScreen(
     // 会话 PIN 锁（ChatLockGate）显示期间强制 FLAG_SECURE：PIN 属敏感信息，
     // 即便全局截屏防护关闭、也非密聊，也须阻止截屏/录屏。复用 MainActivity 的中心化机制，
     // 由 refreshWindowPrivacy 统一 addFlags/clearFlags，避免在解锁密聊会话时误清 FLAG_SECURE。
-    LaunchedEffect(chatLockBlocking) {
-        (context as? com.maodouchat.MainActivity)?.notifyChatLockSurfaceChanged(chatLockBlocking)
+    DisposableEffect(chatLockBlocking) {
+        val activity = context.findActivity() as? com.maodouchat.MainActivity
+        activity?.notifyChatLockSurfaceChanged(chatLockBlocking)
+        onDispose {
+            if (chatLockBlocking) {
+                activity?.notifyChatLockSurfaceChanged(false)
+            }
+        }
     }
     val secretWatermarkLabel = com.maodouchat.ui.component.rememberSecretBlindWatermarkLabel(
         userId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),

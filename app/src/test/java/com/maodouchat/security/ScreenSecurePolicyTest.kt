@@ -105,5 +105,93 @@ class ScreenSecurePolicyTest {
         assertNull(ScreenSecurePolicy.extractChatIdFromRoute("call/u1/Alice/AUDIO"))
         assertNull(ScreenSecurePolicy.extractChatIdFromRoute("main"))
         assertNull(ScreenSecurePolicy.extractChatIdFromRoute(null))
+        // destination.route 模式串不得当成真实 chatId，否则 isSecret("{chatId}") 恒 false
+        assertNull(ScreenSecurePolicy.extractChatIdFromRoute("chat_detail/{chatId}?messageId={messageId}"))
+        assertNull(ScreenSecurePolicy.extractChatIdFromRoute("chat_detail_two_pane/{chatId}"))
+        assertNull(ScreenSecurePolicy.extractChatIdFromRoute("starred_messages?chatId={chatId}"))
+    }
+
+    @Test
+    fun `non-secret chat with global off is not secured`() {
+        assertFalse(
+            ScreenSecurePolicy.shouldSecureWindow(
+                appLockShowing = false,
+                globalEnabled = false,
+                onChatSurface = true,
+                secretChatSurfaceActive = false
+            )
+        )
+    }
+
+    @Test
+    fun `nav placeholder chat ids are ignored`() {
+        assertTrue(ScreenSecurePolicy.isNavPlaceholder("{chatId}"))
+        assertTrue(ScreenSecurePolicy.isNavPlaceholder("{messageId}"))
+        assertFalse(ScreenSecurePolicy.isNavPlaceholder("abc"))
+        assertFalse(ScreenSecurePolicy.isNavPlaceholder(null))
+        assertFalse(ScreenSecurePolicy.isNavPlaceholder(""))
+        assertNull(ScreenSecurePolicy.takeRealChatId("{chatId}"))
+        assertEquals("abc", ScreenSecurePolicy.takeRealChatId("abc"))
+    }
+
+    @Test
+    fun `resolveChatId prefers arguments over route pattern`() {
+        assertEquals(
+            "real-id",
+            ScreenSecurePolicy.resolveChatId(
+                argumentChatId = "real-id",
+                filledRoute = "chat_detail/{chatId}",
+                routePattern = "chat_detail/{chatId}?messageId={messageId}"
+            )
+        )
+        assertNull(
+            ScreenSecurePolicy.resolveChatId(
+                argumentChatId = "{chatId}",
+                filledRoute = "chat_detail/{chatId}",
+                routePattern = "chat_detail/{chatId}"
+            )
+        )
+        assertEquals(
+            "abc",
+            ScreenSecurePolicy.resolveChatId(
+                argumentChatId = null,
+                filledRoute = "chat_detail/abc?messageId=m1",
+                routePattern = "chat_detail/{chatId}?messageId={messageId}"
+            )
+        )
+        assertNull(
+            ScreenSecurePolicy.resolveChatId(
+                argumentChatId = null,
+                filledRoute = "chat_detail_list_pane",
+                routePattern = "chat_detail_list_pane"
+            )
+        )
+    }
+
+    @Test
+    fun `fillRoutePattern substitutes nav arguments`() {
+        val filled = ScreenSecurePolicy.fillRoutePattern(
+            "chat_detail/{chatId}?messageId={messageId}",
+            mapOf("chatId" to "abc", "messageId" to "m1")
+        )
+        assertEquals("chat_detail/abc?messageId=m1", filled)
+        assertEquals("abc", ScreenSecurePolicy.extractChatIdFromRoute(filled))
+        assertEquals(
+            "chat_detail/{chatId}",
+            ScreenSecurePolicy.fillRoutePattern("chat_detail/{chatId}", emptyMap())
+        )
+    }
+
+    @Test
+    fun `optimistic secret surface excludes list pane`() {
+        assertTrue(ScreenSecurePolicy.isOptimisticSecretSurface("chat_detail/{chatId}"))
+        assertTrue(ScreenSecurePolicy.isOptimisticSecretSurface("chat_detail/abc"))
+        assertTrue(ScreenSecurePolicy.isOptimisticSecretSurface("chat_detail_two_pane/abc"))
+        assertFalse(ScreenSecurePolicy.isOptimisticSecretSurface("chat_detail_list_pane"))
+        assertFalse(ScreenSecurePolicy.isOptimisticSecretSurface("incoming_call"))
+        assertFalse(ScreenSecurePolicy.isOptimisticSecretSurface("main"))
+        assertFalse(ScreenSecurePolicy.isOptimisticSecretSurface(null))
+        // 列表页仍是聊天表面（全局开关可生效），但不乐观当密聊
+        assertTrue(ScreenSecurePolicy.isChatSurfaceRoute("chat_detail_list_pane"))
     }
 }

@@ -2,7 +2,6 @@ package com.maodouchat.security
 
 import android.app.Activity
 import android.content.Context
-import android.content.ContextWrapper
 import android.database.ContentObserver
 import android.net.Uri
 import android.os.Build
@@ -91,15 +90,6 @@ class ScreenshotDetector(
         val cb = screenCaptureCallback as? Activity.ScreenCaptureCallback ?: return
         runCatching { activity.unregisterScreenCaptureCallback(cb) }
         screenCaptureCallback = null
-    }
-
-    private fun Context.findActivity(): Activity? {
-        var ctx: Context? = this
-        while (ctx is ContextWrapper) {
-            if (ctx is Activity) return ctx
-            ctx = ctx.baseContext
-        }
-        return null
     }
 
     private fun inspectCapture(uri: Uri?, images: Boolean) {
@@ -191,6 +181,13 @@ class ScreenshotDetector(
 
     companion object {
         private const val TAG = "ScreenshotDetector"
+
+        /**
+         * Secret chat always runs the detector (bypass complement). The
+         * SCREENSHOT_DETECT flag only gates non-secret disappearing-message warnings.
+         */
+        fun shouldStart(secretActive: Boolean, screenshotDetectFlag: Boolean): Boolean =
+            secretActive || screenshotDetectFlag
 
         fun isScreenshotPath(path: String, name: String = ""): Boolean {
             val p = path.lowercase()
