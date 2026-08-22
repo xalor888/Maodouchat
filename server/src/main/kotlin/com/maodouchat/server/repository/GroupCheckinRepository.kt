@@ -196,6 +196,9 @@ object GroupCheckinRepository {
                 val liveStreak = if (previous != null && previous[GroupCheckins.checkinDate] == yesterday) {
                     previous[GroupCheckins.streak].coerceAtLeast(1)
                 } else 0
+                // 未签到时 todayRank 仍为 0，但 todayCount 必须是当日可见签到人数——
+                // 客户端 refresh 用 /checkins/me 的 todayCount 渲染「今日 N 人」，
+                // 此前恒 0 会把已有签到的群显示成空壳。
                 return@transaction CheckinDto(
                     chatId = chatId,
                     userId = userId,
@@ -203,7 +206,7 @@ object GroupCheckinRepository {
                     streak = liveStreak,
                     totalCount = previous?.get(GroupCheckins.totalCount) ?: 0,
                     todayRank = 0,
-                    todayCount = 0,
+                    todayCount = visibleTodayCount(chatId, today, userId),
                     alreadyCheckedIn = false,
                     checkedAt = 0L
                 )
@@ -293,13 +296,7 @@ object GroupCheckinRepository {
         val blocked = blockedUserIdsInTx(viewerId)
         // 8.48 修复 M14：rank/count 用 COUNT 聚合——此前全量载入当日签到行（活跃大群上万行）
         val myCheckedAt = row[GroupCheckins.checkedAt]
-        val visibleBase = if (blocked.isEmpty()) {
-            (GroupCheckins.chatId eq chatId) and (GroupCheckins.checkinDate eq date)
-        } else {
-            (GroupCheckins.chatId eq chatId) and
-                (GroupCheckins.checkinDate eq date) and
-                (GroupCheckins.userId notInList blocked.toList())
-        }
+        val visibleBase = visibleTodayPredicate(chatId, date, blocked)
         val todayCount = GroupCheckins.selectAll()
             .where { visibleBase }
             .count().toInt()
@@ -547,27 +544,47 @@ object GroupCheckinRepository {
         if (!isValidId(pkId) || !isValidId(userId)) return null
         val c = choice.trim().lowercase()
         if (c != "left" && c != "right") return null
-        return transaction {
-            // 8.50 修复 H1：先锁 chat 再锁 pk（原「先 pk 后 chat」与删除路径构成死锁环）
-            val chatId = GroupPkRounds.select(GroupPkRounds.chatId)
-                .where { GroupPkRounds.id eq pkId }
-                .firstOrNull()?.get(GroupPkRounds.chatId) ?: return@transaction null
-            val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
-                ?: return@transaction null
-            val pk = GroupPkRounds.selectAll().where { GroupPkRounds.id eq pkId }.forUpdate().firstOrNull()
-                ?: return@transaction null
-            if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, userId)) return@transaction null
-            if (!pk[GroupPkRounds.active] || pk[GroupPkRounds.closedAt] != null) return@transaction null
-            val now = System.currentTimeMillis()
-            GroupPkVotes.deleteWhere { (GroupPkVotes.pkId eq pkId) and (GroupPkVotes.userId eq userId) }
+        return try {
+            votePkInTransaction(pkId, userId, c)
+        } catch (error: Exception) {
+            // 与签到双签同口径：并发首次投票可能同时 INSERT 撞 (pkId, userId) 主键，
+            // PG 会 abort 事务。捕获必须在事务外，回滚后重试一次改票。
+            if (!isUniqueViolation(error)) throw error
+            votePkInTransaction(pkId, userId, c)
+        }
+    }
+
+    private fun votePkInTransaction(pkId: String, userId: String, choice: String): PkDto? = transaction {
+        // 8.50 修复 H1：先锁 chat 再锁 pk（原「先 pk 后 chat」与删除路径构成死锁环）
+        val chatId = GroupPkRounds.select(GroupPkRounds.chatId)
+            .where { GroupPkRounds.id eq pkId }
+            .firstOrNull()?.get(GroupPkRounds.chatId) ?: return@transaction null
+        val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
+            ?: return@transaction null
+        val pk = GroupPkRounds.selectAll().where { GroupPkRounds.id eq pkId }.forUpdate().firstOrNull()
+            ?: return@transaction null
+        if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, userId)) return@transaction null
+        if (!pk[GroupPkRounds.active] || pk[GroupPkRounds.closedAt] != null) return@transaction null
+        val now = System.currentTimeMillis()
+        val existing = GroupPkVotes.selectAll().where {
+            (GroupPkVotes.pkId eq pkId) and (GroupPkVotes.userId eq userId)
+        }.firstOrNull()
+        if (existing != null) {
+            GroupPkVotes.update({
+                (GroupPkVotes.pkId eq pkId) and (GroupPkVotes.userId eq userId)
+            }) {
+                it[GroupPkVotes.choice] = choice
+                it[GroupPkVotes.votedAt] = now
+            }
+        } else {
             GroupPkVotes.insert {
                 it[GroupPkVotes.pkId] = pkId
                 it[GroupPkVotes.userId] = userId
-                it[GroupPkVotes.choice] = c
+                it[GroupPkVotes.choice] = choice
                 it[GroupPkVotes.votedAt] = now
             }
-            toPkDto(pk, userId)
         }
+        toPkDto(pk, userId)
     }
 
     fun closePk(pkId: String, userId: String): PkDto? {
@@ -585,11 +602,15 @@ object GroupCheckinRepository {
             val pk = GroupPkRounds.selectAll().where { GroupPkRounds.id eq pkId }.forUpdate().firstOrNull()
                 ?: return@transaction null
             if (pk[GroupPkRounds.creatorId] != userId) return@transaction null
+            val closedAt = System.currentTimeMillis()
             GroupPkRounds.update({ GroupPkRounds.id eq pkId }) {
                 it[active] = false
-                it[closedAt] = System.currentTimeMillis()
+                it[GroupPkRounds.closedAt] = closedAt
             }
-            toPkDto(pk, userId)
+            // Exposed ResultRow 不会随 UPDATE 刷新。closePoll 用 forceClosed；这里重读行，
+            // 避免关闭接口把 active=true / closedAt=null 回给客户端（像没关上）。
+            val updated = GroupPkRounds.selectAll().where { GroupPkRounds.id eq pkId }.first()
+            toPkDto(updated, userId)
         }
     }
 
@@ -678,6 +699,22 @@ object GroupCheckinRepository {
             current = current.cause
         }
         return false
+    }
+
+    private fun visibleTodayPredicate(chatId: String, date: String, blocked: Set<String>) =
+        if (blocked.isEmpty()) {
+            (GroupCheckins.chatId eq chatId) and (GroupCheckins.checkinDate eq date)
+        } else {
+            (GroupCheckins.chatId eq chatId) and
+                (GroupCheckins.checkinDate eq date) and
+                (GroupCheckins.userId notInList blocked.toList())
+        }
+
+    private fun visibleTodayCount(chatId: String, date: String, viewerId: String): Int {
+        val blocked = blockedUserIdsInTx(viewerId)
+        return GroupCheckins.selectAll()
+            .where { visibleTodayPredicate(chatId, date, blocked) }
+            .count().toInt()
     }
 
     private fun blockedUserIdsInTx(viewerId: String?): Set<String> {
