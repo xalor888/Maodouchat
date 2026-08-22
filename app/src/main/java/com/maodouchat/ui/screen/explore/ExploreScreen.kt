@@ -297,6 +297,7 @@ fun ExploreScreen(
                     selectedVisibility = uiState.selectedVisibility,
                     isPublishing = uiState.isPublishing,
                     canPublish = uiState.canPublish,
+                    visibilityReady = uiState.isVisibilityReady,
                     onTextChange = viewModel::onComposerTextChange,
                     onPickImages = {
                         imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -383,7 +384,17 @@ fun ExploreScreen(
                         ShimmerPostCard()
                     }
                 }
-                uiState.posts.isEmpty() -> item(key = "empty", contentType = "empty") { 
+                uiState.posts.isEmpty() && !uiState.feedErrorMessage.isNullOrBlank() ->
+                    item(key = "feed_error", contentType = "empty") {
+                        EmptyState(
+                            title = stringResource(R.string.explore_posts_load_failed),
+                            subtitle = uiState.feedErrorMessage,
+                            type = EmptyStateType.NETWORK_ERROR,
+                            actionText = stringResource(R.string.empty_state_retry),
+                            onAction = { viewModel.refresh() }
+                        )
+                    }
+                uiState.posts.isEmpty() -> item(key = "empty", contentType = "empty") {
                     EmptyState(
                         title = stringResource(R.string.explore_empty_title),
                         subtitle = stringResource(R.string.explore_empty_subtitle),
@@ -606,6 +617,7 @@ private fun ComposerCard(
     selectedVisibility: String,
     isPublishing: Boolean,
     canPublish: Boolean,
+    visibilityReady: Boolean = true,
     onTextChange: (String) -> Unit,
     onPickImages: () -> Unit,
     // 1.158：从剪贴板粘贴图片
@@ -739,6 +751,13 @@ private fun ComposerCard(
                     Spacer(Modifier.width(6.dp))
                     Text(stringResource(R.string.explore_publish))
                 }
+            }
+            if (!visibilityReady && !isPublishing) {
+                Text(
+                    stringResource(R.string.explore_visibility_load_failed),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Error
+                )
             }
         }
     }

@@ -141,4 +141,16 @@ class ExploreFeedPolicyTest {
         assertTrue(ExploreFeedPolicy.missingSessionForLoadMore("   "))
         assertFalse(ExploreFeedPolicy.missingSessionForLoadMore("tok"))
     }
+
+    @Test
+    fun `formatCount keeps small numbers and compact large ones`() {
+        assertEquals("0", ExploreFeedPolicy.formatCount(0))
+        assertEquals("0", ExploreFeedPolicy.formatCount(-3))
+        assertEquals("999", ExploreFeedPolicy.formatCount(999))
+        assertEquals("1K", ExploreFeedPolicy.formatCount(1000))
+        assertEquals("1.2K", ExploreFeedPolicy.formatCount(1200))
+        assertEquals("9.9K", ExploreFeedPolicy.formatCount(9900))
+        assertEquals("1万", ExploreFeedPolicy.formatCount(10_000))
+        assertEquals("1.3万", ExploreFeedPolicy.formatCount(13_000))
+    }
 }

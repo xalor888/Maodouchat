@@ -70,6 +70,8 @@ data class ExploreUiState(
     val hasMoreComments: Boolean = true,
     val hasMore: Boolean = true,
     val errorMessage: String? = null,
+    /** Feed 首屏/刷新失败且列表为空时保留，避免 snackbar 消费后只剩「还没有动态」。 */
+    val feedErrorMessage: String? = null,
     val postDetailError: String? = null,
     val infoMessage: String? = null,
     /** 1.93：动态点赞者弹窗。 */
@@ -306,11 +308,17 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     return@onFailure
                 }
                 _uiState.update { state ->
-                    if (state.useDefaultPostVisibility && !state.isVisibilityReady) {
-                        state.copy(errorMessage = state.errorMessage ?: text(R.string.explore_visibility_load_failed))
+                    // 隐私接口失败时 fail-open：沿用已选/PRIVATE，避免发布按钮永久禁用且无原因。
+                    val fallbackVisibility = if (state.selectedVisibility in ExploreDraftPolicy.VISIBILITIES) {
+                        state.selectedVisibility
                     } else {
-                        state
+                        "PRIVATE"
                     }
+                    state.copy(
+                        selectedVisibility = fallbackVisibility,
+                        isVisibilityReady = true,
+                        errorMessage = state.errorMessage ?: text(R.string.explore_visibility_load_failed)
+                    )
                 }
             }
         }
@@ -321,13 +329,20 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val token = tokenManager.getToken()
         val refreshOwnerUserId = tokenManager.getUserId().orEmpty()
         if (token.isNullOrBlank() || refreshOwnerUserId.isBlank()) {
-            _uiState.update { it.copy(isLoading = false, errorMessage = text(R.string.explore_login_required_page)) }
+            val loginRequired = text(R.string.explore_login_required_page)
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    errorMessage = loginRequired,
+                    feedErrorMessage = loginRequired
+                )
+            }
             return
         }
         val generation = ++feedGeneration
         refreshJob?.cancel()
         _uiState.update {
-            it.copy(isLoading = true, isLoadingMore = false, errorMessage = null, hasMore = true)
+            it.copy(isLoading = true, isLoadingMore = false, errorMessage = null, feedErrorMessage = null, hasMore = true)
         }
         val job = viewModelScope.launch {
             try {
@@ -351,10 +366,20 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                                 liveUserId = tokenManager.getUserId(),
                             )
                         ) {
+                            if (feedGeneration == generation) {
+                                _uiState.update { it.copy(isLoading = false) }
+                            }
                             return@fold
                         }
                         if (feedGeneration == generation) {
-                            _uiState.update { it.copy(posts = posts, isLoading = false, hasMore = posts.size >= FEED_PAGE_SIZE) }
+                            _uiState.update {
+                                it.copy(
+                                    posts = posts,
+                                    isLoading = false,
+                                    hasMore = posts.size >= FEED_PAGE_SIZE,
+                                    feedErrorMessage = null
+                                )
+                            }
                         }
                     },
                     onFailure = { error ->
@@ -365,7 +390,16 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                                 liveUserId = tokenManager.getUserId(),
                             )
                         ) {
-                            _uiState.update { it.copy(isLoading = false, errorMessage = error.message ?: text(R.string.explore_posts_load_failed)) }
+                            val msg = error.message ?: text(R.string.explore_posts_load_failed)
+                            _uiState.update { state ->
+                                state.copy(
+                                    isLoading = false,
+                                    errorMessage = msg,
+                                    feedErrorMessage = if (state.posts.isEmpty()) msg else null
+                                )
+                            }
+                        } else if (feedGeneration == generation) {
+                            _uiState.update { it.copy(isLoading = false) }
                         }
                     }
                 )
@@ -442,6 +476,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                                     liveUserId = tokenManager.getUserId(),
                                 )
                             ) {
+                                if (feedGeneration == generation) {
+                                    _uiState.update { it.copy(isLoadingMore = false) }
+                                }
                                 return@fold
                             }
                             if (feedGeneration == generation) {
@@ -468,6 +505,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                                         errorMessage = error.message ?: text(R.string.explore_load_more_failed)
                                     )
                                 }
+                            } else if (feedGeneration == generation) {
+                                _uiState.update { it.copy(isLoadingMore = false) }
                             }
                         }
                     )
@@ -876,17 +915,22 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     /** 1.202：清空发布框（文本 + 已选图片 + 持久化草稿）；1.272：同时恢复默认可见范围。 */
     fun clearComposer() {
         persistDraftComposer("")
-        deleteDraftFiles(_uiState.value.imageDrafts)
+        val discarded = _uiState.value.imageDrafts
+        val ownerUserId = draftOwnerId()
+        deleteDraftFiles(discarded)
+        discarded.mapNotNull { it.uploadUrl }.forEach { discardUploadedImage(it, ownerUserId) }
         _uiState.update {
+            val accountDefault = it.defaultPostVisibility
             it.copy(
                 composerText = "",
                 composerDraftRestored = false,
                 imageDrafts = emptyList(),
-                selectedVisibility = it.defaultPostVisibility ?: it.selectedVisibility,
+                selectedVisibility = accountDefault ?: it.selectedVisibility,
                 useDefaultPostVisibility = true,
-                isVisibilityReady = false
+                isVisibilityReady = accountDefault != null
             )
         }
+        if (_uiState.value.defaultPostVisibility == null) loadPrivacyDefaults()
     }
 
     /** 9.299：清理草稿图片的本地缓存拷贝（persistPickedImage 产物），避免缓存膨胀。 */
@@ -1145,7 +1189,18 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
             return
         }
-        if (!state.canPublish) return
+        if (!state.canPublish) {
+            val reason = when {
+                state.isPublishing -> return
+                state.isUploadingImage -> text(R.string.explore_some_images_upload_failed)
+                !state.isVisibilityReady -> text(R.string.explore_visibility_load_failed)
+                state.composerText.isBlank() && state.readyImageUrls.isEmpty() ->
+                    text(R.string.explore_share_placeholder)
+                else -> text(R.string.explore_publish_failed)
+            }
+            _uiState.update { it.copy(errorMessage = reason) }
+            return
+        }
         _uiState.update { it.copy(isPublishing = true, errorMessage = null) }
         viewModelScope.launch {
             try {
@@ -1170,6 +1225,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                                 liveUserId = tokenManager.getUserId(),
                             )
                         ) {
+                            _uiState.update { it.copy(isPublishing = false) }
                             return@fold
                         }
                         val current = _uiState.value
@@ -1196,7 +1252,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                                     selectedVisibility = resolvedDefault ?: "PRIVATE",
                                     defaultPostVisibility = resolvedDefault,
                                     useDefaultPostVisibility = true,
-                                    isVisibilityReady = resolvedDefault != null
+                                    isVisibilityReady = true
                                 )
                             } else {
                                 it.copy(
@@ -1938,6 +1994,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     private fun showEntryNavigation(target: String) { _entryNavigation.tryEmit(target) }
 
     fun consumeMessage() {
+        // 保留 feedErrorMessage：snackbar 消失后空 Feed 仍需常驻错误 + 重试。
         _uiState.update { it.copy(errorMessage = null, infoMessage = null) }
     }
 
