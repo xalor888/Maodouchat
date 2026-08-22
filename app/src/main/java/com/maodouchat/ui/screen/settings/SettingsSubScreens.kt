@@ -2711,12 +2711,23 @@ fun GeneralSettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showClearConfirm by remember { mutableStateOf(false) }
-    // 1.04：语言选择
-    var showLanguageDialog by remember { mutableStateOf(false) }
     // 9.200：主题风格选择（TG 1:1 还原主题）
     var showThemeStyleDialog by remember { mutableStateOf(false) }
+    val appearanceVersion by com.maodouchat.util.ChatAppearancePreferences.appearanceVersion.collectAsState()
+    var enterToSend by remember { mutableStateOf(com.maodouchat.util.ComposerPreferences.enterToSend(context)) }
+    val bubbleColor = remember(appearanceVersion) {
+        com.maodouchat.util.ChatAppearancePreferences.getBubbleColor(context)
+    }
+    val bubbleShape = remember(appearanceVersion) {
+        com.maodouchat.util.ChatAppearancePreferences.getBubbleShape(context)
+    }
     var customWallpaperUri by remember {
         mutableStateOf(com.maodouchat.util.ChatAppearancePreferences.getCustomWallpaperUri(context))
+    }
+    LaunchedEffect(state.infoMessage) {
+        val message = state.infoMessage ?: return@LaunchedEffect
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        viewModel.consumeInfoMessage()
     }
     val customWallpaperPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -2793,10 +2804,13 @@ fun GeneralSettingsScreen(
                     onEnabledChange = viewModel::setUnreadPriorityEnabled
                 )
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
-                // 1.175：回车发送（本地偏好）
+                // 1.175：回车发送（本地偏好；set 在无 userId 时是 no-op，需回读后才切 UI）
                 EnterToSendSwitchRow(
-                    enabled = com.maodouchat.util.ComposerPreferences.enterToSend(context),
-                    onEnabledChange = { com.maodouchat.util.ComposerPreferences.setEnterToSend(context, it) }
+                    enabled = enterToSend,
+                    onEnabledChange = { next ->
+                        com.maodouchat.util.ComposerPreferences.setEnterToSend(context, next)
+                        enterToSend = com.maodouchat.util.ComposerPreferences.enterToSend(context)
+                    }
                 )
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 // 1.89：媒体自动下载（仅 Wi-Fi / 始终 / 关闭）
@@ -2822,14 +2836,14 @@ fun GeneralSettingsScreen(
                 )
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 ChatBubbleColorRow(
-                    current = com.maodouchat.util.ChatAppearancePreferences.getBubbleColor(context),
+                    current = bubbleColor,
                     onChange = { id ->
                         com.maodouchat.util.ChatAppearancePreferences.setBubbleColor(context, id)
                     }
                 )
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 ChatBubbleShapeRow(
-                    current = com.maodouchat.util.ChatAppearancePreferences.getBubbleShape(context),
+                    current = bubbleShape,
                     onChange = { id ->
                         com.maodouchat.util.ChatAppearancePreferences.setBubbleShape(context, id)
                     }
@@ -2839,9 +2853,6 @@ fun GeneralSettingsScreen(
                     current = state.chatFontScale,
                     onChange = viewModel::setChatFontScale
                 )
-                androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
-                // 1.04：语言设置已由上方 LanguageRow 内联选择器承载；
-                // 9.3xx：移除重复的"语言"入口（此前同一页两个语言控件）
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 ActionRow(label = stringResource(R.string.general_clear_cache), subtitle = stringResource(R.string.general_cache_summary, state.cacheSizeText)) {
                     showClearConfirm = true
@@ -2893,42 +2904,6 @@ fun GeneralSettingsScreen(
                 viewModel.setThemeStyle(previewStyle ?: confirmedStyle)
             },
             onDismiss = { showThemeStyleDialog = false }
-        )
-    }
-
-    // 1.04：语言选择（系统/中文/English）
-    if (showLanguageDialog) {
-        AlertDialog(
-            onDismissRequest = { showLanguageDialog = false },
-            title = { Text(stringResource(R.string.general_language), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
-            text = {
-                Column {
-                    listOf(
-                        com.maodouchat.util.AppLocaleManager.MODE_SYSTEM to R.string.general_language_system,
-                        com.maodouchat.util.AppLocaleManager.MODE_CHINESE to R.string.general_language_chinese,
-                        com.maodouchat.util.AppLocaleManager.MODE_ENGLISH to R.string.general_language_english
-                    ).forEach { (mode, labelRes) ->
-                        TextButton(
-                            onClick = {
-                                showLanguageDialog = false
-                                // 9.155：此前直接 AppLocaleManager.setMode——绕过 VM 状态与
-                                // pushClientPrefs，多端/重登后被云端旧值拉回；与上方
-                                // LanguageRow 统一走 viewModel.setLanguageMode（含云同步），
-                                // 预 Android 13 同样用 Activity 上下文重建使语言即时生效
-                                viewModel.setLanguageMode(mode)
-                                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                                    context.findActivity()?.recreate()
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(labelRes), color = MaterialTheme.colorScheme.onSurface) }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showLanguageDialog = false }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
-            }
         )
     }
 }

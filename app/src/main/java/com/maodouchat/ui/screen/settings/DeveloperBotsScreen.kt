@@ -35,10 +35,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.network.ApiService
@@ -48,6 +51,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONObject
 
 private data class BotUi(
     val id: String,
@@ -65,7 +69,9 @@ private data class BotUi(
 @SuppressLint("LocalContextGetResourceValueCall")
 fun DeveloperBotsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
+    val copiedLabel = stringResource(R.string.chat_copied)
     var bots by remember { mutableStateOf<List<BotUi>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var creating by remember { mutableStateOf(false) }
@@ -82,6 +88,11 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
         error = null
         try {
             val token = TokenManager.getInstance(context).getToken().orEmpty()
+            if (token.isBlank()) {
+                error = context.getString(R.string.developer_bots_load_failed)
+                bots = emptyList()
+                return
+            }
             val result = withContext(Dispatchers.IO) { ApiService.listBots(token) }
             result.onSuccess { raw ->
                 bots = parseBots(raw)
@@ -151,6 +162,10 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
                                 scope.launch {
                                     try {
                                         val token = TokenManager.getInstance(context).getToken().orEmpty()
+                                        if (token.isBlank()) {
+                                            error = context.getString(R.string.developer_bots_create_failed)
+                                            return@launch
+                                        }
                                         val result = withContext(Dispatchers.IO) {
                                             ApiService.createBot(token, name.trim(), username.trim())
                                         }
@@ -196,6 +211,12 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
                                 }
                             }
                             Text(tok, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
+                            TextButton(onClick = {
+                                clipboard.setText(AnnotatedString(tok))
+                                info = copiedLabel
+                            }) {
+                                Text(stringResource(R.string.common_copy))
+                            }
                         }
                     }
                 }
@@ -241,8 +262,12 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true
                             )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = {
                                     if (activeBotActionId != null || creating) return@Button
                                     val url = webhookDraft.trim()
                                     if (url.isNotEmpty() && !url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
@@ -255,6 +280,10 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
                                     scope.launch {
                                         try {
                                             val token = TokenManager.getInstance(context).getToken().orEmpty()
+                                            if (token.isBlank()) {
+                                                error = context.getString(R.string.developer_bots_webhook_failed)
+                                                return@launch
+                                            }
                                             val result = withContext(Dispatchers.IO) {
                                                 ApiService.setBotWebhook(
                                                     token,
@@ -272,10 +301,18 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
                                             activeBotActionId = null
                                         }
                                     }
-                                }, enabled = !creating && activeBotActionId == null) {
-                                    Text(stringResource(R.string.developer_bots_webhook_save))
+                                    },
+                                    enabled = !creating && activeBotActionId == null,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        stringResource(R.string.developer_bots_webhook_save),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
-                                Button(onClick = {
+                                Button(
+                                    onClick = {
                                     if (activeBotActionId != null || creating) return@Button
                                     activeBotActionId = bot.id
                                     error = null
@@ -283,6 +320,10 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
                                     scope.launch {
                                         try {
                                             val token = TokenManager.getInstance(context).getToken().orEmpty()
+                                            if (token.isBlank()) {
+                                                error = context.getString(R.string.developer_bots_rotate_failed)
+                                                return@launch
+                                            }
                                             val result = withContext(Dispatchers.IO) {
                                                 ApiService.regenerateBotToken(token, bot.id)
                                             }
@@ -297,12 +338,23 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
                                             activeBotActionId = null
                                         }
                                     }
-                                }, enabled = !creating && activeBotActionId == null) {
-                                    Text(stringResource(R.string.developer_bots_rotate_token))
+                                    },
+                                    enabled = !creating && activeBotActionId == null,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        stringResource(R.string.developer_bots_rotate_token),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                             }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = {
                                     if (activeBotActionId != null || creating) return@Button
                                     activeBotActionId = bot.id
                                     error = null
@@ -310,6 +362,10 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
                                     scope.launch {
                                         try {
                                             val token = TokenManager.getInstance(context).getToken().orEmpty()
+                                            if (token.isBlank()) {
+                                                error = context.getString(R.string.developer_bots_enable_failed)
+                                                return@launch
+                                            }
                                             val result = withContext(Dispatchers.IO) {
                                                 ApiService.setBotEnabled(token, bot.id, !bot.enabled)
                                             }
@@ -326,13 +382,27 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
                                             activeBotActionId = null
                                         }
                                     }
-                                }, enabled = !creating && activeBotActionId == null) {
-                                    Text(stringResource(if (bot.enabled) R.string.developer_bots_disable else R.string.developer_bots_enable))
+                                    },
+                                    enabled = !creating && activeBotActionId == null,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        stringResource(if (bot.enabled) R.string.developer_bots_disable else R.string.developer_bots_enable),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                                 Button(
                                     onClick = { pendingDelete = bot },
-                                    enabled = !creating && activeBotActionId == null
-                                ) { Text(stringResource(R.string.developer_bots_delete)) }
+                                    enabled = !creating && activeBotActionId == null,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        stringResource(R.string.developer_bots_delete),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
                     }
@@ -365,6 +435,10 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
                         scope.launch {
                             try {
                                 val token = TokenManager.getInstance(context).getToken().orEmpty()
+                                if (token.isBlank()) {
+                                    error = context.getString(R.string.developer_bots_delete_failed)
+                                    return@launch
+                                }
                                 val result = withContext(Dispatchers.IO) { ApiService.deleteBot(token, bot.id) }
                                 result.onSuccess {
                                     info = context.getString(R.string.developer_bots_deleted)
@@ -394,17 +468,38 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
 }
 
 private fun extractTokenOnce(raw: String?): String? {
-    return runCatching { org.json.JSONObject(raw ?: "") }
-        .getOrNull()?.optString("tokenOnce")?.ifBlank { null }
+    val text = raw.orEmpty().trim()
+    if (text.isEmpty()) return null
+    runCatching { JSONObject(text) }.getOrNull()?.let { obj ->
+        obj.optString("tokenOnce").takeIf { it.isNotBlank() }?.let { return it }
+        obj.optJSONObject("data")?.optString("tokenOnce")?.takeIf { it.isNotBlank() }?.let { return it }
+        obj.optJSONObject("bot")?.optString("tokenOnce")?.takeIf { it.isNotBlank() }?.let { return it }
+    }
+    runCatching { JSONArray(text) }.getOrNull()?.optJSONObject(0)
+        ?.optString("tokenOnce")?.takeIf { it.isNotBlank() }?.let { return it }
+    return null
+}
+
+private fun extractBotArray(raw: String): JSONArray? {
+    val trimmed = raw.trim()
+    if (trimmed.isEmpty()) return null
+    runCatching { JSONArray(trimmed) }.getOrNull()?.let { return it }
+    val obj = runCatching { JSONObject(trimmed) }.getOrNull() ?: return null
+    listOf("bots", "data", "items", "content").forEach { key ->
+        obj.optJSONArray(key)?.let { return it }
+    }
+    if (obj.has("id")) return JSONArray().put(obj)
+    return null
 }
 
 private fun parseBots(raw: String): List<BotUi> {
-    val arr = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
+    val arr = extractBotArray(raw) ?: return emptyList()
+    val seen = HashSet<String>()
     return buildList {
         for (i in 0 until arr.length()) {
             val o = arr.optJSONObject(i) ?: continue
             val id = o.optString("id").trim()
-            if (id.isBlank()) continue
+            if (id.isBlank() || !seen.add(id)) continue
             val username = o.optString("username").trim()
             add(
                 BotUi(
