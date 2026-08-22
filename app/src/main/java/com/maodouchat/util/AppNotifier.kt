@@ -37,6 +37,7 @@ object AppNotifier {
     private const val NOTIFICATION_TAG_PREFIX = "maodouchat_"
     private const val AI_TASK_NOTIFICATION_TAG = "maodouchat_ai_task"
     private const val FRIEND_REQUEST_NOTIFICATION_TAG = "maodouchat_friend_request"
+    private const val GROUP_INVITE_NOTIFICATION_TAG = "maodouchat_group_invite"
     private const val ANNOUNCEMENT_NOTIFICATION_TAG = "maodouchat_announcement"
     private val notificationMutationLock = Any()
     /** Distinct from [incomingCallNotifyId] so cancelIncoming never wipes a missed tray. */
@@ -602,6 +603,64 @@ object AppNotifier {
         }
     }
 
+    /**
+     * Group-invite tray (routing metadata only).
+     * Tap → contacts tab via [EXTRA_OPEN_CONTACTS] (same surface as friend requests).
+     */
+    fun showGroupInvite(
+        context: Context,
+        inviteId: String,
+        chatId: String,
+        action: String,
+        soundEnabled: Boolean = true,
+        expectedUserId: String,
+    ) {
+        if (action != "CREATED") return
+        if (!notificationOwnerMatches(context, expectedUserId)) return
+        ensureChannels(context)
+        if (!canPostNotifications(context)) return
+        val tapIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(EXTRA_OPEN_CONTACTS, true)
+            putNotificationOwner(expectedUserId)
+            data = Uri.parse("maodouchat-notify://group-invite/$inviteId")
+        }
+        val pi = PendingIntent.getActivity(
+            context, ("group_invite_$inviteId").hashCode(), tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val titleRes = R.string.notification_group_invite
+        val bodyRes = R.string.notification_group_invite_body
+        val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(titleRes))
+            .setContentText(context.getString(bodyRes))
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(genericNotification(context, CHANNEL_MESSAGES, bodyRes))
+            .setAutoCancel(true)
+            .setContentIntent(pi)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setSilent(!effectiveSoundEnabled(context, soundEnabled))
+            .build()
+        if (!notificationOwnerMatches(context, expectedUserId)) return
+        safeNotify(context, GROUP_INVITE_NOTIFICATION_TAG, inviteId.hashCode(), notification, expectedUserId)
+        runCatching {
+            com.maodouchat.MaodouchatApp.emitNotificationCenterItem(
+                NotificationCenterItem(
+                    id = "group_invite_push_${inviteId}_$action",
+                    type = NotificationCenterType.GROUP_INVITE,
+                    mergeKey = "group_invite",
+                    title = context.getString(titleRes),
+                    subtitle = context.getString(bodyRes),
+                    preview = null,
+                    deeplink = "maodouchat:group_invites",
+                    extra = mapOf("inviteId" to inviteId, "chatId" to chatId, "action" to action)
+                ),
+                expectedUserId = expectedUserId,
+            )
+        }
+    }
+
     fun showAiTaskReminder(
         context: Context,
         taskId: String,
@@ -749,6 +808,14 @@ object AppNotifier {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.activeNotifications
             .filter { it.tag == FRIEND_REQUEST_NOTIFICATION_TAG }
+            .forEach { manager.cancel(it.tag, it.id) }
+    }
+
+    fun cancelAllGroupInvites(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.activeNotifications
+            .filter { it.tag == GROUP_INVITE_NOTIFICATION_TAG }
             .forEach { manager.cancel(it.tag, it.id) }
     }
 

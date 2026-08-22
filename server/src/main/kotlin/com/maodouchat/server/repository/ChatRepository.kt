@@ -909,12 +909,14 @@ class ChatRepository {
     data class GroupInviteResult(
         val result: GroupMemberMutationResult,
         val invitedUserIds: List<String> = emptyList(),
-        val skippedMemberIds: List<String> = emptyList()
+        val skippedMemberIds: List<String> = emptyList(),
+        val missingUserId: String? = null
     )
 
     /**
      * 邀请用户入群：只创建 PENDING 邀请记录，不直接写入成员表。
-     * 已是成员的跳过；已有 PENDING 邀请的幂等刷新 updatedAt；重复调用安全。
+     * 已是成员的跳过；已有 PENDING 邀请的幂等刷新 updatedAt；
+     * DECLINED/CANCELLED（以及已离群的 ACCEPTED 残留）可再次邀请。
      */
     fun inviteGroupMembers(
         chatId: String,
@@ -936,35 +938,46 @@ class ChatRepository {
         }
         val existingIds = participants.map { it[ChatParticipants.userId] }.toSet()
         val newIds = requestedIds.filterNot(existingIds::contains)
-        val existingInvites = GroupInvitations.selectAll().where {
-            (GroupInvitations.chatId eq chatId) and (GroupInvitations.userId inList requestedIds)
-        }.toList()
-        val invitedAlready = existingInvites.map { it[GroupInvitations.userId] }.toSet()
-        val toCreate = newIds.filterNot(invitedAlready::contains)
+        val existingInvites = if (requestedIds.isEmpty()) emptyList() else {
+            GroupInvitations.selectAll().where {
+                (GroupInvitations.chatId eq chatId) and (GroupInvitations.userId inList requestedIds)
+            }.toList()
+        }
+        val inviteByUser = existingInvites.associateBy { it[GroupInvitations.userId] }
+        val pendingRequested = newIds.filter { inviteByUser[it]?.get(GroupInvitations.status) == "PENDING" }
+        val reopenIds = newIds.filter { id ->
+            val status = inviteByUser[id]?.get(GroupInvitations.status)
+            status != null && status != "PENDING"
+        }
+        val toCreate = newIds.filter { it !in inviteByUser }
         val boundedMaxMembers = maxMembers.coerceAtLeast(0)
-        // 成员数上限 = 现有成员 + 全部未落定的邀请（含待接受）
-        val pendingCount = existingInvites.count { it[GroupInvitations.status] == "PENDING" }
-        if (existingIds.size + pendingCount > boundedMaxMembers ||
-            toCreate.size > boundedMaxMembers - existingIds.size - pendingCount
+        // 成员数上限 = 现有成员 + 该群全部 PENDING（不只是本次 requested）+ 本次新增/重开
+        val pendingCount = GroupInvitations.selectAll().where {
+            (GroupInvitations.chatId eq chatId) and (GroupInvitations.status eq "PENDING")
+        }.count().toInt()
+        val remainingSlots = boundedMaxMembers - existingIds.size - pendingCount
+        if (existingIds.size > boundedMaxMembers ||
+            toCreate.size + reopenIds.size > remainingSlots.coerceAtLeast(0)
         ) {
             return@transaction GroupInviteResult(GroupMemberMutationResult.MEMBER_LIMIT_EXCEEDED)
         }
-        val addedIdSet = toCreate.toSet()
+        val addedIdSet = (toCreate + reopenIds).toSet()
         val knownIds = lockedRequestedUsers
-            .filter { it[Users.id] in addedIdSet }
+            .filter { it[Users.id] in addedIdSet || it[Users.id] in pendingRequested }
             .filter { it[Users.deletedAt] == null }
             .map { it[Users.id] }
             .toSet()
-        val missing = toCreate.firstOrNull { it !in knownIds }
+        val missing = (toCreate + reopenIds).firstOrNull { it !in knownIds }
         if (missing != null) {
             return@transaction GroupInviteResult(
                 GroupMemberMutationResult.USER_NOT_FOUND,
-                invitedUserIds = emptyList()
+                missingUserId = missing
             )
         }
         // 与任一现有成员双向拉黑的用户不可被邀请
-        val blockedId = if (existingIds.isEmpty()) null else {
-            val involved = existingIds + toCreate
+        val candidates = toCreate + reopenIds
+        val blockedId = if (existingIds.isEmpty() || candidates.isEmpty()) null else {
+            val involved = existingIds + candidates
             val pairSet = BlockedUsers.select(BlockedUsers.blockerId, BlockedUsers.blockedId)
                 .where {
                     (BlockedUsers.blockerId inList involved) and (BlockedUsers.blockedId inList involved)
@@ -972,7 +985,7 @@ class ChatRepository {
                 .toList()
                 .map { it[BlockedUsers.blockerId] to it[BlockedUsers.blockedId] }
                 .toSet()
-            toCreate.firstOrNull { candidate ->
+            candidates.firstOrNull { candidate ->
                 existingIds.any { memberId ->
                     pairSet.contains(memberId to candidate) || pairSet.contains(candidate to memberId)
                 }
@@ -994,11 +1007,21 @@ class ChatRepository {
             }
             insertGroupAudit(chatId, actorId, "MEMBER_INVITED", userId)
         }
+        if (reopenIds.isNotEmpty()) {
+            GroupInvitations.update({
+                (GroupInvitations.chatId eq chatId) and (GroupInvitations.userId inList reopenIds)
+            }) {
+                it[GroupInvitations.status] = "PENDING"
+                it[GroupInvitations.inviterId] = actorId
+                it[GroupInvitations.updatedAt] = now
+            }
+            reopenIds.forEach { userId -> insertGroupAudit(chatId, actorId, "MEMBER_INVITED", userId) }
+        }
         // 刷新已有 PENDING 邀请的 updatedAt（重复邀请视为重新提醒）
-        if (invitedAlready.isNotEmpty()) {
+        if (pendingRequested.isNotEmpty()) {
             GroupInvitations.update({
                 (GroupInvitations.chatId eq chatId) and
-                    (GroupInvitations.userId inList invitedAlready) and
+                    (GroupInvitations.userId inList pendingRequested) and
                     (GroupInvitations.status eq "PENDING")
             }) {
                 it[GroupInvitations.updatedAt] = now
@@ -1006,7 +1029,7 @@ class ChatRepository {
         }
         GroupInviteResult(
             GroupMemberMutationResult.UPDATED,
-            invitedUserIds = toCreate + invitedAlready,
+            invitedUserIds = toCreate + reopenIds + pendingRequested,
             skippedMemberIds = requestedIds.filter(existingIds::contains)
         )
     }

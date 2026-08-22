@@ -188,6 +188,33 @@ class FcmPushService(
         )
     }
 
+    /** Group invite wake — routing metadata only, no group name or message body. */
+    fun enqueueGroupInvite(
+        recipientId: String,
+        fromUserId: String,
+        inviteId: String,
+        chatId: String,
+        action: String
+    ) {
+        if (closed.get() || !isConfigured || recipientId.isBlank() || recipientId == fromUserId) return
+        if (action != "CREATED") return
+        if (inviteId.isBlank() || chatId.isBlank()) return
+        enqueueDelivery(
+            Delivery(
+                recipientId = recipientId,
+                isCall = false,
+                data = mapOf(
+                    "type" to "GROUP_INVITE",
+                    "action" to action,
+                    "inviteId" to inviteId,
+                    "chatId" to chatId,
+                    "fromUserId" to fromUserId,
+                    "recipientId" to recipientId
+                )
+            )
+        )
+    }
+
     /** Friend request / accept wake — routing only, no free-text verification message. */
     fun enqueueFriendRequest(recipientId: String, fromUserId: String, requestId: String, action: String) {
         if (closed.get() || !isConfigured || recipientId.isBlank() || recipientId == fromUserId) return

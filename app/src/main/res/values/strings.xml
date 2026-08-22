@@ -2039,6 +2039,8 @@
     <string name="notification_friend_request_body">有人想添加你为好友</string>
     <string name="notification_friend_accepted">好友申请已通过</string>
     <string name="notification_friend_accepted_body">对方已同意你的好友申请</string>
+    <string name="notification_group_invite">新的群聊邀请</string>
+    <string name="notification_group_invite_body">有人邀请你加入群聊</string>
     <string name="ai_tasks_title">AI 任务</string>
     <string name="ai_tasks_menu">查看 AI 任务</string>
     <plurals name="ai_tasks_preview_count">

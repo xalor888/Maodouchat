@@ -191,6 +191,9 @@ class NotificationCenterViewModel(application: Application) : AndroidViewModel(a
                     item.type == "FRIEND_REQUEST" || item.deeplink == "maodouchat:contacts" -> {
                         com.maodouchat.util.AppNotifier.cancelAllFriendRequests(ctx)
                     }
+                    item.type == "GROUP_INVITE" || item.deeplink == "maodouchat:group_invites" -> {
+                        com.maodouchat.util.AppNotifier.cancelAllGroupInvites(ctx)
+                    }
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error

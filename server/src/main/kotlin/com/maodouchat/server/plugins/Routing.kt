@@ -230,8 +230,13 @@ private suspend fun ApplicationCall.respondBotUnavailable() {
     respond(HttpStatusCode.Forbidden, ErrorResponse("bot unavailable or disabled", code = "BOT_UNAVAILABLE"))
 }
 
-/** 9.3xx：群邀请事件（CREATED/ACCEPTED/DECLINED/CANCELLED）实时推送。 */
-private suspend fun notifyGroupInvite(json: Json, invite: GroupInvitationDto, action: String) {
+/** 9.3xx：群邀请事件（CREATED/ACCEPTED/DECLINED/CANCELLED）实时推送；CREATED 额外 FCM 唤醒离线被邀请人。 */
+private suspend fun notifyGroupInvite(
+    json: Json,
+    invite: GroupInvitationDto,
+    action: String,
+    pushService: FcmPushService
+) {
     val payload = json.encodeToString(
         GroupInviteEventPayload.serializer(),
         GroupInviteEventPayload(action = action, invite = invite)
@@ -241,6 +246,15 @@ private suspend fun notifyGroupInvite(json: Json, invite: GroupInvitationDto, ac
     sendToUser(invite.userId, envelope)
     if (invite.inviterId.isNotBlank() && invite.inviterId != invite.userId) {
         sendToUser(invite.inviterId, envelope)
+    }
+    if (action == "CREATED") {
+        pushService.enqueueGroupInvite(
+            recipientId = invite.userId,
+            fromUserId = invite.inviterId,
+            inviteId = invite.id,
+            chatId = invite.chatId,
+            action = action
+        )
     }
 }
 
@@ -2704,7 +2718,7 @@ put("status", "ok")
                                 val inviteDto = chatRepo.listChatGroupInvitations(created.id)
                                     .firstOrNull { it.userId == invitedId }
                                 if (inviteDto != null) {
-                                    notifyGroupInvite(json, inviteDto, "CREATED")
+                                    notifyGroupInvite(json, inviteDto, "CREATED", pushService)
                                 }
                             }
                         }
@@ -14015,7 +14029,7 @@ put("status", "ok")
                     if (inviteResult.result == ChatRepository.GroupMemberMutationResult.USER_NOT_FOUND) {
                         call.respond(
                             HttpStatusCode.NotFound,
-                            ErrorResponse("用户不存在: ${inviteResult.invitedUserIds.firstOrNull().orEmpty()}", code = "GROUP_USER_NOT_FOUND")
+                            ErrorResponse("用户不存在: ${inviteResult.missingUserId.orEmpty()}", code = "GROUP_USER_NOT_FOUND")
                         )
                         return@post
                     }
@@ -14029,7 +14043,7 @@ put("status", "ok")
                     if (call.respondGroupMemberMutationFailure(inviteResult.result)) return@post
                     val allInvites = chatRepo.listChatGroupInvitations(cid)
                     inviteResult.invitedUserIds.forEach { invitedId ->
-                        allInvites.firstOrNull { it.userId == invitedId }?.let { notifyGroupInvite(json, it, "CREATED") }
+                        allInvites.firstOrNull { it.userId == invitedId }?.let { notifyGroupInvite(json, it, "CREATED", pushService) }
                     }
                     val updatedChat = chatRepo.getChatById(cid)
                     if (updatedChat == null) {
@@ -14109,7 +14123,7 @@ put("status", "ok")
                                 targetUserId = uid
                             )
                         }
-                        if (accepted != null) notifyGroupInvite(json, accepted, "ACCEPTED")
+                        if (accepted != null) notifyGroupInvite(json, accepted, "ACCEPTED", pushService)
                         call.respond(
                             buildJsonObject {
                                 put("status", "accepted")
@@ -14146,7 +14160,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("邀请不存在或已处理"))
                     return@post
                 }
-                chatRepo.getGroupInvitation(inviteId)?.let { notifyGroupInvite(json, it, "DECLINED") }
+                chatRepo.getGroupInvitation(inviteId)?.let { notifyGroupInvite(json, it, "DECLINED", pushService) }
                 call.respond(buildJsonObject { put("status", "declined") })
             }
             // 邀请人/管理员撤销邀请
@@ -14157,7 +14171,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权撤销该邀请"))
                     return@delete
                 }
-                chatRepo.getGroupInvitation(inviteId)?.let { notifyGroupInvite(json, it, "CANCELLED") }
+                chatRepo.getGroupInvitation(inviteId)?.let { notifyGroupInvite(json, it, "CANCELLED", pushService) }
                 call.respond(buildJsonObject { put("status", "cancelled") })
             }
             delete("/api/chats/{chatId}/members/{memberId}") {

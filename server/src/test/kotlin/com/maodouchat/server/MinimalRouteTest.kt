@@ -511,11 +511,12 @@ class SignalingCallIdRouteTest {
             header(HttpHeaders.Authorization, "Bearer $bobToken")
         }
         val offers = Json.parseToJsonElement(offersOnly.bodyAsText()).jsonArray.map { it.jsonObject }
-        assertTrue(offers.all { it["type"]?.jsonPrimitive?.content == "offer" })
-        val candidates = client.get("/api/signaling/pending") {
+        assertTrue(offers.any { it["type"]?.jsonPrimitive?.content == "offer" && it["callId"]?.jsonPrimitive?.content == "call_filter" })
+        assertTrue(offers.any { it["type"]?.jsonPrimitive?.content == "ice-candidate" && it["payload"]?.jsonPrimitive?.content == "audio|0|candidate-data" })
+        val leftover = client.get("/api/signaling/pending") {
             header(HttpHeaders.Authorization, "Bearer $bobToken")
         }
-        assertTrue(candidates.bodyAsText().contains("candidate-data"))
+        assertEquals("[]", leftover.bodyAsText())
     }
 }
 

@@ -122,8 +122,9 @@ class SignalingRepository {
                             ((SignalingMessages.groupId eq "") or (SignalingMessages.groupInvite eq true))
                     // 冷启动 / IncomingCallWake 轮询也必须一并返回 ice 候选：否则弱网/重连场景下
                     // 客户端只拉到 offer 没拉到 ice，信令在 TTL 后过期又无全量补偿，导致通话黑屏/连不上。
+                    // 入库类型是 "ice-candidate"（与 ALLOWED_SIGNALING_TYPES 一致）；兼容历史 "ice"。
                     (SignalingMessages.toUserId eq userId) and
-                        (eligibleOffer or (SignalingMessages.type inList TERMINAL_SIGNAL_TYPES) or (SignalingMessages.type eq "ice"))
+                        (eligibleOffer or (SignalingMessages.type inList TERMINAL_SIGNAL_TYPES) or (SignalingMessages.type inList ICE_SIGNAL_TYPES))
                 }.orderBy(
                     SignalingMessages.timestamp to SortOrder.ASC,
                     SignalingMessages.id to SortOrder.ASC
@@ -163,6 +164,8 @@ class SignalingRepository {
     companion object {
         /** 会结束通话振铃态的终端信令；offersOnly 轮询时必须与 offer 同批交付 */
         private val TERMINAL_SIGNAL_TYPES = listOf("hang-up", "busy", "reject")
+        /** 与 Validation.ALLOWED_SIGNALING_TYPES 对齐；"ice" 仅兼容历史脏数据 */
+        private val ICE_SIGNAL_TYPES = listOf("ice-candidate", "ice")
         /**
          * Offer/ICE older than this are unusable (client ring is 30s; coordinator STALE 120s).
          * Keep a modest server window so late poll still sees hang-up after a short offline period.
