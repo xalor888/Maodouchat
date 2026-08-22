@@ -3,6 +3,7 @@ package com.maodouchat.server.repository
 import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
+import com.maodouchat.server.db.Friendships
 import com.maodouchat.server.db.CommentLikes
 import com.maodouchat.server.db.PostComments
 import com.maodouchat.server.db.PostImageClaims
@@ -916,23 +917,36 @@ class PostRepository {
                 else row[BlockedUsers.blockerId]
             }
 
-    /** CONTACTS = 仅完整 1:1 私聊对方，不含群成员（群邀请陌生人不得读 contacts 动态） */
+    /**
+     * CONTACTS = 已建立好友 ∪ 完整 1:1 私聊对方。
+     * 不含群成员（群邀请陌生人不得读 contacts 动态）。
+     * 加好友不会自动建 1:1 会话，探索 feed 必须把 Friendships 算进联系人，
+     * 否则好友的 CONTACTS 动态永远进不了列表。
+     */
     private fun getContactIds(userId: String): Set<String> {
+        val contactIds = Friendships.selectAll()
+            .where { (Friendships.userLowId eq userId) or (Friendships.userHighId eq userId) }
+            .mapTo(hashSetOf()) { row ->
+                if (row[Friendships.userLowId] == userId) row[Friendships.userHighId]
+                else row[Friendships.userLowId]
+            }
         val chatIds = ChatParticipants
             .innerJoin(Chats)
             .select(ChatParticipants.chatId)
             .where { (ChatParticipants.userId eq userId) and (Chats.isGroup eq false) }
             .map { it[ChatParticipants.chatId] }
             .toSet()
-        if (chatIds.isEmpty()) return emptySet()
+        if (chatIds.isEmpty()) return contactIds
         // 8.30 性能优化 A3：一次 SQL 取回全部 1:1 聊天的成员，替代逐 chat 查询
         val membersByChat = ChatParticipants.selectAll()
             .where { ChatParticipants.chatId inList chatIds }
             .groupBy({ it[ChatParticipants.chatId] }, { it[ChatParticipants.userId] })
-        return membersByChat.mapNotNull { (chatId, members) ->
-            if (members.size != 2 || userId !in members) null
-            else members.firstOrNull { it != userId }
-        }.toSet()
+        membersByChat.forEach { (_, members) ->
+            if (members.size == 2 && userId in members) {
+                members.firstOrNull { it != userId }?.let { contactIds += it }
+            }
+        }
+        return contactIds
     }
 
     private fun decodeImageUrls(value: String): List<String> {

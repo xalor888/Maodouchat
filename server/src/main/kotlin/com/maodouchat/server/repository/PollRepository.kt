@@ -44,12 +44,15 @@ object PollRepository {
         val createdAt: Long,
         val closesAt: Long? = null,
         val counts: List<Int> = emptyList(),
-        val totalVoters: Int = 0
+        val totalVoters: Int = 0,
+        val creatorId: String = "",
+        val myVotes: List<Int> = emptyList()
     )
 
     /**
-     * 拉取某群最新 N 个投票的公开快照（不含个人 myVotes，匿名安全）。
-     * 用于客户端轮询同步与 WS 广播后的刷新。
+     * 拉取某群最新 N 个投票快照。
+     * viewerId 非空时填充 [PollSnapshot.myVotes]（本人已投选项，匿名投票也只对本人可见），
+     * 与 GroupPlayRepository.PollDto 对齐，供 `/polls/sync` 展示已投状态。
      */
     fun listChatPollSnapshots(chatId: String, limit: Int = 30, viewerId: String? = null): List<PollSnapshot> {
         if (chatId.isBlank()) return emptyList()
@@ -74,10 +77,13 @@ object PollRepository {
                     val votes = votesByPoll[pollId].orEmpty().filter { it[GroupPollVotes.userId] !in blocked }
                     val counts = IntArray(options.size)
                     val voters = mutableSetOf<String>()
+                    val my = mutableListOf<Int>()
                     for (v in votes) {
                         val idx = v[GroupPollVotes.optionIndex]
+                        val uid = v[GroupPollVotes.userId]
                         if (idx in counts.indices) counts[idx]++
-                        voters += v[GroupPollVotes.userId]
+                        voters += uid
+                        if (viewerId != null && uid == viewerId) my += idx
                     }
                     PollSnapshot(
                         id = pollId,
@@ -90,7 +96,9 @@ object PollRepository {
                         createdAt = row[GroupPolls.createdAt],
                         closesAt = row[GroupPolls.closesAt],
                         counts = counts.toList(),
-                        totalVoters = voters.size
+                        totalVoters = voters.size,
+                        creatorId = row[GroupPolls.creatorId],
+                        myVotes = my.distinct().sorted()
                     )
                 }
         }

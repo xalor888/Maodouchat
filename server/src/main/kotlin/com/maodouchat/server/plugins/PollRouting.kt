@@ -137,6 +137,7 @@ fun Routing.configurePollRoutes() {
             if (!PollRepository.isMember(chatId, userId)) {
                 return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
+            if (call.rejectIfMutedForPolls(chatId, userId)) return@post
             if (!pollRateLimiter.acquire("$userId:$chatId:chain_create", maxPerMinute = 10)) {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建接龙过于频繁"))
             }
@@ -149,7 +150,9 @@ fun Routing.configurePollRoutes() {
             if (title.isBlank() || title.length > MAX_CHAIN_TITLE_LENGTH) {
                 return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("接龙标题无效"))
             }
-            if (call.rejectIfMutedForPolls(chatId, userId)) return@post
+            if (topic.length > MAX_CHAIN_TOPIC_LENGTH) {
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("接龙主题过长"))
+            }
             val chain = GroupCheckinRepository.createChain(chatId, userId, title, topic, maxEntries)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法创建接龙"))
             broadcastGroupPlayUpdate(chatId, "chain_created") { viewerId ->
@@ -230,8 +233,8 @@ fun Routing.configurePollRoutes() {
             ) {
                 return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("PK 双方标题无效"))
             }
-                        // 8.32 一致性：非成员 403（与群管理端点一致），其余失败保持 400
-val pk = GroupCheckinRepository.createPk(chatId, userId, leftTitle, rightTitle)
+            // 8.32 一致性：非成员 403（与群管理端点一致），其余失败保持 400
+            val pk = GroupCheckinRepository.createPk(chatId, userId, leftTitle, rightTitle)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法创建 PK"))
             broadcastGroupPlayUpdate(chatId, "pk_created") { viewerId ->
                 GroupCheckinRepository.getPk(pk.id, viewerId)
