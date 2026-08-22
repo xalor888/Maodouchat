@@ -141,6 +141,24 @@ class ModerationRuleRepositoryRegexTest {
         assertEquals("KEYWORD", repository.getRules().single().matchType)
     }
 
+    @Test
+    fun `ruleExists distinguishes missing rules from invalid updates`() {
+        assertFalse(repository.ruleExists("rule_missing"))
+        val id = repository.createRule(
+            CreateModerationRuleRequest(
+                name = "exists",
+                matchType = "KEYWORD",
+                pattern = "spam"
+            )
+        )
+        assertTrue(repository.ruleExists(id))
+        assertNull(
+            repository.updateRule(id, UpdateModerationRuleRequest(scope = "NOT_A_SCOPE"))
+        )
+        assertTrue(repository.ruleExists(id), "非法更新不得删规则")
+        assertNull(repository.updateRule("rule_missing", UpdateModerationRuleRequest(name = "x")))
+    }
+
     private fun regexRule(
         name: String,
         pattern: String,

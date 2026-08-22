@@ -8,6 +8,7 @@ import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
@@ -53,11 +54,15 @@ class AnnouncementRepository {
         targetTagId: String?,
         startsAt: Long,
         expiresAt: Long,
-        createdBy: String?
+        createdBy: String?,
+        asDraft: Boolean = false
     ): AnnouncementRow = transaction {
         val now = System.currentTimeMillis()
         val id = UUID.randomUUID().toString()
+        // 草稿必须显式 asDraft：此前 create 只写 ACTIVE/SCHEDULED，管理端删除仅允许 DRAFT，
+        // 导致「新建 → 删除」永远 409，发布按钮也永远对草稿不可见。
         val status = when {
+            asDraft -> "DRAFT"
             now >= startsAt -> "ACTIVE"
             else -> "SCHEDULED"
         }
@@ -79,9 +84,9 @@ class AnnouncementRepository {
         get(id) ?: error("announcement insert failed")
     }
 
-    fun get(id: String): AnnouncementRow? = transaction {
+    fun get(id: String, now: Long = System.currentTimeMillis()): AnnouncementRow? = transaction {
         SystemAnnouncements.selectAll().where { SystemAnnouncements.id eq id }
-            .firstOrNull()?.let { it.toAnnouncementRow() }
+            .firstOrNull()?.let { it.toAnnouncementRow().withDerivedStatus(now) }
     }
 
     /** 管理端列表：按状态/关键词过滤，createdAt DESC 分页。 */
@@ -89,11 +94,22 @@ class AnnouncementRepository {
         status: String? = null,
         query: String? = null,
         limit: Int = 50,
-        offset: Long = 0
+        offset: Long = 0,
+        now: Long = System.currentTimeMillis()
     ): List<AnnouncementRow> = transaction {
         var base = SystemAnnouncements.selectAll()
-        status?.takeIf { it.isNotBlank() }?.let { st ->
-            base = base.andWhere { SystemAnnouncements.status eq st.uppercase().take(20) }
+        status?.takeIf { it.isNotBlank() }?.let { raw ->
+            val st = raw.uppercase().take(20)
+            // EXPIRED 不落库：ACTIVE 且窗口已过，读取侧派生。管理端筛 EXPIRED/ACTIVE 必须分开。
+            base = when (st) {
+                "EXPIRED" -> base.andWhere {
+                    (SystemAnnouncements.status eq "ACTIVE") and (SystemAnnouncements.expiresAt less now)
+                }
+                "ACTIVE" -> base.andWhere {
+                    (SystemAnnouncements.status eq "ACTIVE") and (SystemAnnouncements.expiresAt greaterEq now)
+                }
+                else -> base.andWhere { SystemAnnouncements.status eq st }
+            }
         }
         query?.takeIf { it.isNotBlank() }?.let { q ->
             val escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -103,7 +119,7 @@ class AnnouncementRepository {
         }
         base.orderBy(SystemAnnouncements.createdAt to SortOrder.DESC, SystemAnnouncements.id to SortOrder.DESC)
             .limit(limit, offset)
-            .map { it.toAnnouncementRow() }
+            .map { it.toAnnouncementRow().withDerivedStatus(now) }
     }
 
     /**
@@ -143,13 +159,14 @@ class AnnouncementRepository {
         val newExpiresAt = expiresAt ?: existing[SystemAnnouncements.expiresAt]
         // 8.34 修复：窗口校验兜底（路由已校验，仓库侧纵深防御）
         if (newExpiresAt > 0 && newExpiresAt <= newStartsAt) return@transaction null
-        val nextStatus = if (existing[SystemAnnouncements.status] == "ACTIVE") {
+        val existingStatus = existing[SystemAnnouncements.status]
+        val nextStatus = when {
             // 已发布的公告不因改窗口而回退为草稿；窗口结束后自动 EXPIRED（读取侧判断）。
-            "ACTIVE"
-        } else if (now >= newStartsAt) {
-            "ACTIVE"
-        } else {
-            "SCHEDULED"
+            existingStatus == "ACTIVE" -> "ACTIVE"
+            // 草稿必须走 publish，编辑标题/窗口不得悄悄变成 ACTIVE。
+            existingStatus == "DRAFT" -> "DRAFT"
+            now >= newStartsAt -> "ACTIVE"
+            else -> "SCHEDULED"
         }
         // 8.34 修复 CAS：并发 cancel+update 此前可把 CANCELLED 公告复活成 ACTIVE/SCHEDULED
         //（publish/cancel 均有 CAS，唯独 update 没有）。WHERE 带状态条件，取消后更新即 no-op。
@@ -253,6 +270,9 @@ class AnnouncementRepository {
         val publishedAt: Long?,
         val cancelledAt: Long?
     )
+
+    private fun AnnouncementRow.withDerivedStatus(now: Long): AnnouncementRow =
+        if (status == "ACTIVE" && expiresAt in 1 until now) copy(status = "EXPIRED") else this
 
     private fun ResultRow.toAnnouncementRow(): AnnouncementRow = AnnouncementRow(
         id = this[SystemAnnouncements.id],

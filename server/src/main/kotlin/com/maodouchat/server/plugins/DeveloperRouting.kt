@@ -765,12 +765,11 @@ private fun buildBotAnalytics(botId: String, days: Int): BotAnalyticsResponse {
                 .toList()
                 .associate { it[uniqueBucket] to it[uniqueCountExpr].toLong() }
             for (i in 0 until days) {
-                val dayStart = now - (days - 1 - i) * dayMs
-                val dayEnd = dayStart + dayMs
+                val dayStartNorm = unixDayStartMs(now - (days - 1 - i) * dayMs, dayMs)
                 add(DailyStat(
-                    day = dayStart,
-                    commandCount = commandCounts[dayStart / dayMs] ?: 0,
-                    uniqueUsers = uniqueCounts[dayStart / dayMs] ?: 0
+                    day = dayStartNorm,
+                    commandCount = commandCounts[dayStartNorm / dayMs] ?: 0,
+                    uniqueUsers = uniqueCounts[dayStartNorm / dayMs] ?: 0
                 ))
             }
         }
@@ -1086,6 +1085,10 @@ data class DevMeResponse(
     val name: String,
     val bots: List<BotRepository.BotDto>
 )
+
+/** UTC 日起点（与 AdminRouting trends 的 dayStartNorm 一致），供 analytics 点位对齐 SQL CAST(ts/86400000)。 */
+internal fun unixDayStartMs(epochMs: Long, dayMs: Long = 86_400_000L): Long =
+    epochMs - (epochMs % dayMs)
 
 /** 8.48 修复 M9：按「Unix 天编号」分组的 Exposed 表达式（SQL GROUP BY 聚合 bot 日志趋势）。 */
 private fun dayBucketExpression(column: Column<Long>): Expression<Long> =

@@ -1210,8 +1210,11 @@ put("status", "created")
                 val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少规则 ID"))
                 val req = call.receiveAdminJson<UpdateModerationRuleRequest>()
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
+                if (!moderationRuleRepo.ruleExists(id)) {
+                    return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("规则不存在"))
+                }
                 val updated = moderationRuleRepo.updateRule(id, req)
-                    ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("规则不存在或参数无效"))
+                    ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("规则参数无效"))
                 recordAdminAudit(call.principal<JWTPrincipal>()!!.payload.subject, "ADMIN_RULE_UPDATED", "ruleId=$id")
                 call.respond(updated)
             }

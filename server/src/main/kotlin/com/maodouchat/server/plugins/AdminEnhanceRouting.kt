@@ -169,6 +169,7 @@ fun Application.configureAdminEnhanceRouting(
                         return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("按标签定向公告必须指定 tagId"))
                     }
                     val now = System.currentTimeMillis()
+                    val asDraft = req.draft == true
                     val startsAt = req.startsAt ?: now
                     val expiresAt = req.expiresAt ?: (now + DEFAULT_ANNOUNCEMENT_WINDOW_MS)
                     if (startsAt > expiresAt) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("生效时间不能晚于失效时间"))
@@ -176,7 +177,8 @@ fun Application.configureAdminEnhanceRouting(
                     val created = announcementRepo.create(
                         title = req.title, content = req.content, level = level,
                         targetAudience = audience, targetTagId = req.tagId?.takeIf { audience == "TAGGED" },
-                        startsAt = startsAt, expiresAt = expiresAt, createdBy = actorId
+                        startsAt = startsAt, expiresAt = expiresAt, createdBy = actorId,
+                        asDraft = asDraft
                     )
                     recordAdminAudit(
                         actorId, "ANNOUNCEMENT_CREATED",
@@ -648,7 +650,9 @@ data class CreateAnnouncementRequest(
     val audience: String = "ALL",
     val tagId: String? = null,
     val startsAt: Long? = null,
-    val expiresAt: Long? = null
+    val expiresAt: Long? = null,
+    /** true 时入库 DRAFT（可删除、须 publish 才对用户可见）。缺省保持立即 ACTIVE/SCHEDULED。 */
+    val draft: Boolean = false
 )
 
 @Serializable
