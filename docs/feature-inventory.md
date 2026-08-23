@@ -98,7 +98,7 @@
 | 清除本地消息 | 完整 | 菜单确认 + 敏感 step-up；清消息/索引/媒体/定时；保留会话与 PIN | `ChatDetailViewModel.clearLocalChatHistory` |
 | 媒体中心 | 完整 | 图/GIF/视频/贴纸/文件/语音/位置/链接；预览/保存/分享/跳原消息；文件长按导出；PIN 门闩；分类内按文件名/链接/位置搜索 | `MediaCenterScreen.kt` + `ChatLockSession` |
 | 会话 PIN 锁 | 完整 | 本地 PIN（单聊/群）；设置/关闭/忘记清本地；列表锁标+预览隐藏+系统「已锁」筛选；搜索/媒体/AI 任务/星标/通知脱敏；进程内解锁缓存；登出清缓存；轻量 SHA-256 | `ChatLockGate` + `ChatLockSession` + ChatDetail/MediaCenter/AiTasks/ChatList/AppNotifier |
-| 密聊 | 完整 | 本机会话开关；强制 FLAG_SECURE（全局关也生效）；详情/群资料/媒体/AI 任务/星标盲水印；列表预览脱敏+指示+系统「密聊」筛选；通知脱敏；禁导出；确认开关；横幅明示本机/外置相机边界；全局/列表搜索排除；退群/删会话/登出清本地；非服务端协议 | `SecretChatEntity` + `SecretChatSession` + `ScreenSecurePolicy` + `blindWatermark` |
+| 密聊 | 完整 | 本机会话开关；强制 FLAG_SECURE（全局关也生效）；详情/群资料/媒体/AI 任务/星标整页盲水印；列表预览脱敏+指示+系统「密聊」筛选；通知脱敏；禁导出；确认开关；横幅明示本机/外置相机边界；全局/列表搜索排除；退群/删会话/登出清本地；非服务端协议 | `SecretChatEntity` + `SecretChatSession` + `ScreenSecurePolicy` + `secretPageBlindWatermark` |
 
 > 实现密度极高：`ChatDetailScreen` / `ChatDetailViewModel` 体量巨大，维护风险在复杂度，而非功能空壳。
 
@@ -386,7 +386,7 @@
 | 60 | 复制 / 媒体导出 | `secret_copy_block_enabled`, `secret_media_export_block_enabled` | `leakz` + hint 路由 | `SecretCopyBlockPrefs` / `SecretMediaExportBlockPrefs` |
 | 61 | 转发 / 会话导出 | `secret_forward_block_enabled`, `secret_chat_export_block_enabled` | `vaultz` | `SecretForwardBlockPrefs` / `SecretChatExportBlockPrefs` |
 | 62 | Sealed / PQXDH 开关 | `sealed_sender_enabled`, `pqxdh_preview` | `sealz` | `SealedSenderPrefs` / `PqxdhPreviewPrefs` |
-| 63 | 密聊整页盲水印 / 自动消失 | `blind_watermark_enabled`（整页 DWT+SVD）；`visible_watermark_enabled` 默认关、密聊表面不绘制 | `markz` | `SecretPageWatermark` / `SecretAutoDisappearPrefs` |
+| 63 | 密聊整页盲水印 / 自动消失 | `blind_watermark_enabled`（整页 DWT+SVD，无可读 overlay） | `markz` | `SecretPageWatermark` / `SecretAutoDisappearPrefs` |
 | 64 | 链接隐私 | `secret_link_preview_block_enabled`, `secret_external_link_block_enabled` | `linkz` | `SecretLinkPreviewBlockPrefs` / `SecretExternalLinkBlockPrefs` |
 | 65 | 通知 / 列表预览 | `secret_notif_preview_block_enabled`, `secret_list_preview_block_enabled` | `privz` | `SecretNotifPreviewBlockPrefs` / `SecretListPreviewBlockPrefs` |
 | 66 | 反应 / 标星 | `secret_reaction_block_enabled`, `secret_star_block_enabled` | `metaz` | `SecretReactionBlockPrefs` / `SecretStarBlockPrefs` |
@@ -416,7 +416,7 @@
 | 功能 | 完整度 | 说明 |
 |------|--------|------|
 | FLAG_SECURE / recents 排除 | 完整 | 密聊 / 全局策略联动 |
-| 频域盲水印 + 可见水印 | 完整 | 时间 / 用户 ID 等；后台可提取路径存在 |
+| 密聊整页盲水印 / 图片 DWT+SVD | 完整 | 无可读 overlay；时间 / 用户 ID 等载荷；后台可提取路径存在 |
 | 截屏检测 + 对端 CAPTURE_ALERT | 完整 | ContentObserver + prefs |
 | 阅后即焚 / 消失消息 / view-once / spoiler | 完整 | 与密聊默认 24h（可关）联动 |
 | 密聊复制 / 导出 / 转发 / 会话导出 | 完整 | runtime 可关 |
