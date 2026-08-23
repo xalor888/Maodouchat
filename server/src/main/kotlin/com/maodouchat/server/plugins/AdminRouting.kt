@@ -132,6 +132,21 @@ fun Application.configureAdminRouting(
         authenticate("admin-jwt") {
             route("/api/admin") {
 
+            get("/channel-health") {
+                if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
+                call.respond(
+                    AdminChannelHealthResponse(
+                        openaiConfigured = ServerConfig.openaiConfigured(),
+                        turnConfigured = ServerConfig.turnConfigured(),
+                        smtpConfigured = ServerConfig.smtpConfigured(),
+                        jwtConfigured = ServerConfig.jwtConfigured(),
+                        openaiModel = ServerConfig.openAiModel,
+                        turnUrlCount = ServerConfig.turnUrls.size,
+                        smtpHostMasked = ServerConfig.maskHost(ServerConfig.smtpHost)
+                    )
+                )
+            }
+
             // ─── 仪表盘概览 ───────────────────
             get("/dashboard") {
                 if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
@@ -171,7 +186,9 @@ fun Application.configureAdminRouting(
                         totalPushTokens = PushTokens.selectAll().count(),
                         totalAiCalls = AiAuditLogs.selectAll().count(),
                         aiErrorCount = AiAuditLogs.selectAll().where {
-                            AiAuditLogs.status notInList listOf("SUCCESS", "OK")
+                            AiAuditLogs.status notInList listOf(
+                                "SUCCESS", "OK", "success", "ok"
+                            )
                         }.count(),
                         totalRiskEvents = RiskEvents.selectAll().count(),
                         pendingRiskEvents = RiskEvents.selectAll().where { RiskEvents.needsReview eq true }.count(),

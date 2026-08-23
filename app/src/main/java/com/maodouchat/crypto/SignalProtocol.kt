@@ -394,11 +394,13 @@ class SignalProtocol(
     }
 
     suspend fun ensureSession(token: String, recipientId: String, deviceId: Int = DEFAULT_DEVICE_ID): Result<Unit> {
-        if (!SignalSessionPolicy.shouldEstablishSession(recipientId, deviceId, currentUserId, getDeviceId())) {
+        val resolvedDeviceId = resolveSessionDeviceId(token, recipientId, deviceId)
+            ?: return Result.failure(NoRecipientDevicesException())
+        if (!SignalSessionPolicy.shouldEstablishSession(recipientId, resolvedDeviceId, currentUserId, getDeviceId())) {
             return Result.success(Unit)
         }
-        if (hasSession(recipientId, deviceId)) return Result.success(Unit)
-        val lockKey = "$recipientId:$deviceId"
+        if (hasSession(recipientId, resolvedDeviceId)) return Result.success(Unit)
+        val lockKey = "$recipientId:$resolvedDeviceId"
         val setupLock = sessionSetupLocks.compute(lockKey) { _, existing ->
             val lock = existing ?: SessionSetupLock()
             lock.users++
@@ -406,22 +408,22 @@ class SignalProtocol(
         }!!
         try {
             return setupLock.mutex.withLock {
-                if (hasSession(recipientId, deviceId)) return@withLock Result.success(Unit)
+                if (hasSession(recipientId, resolvedDeviceId)) return@withLock Result.success(Unit)
                 try {
-                    val response = SignalKeyExchange.fetchDevicePreKeyBundle(token, recipientId, deviceId)
+                    val response = SignalKeyExchange.fetchDevicePreKeyBundle(token, recipientId, resolvedDeviceId)
                         .getOrElse { primaryError ->
                             // Fallback only for definitive fetch failures — never swallow cancellation.
                             // 8.46 修复：回退仅允许目标设备 = 默认设备（单设备用户）——否则会把
                             // 「另一台设备」的默认 bundle 会话建到 recipientId 上，调用方随后仍按
                             // 入参 deviceId 加密抛 NoSessionException，且留下永不会用到的半建会话。
-                            if (deviceId == DEFAULT_DEVICE_ID) {
+                            if (resolvedDeviceId == DEFAULT_DEVICE_ID) {
                                 val fallback = SignalKeyExchange.fetchPreKeyBundle(token, recipientId)
                                     .getOrElse { throw primaryError }
                                     .toDeviceBundle(recipientId)
                                 // 9.141：单设备回退端点解析到「编号最小的已确认设备」，未必是 1 号
                                 // （如 1 号 PENDING、2 号 CONFIRMED）——设备不符按失败处理，否则
                                 // 会话建到错误设备、调用方按入参 deviceId 加密仍 NoSessionException
-                                if (fallback.deviceId != deviceId) throw primaryError
+                                if (fallback.deviceId != resolvedDeviceId) throw primaryError
                                 fallback
                             } else {
                                 throw primaryError
@@ -464,8 +466,13 @@ class SignalProtocol(
         return try {
             val bundles = SignalKeyExchange.fetchDevicePreKeyBundles(token, recipientId).getOrThrow()
             val deviceIds = if (bundles.isEmpty()) {
-                ensureSession(token, recipientId, DEFAULT_DEVICE_ID).getOrThrow()
-                listOf(DEFAULT_DEVICE_ID)
+                val fallback = SignalKeyExchange.fetchPreKeyBundle(token, recipientId).getOrNull()
+                val fallbackId = fallback?.deviceId
+                if (fallbackId == null) {
+                    throw NoRecipientDevicesException()
+                }
+                ensureSession(token, recipientId, fallbackId).getOrThrow()
+                listOf(fallbackId)
             } else {
                 // Discovery list may peek OTPKs — never re-process PreKeyBundle for an
                 // existing session (would overwrite ratchet / thrash one-time prekeys).
@@ -652,15 +659,17 @@ class SignalProtocol(
         deviceId: Int = DEFAULT_DEVICE_ID
     ): Result<String> {
         return try {
-            ensureSession(token, recipientId, deviceId).getOrThrow()
-            val cipherResult = encryptMessage(recipientId, plaintext, deviceId)
+            val resolvedDeviceId = resolveSessionDeviceId(token, recipientId, deviceId)
+                ?: return Result.failure(NoRecipientDevicesException())
+            ensureSession(token, recipientId, resolvedDeviceId).getOrThrow()
+            val cipherResult = encryptMessage(recipientId, plaintext, resolvedDeviceId)
             Result.success(
                 json.encodeToString(
                     EncryptedMessageEnvelope(
                         version = ENVELOPE_VERSION,
                         algorithm = ALGORITHM_SIGNAL,
                         senderDeviceId = getDeviceId(),
-                        recipientDeviceId = deviceId,
+                        recipientDeviceId = resolvedDeviceId,
                         ciphertextType = cipherResult.type,
                         payloadType = payloadType,
                         ciphertext = Base64.encodeToString(cipherResult.payload, Base64.NO_WRAP)
@@ -1263,6 +1272,21 @@ class SignalProtocol(
 
     private fun generateLocalDeviceId(): Int {
         return secureRandom.nextInt(MAX_DEVICE_ID - MIN_GENERATED_DEVICE_ID + 1) + MIN_GENERATED_DEVICE_ID
+    }
+
+    /**
+     * DEFAULT_DEVICE_ID (1) is a legacy alias, not a real device. Discovery lists are
+     * confirmed-only; never consume a PENDING ghost device 1 prekey.
+     */
+    private suspend fun resolveSessionDeviceId(token: String, recipientId: String, deviceId: Int): Int? {
+        if (deviceId != DEFAULT_DEVICE_ID) return deviceId
+        val discovered = SignalKeyExchange.fetchDevicePreKeyBundles(token, recipientId)
+            .getOrNull()
+            ?.map { it.deviceId }
+            .orEmpty()
+        ConfirmedDevicePolicy.resolve(deviceId, discovered)?.let { return it }
+        val fallback = SignalKeyExchange.fetchPreKeyBundle(token, recipientId).getOrNull()?.deviceId
+        return ConfirmedDevicePolicy.resolve(deviceId, listOfNotNull(fallback))
     }
 
     private suspend fun uploadKeysWithDeviceIdRecovery(token: String): Result<Unit> {

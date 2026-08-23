@@ -95,6 +95,11 @@ sealed class WebSocketEvent {
         val action: String,
         val invite: GroupInvitationDto
     ) : WebSocketEvent()
+    data class SenderKeyRequested(
+        val chatId: String,
+        val requesterId: String,
+        val epoch: Long = 0L
+    ) : WebSocketEvent()
     data class Connected(val success: Boolean) : WebSocketEvent()
     data class Error(
         val kind: WebSocketErrorKind,
@@ -150,7 +155,8 @@ enum class WebSocketErrorKind {
     TYPING_PARSE,
     GROUP_REVISION_PARSE,
     SIGNALING_PARSE,
-    FRIEND_REQUEST_PARSE
+    FRIEND_REQUEST_PARSE,
+    SENDER_KEY_REQUEST_PARSE
 }
 
 @Serializable
@@ -167,6 +173,13 @@ private data class TypingPayload(val userId: String, val chatId: String, val isT
 
 @Serializable
 private data class NudgePayload(val chatId: String, val targetName: String)
+
+@Serializable
+private data class SenderKeyRequestPayload(
+    val chatId: String,
+    val requesterId: String = "",
+    val epoch: Long = 0L
+)
 
 @Serializable
 private data class AdminBroadcastPayload(
@@ -736,6 +749,15 @@ object WebSocketClient {
         return send(WsMessage(type = "NUDGE", payload = payload))
     }
 
+    fun requestSenderKey(chatId: String, epoch: Long = 0L): Boolean {
+        if (chatId.isBlank()) return false
+        val payload = json.encodeToString(
+            SenderKeyRequestPayload.serializer(),
+            SenderKeyRequestPayload(chatId = chatId, epoch = epoch)
+        )
+        return send(WsMessage(type = "REQUEST_SENDER_KEY", payload = payload))
+    }
+
     @Synchronized
     fun disconnect() {
         shouldReconnect = false
@@ -926,6 +948,23 @@ object WebSocketClient {
                     eventBus.post(WebSocketEvent.UserTyping(data.userId, data.chatId, data.isTyping))
                 } catch (e: Exception) {
                     emitError(WebSocketErrorKind.TYPING_PARSE, e)
+                }
+            }
+
+            "REQUEST_SENDER_KEY" -> {
+                try {
+                    val data = json.decodeFromString<SenderKeyRequestPayload>(wsMsg.payload)
+                    if (data.chatId.isNotBlank() && data.requesterId.isNotBlank()) {
+                        eventBus.post(
+                            WebSocketEvent.SenderKeyRequested(
+                                chatId = data.chatId,
+                                requesterId = data.requesterId,
+                                epoch = data.epoch
+                            )
+                        )
+                    }
+                } catch (e: Exception) {
+                    emitError(WebSocketErrorKind.SENDER_KEY_REQUEST_PARSE, e)
                 }
             }
 

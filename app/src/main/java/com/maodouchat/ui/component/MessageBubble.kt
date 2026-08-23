@@ -596,7 +596,7 @@ private fun TextBubble(
         message.type in setOf(MessageType.TEXT, MessageType.MARKDOWN) &&
         com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(message.parsedContent())
     ) {
-        message.copy(content = stringResource(R.string.chat_decrypt_failed))
+        message.copy(content = stringResource(R.string.chat_decrypt_group_key_missing))
     } else message
     val palette = LocalChatPalette.current
     // 9.252：TG 式动态气泡宽度——此前固定 280dp，大屏上气泡偏窄、长文本折行过多
@@ -2250,7 +2250,10 @@ private fun SystemMessageBubble(content: String, modifier: Modifier = Modifier) 
 }
 
 @Composable
-private fun MessageStatusIcon(status: MessageStatus) {
+internal fun MessageStatusIcon(
+    status: MessageStatus,
+    tint: Color = LocalSentBubbleContentSecondary.current,
+) {
     // 状态切换时做轻量 spring，解释发送中→已送达→已读；系统关闭动画时瞬时到位
     val motion = LocalMotionSettings.current
     val targetScale = when (status) {
@@ -2286,14 +2289,14 @@ private fun MessageStatusIcon(status: MessageStatus) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(12.dp),
                     strokeWidth = 1.5.dp,
-                    color = LocalSentBubbleContentSecondary.current
+                    color = tint
                 )
             }
             MessageStatus.SENT -> {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = stringResource(R.string.message_status_sent),
-                    tint = LocalSentBubbleContentSecondary.current,
+                    tint = tint,
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -2301,7 +2304,7 @@ private fun MessageStatusIcon(status: MessageStatus) {
                 Icon(
                     imageVector = Icons.Default.DoneAll,
                     contentDescription = stringResource(R.string.message_status_delivered),
-                    tint = LocalSentBubbleContentSecondary.current,
+                    tint = tint,
                     modifier = Modifier.size(14.dp)
                 )
             }

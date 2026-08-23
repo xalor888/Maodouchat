@@ -15,6 +15,7 @@ import com.maodouchat.R
 import com.maodouchat.ai.AiRetryPolicy
 import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.attachment.AttachmentTransferSummaryRepository
+import com.maodouchat.crypto.GroupSenderKeyRequestPolicy
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.repository.resolveDirectOutboxPeerId
@@ -833,11 +834,19 @@ class ChatDetailViewModel(
                             // Decrypt-failure placeholders must not advance cursor past recoverable ciphertext
                             if (isSyncDecryptFailurePlaceholder(decryptedMessage)) {
                                 // FutureEpoch 是“本地 epoch 落后”的特殊情况：卡住游标会让后面的
-                                // SKDM 永远处理不到，形成死锁。9.3xx：落库占位文本而非原始密文——
-                                // 此前把 wire envelope 原样入库，气泡整块输出元数据（ciphertext/设备号）。
-                                // SKDM 安装后触发重同步，占位消息会被重新解密。
-                                if (decryptedMessage.content == text(R.string.chat_decrypt_group_newer)) {
-                                    decrypted += decryptedMessage
+                                // SKDM 永远处理不到，形成死锁。群 Sender Key 缺失同理：必须推进
+                                // 才能继续安装后续 SKDM，同时向发送方请求重分发。密文原样落库，
+                                // SK 到达后 retryDecryptPendingGroupMessages 才能重解。
+                                val missingGroupKey = signalProtocol.isSenderKeyEnvelope(wireMessage.content) ||
+                                    wireMessage.content.isSenderKeyMessage() ||
+                                    decryptedMessage.content == text(R.string.chat_decrypt_group_key_missing)
+                                if (decryptedMessage.content == text(R.string.chat_decrypt_group_newer) || missingGroupKey) {
+                                    if (missingGroupKey) {
+                                        requestMissingGroupSenderKey(wireMessage.chatId, dto.senderId)
+                                    }
+                                    decrypted += if (missingGroupKey && signalProtocol.isSenderKeyEnvelope(wireMessage.content)) {
+                                        wireMessage
+                                    } else decryptedMessage
                                     advanced = TokenManager.SyncCursor(dto.timestamp, dto.id)
                                     continue
                                 }
@@ -2641,6 +2650,7 @@ class ChatDetailViewModel(
                         )
                     }
                     is WebSocketEvent.GroupRevisionChanged -> handleGroupRevisionChanged(event)
+                    is WebSocketEvent.SenderKeyRequested -> handleSenderKeyRequested(event)
 
                     is WebSocketEvent.UserOnline -> {
                         val presenceOwnerUserId = currentUserId
@@ -8092,6 +8102,52 @@ fun sendCurrentLocation() {
         }
     }
 
+    private var lastSenderKeyRequestAt = 0L
+
+    private fun requestMissingGroupSenderKey(chatId: String, senderId: String) {
+        if (chatId.isBlank() || senderId.isBlank() || senderId == currentUserId) return
+        val now = System.currentTimeMillis()
+        if (now - lastSenderKeyRequestAt < 8_000L) return
+        lastSenderKeyRequestAt = now
+        val epoch = _uiState.value.chat?.memberRevision ?: 0L
+        WebSocketClient.requestSenderKey(chatId, epoch)
+    }
+
+    private suspend fun handleSenderKeyRequested(event: WebSocketEvent.SenderKeyRequested) {
+        if (event.chatId.isBlank()) return
+        if (event.requesterId == currentUserId) return
+        val epoch = event.epoch.takeIf { it > 0L } ?: currentGroupEpoch(event.chatId) ?: return
+        runCatching {
+            app.senderKeyRetryManager.enqueue(event.chatId, epoch, "peer_request")
+            app.senderKeyRetryManager.ensureCoverageNow(event.chatId, epoch)
+        }
+    }
+
+    private suspend fun retryDecryptPendingGroupMessages(groupId: String) {
+        if (groupId.isBlank() || groupId != activeChatId) return
+        val missing = text(R.string.chat_decrypt_group_key_missing)
+        val candidates = withContext(Dispatchers.IO) {
+            messageRepo.getRecentMessages(groupId, 80).filter { msg ->
+                msg.type.isDecryptable() &&
+                    (msg.content == missing || signalProtocol.isSenderKeyEnvelope(msg.content) || msg.content.isSenderKeyMessage())
+            }
+        }
+        if (candidates.isEmpty()) return
+        val recovered = mutableListOf<Message>()
+        for (msg in candidates) {
+            val decoded = decryptIncomingMessage(msg.senderId, msg) ?: continue
+            if (decoded.content == missing || isSyncDecryptFailurePlaceholder(decoded)) continue
+            recovered += decoded
+        }
+        if (recovered.isEmpty()) return
+        withContext(Dispatchers.IO) {
+            recovered.forEach { messageRepo.insertMessage(it) }
+        }
+        _uiState.update { state ->
+            state.copy(messages = mergeMessages(state.messages, recovered), groupEncryptionWarning = null)
+        }
+    }
+
     /**
      * Bug #25: 确保群聊 SenderKey 已分发给其他成员
      * 首次向群聊发送消息时调用，创建并发送 SenderKeyDistributionMessage
@@ -8177,7 +8233,10 @@ fun sendCurrentLocation() {
                     currentEpoch = epoch
                 )
             ) {
-                com.maodouchat.crypto.SenderKeyDistOutcome.Installed -> true
+                com.maodouchat.crypto.SenderKeyDistOutcome.Installed -> {
+                    viewModelScope.launch { retryDecryptPendingGroupMessages(message.chatId) }
+                    true
+                }
                 // 过期/错误群/坏格式：永久不可用，必须推进游标，否则 backlog 卡死
                 com.maodouchat.crypto.SenderKeyDistOutcome.Skipped -> true
                 com.maodouchat.crypto.SenderKeyDistOutcome.Failed -> {
@@ -8197,7 +8256,10 @@ fun sendCurrentLocation() {
                             currentEpoch = epoch
                         )
                     ) {
-                        com.maodouchat.crypto.SenderKeyDistOutcome.Installed -> true
+                        com.maodouchat.crypto.SenderKeyDistOutcome.Installed -> {
+                            viewModelScope.launch { retryDecryptPendingGroupMessages(message.chatId) }
+                            true
+                        }
                         com.maodouchat.crypto.SenderKeyDistOutcome.Skipped -> true
                         com.maodouchat.crypto.SenderKeyDistOutcome.Failed -> {
                             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_group_key_unusable)) }
@@ -8207,7 +8269,8 @@ fun sendCurrentLocation() {
                 }
                 SignalProtocol.DecryptResult.NotForThisDevice -> true
                 SignalProtocol.DecryptResult.NoSession -> {
-                    signalProtocol.ensureSession(token, senderId).getOrNull()
+                    signalProtocol.ensureSessions(token, senderId)
+                    requestMissingGroupSenderKey(message.chatId, senderId)
                     _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_group_key_session_missing)) }
                     false
                 }
@@ -8252,12 +8315,36 @@ fun sendCurrentLocation() {
                     SignalProtocol.DecryptResult.NotForThisDevice -> localPlainOwnMessage(message)
                     SignalProtocol.DecryptResult.FutureEpoch -> {
                         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_group_member_state_updated)) }
-                        message.copy(content = if (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) text(R.string.chat_decrypt_group_newer) else message.mediaDecryptFailedText())
+                        if (GroupSenderKeyRequestPolicy.shouldRequestRedistribution(true, result)) {
+                            requestMissingGroupSenderKey(message.chatId, senderId)
+                        }
+                        localPlainOwnMessage(message) ?: message
                     }
-                    SignalProtocol.DecryptResult.NoSession -> { signalProtocol.ensureSession(token, senderId).getOrNull(); localPlainOwnMessage(message) ?: message.copy(content = if (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) text(R.string.chat_decrypt_group_key_missing) else message.mediaDecryptFailedText()) }
-                    SignalProtocol.DecryptResult.UntrustedIdentity -> { localPlainOwnMessage(message) ?: message.copy(content = if (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) text(R.string.chat_decrypt_group_identity_changed) else message.mediaDecryptFailedText()) }
+                    SignalProtocol.DecryptResult.NoSession -> {
+                        signalProtocol.ensureSessions(token, senderId)
+                        if (GroupSenderKeyRequestPolicy.shouldRequestRedistribution(true, result)) {
+                            requestMissingGroupSenderKey(message.chatId, senderId)
+                        }
+                        localPlainOwnMessage(message) ?: message
+                    }
+                    SignalProtocol.DecryptResult.UntrustedIdentity -> {
+                        _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_decrypt_group_identity_changed)) }
+                        localPlainOwnMessage(message) ?: message
+                    }
                     SignalProtocol.DecryptResult.Duplicate -> localPlainOwnMessage(message) ?: message
-                    else -> localPlainOwnMessage(message) ?: message.copy(content = if (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) text(R.string.chat_decrypt_group_failed) else message.mediaDecryptFailedText())
+                    else -> {
+                        if (GroupSenderKeyRequestPolicy.shouldKeepGroupWire(result)) {
+                            localPlainOwnMessage(message) ?: message
+                        } else {
+                            localPlainOwnMessage(message) ?: message.copy(
+                                content = if (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) {
+                                    text(R.string.chat_decrypt_group_failed)
+                                } else {
+                                    message.mediaDecryptFailedText()
+                                }
+                            )
+                        }
+                    }
                 }
             }
             return message
@@ -8266,7 +8353,10 @@ fun sendCurrentLocation() {
             return when (val result = signalProtocol.decryptContentEnvelope(senderId, message.content)) {
                 is SignalProtocol.DecryptResult.Success -> { if (message.type in setOf(MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER, MessageType.LOCATION)) message.copy(content = result.plaintext) else restoreDecryptedMediaMessage(message, result.plaintext) }
                 SignalProtocol.DecryptResult.NotForThisDevice -> localPlainOwnMessage(message)
-                SignalProtocol.DecryptResult.NoSession -> { signalProtocol.ensureSession(token, senderId).getOrNull(); localPlainOwnMessage(message) ?: message.copy(content = if (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) text(R.string.chat_decrypt_session_missing) else message.mediaDecryptFailedText()) }
+                SignalProtocol.DecryptResult.NoSession -> {
+                    signalProtocol.ensureSessions(token, senderId)
+                    localPlainOwnMessage(message) ?: message.copy(content = if (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) text(R.string.chat_decrypt_session_missing) else message.mediaDecryptFailedText())
+                }
                 SignalProtocol.DecryptResult.UntrustedIdentity -> { localPlainOwnMessage(message) ?: message.copy(content = if (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) text(R.string.chat_decrypt_identity_changed) else message.mediaDecryptFailedText()) }
                 SignalProtocol.DecryptResult.Duplicate -> localPlainOwnMessage(message) ?: message
                 else -> localPlainOwnMessage(message) ?: message.copy(content = if (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) text(R.string.chat_decrypt_failed) else message.mediaDecryptFailedText())

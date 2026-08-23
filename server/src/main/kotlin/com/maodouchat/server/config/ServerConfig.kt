@@ -185,6 +185,18 @@ object ServerConfig {
         env("BOOTSTRAP_FIRST_USER_AS_ADMIN", "false").toBooleanStrictOrNull() ?: false
     // SMTP 开发模式判断：必须与 env() 保持一致，同时读环境变量和系统属性
     val smtpDevMode: Boolean = env("SMTP_HOST", "").isBlank()
+    val smtpHost: String get() = env("SMTP_HOST", "")
+
+    fun openaiConfigured(): Boolean = openAiApiKey.isNotBlank()
+    fun turnConfigured(): Boolean = turnUrls.isNotEmpty() && turnSharedSecret.isNotBlank()
+    fun smtpConfigured(): Boolean = smtpHost.isNotBlank()
+    fun jwtConfigured(): Boolean = jwtSecret.length >= 32
+    fun maskHost(value: String): String {
+        val host = value.trim()
+        if (host.isBlank()) return ""
+        if (host.length <= 4) return "••••"
+        return host.take(2) + "••••" + host.takeLast(2)
+    }
 
     fun validate() {
         // 无论生产/开发都强制校验 JWT_SECRET — 不再有弱默认值可以"漏过"

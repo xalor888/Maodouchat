@@ -59,6 +59,7 @@ val FloatingBottomBarContentPadding = 96.dp
 
 data class LiquidBottomTabItem(
     val icon: ImageVector,
+    val selectedIcon: ImageVector = icon,
     val label: String,
     val badgeCount: Int = 0
 )
@@ -70,9 +71,9 @@ internal fun snapNavigationIndex(value: Float, tabsCount: Int): Int {
 
 internal fun liquidGlassContainerColor(isLightTheme: Boolean): Color {
     return if (isLightTheme) {
-        Color(0xFFFAFAFA).copy(alpha = 0.72f)
+        Color(0xFFFAFAFA).copy(alpha = 0.42f)
     } else {
-        Color(0xFF121212).copy(alpha = 0.72f)
+        Color(0xFF121212).copy(alpha = 0.38f)
     }
 }
 
@@ -235,7 +236,7 @@ fun LiquidBottomTabs(
                 ) {
                     Box {
                         Icon(
-                            imageVector = item.icon,
+                            imageVector = if (selected) item.selectedIcon else item.icon,
                             contentDescription = item.label,
                             tint = contentColor
                         )

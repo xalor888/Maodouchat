@@ -8425,6 +8425,22 @@ private fun ChatInputBar(
                         onDisabledClick = { Toast.makeText(context, context.getString(R.string.contact_card_disabled), Toast.LENGTH_SHORT).show() }
                     )
                 }
+                AttachMenuItem(
+                    icon = Icons.Outlined.AutoAwesome,
+                    label = stringResource(R.string.chat_ai_assistant),
+                    enabled = !isAiWorking && !isUpdatingAiSetting,
+                    onClick = { showAttachMenu = false; showAiMenu = true },
+                    onDisabledClick = { }
+                )
+                AttachMenuItem(
+                    icon = if (silentSend) Icons.Outlined.NotificationsOff else Icons.Outlined.Notifications,
+                    label = stringResource(
+                        if (silentSend) R.string.chat_silent_send_on else R.string.chat_silent_send_off
+                    ),
+                    enabled = true,
+                    onClick = { onToggleSilentSend() },
+                    onDisabledClick = { }
+                )
             }
         }
 
@@ -8667,28 +8683,6 @@ private fun ChatInputBar(
             }
             Spacer(modifier = Modifier.width(2.dp))
             Box {
-                val composerActive = com.maodouchat.ai.AiEntryPolicy.isComposerEntryActive(context, aiEnabled)
-                IconButton(
-                    onClick = { showAiMenu = true },
-                    enabled = !isAiWorking && !isUpdatingAiSetting,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .then(
-                            if (composerActive) Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape)
-                            else Modifier
-                        )
-                ) {
-                    if (isAiWorking || isUpdatingAiSetting) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
-                    } else {
-                        Icon(
-                            Icons.Outlined.AutoAwesome,
-                            contentDescription = stringResource(R.string.chat_ai_assistant),
-                            tint = if (composerActive) Primary else TextHint,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
                 DropdownMenu(expanded = showAiMenu, onDismissRequest = { showAiMenu = false }) {
                     Text(
                         stringResource(R.string.chat_ai_entry_primary_hint),
@@ -8896,23 +8890,6 @@ private fun ChatInputBar(
                     }
                 }
             } else if (canSend) {
-                IconButton(
-                    onClick = {
-                        com.maodouchat.util.HapticGate.perform(hapticContext, haptic, HapticFeedbackType.TextHandleMove)
-                        onToggleSilentSend()
-                    },
-                    enabled = !isSending,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = if (silentSend) Icons.Outlined.NotificationsOff else Icons.Outlined.Notifications,
-                        contentDescription = stringResource(
-                            if (silentSend) R.string.chat_silent_send_on else R.string.chat_silent_send_off
-                        ),
-                        tint = if (silentSend) Primary else Outline,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
                 val sendInteraction = remember { MutableInteractionSource() }
                 val sendPressed by sendInteraction.collectIsPressedAsState()
                 val sendScale by animateFloatAsState(

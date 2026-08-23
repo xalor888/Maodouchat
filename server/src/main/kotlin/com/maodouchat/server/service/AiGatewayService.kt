@@ -753,10 +753,10 @@ class AiGatewayService(
         val apiKey = apiKeyProvider().trim()
         if (apiKey.isBlank()) return AiGatewayResult.NotConfigured
         val response = try {
-            client.post("${baseUrlProvider().trimEnd('/')}/responses") {
+            client.post("${baseUrlProvider().trimEnd('/')}/chat/completions") {
                 bearerAuth(apiKey)
                 contentType(ContentType.Application.Json)
-                setBody(buildRequest(model, reasoningEffort, input, maxOutputTokens, stream = false))
+                setBody(buildChatRequest(model, input, maxOutputTokens, stream = false))
             }
         } catch (e: CancellationException) {
             throw e
@@ -813,10 +813,10 @@ class AiGatewayService(
         suspend fun runOnceThrottled(model: String): StreamOutcome {
             var firstDeltaEmitted = false
             val result: AiGatewayResult<String> = try {
-                client.preparePost("${baseUrlProvider().trimEnd('/')}/responses") {
+                client.preparePost("${baseUrlProvider().trimEnd('/')}/chat/completions") {
                     bearerAuth(apiKey)
                     contentType(ContentType.Application.Json)
-                    setBody(buildRequest(model, effort, input, maxOutputTokens, stream = true))
+                    setBody(buildChatRequest(model, input, maxOutputTokens, stream = true))
                 }.execute { response ->
                     if (response.status.value !in 200..299) {
                         val body = response.bodyAsTextSafe() ?: ""
@@ -851,31 +851,25 @@ class AiGatewayService(
                         val payload = line.removePrefix("data:").trim()
                         if (payload.isBlank() || payload == "[DONE]") continue
                         val event = runCatching { json.parseToJsonElement(payload).jsonObject }.getOrNull() ?: continue
-                        when (event["type"]?.jsonPrimitive?.contentOrNull) {
-                            "response.output_text.delta" -> {
-                                val delta = event["delta"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                                if (delta.isNotEmpty()) {
-                                    if (output.length + delta.length > maxOutputChars) {
-                                        return@execute AiGatewayResult.InvalidResponse("AI 流式响应过长")
-                                    }
-                                    output.append(delta)
-                                    firstDeltaEmitted = true
-                                    onDelta(delta)
-                                }
+                        OpenAiCompatibleCodec.streamError(event)?.let { streamError = it }
+                        val usage = event["usage"]?.asObjectOrNull()
+                            ?: event["response"]?.asObjectOrNull()?.get("usage")?.asObjectOrNull()
+                        if (usage != null) {
+                            inTokens = usage["prompt_tokens"]?.jsonPrimitive?.longOrNull
+                                ?: usage["input_tokens"]?.jsonPrimitive?.longOrNull
+                                ?: inTokens
+                            outTokens = usage["completion_tokens"]?.jsonPrimitive?.longOrNull
+                                ?: usage["output_tokens"]?.jsonPrimitive?.longOrNull
+                                ?: outTokens
+                        }
+                        val delta = OpenAiCompatibleCodec.streamDelta(event).orEmpty()
+                        if (delta.isNotEmpty()) {
+                            if (output.length + delta.length > maxOutputChars) {
+                                return@execute AiGatewayResult.InvalidResponse("AI 流式响应过长")
                             }
-                            "response.completed" -> {
-                                val usage = event["response"]?.asObjectOrNull()?.get("usage")?.asObjectOrNull()
-                                    ?: event["usage"]?.asObjectOrNull()
-                                if (usage != null) {
-                                    inTokens = usage["input_tokens"]?.jsonPrimitive?.longOrNull
-                                    outTokens = usage["output_tokens"]?.jsonPrimitive?.longOrNull
-                                }
-                            }
-                            "error", "response.failed" -> {
-                                streamError = event["message"]?.jsonPrimitive?.contentOrNull
-                                    ?: event["error"]?.asObjectOrNull()?.get("message")?.jsonPrimitive?.contentOrNull
-                                    ?: "AI 流式响应失败"
-                            }
+                            output.append(delta)
+                            firstDeltaEmitted = true
+                            onDelta(delta)
                         }
                     }
                     when {
@@ -944,19 +938,20 @@ class AiGatewayService(
         return primaryOutcome.result
     }
 
-    private fun buildRequest(
+    private fun buildChatRequest(
         model: String,
-        reasoningEffort: String?,
         input: List<OpenAiInputMessage>,
         maxOutputTokens: Int,
         stream: Boolean
-    ): OpenAiResponsesRequest = OpenAiResponsesRequest(
+    ): ChatCompletionsRequest = ChatCompletionsRequest(
         model = model,
-        // 仅对推理模型族（o1/o3/o4/o5/gpt-5）发送 reasoning.effort；
-        // gpt-4o 等非推理模型不接受该参数，发送会被 OpenAI 拒绝（400）。
-        reasoning = reasoningEffort?.takeIf { isReasoningCapable(model) }?.let { OpenAiReasoning(it) },
-        input = input,
-        maxOutputTokens = maxOutputTokens,
+        messages = input.map { msg ->
+            ChatCompletionsMessage(
+                role = OpenAiCompatibleCodec.chatRole(msg.role),
+                content = OpenAiCompatibleCodec.chatContent(msg.content)
+            )
+        },
+        maxTokens = maxOutputTokens,
         stream = stream
     )
 
@@ -990,11 +985,8 @@ class AiGatewayService(
     }
 
     private fun extractUsage(body: String): Usage? {
-        val root = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull() ?: return null
-        val usage = root["usage"]?.asObjectOrNull() ?: return null
-        val input = usage["input_tokens"]?.jsonPrimitive?.longOrNull
-        val output = usage["output_tokens"]?.jsonPrimitive?.longOrNull
-        return if (input != null || output != null) Usage(input, output) else null
+        val pair = OpenAiCompatibleCodec.extractUsage(body) ?: return null
+        return Usage(pair.first, pair.second)
     }
 
     /** 9.160：上游缺 usage 时按请求文本估算输入 token（4 字符/1 token 保守口径）。 */
@@ -1228,26 +1220,7 @@ class AiGatewayService(
         return AiGroupAssistantResult(answer, tasks)
     }
 
-    private fun extractOutputText(body: String): String? {
-        val root = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull() ?: return null
-        root["output_text"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf(String::isNotBlank)?.let { return it }
-        return root["output"]
-            ?.asArrayOrNull()
-            ?.flatMap { outputItem ->
-                outputItem.asObjectOrNull()
-                    ?.get("content")
-                    ?.asArrayOrNull()
-                    ?.mapNotNull { contentItem ->
-                        val contentObject = contentItem.asObjectOrNull()
-                        contentObject?.get("text")?.jsonPrimitive?.contentOrNull
-                            ?: contentObject?.get("output_text")?.jsonPrimitive?.contentOrNull
-                    }
-                    .orEmpty()
-            }
-            ?.joinToString("\n")
-            ?.trim()
-            ?.takeIf(String::isNotBlank)
-    }
+    private fun extractOutputText(body: String): String? = OpenAiCompatibleCodec.extractOutputText(body)
 
     private fun extractTranscriptionText(body: String): String? {
         val root = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull() ?: return null
@@ -1284,19 +1257,6 @@ class AiGatewayService(
             null
         }
     }
-
-    @Serializable
-    private data class OpenAiResponsesRequest(
-        val model: String,
-        val reasoning: OpenAiReasoning? = null,
-        val input: List<OpenAiInputMessage>,
-        @SerialName("max_output_tokens")
-        val maxOutputTokens: Int,
-        val stream: Boolean = false
-    )
-
-    @Serializable
-    private data class OpenAiReasoning(val effort: String)
 
     @Serializable
     private data class OpenAiInputMessage(val role: String, val content: JsonElement)

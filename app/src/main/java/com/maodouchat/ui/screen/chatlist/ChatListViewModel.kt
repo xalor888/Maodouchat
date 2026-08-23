@@ -100,6 +100,8 @@ data class ChatListUiState(
     val selectionMode: Boolean = false,
     /** 1.368：多选模式下已勾选的会话 id */
     val selectedChatIds: Set<String> = emptySet(),
+    /** 本机最近一条可见消息的回执（chatId → 自己发出时才有）。不进 Room schema。 */
+    val receiptsByChat: Map<String, ChatListReceiptPolicy.Receipt> = emptyMap(),
 ) {
     val filteredChats: List<Chat>
         get() {
@@ -368,6 +370,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         refreshSecretChats()
         requestLoadChats(ChatListReloadPolicy.Trigger.INITIAL)
         observeDrafts()
+        observeReceipts()
         observeRealtime()
         observeMissedCalls()
         refreshAnnouncements()
@@ -923,6 +926,28 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 if (tokenManager.getUserId().orEmpty() != ownerUserId) return@collect
                 _uiState.update { state -> state.copy(drafts = drafts.associateBy(ChatDraftEntity::chatId)) }
             }
+        }
+    }
+
+    /** Telegram ticks: latest local message per chat, no schema change. */
+    private fun observeReceipts() {
+        val ownerUserId = currentUserIdStr
+        if (ownerUserId.isBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState
+                .map { state -> state.chats.map { it.id } to state.chats.map { it.lastMessageTime } }
+                .distinctUntilChanged()
+                .collect { (chatIds, _) ->
+                    if (tokenManager.getUserId().orEmpty() != ownerUserId) return@collect
+                    val receipts = chatIds.associateWith { chatId ->
+                        val latest = runCatching {
+                            messageRepo.getRecentMessages(chatId, limit = 1).firstOrNull()
+                        }.getOrNull()
+                        ChatListReceiptPolicy.fromLatest(latest, ownerUserId)
+                    }.filterValues { it != null }.mapValues { it.value!! }
+                    if (tokenManager.getUserId().orEmpty() != ownerUserId) return@collect
+                    _uiState.update { it.copy(receiptsByChat = receipts) }
+                }
         }
     }
 
@@ -2702,6 +2727,16 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                     withOwnerRoomWrite(realtimeSession) {
                                         messageRepo.updateMessageStatus(messageId, event.status)
                                     }
+                                    val latest = messageRepo.getMessageById(messageId)
+                                    val receipt = ChatListReceiptPolicy.fromLatest(latest, statusOwnerUserId)
+                                    val chatId = latest?.chatId
+                                    if (receipt != null && !chatId.isNullOrBlank()) {
+                                        _uiState.update { state ->
+                                            state.copy(
+                                                receiptsByChat = state.receiptsByChat + (chatId to receipt)
+                                            )
+                                        }
+                                    }
                                 } catch (error: kotlinx.coroutines.CancellationException) {
                                     throw error
                                 } catch (error: Exception) {
@@ -2878,6 +2913,21 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     is WebSocketEvent.GroupRevisionChanged -> {
                         // Membership bursts (join/leave/kick) often arrive in clusters.
                         requestLoadChats(ChatListReloadPolicy.Trigger.GROUP_REVISION)
+                    }
+                    is WebSocketEvent.SenderKeyRequested -> {
+                        if (event.requesterId == liveUserId) return@collect
+                        viewModelScope.launch {
+                            val epoch = event.epoch.takeIf { it > 0L }
+                                ?: withContext(Dispatchers.IO) {
+                                    chatRepo.getChatById(event.chatId)?.memberRevision
+                                }
+                                ?: return@launch
+                            if (epoch <= 0L) return@launch
+                            runCatching {
+                                app.senderKeyRetryManager.enqueue(event.chatId, epoch, "peer_request")
+                                app.senderKeyRetryManager.ensureCoverageNow(event.chatId, epoch)
+                            }
+                        }
                     }
                     is WebSocketEvent.Connected -> {
                         if (event.success) {

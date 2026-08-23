@@ -5,10 +5,11 @@ import com.maodouchat.util.RuntimeFlags
 
 /**
  * AI 入口信息架构（纯函数）。
- * 聊天内一主入口（输入栏 ✨）+ 长按消息场景动作；设置总开关在 AI 隐私页。
+ * 聊天内一主入口（附件菜单 ✨）+ 长按消息场景动作；设置总开关在 AI 隐私页。
+ * 输入栏主行不再放 AI 星。
  */
 object AiEntryPolicy {
-    /** 主入口位置：输入栏旁 AutoAwesome */
+    /** 主入口位置：附件菜单里的 AutoAwesome */
     const val PRIMARY_SURFACE = "composer_menu"
 
     /** 长按消息场景入口 */

@@ -84,12 +84,12 @@ val BUBBLE_SHAPE_ROUND = BubbleShapes(
 )
 
 fun bubbleShapesFor(styleId: String): BubbleShapes = when (styleId) {
-    "tg" -> BUBBLE_SHAPE_TG
     "round" -> BUBBLE_SHAPE_ROUND
-    else -> BUBBLE_SHAPE_DEFAULT
+    "wechat" -> BUBBLE_SHAPE_DEFAULT
+    else -> BUBBLE_SHAPE_TG
 }
 
-val LocalBubbleShapes = compositionLocalOf { BUBBLE_SHAPE_DEFAULT }
+val LocalBubbleShapes = compositionLocalOf { BUBBLE_SHAPE_TG }
 
 /** 当前主题对发送气泡的接管（maodou 家族为 null）。 */
 val LocalSentBubbleSpec = compositionLocalOf<SentBubbleSpec?> { null }

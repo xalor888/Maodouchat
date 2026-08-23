@@ -36,7 +36,8 @@
       { id: 'bots', label: '机器人' },
       { id: 'user-tags', label: '用户标签' },
       { id: 'rate-limit', label: '限流' },
-      { id: 'device-consistency', label: '设备一致性' }
+      { id: 'device-consistency', label: '设备一致性' },
+      { id: 'channels', label: '密钥与通道' }
     ]
   };
   var B6_SYSTEM_PANES = { 'user-tags': 1, 'rate-limit': 1, 'device-consistency': 1 };
@@ -257,7 +258,11 @@
         el('login-error').textContent = '';
         return;
       }
-      if (!r.ok || !d || !d.token) throw new Error((d && d.error) || ('请求失败 ' + r.status));
+      if (!r.ok || !d || !d.token) {
+        if (r.status === 401) throw new Error((d && d.error) || '邮箱或密码错误');
+        if (r.status === 403) throw new Error((d && d.error) || '该账号不是主管理员。MASTER_ADMINS 配的是用户 ID，不是邮箱。');
+        throw new Error((d && d.error) || ('请求失败 ' + r.status));
+      }
 
       var sr = await fetch('/api/admin/session', {
         method: 'POST',
@@ -267,7 +272,10 @@
       var srtext = await sr.text();
       var sd = null;
       if (srtext) { try { sd = JSON.parse(srtext); } catch (e) { sd = null; } }
-      if (!sr.ok || !sd || !sd.token) throw new Error((sd && sd.error) || ('管理员二次验证失败 ' + sr.status));
+      if (!sr.ok || !sd || !sd.token) {
+        if (sr.status === 403) throw new Error((sd && sd.error) || '该账号不是主管理员。MASTER_ADMINS 配的是用户 ID，不是邮箱。');
+        throw new Error((sd && sd.error) || ('管理员二次验证失败 ' + sr.status));
+      }
 
       token = sd.token;
       sessionExpiresAt = sd.expiresAt;
@@ -395,6 +403,7 @@
         case 'bots': await loadBots(seq); break;
         case 'system':
           if (paneState.system === 'bots') await loadBots(seq);
+          else if (paneState.system === 'channels') await loadChannelHealth(seq);
           else if (B6_SYSTEM_PANES[paneState.system] && window.__b6Admin && typeof window.__b6Admin.openTab === 'function') {
             window.__b6Admin.openTab(paneState.system, seq);
             return;
@@ -502,42 +511,53 @@
 
     var memPct = s.jvmMaxMemoryBytes > 0 ? Math.round(s.jvmUsedMemoryBytes / s.jvmMaxMemoryBytes * 100) : 0;
 
-    var statsHtml = '<div style="margin:0 0 12px 0"><button class="btn primary" data-action="admin-broadcast">广播给在线用户</button></div>' +
-      '<div class="stats-grid">' +
-      statCard('users', '总用户数', d.totalUsers, d.activeUsers24h + ' 人 24h 活跃', 'green') +
-      statCard('posts', '动态总数', d.totalPosts, s.totalComments + ' 条评论', 'blue') +
-      statCard('reports', '待审举报', d.pendingReports, '共 ' + d.totalReports + ' 条举报', d.pendingReports > 0 ? 'red' : '') +
-      statCard('rules', '启用规则', d.activeModerationRules, '风控规则数', 'orange') +
-      statCard('messages', '消息总量', s.totalMessages, '已发送消息', 'blue') +
-      statCard('chats', '群聊总数', s.totalGroups, '共 ' + s.totalChats + ' 个会话', 'green') +
-      statCard('storage', '附件存储', fmtBytes(s.attachmentStorageBytes), s.totalAttachments + ' 个文件', '') +
-      statCard('online', '在线用户', s.onlineUsers, '当前在线', 'green') +
-      '</div>';
-    if (ops) {
-      statsHtml += statCard('bots', 'Bots', ops.botsEnabled + '/' + ops.botsTotal, (ops.botsWithWebhook || 0) + ' webhooks', 'blue');
-      statsHtml += statCard('polls', 'Polls', ops.pollsOpen + '/' + ops.pollsTotal, (ops.pollVotes || 0) + ' votes', 'green');
+    function healthCard(name, on, sub) {
+      return '<div class="health-card ' + (on ? 'on' : 'off') + '">' +
+        '<span class="health-dot ' + (on ? 'on' : 'off') + '"></span>' +
+        '<div class="health-copy"><div class="health-name">' + esc(name) + '</div>' +
+        '<div class="health-sub">' + esc(sub || (on ? '已配置' : '未配置')) + '</div></div></div>';
     }
+    var statsHtml = '<div class="dash-toolbar"><div class="dash-section-title" style="margin:0">运营总览</div>' +
+      '<button class="btn btn-primary" data-action="admin-broadcast">广播给在线用户</button></div>' +
+      '<div class="dash-section"><div class="kpi-grid">' +
+      statCard('users', '总用户', d.totalUsers, d.activeUsers24h + ' 人 24h 活跃', 'green') +
+      statCard('online', '在线', s.onlineUsers, '当前在线', 'green') +
+      statCard('messages', '消息', s.totalMessages, '已发送', 'blue') +
+      statCard('chats', '群聊', s.totalGroups, '共 ' + s.totalChats + ' 个会话', 'green') +
+      statCard('posts', '动态', d.totalPosts, s.totalComments + ' 条评论', 'blue') +
+      statCard('reports', '待审举报', d.pendingReports, '共 ' + d.totalReports + ' 条', d.pendingReports > 0 ? 'red' : '') +
+      statCard('storage', '附件', fmtBytes(s.attachmentStorageBytes), s.totalAttachments + ' 个文件', '') +
+      statCard('rules', '风控规则', d.activeModerationRules, '已启用', 'orange') +
+      (ops ? statCard('chats', '机器人', (ops.botsEnabled || 0) + '/' + (ops.botsTotal || 0), (ops.botsWithWebhook || 0) + ' webhooks', 'blue') : '') +
+      (ops ? statCard('posts', '投票', (ops.pollsOpen || 0) + '/' + (ops.pollsTotal || 0), (ops.pollVotes || 0) + ' 票', 'green') : '') +
+      '</div></div>';
+    var health = null;
+    try { health = await api('/api/admin/channel-health'); } catch (e) { health = null; }
+    statsHtml += '<div class="dash-section"><div class="dash-section-title">通道健康</div><div class="health-grid">' +
+      healthCard('OpenAI', !!(health && health.openaiConfigured), health ? (health.openaiModel || '模型') : '探测失败') +
+      healthCard('TURN', !!(health && health.turnConfigured), health ? ((health.turnUrlCount || 0) + ' urls') : '探测失败') +
+      healthCard('SMTP', !!(health && health.smtpConfigured), health ? (health.smtpHostMasked || 'host') : '探测失败') +
+      healthCard('JWT', !!(health && health.jwtConfigured), health ? 'secret ≥32' : '探测失败') +
+      '</div></div>';
     if (sec && sec.flags) {
       var f = sec.flags || {};
       var lim = sec.limits || {};
-      statsHtml += statCard('sec-ai', 'Cloud AI', f.aiEnabled ? 'ON' : 'OFF', 'runtime kill switch', f.aiEnabled ? 'green' : 'red');
-      statsHtml += statCard('sec-bots', 'Bot platform', f.botsAllowed ? 'ON' : 'OFF', 'allow_bots', f.botsAllowed ? 'green' : 'orange');
-      statsHtml += statCard('sec-sealed', 'Sealed sender', f.sealedSenderEnabled ? 'ON' : 'OFF', 'certificates', f.sealedSenderEnabled ? 'green' : '');
-      statsHtml += statCard('sec-ip', 'IP blocklist', lim.ipBlocklistCount || 0, 'max msg/min ' + (lim.maxMessagePerMin || '-'), (lim.ipBlocklistCount > 0) ? 'red' : '');
-      statsHtml += statCard('sec-risk', 'Risk review', sec.openRiskEvents || 0, 'needs_review events', (sec.openRiskEvents > 0) ? 'red' : 'green');
-      statsHtml += statCard('sec-maint', 'Maintenance', f.maintenanceMode ? 'YES' : 'no', f.registrationOpen ? 'reg open' : 'reg closed', f.maintenanceMode ? 'red' : '');
-      statsHtml += statCard('sec-pqxdh', 'PQXDH preview', f.pqxdhPreview ? 'ON' : 'OFF', 'min app ' + (lim.minAppVersion || '0'), f.pqxdhPreview ? 'green' : '');
-      statsHtml += statCard('sec-secret', 'Secret required', f.secretChatRequired ? 'YES' : 'no', '1:1 policy banner', f.secretChatRequired ? 'orange' : '');
-      statsHtml += statCard('sec-capture', 'Capture alerts', f.captureAlertEnabled === false ? 'OFF' : 'ON', 'max bots/user ' + (lim.maxBotsPerUser || '-'), f.captureAlertEnabled === false ? 'red' : 'green');
+      statsHtml += '<div class="dash-section"><div class="dash-section-title">安全开关</div><div class="health-grid">' +
+        healthCard('云端 AI', !!f.aiEnabled, 'runtime kill switch') +
+        healthCard('机器人平台', !!f.botsAllowed, 'allow_bots') +
+        healthCard('密封发送者', !!f.sealedSenderEnabled, 'certificates') +
+        healthCard('待审风控', !(sec.openRiskEvents > 0), (sec.openRiskEvents || 0) + ' needs_review') +
+        healthCard('维护模式', !f.maintenanceMode, f.registrationOpen ? '开放注册' : '关闭注册') +
+        healthCard('截屏告警', f.captureAlertEnabled !== false, 'max bots/user ' + (lim.maxBotsPerUser || '-')) +
+        '</div></div>';
     }
 
 
-    // 趋势图
-    var chartHtml = '<div class="chart-row">' +
-      chartCard('近 7 天新增用户', t.newUsers, '#6366f1') +
-      chartCard('近 7 天消息量', t.newMessages, '#10b981') +
-      chartCard('近 7 天动态量', t.newPosts, '#f59e0b') +
-      '</div>';
+    var chartHtml = '<div class="dash-section"><div class="dash-section-title">近 7 天</div><div class="chart-row">' +
+      chartCard('新增用户', t.newUsers, '#6366f1') +
+      chartCard('消息量', t.newMessages, '#10b981') +
+      chartCard('动态量', t.newPosts, '#f59e0b') +
+      '</div></div>';
 
     // 系统健康
     var healthHtml = '<div class="panel"><div class="panel-header"><h2>系统健康</h2></div><div class="panel-body"><div style="padding:18px">' +
@@ -573,10 +593,11 @@
     };
     return '<div class="stat-card">' +
       '<div class="stat-icon ' + (color || '') + '"><svg viewBox="0 0 16 16" fill="currentColor">' + (icons[icon] || icons.users) + '</svg></div>' +
-      '<div class="stat-label">' + label + '</div>' +
+      '<div class="stat-meta">' +
+      '<div class="stat-label">' + esc(label) + '</div>' +
       '<div class="stat-value">' + esc(value) + '</div>' +
       '<div class="stat-sub">' + esc(sub) + '</div>' +
-      '</div>';
+      '</div></div>';
   }
 
   function chartCard(title, points, color) {
@@ -2038,6 +2059,23 @@ async function loadChats(seq) {
 
 
   
+  async function loadChannelHealth(seq) {
+    var health = await api('/api/admin/channel-health');
+    function lamp(on) {
+      return '<span class="health-dot ' + (on ? 'on' : 'off') + '"></span>' + (on ? '已配置' : '未配置');
+    }
+    var html = '<div class="panel"><div class="panel-header"><h2>密钥与通道</h2></div><div class="panel-body">' +
+      '<p style="color:var(--text-muted);font-size:13px">只显示是否配置与掩码，绝不返回密钥明文。</p>' +
+      '<div class="detail-grid">' +
+      detailItem('OpenAI', lamp(!!health.openaiConfigured) + (health.openaiModel ? ' · ' + esc(health.openaiModel) : '')) +
+      detailItem('TURN', lamp(!!health.turnConfigured) + ' · ' + (health.turnUrlCount || 0) + ' urls') +
+      detailItem('SMTP', lamp(!!health.smtpConfigured) + (health.smtpHostMasked ? ' · ' + esc(health.smtpHostMasked) : '')) +
+      detailItem('JWT', lamp(!!health.jwtConfigured) + ' · secret ≥32') +
+      '</div></div></div>';
+    if (staleTab(seq)) return;
+    el('content').innerHTML = html;
+  }
+
   async function loadSettings(seq) {
     var data = await api('/api/admin/settings');
     var s = data.settings || {};

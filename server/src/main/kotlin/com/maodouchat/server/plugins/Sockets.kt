@@ -677,6 +677,26 @@ private suspend fun WebSocketSession.handleWsMessage(
             )
         }
 
+        "REQUEST_SENDER_KEY" -> {
+            if (!wsMessageRateLimiter.acquire(senderId, maxPerMinute = RuntimeConfigService.maxMessagePerMinute())) {
+                sendError("请求过于频繁，请稍后再试", json)
+                return
+            }
+            val payload = runCatching { json.decodeFromString<SenderKeyRequestPayload>(wsMsg.payload) }.getOrNull()
+                ?: return
+            val chatId = payload.chatId.trim()
+            if (chatId.isBlank()) return
+            if (!chatRepo.isParticipant(chatId, senderId)) return
+            if (chatRepo.getChatById(chatId)?.isGroup != true) return
+            val fanout = payload.copy(requesterId = senderId)
+            val envelope = json.encodeToString(
+                WsMessage("REQUEST_SENDER_KEY", json.encodeToString(SenderKeyRequestPayload.serializer(), fanout))
+            )
+            chatRepo.getParticipantIds(chatId)
+                .filter { it != senderId }
+                .forEach { sendToUser(it, envelope) }
+        }
+
         "TYPING" -> {
                 // 频率限制：每用户每分钟最多 30 次打字指示，防止群 fanout 放大攻击
                 if (!wsTypingRateLimiter.acquire(senderId, maxPerMinute = 30)) return

@@ -70,8 +70,28 @@ private fun preferReadablePersistence(existing: Message, incoming: Message): Mes
     return when {
         existingGood && !incomingGood -> existing
         !existingGood && incomingGood -> incoming
+        existingGood && incomingGood -> incoming
+        else -> preferWireOverPlaceholder(existing, incoming)
+    }
+}
+
+/** Ciphertext can be retried after SK/session repair; UI placeholders cannot. */
+private fun preferWireOverPlaceholder(existing: Message, incoming: Message): Message {
+    val existingWire = looksLikePersistedWire(existing.content)
+    val incomingWire = looksLikePersistedWire(incoming.content)
+    return when {
+        existingWire && !incomingWire -> existing
+        incomingWire && !existingWire -> incoming
         else -> incoming
     }
+}
+
+private fun looksLikePersistedWire(content: String): Boolean {
+    if (content.isBlank()) return false
+    if (content.startsWith("eyJ")) return true
+    if (content.startsWith("MD:") || content.startsWith("SK:")) return true
+    return ChatListPreviewPolicy.looksLikeWireEnvelope(content) ||
+        ChatListPreviewPolicy.isSignalWireEnvelope(content)
 }
 
 private fun isReadablePlaintextForPersistence(content: String): Boolean {

@@ -49,12 +49,16 @@ import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Unarchive
+import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.Campaign
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.WarningAmber
@@ -62,7 +66,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
@@ -118,6 +121,7 @@ import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.MissedCall
+import com.maodouchat.ui.component.MessageStatusIcon
 import com.maodouchat.network.ApiService
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
@@ -128,7 +132,6 @@ import com.maodouchat.ui.component.LiquidBottomTabItem
 import com.maodouchat.ui.component.LiquidBottomTabs
 import com.maodouchat.ui.component.PullToRefreshLayout
 import com.maodouchat.ui.component.SwipeableChatItem
-import com.maodouchat.ui.component.SearchBar
 import com.maodouchat.ui.component.ShimmerChatRow
 import com.maodouchat.ui.navigation.MainTab
 import com.maodouchat.ui.theme.LocalMotionSettings
@@ -672,13 +675,6 @@ fun ChatListScreen(
                 }
             }
 
-            SearchBar(
-                value = state.searchQuery,
-                onValueChange = viewModel::onSearchQueryChange,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                placeholder = stringResource(R.string.global_search_chats_placeholder)
-            )
-
             ChatFolderStrip(
                 folders = state.folders,
                 selectedFolderId = state.selectedFolderId,
@@ -763,6 +759,40 @@ fun ChatListScreen(
                             )
                         } else {
                         LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = FloatingBottomBarContentPadding)) {
+                            val archivedCount = state.chats.count { it.archived }
+                            if (!state.showArchived && archivedCount > 0 && state.searchQuery.isBlank()) {
+                                item(key = "archive-row") {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { viewModel.setShowArchived(true) }
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Archive,
+                                            contentDescription = null,
+                                            tint = LocalChatPalette.current.textSecondary,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                        Spacer(Modifier.width(16.dp))
+                                        Text(
+                                            stringResource(R.string.chat_archived_title),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Text(
+                                            archivedCount.toString(),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = LocalChatPalette.current.textHint
+                                        )
+                                    }
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(start = 72.dp),
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                                    )
+                                }
+                            }
                             items(state.filteredChats, key = { it.id }) { chat ->
                                 // 0.73：会话左滑操作（置顶/静音/归档 + 全滑删除）——组件早已存在未接入
                                 SwipeableChatItem(
@@ -792,6 +822,7 @@ fun ChatListScreen(
                                         // 1.368：多选模式下点按勾选，长按保持原单条菜单
                                         isSelecting = state.selectionMode,
                                         isSelected = chat.id in state.selectedChatIds,
+                                        receipt = state.receiptsByChat[chat.id],
                                         onClick = {
                                             if (state.selectionMode) viewModel.toggleSelectChat(chat.id)
                                             else onChatClick(chat.id)
@@ -804,7 +835,10 @@ fun ChatListScreen(
                                         onBadgeClick = { viewModel.toggleMarkedUnread(chat.id) }
                                     )
                                 }
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 72.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                                )
                             }
                         }
                     }
@@ -1285,8 +1319,7 @@ private fun ChatFolderStrip(
 ) {
     val scroll = rememberScrollState()
     Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(scroll).padding(horizontal = 10.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().horizontalScroll(scroll).padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         FolderChip(stringResource(R.string.chat_folder_all), selectedFolderId.isNullOrBlank(), 0) { onSelectFolder(null) }
@@ -1309,19 +1342,37 @@ private fun ChatFolderStrip(
 
 @Composable
 private fun FolderChip(label: String, selected: Boolean, badge: Int, onClick: () -> Unit) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(label)
-                if (badge > 0) {
-                    Spacer(Modifier.width(6.dp))
-                    Text(if (badge > 99) "99+" else badge.toString(), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textSecondary)
-                }
+    Column(
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                label,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+                ),
+                color = if (selected) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary
+            )
+            if (badge > 0) {
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    if (badge > 99) "99+" else badge.toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (selected) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint
+                )
             }
         }
-    )
+        Spacer(Modifier.height(6.dp))
+        Box(
+            modifier = Modifier
+                .height(2.dp)
+                .width(if (selected) 28.dp else 0.dp)
+                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(1.dp))
+        )
+    }
 }
 
 @Composable
@@ -1402,6 +1453,7 @@ private fun ChatListItem(
     // 1.368：多选模式勾选态（勾选时显示选中复选框 + 高亮背景）
     isSelecting: Boolean = false,
     isSelected: Boolean = false,
+    receipt: ChatListReceiptPolicy.Receipt? = null,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
@@ -1423,12 +1475,8 @@ private fun ChatListItem(
         animationSpec = motion.springSpec(dampingRatio = 0.82f, stiffness = 520f),
         label = "chatListPressScale"
     )
-    val hasUnread = chat.unreadCount > 0 || chat.markedUnread
-    val unreadLabel = when {
-        chat.unreadCount > 99 -> "99+"
-        chat.unreadCount > 0 -> chat.unreadCount.toString()
-        else -> ""
-    }
+    val hasUnread = ChatListReceiptPolicy.showUnreadBadge(chat.unreadCount, chat.markedUnread)
+    val unreadLabel = ChatListReceiptPolicy.unreadBadgeText(chat.unreadCount, chat.markedUnread)
     val listCtx = LocalContext.current
     val secretListBlock = isSecret && RuntimeFlags.isEnabled(listCtx, RuntimeFlags.SECRET_LIST_PREVIEW_BLOCK)
     val draftText = if (isLocked || secretListBlock) null else draft?.text?.takeIf(String::isNotBlank)
@@ -1513,38 +1561,6 @@ private fun ChatListItem(
             }
             Spacer(modifier = Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // 1.151：单聊显示「在线/最后在线」（密聊/群聊不显示）
-                if (!chat.isGroup && !isSecret && otherUser != null) {
-                    if (otherUser.isOnline) {
-                        Text(stringResource(R.string.chat_online), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
-                        Spacer(Modifier.width(4.dp))
-                    } else if (otherUser.lastSeen > 0L) {
-                        Text(
-                            stringResource(R.string.user_last_seen_prefix) + " " +
-                                android.text.format.DateUtils.getRelativeTimeSpanString(
-                                    otherUser.lastSeen,
-                                    System.currentTimeMillis(),
-                                    android.text.format.DateUtils.MINUTE_IN_MILLIS
-                                ),
-                            color = LocalChatPalette.current.textSecondary,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                        Spacer(Modifier.width(4.dp))
-                    }
-                }
-                if (chat.pinnedAt > 0) {
-                    Icon(Icons.Outlined.PushPin, contentDescription = null, modifier = Modifier.size(14.dp), tint = LocalChatPalette.current.textSecondary)
-                    Spacer(Modifier.width(4.dp))
-                }
-                if (chat.isChannel) {
-                    Icon(Icons.Outlined.Campaign, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(4.dp))
-                }
-                if (isSecret) {
-                    Text(stringResource(R.string.secret_chat_list_indicator), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
-                    Spacer(Modifier.width(4.dp))
-                }
-                // 1.165：身份密钥已变更（安全警告，红色）
                 if (identityChanged) {
                     Icon(
                         Icons.Outlined.WarningAmber,
@@ -1554,43 +1570,11 @@ private fun ChatListItem(
                     )
                     Spacer(Modifier.width(4.dp))
                 }
-                if (isLocked) {
-                    Text(stringResource(R.string.chat_lock_list_indicator), color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.labelSmall)
-                    Spacer(Modifier.width(4.dp))
-                }
-                if (chat.notificationsMuted) {
-                    Icon(Icons.Outlined.NotificationsOff, contentDescription = null, modifier = Modifier.size(14.dp), tint = LocalChatPalette.current.textSecondary)
-                    Spacer(Modifier.width(4.dp))
-                }
-                // 0.70：会话免打扰时段显示（如「22:00–07:00 免扰」，否则用户无法在列表得知静音到何时）
-                val quietWindow = com.maodouchat.notification.ChatQuietHoursStore.get(LocalContext.current, chat.id)
-                // 1.02：临时静音至（优先显示，如「静音至 14:30」）
-                val silentUntilMs = com.maodouchat.notification.ChatQuietHoursStore.silentUntil(LocalContext.current, chat.id)
-                if (silentUntilMs > System.currentTimeMillis()) {
-                    Text(
-                        text = stringResource(
-                            R.string.chat_silent_until_badge,
-                            formatMinuteClock(((silentUntilMs % 86400000L) / 60000L).toInt())
-                        ),
-                        color = LocalChatPalette.current.textSecondary,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(end = 4.dp)
-                    )
-                } else if (quietWindow.enabled && quietWindow.startMinute != quietWindow.endMinute) {
-                    Text(
-                        text = stringResource(
-                            R.string.chat_quiet_hours_badge,
-                            formatMinuteClock(quietWindow.startMinute),
-                            formatMinuteClock(quietWindow.endMinute)
-                        ),
-                        color = LocalChatPalette.current.textSecondary,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(end = 4.dp)
-                    )
-                }
-                // 1.227：草稿预览加铅笔图标
                 if (!draftText.isNullOrBlank() && scheduledLabel == null && typingPreview == null) {
                     Icon(Icons.Outlined.EditNote, contentDescription = null, tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                } else if (receipt?.fromMe == true && scheduledLabel == null && typingPreview == null) {
+                    MessageStatusIcon(status = receipt.status, tint = LocalChatPalette.current.textHint)
                     Spacer(Modifier.width(4.dp))
                 }
                 Text(
@@ -1601,6 +1585,15 @@ private fun ChatListItem(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
+                if (chat.notificationsMuted) {
+                    Spacer(Modifier.width(6.dp))
+                    Icon(
+                        Icons.Outlined.NotificationsOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = LocalChatPalette.current.textHint
+                    )
+                }
                 if (hasUnread) {
                     Spacer(Modifier.width(8.dp))
                     // 1.182：点击未读角标直接标记已读（不进入会话）
@@ -1609,27 +1602,22 @@ private fun ChatListItem(
                         modifier = Modifier
                             .clip(RoundedCornerShape(percent = 50))
                             .background(LocalChatPalette.current.onlineGreen)
-                            .padding(horizontal = 7.dp, vertical = 2.dp)
-                            .then(if (onBadgeClick != null) Modifier.clickable(onClick = onBadgeClick) else Modifier)
+                            .then(
+                                if (unreadLabel.isBlank()) Modifier.size(10.dp)
+                                else Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                            )
+                            .then(if (onBadgeClick != null) Modifier.clickable(onClick = onBadgeClick) else Modifier),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            unreadLabel,
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
-                        )
+                        if (unreadLabel.isNotBlank()) {
+                            Text(
+                                unreadLabel,
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
+                            )
+                        }
                     }
                 }
-            }
-            // 1.22：群公告预览（微信式群信息提示行）
-            if (chat.isGroup && !chat.groupAnnouncement.isNullOrBlank()) {
-                Text(
-                    text = stringResource(R.string.chat_list_group_announcement_prefix) + chat.groupAnnouncement.orEmpty().trim(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = LocalChatPalette.current.textHint,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 3.dp)
-                )
             }
         }
     }
@@ -1757,20 +1745,24 @@ fun BottomNavBar(
     val tabs = listOf(
         LiquidBottomTabItem(
             icon = Icons.Outlined.ChatBubbleOutline,
+            selectedIcon = Icons.Filled.ChatBubble,
             label = stringResource(R.string.nav_chats),
             badgeCount = unreadTotal
         ),
         LiquidBottomTabItem(
             icon = Icons.Outlined.Group,
+            selectedIcon = Icons.Filled.Group,
             label = stringResource(R.string.nav_contacts)
         ),
         LiquidBottomTabItem(
             icon = Icons.Outlined.Explore,
+            selectedIcon = Icons.Filled.Explore,
             label = stringResource(R.string.nav_explore),
             badgeCount = exploreBadge
         ),
         LiquidBottomTabItem(
             icon = Icons.Outlined.Settings,
+            selectedIcon = Icons.Filled.Settings,
             label = stringResource(R.string.nav_settings)
         )
     )
@@ -1892,12 +1884,6 @@ private fun chatNameForSuggestion(chat: Chat?): String? {
     return chat.groupName
         ?: chat.participants.firstOrNull()?.displayName
         ?: chat.participants.firstOrNull()?.name
-}
-
-/** 0.70：分钟 → HH:mm（会话免打扰时段徽标用）。 */
-private fun formatMinuteClock(minute: Int): String {
-    val m = minute.coerceIn(0, 1439)
-    return "%02d:%02d".format(m / 60, m % 60)
 }
 
 // 1.148：会话列表搜索关键词高亮（与全局搜索一致）

@@ -580,7 +580,8 @@ fun Application.configureRouting(
                 val body = buildJsonObject {
 put("ok", !maint)
 put("maintenance", maint)
-put("maintenanceMessage", RuntimeConfigService.get(RuntimeConfigService.KEY_MAINTENANCE_MESSAGE))
+// 维护关闭时不下发默认英文，避免公开接口看起来像在维护。
+put("maintenanceMessage", if (maint) RuntimeConfigService.get(RuntimeConfigService.KEY_MAINTENANCE_MESSAGE) else "")
 put("registrationOpen", registrationOpen)
 // 邀请制提示仅在注册关闭时下发：注册开放时客户端登录页也会展示非空 hint，
 // 默认文案“Registration is temporarily closed.”会误导用户以为注册已停止。

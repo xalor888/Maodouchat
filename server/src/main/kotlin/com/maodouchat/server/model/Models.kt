@@ -264,6 +264,24 @@ data class GroupRevisionChangedPayload(
 )
 
 @Serializable
+data class SenderKeyRequestPayload(
+    val chatId: String,
+    val requesterId: String = "",
+    val epoch: Long = 0L
+)
+
+@Serializable
+data class AdminChannelHealthResponse(
+    val openaiConfigured: Boolean,
+    val turnConfigured: Boolean,
+    val smtpConfigured: Boolean,
+    val jwtConfigured: Boolean,
+    val openaiModel: String = "",
+    val turnUrlCount: Int = 0,
+    val smtpHostMasked: String = ""
+)
+
+@Serializable
 data class ErrorResponse(
     val error: String,
     val code: String? = null,

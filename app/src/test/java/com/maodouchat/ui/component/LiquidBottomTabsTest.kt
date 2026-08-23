@@ -20,8 +20,8 @@ class LiquidBottomTabsTest {
     fun `glass container is translucent light or dark`() {
         val light = liquidGlassContainerColor(isLightTheme = true)
         val dark = liquidGlassContainerColor(isLightTheme = false)
-        assertEquals(Color(0xFFFAFAFA).copy(alpha = 0.72f), light)
-        assertEquals(Color(0xFF121212).copy(alpha = 0.72f), dark)
+        assertEquals(Color(0xFFFAFAFA).copy(alpha = 0.42f), light)
+        assertEquals(Color(0xFF121212).copy(alpha = 0.38f), dark)
         assertTrue(light.alpha < 1f)
         assertTrue(dark.alpha < 1f)
     }

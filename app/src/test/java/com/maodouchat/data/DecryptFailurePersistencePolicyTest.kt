@@ -46,6 +46,16 @@ class DecryptFailurePersistencePolicyTest {
         assertEquals("hello", mergeMessageForPersistence(existing, incoming).content)
     }
 
+    @Test
+    fun `placeholder must not overwrite stored group ciphertext`() {
+        val wire = """{"version":1,"algorithm":"signal-sender-key","ciphertext":"abc","groupId":"g1"}"""
+        val existing = base("m1").copy(content = wire)
+        val incoming = base("m1").copy(content = "无法解密")
+
+        assertEquals(wire, mergeMessageForPersistence(existing, incoming).content)
+        assertEquals(wire, mergeMessageForPersistence(incoming, existing).content)
+    }
+
     private fun base(id: String) = Message(
         id = id,
         chatId = "c1",
