@@ -68,4 +68,14 @@ class BlindWatermarkLabelTest {
         assertEquals(BLIND_WATERMARK_ALPHA_DEFAULT, coerceBlindWatermarkAlpha(BLIND_WATERMARK_ALPHA_DEFAULT), 0f)
         assertTrue(coerceBlindWatermarkAlpha(BLIND_WATERMARK_ALPHA_DEFAULT) > 0.22f)
     }
+
+    @Test
+    fun `visible overlay helper is unused on secret surfaces by default`() {
+        // XAL-45：明水印 helper 仍可构造标签，但密聊表面默认不再绘制。
+        assertFalse(com.maodouchat.util.RuntimeFlags.VISIBLE_WATERMARK.default)
+        assertTrue(com.maodouchat.watermark.SecretWatermarkPolicy.pageBlindWatermarkEnabled(true, true))
+        assertFalse(
+            com.maodouchat.watermark.SecretWatermarkPolicy.drawsVisibleOverlayOnSecretSurface(true)
+        )
+    }
 }

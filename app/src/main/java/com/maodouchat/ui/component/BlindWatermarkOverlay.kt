@@ -39,11 +39,11 @@ fun blindWatermarkTextColor(darkTheme: Boolean): Color =
     if (darkTheme) BlindWatermarkColorDarkSurface else BlindWatermarkColorLightSurface
 
 /**
- * Diagonal tiled blind watermark drawn above content without consuming pointer events.
- * Label should include user id + wall-clock time so leaked captures remain attributable.
+ * Legacy readable diagonal overlay. Secret-chat surfaces no longer use this
+ * (XAL-45: full-page invisible DWT+SVD via [secretPageBlindWatermark]).
+ * Kept for unit tests of [buildBlindWatermarkLabel] and any non-secret caller.
  *
  * Contrast is theme-aware: light text on dark surfaces, dark text on light.
- * Alpha is high enough to be readable in a still capture, low enough not to block reading.
  */
 @Composable
 fun Modifier.blindWatermark(

@@ -112,7 +112,8 @@ object RuntimeFlags {
     val VIDEO_CALL: Flag = Flag("video_call_enabled", true)
     val VIDEO_SEND: Flag = Flag("video_send_enabled", true)
     val VIEW_ONCE: Flag = Flag("view_once_enabled", true)
-    val VISIBLE_WATERMARK: Flag = Flag("visible_watermark_enabled", true)
+    /** 可读对角明水印。密聊表面不再绘制；默认关闭，避免与整页盲水印并存。 */
+    val VISIBLE_WATERMARK: Flag = Flag("visible_watermark_enabled", false)
     val VOICE_CALL: Flag = Flag("voice_call_enabled", true)
     val VOICE_MESSAGES: Flag = Flag("voice_messages_enabled", true)
 

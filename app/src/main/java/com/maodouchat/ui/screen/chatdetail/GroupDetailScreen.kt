@@ -106,7 +106,8 @@ import com.maodouchat.network.WebSocketClient
 import com.maodouchat.network.WebSocketEvent
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
-import com.maodouchat.ui.component.blindWatermark
+import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
+import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Outline
@@ -1351,24 +1352,20 @@ fun GroupDetailScreen(
             filteredCandidates.take(CANDIDATE_PAGE_SIZE)
         }
     }
-    val secretLabel = com.maodouchat.ui.component.rememberSecretBlindWatermarkLabel(
+    val secretPagePayload = rememberSecretPageWatermarkPayload(
+        isSecretChat = state.isSecretChat,
         userId = state.currentUserId,
         chatId = viewModel.chatId,
         deviceHint = android.provider.Settings.Secure.getString(
             context.contentResolver,
             android.provider.Settings.Secure.ANDROID_ID
-        ),
-        enabled = state.isSecretChat
+        )
     )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .then(
-                if (state.isSecretChat && secretLabel.isNotBlank()) {
-                    Modifier.blindWatermark(label = secretLabel, enabled = RuntimeFlags.isEnabled(LocalContext.current, RuntimeFlags.VISIBLE_WATERMARK))
-                } else Modifier
-            )
+            .secretPageBlindWatermark(secretPagePayload)
     ) {
     state.message?.let { body ->
         val feedback = state.feedback

@@ -54,7 +54,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.maodouchat.ui.component.blindWatermark
+import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
+import com.maodouchat.ui.component.secretPageBlindWatermark
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -499,24 +500,20 @@ fun StarredMessagesScreen(
                 preview.contains(q, ignoreCase = true)
         }
     }
-    val secretLabel = com.maodouchat.ui.component.rememberSecretBlindWatermarkLabel(
+    val secretPagePayload = rememberSecretPageWatermarkPayload(
+        isSecretChat = state.isSecretChat,
         userId = state.currentUserId,
         chatId = state.secretChatId,
         deviceHint = android.provider.Settings.Secure.getString(
             context.contentResolver,
             android.provider.Settings.Secure.ANDROID_ID
-        ),
-        enabled = state.isSecretChat
+        )
     )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .then(
-                if (state.isSecretChat && secretLabel.isNotBlank()) {
-                    Modifier.blindWatermark(label = secretLabel, enabled = RuntimeFlags.isEnabled(LocalContext.current, RuntimeFlags.VISIBLE_WATERMARK))
-                } else Modifier
-            )
+            .secretPageBlindWatermark(secretPagePayload)
     ) {
     if (state.isChatLocked && !state.isChatUnlocked) {
         ChatLockGate(

@@ -2158,7 +2158,7 @@ async function loadChats(seq) {
         row('screenshot_detect_enabled', '截屏检测', 'bool') +
         row('recents_exclusion_enabled', '从最近任务排除', 'bool') +
         row('blind_watermark_enabled', '盲水印', 'bool') +
-        row('visible_watermark_enabled', '密聊可见水印', 'bool') +
+        row('visible_watermark_enabled', '可见水印 leftover（默认关；密聊走整页盲水印，不读此开关）', 'bool') +
         row('secret_copy_block_enabled', '密聊禁止复制', 'bool') +
         row('secret_media_export_block_enabled', '密聊禁止导出媒体', 'bool') +
         row('secret_forward_block_enabled', '密聊禁止转发', 'bool') +
@@ -2186,6 +2186,7 @@ async function loadChats(seq) {
         row('chat_animations_enabled', '聊天动画', 'bool') +
         row('nav_transitions_enabled', '导航转场', 'bool')) +
       '<div style="margin-top:12px;font-size:12px;color:var(--text-muted)">环境变量 allowRegistration: ' +
+
       esc(String(data.envAllowRegistration)) + '</div></div></div>';
     if (staleTab(seq)) return;
     el('content').innerHTML = html;
