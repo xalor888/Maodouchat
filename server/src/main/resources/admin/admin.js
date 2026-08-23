@@ -2158,7 +2158,6 @@ async function loadChats(seq) {
         row('screenshot_detect_enabled', '截屏检测', 'bool') +
         row('recents_exclusion_enabled', '从最近任务排除', 'bool') +
         row('blind_watermark_enabled', '盲水印', 'bool') +
-        row('visible_watermark_enabled', '可见水印 leftover（默认关；密聊走整页盲水印，不读此开关）', 'bool') +
         row('secret_copy_block_enabled', '密聊禁止复制', 'bool') +
         row('secret_media_export_block_enabled', '密聊禁止导出媒体', 'bool') +
         row('secret_forward_block_enabled', '密聊禁止转发', 'bool') +

@@ -54,12 +54,23 @@ class SecretPageWatermarkTest {
     }
 
     @Test
-    fun `visible watermark flag defaults off so secret path does not draw readable overlay`() {
-        assertFalse(RuntimeFlags.VISIBLE_WATERMARK.default)
-        assertEquals("visible_watermark_enabled", RuntimeFlags.VISIBLE_WATERMARK.key)
+    fun `runtime flags have no readable overlay switch and secret path uses page carrier`() {
+        val keys = RuntimeFlags::class.java.declaredFields
+            .mapNotNull { field ->
+                field.isAccessible = true
+                (field.get(RuntimeFlags) as? RuntimeFlags.Flag)?.key
+            }
+        assertTrue(keys.none { it.startsWith("visible_") && it.contains("watermark") })
         assertTrue(RuntimeFlags.BLIND_WATERMARK.default)
-        assertFalse(SecretWatermarkPolicy.drawsVisibleOverlayOnSecretSurface(visibleFlagEnabled = true))
-        assertFalse(SecretWatermarkPolicy.drawsVisibleOverlayOnSecretSurface(visibleFlagEnabled = false))
+        assertEquals("blind_watermark_enabled", RuntimeFlags.BLIND_WATERMARK.key)
+        assertEquals(
+            listOf("pageBlindWatermarkEnabled"),
+            SecretWatermarkPolicy::class.java.declaredMethods
+                .filter { it.declaringClass == SecretWatermarkPolicy::class.java }
+                .map { it.name }
+                .distinct()
+                .sorted(),
+        )
     }
 
     @Test

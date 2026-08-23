@@ -74,13 +74,9 @@ object SecretPageWatermark {
 }
 
 /**
- * 密聊水印产品策略：表面不绘制可读明水印；整页盲水印随密聊 + [RuntimeFlags.BLIND_WATERMARK] 生效。
+ * 密聊水印产品策略：无明水印路径；整页盲水印随密聊 + [RuntimeFlags.BLIND_WATERMARK] 生效。
  */
 object SecretWatermarkPolicy {
-    /** 密聊表面永不绘制对角可读字；visible 开关不再驱动密聊路径。 */
-    @Suppress("UNUSED_PARAMETER")
-    fun drawsVisibleOverlayOnSecretSurface(visibleFlagEnabled: Boolean): Boolean = false
-
     fun pageBlindWatermarkEnabled(isSecretChat: Boolean, blindWatermarkFlag: Boolean): Boolean =
         isSecretChat && blindWatermarkFlag
 }

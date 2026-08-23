@@ -681,7 +681,6 @@ put("secretCopyBlockEnabled", RuntimeConfigService.isSecretCopyBlockEnabled())
 put("secretMediaExportBlockEnabled", RuntimeConfigService.isSecretMediaExportBlockEnabled())
 put("secretForwardBlockEnabled", RuntimeConfigService.isSecretForwardBlockEnabled())
 put("secretChatExportBlockEnabled", RuntimeConfigService.isSecretChatExportBlockEnabled())
-put("visibleWatermarkEnabled", RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("secretLinkPreviewBlockEnabled", RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
 put("secretExternalLinkBlockEnabled", RuntimeConfigService.isSecretExternalLinkBlockEnabled())
@@ -3406,7 +3405,6 @@ put("maxConnections", 40)
                         put("secretMediaExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretMediaExportBlockEnabled())
                         put("secretForwardBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretForwardBlockEnabled())
                         put("secretChatExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretChatExportBlockEnabled())
-                        put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
                         put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
                         put("secretLinkPreviewBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
                         put("secretExternalLinkBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretExternalLinkBlockEnabled())
@@ -7922,7 +7920,6 @@ put("secretCopyBlockEnabled", com.maodouchat.server.service.RuntimeConfigService
 put("secretMediaExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretMediaExportBlockEnabled())
 put("secretForwardBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretForwardBlockEnabled())
 put("secretChatExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretChatExportBlockEnabled())
-put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("secretLinkPreviewBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
 put("secretExternalLinkBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretExternalLinkBlockEnabled())
@@ -8172,7 +8169,6 @@ put("secretCopyBlockEnabled", com.maodouchat.server.service.RuntimeConfigService
 put("secretMediaExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretMediaExportBlockEnabled())
 put("secretForwardBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretForwardBlockEnabled())
 put("secretChatExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretChatExportBlockEnabled())
-put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("secretLinkPreviewBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
 put("secretExternalLinkBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretExternalLinkBlockEnabled())
@@ -8373,7 +8369,6 @@ put("secretCopyBlockEnabled", com.maodouchat.server.service.RuntimeConfigService
 put("secretMediaExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretMediaExportBlockEnabled())
 put("secretForwardBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretForwardBlockEnabled())
 put("secretChatExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretChatExportBlockEnabled())
-put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("secretLinkPreviewBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
 put("secretExternalLinkBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretExternalLinkBlockEnabled())
@@ -8578,7 +8573,6 @@ put("secretCopyBlockEnabled", com.maodouchat.server.service.RuntimeConfigService
 put("secretMediaExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretMediaExportBlockEnabled())
 put("secretForwardBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretForwardBlockEnabled())
 put("secretChatExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretChatExportBlockEnabled())
-put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("secretLinkPreviewBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
 put("secretExternalLinkBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretExternalLinkBlockEnabled())
@@ -8778,7 +8772,6 @@ put("secretCopyBlockEnabled", com.maodouchat.server.service.RuntimeConfigService
 put("secretMediaExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretMediaExportBlockEnabled())
 put("secretForwardBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretForwardBlockEnabled())
 put("secretChatExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretChatExportBlockEnabled())
-put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("secretLinkPreviewBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
 put("secretExternalLinkBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretExternalLinkBlockEnabled())
@@ -8978,7 +8971,6 @@ put("secretCopyBlockEnabled", com.maodouchat.server.service.RuntimeConfigService
 put("secretMediaExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretMediaExportBlockEnabled())
 put("secretForwardBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretForwardBlockEnabled())
 put("secretChatExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretChatExportBlockEnabled())
-put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("secretLinkPreviewBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
 put("secretExternalLinkBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretExternalLinkBlockEnabled())
@@ -9180,7 +9172,6 @@ put("secretCopyBlockEnabled", com.maodouchat.server.service.RuntimeConfigService
 put("secretMediaExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretMediaExportBlockEnabled())
 put("secretForwardBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretForwardBlockEnabled())
 put("secretChatExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretChatExportBlockEnabled())
-put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("secretLinkPreviewBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
 put("secretExternalLinkBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretExternalLinkBlockEnabled())
@@ -9357,7 +9348,6 @@ put("secretCopyBlockEnabled", com.maodouchat.server.service.RuntimeConfigService
 put("secretMediaExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretMediaExportBlockEnabled())
 put("secretForwardBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretForwardBlockEnabled())
 put("secretChatExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretChatExportBlockEnabled())
-put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("secretLinkPreviewBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
 put("secretExternalLinkBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretExternalLinkBlockEnabled())
@@ -9552,7 +9542,6 @@ put("secretCopyBlockEnabled", com.maodouchat.server.service.RuntimeConfigService
 put("secretMediaExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretMediaExportBlockEnabled())
 put("secretForwardBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretForwardBlockEnabled())
 put("secretChatExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretChatExportBlockEnabled())
-put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("secretLinkPreviewBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
 put("secretExternalLinkBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretExternalLinkBlockEnabled())
@@ -9745,7 +9734,6 @@ put("secretCopyBlockEnabled", com.maodouchat.server.service.RuntimeConfigService
 put("secretMediaExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretMediaExportBlockEnabled())
 put("secretForwardBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretForwardBlockEnabled())
 put("secretChatExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretChatExportBlockEnabled())
-put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("secretLinkPreviewBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
 put("secretExternalLinkBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretExternalLinkBlockEnabled())
@@ -9937,7 +9925,6 @@ put("secretCopyBlockEnabled", com.maodouchat.server.service.RuntimeConfigService
 put("secretMediaExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretMediaExportBlockEnabled())
 put("secretForwardBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretForwardBlockEnabled())
 put("secretChatExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretChatExportBlockEnabled())
-put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("secretLinkPreviewBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
 put("secretExternalLinkBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretExternalLinkBlockEnabled())
@@ -10123,7 +10110,6 @@ put("secretCopyBlockEnabled", com.maodouchat.server.service.RuntimeConfigService
 put("secretMediaExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretMediaExportBlockEnabled())
 put("secretForwardBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretForwardBlockEnabled())
 put("secretChatExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretChatExportBlockEnabled())
-put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("secretLinkPreviewBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
 put("secretExternalLinkBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretExternalLinkBlockEnabled())
@@ -12670,46 +12656,6 @@ put("ping", "seal")
             )
             }
 
-            post("/api/bot/sendVisibleWatermarkHint") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                if (!com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled()) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("visible_watermark_disabled"))
-                }
-                val body = call.receiveBoundedTextOrEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Visible watermarks stamp user id + time on secret surfaces").take(120)
-                if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-                if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-                val content = "MARK:VISIBLE " + hint
-                val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
-                val now = System.currentTimeMillis()
-                val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVisibleWatermarkHint")
-                val botMessage = com.maodouchat.server.model.MessageResponse(
-                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
-                    type = "SYSTEM", timestamp = now, status = "SENT"
-                )
-                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("messageId", msgId)
-put("type", "SYSTEM")
-                }
-            )
-            }
 
             post("/api/bot/sendSecretAutoDisappearHint") {
                 val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
@@ -12767,7 +12713,6 @@ put("type", "SYSTEM")
                 buildJsonObject {
 put("ok", true)
 put("botId", bot.id)
-put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
 put("surface", 63)
@@ -13537,7 +13482,7 @@ put("ok", true)
 put("botId", bot.id)
 put("capabilities", Json.parseToJsonElement(Json.encodeToString(listOf(
                             "sendMessage", "sendMarkdown", "sendCode", "sendQuote", "sendChecklist", "sendTable",
-                            "sendBadge", "sendProgress", "sendCountdown", "sendAlert", "sendRemind", "sendDivider", "sendToast", "sendKeyValue", "sendNotice", "sendQuoteCard", "sendBanner", "sendJsonCard", "sendTimeline", "sendMetric", "sendSteps", "sendCompare", "sendMentionCard", "sendInviteHint", "sendNudgeCard", "sendSafetyHint", "sendQrHint", "sendContactCard", "sendSpoilerHint", "sendDownloadHint", "sendLocationHint", "sendFileHint", "sendSecretHint", "sendSecureHint", "sendPhotoHint", "sendVideoHint", "sendAiHint", "sendSummaryHint", "sendSuggestHint", "sendTranscribeHint", "sendAnalyzeHint", "sendGroupAssistHint", "sendFileAnalyzeHint", "sendSemanticHint", "sendGifHint", "sendWatermarkHint", "sendVoiceCallHint", "sendVideoCallHint", "sendWallpaperHint", "sendFontScaleHint", "sendUnreadHint", "sendRingtoneHint", "sendSoundHint", "sendPreviewHint", "sendPushHint", "sendTaskReminderHint", "sendDndHint", "sendOfflineAiHint", "sendSoundscapeHint", "sendHapticsHint", "sendMotionHint", "sendNavHint", "sendCaptureDetectHint", "sendRecentsHint", "sendSecretCopyHint", "sendSecretExportHint", "sendSecretForwardHint", "sendSecretChatExportHint", "sendSealedSenderHint", "sendPqxdhHint", "sendVisibleWatermarkHint", "sendSecretAutoDisappearHint", "sendSecretLinkPreviewHint", "sendSecretExternalLinkHint", "sendSecretNotifPreviewHint", "sendSecretListPreviewHint",
+                            "sendBadge", "sendProgress", "sendCountdown", "sendAlert", "sendRemind", "sendDivider", "sendToast", "sendKeyValue", "sendNotice", "sendQuoteCard", "sendBanner", "sendJsonCard", "sendTimeline", "sendMetric", "sendSteps", "sendCompare", "sendMentionCard", "sendInviteHint", "sendNudgeCard", "sendSafetyHint", "sendQrHint", "sendContactCard", "sendSpoilerHint", "sendDownloadHint", "sendLocationHint", "sendFileHint", "sendSecretHint", "sendSecureHint", "sendPhotoHint", "sendVideoHint", "sendAiHint", "sendSummaryHint", "sendSuggestHint", "sendTranscribeHint", "sendAnalyzeHint", "sendGroupAssistHint", "sendFileAnalyzeHint", "sendSemanticHint", "sendGifHint", "sendWatermarkHint", "sendVoiceCallHint", "sendVideoCallHint", "sendWallpaperHint", "sendFontScaleHint", "sendUnreadHint", "sendRingtoneHint", "sendSoundHint", "sendPreviewHint", "sendPushHint", "sendTaskReminderHint", "sendDndHint", "sendOfflineAiHint", "sendSoundscapeHint", "sendHapticsHint", "sendMotionHint", "sendNavHint", "sendCaptureDetectHint", "sendRecentsHint", "sendSecretCopyHint", "sendSecretExportHint", "sendSecretForwardHint", "sendSecretChatExportHint", "sendSealedSenderHint", "sendPqxdhHint", "sendSecretAutoDisappearHint", "sendSecretLinkPreviewHint", "sendSecretExternalLinkHint", "sendSecretNotifPreviewHint", "sendSecretListPreviewHint",
                             "sendPhoto", "sendDocument", "sendPoll", "sendDice", "setMessageReaction",
                             "pinChatMessage", "getUpdates", "webhook", "getRuntimeFlags", "whoami", "getServerTime", "getFeatureMatrix", "echo", "getMuteArchiveFlags", "getVersion", "getPrivacyFlags", "healthz", "getMessagePolicyFlags", "uptime", "getEngagementFlags", "ping", "getComposerFlags", "echoTime", "getSocialFlags", "versionz", "getTrustFlags", "readyz", "getIdentityFlags", "alivez", "getMediaFlags", "statusz", "getLocationFlags", "getPrivacySecureFlags", "heartbeatz", "getMediaSendFlags", "getAiFeatureFlags", "pulsez", "getAiAssistFlags", "tickz", "getAiVisionFlags", "tockz", "getAiSearchFlags", "clangz", "getMediaPrivacyFlags", "dingz", "getCallMediaFlags", "buzzz", "getAppearanceFlags", "chimez", "getNotifyFlags", "ringz", "getAlertMediaFlags", "beepz", "getPushFlags", "pushz", "getQuietFlags", "quietz", "getFeelFlags", "fealz", "getMotionFlags", "slidez", "getCaptureShieldFlags", "shieldz", "getSecretLeakFlags", "leakz", "getSecretVaultFlags", "vaultz", "getSealedCryptoFlags", "sealz", "getMarkPrivacyFlags", "markz", "getLinkPrivacyFlags", "linkz", "getNotifyPrivacyFlags", "privz", "sendSecretReactionHint", "sendSecretStarHint", "getSecretMetaFlags", "metaz", "sendSecretTypingHint", "sendSecretReadReceiptHint", "getSecretTypingFlags", "getSecretReadReceiptFlags", "typtz", "redz", "sendSecretPresenceHint", "sendSecretLastSeenHint", "getSecretPresenceFlags", "getSecretLastSeenFlags", "presz", "lastsz",
                             "burnz", "ttlz", "fwlz", "simz", "2faz", "ndz", "dvz", "sntz", "getSecretSurfaceFlags",
@@ -13612,7 +13557,6 @@ put("secretCopyBlockEnabled", com.maodouchat.server.service.RuntimeConfigService
 put("secretMediaExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretMediaExportBlockEnabled())
 put("secretForwardBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretForwardBlockEnabled())
 put("secretChatExportBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretChatExportBlockEnabled())
-put("visibleWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isVisibleWatermarkEnabled())
 put("secretAutoDisappearEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretAutoDisappearEnabled())
 put("secretLinkPreviewBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretLinkPreviewBlockEnabled())
 put("secretExternalLinkBlockEnabled", com.maodouchat.server.service.RuntimeConfigService.isSecretExternalLinkBlockEnabled())

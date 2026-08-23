@@ -1013,7 +1013,7 @@
     <string name="about_security">安全</string>
     <string name="about_security_value">Signal Protocol + SQLCipher</string>
     <string name="about_limits_title">产品边界（摘要）</string>
-    <string name="about_limits_body">群通话为 mesh（非 SFU）；推送仅 FCM；密聊为本机 FLAG_SECURE（系统截屏/录屏多为黑帧）+ 可见水印 + 图片频域盲水印；被挡住的系统截屏不会触发检测器，检测器只覆盖绕过路径；外置相机无法阻止；安全码为自研格式；无 last-seen / 厂商推送 / 支付。</string>
+    <string name="about_limits_body">群通话为 mesh（非 SFU）；推送仅 FCM；密聊为本机 FLAG_SECURE（系统截屏/录屏多为黑帧）+ 整页盲水印 + 图片频域盲水印；被挡住的系统截屏不会触发检测器，检测器只覆盖绕过路径；外置相机无法阻止；安全码为自研格式；无 last-seen / 厂商推送 / 支付。</string>
         <string name="about_tagline">简单、安全、快速的聊天体验</string>
 <string name="about_copyright">© 2026 毛豆聊天</string>
     <string name="chat_group_announcement_updated">群公告已更新</string>
@@ -1348,10 +1348,10 @@
     <string name="secret_chat_copy_blocked">密聊消息不可复制到剪贴板</string>
     <string name="secret_chat_media_export_blocked">密聊媒体不可保存或分享</string>
     <string name="secret_chat_confirm_enable_title">开启密聊？</string>
-    <string name="secret_chat_confirm_enable_body">开启后本机强制 FLAG_SECURE（系统截屏/录屏通常为黑帧、不进相册），并显示可见水印；图片另嵌频域盲水印。检测提示只针对 OEM/adb/外置相机等绕过，被挡住的系统截屏不会弹窗。通知预览脱敏；不可导出/转发/复制/保存媒体。仅本机生效，对方不会同步该模式。</string>
+    <string name="secret_chat_confirm_enable_body">开启后本机强制 FLAG_SECURE（系统截屏/录屏通常为黑帧、不进相册），并叠加整页盲水印；图片另嵌频域盲水印。检测提示只针对 OEM/adb/外置相机等绕过，被挡住的系统截屏不会弹窗。通知预览脱敏；不可导出/转发/复制/保存媒体。仅本机生效，对方不会同步该模式。</string>
     <string name="secret_chat_confirm_disable_title">关闭密聊？</string>
     <string name="secret_chat_confirm_disable_body">关闭后恢复普通会话显示；全局防截屏开关仍按其自身设置生效。</string>
-    <string name="secret_chat_banner">密聊中 · 系统截屏为黑帧 · 可见水印已启用</string>
+    <string name="secret_chat_banner">密聊中 · 系统截屏为黑帧 · 整页盲水印已启用</string>
     <string name="secret_chat_banner_limit">系统截屏被挡住时不会告警；检测器只覆盖绕过。外置相机无法阻止；AOSP 录屏多为黑帧，不保证全部 OEM 取证应用</string>
     <string name="secret_chat_screenshot_detected">检测到绕过系统防护的截屏/录屏尝试（密聊）</string>
     <string name="starred_load_failed">星标消息加载失败</string>

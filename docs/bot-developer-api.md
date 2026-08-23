@@ -74,7 +74,7 @@ Bot 可通过一系列 `get*Flags` 读取服务端运行时开关，用于自适
 | 60 | `getSecretLeakFlags` | `leakz` | `secret_copy_block_enabled`, `secret_media_export_block_enabled` | `sendSecretCopyHint`, `sendSecretMediaExportHint` 等 |
 | 61 | `getSecretVaultFlags` | `vaultz` | `secret_forward_block_enabled`, `secret_chat_export_block_enabled` | 转发/导出 hint |
 | 62 | `getSealedCryptoFlags` | `sealz` | `sealed_sender_enabled`, `pqxdh_preview` | sealed/pq hint |
-| 63 | `getMarkPrivacyFlags` | `markz` | `visible_watermark_enabled`, `secret_auto_disappear_enabled` | 水印/自动消失 hint |
+| 63 | `getMarkPrivacyFlags` | `markz` | `secret_auto_disappear_enabled`, `blind_watermark_enabled` | 自动消失 / 整页盲水印 hint |
 | 64 | `getLinkPrivacyFlags` | `linkz` | `secret_link_preview_block_enabled`, `secret_external_link_block_enabled` | 链接 hint |
 | 65 | `getNotifyPrivacyFlags` | `privz` | `secret_notif_preview_block_enabled`, `secret_list_preview_block_enabled` | 通知/列表 hint |
 | 66 | `getSecretMetaFlags` | `metaz` | `secret_reaction_block_enabled`, `secret_star_block_enabled` | `sendSecretReactionHint`, `sendSecretStarHint` |

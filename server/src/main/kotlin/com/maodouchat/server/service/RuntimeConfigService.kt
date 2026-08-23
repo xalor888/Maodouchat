@@ -127,7 +127,6 @@ object RuntimeConfigService {
     const val KEY_SECRET_MEDIA_EXPORT_BLOCK_ENABLED = "secret_media_export_block_enabled"
     const val KEY_SECRET_FORWARD_BLOCK_ENABLED = "secret_forward_block_enabled"
     const val KEY_SECRET_CHAT_EXPORT_BLOCK_ENABLED = "secret_chat_export_block_enabled"
-    const val KEY_VISIBLE_WATERMARK_ENABLED = "visible_watermark_enabled"
     const val KEY_SECRET_AUTO_DISAPPEAR_ENABLED = "secret_auto_disappear_enabled"
     const val KEY_SECRET_LINK_PREVIEW_BLOCK_ENABLED = "secret_link_preview_block_enabled"
     const val KEY_SECRET_EXTERNAL_LINK_BLOCK_ENABLED = "secret_external_link_block_enabled"
@@ -257,7 +256,6 @@ object RuntimeConfigService {
         KEY_SECRET_MEDIA_EXPORT_BLOCK_ENABLED,
         KEY_SECRET_FORWARD_BLOCK_ENABLED,
         KEY_SECRET_CHAT_EXPORT_BLOCK_ENABLED,
-        KEY_VISIBLE_WATERMARK_ENABLED,
         KEY_SECRET_AUTO_DISAPPEAR_ENABLED,
         KEY_SECRET_LINK_PREVIEW_BLOCK_ENABLED,
         KEY_SECRET_EXTERNAL_LINK_BLOCK_ENABLED,
@@ -387,7 +385,6 @@ object RuntimeConfigService {
         KEY_SECRET_MEDIA_EXPORT_BLOCK_ENABLED to "true",
         KEY_SECRET_FORWARD_BLOCK_ENABLED to "true",
         KEY_SECRET_CHAT_EXPORT_BLOCK_ENABLED to "true",
-        KEY_VISIBLE_WATERMARK_ENABLED to "false",
         KEY_SECRET_AUTO_DISAPPEAR_ENABLED to "true",
         KEY_SECRET_LINK_PREVIEW_BLOCK_ENABLED to "true",
         KEY_SECRET_EXTERNAL_LINK_BLOCK_ENABLED to "false",
@@ -743,9 +740,6 @@ object RuntimeConfigService {
 
     fun isSecretChatExportBlockEnabled(): Boolean =
         getBoolean(KEY_SECRET_CHAT_EXPORT_BLOCK_ENABLED, true)
-
-    fun isVisibleWatermarkEnabled(): Boolean =
-        getBoolean(KEY_VISIBLE_WATERMARK_ENABLED, false)
 
     fun isSecretAutoDisappearEnabled(): Boolean =
         getBoolean(KEY_SECRET_AUTO_DISAPPEAR_ENABLED, true)
