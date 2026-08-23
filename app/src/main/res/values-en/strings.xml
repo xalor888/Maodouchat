@@ -1031,7 +1031,7 @@
     <string name="about_security">Security</string>
     <string name="about_security_value">Signal Protocol + SQLCipher</string>
     <string name="about_limits_title">Product bounds (summary)</string>
-    <string name="about_limits_body">Group calls are mesh (not SFU); push is FCM-only; secret chat is local FLAG_SECURE (system captures are usually black frames) plus a full-page blind watermark and a frequency-domain image watermark. Blocked system screenshots do not fire the detector — it only covers bypass paths. External cameras cannot be stopped. Safety codes use a custom layout; no last-seen, vendor push, or payments.</string>
+    <string name="about_limits_body">Group calls are mesh (not SFU); push is WebSocket keep-alive (no FCM or vendor channels); secret chat is local FLAG_SECURE (system captures are usually black frames) plus a full-page blind watermark and a frequency-domain image watermark. Blocked system screenshots do not fire the detector — it only covers bypass paths. External cameras cannot be stopped. Safety codes use a custom layout; no last-seen, vendor push, or payments.</string>
         <string name="about_tagline">Simple, secure and fast messaging</string>
 <string name="about_copyright">© 2026 Maodouchat</string>
     <string name="chat_group_announcement_updated">Group announcement updated</string>
@@ -1467,7 +1467,7 @@
     </plurals>
     <string name="security_fingerprint_unavailable">—</string>
     <string name="security_scope_title">Encryption and privacy scope</string>
-    <string name="security_scope_body">• 1:1 / group bodies and encrypted attachments: E2EE; the server stores ciphertext and routing metadata only\n• Safety codes: Maodouchat\u2019s own 5-digit groups for out-of-band checks; changes surface as in-chat warnings\n• Secret chat: local FLAG_SECURE + blind watermark + redacted notify/export; device-local only, not a two-party protocol; cannot stop external cameras\n• Local DB: SQLCipher; sign-out purges this device session per policy\n• Push: FCM only; message previews are mostly encrypted placeholders; no vendor push channels\n• AI: never reads ciphertext by default; user-triggered and can be disabled; admin audit has no prompts/bodies\n• Backups: if server backup is enabled, scope follows the backup notice — not plaintext access</string>
+    <string name="security_scope_body">• 1:1 / group bodies and encrypted attachments: E2EE; the server stores ciphertext and routing metadata only\n• Safety codes: Maodouchat\u2019s own 5-digit groups for out-of-band checks; changes surface as in-chat warnings\n• Secret chat: local FLAG_SECURE + blind watermark + redacted notify/export; device-local only, not a two-party protocol; cannot stop external cameras\n• Local DB: SQLCipher; sign-out purges this device session per policy\n• Push: WebSocket keep-alive (no FCM or vendor channels)\n• AI: never reads ciphertext by default; user-triggered and can be disabled; admin audit has no prompts/bodies\n• Backups: if server backup is enabled, scope follows the backup notice — not plaintext access</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_privacy">Privacy</string>
     <string name="settings_ai_privacy">AI assistant and privacy</string>
@@ -1850,7 +1850,7 @@
     <string name="notifications_vibration_title">Vibration</string>
     <string name="notifications_vibration_subtitle">Vibrate for new messages</string>
     <string name="notifications_preview_title">Notification previews</string>
-    <string name="notifications_preview_subtitle">When on, banners may show local summaries; remote FCM is mostly encrypted placeholders, and secret/locked chats always redact</string>
+    <string name="notifications_preview_subtitle">When on, banners may show local summaries; secret/locked chats always redact</string>
     <string name="notifications_ringtone_title">Call ringtone</string>
     <string name="notifications_test_title">Send test notification</string>
     <string name="notifications_test_subtitle">Verify current ringtone and vibration settings</string>
@@ -2188,11 +2188,11 @@
     <string name="call_network_poor">Network poor</string>
     <string name="call_network_measuring">Measuring network…</string>
     <string name="call_ice_stun_only">STUN only (no TURN) — may fail on strict NAT</string>
-    <string name="notifications_push_channel_title">Remote push channel</string>
-    <string name="notifications_push_ready">FCM ready (message previews are usually encrypted placeholders)</string>
-    <string name="notifications_push_configured_not_ready">Firebase configured, but not initialized in this process</string>
-    <string name="notifications_push_missing">Firebase not configured (local notifications only; no vendor channels)</string>
-    <string name="notifications_push_vendor_note">FCM only — vendor push channels are not integrated</string>
+    <string name="notifications_push_channel_title">Message channel</string>
+    <string name="notifications_push_ready">WebSocket connected; keep-alive is running</string>
+    <string name="notifications_push_configured_not_ready">Keep-alive enabled; waiting for the socket</string>
+    <string name="notifications_push_missing">Socket not ready (stay signed in and allow background running)</string>
+    <string name="notifications_push_vendor_note">No FCM or vendor push; background delivery uses a foreground keep-alive WebSocket</string>
     <string name="call_active_title">Call in progress</string>
     <string name="call_active_video_subtitle">On a video call with %1$s</string>
     <string name="call_active_audio_subtitle">On an audio call with %1$s</string>

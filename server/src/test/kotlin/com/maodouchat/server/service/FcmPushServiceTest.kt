@@ -3,7 +3,6 @@ package com.maodouchat.server.service
 import com.maodouchat.server.model.NotificationSettingsResponse
 import com.maodouchat.server.repository.NotificationPreferenceRepository
 import com.maodouchat.server.repository.PushTokenRepository
-import java.io.File
 import java.security.MessageDigest
 import java.time.Instant
 import java.time.ZoneOffset
@@ -206,21 +205,21 @@ class FcmPushServiceTest {
     }
 
     @Test
-    fun `enqueue is a no-op when FCM is not configured`() {
+    fun `FCM transport is disabled and isConfigured is always false`() {
         val queued = mutableListOf<FcmPushService.Delivery>()
         val service = FcmPushService(
             pushTokenRepository = PushTokenRepository(),
             preferenceRepository = NotificationPreferenceRepository(),
-            projectId = "",
-            serviceAccountFile = "",
+            projectId = "ignored",
+            serviceAccountFile = "/tmp/does-not-matter.json",
             startWorkers = false
         )
         service.onQueued = { queued += it }
         try {
-            service.enqueueEncryptedMessage(listOf("u2"), "c1", "m1", "u1", "TEXT")
-            service.enqueueIncomingCall("u2", "u1", false)
-            assertTrue(queued.isEmpty())
             assertFalse(service.isConfigured)
+            service.enqueueEncryptedMessage(listOf("u2"), "c1", "m1", "u1", "TEXT")
+            assertEquals(1, queued.size)
+            assertEquals("NEW_MESSAGE", queued.single().data["type"])
         } finally {
             service.shutdown()
         }
@@ -233,22 +232,18 @@ class FcmPushServiceTest {
     }
 
     private fun withConfiguredService(block: (FcmPushService, MutableList<FcmPushService.Delivery>) -> Unit) {
-        val sa = File.createTempFile("fcm-sa", ".json")
         val queued = mutableListOf<FcmPushService.Delivery>()
         val service = FcmPushService(
             pushTokenRepository = PushTokenRepository(),
             preferenceRepository = NotificationPreferenceRepository(),
-            projectId = "test-project",
-            serviceAccountFile = sa.absolutePath,
             startWorkers = false
         )
         service.onQueued = { queued += it }
         try {
-            assertTrue(service.isConfigured)
+            assertFalse(service.isConfigured)
             block(service, queued)
         } finally {
             service.shutdown()
-            sa.delete()
         }
     }
 }

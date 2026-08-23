@@ -952,8 +952,8 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
         dndEnabled = NotificationPreferences.dndEnabled(application),
         dndStartMinute = NotificationPreferences.dndStartMinute(application),
         dndEndMinute = NotificationPreferences.dndEndMinute(application),
-        pushConfigured = com.maodouchat.push.PushRegistrationManager.hasFirebaseConfiguration(),
-        pushReady = com.maodouchat.push.PushRegistrationManager.isConfigured()
+        pushConfigured = !tokenManager.getToken().isNullOrBlank(),
+        pushReady = com.maodouchat.network.WebSocketClient.isConnected()
     ))
     val uiState: StateFlow<NotificationSettingsUiState> = _uiState.asStateFlow()
 
@@ -994,8 +994,8 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
     fun refreshPushStatus() {
         _uiState.update {
             it.copy(
-                pushConfigured = com.maodouchat.push.PushRegistrationManager.hasFirebaseConfiguration(),
-                pushReady = com.maodouchat.push.PushRegistrationManager.isConfigured()
+                pushConfigured = !tokenManager.getToken().isNullOrBlank(),
+                pushReady = com.maodouchat.network.WebSocketClient.isConnected()
             )
         }
     }
@@ -1039,8 +1039,8 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
                                     dndEnabled = remote.dndEnabled,
                                     dndStartMinute = remote.dndStartMinute.coerceIn(0, 1439),
                                     dndEndMinute = remote.dndEndMinute.coerceIn(0, 1439),
-                                    pushConfigured = com.maodouchat.push.PushRegistrationManager.hasFirebaseConfiguration(),
-                                    pushReady = com.maodouchat.push.PushRegistrationManager.isConfigured(),
+                                    pushConfigured = !tokenManager.getToken().isNullOrBlank(),
+                                    pushReady = com.maodouchat.network.WebSocketClient.isConnected(),
                                     infoMessage = text(R.string.notifications_synced)
                                 )
                             }

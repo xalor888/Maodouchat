@@ -230,9 +230,9 @@ offline_checks() {
              RELAXED_VERIFICATION BOOTSTRAP_FIRST_USER_AS_ADMIN SMTP_HOST TURN_URLS TURN_SHARED_SECRET; do
     grep -q "^$key=" .env.docker.example || fail ".env.docker.example missing $key"
   done
-  # 1.327：管理/治理/AI/FCM 键也应在示例 env 中声明（配置漂移防护）
+  # 1.327：管理/治理/AI 键也应在示例 env 中声明（配置漂移防护）
   for key in MODERATOR_EMAILS MASTER_ADMINS ALLOW_REGISTRATION DEVELOPER_USER_IDS \
-             EMAIL_DOMAIN_BLOCKLIST OPENAI_API_KEY OPENAI_MODEL FCM_PROJECT_ID; do
+             EMAIL_DOMAIN_BLOCKLIST OPENAI_API_KEY OPENAI_MODEL; do
     grep -q "^$key=" .env.docker.example || fail ".env.docker.example missing $key"
   done
   ok ".env.docker.example has required production keys"

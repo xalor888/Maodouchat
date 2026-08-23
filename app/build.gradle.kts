@@ -24,11 +24,6 @@ val releaseBuildRequested = gradle.startParameter.taskNames.any { taskName ->
 val releaseVersionName: String = readGradleProperty("MAODOU_VERSION_NAME") ?: "1.0"
 val releaseVersionCode: Int = readGradleProperty("MAODOU_VERSION_CODE")?.toIntOrNull() ?: 1
 
-val firebaseProjectId = readGradleProperty("MAODOU_FIREBASE_PROJECT_ID").orEmpty()
-val firebaseApplicationId = readGradleProperty("MAODOU_FIREBASE_APPLICATION_ID").orEmpty()
-val firebaseApiKey = readGradleProperty("MAODOU_FIREBASE_API_KEY").orEmpty()
-val firebaseSenderId = readGradleProperty("MAODOU_FIREBASE_SENDER_ID").orEmpty()
-
 // B1 体积护栏基线（字节）：默认 14MB，:app:verifyReleaseSize 超限即失败（可 -PMAODOU_SIZE_BASELINE_BYTES 覆盖）
 // 2026-08 实测 release APK ≈ 12.0MB（Compose + Signal + WebRTC + AI），10MB 基线过紧。
 val slimBaselineBytes: Long =
@@ -62,10 +57,6 @@ android {
 
         buildConfigField("String", "API_BASE_URL", "http://10.0.2.2:8080".asBuildConfigString())
         buildConfigField("String", "WS_URL", "ws://10.0.2.2:8080/ws".asBuildConfigString())
-        buildConfigField("String", "FIREBASE_PROJECT_ID", firebaseProjectId.asBuildConfigString())
-        buildConfigField("String", "FIREBASE_APPLICATION_ID", firebaseApplicationId.asBuildConfigString())
-        buildConfigField("String", "FIREBASE_API_KEY", firebaseApiKey.asBuildConfigString())
-        buildConfigField("String", "FIREBASE_SENDER_ID", firebaseSenderId.asBuildConfigString())
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -305,12 +296,6 @@ dependencies {
 
     // Background retry jobs
     implementation("androidx.work:work-runtime-ktx:2.9.1")
-
-    // Optional data-only FCM. Firebase is initialized manually when Gradle properties are present.
-    // B1 审计（2026-08-01）：不可改 compileOnly——AndroidManifest 无条件注册了
-    // MaodouFirebaseMessagingService（extends FirebaseMessagingService，action com.google.firebase.MESSAGING_EVENT），
-    // 缺库会导致 GMS 绑定服务时 NoClassDefFoundError。R8 已裁剪未用 Firebase 路径。
-    implementation("com.google.firebase:firebase-messaging:24.1.2")
 
     // Encrypted SharedPreferences
     implementation("androidx.security:security-crypto:1.1.0-alpha06")

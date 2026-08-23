@@ -3,9 +3,8 @@ package com.maodouchat.util
 import android.content.Context
 
 /**
- * 本地保存服务端下发的推送 HMAC 校验密钥（来自 /api/public/status 的 pushHmacKey）。
- * FCM 推送到达时，[com.maodouchat.push.MaodouFirebaseMessagingService] 用它对负载签名做
- * 本地校验，拒绝伪造推送。密钥缺失时 fail-open（不校验），保证未拉取到密钥的安装仍可正常收推送。
+ * 本地保存服务端下发的历史推送 HMAC 密钥（/api/push/verify-key）。
+ * FCM 已移除；密钥仅兼容旧会话缓存，不再用于离线投递。
  */
 object PushVerifyPrefs {
     private const val PREFS = "maodou_push_verify"

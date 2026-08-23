@@ -1013,7 +1013,7 @@
     <string name="about_security">安全</string>
     <string name="about_security_value">Signal Protocol + SQLCipher</string>
     <string name="about_limits_title">产品边界（摘要）</string>
-    <string name="about_limits_body">群通话为 mesh（非 SFU）；推送仅 FCM；密聊为本机 FLAG_SECURE（系统截屏/录屏多为黑帧）+ 整页盲水印 + 图片频域盲水印；被挡住的系统截屏不会触发检测器，检测器只覆盖绕过路径；外置相机无法阻止；安全码为自研格式；无 last-seen / 厂商推送 / 支付。</string>
+    <string name="about_limits_body">群通话为 mesh（非 SFU）；推送为 WebSocket 保活（无 FCM / 厂商通道）；密聊为本机 FLAG_SECURE（系统截屏/录屏多为黑帧）+ 整页盲水印 + 图片频域盲水印；被挡住的系统截屏不会触发检测器，检测器只覆盖绕过路径；外置相机无法阻止；安全码为自研格式；无 last-seen / 厂商推送 / 支付。</string>
         <string name="about_tagline">简单、安全、快速的聊天体验</string>
 <string name="about_copyright">© 2026 毛豆聊天</string>
     <string name="chat_group_announcement_updated">群公告已更新</string>
@@ -1447,7 +1447,7 @@
     </plurals>
     <string name="security_fingerprint_unavailable">—</string>
     <string name="security_scope_title">加密与隐私范围</string>
-    <string name="security_scope_body">• 私聊/群聊正文与加密附件：端到端加密，服务端只存密文与路由元数据\n• 安全码：本应用自研 5 位分组格式，用于人工核对身份；变更时会在聊天内提示\n• 密聊：本机防截屏（FLAG_SECURE）+ 盲水印 + 通知/导出脱敏；非双端协议，无法对抗外置相机\n• 本地库：SQLCipher 加密；退出登录会按策略清理本机会话\n• 推送：当前仅 FCM；消息预览多为加密占位，无厂商通道\n• AI：默认不读密文；需你主动触发且可在设置关闭；管理端审计不含 prompt/正文\n• 备份：若启用服务端备份，范围以备份说明为准，不等于明文可读</string>
+    <string name="security_scope_body">• 私聊/群聊正文与加密附件：端到端加密，服务端只存密文与路由元数据\n• 安全码：本应用自研 5 位分组格式，用于人工核对身份；变更时会在聊天内提示\n• 密聊：本机防截屏（FLAG_SECURE）+ 盲水印 + 通知/导出脱敏；非双端协议，无法对抗外置相机\n• 本地库：SQLCipher 加密；退出登录会按策略清理本机会话\n• 推送：WebSocket 长连接 + 前台保活（无 FCM / 厂商通道）\n• AI：默认不读密文；需你主动触发且可在设置关闭；管理端审计不含 prompt/正文\n• 备份：若启用服务端备份，范围以备份说明为准，不等于明文可读</string>
     <string name="settings_notifications">新消息通知</string>
     <string name="settings_privacy">隐私</string>
     <string name="settings_ai_privacy">AI 助手与隐私</string>
@@ -1830,7 +1830,7 @@
     <string name="notifications_vibration_title">震动</string>
     <string name="notifications_vibration_subtitle">收到新消息时震动提醒</string>
     <string name="notifications_preview_title">通知预览</string>
-    <string name="notifications_preview_subtitle">允许时在横幅显示本地可读摘要；远程 FCM 多为加密占位，密聊/会话锁始终脱敏</string>
+    <string name="notifications_preview_subtitle">允许时在横幅显示本地可读摘要；密聊/会话锁始终脱敏</string>
     <string name="notifications_ringtone_title">来电响铃</string>
     <string name="notifications_test_title">发送测试通知</string>
     <string name="notifications_test_subtitle">验证当前铃声与震动设置</string>
@@ -2165,11 +2165,11 @@
     <string name="call_network_poor">网络较差</string>
     <string name="call_network_measuring">正在测量网络…</string>
     <string name="call_ice_stun_only">当前仅 STUN（无 TURN），复杂网络可能连不通</string>
-    <string name="notifications_push_channel_title">远程推送通道</string>
-    <string name="notifications_push_ready">FCM 已就绪（消息预览多为加密占位）</string>
-    <string name="notifications_push_configured_not_ready">已配置 Firebase，但本进程尚未完成初始化</string>
-    <string name="notifications_push_missing">未配置 Firebase（仅本机通知；无厂商通道）</string>
-    <string name="notifications_push_vendor_note">当前仅 FCM，未接厂商推送通道</string>
+    <string name="notifications_push_channel_title">消息通道</string>
+    <string name="notifications_push_ready">WebSocket 已连接，后台保活运行中</string>
+    <string name="notifications_push_configured_not_ready">保活通道已启用，等待长连接就绪</string>
+    <string name="notifications_push_missing">长连接未就绪（请保持登录并允许后台运行）</string>
+    <string name="notifications_push_vendor_note">不使用 FCM 或厂商推送；后台靠前台保活维持 WebSocket</string>
     <string name="call_active_title">通话进行中</string>
     <string name="call_active_video_subtitle">正在与 %1$s 进行视频通话</string>
     <string name="call_active_audio_subtitle">正在与 %1$s 进行语音通话</string>

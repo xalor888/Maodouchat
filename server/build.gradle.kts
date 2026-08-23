@@ -81,9 +81,6 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
-    // Optional FCM HTTP v1 credentials. No Firebase configuration is required at runtime.
-    implementation("com.google.auth:google-auth-library-oauth2-http:1.24.1")
-
     // Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 

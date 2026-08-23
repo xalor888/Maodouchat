@@ -95,14 +95,6 @@
                 android:resource="@xml/file_provider_paths" />
         </provider>
 
-        <service
-            android:name=".push.MaodouFirebaseMessagingService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-
         <receiver
             android:name=".ai.AiTaskTimeChangeReceiver"
             android:enabled="true"

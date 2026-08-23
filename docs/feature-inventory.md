@@ -36,7 +36,7 @@
 | 实时 | WebSocket `/ws` + REST 补偿 |
 | 加密 | libsignal-client（1:1 会话 + 群 Sender Key）、附件 AES-256-GCM |
 | 通话 | WebRTC（1:1 + 群 mesh）、TURN 短期凭据、通话前台服务 |
-| 推送 | FCM |
+| 推送 | WebSocket 保活（Ideaura 式；无 FCM） |
 | 服务端 | Ktor、JWT（用户 + 短时 admin）、BCrypt、限流、SMTP 验证码 |
 | 部署 | Docker Compose（Caddy + Postgres + server）、备份/恢复脚本 |
 
@@ -128,7 +128,7 @@
 | 我的二维码 | 完整 | 号展示/复制；二维码保存相册/分享图/分享号；刷新；扫一扫入口 | `MyQrCodeScreen` + `MediaExport.saveBitmapToGallery` |
 | 扫一扫加好友/入群 | 完整 | 相机扫码；好友/入群/安全码分流 | `ScanScreen` |
 | 安全码扫码校验 | 完整 | 扫码比对 + 标记信任；设备/账号错配文案 | ScanScreen + SignalProtocol |
-| 好友申请/待验证流 | 完整 | 发送（可附验证信息最长 300 字）/收件/同意/拒绝/撤回 + WS/FCM `FRIEND_REQUEST` + 通知中心/系统托盘；本地列表可按姓名/备注/验证信息筛选（&lt;2 字时） | `FriendRepository` + Contacts UI + `FcmPushService` |
+| 好友申请/待验证流 | 完整 | 发送（可附验证信息最长 300 字）/收件/同意/拒绝/撤回 + WS `FRIEND_REQUEST` + 通知中心/系统托盘；本地列表可按姓名/备注/验证信息筛选（&lt;2 字时） | `FriendRepository` + Contacts UI |
 
 ### 3.6 发现 / 动态 / 附近
 
@@ -149,7 +149,7 @@
 |------|--------|------|----------|
 | 1:1 语音/视频 | 完整 | WebRTC | `webrtc/` + `ui/screen/call/` |
 | 群通话 mesh | 完整 | 最多 6 人 mesh；大群需选成员（≥4 人可搜姓名/ID）；类型/选人对话框明示上限；通话中显示人数/上限；非 SFU；弱网 ICE 重连（GATHER_CONTINUALLY + restartIce） | `GroupCallPolicy` + `WebRTCManager` + ChatDetail/CallScreen |
-| 来电 / 接听 / 挂断 | 完整 | FCM + WS + pending；前台服务保活 | Call + `FcmPushService` |
+| 来电 / 接听 / 挂断 | 完整 | WS + pending；前台服务保活（无 FCM） | Call + `WebSocketClient` |
 | 静音 / 摄像头 / 切换镜头 | 完整 | 通话中控件；前后摄像头切换 | `CallScreen` + WebRTC |
 | 音频路由（听筒/扬声器/蓝牙） | 完整 | 听筒/扬声器/蓝牙切换与回退 | `CallAudioController` |
 | 通话前台服务 | 完整 | Android 14 类型 | `CallForegroundService` |
@@ -169,13 +169,13 @@
 | 敏感操作二次验证 | 完整 | 登出/删号/导出等；门闩开关多端同步 | `SensitiveActionGate` + client-prefs |
 | 防截屏 FLAG_SECURE | 完整 | 账号开关 + 聊天面；开关多端同步；密聊表面强制（不依赖全局开关） | `ScreenSecureManager` + `ScreenSecurePolicy` + client-prefs |
 | E2EE / 安全码入口 | 完整 | 粘性 CHANGED 提示 | `SafetyCodePolicy` 等 |
-| 安全范围说明卡片 | 完整 | E2EE/安全码格式/密聊本机边界/FCM/AI/备份文案 | 设置安全中心 |
-| 通知设置 | 完整 | 声音/预览/DND/AI 任务；DND 快捷时段（夜间/午休/睡眠/晚间/工作日/专注/上午/午后/晚间尾声/深夜/清晨）+ 滑条；预览文案明示 FCM 占位与密聊/锁脱敏 | |
+| 安全范围说明卡片 | 完整 | E2EE/安全码格式/密聊本机边界/WS 保活/AI/备份文案 | 设置安全中心 |
+| 通知设置 | 完整 | 声音/预览/DND/AI 任务；DND 快捷时段（夜间/午休/睡眠/晚间/工作日/专注/上午/午后/晚间尾声/深夜/清晨）+ 滑条；预览文案明示密聊/锁脱敏；通道为 WebSocket 保活 | |
 | AI 隐私设置 | 完整 | 总开关/同意/风格；调用元数据列表 ≥5 条可搜索 | |
 | 主题 / 壁纸 / 字号 / 语言 | 完整 | 本地 + `/api/client-prefs` 多端同步；**主题风格家族** 4 套（毛豆默认 + TG 经典/TG 朝霞午夜/TG 冰蓝石墨 1:1 还原，TG 系接管发送气泡配色）+ 定时深色（自定义夜间时段）+ **强调色** 7 色自定义 + **气泡圆角** 3 档（经典尾角/TG 全圆/大圆角）+ **玻璃悬浮底栏**（可开关）+ 主题切换帷幕过渡 + 聊天背景涂鸦纹理；壁纸 16 档 + **自定义图片壁纸**（本地 URI，仅本机）；**聊天气泡颜色** 6 档（按账号本机）；字号 5 档（small→xxlarge）；全站 UI 颜色 Material 令牌化（深浅/TG 主题自动适配，含小组件 values-night） | General + `ThemePreferences` / `ThemeStyle` / `ChatAppearancePolicy` / `AppLocaleManager` |
 | 链接预览 / 未读优先 | 完整 | 同上云同步 | `LinkPreviewPreferences` / `UnreadPriorityPreferences` |
 | 内容审核（版主） | 完整 | 需 isModerator；设置入口 + 规则/事件/举报；风险/规则/举报列表可搜索 | `ModerationScreen` |
-| 关于页 | 完整 | 版本/安全摘要 + 产品边界（mesh/FCM/密聊/安全码） | `AboutScreen` |
+| 关于页 | 完整 | 版本/安全摘要 + 产品边界（mesh/WS 保活/密聊/安全码） | `AboutScreen` |
 | 独立 TOTP/2FA | 完整 | RFC 6238 TOTP（SHA-1/30s/6位）无外部依赖；setup/confirm/disable + 登录 requiresTotp 流程；SettingsSubScreens 二维码 + 验证码 | `TotpService` + `UserRepository` + `SettingsSubScreens` + `LoginViewModel` |
 | 服务器设置（运行时） | 完整 | 设置 → 服务器：填写自建地址（http/https、局域网 IP）立即生效，免重新构建 APK；WS 自动推导（http→ws / https→wss + /ws）；URL 白名单校验；恢复默认；切换服务器需重新登录该服务器账号 | `ApiConfig.setServer` + `ServerSettingsScreen` |
 
@@ -214,10 +214,10 @@
 
 | 功能 | 完整度 | 说明 | 关键路径 |
 |------|--------|------|----------|
-| FCM 注册/注销 | 完整 | 注册状态持久化(UNKNOWN/INITIALIZING/REGISTERED/FAILED)+最后注册时间+失败原因；通知设置页展示通道健康度 | `PushRegistrationManager` + NotificationSettings |
-| 消息/来电/动态/好友申请推送 | 完整 | 消息预览多为加密占位；好友申请仅路由元数据；无厂商通道 | FCM `FRIEND_REQUEST` + tray → 通讯录 |
+| 长连接保活 | 完整 | Ideaura 式：前台 KeepAlive + Daemon 互拉 + 可选假来电/媒体伪装；登录后 ensureForUser | `PushKeepAlive` + `PushKeepAliveService` |
+| 消息/来电/动态/好友申请推送 | 完整 | WS 实时投递 + 本机托盘；进程被杀后靠保活重连，无 Google FCM | `WebSocketClient` + `AppNotifier` |
 | 本地通知渠道 | 完整 | messages/calls/ai_tasks | `AppNotifier` |
-| 厂商推送通道 | 未做 | 仅 FCM | — |
+| 厂商推送 / FCM | 已移除 | 不接 FCM，也不接国内厂商通道 | — |
 | ConnectionService 系统来电 | 完整 | self-managed PhoneAccount + TelecomManager.addNewIncomingCall；锁屏/后台展示系统原生通话界面（接听/拒接/挂断）；onAnswer→MainActivity→CallScreen；onReject→CallActionBus 挂断 | `MaodouchatConnectionService` + `TelecomHelper` + `NavGraph` |
 
 ---
@@ -232,7 +232,7 @@
 | 身份信任 + 安全码 + QR | 完整 | 自研 5 位分组 digest；TOFU + CHANGED 拦截 + QR 扫码核验 + **一键验证所有设备**（verifyAllDevices）；多设备 ≥4 可搜 ID/信任/指纹并可滚动 |
 | 附件 AES-GCM（服务端只存密文） | 完整 | IMAGE/VIDEO/GIF/VOICE/FILE 全部走加密附件管道；客户端加解密；密钥随消息 meta；服务端密文；兼容旧版 inline FILE 消息 |
 | SQLCipher 本地库 | 完整 | Keystore 包 passphrase；损坏记录隔离删除；打开失败时销毁重建 |
-| 换号/登出本地硬销毁 | 完整 | purge DB/缓存/任务/Signal 状态/FCM token |
+| 换号/登出本地硬销毁 | 完整 | purge DB/缓存/任务/Signal 状态/停止保活 |
 | BackgroundSessionGate | 完整 | Worker 防串号；每次异步操作前校验 userId + token 一致性 |
 | JWT + Refresh 轮换/吊销 | 完整 | 服务端 version/jti；access 15min + refresh 30d SHA-256 哈希；REST 401 自动刷新重试 |
 | App 锁 / 敏感操作 / 截屏 | 完整 | 锁开关本机；超时/门闩/防截屏云同步 |
@@ -333,7 +333,7 @@
 
 1. 应用锁 **开关** 仍 **仅本机**（依赖设备生物识别/凭据是否可用；超时档位、防截屏、敏感操作门闩已云同步）。主题/语言/壁纸/字号/链接预览/未读优先/AI 写作风格已云同步；冷启动/登录后 `ClientPrefsSync` 拉取。  
 2. 群通话 **mesh 有上限**，非会议级 SFU。  
-3. 推送仅 FCM，无国内厂商通道。  
+3. 推送走 WebSocket 保活，无 FCM / 国内厂商通道；进程彻底被杀后无法像厂商通道那样冷启动唤醒。  
 4. 端侧 embedding **明确禁止进包**。  
 5. sealed-sender / PQXDH 多为 **runtime flag + 客户端门控**，非完整 Signal 证书链 / 会话密码学。  
 6. 服务端仍可见会话元数据（非内容）。  

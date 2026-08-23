@@ -114,18 +114,11 @@ object ServerConfig {
     val openAiModelFallback: String get() = env("OPENAI_MODEL_FALLBACK", "gpt-4o-mini")
     val openAiTranscriptionModel: String get() = env("OPENAI_TRANSCRIPTION_MODEL", "whisper-1")
 
-    val fcmProjectId: String get() = env("FCM_PROJECT_ID", "")
-    val fcmServiceAccountFile: String get() = env("FCM_SERVICE_ACCOUNT_FILE", "")
-
     /**
-     * Push 负载 HMAC 密钥：服务端对每条 FCM data 签名（sig + ts），客户端本地校验以拒绝伪造推送。
-     * 与 SealedSender 授权 token 同理，密钥经 /api/public/status 下发给客户端用于本地校验。
-     * 生产环境务必通过 PUSH_HMAC_SECRET 覆盖；默认值仅用于开发。
+     * 历史 HMAC 密钥（/api/push/verify-key）。FCM 已移除，不再用于离线投递。
+     * 生产仍拒绝默认值，避免旧客户端误以为通道仍在。
      */
     val pushHmacSecret: String get() = env("PUSH_HMAC_SECRET", "dev-only-push-hmac-secret-not-for-prod").also {
-        // 8.31 运维修复 HIGH：生产环境使用默认密钥 = 推送签名可被任何人伪造（FCM 负载
-        // 的 sig 用该密钥签名、客户端按签名信任推送）。
-        // 宽松模式（RELAXED_VERIFICATION=true）允许不配置：推送校验降级为 fail-open。
         if (it == "dev-only-push-hmac-secret-not-for-prod" && isProduction && !relaxedVerification) {
             error("PUSH_HMAC_SECRET environment variable is required — refusing to start with the dev default in production")
         }
@@ -220,7 +213,7 @@ object ServerConfig {
                 logger.warn("RELAXED_VERIFICATION: TURN not configured — calls will use STUN only, NAT-traversal reliability is reduced.")
             }
             if (pushHmacSecret == "dev-only-push-hmac-secret-not-for-prod") {
-                logger.warn("RELAXED_VERIFICATION: PUSH_HMAC_SECRET not configured — FCM push signatures will not be verified (fail-open).")
+                logger.warn("RELAXED_VERIFICATION: PUSH_HMAC_SECRET not configured (FCM removed; WebSocket keep-alive is the wake path).")
             }
             return
         }

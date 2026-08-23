@@ -1,127 +1,45 @@
 package com.maodouchat.server.service
 
-import com.google.auth.oauth2.GoogleCredentials
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.NotificationSettingsResponse
 import com.maodouchat.server.repository.NotificationPreferenceRepository
-import com.maodouchat.server.repository.PushTokenRecord
 import com.maodouchat.server.repository.PushTokenRepository
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.request.bearerAuth
-import io.ktor.client.request.header
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.isSuccess
-import java.io.File
-import java.io.FileInputStream
 import java.time.Instant
 import java.time.ZoneOffset
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicLong
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import org.slf4j.LoggerFactory
 
 /**
- * Optional FCM HTTP v1 sender.
+ * Offline wake sender — FCM HTTP v1 has been removed.
  *
- * Push payloads intentionally contain routing metadata only. Message content stays
- * encrypted end to end and is never copied into an FCM request.
+ * Real-time delivery is WebSocket `/ws` plus the Ideaura-style client keep-alive
+ * (foreground service, daemon resurrection, optional hold-call). Enqueue methods
+ * stay as call-site no-ops so routing metadata contracts remain testable without
+ * talking to Google.
  */
 class FcmPushService(
-    private val pushTokenRepository: PushTokenRepository,
-    private val preferenceRepository: NotificationPreferenceRepository,
-    private val projectId: String = ServerConfig.fcmProjectId,
-    private val serviceAccountFile: String = ServerConfig.fcmServiceAccountFile,
-    private val nowMillis: () -> Long = { System.currentTimeMillis() },
-    private val retryDelayMs: Long = 1_000L,
-    private val startWorkers: Boolean = true
+    @Suppress("unused") private val pushTokenRepository: PushTokenRepository,
+    @Suppress("unused") private val preferenceRepository: NotificationPreferenceRepository,
+    @Suppress("unused") private val projectId: String = "",
+    @Suppress("unused") private val serviceAccountFile: String = "",
+    @Suppress("unused") private val nowMillis: () -> Long = { System.currentTimeMillis() },
+    @Suppress("unused") private val retryDelayMs: Long = 1_000L,
+    @Suppress("unused") private val startWorkers: Boolean = true
 ) {
     private val logger = LoggerFactory.getLogger(FcmPushService::class.java)
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val deliveries = Channel<Delivery>(capacity = DELIVERY_QUEUE_CAPACITY)
-    private val callDeliveries = Channel<Delivery>(capacity = CALL_QUEUE_CAPACITY)
-    private val droppedDeliveries = AtomicLong(0)
-    private val droppedCallDeliveries = AtomicLong(0)
     private val closed = AtomicBoolean(false)
     internal var onQueued: ((Delivery) -> Unit)? = null
-    private val clientLock = Any()
-    private val clientDelegate = lazy {
-        // 8.31 运维修复：显式超时（CIO 默认值偏长且不可控）；FCM 是兜底通道，
-        // 不能让慢响应占住 worker。
-        HttpClient(CIO) {
-            install(io.ktor.client.plugins.HttpTimeout) {
-                requestTimeoutMillis = 15_000
-                connectTimeoutMillis = 10_000
-                socketTimeoutMillis = 10_000
-            }
-        }
-    }
 
-    init {
-        // 8.48 修复 H8：批量预取 settings/tokens 后逐个投递（此前逐收件人各 2 次 DB 查询，
-        // 群消息 200 人离线 → 400 次查询）。worker 每次尽量取满一批共享一次批量查询。
-        if (startWorkers) {
-            repeat(DELIVERY_WORKERS) { launchWorker(deliveries, isCall = false) }
-            repeat(CALL_DELIVERY_WORKERS) { launchWorker(callDeliveries, isCall = true) }
-        }
-    }
-
-    /** 8.50 修复 L4：worker 循环显式 catch——deliverBatch 内部 runCatching 只重抛
-     * CancellationException，任何新增的非取消异常不得静默杀死 worker（否则队列满后丢推送）。 */
-    private fun launchWorker(queue: Channel<Delivery>, isCall: Boolean) {
-        scope.launch {
-            while (true) {
-                val first = try {
-                    queue.receive()
-                } catch (_: kotlinx.coroutines.channels.ClosedReceiveChannelException) {
-                    break
-                }
-                val batch = mutableListOf(first)
-                while (batch.size < DELIVERY_BATCH) {
-                    val next = queue.tryReceive().getOrNull() ?: break
-                    batch.add(next)
-                }
-                try {
-                    deliverBatch(batch, isCall = isCall)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    logger.warn("FCM worker batch failed for {} deliveries", batch.size, e)
-                }
-            }
-        }
-    }
+    /** FCM is gone; never treat this as a live remote-push channel. */
+    val isConfigured: Boolean
+        get() = false
 
     fun shutdown() {
         if (!closed.compareAndSet(false, true)) return
-        deliveries.close()
-        callDeliveries.close()
-        scope.cancel()
-        synchronized(clientLock) {
-            if (clientDelegate.isInitialized()) runCatching { clientDelegate.value.close() }
-        }
+        logger.info("Wake push service shut down (no FCM transport)")
     }
-    private val credentials by lazy {
-        FileInputStream(serviceAccountFile).use {
-            GoogleCredentials.fromStream(it).createScoped(FCM_SCOPE)
-        }
-    }
-
-    val isConfigured: Boolean
-        get() = projectId.isNotBlank() && serviceAccountFile.isNotBlank() && File(serviceAccountFile).isFile
 
     fun enqueueEncryptedMessage(
         recipientIds: Collection<String>,
@@ -131,7 +49,7 @@ class FcmPushService(
         messageType: String,
         sealedSender: Boolean = false
     ) {
-        if (closed.get() || !isConfigured) return
+        if (closed.get()) return
         if (chatId.isBlank() || messageId.isBlank()) return
         val recipients = recipientIds.asSequence()
             .filter { it.isNotBlank() && it != senderId }
@@ -140,7 +58,7 @@ class FcmPushService(
         if (recipients.isEmpty()) return
         val pushSender = if (sealedSender) SealedSenderDelivery.REDACTED_SENDER else senderId
         recipients.forEach { recipientId ->
-            enqueueDelivery(
+            record(
                 Delivery(
                     recipientId = recipientId,
                     isCall = false,
@@ -159,8 +77,8 @@ class FcmPushService(
     }
 
     fun enqueueIncomingCall(recipientId: String, senderId: String, isVideo: Boolean, callId: String = "") {
-        if (closed.get() || !isConfigured || recipientId.isBlank() || recipientId == senderId) return
-        enqueueDelivery(
+        if (closed.get() || recipientId.isBlank() || recipientId == senderId) return
+        record(
             Delivery(
                 recipientId = recipientId,
                 isCall = true,
@@ -175,8 +93,15 @@ class FcmPushService(
         )
     }
 
-    fun enqueuePostInteraction(recipientId: String, actorId: String, postId: String, interaction: String, preview: String? = null, commentId: String? = null) {
-        if (closed.get() || !isConfigured || recipientId.isBlank() || postId.isBlank() || recipientId == actorId ||
+    fun enqueuePostInteraction(
+        recipientId: String,
+        actorId: String,
+        postId: String,
+        interaction: String,
+        preview: String? = null,
+        commentId: String? = null
+    ) {
+        if (closed.get() || recipientId.isBlank() || postId.isBlank() || recipientId == actorId ||
             interaction !in setOf("LIKE", "COMMENT", "COMMENT_LIKE", "REPLY")
         ) return
         val data = mutableMapOf(
@@ -186,20 +111,11 @@ class FcmPushService(
             "interaction" to interaction,
             "recipientId" to recipientId
         )
-        // 1.130：评论/回复/评论赞附内容预览（截断，防大文）
         preview?.takeIf(String::isNotBlank)?.let { data["preview"] = it.trim().take(80) }
-        // 1.132：附评论 id，App 打开动态时可跳转到该评论
         commentId?.takeIf(String::isNotBlank)?.let { data["commentId"] = it }
-        enqueueDelivery(
-            Delivery(
-                recipientId = recipientId,
-                isCall = false,
-                data = data
-            )
-        )
+        record(Delivery(recipientId = recipientId, isCall = false, data = data))
     }
 
-    /** Group invite wake — routing metadata only, no group name or message body. */
     fun enqueueGroupInvite(
         recipientId: String,
         fromUserId: String,
@@ -207,10 +123,10 @@ class FcmPushService(
         chatId: String,
         action: String
     ) {
-        if (closed.get() || !isConfigured || recipientId.isBlank() || recipientId == fromUserId) return
+        if (closed.get() || recipientId.isBlank() || recipientId == fromUserId) return
         if (action != "CREATED") return
         if (inviteId.isBlank() || chatId.isBlank()) return
-        enqueueDelivery(
+        record(
             Delivery(
                 recipientId = recipientId,
                 isCall = false,
@@ -226,11 +142,10 @@ class FcmPushService(
         )
     }
 
-    /** Friend request / accept wake — routing only, no free-text verification message. */
     fun enqueueFriendRequest(recipientId: String, fromUserId: String, requestId: String, action: String) {
-        if (closed.get() || !isConfigured || recipientId.isBlank() || recipientId == fromUserId) return
+        if (closed.get() || recipientId.isBlank() || recipientId == fromUserId) return
         if (action !in setOf("CREATED", "ACCEPTED") || requestId.isBlank()) return
-        enqueueDelivery(
+        record(
             Delivery(
                 recipientId = recipientId,
                 isCall = false,
@@ -245,14 +160,12 @@ class FcmPushService(
         )
     }
 
-    /** 系统公告推送（仅高优先级：EMERGENCY / MAINTENANCE）。App 端拉取详情并展示。 */
     fun enqueueAnnouncement(recipientId: String, announcementId: String, title: String, level: String) {
-        if (closed.get() || !isConfigured || recipientId.isBlank() || announcementId.isBlank()) return
-        enqueueDelivery(
+        if (closed.get() || recipientId.isBlank() || announcementId.isBlank()) return
+        record(
             Delivery(
                 recipientId = recipientId,
                 isCall = false,
-                // 紧急公告突破 DND（维护/紧急通知语义）
                 breakthroughDnd = level == "EMERGENCY",
                 data = mapOf(
                     "type" to "ANNOUNCEMENT",
@@ -265,181 +178,19 @@ class FcmPushService(
         )
     }
 
-    private fun enqueueDelivery(delivery: Delivery) {
+    private fun record(delivery: Delivery) {
         if (closed.get()) return
-        val queue = if (delivery.isCall) callDeliveries else deliveries
-        if (queue.trySend(delivery).isSuccess) {
-            onQueued?.invoke(delivery)
-            return
-        }
-        val counter = if (delivery.isCall) droppedCallDeliveries else droppedDeliveries
-        val dropped = counter.incrementAndGet()
-        if (dropped == 1L || dropped % 100L == 0L) {
-            logger.warn(
-                "FCM {} delivery queue full; dropped {} deliveries",
-                if (delivery.isCall) "call" else "regular",
-                dropped
-            )
-        }
-    }
-
-    private suspend fun deliverToUser(recipientId: String, isCall: Boolean, data: Map<String, String>, breakthroughDnd: Boolean = false) {
-        runCatching {
-            val settings = preferenceRepository.getSettings(recipientId)
-            if (!settings.enableNotifications) return
-            pushTokenRepository.getForUser(recipientId).forEach { record ->
-                // Incoming calls break through DND (client + common IM UX); messages/posts stay quiet.
-                // EMERGENCY announcements also break through (breakthroughDnd).
-                // 8.37：时区偏移是注册时上报的——跨时区旅行后已过期，按旧时区静默会永久丢通知
-                //（客户端本地 DND 才是权威）。注册时间超过 14 天的 token 跳过服务端 DND（fail-open），
-                // 客户端本地判定兜底；fresh token 仍走服务端 DND（省 FCM 配额）。
-                val tzStale = record.updatedAt > 0L &&
-                    nowMillis() - record.updatedAt > TIMEZONE_FRESHNESS_MS
-                val quiet = !isCall && !breakthroughDnd &&
-                    !tzStale &&
-                    isInDoNotDisturb(settings, record.timezoneOffsetMinutes)
-                if (!quiet) {
-                    send(record, data + ("soundEnabled" to soundEnabled(settings, isCall).toString()))
-                }
-            }
-        }.onFailure { error ->
-            if (error is kotlinx.coroutines.CancellationException) throw error
-            logger.warn("FCM delivery preparation failed for user {}", recipientId, error)
-        }
-    }
-
-    /** 8.48 修复 H8：批量投递一批 delivery，共享一次 settings/tokens 批量查询。 */
-    private suspend fun deliverBatch(batch: List<Delivery>, isCall: Boolean) {
-        runCatching {
-            val recipientIds = batch.map { it.recipientId }.distinct()
-            val settingsByUser = preferenceRepository.getSettingsBatch(recipientIds)
-            val tokensByUser = pushTokenRepository.getForUsers(recipientIds)
-            for (delivery in batch) {
-                val settings = settingsByUser[delivery.recipientId] ?: continue
-                if (!settings.enableNotifications) continue
-                (tokensByUser[delivery.recipientId] ?: emptyList()).forEach { record ->
-                    val tzStale = record.updatedAt > 0L &&
-                        nowMillis() - record.updatedAt > TIMEZONE_FRESHNESS_MS
-                    val quiet = !delivery.isCall && !delivery.breakthroughDnd &&
-                        !tzStale &&
-                        isInDoNotDisturb(settings, record.timezoneOffsetMinutes)
-                    if (!quiet) {
-                        send(record, delivery.data + ("soundEnabled" to soundEnabled(settings, delivery.isCall).toString()))
-                    }
-                }
-            }
-        }.onFailure { error ->
-            if (error is kotlinx.coroutines.CancellationException) throw error
-            logger.warn("FCM batch delivery failed ({} users)", batch.size, error)
-        }
-    }
-
-    private suspend fun send(record: PushTokenRecord, data: Map<String, String>) {
-        val accessToken = getAccessToken() ?: return
-        val signed = signPayload(record.userId, data)
-        val httpClient = synchronized(clientLock) {
-            if (closed.get()) null else clientDelegate.value
-        } ?: return
-        val ttl = ttlFor(data["type"])
-        val body = buildJsonObject {
-            put("message", buildJsonObject {
-                put("token", record.token)
-                put("data", buildJsonObject { signed.forEach { (key, value) -> put(key, value) } })
-                put("android", buildJsonObject {
-                    put("priority", "HIGH")
-                    // 来电只在短窗口内有意义；普通消息保留 24h，避免 Doze/弱网把延迟投递直接丢掉。
-                    put("ttl", ttl)
-                })
-            })
-        }.toString()
-
-        // 8.31 运维修复：瞬态失败（429/5xx/网络错误）重试一次（1s 退避），
-        // 防 FCM 瞬时故障 = 通知永久丢失；永久错误（400/401 类）直接清理 token。
-        var transientFailure = false
-        runCatching {
-            val response = httpClient.post("https://fcm.googleapis.com/v1/projects/$projectId/messages:send") {
-                bearerAuth(accessToken)
-                header("Content-Type", "application/json")
-                setBody(body)
-            }
-            val responseBody = response.bodyAsText()
-            if (!response.status.isSuccess()) {
-                if (isPermanentTokenFailure(response.status.value, responseBody)) {
-                    pushTokenRepository.removeToken(record.token)
-                    logger.info("Removed invalid FCM token for device {}", record.deviceId)
-                } else if (isTransientHttpFailure(response.status.value)) {
-                    transientFailure = true
-                } else {
-                    logger.warn("FCM returned {} for device {}: {}", response.status.value, record.deviceId, responseBody.take(500))
-                }
-            }
-        }.onFailure { error ->
-            if (error is kotlinx.coroutines.CancellationException) throw error
-            // 网络/超时类异常视为瞬态，走重试
-            transientFailure = true
-            logger.warn("FCM request failed for device {}", record.deviceId, error)
-        }
-        if (transientFailure) {
-            if (retryDelayMs > 0L) kotlinx.coroutines.delay(retryDelayMs)
-            val retryToken = getAccessToken() ?: accessToken
-            runCatching {
-                val retry = httpClient.post("https://fcm.googleapis.com/v1/projects/$projectId/messages:send") {
-                    bearerAuth(retryToken)
-                    header("Content-Type", "application/json")
-                    setBody(body)
-                }
-                val retryBody = retry.bodyAsText()
-                if (!retry.status.isSuccess()) {
-                    if (isPermanentTokenFailure(retry.status.value, retryBody)) {
-                        pushTokenRepository.removeToken(record.token)
-                        logger.info("Removed invalid FCM token for device {}", record.deviceId)
-                    } else {
-                        logger.warn("FCM retry returned {} for device {}: {}", retry.status.value, record.deviceId, retryBody.take(500))
-                    }
-                }
-            }.onFailure { error ->
-                if (error is kotlinx.coroutines.CancellationException) throw error
-                logger.warn("FCM retry failed for device {}", record.deviceId, error)
-            }
-        }
-    }
-
-    private suspend fun getAccessToken(): String? = withContext(Dispatchers.IO) {
-        runCatching {
-            synchronized(credentials) {
-                val current = credentials.accessToken
-                if (current != null && (current.expirationTime?.time ?: 0L) > nowMillis() + 60_000L) {
-                    current.tokenValue
-                } else {
-                    credentials.refreshAccessToken().tokenValue
-                }
-            }
-        }.getOrElse { error ->
-            if (error is CancellationException) throw error
-            logger.warn("Unable to obtain FCM OAuth access token", error)
-            null
-        }
-    }
-
-    private fun isInDoNotDisturb(settings: NotificationSettingsResponse, offsetMinutes: Int): Boolean =
-        isInDoNotDisturb(settings, offsetMinutes, nowMillis())
-
-    private fun soundEnabled(settings: NotificationSettingsResponse, isCall: Boolean): Boolean {
-        return if (isCall) settings.ringtoneEnabled else settings.soundEnabled
+        onQueued?.invoke(delivery)
     }
 
     companion object {
         const val DELIVERY_QUEUE_CAPACITY = 1_024
         const val DELIVERY_WORKERS = 4
-        /** 8.48 修复 H8：批量投递批次大小（每批共享一次批量查询）。 */
         const val DELIVERY_BATCH = 50
         const val CALL_QUEUE_CAPACITY = 256
         const val CALL_DELIVERY_WORKERS = 2
-        const val FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
-        /** 推送 token 上报时区超过该时长视为过期：跳过服务端 DND（8.37）。 */
         const val TIMEZONE_FRESHNESS_MS = 14L * 24L * 60L * 60L * 1_000L
         const val MESSAGE_TTL = "86400s"
-        /** 来电超过短窗口后已无意义，避免 Doze 醒来再弹过期呼叫。 */
         const val CALL_TTL = "60s"
         const val ANNOUNCEMENT_TITLE_MAX = 80
 
@@ -463,10 +214,6 @@ class FcmPushService(
             return if (start < end) minute in start until end else minute >= start || minute < end
         }
 
-        /**
-         * FCM HTTP v1 把失效 token 标成 UNREGISTERED / NOT_FOUND / SENDER_ID_MISMATCH。
-         * INVALID_ARGUMENT 只有在明确指向 token/registration 时才清 token，避免 payload 编码错误误删全部设备。
-         */
         fun isPermanentTokenFailure(status: Int, body: String): Boolean {
             if (status != 400 && status != 404) return false
             val text = body.lowercase()
@@ -484,14 +231,6 @@ class FcmPushService(
             return invalidArg && ("registration" in text || "token" in text)
         }
 
-        /**
-         * 对推送 data 计算 HMAC-SHA256 签名，附加 sig + ts 字段。
-         * 规范化：剔除 sig/ts 后按 key 字典序拼接 `k=v` 并以 `&` 连接，再追加 `&ts=<ts>`。
-         * 客户端用同一规范化算法 + 同一密钥校验（见客户端 PushVerifyPrefs / MaodouFirebaseMessagingService）。
-         *
-         * 安全：密钥按接收者派生（HMAC(master, recipientId)），/api/push/verify-key 只对
-         * 每个用户下发其自身派生密钥——任一用户只能伪造发给**自己**的推送，无法伪造他人的。
-         */
         fun signPayload(recipientId: String, data: Map<String, String>): Map<String, String> {
             val ts = System.currentTimeMillis().toString()
             val base = data.filterKeys { it != "sig" && it != "ts" }
@@ -507,10 +246,6 @@ class FcmPushService(
             return data + ("ts" to ts) + ("sig" to sig)
         }
 
-        /**
-         * 按接收者派生推送校验密钥：HMAC-SHA256(masterSecret, recipientId)。
-         * 服务端对每个接收者用其派生密钥签名；客户端经 /api/push/verify-key 取回自己的派生密钥验签。
-         */
         fun pushKeyForUser(recipientId: String): String = try {
             val mac = Mac.getInstance("HmacSHA256")
             mac.init(SecretKeySpec(ServerConfig.pushHmacSecret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
@@ -524,7 +259,6 @@ class FcmPushService(
         val recipientId: String,
         val isCall: Boolean,
         val data: Map<String, String>,
-        /** 突破 DND（来电/紧急公告等）。 */
         val breakthroughDnd: Boolean = false
     )
 }

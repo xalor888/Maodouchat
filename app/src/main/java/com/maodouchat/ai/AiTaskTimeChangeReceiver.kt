@@ -13,8 +13,7 @@ class AiTaskTimeChangeReceiver : BroadcastReceiver() {
             Intent.ACTION_TIME_CHANGED,
             Intent.ACTION_TIMEZONE_CHANGED -> AiTaskReminderScheduler.ensureScheduled(context)
         }
-        // 时区/时间变化后立即用最新偏移量重新注册推送 token，避免服务端 DND 仍用旧偏移
-        // 误判安静时段而漏发推送（仅 TIME/TIMEZONE 变化需要刷新偏移）。
+        // 时区变化后确保保活长连接仍在（FCM 已移除，不再上报时区偏移）。
         if (intent.action == Intent.ACTION_TIME_CHANGED ||
             intent.action == Intent.ACTION_TIMEZONE_CHANGED
         ) {

@@ -6,9 +6,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * XAL-41：FCM NEW_MESSAGE data-only 路由契约。
- * [FcmPushService.enqueueEncryptedMessage] 在未配置 FCM 凭证时直接 return，
- * 这里按同一 map 构造锁键，不发起 HTTP。
+ * XAL-41：NEW_MESSAGE 路由元数据契约（FCM 已移除；map 仍不含明文）。
  */
 class FcmPushDataMapContractTest {
 
@@ -39,7 +37,7 @@ class FcmPushDataMapContractTest {
 
     @Test
     fun newMessageMapHasRoutingKeysOnlyAndAlwaysRecipientId() {
-        val plaintext = "hello this must never be in FCM"
+        val plaintext = "hello this must never be in a wake payload"
         val data = encryptedMessageData(
             recipientId = "u-recv",
             chatId = "c1",

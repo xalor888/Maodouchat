@@ -101,7 +101,7 @@ Release 仅允许 HTTPS/WSS 且必须显式指定：
 
 Release 启用 R8 + 资源收缩，默认仅 arm64-v8a。运行时也可在 App「设置 → 服务器」切换服务器地址，无需重新构建。
 
-安全基线：本地库 SQLCipher + Keystore；access token 15 分钟 + refresh token 轮换吊销；消息正文 E2EE，服务端只存密文与元数据；FCM 推送只含路由元数据，不含明文；Android 备份已关闭并排除敏感目录。
+安全基线：本地库 SQLCipher + Keystore；access token 15 分钟 + refresh token 轮换吊销；消息正文 E2EE，服务端只存密文与元数据；后台消息走 WebSocket 保活（无 FCM）；Android 备份已关闭并排除敏感目录。
 
 ## CI 与发布
 
