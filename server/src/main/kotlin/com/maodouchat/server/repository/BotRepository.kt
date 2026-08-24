@@ -3,7 +3,6 @@ package com.maodouchat.server.repository
 import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.BotCommandLogs
 import com.maodouchat.server.db.BotUpdateInbox
-import com.maodouchat.server.db.AiPreferences
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.ChatUserSettings
 import com.maodouchat.server.db.Chats
@@ -75,6 +74,23 @@ object BotRepository {
         val description: String
     )
 
+    @Serializable
+    data class ChatBotCommandItem(
+        val botId: String,
+        val username: String,
+        val name: String,
+        val command: String,
+        val description: String
+    )
+
+    @Serializable
+    data class ChatBotSummary(
+        val id: String,
+        val username: String,
+        val name: String,
+        val enabled: Boolean
+    )
+
     sealed interface BotCreateResult {
         data class Success(val bot: BotDto) : BotCreateResult
         data object InvalidInput : BotCreateResult
@@ -119,6 +135,7 @@ object BotRepository {
                     it[Users.email] = "$id@bots.maodouchat.local"
                     it[Users.passwordHash] = "!" // unusable password
                     it[Users.name] = n
+                    it[Users.searchable] = false
                     it[Users.lastSeen] = now
                 }
                 BotApps.insert {
@@ -131,6 +148,7 @@ object BotRepository {
                     it[BotApps.tokenPrefix] = token.take(8)
                     it[BotApps.webhookUrl] = null
                     it[BotApps.enabled] = true
+                    it[BotApps.commandsJson] = encodeCommands(DEFAULT_COMMANDS)
                     it[BotApps.createdAt] = now
                     it[BotApps.updatedAt] = now
                 }
@@ -319,7 +337,6 @@ object BotRepository {
                 (SenderKeyDistributions.senderId eq botId) or
                     (SenderKeyDistributions.recipientUserId eq botId)
             }
-            AiPreferences.deleteWhere { AiPreferences.userId eq botId }
             lockedChats.filter { it[Chats.isGroup] }.forEach { chat ->
                 Chats.update({ Chats.id eq chat[Chats.id] }) {
                     it[Chats.memberRevision] = chat[Chats.memberRevision] + 1
@@ -665,6 +682,140 @@ object BotRepository {
     }
 
 
+    fun listEnabledBotsInChat(chatId: String): List<ChatBotSummary> = transaction {
+        val now = System.currentTimeMillis()
+        val botIds = ChatParticipants.selectAll()
+            .where { ChatParticipants.chatId eq chatId }
+            .map { it[ChatParticipants.userId] }
+            .filter { it.startsWith("bot_") }
+        if (botIds.isEmpty()) return@transaction emptyList()
+        BotApps.selectAll()
+            .where { (BotApps.id inList botIds) and (BotApps.enabled eq true) }
+            .mapNotNull { row ->
+                if (!isOwnerDeliverable(row[BotApps.ownerUserId], now)) return@mapNotNull null
+                ChatBotSummary(
+                    id = row[BotApps.id],
+                    username = row[BotApps.username],
+                    name = row[BotApps.name],
+                    enabled = true
+                )
+            }
+            .sortedBy { it.username }
+    }
+
+    fun listCommandsForChat(chatId: String): List<ChatBotCommandItem> = transaction {
+        val now = System.currentTimeMillis()
+        val botIds = ChatParticipants.selectAll()
+            .where { ChatParticipants.chatId eq chatId }
+            .map { it[ChatParticipants.userId] }
+            .filter { it.startsWith("bot_") }
+        if (botIds.isEmpty()) return@transaction emptyList()
+        BotApps.selectAll()
+            .where { (BotApps.id inList botIds) and (BotApps.enabled eq true) }
+            .flatMap { row ->
+                if (!isOwnerDeliverable(row[BotApps.ownerUserId], now)) return@flatMap emptyList()
+                parseCommands(row[BotApps.commandsJson]).map { cmd ->
+                    ChatBotCommandItem(
+                        botId = row[BotApps.id],
+                        username = row[BotApps.username],
+                        name = row[BotApps.name],
+                        command = cmd.command,
+                        description = cmd.description
+                    )
+                }
+            }
+            .sortedWith(compareBy({ it.username }, { it.command }))
+    }
+
+    fun findEnabledBotByUsername(username: String): BotDto? {
+        val u = normalizeUsername(username) ?: return null
+        return transaction {
+            val now = System.currentTimeMillis()
+            val row = BotApps.selectAll()
+                .where { (BotApps.username eq u) and (BotApps.enabled eq true) }
+                .firstOrNull() ?: return@transaction null
+            if (!isOwnerDeliverable(row[BotApps.ownerUserId], now)) return@transaction null
+            row.toDto()
+        }
+    }
+
+    fun enqueueUserCommand(
+        chatId: String,
+        userId: String,
+        text: String,
+        botIdHint: String? = null
+    ): List<Pair<String, String>> = transaction {
+        val cleaned = com.maodouchat.server.bot.BotCommandPolicy.sanitizeInboxText(text)
+            ?: return@transaction emptyList()
+        val now = System.currentTimeMillis()
+        val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
+            ?: return@transaction emptyList()
+        val participants = ChatParticipants.selectAll().where { ChatParticipants.chatId eq chatId }.toList()
+        if (participants.none { it[ChatParticipants.userId] == userId }) return@transaction emptyList()
+        val isGroup = chat[Chats.isGroup]
+        val botIds = participants.map { it[ChatParticipants.userId] }.filter { it.startsWith("bot_") }
+        if (botIds.isEmpty()) return@transaction emptyList()
+        val isDirectWithBot = !isGroup && botIds.size == 1 && participants.size == 2
+        if (!com.maodouchat.server.bot.BotCommandPolicy.shouldAcceptInbox(cleaned, isDirectWithBot)) {
+            return@transaction emptyList()
+        }
+        val slash = com.maodouchat.server.bot.BotCommandPolicy.parseSlash(cleaned)
+        val mention = com.maodouchat.server.bot.BotCommandPolicy.parseMention(cleaned)
+        val targetedUsername = slash?.targetUsername ?: mention?.username
+        val targeted = when {
+            !botIdHint.isNullOrBlank() -> botIds.filter { it == botIdHint }
+            targetedUsername != null -> {
+                val match = BotApps.selectAll()
+                    .where { (BotApps.username eq targetedUsername) and (BotApps.id inList botIds) }
+                    .map { it[BotApps.id] }
+                if (match.isEmpty()) return@transaction emptyList()
+                match
+            }
+            else -> botIds
+        }
+        if (targeted.isEmpty()) return@transaction emptyList()
+        val rows = BotApps.selectAll()
+            .where { (BotApps.id inList targeted) and (BotApps.enabled eq true) }
+            .toList()
+        val delivered = ArrayList<Pair<String, String>>()
+        for (row in rows) {
+            val botId = row[BotApps.id]
+            if (!isOwnerDeliverable(row[BotApps.ownerUserId], now)) continue
+            val commandName = slash?.command ?: mention?.username ?: "message"
+            val payload = kotlinx.serialization.json.buildJsonObject {
+                put("update_type", kotlinx.serialization.json.JsonPrimitive("message"))
+                put("event", kotlinx.serialization.json.JsonPrimitive("user_command"))
+                put("chatId", kotlinx.serialization.json.JsonPrimitive(chatId))
+                put("senderId", kotlinx.serialization.json.JsonPrimitive(userId))
+                put("text", kotlinx.serialization.json.JsonPrimitive(cleaned.take(500)))
+                put("type", kotlinx.serialization.json.JsonPrimitive("TEXT"))
+                if (slash != null) {
+                    put("command", kotlinx.serialization.json.JsonPrimitive(slash.command))
+                    put("arguments", kotlinx.serialization.json.JsonPrimitive(slash.arguments))
+                }
+                put("ts", kotlinx.serialization.json.JsonPrimitive(now))
+            }.toString()
+            if (payload.length > MAX_UPDATE_JSON_CHARS) continue
+            evictOldestInboxLocked(botId)
+            BotUpdateInbox.insert {
+                it[BotUpdateInbox.botId] = botId
+                it[BotUpdateInbox.updateJson] = payload
+                it[createdAt] = now
+            }
+            evictOldestCommandLogsLocked(botId)
+            BotCommandLogs.insert {
+                it[id] = "bcl_" + UUID.randomUUID().toString().replace("-", "").take(16)
+                it[BotCommandLogs.botId] = botId
+                it[BotCommandLogs.chatId] = chatId
+                it[BotCommandLogs.userId] = userId
+                it[BotCommandLogs.command] = "/$commandName".take(120)
+                it[createdAt] = now
+            }
+            delivered += botId to payload
+        }
+        delivered
+    }
+
     fun getMyCommands(botId: String): List<BotCommandDef> {
         return transaction {
             val now = System.currentTimeMillis()
@@ -785,6 +936,11 @@ object BotRepository {
         }
         return out
     }
+
+    private val DEFAULT_COMMANDS = listOf(
+        BotCommandDef(command = "start", description = "开始使用"),
+        BotCommandDef(command = "help", description = "帮助"),
+    )
 
     private fun encodeCommands(commands: List<BotCommandDef>): String {
         val arr = kotlinx.serialization.json.buildJsonArray {

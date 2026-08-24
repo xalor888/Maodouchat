@@ -11,7 +11,6 @@ import com.maodouchat.server.db.GroupPkRounds
 import com.maodouchat.server.db.GroupPkVotes
 import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.GroupPolls
-import com.maodouchat.server.db.AiPreferences
 import com.maodouchat.server.db.MessageReactions
 import com.maodouchat.server.db.Messages
 import com.maodouchat.server.db.ReadReceipts
@@ -333,13 +332,6 @@ class GroupPlayBlockedVisibilityTest {
                 it[SenderKeyDistributions.createdAt] = now
                 it[SenderKeyDistributions.updatedAt] = now
             }
-            AiPreferences.insert {
-                it[AiPreferences.userId] = "u2"
-                it[AiPreferences.scope] = "CHAT"
-                it[AiPreferences.chatId] = "g1"
-                it[AiPreferences.enabled] = true
-                it[AiPreferences.updatedAt] = now
-            }
         }
         val inviteJoin = requireNotNull(
             ChatRepository().consumeGroupInvite("invite-token-00000000000000000000000000", "u2", maxMembers = 100)
@@ -411,11 +403,6 @@ class GroupPlayBlockedVisibilityTest {
                     (SenderKeyDistributions.chatId eq "g1") and
                         ((SenderKeyDistributions.senderId eq "u2") or
                             (SenderKeyDistributions.recipientUserId eq "u2"))
-                }.empty()
-            )
-            assertTrue(
-                AiPreferences.selectAll().where {
-                    (AiPreferences.chatId eq "g1") and (AiPreferences.userId eq "u2")
                 }.empty()
             )
         }

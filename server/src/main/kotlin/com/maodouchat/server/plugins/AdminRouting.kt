@@ -549,15 +549,19 @@ fun Application.configureAdminRouting(
                 val users = transaction {
                     val escapedSearch = search?.let { escapeLikePattern(it) }
                     val base = if (escapedSearch != null) {
-                        Users.selectAll().where { Users.name like "%$escapedSearch%" or (Users.email like "%$escapedSearch%") }
+                        val likePattern = org.jetbrains.exposed.sql.LikePattern("%$escapedSearch%", '\\')
+                        Users.selectAll().where {
+                            (Users.name like likePattern) or (Users.email like likePattern)
+                        }
                     } else Users.selectAll()
                     val now = System.currentTimeMillis()
                     val filtered = when (status) {
                         "active" -> base.andWhere { Users.deletedAt.isNull() and (Users.suspendedUntil lessEq now) }
-                        "banned" -> base.andWhere { Users.suspendedUntil greater now }
+                        "banned" -> base.andWhere { Users.deletedAt.isNull() and (Users.suspendedUntil greater now) }
                         "deleted" -> base.andWhere { Users.deletedAt.isNotNull() }
-                        "online" -> base.andWhere { Users.isOnline eq true }
-                        else -> base
+                        "online" -> base.andWhere { Users.deletedAt.isNull() and (Users.isOnline eq true) }
+                        // 无关键字的默认列表隐藏已注销；带 q 时包含 tombstone，方便按 deleted_ 邮箱找回。
+                        else -> if (escapedSearch != null) base else base.andWhere { Users.deletedAt.isNull() }
                     }
                     filtered.orderBy(Users.lastSeen to SortOrder.DESC, Users.id to SortOrder.DESC).limit(limit, offset)
                         .map { it.toUserAdminResponse() }
@@ -683,7 +687,7 @@ fun Application.configureAdminRouting(
                 val updated = transaction {
                     // 9.154：以 update 影响行数为准——firstOrNull 与 update 之间并发删除会
                     // 让封禁落空却仍写审计行、回 200 并轮换会话
-                    val changed = Users.update({ Users.id eq id }) { it[suspendedUntil] = bannedUntil }
+                    val changed = Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[suspendedUntil] = bannedUntil }
                     if (changed == 0) return@transaction false
                     ModerationAuditLog.insert {
                         it[userId] = id
@@ -750,7 +754,7 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
                 }
                 val updated = transaction {
                     // 9.154：同封禁端点——以 update 影响行数为准
-                    val changed = Users.update({ Users.id eq id }) { it[Users.postRestrictedUntil] = postRestrictedUntil }
+                    val changed = Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.postRestrictedUntil] = postRestrictedUntil }
                     if (changed == 0) return@transaction false
                     ModerationAuditLog.insert {
                         it[userId] = id
@@ -811,7 +815,7 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
                 }
                 val updated = transaction {
                     // 9.154：同封禁端点——以 update 影响行数为准
-                    val changed = Users.update({ Users.id eq id }) { it[Users.messageRestrictedUntil] = messageRestrictedUntil }
+                    val changed = Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.messageRestrictedUntil] = messageRestrictedUntil }
                     if (changed == 0) return@transaction false
                     ModerationAuditLog.insert {
                         it[userId] = id
@@ -1042,19 +1046,8 @@ put("status", "deleted")
                     DirectChatPairs.deleteWhere { DirectChatPairs.chatId eq id }
                     MessageMutations.deleteWhere { MessageMutations.chatId eq id }
                     SenderKeyDistributions.deleteWhere { SenderKeyDistributions.chatId eq id }
-                    AiPreferences.deleteWhere { AiPreferences.chatId eq id }
                     ChatUserSettings.deleteWhere { ChatUserSettings.chatId eq id }
                     GroupAuditLogs.deleteWhere { GroupAuditLogs.chatId eq id }
-                    // 群投票/投票记录/Bot 命令日志：与 deleteChatRows 保持一致，避免孤儿行引用已删除的聊天
-                    val pollIds = GroupPolls.select(GroupPolls.id)
-                        .where { GroupPolls.chatId eq id }
-                        .orderBy(GroupPolls.id to org.jetbrains.exposed.sql.SortOrder.ASC)
-                        .forUpdate()
-                        .map { it[GroupPolls.id] }
-                    if (pollIds.isNotEmpty()) {
-                        GroupPollVotes.deleteWhere { GroupPollVotes.pollId inList pollIds }
-                        GroupPolls.deleteWhere { GroupPolls.id inList pollIds }
-                    }
                     val chainIds = GroupChains.select(GroupChains.id)
                         .where { GroupChains.chatId eq id }
                         .map { it[GroupChains.id] }
@@ -1538,7 +1531,6 @@ put("messageRevokeEnabled", RuntimeConfigService.isMessageRevokeEnabled())
 put("pollsEnabled", RuntimeConfigService.isPollsEnabled())
 put("appLockEnabled", RuntimeConfigService.isAppLockEnabled())
 put("chatDraftsEnabled", RuntimeConfigService.isChatDraftsEnabled())
-put("aiTranslateEnabled", RuntimeConfigService.isAiTranslateEnabled())
 put("groupInvitesEnabled", RuntimeConfigService.isGroupInvitesEnabled())
 put("mentionsEnabled", RuntimeConfigService.isMentionsEnabled())
 put("nudgeEnabled", RuntimeConfigService.isNudgeEnabled())
@@ -1553,14 +1545,6 @@ put("secretChatEnabled", RuntimeConfigService.isSecretChatEnabled())
 put("screenSecureRuntimeEnabled", RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", RuntimeConfigService.isBlindWatermarkEnabled())
 })
@@ -1870,7 +1854,7 @@ put("delivered", delivered)
                 if (enabled == null) return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("enabled bool required"))
                 val ok = transaction {
                     if (Users.selectAll().where { Users.id eq id }.firstOrNull() == null) return@transaction false
-                    Users.update({ Users.id eq id }) {
+                    Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
                         it[Users.isModerator] = enabled
                     }
                     ModerationAuditLog.insert {
@@ -1928,7 +1912,7 @@ put("userId", id)
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("cannot disable TOTP for another master admin"))
                 }
                 val updated = transaction {
-                    val changed = Users.update({ Users.id eq id }) {
+                    val changed = Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
                         it[Users.totpSecret] = null
                         it[Users.totpEnabled] = false
                     }
@@ -2029,7 +2013,7 @@ put("count", okIds.size)
                 // 8.48 修复 M3（bulk-ban）：批量存在性检查 + 单事务批量处置（此前逐 id 独立
                 // 事务做「存在检查+UPDATE+审计」，最多 100 个事务）
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -2046,7 +2030,7 @@ put("count", okIds.size)
                             return@forEach
                         }
                         val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.suspendedUntil], until)
-                        Users.update({ Users.id eq id }) { it[Users.suspendedUntil] = effectiveUntil }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.suspendedUntil] = effectiveUntil }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_BAN"
@@ -2094,7 +2078,7 @@ put("count", banned.size)
                 val skipped = mutableListOf<String>()
                 // 8.48 修复 M3（bulk-unban）：批量存在性检查 + 单事务
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -2102,7 +2086,7 @@ put("count", banned.size)
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.suspendedUntil] = 0L }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.suspendedUntil] = 0L }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_UNBAN"
@@ -2145,7 +2129,7 @@ put("count", updated.size)
                 val skipped = mutableListOf<String>()
                 // 8.48 修复 M3（bulk-suspend-days）：批量存在性检查 + 单事务
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -2160,7 +2144,7 @@ put("count", updated.size)
                             return@forEach
                         }
                         val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.suspendedUntil], until)
-                        Users.update({ Users.id eq id }) { it[Users.suspendedUntil] = effectiveUntil }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.suspendedUntil] = effectiveUntil }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_SUSPEND_DAYS"
@@ -2210,7 +2194,7 @@ post("/users/bulk-message-restrict") {
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -2225,7 +2209,7 @@ post("/users/bulk-message-restrict") {
                             return@forEach
                         }
                         val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.messageRestrictedUntil], until)
-                        Users.update({ Users.id eq id }) { it[Users.messageRestrictedUntil] = effectiveUntil }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.messageRestrictedUntil] = effectiveUntil }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_MESSAGE_RESTRICT"
@@ -2268,7 +2252,7 @@ put("count", updated.size)
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -2276,7 +2260,7 @@ put("count", updated.size)
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.messageRestrictedUntil] = 0L }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.messageRestrictedUntil] = 0L }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_MESSAGE_UNRESTRICT"
@@ -2786,7 +2770,7 @@ get("/polls-export") {
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -2801,7 +2785,7 @@ get("/polls-export") {
                             return@forEach
                         }
                         val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.postRestrictedUntil], until)
-                        Users.update({ Users.id eq id }) { it[Users.postRestrictedUntil] = effectiveUntil }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.postRestrictedUntil] = effectiveUntil }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_POST_RESTRICT"
@@ -2843,7 +2827,7 @@ put("count", updated.size)
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -2851,7 +2835,7 @@ put("count", updated.size)
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.postRestrictedUntil] = 0L }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.postRestrictedUntil] = 0L }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_POST_UNRESTRICT"
@@ -2901,7 +2885,7 @@ post("/users/bulk-set-message-restrict-until") {
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -2909,7 +2893,7 @@ post("/users/bulk-set-message-restrict-until") {
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.messageRestrictedUntil] = until }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.messageRestrictedUntil] = until }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_SET_MSG_RESTRICT_UNTIL"
@@ -3147,14 +3131,7 @@ put("count", updated.size)
                 val csv = buildString {
                     appendLine("key,value")
                     appendLine("ai_enabled," + RuntimeConfigService.isAiEnabled())
-                    appendLine("ai_summary_enabled," + RuntimeConfigService.isAiSummaryEnabled())
-                    appendLine("ai_rewrite_enabled," + RuntimeConfigService.isAiRewriteEnabled())
-                    appendLine("ai_suggest_replies_enabled," + RuntimeConfigService.isAiSuggestRepliesEnabled())
-                    appendLine("ai_transcribe_enabled," + RuntimeConfigService.isAiTranscribeEnabled())
-                    appendLine("ai_analyze_image_enabled," + RuntimeConfigService.isAiAnalyzeImageEnabled())
-                    appendLine("ai_group_assistant_enabled," + RuntimeConfigService.isAiGroupAssistantEnabled())
-                    appendLine("ai_analyze_file_enabled," + RuntimeConfigService.isAiAnalyzeFileEnabled())
-                    appendLine("ai_semantic_search_enabled," + RuntimeConfigService.isAiSemanticSearchEnabled())
+                    appendLine("ai_content_moderation_enabled," + RuntimeConfigService.isAiContentModerationEnabled())
                     appendLine("gif_send_enabled," + RuntimeConfigService.isGifSendEnabled())
                     appendLine("blind_watermark_enabled," + RuntimeConfigService.isBlindWatermarkEnabled())
                     appendLine("voice_call_enabled," + RuntimeConfigService.isVoiceCallEnabled())
@@ -3168,7 +3145,6 @@ put("count", updated.size)
                     appendLine("push_notifications_enabled," + RuntimeConfigService.isPushNotificationsEnabled())
                     appendLine("task_reminders_enabled," + RuntimeConfigService.isTaskRemindersEnabled())
                     appendLine("dnd_enabled," + RuntimeConfigService.isDndEnabled())
-                    appendLine("offline_ai_enabled," + RuntimeConfigService.isOfflineAiEnabled())
                     appendLine("in_app_sounds_enabled," + RuntimeConfigService.isInAppSoundsEnabled())
                     appendLine("haptics_enabled," + RuntimeConfigService.isHapticsEnabled())
                     appendLine("chat_animations_enabled," + RuntimeConfigService.isChatAnimationsEnabled())
@@ -3190,7 +3166,6 @@ put("count", updated.size)
                     appendLine("secret_read_receipt_block_enabled," + RuntimeConfigService.isSecretReadReceiptBlockEnabled())
                     appendLine("secret_presence_block_enabled," + RuntimeConfigService.isSecretPresenceBlockEnabled())
                     appendLine("secret_last_seen_block_enabled," + RuntimeConfigService.isSecretLastSeenBlockEnabled())
-                    appendLine("ai_translate_enabled," + RuntimeConfigService.isAiTranslateEnabled())
                     appendLine("image_send_enabled," + RuntimeConfigService.isImageSendEnabled())
                     appendLine("video_send_enabled," + RuntimeConfigService.isVideoSendEnabled())
                 }
@@ -3458,7 +3433,7 @@ get("/pinned-messages-export") {
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -3466,7 +3441,7 @@ get("/pinned-messages-export") {
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.searchable] = false }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.searchable] = false }
                         updated += id
                     }
                 }
@@ -3497,7 +3472,7 @@ put("count", updated.size)
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -3505,7 +3480,7 @@ put("count", updated.size)
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.searchable] = true }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.searchable] = true }
                         updated += id
                     }
                 }
@@ -3542,7 +3517,7 @@ put("count", updated.size)
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -3550,7 +3525,7 @@ put("count", updated.size)
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.showStatus] = showStatus }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.showStatus] = showStatus }
                         updated += id
                     }
                 }
@@ -3588,7 +3563,7 @@ put("showStatus", showStatus)
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -3596,7 +3571,7 @@ put("showStatus", showStatus)
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) {
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
                             it[Users.showOnline] = showOnline
                         }
                         updated += id
@@ -3636,7 +3611,7 @@ put("showOnline", showOnline)
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -3644,7 +3619,7 @@ put("showOnline", showOnline)
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) {
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
                             it[Users.searchable] = searchable
                         }
                         updated += id
@@ -3678,7 +3653,7 @@ put("searchable", searchable)
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -3686,7 +3661,7 @@ put("searchable", searchable)
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) {
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
                             it[Users.totpSecret] = null
                             it[Users.totpEnabled] = false
                         }
@@ -3774,7 +3749,7 @@ post("/users/bulk-set-suspend-until") {
                 val skipped = mutableListOf<String>()
                 val shouldInvalidate = until > now
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -3782,7 +3757,7 @@ post("/users/bulk-set-suspend-until") {
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) {
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
                             it[Users.suspendedUntil] = until
                         }
                         ModerationAuditLog.insert {
@@ -3830,7 +3805,7 @@ post("/users/bulk-clear-all-restrictions") {
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -3838,7 +3813,7 @@ post("/users/bulk-clear-all-restrictions") {
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) {
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
                             it[Users.messageRestrictedUntil] = 0L
                             it[Users.postRestrictedUntil] = 0L
                             it[Users.suspendedUntil] = 0L
@@ -3881,7 +3856,7 @@ post("/users/bulk-clear-message-and-post-restrict") {
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -3889,7 +3864,7 @@ post("/users/bulk-clear-message-and-post-restrict") {
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) {
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
                             it[Users.messageRestrictedUntil] = 0L
                             it[Users.postRestrictedUntil] = 0L
                         }
@@ -3990,7 +3965,7 @@ post("/users/bulk-clear-suspend") {
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -3998,7 +3973,7 @@ post("/users/bulk-clear-suspend") {
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.suspendedUntil] = 0L }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.suspendedUntil] = 0L }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_CLEAR_SUSPEND"
@@ -4037,7 +4012,7 @@ post("/users/bulk-clear-message-restrict") {
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -4045,7 +4020,7 @@ post("/users/bulk-clear-message-restrict") {
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.messageRestrictedUntil] = 0L }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.messageRestrictedUntil] = 0L }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_CLEAR_MSG_RESTRICT"
@@ -4089,7 +4064,7 @@ post("/users/bulk-message-restrict-days") {
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -4104,7 +4079,7 @@ post("/users/bulk-message-restrict-days") {
                             return@forEach
                         }
                         val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.messageRestrictedUntil], until)
-                        Users.update({ Users.id eq id }) { it[Users.messageRestrictedUntil] = effectiveUntil }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.messageRestrictedUntil] = effectiveUntil }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_MSG_RESTRICT_DAYS"
@@ -4145,7 +4120,7 @@ post("/users/bulk-clear-post-restrict") {
                 val updated = mutableListOf<String>()
                 val skipped = mutableListOf<String>()
                 val existing = transaction {
-                    Users.select(Users.id).where { Users.id inList ids }.map { it[Users.id] }.toSet()
+                    Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
                 }
                 transaction {
                     ids.forEach { id ->
@@ -4153,7 +4128,7 @@ post("/users/bulk-clear-post-restrict") {
                             skipped += id
                             return@forEach
                         }
-                        Users.update({ Users.id eq id }) { it[Users.postRestrictedUntil] = 0L }
+                        Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.postRestrictedUntil] = 0L }
                         ModerationAuditLog.insert {
                             it[ModerationAuditLog.userId] = id
                             it[ModerationAuditLog.action] = "ADMIN_BULK_CLEAR_POST_RESTRICT"

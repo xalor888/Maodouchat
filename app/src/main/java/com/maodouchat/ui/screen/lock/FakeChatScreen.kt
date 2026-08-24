@@ -54,7 +54,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -68,13 +67,8 @@ import com.maodouchat.R
 import com.maodouchat.security.FakeChatManager
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
-import com.maodouchat.ui.theme.Background
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.TextSecondary
-import com.maodouchat.ui.theme.Surface as SurfaceColor
 
 /**
  * 假聊天模式前台界面：看起来是一个普通的「消息」App。
@@ -103,7 +97,7 @@ fun FakeChatScreen(
         (context as? android.app.Activity)?.finish()
     }
 
-    Surface(color = Background, modifier = Modifier.fillMaxSize()) {
+    Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             FakeChatTopBar(
                 onUnlockRequest = { showPinDialog = true },
@@ -167,7 +161,7 @@ private fun FakeChatTopBar(onUnlockRequest: () -> Unit, modifier: Modifier = Mod
                     Icon(
                         Icons.AutoMirrored.Outlined.ArrowBack,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -251,13 +245,13 @@ private fun ColumnScope.FakeMessageList() {
                             bottomStart = if (message.isMine) 14.dp else 4.dp,
                             bottomEnd = if (message.isMine) 4.dp else 14.dp
                         ),
-                        color = if (message.isMine) Primary else SurfaceColor,
+                        color = if (message.isMine) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                         modifier = Modifier.widthIn(max = 280.dp)
                     ) {
                         Text(
                             text = message.text,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (message.isMine) Color.White else OnSurface,
+                            color = if (message.isMine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
                         )
                     }
@@ -297,9 +291,9 @@ private fun FakeChatInputBar() {
                 unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
                 focusedBorderColor = LocalChatPalette.current.chatInputBorder,
                 unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-                cursorColor = Primary,
-                focusedTextColor = OnSurface,
-                unfocusedTextColor = OnSurface
+                cursorColor = MaterialTheme.colorScheme.primary,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
             ),
             modifier = Modifier.weight(1f)
         )
@@ -311,7 +305,7 @@ private fun FakeChatInputBar() {
             Icon(
                 Icons.AutoMirrored.Outlined.Send,
                 contentDescription = stringResource(R.string.fake_chat_send),
-                tint = if (draft.isNotBlank()) Primary else TextSecondary,
+                tint = if (draft.isNotBlank()) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary,
                 modifier = Modifier.size(24.dp)
             )
         }
@@ -376,11 +370,11 @@ private fun FakePinDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = LocalChatPalette.current.chatInputBackground,
                         unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                        focusedBorderColor = Primary,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-                        cursorColor = Primary,
-                        focusedTextColor = OnSurface,
-                        unfocusedTextColor = OnSurface
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     isError = error || lockoutMs > 0L,
                     supportingText = supportingMsg?.let { msg ->

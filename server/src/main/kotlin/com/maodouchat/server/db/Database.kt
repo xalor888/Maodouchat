@@ -25,6 +25,8 @@ object Users : Table("users") {
     val isOnline = bool("is_online").default(false)
     val lastSeen = long("last_seen").default(System.currentTimeMillis())
     val showOnline = bool("show_online").default(true)
+    /** everyone / contacts / nobody — 在线状态对谁可见 */
+    val onlineVisibility = varchar("online_visibility", 20).default("everyone")
     /** 是否对他人展示个性签名 / 自定义状态 */
     val showStatus = bool("show_status").default(true)
     val searchable = bool("searchable").default(true)
@@ -496,15 +498,6 @@ object SenderKeyDistributions : Table("sender_key_distributions") {
     }
 }
 
-object AiPreferences : Table("ai_preferences") {
-    val userId = varchar("user_id", 50) references Users.id
-    /** USER scope uses an empty chatId; CHAT scope stores the concrete chat id. */
-    val scope = varchar("scope", 20)
-    val chatId = varchar("chat_id", 50).default("")
-    val enabled = bool("enabled").default(true)
-    val updatedAt = long("updated_at").default(System.currentTimeMillis())
-    override val primaryKey = PrimaryKey(userId, scope, chatId)
-}
 
 object NotificationPreferences : Table("notification_preferences") {
     val userId = varchar("user_id", 50) references Users.id
@@ -602,23 +595,6 @@ object AiAuditLogs : Table("ai_audit_logs") {
     }
 }
 
-object AiSummarySyncEnvelopes : Table("ai_summary_sync_envelopes") {
-    val id = varchar("id", 100)
-    val userId = varchar("user_id", 50) references Users.id
-    val syncId = varchar("sync_id", 100)
-    val senderDeviceId = integer("sender_device_id")
-    val targetDeviceId = integer("target_device_id")
-    val envelope = text("envelope")
-    val createdAt = long("created_at").default(System.currentTimeMillis())
-    val expiresAt = long("expires_at")
-    override val primaryKey = PrimaryKey(id)
-
-    init {
-        uniqueIndex("uidx_ai_summary_sync_target", userId, syncId, targetDeviceId)
-        index("idx_ai_summary_sync_device_created", false, userId, targetDeviceId, createdAt)
-        index("idx_ai_summary_sync_expires", false, expiresAt)
-    }
-}
 
 object ModerationRules : Table("moderation_rules") {
     val id = varchar("id", 80)
@@ -733,8 +709,8 @@ fun initDatabase() {
             Users, Chats, ChatParticipants, ChatUserSettings, GroupAuditLogs, Messages, MessageMutations,
             EncryptedAttachments, SignalKeys, SignalDevices, SignalingMessages, Posts, PostImageClaims, PostLikes, PostComments, CommentLikes,
             BlockedUsers, UserLocations, AuthSessions, RefreshTokens, RevokedAccessTokens, StarMessages, PinnedMessages,
-            ReadReceipts, MessageReactions, SenderKeyDistributions, AiPreferences, NotificationPreferences,
-            PushTokens, GroupPolls, GroupPollVotes, BotApps, BotCommandLogs, BotUpdateInbox, Reports, ModerationAuditLog, AiAuditLogs, AiSummarySyncEnvelopes, ModerationRules,
+            ReadReceipts, MessageReactions, SenderKeyDistributions, NotificationPreferences,
+            PushTokens, GroupPolls, GroupPollVotes, BotApps, BotCommandLogs, BotUpdateInbox, Reports, ModerationAuditLog, AiAuditLogs, ModerationRules,
             RiskEvents, DirectChatPairs, FriendRequests, Friendships, ChatFolders, ClientPrefs, SystemSettings,
             // 9.3xx：群邀请同意流程（成员入群前须本人接受）
             GroupInvitations,
@@ -752,6 +728,7 @@ fun initDatabase() {
         widenModerationAuditDetailColumn()
         // 确保 init {} 中的索引被创建（createMissingTablesAndColumns 可能不会自动建）
         ensureIndexes()
+        dropRetiredCloudAiTables()
         // 9.4xx：PostgreSQL 全文/模糊搜索索引（pg_trgm；H2 与受限环境自动跳过）
         ensureSearchIndexes()
         migrateAuthSessionState()
@@ -768,6 +745,16 @@ fun initDatabase() {
  * 存量 chats 行补全 chat_type：群聊推导为 GROUP，私聊推导为 DIRECT。
  * 新列由 createMissingTablesAndColumns 自动补列（默认 DIRECT），随后此处修正历史群聊。
  */
+
+private fun dropRetiredCloudAiTables() {
+    try {
+        TransactionManager.current().exec("DROP TABLE IF EXISTS ai_summary_sync_envelopes")
+        TransactionManager.current().exec("DROP TABLE IF EXISTS ai_preferences")
+    } catch (_: Exception) {
+        // H2/Postgres naming differences; leftover tables are unused.
+    }
+}
+
 private fun backfillChatTypes() {
     try {
         TransactionManager.current().exec(
@@ -915,9 +902,7 @@ private fun ensureIndexes() {
         "CREATE INDEX IF NOT EXISTS idx_push_tokens_user_id ON push_tokens(user_id)",
         "CREATE INDEX IF NOT EXISTS idx_push_tokens_auth_session ON push_tokens(auth_session_id)",
         "CREATE INDEX IF NOT EXISTS idx_ai_audit_user_created ON ai_audit_logs(user_id, created_at)",
-        "CREATE UNIQUE INDEX IF NOT EXISTS uidx_ai_summary_sync_target ON ai_summary_sync_envelopes(user_id, sync_id, target_device_id)",
-        "CREATE INDEX IF NOT EXISTS idx_ai_summary_sync_device_created ON ai_summary_sync_envelopes(user_id, target_device_id, created_at)",
-        "CREATE INDEX IF NOT EXISTS idx_ai_summary_sync_expires ON ai_summary_sync_envelopes(expires_at)",
+
         "CREATE INDEX IF NOT EXISTS idx_reports_reporter_created ON reports(reporter_id, created_at)",
         "CREATE INDEX IF NOT EXISTS idx_reports_status_created ON reports(status, created_at)",
         "CREATE INDEX IF NOT EXISTS idx_reports_target ON reports(target_type, target_id)",

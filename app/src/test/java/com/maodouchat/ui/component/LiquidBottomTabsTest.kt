@@ -20,8 +20,8 @@ class LiquidBottomTabsTest {
     fun `glass container is translucent light or dark`() {
         val light = liquidGlassContainerColor(isLightTheme = true)
         val dark = liquidGlassContainerColor(isLightTheme = false)
-        assertEquals(Color(0xFFFAFAFA).copy(alpha = 0.42f), light)
-        assertEquals(Color(0xFF121212).copy(alpha = 0.38f), dark)
+        assertEquals(Color(0xFFFAFAFA).copy(alpha = 0.28f), light)
+        assertEquals(Color(0xFF121212).copy(alpha = 0.32f), dark)
         assertTrue(light.alpha < 1f)
         assertTrue(dark.alpha < 1f)
     }
@@ -38,5 +38,13 @@ class LiquidBottomTabsTest {
         assertEquals(2, coerceCapsuleTabIndex(9, 3))
         assertEquals(0, coerceCapsuleTabIndex(0, 0))
         assertEquals(1, coerceCapsuleTabIndex(1, 3))
+    }
+
+    @Test
+    fun `pinned dock matches capsule control sizes`() {
+        assertEquals(64, PinnedBottomNavMetrics.BarHeight.value.toInt())
+        assertEquals(22, PinnedBottomNavMetrics.IconSize.value.toInt())
+        assertEquals(56, PinnedBottomNavMetrics.PillHeight.value.toInt())
+        assertEquals(10f, PinnedBottomNavMetrics.LabelSize.value)
     }
 }

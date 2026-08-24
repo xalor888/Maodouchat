@@ -46,7 +46,7 @@ tasks.configureEach {
 
 android {
     namespace = "com.maodouchat"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.maodouchat"
@@ -240,7 +240,11 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.ui:ui-util")
     implementation("androidx.compose.material3:material3")
+    // Murexide liquid glass (AndroidLiquidGlass / Kyant backdrop + capsule shapes)
+    implementation("io.github.kyant0:backdrop:2.0.0")
+    implementation("io.github.kyant0:shapes:1.2.0")
     // material-icons-extended 已替换为本地图标副本 (ExtendedIcons.kt)，减少 ~1-2MB debug APK
     // 注：本地副本从未落地，缺失的扩展图标（EditNote/ContentCopy/ContactPage 等）导致编译失败；
     // 恢复 material-icons-extended（release 构建 R8 会裁掉未用图标，体积影响仅在 debug APK）。
@@ -312,6 +316,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test:2.4.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("io.mockk:mockk:1.13.8")
+    testImplementation("org.json:json:20240303")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     // 9.291：显式声明 runner——testInstrumentationRunner 指向 AndroidJUnitRunner，但 ext:junit 1.2.1
     // 不再传递引入 androidx.test:runner，导致仪器测试启动即 ClassNotFoundException 崩溃（0 tests）

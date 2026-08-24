@@ -10,8 +10,8 @@ import com.maodouchat.server.repository.*
 import com.maodouchat.server.repository.AttachmentNotReadyException
 import com.maodouchat.server.repository.DuplicateMessageIdException
 import com.maodouchat.server.service.AiGateway
-import com.maodouchat.server.service.AiGatewayResult
 import com.maodouchat.server.service.AiGatewayService
+import com.maodouchat.server.service.ContentModerationService
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.EncryptedAttachmentStorage
 import com.maodouchat.server.service.TurnCredentialService
@@ -321,18 +321,12 @@ fun Application.configureRouting(
     val chatFolderRepo = ChatFolderRepository()
     val clientPrefsRepo = ClientPrefsRepository()
     val aiRepo = AiRepository()
-    val aiSummarySyncRepo = AiSummarySyncRepository()
     val encryptedAttachmentRepo = EncryptedAttachmentRepository()
     val senderKeyDistributionRepo = SenderKeyDistributionRepository()
     val reportRepo = ReportRepository()
     val aiSummaryCleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     aiSummaryCleanupScope.launch {
         while (isActive) {
-            runCatching { aiSummarySyncRepo.deleteExpired() }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    log.warn("AI summary envelope cleanup failed", error)
-                }
             runCatching {
                 val now = System.currentTimeMillis()
                 encryptedAttachmentRepo.deleteExpired(now).forEach(EncryptedAttachmentStorage::delete)
@@ -556,7 +550,12 @@ fun Application.configureRouting(
                 val isAttachmentUpload = path == "/api/attachments" ||
                     path.startsWith("/api/attachment-uploads") ||
                     path.matches(Regex("^/api/attachments/[^/]+/chunks?$"))
-                val maxBytes = if (isAttachmentUpload) MAX_ATTACHMENT_CIPHER_BYTES else MAX_GLOBAL_BODY_BYTES
+                val isAppUpdateUpload = path == "/api/internal/app-update"
+                val maxBytes = when {
+                    isAttachmentUpload -> MAX_ATTACHMENT_CIPHER_BYTES
+                    isAppUpdateUpload -> com.maodouchat.server.update.AppUpdatePublishPolicy.MAX_APK_BYTES
+                    else -> MAX_GLOBAL_BODY_BYTES
+                }
                 val contentLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
                 if (contentLength != null && contentLength > maxBytes) {
                     call.respond(HttpStatusCode(413, "Request Entity Too Large"), ErrorResponse("请求体过大"))
@@ -567,6 +566,89 @@ fun Application.configureRouting(
         configureHealthRoutes()
 
         // ─── 认证 API ────────────────────────
+
+            get("/api/public/updates") {
+                val versionCode = RuntimeConfigService.getInt(RuntimeConfigService.KEY_UPDATE_VERSION_CODE, 0)
+                val versionName = RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_VERSION_NAME).ifBlank { "0" }
+                val apkUrl = RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_APK_URL)
+                val serverUrl = RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_SERVER_URL).ifBlank { ServerConfig.baseUrl }
+                val notes = RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_NOTES)
+                call.respond(
+                    buildJsonObject {
+                        put("versionCode", versionCode)
+                        put("versionName", versionName)
+                        put("apkUrl", apkUrl)
+                        put("serverUrl", serverUrl)
+                        put("notes", notes)
+                    }
+                )
+            }
+
+            get("/api/public/app-update/latest.apk") {
+                val file = com.maodouchat.server.update.AppUpdateStorage.latestFile()
+                if (!file.isFile || file.length() < com.maodouchat.server.update.AppUpdatePublishPolicy.MIN_APK_BYTES) {
+                    call.respond(HttpStatusCode.NotFound, ErrorResponse("更新包尚未发布"))
+                    return@get
+                }
+                call.response.header(HttpHeaders.CacheControl, "no-store")
+                call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"maodouchat.apk\"")
+                call.respondFile(file)
+            }
+
+            put("/api/internal/app-update") {
+                val expected = ServerConfig.updateDeployToken
+                if (!com.maodouchat.server.update.AppUpdatePublishPolicy.tokenConfigured(expected)) {
+                    call.respond(HttpStatusCode.NotFound, ErrorResponse("未配置更新发布"))
+                    return@put
+                }
+                val provided = com.maodouchat.server.update.AppUpdatePublishPolicy.bearerToken(
+                    call.request.header(HttpHeaders.Authorization)
+                ).orEmpty()
+                if (!com.maodouchat.server.update.AppUpdatePublishPolicy.tokensMatch(expected, provided)) {
+                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse("发布凭证无效"))
+                    return@put
+                }
+                val versionCode = com.maodouchat.server.update.AppUpdatePublishPolicy.parseVersionCode(
+                    call.request.header("X-Version-Code")
+                )
+                val versionName = com.maodouchat.server.update.AppUpdatePublishPolicy.parseVersionName(
+                    call.request.header("X-Version-Name")
+                )
+                if (versionCode == null || versionName == null) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("版本号无效"))
+                    return@put
+                }
+                val notes = com.maodouchat.server.update.AppUpdatePublishPolicy.sanitizeNotes(
+                    call.request.header("X-Update-Notes")
+                )
+                val saved = runCatching {
+                    com.maodouchat.server.update.AppUpdateStorage.saveFromStream(call.receiveStream())
+                }.getOrElse { error ->
+                    val msg = when (error.message) {
+                        "too_large" -> "APK 过大"
+                        "too_small", "not_apk" -> "不是有效的 APK"
+                        else -> "写入更新包失败"
+                    }
+                    val status = if (error.message == "too_large") {
+                        HttpStatusCode(413, "Payload Too Large")
+                    } else {
+                        HttpStatusCode.BadRequest
+                    }
+                    call.respond(status, ErrorResponse(msg))
+                    return@put
+                }
+                val apkUrl = com.maodouchat.server.update.AppUpdatePublishPolicy.publicApkUrl(ServerConfig.baseUrl)
+                RuntimeConfigService.applyPublishedUpdate(versionCode, versionName, apkUrl, notes)
+                call.respond(
+                    buildJsonObject {
+                        put("ok", true)
+                        put("versionCode", versionCode)
+                        put("versionName", versionName)
+                        put("apkUrl", apkUrl)
+                        put("bytes", saved.length())
+                    }
+                )
+            }
         
             get("/api/public/status") {
                 // 0.94：公开状态缓存（LRU+TTL）——App 启动/登录高频拉取，减少 DB 配置查询
@@ -635,7 +717,6 @@ put("messageRevokeEnabled", RuntimeConfigService.isMessageRevokeEnabled())
 put("pollsEnabled", RuntimeConfigService.isPollsEnabled())
 put("appLockEnabled", RuntimeConfigService.isAppLockEnabled())
 put("chatDraftsEnabled", RuntimeConfigService.isChatDraftsEnabled())
-put("aiTranslateEnabled", RuntimeConfigService.isAiTranslateEnabled())
 put("groupInvitesEnabled", RuntimeConfigService.isGroupInvitesEnabled())
 put("mentionsEnabled", RuntimeConfigService.isMentionsEnabled())
 put("nudgeEnabled", RuntimeConfigService.isNudgeEnabled())
@@ -650,14 +731,6 @@ put("secretChatEnabled", RuntimeConfigService.isSecretChatEnabled())
 put("screenSecureRuntimeEnabled", RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", RuntimeConfigService.isBlindWatermarkEnabled())
 put("voiceCallEnabled", RuntimeConfigService.isVoiceCallEnabled())
@@ -671,7 +744,6 @@ put("notificationPreviewEnabled", RuntimeConfigService.isNotificationPreviewEnab
 put("pushNotificationsEnabled", RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", RuntimeConfigService.isTaskRemindersEnabled())
 put("dndEnabled", RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", RuntimeConfigService.isOfflineAiEnabled())
 put("inAppSoundsEnabled", RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", RuntimeConfigService.isHapticsEnabled())
 put("chatAnimationsEnabled", RuntimeConfigService.isChatAnimationsEnabled())
@@ -710,19 +782,21 @@ put("secretSurfaceFlags", Json.parseToJsonElement(Json.encodeToString(com.maodou
             // 客户端首次通话前从这里下载并 System.load 预加载（见客户端 WebRtcNativeLibraryLoader）。
             get("/api/webrtc/lib/{abi}") {
                 val abi = call.parameters["abi"].orEmpty()
-                if (abi != WebRtcBinaryService.SUPPORTED_ABI) {
+                if (!WebRtcBinaryService.isSupported(abi)) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("不支持的 CPU 架构: $abi"))
                     return@get
                 }
-                val file = WebRtcBinaryService.resolveFile()
+                val file = WebRtcBinaryService.resolveFile(abi)
                 if (file == null) {
                     call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("WebRTC 原生库暂不可用"))
                     return@get
                 }
-                // .so 按版本内容不变，长缓存 + 强 ETag（SHA-256）供客户端 304 复用
-                val etag = WebRtcBinaryService.sha256(file)
+                // Identity encoding so Caddy/gzip/zstd cannot rewrite bytes under a SHA-256 ETag.
+                val etag = WebRtcBinaryService.sha256(file, abi)
                 call.response.header(HttpHeaders.CacheControl, "public, max-age=2592000, immutable")
                 call.response.header(HttpHeaders.ETag, "\"$etag\"")
+                call.response.header("X-Content-SHA256", etag)
+                call.response.header(HttpHeaders.ContentEncoding, "identity")
                 if (call.request.headers[HttpHeaders.IfNoneMatch] == "\"$etag\"") {
                     call.respond(HttpStatusCode.NotModified)
                     return@get
@@ -1941,7 +2015,8 @@ put("status", "ok")
                     showOnline = req.showOnline,
                     showStatus = req.showStatus,
                     searchable = req.searchable,
-                    defaultPostVisibility = req.defaultPostVisibility
+                    defaultPostVisibility = req.defaultPostVisibility,
+                    onlineVisibility = req.onlineVisibility
                 )
                 if (update == null) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
@@ -2088,9 +2163,13 @@ put("status", "ok")
             }
 
             get("/api/users/{id}") {
-                val user = userRepo.getPublicById(call.parameters["id"]!!, viewerId = call.principal<JWTPrincipal>()?.payload?.subject)
-                if (user != null) call.respond(user)
-                else call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
+                val viewerId = call.principal<JWTPrincipal>()?.payload?.subject
+                val user = userRepo.getPublicById(call.parameters["id"]!!, viewerId = viewerId)
+                if (user != null) {
+                    call.respond(
+                        user.copy(isOnline = user.isOnline && userRepo.shouldShowOnlineTo(user.id, viewerId))
+                    )
+                } else call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
             }
 
             // 上传头像
@@ -2628,7 +2707,8 @@ put("status", "ok")
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参与者不能重复"))
                     return@post
                 }
-                if (requestedParticipants.isEmpty()) {
+                // 群/频道允许空 participantIds：创建者单独入群，成员稍后邀请。私聊仍必须指定对方。
+                if (requestedParticipants.isEmpty() && !isChannel && !req.isGroup) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参与者不能为空"))
                     return@post
                 }
@@ -2639,10 +2719,6 @@ put("status", "ok")
                 val allParticipants = (requestedParticipants + userId).distinct()
                 if (!isChannel && !req.isGroup && allParticipants.size != 2) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("私聊必须且只能包含 2 名用户"))
-                    return@post
-                }
-                if (!isChannel && req.isGroup && allParticipants.size < 2) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("群聊至少需要 2 名成员"))
                     return@post
                 }
                 val memberLimit = if (isChannel) MAX_CHANNEL_SUBSCRIBERS else maxGroupMembers()
@@ -3050,6 +3126,132 @@ put("status", "ok")
             // ─── Developer bots ───────────────────────────────────────
             
             
+            get("/api/chats/{chatId}/bot-commands") {
+                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val chatId = call.parameters["chatId"]!!
+                if (!chatRepo.isParticipant(chatId, userId)) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
+                    return@get
+                }
+                call.respond(
+                    buildJsonObject {
+                        put("ok", true)
+                        putJsonArray("bots") {
+                            com.maodouchat.server.repository.BotRepository.listEnabledBotsInChat(chatId).forEach { bot ->
+                                add(
+                                    buildJsonObject {
+                                        put("id", bot.id)
+                                        put("username", bot.username)
+                                        put("name", bot.name)
+                                    }
+                                )
+                            }
+                        }
+                        putJsonArray("commands") {
+                            com.maodouchat.server.repository.BotRepository.listCommandsForChat(chatId).forEach { item ->
+                                add(
+                                    buildJsonObject {
+                                        put("botId", item.botId)
+                                        put("username", item.username)
+                                        put("name", item.name)
+                                        put("command", item.command)
+                                        put("description", item.description)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                )
+            }
+
+            post("/api/chats/{chatId}/bot-inbox") {
+                if (call.rejectIfMaintenance()) return@post
+                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                if (call.rejectIfSuspended(userRepo, userId)) return@post
+                if (call.rejectIfMessageRestricted(userRepo, userId)) return@post
+                if (!RuntimeConfigService.isBotsAllowed()) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot platform disabled"))
+                    return@post
+                }
+                val chatId = call.parameters["chatId"]!!
+                if (!chatRepo.isParticipant(chatId, userId)) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
+                    return@post
+                }
+                if (!botCreateRateLimiter.acquire("bot-inbox:$userId", maxPerMinute = 60)) {
+                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
+                    return@post
+                }
+                val body = call.receiveBoundedTextOrEmpty(8_192)
+                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+                val text = (obj["text"] as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
+                val botIdHint = (obj["botId"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.takeIf { it.isNotBlank() }
+                val cleaned = com.maodouchat.server.bot.BotCommandPolicy.sanitizeInboxText(text)
+                if (cleaned == null) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("命令无效或不能是密文"))
+                    return@post
+                }
+                val delivered = com.maodouchat.server.repository.BotRepository.enqueueUserCommand(
+                    chatId = chatId,
+                    userId = userId,
+                    text = cleaned,
+                    botIdHint = botIdHint
+                )
+                if (delivered.isEmpty()) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("该会话没有可接收命令的机器人"))
+                    return@post
+                }
+                delivered.forEach { (botId, payload) ->
+                    try {
+                        com.maodouchat.server.service.BotWebhookService.notifyBotDirect(
+                            botId = botId,
+                            bodyJson = payload
+                        )
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                    }
+                }
+                call.respond(
+                    buildJsonObject {
+                        put("ok", true)
+                        put("delivered", delivered.size)
+                    }
+                )
+            }
+
+            post("/api/bots/{botId}/dm") {
+                if (call.rejectIfMaintenance()) return@post
+                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                if (call.rejectIfSuspended(userRepo, userId)) return@post
+                if (!RuntimeConfigService.isBotsAllowed()) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot platform disabled"))
+                    return@post
+                }
+                val botId = call.parameters["botId"]!!
+                val bot = com.maodouchat.server.repository.BotRepository.get(botId)
+                if (bot == null || !bot.enabled) {
+                    call.respond(HttpStatusCode.NotFound, ErrorResponse("bot not found"))
+                    return@post
+                }
+                if (!com.maodouchat.server.repository.BotRepository.isBotDeliverable(botId)) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot unavailable"))
+                    return@post
+                }
+                if (!createChatRateLimiter.acquire(userId, maxPerMinute = 20)) {
+                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建会话过于频繁，请稍后再试"))
+                    return@post
+                }
+                val chat = try {
+                    chatRepo.getOrCreateDirectChat(userId, botId)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无法与该机器人创建私聊"))
+                    return@post
+                }
+                call.respond(HttpStatusCode.Created, chat)
+            }
+
             post("/api/chats/{chatId}/bot-callback") {
                 if (call.rejectIfMaintenance()) return@post
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
@@ -3359,7 +3561,6 @@ put("maxConnections", 40)
                         put("pollsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPollsEnabled())
                         put("appLockEnabled", com.maodouchat.server.service.RuntimeConfigService.isAppLockEnabled())
                         put("chatDraftsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatDraftsEnabled())
-                        put("aiTranslateEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranslateEnabled())
                         put("groupInvitesEnabled", com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled())
                         put("mentionsEnabled", com.maodouchat.server.service.RuntimeConfigService.isMentionsEnabled())
                         put("nudgeEnabled", com.maodouchat.server.service.RuntimeConfigService.isNudgeEnabled())
@@ -3374,14 +3575,6 @@ put("maxConnections", 40)
                         put("screenSecureRuntimeEnabled", com.maodouchat.server.service.RuntimeConfigService.isScreenSecureRuntimeEnabled())
                         put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isImageSendEnabled())
                         put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
-                        put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-                        put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-                        put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-                        put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-                        put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-                        put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-                        put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-                        put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
                         put("gifSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isGifSendEnabled())
                         put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
                         put("voiceCallEnabled", com.maodouchat.server.service.RuntimeConfigService.isVoiceCallEnabled())
@@ -3395,7 +3588,6 @@ put("maxConnections", 40)
                         put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
                         put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
                         put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-                        put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
                         put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
                         put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
                         put("chatAnimationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatAnimationsEnabled())
@@ -7874,7 +8066,6 @@ put("messageRevokeEnabled", com.maodouchat.server.service.RuntimeConfigService.i
 put("pollsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPollsEnabled())
 put("appLockEnabled", com.maodouchat.server.service.RuntimeConfigService.isAppLockEnabled())
 put("chatDraftsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatDraftsEnabled())
-put("aiTranslateEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranslateEnabled())
 put("groupInvitesEnabled", com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled())
 put("mentionsEnabled", com.maodouchat.server.service.RuntimeConfigService.isMentionsEnabled())
 put("nudgeEnabled", com.maodouchat.server.service.RuntimeConfigService.isNudgeEnabled())
@@ -7889,14 +8080,6 @@ put("secretChatEnabled", com.maodouchat.server.service.RuntimeConfigService.isSe
 put("screenSecureRuntimeEnabled", com.maodouchat.server.service.RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
 put("voiceCallEnabled", com.maodouchat.server.service.RuntimeConfigService.isVoiceCallEnabled())
@@ -7910,7 +8093,6 @@ put("notificationPreviewEnabled", com.maodouchat.server.service.RuntimeConfigSer
 put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
 put("chatAnimationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatAnimationsEnabled())
@@ -8123,7 +8305,6 @@ put("messageRevokeEnabled", com.maodouchat.server.service.RuntimeConfigService.i
 put("pollsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPollsEnabled())
 put("appLockEnabled", com.maodouchat.server.service.RuntimeConfigService.isAppLockEnabled())
 put("chatDraftsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatDraftsEnabled())
-put("aiTranslateEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranslateEnabled())
 put("groupInvitesEnabled", com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled())
 put("mentionsEnabled", com.maodouchat.server.service.RuntimeConfigService.isMentionsEnabled())
 put("nudgeEnabled", com.maodouchat.server.service.RuntimeConfigService.isNudgeEnabled())
@@ -8138,14 +8319,6 @@ put("secretChatEnabled", com.maodouchat.server.service.RuntimeConfigService.isSe
 put("screenSecureRuntimeEnabled", com.maodouchat.server.service.RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
 put("voiceCallEnabled", com.maodouchat.server.service.RuntimeConfigService.isVoiceCallEnabled())
@@ -8159,7 +8332,6 @@ put("notificationPreviewEnabled", com.maodouchat.server.service.RuntimeConfigSer
 put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
 put("chatAnimationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatAnimationsEnabled())
@@ -8323,7 +8495,6 @@ put("messageRevokeEnabled", com.maodouchat.server.service.RuntimeConfigService.i
 put("pollsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPollsEnabled())
 put("appLockEnabled", com.maodouchat.server.service.RuntimeConfigService.isAppLockEnabled())
 put("chatDraftsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatDraftsEnabled())
-put("aiTranslateEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranslateEnabled())
 put("groupInvitesEnabled", com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled())
 put("mentionsEnabled", com.maodouchat.server.service.RuntimeConfigService.isMentionsEnabled())
 put("nudgeEnabled", com.maodouchat.server.service.RuntimeConfigService.isNudgeEnabled())
@@ -8338,14 +8509,6 @@ put("secretChatEnabled", com.maodouchat.server.service.RuntimeConfigService.isSe
 put("screenSecureRuntimeEnabled", com.maodouchat.server.service.RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
 put("voiceCallEnabled", com.maodouchat.server.service.RuntimeConfigService.isVoiceCallEnabled())
@@ -8359,7 +8522,6 @@ put("notificationPreviewEnabled", com.maodouchat.server.service.RuntimeConfigSer
 put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
 put("chatAnimationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatAnimationsEnabled())
@@ -8527,7 +8689,6 @@ put("messageRevokeEnabled", com.maodouchat.server.service.RuntimeConfigService.i
 put("pollsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPollsEnabled())
 put("appLockEnabled", com.maodouchat.server.service.RuntimeConfigService.isAppLockEnabled())
 put("chatDraftsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatDraftsEnabled())
-put("aiTranslateEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranslateEnabled())
 put("groupInvitesEnabled", com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled())
 put("mentionsEnabled", com.maodouchat.server.service.RuntimeConfigService.isMentionsEnabled())
 put("nudgeEnabled", com.maodouchat.server.service.RuntimeConfigService.isNudgeEnabled())
@@ -8542,14 +8703,6 @@ put("secretChatEnabled", com.maodouchat.server.service.RuntimeConfigService.isSe
 put("screenSecureRuntimeEnabled", com.maodouchat.server.service.RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
 put("voiceCallEnabled", com.maodouchat.server.service.RuntimeConfigService.isVoiceCallEnabled())
@@ -8563,7 +8716,6 @@ put("notificationPreviewEnabled", com.maodouchat.server.service.RuntimeConfigSer
 put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
 put("chatAnimationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatAnimationsEnabled())
@@ -8726,7 +8878,6 @@ put("messageRevokeEnabled", com.maodouchat.server.service.RuntimeConfigService.i
 put("pollsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPollsEnabled())
 put("appLockEnabled", com.maodouchat.server.service.RuntimeConfigService.isAppLockEnabled())
 put("chatDraftsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatDraftsEnabled())
-put("aiTranslateEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranslateEnabled())
 put("groupInvitesEnabled", com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled())
 put("mentionsEnabled", com.maodouchat.server.service.RuntimeConfigService.isMentionsEnabled())
 put("nudgeEnabled", com.maodouchat.server.service.RuntimeConfigService.isNudgeEnabled())
@@ -8741,14 +8892,6 @@ put("secretChatEnabled", com.maodouchat.server.service.RuntimeConfigService.isSe
 put("screenSecureRuntimeEnabled", com.maodouchat.server.service.RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
 put("voiceCallEnabled", com.maodouchat.server.service.RuntimeConfigService.isVoiceCallEnabled())
@@ -8762,7 +8905,6 @@ put("notificationPreviewEnabled", com.maodouchat.server.service.RuntimeConfigSer
 put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
 put("chatAnimationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatAnimationsEnabled())
@@ -8925,7 +9067,6 @@ put("messageRevokeEnabled", com.maodouchat.server.service.RuntimeConfigService.i
 put("pollsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPollsEnabled())
 put("appLockEnabled", com.maodouchat.server.service.RuntimeConfigService.isAppLockEnabled())
 put("chatDraftsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatDraftsEnabled())
-put("aiTranslateEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranslateEnabled())
 put("groupInvitesEnabled", com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled())
 put("mentionsEnabled", com.maodouchat.server.service.RuntimeConfigService.isMentionsEnabled())
 put("nudgeEnabled", com.maodouchat.server.service.RuntimeConfigService.isNudgeEnabled())
@@ -8940,14 +9081,6 @@ put("secretChatEnabled", com.maodouchat.server.service.RuntimeConfigService.isSe
 put("screenSecureRuntimeEnabled", com.maodouchat.server.service.RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
 put("voiceCallEnabled", com.maodouchat.server.service.RuntimeConfigService.isVoiceCallEnabled())
@@ -8961,7 +9094,6 @@ put("notificationPreviewEnabled", com.maodouchat.server.service.RuntimeConfigSer
 put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
 put("chatAnimationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatAnimationsEnabled())
@@ -9126,7 +9258,6 @@ put("ok", true)
 put("pollsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPollsEnabled())
 put("appLockEnabled", com.maodouchat.server.service.RuntimeConfigService.isAppLockEnabled())
 put("chatDraftsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatDraftsEnabled())
-put("aiTranslateEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranslateEnabled())
 put("groupInvitesEnabled", com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled())
 put("mentionsEnabled", com.maodouchat.server.service.RuntimeConfigService.isMentionsEnabled())
 put("nudgeEnabled", com.maodouchat.server.service.RuntimeConfigService.isNudgeEnabled())
@@ -9141,14 +9272,6 @@ put("secretChatEnabled", com.maodouchat.server.service.RuntimeConfigService.isSe
 put("screenSecureRuntimeEnabled", com.maodouchat.server.service.RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
 put("voiceCallEnabled", com.maodouchat.server.service.RuntimeConfigService.isVoiceCallEnabled())
@@ -9162,7 +9285,6 @@ put("notificationPreviewEnabled", com.maodouchat.server.service.RuntimeConfigSer
 put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
 put("chatAnimationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatAnimationsEnabled())
@@ -9302,7 +9424,6 @@ put("type", "MARKDOWN")
                 buildJsonObject {
 put("ok", true)
 put("chatDraftsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatDraftsEnabled())
-put("aiTranslateEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranslateEnabled())
 put("groupInvitesEnabled", com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled())
 put("mentionsEnabled", com.maodouchat.server.service.RuntimeConfigService.isMentionsEnabled())
 put("nudgeEnabled", com.maodouchat.server.service.RuntimeConfigService.isNudgeEnabled())
@@ -9317,14 +9438,6 @@ put("secretChatEnabled", com.maodouchat.server.service.RuntimeConfigService.isSe
 put("screenSecureRuntimeEnabled", com.maodouchat.server.service.RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
 put("voiceCallEnabled", com.maodouchat.server.service.RuntimeConfigService.isVoiceCallEnabled())
@@ -9338,7 +9451,6 @@ put("notificationPreviewEnabled", com.maodouchat.server.service.RuntimeConfigSer
 put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
 put("chatAnimationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatAnimationsEnabled())
@@ -9511,14 +9623,6 @@ put("secretChatEnabled", com.maodouchat.server.service.RuntimeConfigService.isSe
 put("screenSecureRuntimeEnabled", com.maodouchat.server.service.RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
 put("voiceCallEnabled", com.maodouchat.server.service.RuntimeConfigService.isVoiceCallEnabled())
@@ -9532,7 +9636,6 @@ put("notificationPreviewEnabled", com.maodouchat.server.service.RuntimeConfigSer
 put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
 put("chatAnimationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatAnimationsEnabled())
@@ -9703,14 +9806,6 @@ put("secretChatEnabled", com.maodouchat.server.service.RuntimeConfigService.isSe
 put("screenSecureRuntimeEnabled", com.maodouchat.server.service.RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
 put("voiceCallEnabled", com.maodouchat.server.service.RuntimeConfigService.isVoiceCallEnabled())
@@ -9724,7 +9819,6 @@ put("notificationPreviewEnabled", com.maodouchat.server.service.RuntimeConfigSer
 put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
 put("chatAnimationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatAnimationsEnabled())
@@ -9894,14 +9988,6 @@ put("secretChatEnabled", com.maodouchat.server.service.RuntimeConfigService.isSe
 put("screenSecureRuntimeEnabled", com.maodouchat.server.service.RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
 put("voiceCallEnabled", com.maodouchat.server.service.RuntimeConfigService.isVoiceCallEnabled())
@@ -9915,7 +10001,6 @@ put("notificationPreviewEnabled", com.maodouchat.server.service.RuntimeConfigSer
 put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
 put("chatAnimationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatAnimationsEnabled())
@@ -10079,14 +10164,6 @@ put("secretChatEnabled", com.maodouchat.server.service.RuntimeConfigService.isSe
 put("screenSecureRuntimeEnabled", com.maodouchat.server.service.RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
 put("voiceCallEnabled", com.maodouchat.server.service.RuntimeConfigService.isVoiceCallEnabled())
@@ -10100,7 +10177,6 @@ put("notificationPreviewEnabled", com.maodouchat.server.service.RuntimeConfigSer
 put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
 put("chatAnimationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatAnimationsEnabled())
@@ -10463,88 +10539,6 @@ put("type", "SYSTEM")
             )
             }
 
-            post("/api/bot/sendAiHint") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                if (!com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled()) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_rewrite_disabled"))
-                }
-                val body = call.receiveBoundedTextOrEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "AI rewrite can polish your draft").take(120)
-                if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-                if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-                val content = "✨ $hint"
-                val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
-                val now = System.currentTimeMillis()
-                val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAiHint")
-                val botMessage = com.maodouchat.server.model.MessageResponse(
-                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
-                    type = "SYSTEM", timestamp = now, status = "SENT"
-                )
-                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("messageId", msgId)
-put("type", "SYSTEM")
-                }
-            )
-            }
-
-            post("/api/bot/sendSummaryHint") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                if (!com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled()) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_summary_disabled"))
-                }
-                val body = call.receiveBoundedTextOrEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "AI summary can condense this chat").take(120)
-                if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-                if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-                val content = "📝 $hint"
-                val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
-                val now = System.currentTimeMillis()
-                val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSummaryHint")
-                val botMessage = com.maodouchat.server.model.MessageResponse(
-                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
-                    type = "SYSTEM", timestamp = now, status = "SENT"
-                )
-                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("messageId", msgId)
-put("type", "SYSTEM")
-                }
-            )
-            }
-
             get("/api/bot/getMediaSendFlags") {
                 val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
                 val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
@@ -10563,31 +10557,6 @@ put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isIma
 put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
 put("fileShareEnabled", com.maodouchat.server.service.RuntimeConfigService.isFileShareEnabled())
 put("mediaUploadEnabled", com.maodouchat.server.service.RuntimeConfigService.isMediaUploadEnabled())
-put("serverTime", System.currentTimeMillis())
-                }
-            )
-            }
-
-            get("/api/bot/getAiFeatureFlags") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@get call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@get call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "getAiFeatureFlags")
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("aiEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiTranslateEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranslateEnabled())
 put("serverTime", System.currentTimeMillis())
                 }
             )
@@ -10616,113 +10585,6 @@ put("serverTime", System.currentTimeMillis())
             }
 
 
-            post("/api/bot/sendSuggestHint") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                if (!com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled()) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_suggest_replies_disabled"))
-                }
-                val body = call.receiveBoundedTextOrEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "AI can suggest quick replies").take(120)
-                if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-                if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-                val content = "💬 $hint"
-                val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
-                val now = System.currentTimeMillis()
-                val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSuggestHint")
-                val botMessage = com.maodouchat.server.model.MessageResponse(
-                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
-                    type = "SYSTEM", timestamp = now, status = "SENT"
-                )
-                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("messageId", msgId)
-put("type", "SYSTEM")
-                }
-            )
-            }
-
-            post("/api/bot/sendTranscribeHint") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                if (!com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled()) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_transcribe_disabled"))
-                }
-                val body = call.receiveBoundedTextOrEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "AI can transcribe voice notes").take(120)
-                if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-                if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-                val content = "🎧 $hint"
-                val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
-                val now = System.currentTimeMillis()
-                val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendTranscribeHint")
-                val botMessage = com.maodouchat.server.model.MessageResponse(
-                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
-                    type = "SYSTEM", timestamp = now, status = "SENT"
-                )
-                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("messageId", msgId)
-put("type", "SYSTEM")
-                }
-            )
-            }
-
-            get("/api/bot/getAiAssistFlags") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@get call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@get call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "getAiAssistFlags")
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("aiEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiTranslateEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranslateEnabled())
-put("serverTime", System.currentTimeMillis())
-                }
-            )
-            }
-
             get("/api/bot/tickz") {
                 val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
                 val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
@@ -10746,112 +10608,6 @@ put("serverTime", System.currentTimeMillis())
             }
 
 
-            post("/api/bot/sendAnalyzeHint") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                if (!com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled()) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_analyze_image_disabled"))
-                }
-                val body = call.receiveBoundedTextOrEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "AI can analyze chat images").take(120)
-                if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-                if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-                val content = "🖼️ $hint"
-                val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
-                val now = System.currentTimeMillis()
-                val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAnalyzeHint")
-                val botMessage = com.maodouchat.server.model.MessageResponse(
-                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
-                    type = "SYSTEM", timestamp = now, status = "SENT"
-                )
-                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("messageId", msgId)
-put("type", "SYSTEM")
-                }
-            )
-            }
-
-            post("/api/bot/sendGroupAssistHint") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                if (!com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled()) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_group_assistant_disabled"))
-                }
-                val body = call.receiveBoundedTextOrEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "AI group assistant can recap decisions").take(120)
-                if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-                if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-                val content = "👥 $hint"
-                val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
-                val now = System.currentTimeMillis()
-                val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendGroupAssistHint")
-                val botMessage = com.maodouchat.server.model.MessageResponse(
-                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
-                    type = "SYSTEM", timestamp = now, status = "SENT"
-                )
-                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("messageId", msgId)
-put("type", "SYSTEM")
-                }
-            )
-            }
-
-            get("/api/bot/getAiVisionFlags") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@get call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@get call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "getAiVisionFlags")
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("aiEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("serverTime", System.currentTimeMillis())
-                }
-            )
-            }
-
             get("/api/bot/tockz") {
                 val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
                 val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
@@ -10874,112 +10630,6 @@ put("serverTime", System.currentTimeMillis())
             )
             }
 
-
-            post("/api/bot/sendFileAnalyzeHint") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                if (!com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled()) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_analyze_file_disabled"))
-                }
-                val body = call.receiveBoundedTextOrEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "AI can analyze shared files").take(120)
-                if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-                if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-                val content = "📎 $hint"
-                val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
-                val now = System.currentTimeMillis()
-                val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendFileAnalyzeHint")
-                val botMessage = com.maodouchat.server.model.MessageResponse(
-                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
-                    type = "SYSTEM", timestamp = now, status = "SENT"
-                )
-                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("messageId", msgId)
-put("type", "SYSTEM")
-                }
-            )
-            }
-
-            post("/api/bot/sendSemanticHint") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                if (!com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled()) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_semantic_search_disabled"))
-                }
-                val body = call.receiveBoundedTextOrEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "AI semantic search can find meaning, not just keywords").take(120)
-                if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-                if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-                val content = "🔎 $hint"
-                val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
-                val now = System.currentTimeMillis()
-                val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSemanticHint")
-                val botMessage = com.maodouchat.server.model.MessageResponse(
-                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
-                    type = "SYSTEM", timestamp = now, status = "SENT"
-                )
-                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("messageId", msgId)
-put("type", "SYSTEM")
-                }
-            )
-            }
-
-            get("/api/bot/getAiSearchFlags") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@get call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@get call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "getAiSearchFlags")
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("aiEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiEnabled())
-put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("globalSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isGlobalSearchEnabled())
-put("serverTime", System.currentTimeMillis())
-                }
-            )
-            }
 
             get("/api/bot/clangz") {
                 val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
@@ -11809,47 +11459,6 @@ put("type", "SYSTEM")
             )
             }
 
-            post("/api/bot/sendOfflineAiHint") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                if (!com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled()) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("offline_ai_disabled"))
-                }
-                val body = call.receiveBoundedTextOrEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Offline AI fallbacks can be toggled by admins").take(120)
-                if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-                if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-                val content = "QUIET:OFFLINEAI " + hint
-                val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
-                val now = System.currentTimeMillis()
-                val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendOfflineAiHint")
-                val botMessage = com.maodouchat.server.model.MessageResponse(
-                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
-                    type = "SYSTEM", timestamp = now, status = "SENT"
-                )
-                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("messageId", msgId)
-put("type", "SYSTEM")
-                }
-            )
-            }
-
             get("/api/bot/getQuietFlags") {
                 val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
                 val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
@@ -11866,7 +11475,6 @@ put("type", "SYSTEM")
 put("ok", true)
 put("botId", bot.id)
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
 put("surface", 60)
@@ -11995,7 +11603,6 @@ put("botId", bot.id)
 put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("surface", 60)
                 }
             )
@@ -13483,9 +13090,9 @@ put("ok", true)
 put("botId", bot.id)
 put("capabilities", Json.parseToJsonElement(Json.encodeToString(listOf(
                             "sendMessage", "sendMarkdown", "sendCode", "sendQuote", "sendChecklist", "sendTable",
-                            "sendBadge", "sendProgress", "sendCountdown", "sendAlert", "sendRemind", "sendDivider", "sendToast", "sendKeyValue", "sendNotice", "sendQuoteCard", "sendBanner", "sendJsonCard", "sendTimeline", "sendMetric", "sendSteps", "sendCompare", "sendMentionCard", "sendInviteHint", "sendNudgeCard", "sendSafetyHint", "sendQrHint", "sendContactCard", "sendSpoilerHint", "sendDownloadHint", "sendLocationHint", "sendFileHint", "sendSecretHint", "sendSecureHint", "sendPhotoHint", "sendVideoHint", "sendAiHint", "sendSummaryHint", "sendSuggestHint", "sendTranscribeHint", "sendAnalyzeHint", "sendGroupAssistHint", "sendFileAnalyzeHint", "sendSemanticHint", "sendGifHint", "sendWatermarkHint", "sendVoiceCallHint", "sendVideoCallHint", "sendWallpaperHint", "sendFontScaleHint", "sendUnreadHint", "sendRingtoneHint", "sendSoundHint", "sendPreviewHint", "sendPushHint", "sendTaskReminderHint", "sendDndHint", "sendOfflineAiHint", "sendSoundscapeHint", "sendHapticsHint", "sendMotionHint", "sendNavHint", "sendCaptureDetectHint", "sendRecentsHint", "sendSecretCopyHint", "sendSecretExportHint", "sendSecretForwardHint", "sendSecretChatExportHint", "sendSealedSenderHint", "sendPqxdhHint", "sendSecretAutoDisappearHint", "sendSecretLinkPreviewHint", "sendSecretExternalLinkHint", "sendSecretNotifPreviewHint", "sendSecretListPreviewHint",
+                            "sendBadge", "sendProgress", "sendCountdown", "sendAlert", "sendRemind", "sendDivider", "sendToast", "sendKeyValue", "sendNotice", "sendQuoteCard", "sendBanner", "sendJsonCard", "sendTimeline", "sendMetric", "sendSteps", "sendCompare", "sendMentionCard", "sendInviteHint", "sendNudgeCard", "sendSafetyHint", "sendQrHint", "sendContactCard", "sendSpoilerHint", "sendDownloadHint", "sendLocationHint", "sendFileHint", "sendSecretHint", "sendSecureHint", "sendPhotoHint", "sendVideoHint", "sendGifHint", "sendWatermarkHint", "sendVoiceCallHint", "sendVideoCallHint", "sendWallpaperHint", "sendFontScaleHint", "sendUnreadHint", "sendRingtoneHint", "sendSoundHint", "sendPreviewHint", "sendPushHint", "sendTaskReminderHint", "sendDndHint", "sendSoundscapeHint", "sendHapticsHint", "sendMotionHint", "sendNavHint", "sendCaptureDetectHint", "sendRecentsHint", "sendSecretCopyHint", "sendSecretExportHint", "sendSecretForwardHint", "sendSecretChatExportHint", "sendSealedSenderHint", "sendPqxdhHint", "sendSecretAutoDisappearHint", "sendSecretLinkPreviewHint", "sendSecretExternalLinkHint", "sendSecretNotifPreviewHint", "sendSecretListPreviewHint",
                             "sendPhoto", "sendDocument", "sendPoll", "sendDice", "setMessageReaction",
-                            "pinChatMessage", "getUpdates", "webhook", "getRuntimeFlags", "whoami", "getServerTime", "getFeatureMatrix", "echo", "getMuteArchiveFlags", "getVersion", "getPrivacyFlags", "healthz", "getMessagePolicyFlags", "uptime", "getEngagementFlags", "ping", "getComposerFlags", "echoTime", "getSocialFlags", "versionz", "getTrustFlags", "readyz", "getIdentityFlags", "alivez", "getMediaFlags", "statusz", "getLocationFlags", "getPrivacySecureFlags", "heartbeatz", "getMediaSendFlags", "getAiFeatureFlags", "pulsez", "getAiAssistFlags", "tickz", "getAiVisionFlags", "tockz", "getAiSearchFlags", "clangz", "getMediaPrivacyFlags", "dingz", "getCallMediaFlags", "buzzz", "getAppearanceFlags", "chimez", "getNotifyFlags", "ringz", "getAlertMediaFlags", "beepz", "getPushFlags", "pushz", "getQuietFlags", "quietz", "getFeelFlags", "fealz", "getMotionFlags", "slidez", "getCaptureShieldFlags", "shieldz", "getSecretLeakFlags", "leakz", "getSecretVaultFlags", "vaultz", "getSealedCryptoFlags", "sealz", "getMarkPrivacyFlags", "markz", "getLinkPrivacyFlags", "linkz", "getNotifyPrivacyFlags", "privz", "sendSecretReactionHint", "sendSecretStarHint", "getSecretMetaFlags", "metaz", "sendSecretTypingHint", "sendSecretReadReceiptHint", "getSecretTypingFlags", "getSecretReadReceiptFlags", "typtz", "redz", "sendSecretPresenceHint", "sendSecretLastSeenHint", "getSecretPresenceFlags", "getSecretLastSeenFlags", "presz", "lastsz",
+                            "pinChatMessage", "getUpdates", "webhook", "getRuntimeFlags", "whoami", "getServerTime", "getFeatureMatrix", "echo", "getMuteArchiveFlags", "getVersion", "getPrivacyFlags", "healthz", "getMessagePolicyFlags", "uptime", "getEngagementFlags", "ping", "getComposerFlags", "echoTime", "getSocialFlags", "versionz", "getTrustFlags", "readyz", "getIdentityFlags", "alivez", "getMediaFlags", "statusz", "getLocationFlags", "getPrivacySecureFlags", "heartbeatz", "getMediaSendFlags", "pulsez", "tickz", "tockz", "clangz", "getMediaPrivacyFlags", "dingz", "getCallMediaFlags", "buzzz", "getAppearanceFlags", "chimez", "getNotifyFlags", "ringz", "getAlertMediaFlags", "beepz", "getPushFlags", "pushz", "getQuietFlags", "quietz", "getFeelFlags", "fealz", "getMotionFlags", "slidez", "getCaptureShieldFlags", "shieldz", "getSecretLeakFlags", "leakz", "getSecretVaultFlags", "vaultz", "getSealedCryptoFlags", "sealz", "getMarkPrivacyFlags", "markz", "getLinkPrivacyFlags", "linkz", "getNotifyPrivacyFlags", "privz", "sendSecretReactionHint", "sendSecretStarHint", "getSecretMetaFlags", "metaz", "sendSecretTypingHint", "sendSecretReadReceiptHint", "getSecretTypingFlags", "getSecretReadReceiptFlags", "typtz", "redz", "sendSecretPresenceHint", "sendSecretLastSeenHint", "getSecretPresenceFlags", "getSecretLastSeenFlags", "presz", "lastsz",
                             "burnz", "ttlz", "fwlz", "simz", "2faz", "ndz", "dvz", "sntz", "getSecretSurfaceFlags",
                             "sendSecretScreenshotBurnHint", "sendSecretAutoDestroyHint", "sendSecretForwardWhitelistHint", "sendSecretSimChangeHint", "sendSecret2faGateHint", "sendSecretNewDeviceRiskHint", "sendSecretDeviceVerifyHint", "sendSecretSessionNoticeHint"
                         ))))
@@ -13511,7 +13118,6 @@ put("messageRevokeEnabled", com.maodouchat.server.service.RuntimeConfigService.i
 put("pollsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPollsEnabled())
 put("appLockEnabled", com.maodouchat.server.service.RuntimeConfigService.isAppLockEnabled())
 put("chatDraftsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatDraftsEnabled())
-put("aiTranslateEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranslateEnabled())
 put("groupInvitesEnabled", com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled())
 put("mentionsEnabled", com.maodouchat.server.service.RuntimeConfigService.isMentionsEnabled())
 put("nudgeEnabled", com.maodouchat.server.service.RuntimeConfigService.isNudgeEnabled())
@@ -13526,14 +13132,6 @@ put("secretChatEnabled", com.maodouchat.server.service.RuntimeConfigService.isSe
 put("screenSecureRuntimeEnabled", com.maodouchat.server.service.RuntimeConfigService.isScreenSecureRuntimeEnabled())
 put("imageSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isImageSendEnabled())
 put("videoSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isVideoSendEnabled())
-put("aiSummaryEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSummaryEnabled())
-put("aiRewriteEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiRewriteEnabled())
-put("aiSuggestRepliesEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSuggestRepliesEnabled())
-put("aiTranscribeEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiTranscribeEnabled())
-put("aiAnalyzeImageEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeImageEnabled())
-put("aiGroupAssistantEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiGroupAssistantEnabled())
-put("aiAnalyzeFileEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiAnalyzeFileEnabled())
-put("aiSemanticSearchEnabled", com.maodouchat.server.service.RuntimeConfigService.isAiSemanticSearchEnabled())
 put("gifSendEnabled", com.maodouchat.server.service.RuntimeConfigService.isGifSendEnabled())
 put("blindWatermarkEnabled", com.maodouchat.server.service.RuntimeConfigService.isBlindWatermarkEnabled())
 put("voiceCallEnabled", com.maodouchat.server.service.RuntimeConfigService.isVoiceCallEnabled())
@@ -13547,7 +13145,6 @@ put("notificationPreviewEnabled", com.maodouchat.server.service.RuntimeConfigSer
 put("pushNotificationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isPushNotificationsEnabled())
 put("taskRemindersEnabled", com.maodouchat.server.service.RuntimeConfigService.isTaskRemindersEnabled())
 put("dndEnabled", com.maodouchat.server.service.RuntimeConfigService.isDndEnabled())
-put("offlineAiEnabled", com.maodouchat.server.service.RuntimeConfigService.isOfflineAiEnabled())
 put("inAppSoundsEnabled", com.maodouchat.server.service.RuntimeConfigService.isInAppSoundsEnabled())
 put("hapticsEnabled", com.maodouchat.server.service.RuntimeConfigService.isHapticsEnabled())
 put("chatAnimationsEnabled", com.maodouchat.server.service.RuntimeConfigService.isChatAnimationsEnabled())
@@ -13679,7 +13276,11 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
                     existingById.senderId == userId &&
                     existingById.content == req.content &&
                     existingById.type == req.type
-                if (!isIdempotentRetry && !aiRateLimiter.acquire("message_send:$userId", maxPerMinute = 120)) {
+                if (!isIdempotentRetry && !aiRateLimiter.acquire(
+                        "message_send:$userId",
+                        maxPerMinute = RuntimeConfigService.maxMessagePerMinute()
+                    )
+                ) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("发送过于频繁，请稍后再试"))
                     return@post
                 }
@@ -13745,7 +13346,7 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
                         messageId = message.id,
                         senderId = userId,
                         type = message.type,
-                        textPreview = if (message.type in setOf("TEXT", "MARKDOWN", "SYSTEM", "NUDGE")) message.content.take(200) else null,
+                        textPreview = if (message.type in setOf("SYSTEM", "NUDGE")) message.content.take(200) else null,
                         sealedSender = message.sealedSender
                     )
                     // 8.30 性能优化 A1：批量双向拉黑 + 批量静音（替代逐成员事务）
@@ -13778,7 +13379,7 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
                 // 8.49 修复：补 per-user 限流（与 WS STATUS_UPDATE 的 60/min 对齐）——
                 // 该端点此前仅剩全局 IP 兜底，重复回执可被刷量放大为发送方 WS 推送风暴
-                if (!messageMutateRateLimiter.acquire("status:$userId", maxPerMinute = 60)) {
+                if (!messageMutateRateLimiter.acquire("status:$userId", maxPerMinute = 240)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("请求过于频繁"))
                     return@put
                 }
@@ -14295,7 +13896,7 @@ put("avatarUrl", avatarUrl)
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("分发状态参数无效")); return@post
                 }
                 val participantIds = chatRepo.getParticipantIds(cid).toSet()
-                if (req.targets.any { it.userId !in participantIds }) {
+                if (req.targets.any { it.userId !in participantIds || it.userId.startsWith("bot_") }) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("只能上报群成员设备的密钥分发状态")); return@post
                 }
                 senderKeyDistributionRepo.record(cid, req.epoch, uid, req.messageId, req.targets)
@@ -14329,9 +13930,11 @@ put("avatarUrl", avatarUrl)
                 val participants = chatRepo.getParticipantIds(cid)
                 val expectedTargets = signalKeyRepo.getConfirmedDeviceTargets(participants)
                     .filterNot { (userId, deviceId) ->
-                        // 仅排除已识别的当前设备。currentDeviceId 未知时不得把自身其它设备
-                        // 从覆盖清单抹掉，否则多设备账号会把缺口误报为 COMPLETE。
-                        userId == uid && currentDeviceId != null && deviceId == currentDeviceId
+                        // Bot 不是 E2EE 对等节点，不得进入 Sender Key 覆盖清单。
+                        userId.startsWith("bot_") ||
+                            // 仅排除已识别的当前设备。currentDeviceId 未知时不得把自身其它设备
+                            // 从覆盖清单抹掉，否则多设备账号会把缺口误报为 COMPLETE。
+                            (userId == uid && currentDeviceId != null && deviceId == currentDeviceId)
                     }
                     .toSet()
                 call.respond(senderKeyDistributionRepo.getStatus(cid, uid, epoch, expectedTargets))
@@ -14752,978 +14355,10 @@ put("status", "ok")
             )
             }
 
-            get("/api/ai/settings") {
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                val chatId = call.request.queryParameters["chatId"]?.takeIf(String::isNotBlank)
-                if (chatId != null && !chatRepo.isParticipant(chatId, uid)) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
-                    return@get
-                }
-                call.respond(aiRepo.getSettings(uid, chatId))
-            }
-
-            put("/api/ai/settings") {
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                val req = call.receiveBoundedText()?.let { parseJson<AiSettingsRequest>(it) } ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@put
-                }
-                val chatId = req.chatId?.takeIf(String::isNotBlank)
-                if (chatId != null && !chatRepo.isParticipant(chatId, uid)) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
-                    return@put
-                }
-                call.respond(if (chatId == null) aiRepo.setUserEnabled(uid, req.enabled) else aiRepo.setChatEnabled(uid, chatId, req.enabled))
-            }
-
-            get("/api/ai/audit") {
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
-                call.respond(aiRepo.getAuditLogs(uid, limit))
-            }
-
-            post("/api/ai/summary-sync") {
-                val principal = call.principal<JWTPrincipal>()!!
-                val userId = principal.payload.subject
-                val authSessionId = JwtConfig.authSessionId(principal.payload)!!
-                if (!aiRateLimiter.acquire("summary_sync:$userId", maxPerMinute = 60)) {
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("摘要同步请求过于频繁"))
-                    return@post
-                }
-                val request = call.receiveBoundedText(maxChars = MAX_AI_SUMMARY_SYNC_ENVELOPE_LENGTH + 4_096)
-                    ?.let { parseJson<AiSummarySyncUploadRequest>(it) }
-                if (request == null || !isValidAiSummarySyncUpload(request)) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("摘要同步密文无效"))
-                    return@post
-                }
-                if (!signalKeyRepo.isDeviceConfirmed(userId, request.senderDeviceId)) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("发送设备尚未确认"))
-                    return@post
-                }
-                if (!signalKeyRepo.isAuthSessionBoundToDevice(userId, authSessionId, request.senderDeviceId)) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("当前登录会话与发送设备不匹配"))
-                    return@post
-                }
-                if (request.targetDeviceIds.any { !signalKeyRepo.isDeviceConfirmed(userId, it) }) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("目标设备无效或尚未确认"))
-                    return@post
-                }
-                val stored = aiSummarySyncRepo.store(
-                    userId = userId,
-                    syncId = request.syncId,
-                    senderDeviceId = request.senderDeviceId,
-                    targetDeviceIds = request.targetDeviceIds,
-                    envelope = request.envelope
-                )
-                call.respond(buildJsonObject { put("status", "ok"); put("stored", stored) })
-            }
-
-            get("/api/ai/summary-sync") {
-                val principal = call.principal<JWTPrincipal>()!!
-                val userId = principal.payload.subject
-                val authSessionId = JwtConfig.authSessionId(principal.payload)!!
-                val deviceId = call.request.queryParameters["deviceId"]?.toIntOrNull()
-                if (deviceId == null || !signalKeyRepo.isDeviceConfirmed(userId, deviceId)) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("设备无效或尚未确认"))
-                    return@get
-                }
-                if (!signalKeyRepo.isAuthSessionBoundToDevice(userId, authSessionId, deviceId)) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("当前登录会话与设备不匹配"))
-                    return@get
-                }
-                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
-                call.respond(aiSummarySyncRepo.pending(userId, deviceId, limit))
-            }
-
-            post("/api/ai/summary-sync/ack") {
-                val principal = call.principal<JWTPrincipal>()!!
-                val userId = principal.payload.subject
-                val authSessionId = JwtConfig.authSessionId(principal.payload)!!
-                val request = call.receiveBoundedText()?.let { parseJson<AiSummarySyncAckRequest>(it) }
-                if (request == null || !isValidAiSummarySyncAck(request)) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("确认参数无效"))
-                    return@post
-                }
-                if (!signalKeyRepo.isDeviceConfirmed(userId, request.deviceId)) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("设备无效或尚未确认"))
-                    return@post
-                }
-                if (!signalKeyRepo.isAuthSessionBoundToDevice(userId, authSessionId, request.deviceId)) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("当前登录会话与设备不匹配"))
-                    return@post
-                }
-                val removed = aiSummarySyncRepo.acknowledge(userId, request.deviceId, request.envelopeIds)
-                call.respond(buildJsonObject { put("status", "ok"); put("removed", removed) })
-            }
-
-            // AI Gateway：只在用户主动调用时处理传入文本；服务端不持久化明文内容。
-            post("/api/ai/rewrite") {
-                if (!RuntimeConfigService.isAiRewriteEnabled()) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_rewrite_disabled"))
-                    return@post
-                }
-                if (!RuntimeConfigService.isAiEnabled()) {
-                    return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI temporarily disabled"))
-                }
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 20)) {
-                    aiRepo.recordAudit(uid, null, "rewrite", null, "rate_limited", 0, error = "rate_limited")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
-                    return@post
-                }
-                val req = call.receiveBoundedText()?.let { parseJson<AiRewriteRequest>(it) } ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
-                if (!isValidAiRewritePayload(req.text, req.mode, req.targetLanguage, req.styleHint)) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("AI 改写内容无效"))
-                    return@post
-                }
-                val chatId = req.chatId?.takeIf(String::isNotBlank)
-                if (chatId != null && !chatRepo.isParticipant(chatId, uid)) {
-                    aiRepo.recordAudit(uid, chatId, "rewrite", null, "forbidden", req.text.length, error = "not_participant")
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
-                    return@post
-                }
-                if (!aiRepo.isEnabled(uid, chatId)) {
-                    aiRepo.recordAudit(uid, chatId, "rewrite", null, "disabled", req.text.length)
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("AI 功能已关闭"))
-                    return@post
-                }
-                val startedAt = System.currentTimeMillis()
-                val estTokens = com.maodouchat.server.service.AiStreamingService.estimateTokens(req.text).toLong()
-                val budget = aiGateway.checkBudget(uid, estTokens)
-                if (budget is com.maodouchat.server.service.BudgetResult.Exceeded) {
-                    call.response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
-                    aiRepo.recordAudit(uid, chatId, "rewrite", null, "budget_exceeded", req.text.length, durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 用量已达每日上限", code = "AI_BUDGET_EXCEEDED"))
-                    return@post
-                }
-                when (val result = aiGateway.rewrite(req.text, req.mode, req.targetLanguage, req.styleHint)) {
-                    is AiGatewayResult.Success -> {
-                        aiRepo.recordAudit(uid, chatId, "rewrite", result.model, "success", req.text.length, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
-                        call.respond(AiRewriteResponse(result.value, result.model))
-                    }
-                    AiGatewayResult.NotConfigured -> {
-                        aiRepo.recordAudit(uid, chatId, "rewrite", null, "not_configured", req.text.length, durationMs = System.currentTimeMillis() - startedAt)
-                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
-                    }
-                    is AiGatewayResult.UpstreamError -> {
-                        aiRepo.recordAudit(uid, chatId, "rewrite", null, "upstream_error", req.text.length, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        if (result.retryAfterSeconds != null) {
-                            call.response.header(HttpHeaders.RetryAfter, result.retryAfterSeconds.toString())
-                        }
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse("AI 服务暂时不可用，请稍后重试"))
-                    }
-                    is AiGatewayResult.InvalidResponse -> {
-                        aiRepo.recordAudit(uid, chatId, "rewrite", null, "invalid_response", req.text.length, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
-                    }
-                }
-            }
-
-            post("/api/ai/suggest-replies") {
-                if (!RuntimeConfigService.isAiSuggestRepliesEnabled()) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_suggest_replies_disabled"))
-                    return@post
-                }
-                if (!RuntimeConfigService.isAiEnabled()) {
-                    return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI temporarily disabled"))
-                }
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 20)) {
-                    aiRepo.recordAudit(uid, null, "suggest_replies", null, "rate_limited", 0, error = "rate_limited")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
-                    return@post
-                }
-                val req = call.receiveBoundedText()?.let { parseJson<AiSuggestRepliesRequest>(it) } ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
-                if (!isValidAiSuggestPayload(req.messages, req.tone, req.count)) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("AI 上下文无效"))
-                    return@post
-                }
-                val chatId = req.chatId?.takeIf(String::isNotBlank)
-                val inputChars = req.messages.sumOf { it.text.length }
-                if (chatId != null && !chatRepo.isParticipant(chatId, uid)) {
-                    aiRepo.recordAudit(uid, chatId, "suggest_replies", null, "forbidden", inputChars, req.messages.size, error = "not_participant")
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
-                    return@post
-                }
-                if (!aiRepo.isEnabled(uid, chatId)) {
-                    aiRepo.recordAudit(uid, chatId, "suggest_replies", null, "disabled", inputChars, req.messages.size)
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("AI 功能已关闭"))
-                    return@post
-                }
-                val startedAt = System.currentTimeMillis()
-                val estTokens = com.maodouchat.server.service.AiStreamingService.estimateTokens(req.messages.joinToString(" ") { it.text }).toLong()
-                val budget = aiGateway.checkBudget(uid, estTokens)
-                if (budget is com.maodouchat.server.service.BudgetResult.Exceeded) {
-                    call.response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
-                    aiRepo.recordAudit(uid, chatId, "suggest_replies", null, "budget_exceeded", inputChars, durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 用量已达每日上限", code = "AI_BUDGET_EXCEEDED"))
-                    return@post
-                }
-                when (val result = aiGateway.suggestReplies(req.messages, req.tone, req.count)) {
-                    is AiGatewayResult.Success -> {
-                        aiRepo.recordAudit(uid, chatId, "suggest_replies", result.model, "success", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
-                        call.respond(AiSuggestRepliesResponse(result.value, result.model))
-                    }
-                    AiGatewayResult.NotConfigured -> {
-                        aiRepo.recordAudit(uid, chatId, "suggest_replies", null, "not_configured", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt)
-                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
-                    }
-                    is AiGatewayResult.UpstreamError -> {
-                        aiRepo.recordAudit(uid, chatId, "suggest_replies", null, "upstream_error", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        if (result.retryAfterSeconds != null) {
-                            call.response.header(HttpHeaders.RetryAfter, result.retryAfterSeconds.toString())
-                        }
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse("AI 服务暂时不可用，请稍后重试"))
-                    }
-                    is AiGatewayResult.InvalidResponse -> {
-                        aiRepo.recordAudit(uid, chatId, "suggest_replies", null, "invalid_response", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
-                    }
-                }
-            }
-
-            post("/api/ai/rewrite/stream") {
-                if (!RuntimeConfigService.isAiRewriteEnabled()) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_rewrite_disabled"))
-                    return@post
-                }
-                if (!RuntimeConfigService.isAiEnabled()) {
-                    return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI temporarily disabled"))
-                }
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 20)) {
-                    aiRepo.recordAudit(uid, null, "rewrite", null, "rate_limited", 0, error = "rate_limited")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
-                    return@post
-                }
-                val req = call.receiveBoundedText()?.let { parseJson<AiRewriteRequest>(it) } ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
-                if (!isValidAiRewritePayload(req.text, req.mode, req.targetLanguage, req.styleHint)) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("AI 改写内容无效"))
-                    return@post
-                }
-                val chatId = req.chatId?.takeIf(String::isNotBlank)
-                if (chatId != null && !chatRepo.isParticipant(chatId, uid)) {
-                    aiRepo.recordAudit(uid, chatId, "rewrite", null, "forbidden", req.text.length, error = "not_participant")
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
-                    return@post
-                }
-                if (!aiRepo.isEnabled(uid, chatId)) {
-                    aiRepo.recordAudit(uid, chatId, "rewrite", null, "disabled", req.text.length)
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("AI 功能已关闭"))
-                    return@post
-                }
-                val startedAt = System.currentTimeMillis()
-                val estTokens = com.maodouchat.server.service.AiStreamingService.estimateTokens(req.text).toLong()
-                val budget = aiGateway.checkBudget(uid, estTokens)
-                if (budget is com.maodouchat.server.service.BudgetResult.Exceeded) {
-                    call.response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
-                    aiRepo.recordAudit(uid, chatId, "rewrite", null, "budget_exceeded", req.text.length, durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 用量已达每日上限", code = "AI_BUDGET_EXCEEDED"))
-                    return@post
-                }
-                try {
-                    call.response.header(HttpHeaders.CacheControl, "no-store")
-                    call.response.header("X-Accel-Buffering", "no")
-                    call.respondTextWriter(ContentType.parse("application/x-ndjson; charset=utf-8")) {
-                        fun emit(event: AiStreamEvent) {
-                            write(json.encodeToString(AiStreamEvent.serializer(), event))
-                            write("\n")
-                            flush()
-                        }
-                        emit(AiStreamEvent(type = "start", model = aiGateway.model))
-                        val pendingDelta = StringBuilder()
-                        var lastDeltaFlushAt = 0L
-                        fun flushDelta(force: Boolean) {
-                            if (pendingDelta.isEmpty()) return
-                            val now = System.currentTimeMillis()
-                            if (!force && now - lastDeltaFlushAt < 20L && '\n' !in pendingDelta) return
-                            emit(AiStreamEvent(type = "delta", text = pendingDelta.toString()))
-                            pendingDelta.clear()
-                            lastDeltaFlushAt = now
-                        }
-                        val result = aiGateway.streamRewrite(req.text, req.mode, req.targetLanguage, req.styleHint) { delta ->
-                            pendingDelta.append(delta)
-                            flushDelta(force = false)
-                        }
-                        flushDelta(force = true)
-                        when (result) {
-                            is AiGatewayResult.Success -> {
-                                emit(AiStreamEvent(type = "done", model = result.model))
-                                aiRepo.recordAudit(uid, chatId, "rewrite", result.model, "success", req.text.length, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
-                            }
-                            AiGatewayResult.NotConfigured -> {
-                                emit(AiStreamEvent(type = "error", code = "not_configured"))
-                                aiRepo.recordAudit(uid, chatId, "rewrite", null, "not_configured", req.text.length, durationMs = System.currentTimeMillis() - startedAt)
-                            }
-                            is AiGatewayResult.UpstreamError -> {
-                                if (result.retryAfterSeconds != null) {
-                                    call.response.header(HttpHeaders.RetryAfter, result.retryAfterSeconds.toString())
-                                }
-                                emit(AiStreamEvent(type = "error", code = "upstream_error" + (result.retryAfterSeconds?.let { ";retry_after=$it" } ?: "")))
-                                aiRepo.recordAudit(uid, chatId, "rewrite", null, "upstream_error", req.text.length, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                            }
-                            is AiGatewayResult.InvalidResponse -> {
-                                emit(AiStreamEvent(type = "error", code = "invalid_response"))
-                                aiRepo.recordAudit(uid, chatId, "rewrite", null, "invalid_response", req.text.length, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                            }
-                        }
-                    }
-                } catch (error: Exception) {
-                    aiRepo.recordAudit(uid, chatId, "rewrite", null, "cancelled", req.text.length, durationMs = System.currentTimeMillis() - startedAt, error = error.javaClass.simpleName)
-                    throw error
-                }
-            }
-
-            post("/api/ai/suggest-replies/stream") {
-                if (!RuntimeConfigService.isAiSuggestRepliesEnabled()) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_suggest_replies_disabled"))
-                    return@post
-                }
-                if (!RuntimeConfigService.isAiEnabled()) {
-                    return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI temporarily disabled"))
-                }
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 20)) {
-                    aiRepo.recordAudit(uid, null, "suggest_replies", null, "rate_limited", 0, error = "rate_limited")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
-                    return@post
-                }
-                val req = call.receiveBoundedText()?.let { parseJson<AiSuggestRepliesRequest>(it) } ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
-                if (!isValidAiSuggestPayload(req.messages, req.tone, req.count)) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("AI 上下文无效"))
-                    return@post
-                }
-                val chatId = req.chatId?.takeIf(String::isNotBlank)
-                val inputChars = req.messages.sumOf { it.text.length }
-                if (chatId != null && !chatRepo.isParticipant(chatId, uid)) {
-                    aiRepo.recordAudit(uid, chatId, "suggest_replies", null, "forbidden", inputChars, req.messages.size, error = "not_participant")
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
-                    return@post
-                }
-                if (!aiRepo.isEnabled(uid, chatId)) {
-                    aiRepo.recordAudit(uid, chatId, "suggest_replies", null, "disabled", inputChars, req.messages.size)
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("AI 功能已关闭"))
-                    return@post
-                }
-                val startedAt = System.currentTimeMillis()
-                val estTokens = com.maodouchat.server.service.AiStreamingService.estimateTokens(req.messages.joinToString(" ") { it.text }).toLong()
-                val budget = aiGateway.checkBudget(uid, estTokens)
-                if (budget is com.maodouchat.server.service.BudgetResult.Exceeded) {
-                    call.response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
-                    aiRepo.recordAudit(uid, chatId, "suggest_replies", null, "budget_exceeded", inputChars, durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 用量已达每日上限", code = "AI_BUDGET_EXCEEDED"))
-                    return@post
-                }
-                try {
-                    call.response.header(HttpHeaders.CacheControl, "no-store")
-                    call.response.header("X-Accel-Buffering", "no")
-                    call.respondTextWriter(ContentType.parse("application/x-ndjson; charset=utf-8")) {
-                        fun emit(event: AiStreamEvent) {
-                            write(json.encodeToString(AiStreamEvent.serializer(), event))
-                            write("\n")
-                            flush()
-                        }
-                        emit(AiStreamEvent(type = "start", model = aiGateway.model))
-                        when (val result = aiGateway.streamSuggestReplies(req.messages, req.tone, req.count) { reply ->
-                            emit(AiStreamEvent(type = "reply", text = reply))
-                        }) {
-                            is AiGatewayResult.Success -> {
-                                emit(AiStreamEvent(type = "done", model = result.model))
-                                aiRepo.recordAudit(uid, chatId, "suggest_replies", result.model, "success", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
-                            }
-                            AiGatewayResult.NotConfigured -> {
-                                emit(AiStreamEvent(type = "error", code = "not_configured"))
-                                aiRepo.recordAudit(uid, chatId, "suggest_replies", null, "not_configured", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt)
-                            }
-                            is AiGatewayResult.UpstreamError -> {
-                                if (result.retryAfterSeconds != null) {
-                                    call.response.header(HttpHeaders.RetryAfter, result.retryAfterSeconds.toString())
-                                }
-                                emit(AiStreamEvent(type = "error", code = "upstream_error" + (result.retryAfterSeconds?.let { ";retry_after=$it" } ?: "")))
-                                aiRepo.recordAudit(uid, chatId, "suggest_replies", null, "upstream_error", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                            }
-                            is AiGatewayResult.InvalidResponse -> {
-                                emit(AiStreamEvent(type = "error", code = "invalid_response"))
-                                aiRepo.recordAudit(uid, chatId, "suggest_replies", null, "invalid_response", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                            }
-                        }
-                    }
-                } catch (error: Exception) {
-                    aiRepo.recordAudit(uid, chatId, "suggest_replies", null, "cancelled", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt, error = error.javaClass.simpleName)
-                    throw error
-                }
-            }
-
-            post("/api/ai/translate") {
-                if (!RuntimeConfigService.isAiEnabled()) {
-                    return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI temporarily disabled"))
-                }
-                if (!RuntimeConfigService.isAiTranslateEnabled()) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_translate_disabled"))
-                }
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 20)) {
-                    aiRepo.recordAudit(uid, null, "translate_message", null, "rate_limited", 0, error = "rate_limited")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
-                    return@post
-                }
-                val req = call.receiveBoundedText()?.let { parseJson<AiTranslateRequest>(it) } ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
-                if (!isValidAiTranslatePayload(req.text, req.targetLanguage)) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("AI 翻译内容无效"))
-                    return@post
-                }
-                val chatId = req.chatId?.takeIf(String::isNotBlank)
-                if (chatId != null && !chatRepo.isParticipant(chatId, uid)) {
-                    aiRepo.recordAudit(uid, chatId, "translate_message", null, "forbidden", req.text.length, 1, error = "not_participant")
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
-                    return@post
-                }
-                if (!aiRepo.isEnabled(uid, chatId)) {
-                    aiRepo.recordAudit(uid, chatId, "translate_message", null, "disabled", req.text.length, 1)
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("AI 功能已关闭"))
-                    return@post
-                }
-                val startedAt = System.currentTimeMillis()
-                val estTokens = com.maodouchat.server.service.AiStreamingService.estimateTokens(req.text).toLong()
-                val budget = aiGateway.checkBudget(uid, estTokens)
-                if (budget is com.maodouchat.server.service.BudgetResult.Exceeded) {
-                    call.response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
-                    aiRepo.recordAudit(uid, chatId, "translate_message", null, "budget_exceeded", req.text.length, durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 用量已达每日上限", code = "AI_BUDGET_EXCEEDED"))
-                    return@post
-                }
-                when (val result = aiGateway.translate(req.text, req.targetLanguage)) {
-                    is AiGatewayResult.Success -> {
-                        aiRepo.recordAudit(uid, chatId, "translate_message", result.model, "success", req.text.length, 1, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
-                        call.respond(AiTranslateResponse(result.value, result.model, req.targetLanguage))
-                    }
-                    AiGatewayResult.NotConfigured -> {
-                        aiRepo.recordAudit(uid, chatId, "translate_message", null, "not_configured", req.text.length, 1, durationMs = System.currentTimeMillis() - startedAt)
-                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
-                    }
-                    is AiGatewayResult.UpstreamError -> {
-                        aiRepo.recordAudit(uid, chatId, "translate_message", null, "upstream_error", req.text.length, 1, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        if (result.retryAfterSeconds != null) {
-                            call.response.header(HttpHeaders.RetryAfter, result.retryAfterSeconds.toString())
-                        }
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse("AI 服务暂时不可用，请稍后重试"))
-                    }
-                    is AiGatewayResult.InvalidResponse -> {
-                        aiRepo.recordAudit(uid, chatId, "translate_message", null, "invalid_response", req.text.length, 1, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
-                    }
-                }
-            }
-
-            post("/api/ai/group-assistant") {
-                if (!RuntimeConfigService.isAiGroupAssistantEnabled()) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_group_assistant_disabled"))
-                    return@post
-                }
-                if (!RuntimeConfigService.isAiEnabled()) {
-                    return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI temporarily disabled"))
-                }
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 12)) {
-                    aiRepo.recordAudit(uid, null, "group_assistant", null, "rate_limited", 0, error = "rate_limited")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
-                    return@post
-                }
-                val req = call.receiveBoundedText()?.let { parseJson<AiGroupAssistantRequest>(it) } ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
-                if (!isValidAiGroupAssistantPayload(req)) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("群 AI 助手上下文无效"))
-                    return@post
-                }
-                val inputChars = req.query.length + req.messages.sumOf { it.text.length }
-                if (!chatRepo.isParticipant(req.chatId, uid)) {
-                    aiRepo.recordAudit(uid, req.chatId, "group_assistant", null, "forbidden", inputChars, req.messages.size, error = "not_participant")
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
-                    return@post
-                }
-                if (chatRepo.getChatById(req.chatId)?.isGroup != true) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("群 AI 助手仅支持群聊"))
-                    return@post
-                }
-                if (!aiRepo.isEnabled(uid, req.chatId)) {
-                    aiRepo.recordAudit(uid, req.chatId, "group_assistant", null, "disabled", inputChars, req.messages.size)
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("AI 功能已关闭"))
-                    return@post
-                }
-                val startedAt = System.currentTimeMillis()
-                val estTokens = com.maodouchat.server.service.AiStreamingService.estimateTokens(req.query + " " + req.messages.joinToString(" ") { it.text }).toLong()
-                val budget = aiGateway.checkBudget(uid, estTokens)
-                if (budget is com.maodouchat.server.service.BudgetResult.Exceeded) {
-                    call.response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
-                    aiRepo.recordAudit(uid, req.chatId, "group_assistant", null, "budget_exceeded", inputChars, durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 用量已达每日上限", code = "AI_BUDGET_EXCEEDED"))
-                    return@post
-                }
-                when (val result = aiGateway.groupAssistant(req.query, req.messages, req.mode)) {
-                    is AiGatewayResult.Success -> {
-                        aiRepo.recordAudit(uid, req.chatId, "group_assistant", result.model, "success", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
-                        call.respond(AiGroupAssistantResponse(result.value.answer, req.mode, result.model, result.value.tasks))
-                    }
-                    AiGatewayResult.NotConfigured -> {
-                        aiRepo.recordAudit(uid, req.chatId, "group_assistant", null, "not_configured", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt)
-                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
-                    }
-                    is AiGatewayResult.UpstreamError -> {
-                        aiRepo.recordAudit(uid, req.chatId, "group_assistant", null, "upstream_error", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        if (result.retryAfterSeconds != null) {
-                            call.response.header(HttpHeaders.RetryAfter, result.retryAfterSeconds.toString())
-                        }
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse("AI 服务暂时不可用，请稍后重试"))
-                    }
-                    is AiGatewayResult.InvalidResponse -> {
-                        aiRepo.recordAudit(uid, req.chatId, "group_assistant", null, "invalid_response", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
-                    }
-                }
-            }
-
-            post("/api/ai/semantic-search") {
-                if (!RuntimeConfigService.isAiSemanticSearchEnabled()) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_semantic_search_disabled"))
-                    return@post
-                }
-                if (!RuntimeConfigService.isAiEnabled()) {
-                    return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI temporarily disabled"))
-                }
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 12)) {
-                    aiRepo.recordAudit(uid, null, "semantic_search", null, "rate_limited", 0, error = "rate_limited")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
-                    return@post
-                }
-                val req = call.receiveBoundedText()?.let { parseJson<AiSemanticSearchRequest>(it) } ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
-                if (!isValidAiSemanticSearchPayload(req)) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("AI 语义搜索内容无效"))
-                    return@post
-                }
-                val inputChars = req.query.length + req.candidates.sumOf { it.text.length }
-                if (!chatRepo.isParticipant(req.chatId, uid)) {
-                    aiRepo.recordAudit(uid, req.chatId, "semantic_search", null, "forbidden", inputChars, req.candidates.size, error = "not_participant")
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
-                    return@post
-                }
-                if (!aiRepo.isEnabled(uid, req.chatId)) {
-                    aiRepo.recordAudit(uid, req.chatId, "semantic_search", null, "disabled", inputChars, req.candidates.size)
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("AI 功能已关闭"))
-                    return@post
-                }
-                val startedAt = System.currentTimeMillis()
-                val estTokens = com.maodouchat.server.service.AiStreamingService.estimateTokens(req.query + " " + req.candidates.joinToString(" ") { it.text }).toLong()
-                val budget = aiGateway.checkBudget(uid, estTokens)
-                if (budget is com.maodouchat.server.service.BudgetResult.Exceeded) {
-                    call.response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
-                    aiRepo.recordAudit(uid, req.chatId, "semantic_search", null, "budget_exceeded", inputChars, durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 用量已达每日上限", code = "AI_BUDGET_EXCEEDED"))
-                    return@post
-                }
-                when (val result = aiGateway.semanticSearch(req.query, req.candidates, req.limit)) {
-                    is AiGatewayResult.Success -> {
-                        aiRepo.recordAudit(uid, req.chatId, "semantic_search", result.model, "success", inputChars, req.candidates.size, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
-                        call.respond(AiSemanticSearchResponse(result.value, result.model))
-                    }
-                    AiGatewayResult.NotConfigured -> {
-                        aiRepo.recordAudit(uid, req.chatId, "semantic_search", null, "not_configured", inputChars, req.candidates.size, durationMs = System.currentTimeMillis() - startedAt)
-                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
-                    }
-                    is AiGatewayResult.UpstreamError -> {
-                        aiRepo.recordAudit(uid, req.chatId, "semantic_search", null, "upstream_error", inputChars, req.candidates.size, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        if (result.retryAfterSeconds != null) {
-                            call.response.header(HttpHeaders.RetryAfter, result.retryAfterSeconds.toString())
-                        }
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse("AI 服务暂时不可用，请稍后重试"))
-                    }
-                    is AiGatewayResult.InvalidResponse -> {
-                        aiRepo.recordAudit(uid, req.chatId, "semantic_search", null, "invalid_response", inputChars, req.candidates.size, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
-                    }
-                }
-            }
-
-            post("/api/ai/global-semantic-search") {
-                if (!RuntimeConfigService.isAiSemanticSearchEnabled()) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_semantic_search_disabled"))
-                    return@post
-                }
-                if (!RuntimeConfigService.isAiEnabled()) {
-                    return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI temporarily disabled"))
-                }
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 8)) {
-                    aiRepo.recordAudit(uid, null, "global_semantic_search", null, "rate_limited", 0, error = "rate_limited")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
-                    return@post
-                }
-                val req = call.receiveBoundedText()?.let { parseJson<AiGlobalSemanticSearchRequest>(it) } ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
-                if (!isValidAiGlobalSemanticSearchPayload(req)) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("跨聊天 AI 搜索内容无效"))
-                    return@post
-                }
-                val inputChars = req.query.length + req.candidates.sumOf { it.text.length }
-                val chatIds = req.candidates.map { it.chatId }.distinct()
-                if (chatIds.any { !chatRepo.isParticipant(it, uid) }) {
-                    aiRepo.recordAudit(uid, null, "global_semantic_search", null, "forbidden", inputChars, req.candidates.size, error = "not_participant")
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("搜索候选包含无权访问的聊天"))
-                    return@post
-                }
-                if (chatIds.any { !aiRepo.isEnabled(uid, it) }) {
-                    aiRepo.recordAudit(uid, null, "global_semantic_search", null, "disabled", inputChars, req.candidates.size)
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("部分聊天已关闭 AI 功能"))
-                    return@post
-                }
-                val candidatesByOpaqueId = req.candidates.mapIndexed { index, candidate ->
-                    "global_$index" to candidate
-                }.toMap()
-                val gatewayCandidates = candidatesByOpaqueId.map { (opaqueId, candidate) ->
-                    AiSemanticSearchCandidate(
-                        messageId = opaqueId,
-                        sender = candidate.sender,
-                        text = candidate.text,
-                        timestamp = candidate.timestamp
-                    )
-                }
-                val startedAt = System.currentTimeMillis()
-                val estTokens = com.maodouchat.server.service.AiStreamingService.estimateTokens(req.query + " " + req.candidates.joinToString(" ") { it.text }).toLong()
-                val budget = aiGateway.checkBudget(uid, estTokens)
-                if (budget is com.maodouchat.server.service.BudgetResult.Exceeded) {
-                    call.response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
-                    aiRepo.recordAudit(uid, null, "global_semantic_search", null, "budget_exceeded", inputChars, durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 用量已达每日上限", code = "AI_BUDGET_EXCEEDED"))
-                    return@post
-                }
-                when (val result = aiGateway.semanticSearch(req.query, gatewayCandidates, req.limit)) {
-                    is AiGatewayResult.Success -> {
-                        val matches = result.value.mapNotNull { match ->
-                            val source = candidatesByOpaqueId[match.messageId] ?: return@mapNotNull null
-                            AiGlobalSemanticSearchMatch(source.chatId, source.messageId, match.score)
-                        }
-                        aiRepo.recordAudit(uid, null, "global_semantic_search", result.model, "success", inputChars, req.candidates.size, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
-                        call.respond(AiGlobalSemanticSearchResponse(matches, result.model))
-                    }
-                    AiGatewayResult.NotConfigured -> {
-                        aiRepo.recordAudit(uid, null, "global_semantic_search", null, "not_configured", inputChars, req.candidates.size, durationMs = System.currentTimeMillis() - startedAt)
-                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
-                    }
-                    is AiGatewayResult.UpstreamError -> {
-                        aiRepo.recordAudit(uid, null, "global_semantic_search", null, "upstream_error", inputChars, req.candidates.size, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        if (result.retryAfterSeconds != null) {
-                            call.response.header(HttpHeaders.RetryAfter, result.retryAfterSeconds.toString())
-                        }
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse("AI 服务暂时不可用，请稍后重试"))
-                    }
-                    is AiGatewayResult.InvalidResponse -> {
-                        aiRepo.recordAudit(uid, null, "global_semantic_search", null, "invalid_response", inputChars, req.candidates.size, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
-                    }
-                }
-            }
-
-            post("/api/ai/summarize") {
-                if (!RuntimeConfigService.isAiSummaryEnabled()) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_summary_disabled"))
-                    return@post
-                }
-                if (!RuntimeConfigService.isAiEnabled()) {
-                    return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI temporarily disabled"))
-                }
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 20)) {
-                    aiRepo.recordAudit(uid, null, "summarize", null, "rate_limited", 0, error = "rate_limited")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
-                    return@post
-                }
-                val req = call.receiveBoundedText()?.let { parseJson<AiSummarizeRequest>(it) } ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
-                if (!isValidAiSummaryPayload(req.messages, req.style)) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("AI 总结上下文无效"))
-                    return@post
-                }
-                val chatId = req.chatId?.takeIf(String::isNotBlank)
-                val inputChars = req.messages.sumOf { it.text.length }
-                if (chatId != null && !chatRepo.isParticipant(chatId, uid)) {
-                    aiRepo.recordAudit(uid, chatId, "summarize", null, "forbidden", inputChars, req.messages.size, error = "not_participant")
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
-                    return@post
-                }
-                if (!aiRepo.isEnabled(uid, chatId)) {
-                    aiRepo.recordAudit(uid, chatId, "summarize", null, "disabled", inputChars, req.messages.size)
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("AI 功能已关闭"))
-                    return@post
-                }
-                val startedAt = System.currentTimeMillis()
-                val estTokens = com.maodouchat.server.service.AiStreamingService.estimateTokens(req.messages.joinToString(" ") { it.text }).toLong()
-                val budget = aiGateway.checkBudget(uid, estTokens)
-                if (budget is com.maodouchat.server.service.BudgetResult.Exceeded) {
-                    call.response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
-                    aiRepo.recordAudit(uid, chatId, "summarize", null, "budget_exceeded", inputChars, durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 用量已达每日上限", code = "AI_BUDGET_EXCEEDED"))
-                    return@post
-                }
-                when (val result = aiGateway.summarize(req.messages, req.style)) {
-                    is AiGatewayResult.Success -> {
-                        aiRepo.recordAudit(uid, chatId, "summarize", result.model, "success", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
-                        call.respond(AiSummarizeResponse(result.value, result.model))
-                    }
-                    AiGatewayResult.NotConfigured -> {
-                        aiRepo.recordAudit(uid, chatId, "summarize", null, "not_configured", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt)
-                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
-                    }
-                    is AiGatewayResult.UpstreamError -> {
-                        aiRepo.recordAudit(uid, chatId, "summarize", null, "upstream_error", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        if (result.retryAfterSeconds != null) {
-                            call.response.header(HttpHeaders.RetryAfter, result.retryAfterSeconds.toString())
-                        }
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse("AI 服务暂时不可用，请稍后重试"))
-                    }
-                    is AiGatewayResult.InvalidResponse -> {
-                        aiRepo.recordAudit(uid, chatId, "summarize", null, "invalid_response", inputChars, req.messages.size, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
-                    }
-                }
-            }
-
-            post("/api/ai/transcribe") {
-                if (!RuntimeConfigService.isAiTranscribeEnabled()) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_transcribe_disabled"))
-                    return@post
-                }
-                if (!RuntimeConfigService.isAiEnabled()) {
-                    return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI temporarily disabled"))
-                }
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                if (!aiRateLimiter.acquire(uid, maxPerMinute = 12)) {
-                    aiRepo.recordAudit(uid, null, "transcribe_voice", null, "rate_limited", 0, error = "rate_limited")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
-                    return@post
-                }
-                val req = call.receiveBoundedText(MAX_UPLOAD_JSON_BODY_CHARS)?.let { parseJson<AiTranscribeRequest>(it) } ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
-                if (!isValidAiTranscribePayload(req.audioBase64, req.mimeType, req.language)) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("语音内容无效"))
-                    return@post
-                }
-                val chatId = req.chatId?.takeIf(String::isNotBlank)
-                if (chatId != null && !chatRepo.isParticipant(chatId, uid)) {
-                    aiRepo.recordAudit(uid, chatId, "transcribe_voice", null, "forbidden", req.audioBase64.length, 1, error = "not_participant")
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
-                    return@post
-                }
-                if (!aiRepo.isEnabled(uid, chatId)) {
-                    aiRepo.recordAudit(uid, chatId, "transcribe_voice", null, "disabled", req.audioBase64.length, 1)
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("AI 功能已关闭"))
-                    return@post
-                }
-                val audioBytes = try {
-                    Base64.getDecoder().decode(req.audioBase64.replace('-', '+').replace('_', '/'))
-                } catch (_: IllegalArgumentException) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("语音内容无效"))
-                    return@post
-                }
-                val startedAt = System.currentTimeMillis()
-                // 8.52 修复 AI-1：按真实输入量保守估算（此前 estimateTokens("")≈1 token，日预算形同虚设）
-                val estTokens = estimateMultimodalTokens(audioBytes.size.toLong())
-                val budget = aiGateway.checkBudget(uid, estTokens)
-                if (budget is com.maodouchat.server.service.BudgetResult.Exceeded) {
-                    call.response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
-                    aiRepo.recordAudit(uid, chatId, "transcribe_voice", null, "budget_exceeded", audioBytes.size, durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 用量已达每日上限", code = "AI_BUDGET_EXCEEDED"))
-                    return@post
-                }
-                when (val result = aiGateway.transcribe(audioBytes, req.mimeType.lowercase(), req.language)) {
-                    is AiGatewayResult.Success -> {
-                        aiRepo.recordAudit(uid, chatId, "transcribe_voice", result.model, "success", audioBytes.size, 1, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
-                        call.respond(AiTranscribeResponse(result.value, result.model))
-                    }
-                    AiGatewayResult.NotConfigured -> {
-                        aiRepo.recordAudit(uid, chatId, "transcribe_voice", null, "not_configured", audioBytes.size, 1, durationMs = System.currentTimeMillis() - startedAt)
-                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
-                    }
-                    is AiGatewayResult.UpstreamError -> {
-                        aiRepo.recordAudit(uid, chatId, "transcribe_voice", null, "upstream_error", audioBytes.size, 1, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        if (result.retryAfterSeconds != null) {
-                            call.response.header(HttpHeaders.RetryAfter, result.retryAfterSeconds.toString())
-                        }
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse("AI 服务暂时不可用，请稍后重试"))
-                    }
-                    is AiGatewayResult.InvalidResponse -> {
-                        aiRepo.recordAudit(uid, chatId, "transcribe_voice", null, "invalid_response", audioBytes.size, 1, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
-                    }
-                }
-            }
-
-            post("/api/ai/analyze-image") {
-                if (!RuntimeConfigService.isAiAnalyzeImageEnabled()) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_analyze_image_disabled"))
-                    return@post
-                }
-                if (!RuntimeConfigService.isAiEnabled()) {
-                    return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI temporarily disabled"))
-                }
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                if (!aiRateLimiter.acquire("image_analyze:$uid", maxPerMinute = 10)) {
-                    aiRepo.recordAudit(uid, null, "image_analyze", null, "rate_limited", 0, error = "rate_limited")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
-                    return@post
-                }
-                val request = call.receiveBoundedText(MAX_UPLOAD_JSON_BODY_CHARS)
-                    ?.let { parseJson<AiImageAnalyzeRequest>(it) }
-                if (request == null || !isValidAiImageAnalyzePayload(request)) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("图片分析内容无效"))
-                    return@post
-                }
-                if (!chatRepo.isParticipant(request.chatId, uid)) {
-                    aiRepo.recordAudit(uid, request.chatId, "image_analyze", null, "forbidden", 0, 1, error = "not_participant")
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
-                    return@post
-                }
-                if (!aiRepo.isEnabled(uid, request.chatId)) {
-                    aiRepo.recordAudit(uid, request.chatId, "image_analyze", null, "disabled", 0, 1)
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("AI 功能已关闭"))
-                    return@post
-                }
-                val image = validateAiImage(request.imageBase64) ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("图片格式或尺寸无效"))
-                    return@post
-                }
-                val startedAt = System.currentTimeMillis()
-                // 8.52 修复 AI-1：按图片字节保守估算 token（此前 ≈1 token）
-                val estTokens = estimateMultimodalTokens(image.byteCount.toLong())
-                val budget = aiGateway.checkBudget(uid, estTokens)
-                if (budget is com.maodouchat.server.service.BudgetResult.Exceeded) {
-                    call.response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
-                    aiRepo.recordAudit(uid, request.chatId, "image_analyze", null, "budget_exceeded", image.byteCount, durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 用量已达每日上限", code = "AI_BUDGET_EXCEEDED"))
-                    return@post
-                }
-                when (val result = aiGateway.analyzeImage(image.base64, image.mimeType, request.mode)) {
-                    is AiGatewayResult.Success -> {
-                        aiRepo.recordAudit(uid, request.chatId, "image_analyze", result.model, "success", image.byteCount, 1, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
-                        call.respond(AiImageAnalyzeResponse(result.value.take(6_000), request.mode, result.model))
-                    }
-                    AiGatewayResult.NotConfigured -> {
-                        aiRepo.recordAudit(uid, request.chatId, "image_analyze", null, "not_configured", image.byteCount, 1, durationMs = System.currentTimeMillis() - startedAt)
-                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
-                    }
-                    is AiGatewayResult.UpstreamError -> {
-                        aiRepo.recordAudit(uid, request.chatId, "image_analyze", null, "upstream_error", image.byteCount, 1, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        if (result.retryAfterSeconds != null) {
-                            call.response.header(HttpHeaders.RetryAfter, result.retryAfterSeconds.toString())
-                        }
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse("AI 服务暂时不可用，请稍后重试"))
-                    }
-                    is AiGatewayResult.InvalidResponse -> {
-                        aiRepo.recordAudit(uid, request.chatId, "image_analyze", null, "invalid_response", image.byteCount, 1, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
-                    }
-                }
-            }
-
-            post("/api/ai/analyze-file") {
-                if (!RuntimeConfigService.isAiAnalyzeFileEnabled()) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("ai_analyze_file_disabled"))
-                    return@post
-                }
-                if (!RuntimeConfigService.isAiEnabled()) {
-                    return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI temporarily disabled"))
-                }
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
-                if (!aiRateLimiter.acquire("file_analyze:$uid", maxPerMinute = 8)) {
-                    aiRepo.recordAudit(uid, null, "file_analyze", null, "rate_limited", 0, error = "rate_limited")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 请求过于频繁"))
-                    return@post
-                }
-                val request = call.receiveBoundedText(MAX_UPLOAD_JSON_BODY_CHARS)
-                    ?.let { parseJson<AiFileAnalyzeRequest>(it) }
-                if (request == null || !isValidAiFileAnalyzePayload(request)) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("文件分析内容无效"))
-                    return@post
-                }
-                if (!chatRepo.isParticipant(request.chatId, uid)) {
-                    aiRepo.recordAudit(uid, request.chatId, "file_analyze", null, "forbidden", 0, 1, error = "not_participant")
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
-                    return@post
-                }
-                if (!aiRepo.isEnabled(uid, request.chatId)) {
-                    aiRepo.recordAudit(uid, request.chatId, "file_analyze", null, "disabled", 0, 1)
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("AI 功能已关闭"))
-                    return@post
-                }
-                val file = validateAiFile(request.fileBase64, request.fileName, request.mimeType) ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("仅支持有效的 PDF、TXT、Markdown、CSV、JSON 或 XML 文件"))
-                    return@post
-                }
-                val startedAt = System.currentTimeMillis()
-                // 8.52 修复 AI-1：文件内容 + 问题文本一起估算（此前只算 ≤500 字的问题）
-                // 9.161：非 PDF 文本走 base64→UTF-8 解码进 prompt（服务端 take(120_000)），
-                // 按解码字符数估算——此前统一按字节 256:1 折算，实际 prompt 大一个量级，
-                // 日预算预检低估、可高频调用绕过
-                val estTokens = if (file.mimeType == "application/pdf") {
-                    estimateMultimodalTokens(file.byteCount.toLong(), request.question)
-                } else {
-                    val decodedChars = (file.byteCount.toLong() * 3L / 4L).coerceAtMost(120_000L)
-                    maxOf(1L, decodedChars / 4L + (request.question?.length ?: 0) / 4L)
-                }
-                val budget = aiGateway.checkBudget(uid, estTokens)
-                if (budget is com.maodouchat.server.service.BudgetResult.Exceeded) {
-                    call.response.header(HttpHeaders.RetryAfter, budget.retryAfterSeconds.toString())
-                    aiRepo.recordAudit(uid, request.chatId, "file_analyze", null, "budget_exceeded", file.byteCount, durationMs = System.currentTimeMillis() - startedAt, error = "budget_exceeded")
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("AI 用量已达每日上限", code = "AI_BUDGET_EXCEEDED"))
-                    return@post
-                }
-                when (val result = aiGateway.analyzeFile(file.base64, file.fileName, file.mimeType, request.mode, request.question)) {
-                    is AiGatewayResult.Success -> {
-                        aiRepo.recordAudit(uid, request.chatId, "file_analyze", result.model, "success", file.byteCount, 1, durationMs = System.currentTimeMillis() - startedAt, inputTokens = result.inputTokens, outputTokens = result.outputTokens)
-                        call.respond(AiFileAnalyzeResponse(result.value.take(8_000), request.mode, file.fileName, result.model))
-                    }
-                    AiGatewayResult.NotConfigured -> {
-                        aiRepo.recordAudit(uid, request.chatId, "file_analyze", null, "not_configured", file.byteCount, 1, durationMs = System.currentTimeMillis() - startedAt)
-                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("AI 服务未配置"))
-                    }
-                    is AiGatewayResult.UpstreamError -> {
-                        aiRepo.recordAudit(uid, request.chatId, "file_analyze", null, "upstream_error", file.byteCount, 1, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        if (result.retryAfterSeconds != null) {
-                            call.response.header(HttpHeaders.RetryAfter, result.retryAfterSeconds.toString())
-                        }
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse("AI 服务暂时不可用，请稍后重试"))
-                    }
-                    is AiGatewayResult.InvalidResponse -> {
-                        aiRepo.recordAudit(uid, request.chatId, "file_analyze", null, "invalid_response", file.byteCount, 1, durationMs = System.currentTimeMillis() - startedAt, error = result.message)
-                        call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
-                    }
-                }
-            }
+            // Cloud chat inference, /api/ai/settings and summary-sync are gone.
+            // Server AI is post/comment moderation only (AiGateway.classifyContent).
+            // Chat plaintext inference used to live here (/api/ai/rewrite, summarize, analyze-*).
+            // Those endpoints are removed; clients use a user-configured model on-device.
 
             // 星标消息
             post("/api/messages/{messageId}/star") {
@@ -15913,7 +14548,7 @@ put("status", "ok")
                 val uid = call.principal<JWTPrincipal>()!!.payload.subject
                 // 8.49 修复：补 per-user 限流——markAllAsRead 持 chat 行锁跑大事务，
                 // 此前仅剩全局 IP 兜底，50 个大群 × 高频请求可长时间占满连接池拖慢全站写入
-                if (!messageMutateRateLimiter.acquire("batch_read:$uid", maxPerMinute = 20)) {
+                if (!messageMutateRateLimiter.acquire("batch_read:$uid", maxPerMinute = 60)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("请求过于频繁"))
                     return@post
                 }
@@ -16133,13 +14768,22 @@ put("status", "ok")
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("动态图片无效或不属于当前账号"))
                     return@post
                 }
-                val moderation = moderationRuleRepo.evaluate(
+                val postPlain = buildString {
+                    append(req.content.trim())
+                    if (req.imageUrls.isNotEmpty()) append('\n').append(req.imageUrls.joinToString("\n"))
+                }
+                val keywordModeration = moderationRuleRepo.evaluate(
                     userId = userId,
                     source = "POST",
-                    content = buildString {
-                        append(req.content.trim())
-                        if (req.imageUrls.isNotEmpty()) append('\n').append(req.imageUrls.joinToString("\n"))
-                    }
+                    content = postPlain
+                )
+                val moderation = ContentModerationService.combine(
+                    userId = userId,
+                    source = "POST",
+                    content = postPlain,
+                    keyword = keywordModeration,
+                    gateway = aiGateway,
+                    rules = moderationRuleRepo
                 )
                 if (moderation.blocked) {
                     val status = if (moderation.action == "AUTO_RATE_LIMIT") HttpStatusCode.TooManyRequests else HttpStatusCode.UnprocessableEntity
@@ -16151,6 +14795,9 @@ put("status", "ok")
                 } catch (error: IllegalArgumentException) {
                     call.respond(HttpStatusCode.Conflict, ErrorResponse(error.message ?: "动态图片已被使用"))
                     return@post
+                }
+                moderation.matches.mapNotNull { it.eventId }.takeIf { it.isNotEmpty() }?.let { ids ->
+                    moderationRuleRepo.attachReference(ids, created.id)
                 }
                 call.respond(HttpStatusCode.Created, created)
             }
@@ -16249,10 +14896,18 @@ put("status", "ok")
                 }
                 // 8.38：编辑动态同样过内容审核（发动态/评论均过，编辑此前绕过——
                 // 已发布内容可借编辑改成触发规则的内容）
-                val moderation = moderationRuleRepo.evaluate(
+                val keywordModeration = moderationRuleRepo.evaluate(
                     userId = userId,
                     source = "POST",
                     content = newContent
+                )
+                val moderation = ContentModerationService.combine(
+                    userId = userId,
+                    source = "POST",
+                    content = newContent,
+                    keyword = keywordModeration,
+                    gateway = aiGateway,
+                    rules = moderationRuleRepo
                 )
                 if (moderation.blocked) {
                     val status = if (moderation.action == "AUTO_RATE_LIMIT") HttpStatusCode.TooManyRequests else HttpStatusCode.UnprocessableEntity
@@ -16263,6 +14918,9 @@ put("status", "ok")
                 if (updated == null) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("动态不存在或更新失败"))
                     return@put
+                }
+                moderation.matches.mapNotNull { it.eventId }.takeIf { it.isNotEmpty() }?.let { ids ->
+                    moderationRuleRepo.attachReference(ids, updated.id)
                 }
                 call.respond(updated)
             }
@@ -16354,7 +15012,16 @@ put("status", "ok")
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("评论内容无效"))
                     return@post
                 }
-                val moderation = moderationRuleRepo.evaluate(userId, "COMMENT", req.content.trim())
+                val commentPlain = req.content.trim()
+                val keywordModeration = moderationRuleRepo.evaluate(userId, "COMMENT", commentPlain)
+                val moderation = ContentModerationService.combine(
+                    userId = userId,
+                    source = "COMMENT",
+                    content = commentPlain,
+                    keyword = keywordModeration,
+                    gateway = aiGateway,
+                    rules = moderationRuleRepo
+                )
                 if (moderation.blocked) {
                     val status = if (moderation.action == "AUTO_RATE_LIMIT") HttpStatusCode.TooManyRequests else HttpStatusCode.UnprocessableEntity
                     call.respond(status, ErrorResponse(moderation.message ?: "评论未通过安全检查"))
@@ -16363,6 +15030,9 @@ put("status", "ok")
                 val comment = postRepo.addComment(postId, userId, req.content.trim(), req.replyToId)
                 if (comment == null) call.respond(HttpStatusCode.NotFound, ErrorResponse("动态不存在或回复目标不存在"))
                 else {
+                    moderation.matches.mapNotNull { it.eventId }.takeIf { it.isNotEmpty() }?.let { ids ->
+                        moderationRuleRepo.attachReference(ids, comment.id)
+                    }
                     val postAuthorId = postRepo.getPostAuthorId(postId)
                     postAuthorId?.let { authorId ->
                         if (!userRepo.isBlockedEitherWay(authorId, userId)) {
@@ -16396,7 +15066,16 @@ put("status", "ok")
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("评论内容无效"))
                     return@put
                 }
-                val moderation = moderationRuleRepo.evaluate(userId, "COMMENT", req.content.trim())
+                val commentPlain = req.content.trim()
+                val keywordModeration = moderationRuleRepo.evaluate(userId, "COMMENT", commentPlain)
+                val moderation = ContentModerationService.combine(
+                    userId = userId,
+                    source = "COMMENT",
+                    content = commentPlain,
+                    keyword = keywordModeration,
+                    gateway = aiGateway,
+                    rules = moderationRuleRepo
+                )
                 if (moderation.blocked) {
                     val status = if (moderation.action == "AUTO_RATE_LIMIT") HttpStatusCode.TooManyRequests else HttpStatusCode.UnprocessableEntity
                     call.respond(status, ErrorResponse(moderation.message ?: "评论未通过安全检查"))
@@ -16404,7 +15083,12 @@ put("status", "ok")
                 }
                 val comment = postRepo.updateCommentForUser(cid, postId, userId, req.content.trim())
                 if (comment == null) call.respond(HttpStatusCode.NotFound, ErrorResponse("评论不存在或无权编辑"))
-                else call.respond(comment)
+                else {
+                    moderation.matches.mapNotNull { it.eventId }.takeIf { it.isNotEmpty() }?.let { ids ->
+                        moderationRuleRepo.attachReference(ids, comment.id)
+                    }
+                    call.respond(comment)
+                }
             }
 
             delete("/api/posts/{id}/comments/{cid}") {
@@ -16702,7 +15386,6 @@ put("status", "ok")
                             removal.revokedSessionIds,
                             "该登录设备已被移除"
                         )
-                        aiSummarySyncRepo.deleteForDevice(requesterId, deviceId)
                         call.respond(
                 buildJsonObject {
 put("status", "ok")
@@ -16949,86 +15632,6 @@ put("status", "ok")
     }
 }
 
-private data class ValidatedAiImage(val base64: String, val mimeType: String, val byteCount: Int)
-
-private fun validateAiImage(base64: String): ValidatedAiImage? = runCatching {
-    val bytes = Base64.getDecoder().decode(base64.replace('-', '+').replace('_', '/'))
-    if (bytes.isEmpty() || bytes.size > MAX_AI_IMAGE_BYTES) return null
-    val imageInput = ImageIO.createImageInputStream(ByteArrayInputStream(bytes)) ?: return null
-    imageInput.use { input ->
-        val readers = ImageIO.getImageReaders(input)
-        if (!readers.hasNext()) return null
-        val reader = readers.next()
-        try {
-            reader.input = input
-            val width = reader.getWidth(0)
-            val height = reader.getHeight(0)
-            if (width !in 1..MAX_AI_IMAGE_DIMENSION || height !in 1..MAX_AI_IMAGE_DIMENSION) return null
-            if (width.toLong() * height.toLong() > MAX_AI_IMAGE_PIXELS) return null
-            val mimeType = when (reader.formatName.lowercase()) {
-                "jpg", "jpeg" -> "image/jpeg"
-                "png" -> "image/png"
-                else -> return null
-            }
-            // 8.52 修复 AI-3：超长边图片等比降采样到目标尺寸（视觉模型按像素/tile 计费，
-            // 原图 4096² 成本是 1568² 的数倍，且游离在预算体系外）
-            val maxEdge = maxOf(width, height)
-            if (maxEdge > AI_IMAGE_TARGET_MAX_EDGE) {
-                val sourceImage = reader.read(0) ?: return null
-                val targetEdge = AI_IMAGE_TARGET_MAX_EDGE
-                val scale = targetEdge.toDouble() / maxEdge
-                val targetW = maxOf(1, (width * scale).toInt())
-                val targetH = maxOf(1, (height * scale).toInt())
-                val scaled = java.awt.image.BufferedImage(targetW, targetH, java.awt.image.BufferedImage.TYPE_INT_RGB)
-                val graphics = scaled.createGraphics()
-                graphics.drawImage(sourceImage, 0, 0, targetW, targetH, null)
-                graphics.dispose()
-                val bos = java.io.ByteArrayOutputStream()
-                ImageIO.write(scaled, "jpg", bos)
-                val outBytes = bos.toByteArray()
-                return ValidatedAiImage(
-                    Base64.getEncoder().encodeToString(outBytes),
-                    "image/jpeg",
-                    outBytes.size
-                )
-            }
-            ValidatedAiImage(Base64.getEncoder().encodeToString(bytes), mimeType, bytes.size)
-        } finally {
-            reader.dispose()
-        }
-    }
-}.getOrNull()
-
-private data class ValidatedAiFile(
-    val base64: String,
-    val fileName: String,
-    val mimeType: String,
-    val byteCount: Int
-)
-
-private fun validateAiFile(base64: String, fileName: String, declaredMimeType: String): ValidatedAiFile? = runCatching {
-    val bytes = Base64.getDecoder().decode(base64.replace('-', '+').replace('_', '/'))
-    if (bytes.isEmpty() || bytes.size > MAX_AI_FILE_BYTES) return null
-    val normalizedName = fileName.trim().take(120)
-    val extension = normalizedName.substringAfterLast('.', "").lowercase()
-    val isPdf = bytes.size >= 5 && bytes.copyOfRange(0, 5).contentEquals("%PDF-".toByteArray(Charsets.US_ASCII))
-    val mimeType = if (isPdf) {
-        if (extension != "pdf" || declaredMimeType.lowercase() != "application/pdf") return null
-        "application/pdf"
-    } else {
-        if (declaredMimeType.lowercase() !in ALLOWED_AI_FILE_MIME_TYPES - "application/pdf") return null
-        if (extension !in ALLOWED_AI_TEXT_FILE_EXTENSIONS) return null
-        val text = Charsets.UTF_8.newDecoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT)
-            .decode(ByteBuffer.wrap(bytes))
-            .toString()
-        if (text.isBlank() || text.length > MAX_AI_TEXT_FILE_CHARS || text.any { it == '\u0000' }) return null
-        declaredMimeType.lowercase()
-    }
-    ValidatedAiFile(Base64.getEncoder().encodeToString(bytes), normalizedName, mimeType, bytes.size)
-}.getOrNull()
-
 @kotlinx.serialization.Serializable
 private data class SignalingPayload(
     val fromUserId: String,
@@ -17236,7 +15839,6 @@ private fun estimateMultimodalTokens(byteCount: Long, extraText: String? = null)
     val textTokens = (extraText?.length ?: 0) / 4L
     return maxOf(1L, base + textTokens)
 }
-
 private fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: String?): String {
     // 8.51 修复 H1：公开主页存储型 XSS——所有用户字段完整 HTML 转义（含 " '）后再填模板
     val rawBase = resolvePublicBaseUrl(baseUrl)

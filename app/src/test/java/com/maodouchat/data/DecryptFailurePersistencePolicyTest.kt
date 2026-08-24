@@ -56,6 +56,16 @@ class DecryptFailurePersistencePolicyTest {
         assertEquals(wire, mergeMessageForPersistence(incoming, existing).content)
     }
 
+    @Test
+    fun `compact omitted-algorithm envelope is not replaced by decrypt placeholder`() {
+        val wire =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"ciphertextType":"prekey","ciphertext":"NAgB"}]}"""
+        val existing = base("m1").copy(content = wire)
+        val incoming = base("m1").copy(content = "decrypt failed")
+        assertEquals(wire, mergeMessageForPersistence(existing, incoming).content)
+        assertEquals(wire, mergeMessageForPersistence(incoming, existing).content)
+    }
+
     private fun base(id: String) = Message(
         id = id,
         chatId = "c1",

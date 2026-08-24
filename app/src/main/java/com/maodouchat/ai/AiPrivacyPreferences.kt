@@ -8,8 +8,10 @@ import com.maodouchat.network.TokenManager
 object AiPrivacyPreferences {
     private const val PREFS_NAME = "ai_settings"
     const val KEY_CONSENT = "ai_consent_accepted"
+    const val KEY_USER_ENABLED = "ai_user_enabled"
     const val KEY_LOCAL_SAFETY = "ai_local_safety_enabled"
     const val KEY_DISMISSED_SAFETY_IDS = "ai_local_safety_dismissed_ids"
+    const val KEY_AUTO_TRANSLATE = "ai_auto_translate_incoming"
     private const val KEY_MIGRATED = "account_scope_migrated"
     private val migrationLock = Any()
 
@@ -18,12 +20,17 @@ object AiPrivacyPreferences {
     fun consentAccepted(context: Context): Boolean =
         account(context)?.let { it.prefs.getBoolean(scopedKey(KEY_CONSENT, it.userId), false) } ?: false
 
+    /** 设置里的用户总开关；缺省 false，须用户打开后聊天/搜索才画 AI 图标。 */
+    fun userEnabled(context: Context): Boolean =
+        account(context)?.let { it.prefs.getBoolean(scopedKey(KEY_USER_ENABLED, it.userId), false) } ?: false
+
     /**
-     * Fail-closed 云端上下文上传门闩。
+     * Fail-closed 本机模型上下文门闩。
      * 无登录账号、未明确同意、或已撤销时一律 false——后台 OCR / 画像 / 情绪回复 / 周报
-     * 不得把消息正文 POST 到 enhance 端点。
+     * 不得把消息正文发给用户配置的模型。聊天明文也不经毛豆 /api/ai。
      */
-    fun mayUploadCloudContext(context: Context): Boolean = consentAccepted(context)
+    fun mayUploadCloudContext(context: Context): Boolean =
+        userEnabled(context) && consentAccepted(context)
 
     fun localSafetyEnabled(context: Context): Boolean =
         account(context)?.let { it.prefs.getBoolean(scopedKey(KEY_LOCAL_SAFETY, it.userId), false) } ?: false
@@ -36,8 +43,17 @@ object AiPrivacyPreferences {
     fun setConsentAccepted(context: Context, accepted: Boolean) =
         putBoolean(context, KEY_CONSENT, accepted)
 
+    fun setUserEnabled(context: Context, enabled: Boolean) =
+        putBoolean(context, KEY_USER_ENABLED, enabled)
+
     fun setLocalSafetyEnabled(context: Context, enabled: Boolean) =
         putBoolean(context, KEY_LOCAL_SAFETY, enabled)
+
+    fun autoTranslateIncoming(context: Context): Boolean =
+        account(context)?.let { it.prefs.getBoolean(scopedKey(KEY_AUTO_TRANSLATE, it.userId), false) } ?: false
+
+    fun setAutoTranslateIncoming(context: Context, enabled: Boolean) =
+        putBoolean(context, KEY_AUTO_TRANSLATE, enabled)
 
     fun setDismissedSafetyMessageIds(context: Context, messageIds: Set<String>) {
         val account = account(context) ?: return
@@ -50,6 +66,7 @@ object AiPrivacyPreferences {
         val account = account(context) ?: return
         account.prefs.edit()
             .putBoolean(scopedKey(KEY_CONSENT, account.userId), false)
+            .putBoolean(scopedKey(KEY_USER_ENABLED, account.userId), false)
             .putBoolean(scopedKey(KEY_LOCAL_SAFETY, account.userId), false)
             .remove(scopedKey(KEY_DISMISSED_SAFETY_IDS, account.userId))
             .apply()

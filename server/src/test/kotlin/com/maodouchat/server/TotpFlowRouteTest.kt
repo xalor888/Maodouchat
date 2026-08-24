@@ -10,7 +10,6 @@ import com.maodouchat.server.plugins.configureSerialization
 import com.maodouchat.server.plugins.configureSockets
 import com.maodouchat.server.plugins.configureStatusPages
 import com.maodouchat.server.plugins.configureAdminEnhanceRouting
-import com.maodouchat.server.plugins.configureAiEnhanceRouting
 import com.maodouchat.server.plugins.configureSecretSurfaceRouting
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.AiGateway
@@ -165,12 +164,6 @@ class TotpFlowRouteTest {
         )
         configurePollRouting()
         configureDeveloperRouting()
-        configureAiEnhanceRouting(
-            aiGateway = aiGateway,
-            chatRepo = chatRepo,
-            aiRepo = AiRepository(),
-            aiRateLimiter = com.maodouchat.server.plugins.BoundedRateLimiter()
-        )
         configureAdminEnhanceRouting(
             announcementRepo = com.maodouchat.server.repository.AnnouncementRepository(),
             userTagRepo = com.maodouchat.server.repository.UserTagRepository(),
@@ -313,53 +306,4 @@ class TotpFlowRouteTest {
 
 private class TotpFlowFakeAiGateway : AiGateway {
     override val model: String = "test-model"
-
-    override suspend fun rewrite(
-        text: String,
-        mode: String,
-        targetLanguage: String?,
-        styleHint: String?
-    ): AiGatewayResult<String> = AiGatewayResult.Success("改写：${text.trim()}", model)
-
-    override suspend fun suggestReplies(
-        messages: List<com.maodouchat.server.model.AiContextMessage>,
-        tone: String,
-        count: Int
-    ): AiGatewayResult<List<String>> = AiGatewayResult.Success(listOf("好的", "我看看").take(count), model)
-
-    override suspend fun summarize(
-        messages: List<com.maodouchat.server.model.AiContextMessage>,
-        style: String
-    ): AiGatewayResult<String> = AiGatewayResult.Success("总结：${messages.size} 条消息", model)
-
-    override suspend fun groupAssistant(
-        query: String,
-        messages: List<com.maodouchat.server.model.AiContextMessage>,
-        mode: String
-    ): AiGatewayResult<com.maodouchat.server.model.AiGroupAssistantResult> =
-        AiGatewayResult.Success(com.maodouchat.server.model.AiGroupAssistantResult("群助手：${query.trim()}", emptyList()), model)
-
-    override suspend fun translate(text: String, targetLanguage: String): AiGatewayResult<String> =
-        AiGatewayResult.Success("翻译：${text.trim()}", model)
-
-    override suspend fun semanticSearch(
-        query: String,
-        candidates: List<com.maodouchat.server.model.AiSemanticSearchCandidate>,
-        limit: Int
-    ): AiGatewayResult<List<com.maodouchat.server.model.AiSemanticSearchMatch>> =
-        AiGatewayResult.Success(emptyList(), model)
-
-    override suspend fun transcribe(audioBytes: ByteArray, mimeType: String, language: String?): AiGatewayResult<String> =
-        AiGatewayResult.Success("test transcript", model)
-
-    override suspend fun analyzeImage(imageBase64: String, mimeType: String, mode: String): AiGatewayResult<String> =
-        AiGatewayResult.Success("图片分析：$mode", model)
-
-    override suspend fun analyzeFile(
-        fileBase64: String,
-        fileName: String,
-        mimeType: String,
-        mode: String,
-        question: String?
-    ): AiGatewayResult<String> = AiGatewayResult.Success("文件分析：$fileName / $mode", model)
 }

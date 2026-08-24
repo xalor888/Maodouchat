@@ -30,10 +30,11 @@ import com.maodouchat.ui.screen.chatlist.NotificationCenterType
  */
 object AppNotifier {
 
-    private const val CHANNEL_MESSAGES = "messages"
-    private const val CHANNEL_GROUP_MESSAGES = "group_messages"
-    private const val CHANNEL_CALLS = "calls"
-    private const val CHANNEL_AI_TASKS = "ai_tasks"
+    private const val CHANNEL_MESSAGES = "messages_v4"
+    private const val CHANNEL_GROUP_MESSAGES = "group_messages_v4"
+    private const val CHANNEL_CALLS = "calls_v4"
+    private const val CHANNEL_AI_TASKS = "ai_tasks_v4"
+    private val LEGACY_CHANNEL_IDS = listOf("messages", "group_messages", "calls", "ai_tasks")
     private const val NOTIFICATION_TAG_PREFIX = "maodouchat_"
     private const val AI_TASK_NOTIFICATION_TAG = "maodouchat_ai_task"
     private const val FRIEND_REQUEST_NOTIFICATION_TAG = "maodouchat_friend_request"
@@ -48,9 +49,10 @@ object AppNotifier {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         // 8.48：用户可选系统通知铃声（RingtoneManager picker）；未选时使用内置消息提示音
         // （9.3xx：此前未选时依赖系统默认铃声，部分厂商渠道建好后无声——现在显式设置内置音效）
+        val builtinTick = android.net.Uri.parse("android.resource://${context.packageName}/raw/notify_message")
         val ringtoneUri = com.maodouchat.notification.NotificationPreferences.ringtoneUri(context)
             ?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() }
-            ?: android.net.Uri.parse("android.resource://${context.packageName}/${R.raw.notify_message}")
+            ?: builtinTick
         // 0.72：群聊独立铃声（回退单聊铃声）
         val groupRingtoneUri = com.maodouchat.notification.NotificationPreferences.groupRingtoneUri(context)
             ?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() }
@@ -62,10 +64,11 @@ object AppNotifier {
         // 9.216：渠道配置指纹——Android 通知渠道的铃声/振动只在创建时生效，
         // 用户改设置后必须删除重建渠道才能生效（重建会重置系统侧对渠道的手动调整，预期内）。
         val vibrationOn = com.maodouchat.notification.NotificationPreferences.vibrationEnabled(context)
-        val fingerprint = listOf(ringtoneUri, groupRingtoneUri, vibrationOn).joinToString("|")
+        val fingerprint = listOf(ringtoneUri, groupRingtoneUri, vibrationOn, "tick-v7").joinToString("|")
         val configPrefs = context.applicationContext.getSharedPreferences("notif_channel_config", Context.MODE_PRIVATE)
         val storedFingerprint = configPrefs.getString("channel_fingerprint", null)
-        if (storedFingerprint != null && storedFingerprint != fingerprint) {
+        LEGACY_CHANNEL_IDS.forEach { nm.deleteNotificationChannel(it) }
+        if (storedFingerprint != fingerprint) {
             nm.deleteNotificationChannel(CHANNEL_MESSAGES)
             nm.deleteNotificationChannel(CHANNEL_GROUP_MESSAGES)
             nm.deleteNotificationChannel(CHANNEL_CALLS)

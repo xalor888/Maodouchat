@@ -96,6 +96,12 @@ data class ChatDetailUiState(
     val currentDeviceId: Int = 1,
     val currentIdentityFingerprint: String = "",
     val isLoading: Boolean = false,
+    /**
+     * First open-chat history merge has finished (REST success or local fallback).
+     * Until then the timeline must stay pinned to the newest bubble: reverseLayout
+     * keeps the first painted (older) item when a later, newer tail is prepended.
+     */
+    val initialTimelineReady: Boolean = false,
     /** 8.52 UX：初次加载失败且无本地缓存时的错误文案（与「还没有消息」空态区分）。 */
     val initialLoadError: String? = null,
     val isRecording: Boolean = false,
@@ -183,7 +189,7 @@ data class ChatDetailUiState(
     val isSemanticSearching: Boolean = false,
     val semanticSearchError: String? = null,
     val navigationTargetMessageId: String? = null,
-    val aiEnabled: Boolean = true,
+    val aiEnabled: Boolean = false,
     val isUpdatingAiSetting: Boolean = false,
     val aiOperations: List<AiOperationUi> = emptyList(),
     /** 群聊中我的角色 OWNER/ADMIN/MEMBER；单聊为空 */
@@ -221,7 +227,9 @@ data class ChatDetailUiState(
     val activeLiveLocationUntil: Long? = null,
     /** Secret chat has a cached sealed-sender certificate for outbound. */
     val sealedSenderReady: Boolean = false,
-    val sealedSenderExpiresInSec: Long = 0L
+    val sealedSenderExpiresInSec: Long = 0L,
+    /** 本会话已入群/私聊的 bot 斜杠命令（明文 inbox，不碰成员密文）。 */
+    val botCommands: List<com.maodouchat.bot.BotCommandPolicy.BotCommandItem> = emptyList()
 )
 
 // ── DTO 映射 ──────────────────────────

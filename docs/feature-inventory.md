@@ -52,7 +52,7 @@
 | 邮箱验证码注册 | 完整 | 发码倒计时 | 同上 |
 | 忘记密码 / 重置 | 完整 | 验证码 purpose=reset + 吊销会话 | `LoginScreen` tab2 + `/api/auth/reset-password` |
 | Token 持久化 | 完整 | Access/Refresh 加密存储 | `network/TokenManager.kt` |
-| 自动刷新 / 登出清会话 | 完整 | 含 WS 断开、任务取消 | `security/SecureSessionManager.kt` |
+| 自动刷新 / 登出清会话 | 完整 | 同账号登出/401 只清 token 与进程态，保留 SQLCipher+Signal；换号/删号/换服务器仍硬销毁 | `security/SecureSessionManager.kt` + `LogoutStorePolicy` |
 
 ### 3.2 会话列表与组织
 
@@ -183,14 +183,15 @@
 
 | 功能 | 完整度 | 说明 | 关键路径 |
 |------|--------|------|----------|
-| 改写（含流式） | 完整 | 草稿流式改写；模式 polish/shorten/formal/gentle/casual/professional/expand/bullet/clarify/translate；可取消 | `ApiService` + ChatDetail |
-| 回复建议（含流式） | 完整 | 流式候选条最多 4 条；上下文最多 20 条；语气 友好/自然/正式/简洁/温和/幽默/直接/共情/鼓励；可点入草稿 | ChatDetail AI 建议条 |
-| 翻译 | 完整 | 24 种目标语言（含印尼/印地/意/土/荷/波/瑞典/马来/芬兰/希腊/捷克/罗马尼亚/捷克/罗马尼亚）；语言列表可搜索；已译语言打勾 | ChatDetail `TranslationLanguageDialog` |
-| 会话/范围摘要 | 完整 | 风格 brief/detailed/decisions/tasks/timeline/risks + 范围最近/今天/7天/30天/搜索结果；上下文最多 48 条；多端摘要同步 envelope；摘要历史 ≥4 条可按正文/范围搜索 | ChatDetail `AiSummaryHistoryDialog` |
+| 本机助手 | 可用 | 客户端进程；用户自配 OpenAI 兼容模型（Key 加密存本机）；工具读 SQLCipher 已解密行；发消息需审批后走 `TextOutboxFlusher` E2EE；密聊/未解锁 PIN 不可读。聊天明文不经毛豆 `/api/ai`。`OnDeviceEmbeddingGate` 仍 false | `ai/agent/*` + 设置「AI 与隐私」+ `Routes.AGENT` |
+| 改写（含流式） | 完整 | 草稿流式改写；模式 polish/shorten/formal/gentle/casual/professional/expand/bullet/clarify/translate；可取消；走本机模型 | `LocalAiGateway` + ChatDetail |
+| 回复建议 | 完整 | 候选条最多 4 条；上下文最多 20 条；语气 友好/自然/正式/简洁/温和/幽默/直接/共情/鼓励；可点入草稿 | ChatDetail AI 建议条 |
+| 翻译 | 完整 | 24 种目标语言；语言列表可搜索；已译语言打勾；本机模型 | ChatDetail `TranslationLanguageDialog` |
+| 会话/范围摘要 | 完整 | 风格 brief/detailed/decisions/tasks/timeline/risks + 范围最近/今天/7天/30天/搜索结果；上下文最多 48 条；摘要历史 ≥4 条可按正文/范围搜索 | ChatDetail `AiSummaryHistoryDialog` |
 | 群助手 + 任务提取 | 完整 | 模式 chips 问答/总结/决策/待办/时间线/风险 + 私有预览 + 确认后分享/落本地任务（任务提取上限 30） | `GroupAiSharePolicy` + ChatDetail |
-| 语音转写 | 完整 | 气泡请求/复制；预览 320 字可展开；最长 6000；空结果提示 | `VoiceTranscriptPolicy` + ChatDetail |
-| 图片/文件分析 | 完整 | 描述/OCR/风险；文件总结/提问 | ChatDetail AI 图片/文件对话框 |
-| 语义搜索 | 完整 | 关键词预过滤+星标优先+多发送者多样性(>2人时限占比)+上限100；UI明示候选数/边界；非全库向量 | `ChatSearchModel` + `ChatSearchBar` |
+| 语音转写 | 完整 | 气泡请求/复制；预览 320 字可展开；最长 6000；空结果提示；走用户配置的 `/audio/transcriptions` | `VoiceTranscriptPolicy` + ChatDetail |
+| 图片/文件分析 | 完整 | 描述/OCR/风险走本机视觉接口；文本文件 UTF-8；PDF 本机渲染前 4 页 JPEG 再走用户模型。不经毛豆 `/api/ai` | ChatDetail AI 图片/文件对话框 + `LocalAiFileAnalyzer` |
+| 语义搜索 | 完整 | 本机关键词打分，非全库向量；密聊/PIN 排除 | `LocalAiGateway.rankSemantic` + `ChatSearchBar` |
 | 费用/限流/取消可见 | 完整 | 调用中可取消；限流/费用提示条 | `AiCostVisibilityPolicy` |
 | Prompt 注入防护 | 完整 | 用户输入消毒与系统提示隔离 | `AiPromptSafetyPolicy` |
 | 写作风格偏好 | 完整 | 默关、账号隔离 + `/api/client-prefs` 多端同步；预设含简洁/正式/温和/商务/轻松/俏皮/共情/直接/热情/得体；自定义说明 320 字 | `AiWritingStyle*` |
@@ -232,7 +233,7 @@
 | 身份信任 + 安全码 + QR | 完整 | 自研 5 位分组 digest；TOFU + CHANGED 拦截 + QR 扫码核验 + **一键验证所有设备**（verifyAllDevices）；多设备 ≥4 可搜 ID/信任/指纹并可滚动 |
 | 附件 AES-GCM（服务端只存密文） | 完整 | IMAGE/VIDEO/GIF/VOICE/FILE 全部走加密附件管道；客户端加解密；密钥随消息 meta；服务端密文；兼容旧版 inline FILE 消息 |
 | SQLCipher 本地库 | 完整 | Keystore 包 passphrase；损坏记录隔离删除；打开失败时销毁重建 |
-| 换号/登出本地硬销毁 | 完整 | purge DB/缓存/任务/Signal 状态/停止保活 |
+| 换号/删号本地硬销毁 | 完整 | 换号与删号 purge DB/缓存/任务/Signal；同账号登出保留加密库 |
 | BackgroundSessionGate | 完整 | Worker 防串号；每次异步操作前校验 userId + token 一致性 |
 | JWT + Refresh 轮换/吊销 | 完整 | 服务端 version/jti；access 15min + refresh 30d SHA-256 哈希；REST 401 自动刷新重试 |
 | App 锁 / 敏感操作 / 截屏 | 完整 | 锁开关本机；超时/门闩/防截屏云同步 |
@@ -483,7 +484,7 @@
 | B1 包体 | `slim/OnDemandStickerStore`（预留）、`SizeGuard` + `verifyReleaseSize` 护栏任务、依赖审计、acknowledgments 构建期排除 | APK 19.7→11.72MB；0 残留 mapOf 响应 |
 | B2 密聊 | surface #71–#78 全链路（RuntimeConfig keys + Prefs + healthz + hint + admin 行 + 行为类）+ `SecretSurfaceWatchdogWorker` 接线（SIM 变更→清密聊） | `SecretSurfaceHealthzTest` 8 路由全过 |
 | B3 群玩法 | 投票/签到/接龙/PK（表 + REST + WS 推送 + 4 Screen + 扩展函数接线） | `GroupPlayRoutesTest` 全链路通过 |
-| B4 AI | 6 能力（服务端 5 端点 + 客户端能力类预留）+ `AiEnhanceHttp` | `AiEnhanceRoutesTest` 通过 |
+| B4 AI | 客户端本机助手 + 用户自配模型；服务端仅审帖。云端聊天 AI/设置/摘要同步/Bot AI 提示已删（表 `ai_preferences`、`ai_summary_sync_envelopes` 启动 DROP） | 客户端 agent 单测；`/api/ai/*` 聊天接口 404 |
 | B5 系统集成 | 小组件全套 + 悬浮球（设置页入口已接线）+ 双栏 + 快捷回复（RemoteInput 平台限制→打开会话） | App 编译/单测通过 |
 | B6 运维 | 公告/标签/限流仪表盘/审计导出/设备一致性 + admin UI | `AdminEnhanceRoutesTest` 通过 |
 | B7 性能 | migration 27→28（5 索引）+ perf 工具 + 动效预算文档 | 索引名与 Entity 一致（运行时无 schema 崩溃） |

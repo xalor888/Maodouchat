@@ -54,6 +54,7 @@ internal fun ChatSearchBar(
     semanticSearchQuery: String,
     semanticSearchResultCount: Int,
     semanticSearchError: String?,
+    aiEnabled: Boolean = false,
     onQueryChange: (String) -> Unit,
     onModeChange: (ChatSearchMode) -> Unit,
     onScopeChange: (ChatSearchScope) -> Unit,
@@ -97,7 +98,7 @@ internal fun ChatSearchBar(
                     unfocusedTextColor = OnSurface
                 )
             )
-            if (mode == ChatSearchMode.SEMANTIC) {
+            if (aiEnabled && mode == ChatSearchMode.SEMANTIC) {
                 Spacer(modifier = Modifier.width(4.dp))
                 if (isSemanticSearching) {
                     Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
@@ -129,10 +130,12 @@ internal fun ChatSearchBar(
                 Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.chat_search_close), tint = Secondary)
             }
         }
-        SearchChoices(ChatSearchMode.entries, mode, ChatSearchMode::localizedLabel, onModeChange)
+        if (aiEnabled) {
+            SearchChoices(ChatSearchMode.entries, mode, ChatSearchMode::localizedLabel, onModeChange)
+        }
         SearchChoices(ChatSearchScope.entries, scope, ChatSearchScope::localizedLabel, onScopeChange)
         SearchChoices(ChatSearchWindow.entries, window, ChatSearchWindow::localizedLabel, onWindowChange)
-        if (mode == ChatSearchMode.SEMANTIC) {
+        if (aiEnabled && mode == ChatSearchMode.SEMANTIC) {
             Text(
                 text = if (semanticCandidateCount > 0) {
                     stringResource(R.string.chat_semantic_search_candidates, semanticCandidateCount)

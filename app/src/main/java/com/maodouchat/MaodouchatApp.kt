@@ -138,6 +138,19 @@ class MaodouchatApp : Application() {
         // TokenManager is a process singleton; initialize it before any network worker may read tokens.
         TokenManager.getInstance(this)
         PushRegistrationManager.initialize(this)
+        runCatching {
+            val uid = TokenManager.getInstance(this).getUserId().orEmpty()
+            if (uid.isNotBlank()) {
+                com.maodouchat.security.FakeChatManager.restoreLauncherIfHiddenForUser(this, uid)
+            }
+            val pm = packageManager
+            val component = android.content.ComponentName(this, MainActivity::class.java)
+            pm.setComponentEnabledSetting(
+                component,
+                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                android.content.pm.PackageManager.DONT_KILL_APP
+            )
+        }
         // 8.48：Application 初始化完成里程碑（DB/Signal/依赖就绪）
         com.maodouchat.perf.StartupTracer.mark("applicationInit")
         rebuildImageLoader()

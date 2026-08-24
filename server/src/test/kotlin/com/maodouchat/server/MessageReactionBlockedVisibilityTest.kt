@@ -46,11 +46,11 @@ class MessageReactionBlockedVisibilityTest {
                 it[Chats.lastMessageType] = "TEXT"
                 it[Chats.lastMessageTime] = now
             }
-            listOf("u1", "u2", "u3").forEach { id ->
+            listOf("u1" to "OWNER", "u2" to "MEMBER", "u3" to "MEMBER").forEach { (id, role) ->
                 ChatParticipants.insert {
                     it[ChatParticipants.chatId] = "g1"
                     it[ChatParticipants.userId] = id
-                    it[ChatParticipants.role] = "MEMBER"
+                    it[ChatParticipants.role] = role
                     it[ChatParticipants.joinedAt] = now
                 }
             }

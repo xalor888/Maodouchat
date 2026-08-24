@@ -85,11 +85,6 @@ import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Outline
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.TextHint
-import com.maodouchat.ui.theme.TextSecondary
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -685,7 +680,7 @@ private fun AiTaskRow(
     val dueColor = if (!task.isCompleted && task.dueAt != null && task.dueAt < System.currentTimeMillis()) {
         MaterialTheme.colorScheme.error
     } else {
-        TextSecondary
+        LocalChatPalette.current.textSecondary
     }
 
     Row(
@@ -717,7 +712,7 @@ private fun AiTaskRow(
             Text(
                 text = task.title,
                 style = MaterialTheme.typography.bodyLarge,
-                color = if (task.isCompleted) TextHint else OnSurface,
+                color = if (task.isCompleted) LocalChatPalette.current.textHint else MaterialTheme.colorScheme.onSurface,
                 fontWeight = if (task.isCompleted) FontWeight.Normal else FontWeight.Medium,
                 textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
                 maxLines = 4,

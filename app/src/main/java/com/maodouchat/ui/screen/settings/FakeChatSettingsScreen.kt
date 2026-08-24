@@ -53,16 +53,10 @@ import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import com.maodouchat.R
 import com.maodouchat.security.FakeChatManager
-import com.maodouchat.ui.theme.Background
-import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.TextSecondary
-import com.maodouchat.ui.theme.Surface as SurfaceColor
 
 /**
- * 假聊天模式 / 隐藏桌面图标设置页。
+ * 假聊天模式设置页（隐藏桌面图标已砍，不再提供入口）。
  * 所有配置仅存本机（按账号隔离），不同步服务器。
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,22 +68,18 @@ fun FakeChatSettingsScreen(
     var fakeEnabled by remember { mutableStateOf(FakeChatManager.isEnabled(context)) }
     var hasPin by remember { mutableStateOf(FakeChatManager.hasPin(context)) }
     var relockOnBackground by remember { mutableStateOf(FakeChatManager.isRelockOnBackground(context)) }
-    var hideIcon by remember { mutableStateOf(FakeChatManager.isLauncherIconHidden(context)) }
 
     var showPinSetup by remember { mutableStateOf(false) }
-    var showHideIconConfirm by remember { mutableStateOf(false) }
-    var showUnhideConfirm by remember { mutableStateOf(false) }
-    val pinMsg = stringResource(R.string.fake_chat_pin_required)
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text(stringResource(R.string.fake_chat_settings_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(28.dp))
                 }
             },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
         )
 
         Column(modifier = Modifier.verticalScroll(rememberScrollState()).imePadding()) {
@@ -98,7 +88,7 @@ fun FakeChatSettingsScreen(
             // 假聊天模式主开关
             Column(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                    .background(SurfaceColor, RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -113,19 +103,14 @@ fun FakeChatSettingsScreen(
                     Switch(
                         checked = fakeEnabled,
                         onCheckedChange = { enabled ->
-                            if (enabled && !hasPin) {
-                                // 必须先设置解锁密码
-                                showPinSetup = true
-                                Toast.makeText(context, pinMsg, Toast.LENGTH_SHORT).show()
+                            if (enabled) {
+                                // FakeChat 保持关闭：setEnabled(true) 一律拒绝。
+                                FakeChatManager.setEnabled(context, true)
+                                fakeEnabled = FakeChatManager.isEnabled(context)
                             } else {
-                                fakeEnabled = enabled
-                                FakeChatManager.setEnabled(context, enabled)
-                                if (enabled) {
-                                    FakeChatManager.markUnlocked(context)
-                                    FakeChatManager.lockNow(context)
-                                } else {
-                                    FakeChatManager.lockNow(context)
-                                }
+                                FakeChatManager.setEnabled(context, false)
+                                fakeEnabled = false
+                                FakeChatManager.lockNow(context)
                             }
                         }
                     )
@@ -170,58 +155,6 @@ fun FakeChatSettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 隐藏桌面图标
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                    .background(SurfaceColor, RoundedCornerShape(14.dp))
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.fake_chat_hide_icon), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(
-                            stringResource(R.string.fake_chat_hide_icon_subtitle),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = LocalChatPalette.current.textSecondary
-                        )
-                    }
-                    Switch(
-                        checked = hideIcon,
-                        onCheckedChange = { enabled ->
-                            if (enabled) {
-                                showHideIconConfirm = true
-                            } else {
-                                showUnhideConfirm = true
-                            }
-                        }
-                    )
-                }
-                HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 44.dp))
-                // 拨号恢复码说明
-                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
-                    Text(stringResource(R.string.fake_chat_restore_title), style = MaterialTheme.typography.labelLarge, color = LocalChatPalette.current.textSecondary)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        stringResource(R.string.fake_chat_restore_code, "*#*#${FakeChatManager.SECRET_CODE}#*#*"),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        stringResource(R.string.fake_chat_restore_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LocalChatPalette.current.textSecondary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             // 使用说明
             Surface(
                 shape = RoundedCornerShape(14.dp),
@@ -242,7 +175,6 @@ fun FakeChatSettingsScreen(
 
     // 弹窗回调为非 @Composable lambda，字符串需在组合作用域内预取后引用
     val pinSavedMessage = stringResource(R.string.fake_chat_pin_saved)
-    val hideIconFailedMessage = stringResource(R.string.fake_chat_hide_icon_failed)
 
     if (showPinSetup) {
         FakePinSetupDialog(
@@ -252,59 +184,9 @@ fun FakeChatSettingsScreen(
                 FakeChatManager.setPin(context, newPin)
                 hasPin = true
                 showPinSetup = false
-                // 首次设置密码时自动开启假聊天模式
-                if (!fakeEnabled) {
-                    fakeEnabled = true
-                    FakeChatManager.setEnabled(context, true)
-                }
+                FakeChatManager.setEnabled(context, true)
+                fakeEnabled = FakeChatManager.isEnabled(context)
                 Toast.makeText(context, pinSavedMessage, Toast.LENGTH_SHORT).show()
-            }
-        )
-    }
-
-    if (showHideIconConfirm) {
-        AlertDialog(
-            onDismissRequest = { showHideIconConfirm = false },
-            title = { Text(stringResource(R.string.fake_chat_hide_icon_confirm_title)) },
-            text = {
-                Text(
-                    stringResource(R.string.fake_chat_hide_icon_confirm_body, "*#*#${FakeChatManager.SECRET_CODE}#*#*"),
-                    textAlign = TextAlign.Start
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showHideIconConfirm = false
-                    val ok = FakeChatManager.setLauncherIconHidden(context, true)
-                    hideIcon = FakeChatManager.isLauncherIconHidden(context)
-                    if (!ok) {
-                        Toast.makeText(context, hideIconFailedMessage, Toast.LENGTH_SHORT).show()
-                    }
-                }) { Text(stringResource(R.string.common_confirm), color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showHideIconConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
-            }
-        )
-    }
-
-    if (showUnhideConfirm) {
-        AlertDialog(
-            onDismissRequest = { showUnhideConfirm = false },
-            title = { Text(stringResource(R.string.fake_chat_unhide_icon_title)) },
-            text = { Text(stringResource(R.string.fake_chat_unhide_icon_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showUnhideConfirm = false
-                    val ok = FakeChatManager.setLauncherIconHidden(context, false)
-                    hideIcon = FakeChatManager.isLauncherIconHidden(context)
-                    if (!ok) {
-                        Toast.makeText(context, hideIconFailedMessage, Toast.LENGTH_SHORT).show()
-                    }
-                }) { Text(stringResource(R.string.common_confirm), color = MaterialTheme.colorScheme.primary) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showUnhideConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
             }
         )
     }
@@ -387,11 +269,11 @@ private fun PinField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = LocalChatPalette.current.chatInputBackground,
             unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-            focusedBorderColor = Primary,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
             unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-            cursorColor = Primary,
-            focusedTextColor = OnSurface,
-            unfocusedTextColor = OnSurface
+            cursorColor = MaterialTheme.colorScheme.primary,
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
         ),
         modifier = Modifier.fillMaxWidth()
     )

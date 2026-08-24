@@ -299,6 +299,16 @@ class MessageMutationPolicyTest {
     }
 
     @Test
+    fun `peer plaintext wins over later decrypt-failure placeholder`() {
+        val plain = message("m-live", "hello_live_sweep", MessageType.TEXT)
+        val failed = message("m-live", "[无法解密的消息]", MessageType.TEXT)
+
+        val merged = mergeMessageVersions(listOf(plain), listOf(failed)).single()
+
+        assertEquals("hello_live_sweep", merged.content)
+    }
+
+    @Test
     fun `cancel rollback clears pending revoke render flag`() {
         val tracker = MessageMutationTracker()
         val ticket = tracker.begin("m-rev", MessageMutationKind.REVOKE)!!

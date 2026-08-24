@@ -67,7 +67,7 @@ private data class BotUi(
 @Composable
 // 资源字符串均在回调/协程内读取，非组合作用域
 @SuppressLint("LocalContextGetResourceValueCall")
-fun DeveloperBotsScreen(onBack: () -> Unit) {
+fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
@@ -111,14 +111,16 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
     LaunchedEffect(Unit) { reload() }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.developer_bots_title)) },
+                title = { Text(stringResource(R.string.developer_bots_title), color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary)
                     }
-                }
+                },
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { padding ->
@@ -133,6 +135,16 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
                 Text(
                     stringResource(R.string.developer_bots_desc),
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.developer_bots_commands_title),
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    stringResource(R.string.developer_bots_commands_body),
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -403,6 +415,37 @@ fun DeveloperBotsScreen(onBack: () -> Unit) {
                                         overflow = TextOverflow.Ellipsis
                                     )
                                 }
+                            }
+                            Button(
+                                onClick = {
+                                    if (activeBotActionId != null || creating) return@Button
+                                    activeBotActionId = bot.id
+                                    error = null
+                                    info = null
+                                    scope.launch {
+                                        try {
+                                            val token = TokenManager.getInstance(context).getToken().orEmpty()
+                                            if (token.isBlank()) {
+                                                error = context.getString(R.string.developer_bots_open_chat_failed)
+                                                return@launch
+                                            }
+                                            val result = withContext(Dispatchers.IO) {
+                                                ApiService.openBotDirectChat(token, bot.id)
+                                            }
+                                            result.onSuccess { chat ->
+                                                onOpenChat(chat.id)
+                                            }.onFailure {
+                                                error = it.message ?: context.getString(R.string.developer_bots_open_chat_failed)
+                                            }
+                                        } finally {
+                                            activeBotActionId = null
+                                        }
+                                    }
+                                },
+                                enabled = !creating && activeBotActionId == null && bot.enabled,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(stringResource(R.string.developer_bots_open_chat))
                             }
                         }
                     }

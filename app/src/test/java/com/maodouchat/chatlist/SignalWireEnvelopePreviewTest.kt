@@ -1,6 +1,7 @@
 package com.maodouchat.chatlist
 
 import com.maodouchat.data.repository.ChatListPreviewPolicy
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -49,5 +50,27 @@ class SignalWireEnvelopePreviewTest {
     fun `array envelope without signal marker is not strict wire`() {
         assertFalse(ChatListPreviewPolicy.isSignalWireEnvelope("""[{"deviceId":1}]"""))
         assertTrue(ChatListPreviewPolicy.looksLikeWireEnvelope("""[{"deviceId":1}]"""))
+    }
+
+    @Test
+    fun `multi device envelope without algorithm is still wire`() {
+        val body =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"recipientUserId":"u2","recipientDeviceId":188,"ciphertextType":"prekey","ciphertext":"NAgB"}]}"""
+        assertTrue(ChatListPreviewPolicy.isSignalWireEnvelope(body))
+        assertTrue(ChatListPreviewPolicy.looksLikeWireEnvelope(body))
+    }
+
+    @Test
+    fun `compact omitted recipientDeviceId envelope is still wire not user json`() {
+        val body =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"ciphertextType":"prekey","ciphertext":"NAgB"}]}"""
+        assertTrue(ChatListPreviewPolicy.isSignalWireEnvelope(body))
+        assertFalse(ChatListPreviewPolicy.isSignalWireEnvelope("""{"hello":"world","entries":[]}"""))
+        assertEquals(
+            "[encrypted]",
+            ChatListPreviewPolicy.redactedIfWire(body, "[encrypted]")
+        )
+        assertEquals("hello", ChatListPreviewPolicy.redactedIfWire("hello", "[encrypted]"))
+        assertEquals("{\"hello\":\"world\"}", ChatListPreviewPolicy.redactedIfWire("""{"hello":"world"}""", "[encrypted]"))
     }
 }

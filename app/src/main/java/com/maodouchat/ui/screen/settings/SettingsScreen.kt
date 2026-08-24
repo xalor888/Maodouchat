@@ -36,13 +36,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.outlined.Article
-import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Article
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -54,7 +53,8 @@ import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.StarOutline
-import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.outlined.VerifiedUser
+
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -108,18 +108,8 @@ import com.maodouchat.security.SensitiveActionGate
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
-import com.maodouchat.ui.theme.Divider
-import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.MaodouDimens
 import com.maodouchat.ui.theme.MaodouchatTheme
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Outline
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.PrimaryFixed
-import com.maodouchat.ui.theme.Surface
-import com.maodouchat.ui.theme.SurfaceContainerHigh
-import com.maodouchat.ui.theme.TextHint
-import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MotionTokens
@@ -136,12 +126,13 @@ fun SettingsScreen(
     onOpenNotifications: () -> Unit = {},
     onOpenGeneral: () -> Unit = {},
     onOpenAiPrivacy: () -> Unit = {},
+    onOpenAgent: () -> Unit = {},
     onOpenModeration: () -> Unit = {},
     onOpenMyQrCode: () -> Unit = {},
     onOpenStarredMessages: () -> Unit = {},
     onOpenMyPosts: () -> Unit = {},
-    onOpenFakeChat: () -> Unit = {},
     onOpenServer: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
     viewModel: SettingsViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -188,7 +179,7 @@ fun SettingsScreen(
                 }
             },
             // 9.4xx：设置页是主 Tab，移除无导航作用的摆设返回按钮
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
+            colors = com.maodouchat.ui.theme.liquidGlassTopAppBarColors()
         )
 
         Box(modifier = Modifier.fillMaxSize()) {
@@ -220,93 +211,77 @@ fun SettingsScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                AnimatedVisibility(visible = animPlayed, enter = slideInVertically(tween(motion.duration(MotionTokens.Emphasized), motion.duration(40))) + fadeIn(tween(motion.duration(MotionTokens.Emphasized), motion.duration(40)))) {
-                    SettingsGroup {
-                        SettingsItem(icon = Icons.Outlined.Security, title = stringResource(R.string.settings_account_security), onClick = onOpenAccountSecurity)
-                        SettingsItem(icon = Icons.Outlined.Flag, title = stringResource(R.string.settings_my_reports), onClick = onOpenMyReports)
-                        SettingsItem(icon = Icons.Outlined.Block, title = stringResource(R.string.settings_blocked_users), onClick = onOpenBlockedUsers)
-                        // 1.116：我的动态（作者主页视角）
-                        SettingsItem(icon = Icons.AutoMirrored.Outlined.Article, title = stringResource(R.string.settings_my_posts), onClick = onOpenMyPosts)
-                    }
+                SettingsGroup {
+                    SettingsItem(icon = Icons.Outlined.Security, title = stringResource(R.string.settings_account_security), onClick = onOpenAccountSecurity)
+                    HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 52.dp))
+                    SettingsItem(icon = Icons.Outlined.Flag, title = stringResource(R.string.settings_my_reports), onClick = onOpenMyReports)
+                    HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 52.dp))
+                    SettingsItem(icon = Icons.Outlined.Block, title = stringResource(R.string.settings_blocked_users), onClick = onOpenBlockedUsers)
+                    HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 52.dp))
+                    SettingsItem(icon = Icons.AutoMirrored.Outlined.Article, title = stringResource(R.string.settings_my_posts), onClick = onOpenMyPosts)
+                    HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 52.dp))
+                    SettingsItem(icon = Icons.Outlined.StarOutline, title = stringResource(R.string.settings_starred_messages), onClick = onOpenStarredMessages)
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                AnimatedVisibility(visible = animPlayed, enter = slideInVertically(tween(motion.duration(MotionTokens.Emphasized), motion.duration(80))) + fadeIn(tween(motion.duration(MotionTokens.Emphasized), motion.duration(80)))) {
-                    SettingsGroup {
-                        SettingsItem(icon = Icons.Outlined.Notifications, title = stringResource(R.string.settings_notifications), onClick = onOpenNotifications)
-                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
-                        SettingsItem(icon = Icons.Outlined.PrivacyTip, title = stringResource(R.string.settings_privacy), onClick = { viewModel.openPrivacy() })
-                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
-                        // 9.3xx：移除与第一分组重复的"拉黑名单"入口（此前同页两个入口）
-                        SettingsItem(icon = Icons.Outlined.AutoAwesome, title = stringResource(R.string.settings_ai_privacy), onClick = onOpenAiPrivacy)
-                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
-                        if (state.isModerator) {
-                            SettingsItem(icon = Icons.Outlined.Security, title = stringResource(R.string.settings_moderation), onClick = onOpenModeration)
-                            HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
-                        }
-                        SettingsItem(icon = Icons.Outlined.Brightness6, title = stringResource(R.string.settings_general), onClick = onOpenGeneral)
-                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
-                        SettingsItem(
-                            icon = Icons.Outlined.StarOutline,
-                            title = stringResource(R.string.settings_starred_messages),
-                            onClick = onOpenStarredMessages
-                        )
-                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
-                        SettingsItem(
-                            icon = Icons.Outlined.VisibilityOff,
-                            title = stringResource(R.string.settings_fake_chat),
-                            onClick = onOpenFakeChat
-                        )
-                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
-                        FloatingBallSwitchItem(viewModel = viewModel)
-                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
-                        SettingsItem(
-                            icon = Icons.Outlined.Public,
-                            title = stringResource(R.string.settings_server),
-                            subtitle = stringResource(R.string.settings_server_subtitle),
-                            onClick = onOpenServer
-                        )
+                SettingsGroup {
+                    SettingsItem(icon = Icons.Outlined.Notifications, title = stringResource(R.string.settings_notifications), onClick = onOpenNotifications)
+                    HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 52.dp))
+                    SettingsItem(icon = Icons.Outlined.PrivacyTip, title = stringResource(R.string.settings_privacy), onClick = { viewModel.openPrivacy() })
+                    HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 52.dp))
+                    SettingsItem(icon = Icons.Outlined.VerifiedUser, title = stringResource(R.string.settings_ai_privacy), onClick = onOpenAiPrivacy)
+                    if (com.maodouchat.ai.AiEntryPolicy.shouldShowGlobalAiEntry(context)) {
+                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 52.dp))
+                        SettingsItem(icon = Icons.Outlined.AutoAwesome, title = stringResource(R.string.agent_title), onClick = onOpenAgent)
                     }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                AnimatedVisibility(visible = animPlayed, enter = slideInVertically(tween(motion.duration(MotionTokens.Emphasized), motion.duration(100))) + fadeIn(tween(motion.duration(MotionTokens.Emphasized), motion.duration(100)))) {
-                    SettingsGroup {
-                        SettingsItem(icon = Icons.Outlined.QrCode, title = stringResource(R.string.profile_my_qr), onClick = onOpenMyQrCode)
-                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 56.dp))
-                        SettingsItem(icon = Icons.Outlined.Share, title = stringResource(R.string.settings_share_profile),
-                            onClick = {
-                                // 9.289：无用户名时 fallback 不再硬编码官服域名，改用当前服务器入口
-                                val url = state.publicProfileUrl ?: com.maodouchat.network.ApiConfig.BASE_URL.trimEnd('/')
-                                val sendIntent = android.content.Intent().apply {
-                                    action = android.content.Intent.ACTION_SEND
-                                    putExtra(android.content.Intent.EXTRA_TEXT, context.getString(R.string.public_profile_share_text, state.userName, url))
-                                    type = "text/plain"
-                                }
-                                context.startActivity(android.content.Intent.createChooser(sendIntent, context.getString(R.string.common_share)))
+                    if (state.isModerator) {
+                        HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 52.dp))
+                        SettingsItem(icon = Icons.Outlined.Security, title = stringResource(R.string.settings_moderation), onClick = onOpenModeration)
+                    }
+                    HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 52.dp))
+                    SettingsItem(icon = Icons.Outlined.Brightness6, title = stringResource(R.string.settings_general), onClick = onOpenGeneral)
+                    HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 52.dp))
+                    SettingsItem(
+                        icon = Icons.Outlined.Public,
+                        title = stringResource(R.string.settings_server),
+                        subtitle = stringResource(R.string.settings_server_subtitle),
+                        onClick = onOpenServer
+                    )
+                    HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 52.dp))
+                    SettingsItem(icon = Icons.Outlined.QrCode, title = stringResource(R.string.profile_my_qr), onClick = onOpenMyQrCode)
+                    HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 52.dp))
+                    SettingsItem(icon = Icons.Outlined.Share, title = stringResource(R.string.settings_share_profile),
+                        onClick = {
+                            val url = state.publicProfileUrl ?: com.maodouchat.network.ApiConfig.BASE_URL.trimEnd('/')
+                            val sendIntent = android.content.Intent().apply {
+                                action = android.content.Intent.ACTION_SEND
+                                putExtra(android.content.Intent.EXTRA_TEXT, context.getString(R.string.public_profile_share_text, state.userName, url))
+                                type = "text/plain"
                             }
-                        )
-                    }
+                            context.startActivity(android.content.Intent.createChooser(sendIntent, context.getString(R.string.common_share)))
+                        }
+                    )
+                    HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 52.dp))
+                    SettingsItem(icon = Icons.Outlined.Article, title = stringResource(R.string.about_title), onClick = onOpenAbout)
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                AnimatedVisibility(visible = animPlayed, enter = slideInVertically(tween(motion.duration(MotionTokens.Emphasized), motion.duration(120))) + fadeIn(tween(motion.duration(MotionTokens.Emphasized), motion.duration(120)))) {
-                    SettingsGroup {
-                        SettingsItem(
-                            icon = null,
-                            title = stringResource(R.string.settings_logout),
-                            titleColor = Error,
-                            onClick = { showLogoutConfirm = true }
-                        )
-                    }
+                SettingsGroup {
+                    SettingsItem(
+                        icon = null,
+                        title = stringResource(R.string.settings_logout),
+                        titleColor = MaterialTheme.colorScheme.error,
+                        onClick = { showLogoutConfirm = true }
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(FloatingBottomBarContentPadding))
+                // Dock is a floating capsule that sits above the system gesture bar; 96.dp
+                // still leaves Sign out under the glass, so taps open About / switch tabs.
+                Spacer(modifier = Modifier.height(FloatingBottomBarContentPadding + 72.dp))
             }
 
             SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
@@ -370,12 +345,14 @@ fun SettingsScreen(
     if (state.showPrivacyDialog) {
         PrivacyDialog(
             showOnline = state.showOnline,
+            onlineVisibility = state.onlineVisibility,
             showStatus = state.showStatus,
             searchable = state.searchable,
             defaultPostVisibility = state.defaultPostVisibility,
             visibilityOptions = viewModel.visibilityOptions,
             isSaving = state.isSavingPrivacy,
             onShowOnlineChange = viewModel::onShowOnlineChange,
+            onOnlineVisibilityChange = viewModel::onOnlineVisibilityChange,
             onShowStatusChange = viewModel::onShowStatusChange,
             onSearchableChange = viewModel::onSearchableChange,
             onDefaultVisibilityChange = viewModel::onDefaultVisibilityChange,
@@ -423,13 +400,13 @@ private fun ProfileCard(
         verticalAlignment = Alignment.CenterVertically,
         // clickable 放在最后一个 padding 之后，使卡片整体可点击
         modifier = Modifier.fillMaxWidth().padding(horizontal = MaodouDimens.ScreenPadding)
-            .shadow(2.dp, RoundedCornerShape(MaodouDimens.CardRadius)).clip(RoundedCornerShape(MaodouDimens.CardRadius))
-            .background(MaterialTheme.colorScheme.surface).padding(MaodouDimens.ScreenPadding)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface).padding(horizontal = 14.dp, vertical = 12.dp)
             .clickable { if (!isEditing) onStartEdit() }
     ) {
         // 头像（点击更换）
         Box(modifier = Modifier.clickable(enabled = !isUploading) { showAvatarMenu = true }) {
-            Box(modifier = Modifier.border(1.dp, SurfaceContainerHigh, RoundedCornerShape(32.dp)).clip(RoundedCornerShape(32.dp))) {
+            Box(modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(32.dp)).clip(RoundedCornerShape(32.dp))) {
                 Avatar(name = name, avatarUrl = avatarUrl, size = AvatarSize.LG)
             }
             // 相机图标叠加
@@ -441,7 +418,7 @@ private fun ProfileCard(
                     modifier = Modifier.size(24.dp).align(Alignment.BottomEnd)
                         .background(MaterialTheme.colorScheme.primary, CircleShape)
                 ) {
-                    Icon(Icons.Outlined.CameraAlt, contentDescription = stringResource(R.string.profile_change_avatar), tint = Color.White, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Outlined.CameraAlt, contentDescription = stringResource(R.string.profile_change_avatar), tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(14.dp))
                 }
             }
             DropdownMenu(expanded = showAvatarMenu, onDismissRequest = { showAvatarMenu = false }) {
@@ -479,16 +456,16 @@ private fun ProfileCard(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = LocalChatPalette.current.chatInputBackground,
                         unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                        focusedBorderColor = Primary,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-                        cursorColor = Primary,
-                        focusedTextColor = OnSurface,
-                        unfocusedTextColor = OnSurface
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     supportingText = {
                         Text(
                             "${editName.length}/30",
-                            color = if (editName.length > 25) Error else TextSecondary,
+                            color = if (editName.length > 25) MaterialTheme.colorScheme.error else LocalChatPalette.current.textSecondary,
                             style = MaterialTheme.typography.labelSmall
                         )
                     },
@@ -519,9 +496,10 @@ private fun ProfileCard(
                 // 点按复制完整 ID（加好友/客服排查仍可用全值）
                 val clipboard = LocalClipboardManager.current
                 val idCopiedMsg = stringResource(R.string.profile_id_copied)
-                val shortId = if (userId.length > 16) userId.take(10) + "…" + userId.takeLast(4) else userId
+                val handle = username?.takeIf { it.isNotBlank() }?.let { "@$it" }
+                    ?: if (userId.length > 16) userId.take(8) + "…" + userId.takeLast(4) else userId
                 Text(
-                    stringResource(R.string.profile_maodou_id, shortId),
+                    stringResource(R.string.profile_maodou_id, handle),
                     style = MaterialTheme.typography.bodySmall,
                     color = LocalChatPalette.current.textHint,
                     modifier = Modifier.clickable {
@@ -538,7 +516,7 @@ private fun ProfileCard(
                     Text(
                         text = uname,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (username != null) Primary else Outline
+                        color = if (username != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                     )
                     if (username == null) {
                         Spacer(modifier = Modifier.width(4.dp))
@@ -550,7 +528,7 @@ private fun ProfileCard(
                 Text(
                     text = status.ifBlank { stringResource(R.string.status_empty_placeholder) },
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (status.isBlank()) Outline else TextSecondary,
+                    color = if (status.isBlank()) MaterialTheme.colorScheme.outline else LocalChatPalette.current.textSecondary,
                     maxLines = 2,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -596,16 +574,16 @@ private fun StatusEditorDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = LocalChatPalette.current.chatInputBackground,
                         unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                        focusedBorderColor = Primary,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-                        cursorColor = Primary,
-                        focusedTextColor = OnSurface,
-                        unfocusedTextColor = OnSurface
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     supportingText = {
                         Text(
                             "${status.length}/${com.maodouchat.util.CustomStatusPolicy.MAX_LENGTH}",
-                            color = if (status.length > com.maodouchat.util.CustomStatusPolicy.MAX_LENGTH - 10) Error else TextSecondary,
+                            color = if (status.length > com.maodouchat.util.CustomStatusPolicy.MAX_LENGTH - 10) MaterialTheme.colorScheme.error else LocalChatPalette.current.textSecondary,
                             style = MaterialTheme.typography.labelSmall
                         )
                     },
@@ -632,7 +610,7 @@ private fun StatusEditorDialog(
         },
         confirmButton = {
             Button(onClick = onSave, enabled = !isSaving) {
-                if (isSaving) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                if (isSaving) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                 else Text(stringResource(R.string.common_save))
             }
         },
@@ -652,12 +630,14 @@ private fun StatusEditorDialog(
 @Composable
 private fun PrivacyDialog(
     showOnline: Boolean,
+    onlineVisibility: String,
     showStatus: Boolean,
     searchable: Boolean,
     defaultPostVisibility: String,
     visibilityOptions: List<Pair<String, String>>,
     isSaving: Boolean,
     onShowOnlineChange: (Boolean) -> Unit,
+    onOnlineVisibilityChange: (String) -> Unit,
     onShowStatusChange: (Boolean) -> Unit,
     onSearchableChange: (Boolean) -> Unit,
     onDefaultVisibilityChange: (String) -> Unit,
@@ -669,13 +649,22 @@ private fun PrivacyDialog(
         title = { Text(stringResource(R.string.settings_privacy)) },
         text = {
             Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)) {
-                PrivacySwitchRow(
-                    title = stringResource(R.string.privacy_show_online_title),
-                    subtitle = stringResource(R.string.privacy_show_online_subtitle),
-                    checked = showOnline,
-                    enabled = !isSaving,
-                    onCheckedChange = onShowOnlineChange
-                )
+                Text(stringResource(R.string.privacy_show_online_title), style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.privacy_online_visibility_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        "everyone" to stringResource(R.string.privacy_online_everyone),
+                        "contacts" to stringResource(R.string.privacy_online_contacts),
+                        "nobody" to stringResource(R.string.privacy_online_nobody)
+                    ).forEach { (id, label) ->
+                        FilterChip(
+                            selected = onlineVisibility == id,
+                            onClick = { onOnlineVisibilityChange(id) },
+                            enabled = !isSaving,
+                            label = { Text(label) }
+                        )
+                    }
+                }
                 PrivacySwitchRow(
                     title = stringResource(R.string.privacy_show_status_title),
                     subtitle = stringResource(R.string.privacy_show_status_subtitle),
@@ -707,7 +696,7 @@ private fun PrivacyDialog(
         },
         confirmButton = {
             Button(onClick = onSave, enabled = !isSaving) {
-                if (isSaving) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                if (isSaving) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                 else Text(stringResource(R.string.common_save))
             }
         },
@@ -847,65 +836,15 @@ private fun statusPresetLabel(wire: String): String = when (wire) {
 private fun SettingsGroup(content: @Composable () -> Unit) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = MaodouDimens.ScreenPadding)
-            .shadow(2.dp, RoundedCornerShape(MaodouDimens.CardRadius)).clip(RoundedCornerShape(MaodouDimens.CardRadius))
+            .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface)
     ) { content() }
 }
 
-@Composable
-private fun FloatingBallSwitchItem(viewModel: SettingsViewModel) {
-    val context = LocalContext.current
-    var enabled by remember {
-        mutableStateOf(com.maodouchat.floating.FloatingBallController.isEnabled(context))
-    }
-    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val pressScale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (pressed) 0.97f else 1f,
-        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 400f),
-        label = "floatingBallPressScale"
-    )
-    val icon = Icons.Outlined.ChatBubbleOutline
-    val iconTint = settingsIconTint(icon)
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .graphicsLayer {
-                scaleX = pressScale
-                scaleY = pressScale
-            }
-            .padding(horizontal = MaodouDimens.ScreenPadding, vertical = MaodouDimens.ItemGap)
-            .clickable(interactionSource = interactionSource, indication = androidx.compose.material3.ripple()) {
-                val next = !enabled
-                viewModel.setFloatingBallEnabled(next)
-                enabled = com.maodouchat.floating.FloatingBallController.isEnabled(context)
-            }
-    ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(32.dp).background(iconTint.copy(alpha = 0.16f), RoundedCornerShape(8.dp))) {
-            Icon(icon, contentDescription = stringResource(R.string.settings_floating_ball), tint = iconTint, modifier = Modifier.size(20.dp))
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.settings_floating_ball), style = MaterialTheme.typography.bodyLarge, color = OnSurface)
-            Text(
-                stringResource(R.string.settings_floating_ball_subtitle),
-                style = MaterialTheme.typography.bodySmall,
-                color = LocalChatPalette.current.textSecondary
-            )
-        }
-        Switch(
-            checked = enabled,
-            onCheckedChange = { next ->
-                viewModel.setFloatingBallEnabled(next)
-                enabled = com.maodouchat.floating.FloatingBallController.isEnabled(context)
-            }
-        )
-    }
-}
+
 
 @Composable
-private fun SettingsItem(icon: ImageVector?, title: String, titleColor: Color = OnSurface, subtitle: String? = null, onClick: () -> Unit) {
+private fun SettingsItem(icon: ImageVector?, title: String, titleColor: Color = MaterialTheme.colorScheme.onSurface, subtitle: String? = null, onClick: () -> Unit) {
     val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val pressScale by androidx.compose.animation.core.animateFloatAsState(
@@ -921,17 +860,15 @@ private fun SettingsItem(icon: ImageVector?, title: String, titleColor: Color = 
                 scaleX = pressScale
                 scaleY = pressScale
             }
-            .padding(horizontal = MaodouDimens.ScreenPadding, vertical = MaodouDimens.ItemGap)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
             .clickable(interactionSource = interactionSource, indication = androidx.compose.material3.ripple(), onClick = onClick)
     ) {
         if (icon != null) {
-            // 9.275：TG 式逐项图标配色——按图标稳定哈希到一组柔和调色板，
-            // 每个设置项图标颜色不同（同名图标保持一致），更接近 Telegram 观感
-            val iconTint = settingsIconTint(icon)
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(32.dp).background(iconTint.copy(alpha = 0.16f), RoundedCornerShape(8.dp))) {
-                Icon(icon, contentDescription = title, tint = iconTint, modifier = Modifier.size(20.dp))
+            val iconTint = MaterialTheme.colorScheme.onSurfaceVariant
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(28.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(7.dp))) {
+                Icon(icon, contentDescription = title, tint = iconTint, modifier = Modifier.size(18.dp))
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
         } else {
             Spacer(modifier = Modifier.width(44.dp))
         }
@@ -943,26 +880,6 @@ private fun SettingsItem(icon: ImageVector?, title: String, titleColor: Color = 
         }
         Icon(Icons.AutoMirrored.Outlined.ArrowForwardIos, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(16.dp))
     }
-}
-
-/**
- * 9.275：按图标 name 稳定哈希选一个柔和调色板色。
- * 同一图标（ImageVector 单例，name 固定）始终得到同一颜色，不同图标错开，
- * 观感接近 Telegram 设置页逐项彩色图标。
- */
-private fun settingsIconTint(icon: ImageVector): Color {
-    val palette = listOf(
-        Color(0xFFFF9500), // 橙
-        Color(0xFF34A853), // 绿
-        Color(0xFF3390EC), // 蓝
-        Color(0xFF9B6BD6), // 紫
-        Color(0xFFE85D5D), // 红
-        Color(0xFF23B5A9), // 青
-        Color(0xFFE0709B), // 粉
-        Color(0xFF6B7BD6)  // 靛蓝
-    )
-    val index = (icon.name.hashCode() and Int.MAX_VALUE) % palette.size
-    return palette[index]
 }
 
 @Composable
@@ -995,16 +912,16 @@ private fun UsernameEditorDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = LocalChatPalette.current.chatInputBackground,
                         unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                        focusedBorderColor = Primary,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-                        cursorColor = Primary,
-                        focusedTextColor = OnSurface,
-                        unfocusedTextColor = OnSurface
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     supportingText = {
                         Text(
                             "${username.length}/50",
-                            color = if (username.length > 45) Error else TextSecondary,
+                            color = if (username.length > 45) MaterialTheme.colorScheme.error else LocalChatPalette.current.textSecondary,
                             style = MaterialTheme.typography.labelSmall
                         )
                     },
@@ -1021,7 +938,7 @@ private fun UsernameEditorDialog(
                         com.maodouchat.network.ApiConfig.BASE_URL.removePrefix("https://").removePrefix("http://").trimEnd('/') + "/u/" + username
                     ),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (username.length >= 3) Primary else TextHint
+                    color = if (username.length >= 3) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint
                 )
             }
         },

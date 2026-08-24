@@ -31,6 +31,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -41,10 +43,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.R
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Outline
-import com.maodouchat.ui.theme.SurfaceVariant
-import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.LocalChatPalette
 
 @Composable
@@ -53,7 +51,8 @@ fun SearchBar(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     placeholder: String? = null,
-    onSearch: (() -> Unit)? = null
+    onSearch: (() -> Unit)? = null,
+    focusRequester: FocusRequester? = null
 ) {
     val resolvedPlaceholder = placeholder ?: stringResource(R.string.contacts_search)
     val focusManager = LocalFocusManager.current
@@ -64,7 +63,7 @@ fun SearchBar(
             .fillMaxWidth()
             .height(44.dp)
             .clip(RoundedCornerShape(22.dp))
-            .background(SurfaceVariant)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
         // 9.279：Material3 TextField 强制 40dp 高会裁掉 placeholder/输入文字（「搜去聊 T」截断），
         // 改用 BasicTextField 自绘装饰盒，行高完全可控，文字垂直居中完整显示
@@ -92,14 +91,17 @@ fun SearchBar(
                     value = value,
                     onValueChange = onValueChange,
                     singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, color = OnSurface),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = {
                         focusManager.clearFocus()
                         onSearch?.invoke()
                     }),
-                    modifier = Modifier.fillMaxWidth().onFocusChanged { isFocused = it.isFocused }
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+                        .onFocusChanged { isFocused = it.isFocused }
                 )
             }
             AnimatedVisibility(

@@ -1,5 +1,6 @@
 package com.maodouchat.network
 
+import com.maodouchat.BuildConfig
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.MessageReaction
 import kotlinx.coroutines.Dispatchers
@@ -255,10 +256,7 @@ object ApiService {
     }
 
     private suspend fun executeRequest(request: Request): HttpResult =
-        // 8.45 修复：统一切 IO 线程执行阻塞 OkHttp 调用。此前 refreshAccessToken /
-        // streamNdjsonWithRefresh 从 Main 进入时直接 call.execute()，会抛
-        // NetworkOnMainThreadException（被 catch 吞掉后 401 既不刷新也不续期，AI 流
-        // 在 access token 过期窗口内持续失败，弱网下刷新还会阻塞 Main 造成 ANR）。
+        // Blocking OkHttp execute stays on IO. Never call this from Main.
         withContext(Dispatchers.IO) {
             suspendCancellableCoroutine { continuation ->
                 val call = client.newCall(request)
@@ -488,172 +486,6 @@ object ApiService {
             Result.failure(e)
         } catch (e: Exception) {
             Result.failure(ApiException(ApiFailureKind.UNEXPECTED, cause = e))
-        }
-    }
-
-    private data class NdjsonAttempt(
-        val code: Int,
-        val isSuccessful: Boolean,
-        val errorBody: String = "",
-        val streamErrorCode: String? = null,
-        val retryAfterSeconds: Long? = null,
-        val completed: Boolean = false
-    )
-
-    private suspend fun readNdjsonOnce(
-        request: Request,
-        onEvent: (AiStreamEvent) -> Unit
-    ): NdjsonAttempt = withContext(Dispatchers.IO) {
-        suspendCancellableCoroutine { continuation ->
-            val call = client.newCall(request)
-            continuation.invokeOnCancellation { call.cancel() }
-            try {
-                call.execute().use { response ->
-                    if (!response.isSuccessful) {
-                        val body = response.body?.string().orEmpty().take(8_192)
-                        val retryAfter = parseRetryAfterSeconds(
-                            body,
-                            response.header("Retry-After")
-                        )
-                        if (continuation.isActive) {
-                            continuation.resumeWith(
-                                Result.success(
-                                    NdjsonAttempt(
-                                        code = response.code,
-                                        isSuccessful = false,
-                                        errorBody = body,
-                                        retryAfterSeconds = retryAfter
-                                    )
-                                )
-                            )
-                        }
-                        return@use
-                    }
-                    val source = response.body?.source()
-                        ?: throw ApiException(ApiFailureKind.INVALID_RESPONSE)
-                    var streamErrorCode: String? = null
-                    var completed = false
-                    while (continuation.isActive) {
-                        val line = source.readUtf8Line() ?: break
-                        if (line.isBlank()) continue
-                        if (line.length > 16_384) throw ApiException(ApiFailureKind.INVALID_RESPONSE)
-                        val event = runCatching {
-                            json.decodeFromString(AiStreamEvent.serializer(), line)
-                        }.getOrElse { throw ApiException(ApiFailureKind.INVALID_RESPONSE, cause = it) }
-                        when (event.type) {
-                            "error" -> streamErrorCode = event.code ?: "upstream_error"
-                            "done" -> completed = true
-                        }
-                        onEvent(event)
-                        if (streamErrorCode != null || completed) break
-                    }
-                    if (continuation.isActive) {
-                        continuation.resumeWith(
-                            Result.success(
-                                NdjsonAttempt(
-                                    code = response.code,
-                                    isSuccessful = true,
-                                    streamErrorCode = streamErrorCode,
-                                    completed = completed
-                                )
-                            )
-                        )
-                    }
-                }
-            } catch (error: CancellationException) {
-                // Parent cancel must not resume failure as network error.
-                if (continuation.isActive) continuation.cancel(error)
-            } catch (error: Exception) {
-                if (!continuation.isActive) return@suspendCancellableCoroutine
-                // OkHttp surfaces call.cancel() as IOException("Canceled"); treat as coroutine cancel.
-                if (call.isCanceled()) {
-                    continuation.cancel()
-                    return@suspendCancellableCoroutine
-                }
-                continuation.resumeWith(Result.failure(error))
-            }
-        }
-    }
-
-    private suspend fun streamNdjsonWithRefresh(
-        request: Request,
-        onEvent: (AiStreamEvent) -> Unit
-    ): Result<Unit> {
-        return try {
-            val hasAuthorization = !request.header("Authorization").isNullOrBlank()
-            val session = authenticatedRequestSession(request)
-            if (hasAuthorization && session == null) return Result.failure(sessionChangedException())
-            val guardedOnEvent: (AiStreamEvent) -> Unit = { event ->
-                if (session == null || session.manager.getUserId() == session.userId) onEvent(event)
-            }
-            var attempt = readNdjsonOnce(request, guardedOnEvent)
-            if (session != null && session.manager.getUserId() != session.userId) {
-                return Result.failure(sessionChangedException())
-            }
-            if (attempt.code == 401 && session != null) {
-                when (val refresh = refreshAccessToken(
-                    failedAccessToken = session.accessToken,
-                    expectedUserId = session.userId
-                )) {
-                    is RefreshOutcome.Success -> {
-                        if (session.manager.getUserId() != session.userId) return Result.failure(sessionChangedException())
-                        attempt = readNdjsonOnce(
-                            request.newBuilder().header("Authorization", "Bearer ${refresh.token}").build(),
-                            guardedOnEvent
-                        )
-                        if (session.manager.getUserId() != session.userId) return Result.failure(sessionChangedException())
-                        if (attempt.code == 401) emitTokenExpired(session.userId)
-                    }
-                    RefreshOutcome.SessionDead -> {
-                        if (session.manager.getUserId() != session.userId) return Result.failure(sessionChangedException())
-                        emitTokenExpired(session.userId)
-                        return Result.failure(ApiException(ApiFailureKind.HTTP, 401, parseError(attempt.errorBody)))
-                    }
-                    RefreshOutcome.TransientFailure -> {
-                        return Result.failure(ApiException(ApiFailureKind.HTTP, attempt.code, parseError(attempt.errorBody)))
-                    }
-                    RefreshOutcome.SessionChanged -> return Result.failure(sessionChangedException())
-                }
-            }
-            when {
-                !attempt.isSuccessful -> Result.failure(
-                    apiExceptionFromHttp(
-                        attempt.code,
-                        attempt.errorBody
-                    ).let { base ->
-                        if (attempt.retryAfterSeconds != null && base.retryAfterSeconds == null) {
-                            ApiException(
-                                kind = base.kind,
-                                statusCode = base.statusCode,
-                                serverMessage = base.serverMessage,
-                                serverCode = base.serverCode,
-                                requestMayHaveReachedServer = base.requestMayHaveReachedServer,
-                                retryAfterSeconds = attempt.retryAfterSeconds
-                            )
-                        } else base
-                    }
-                )
-                attempt.streamErrorCode != null -> Result.failure(
-                    ApiException(
-                        kind = ApiFailureKind.HTTP,
-                        statusCode = 502,
-                        serverMessage = attempt.streamErrorCode,
-                        serverCode = attempt.streamErrorCode
-                    )
-                )
-                !attempt.completed -> Result.failure(ApiException(ApiFailureKind.INVALID_RESPONSE))
-                else -> Result.success(Unit)
-            }
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: java.net.SocketTimeoutException) {
-            Result.failure(ApiException(ApiFailureKind.TIMEOUT, cause = error))
-        } catch (error: java.io.IOException) {
-            Result.failure(ApiException(ApiFailureKind.NETWORK, cause = error))
-        } catch (error: ApiException) {
-            Result.failure(error)
-        } catch (error: Exception) {
-            Result.failure(ApiException(ApiFailureKind.UNEXPECTED, cause = error))
         }
     }
 
@@ -1661,170 +1493,7 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
     suspend fun batchMarkRead(token: String, chatIds: List<String>): Result<Unit> =
         sendUnit(Request.Builder().url("${ApiConfig.BASE_URL}/api/messages/batch-read").addHeader("Authorization", "Bearer $token").post(jsonBody(json.encodeToString(BatchReadRequest.serializer(), BatchReadRequest(chatIds)))).build())
 
-    suspend fun streamRewriteMessage(
-        token: String,
-        text: String,
-        mode: String = "polish",
-        targetLanguage: String? = null,
-        chatId: String? = null,
-        styleHint: String? = null,
-        onEvent: (AiStreamEvent) -> Unit
-    ): Result<Unit> = streamNdjsonWithRefresh(
-        Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/rewrite/stream")
-            .addHeader("Authorization", "Bearer $token")
-            .addHeader("Accept-Encoding", "identity")
-            .post(jsonBody(json.encodeToString(AiRewriteRequest.serializer(), AiRewriteRequest(text, mode, targetLanguage, chatId, styleHint))))
-            .build(),
-        onEvent
-    )
 
-    suspend fun translateMessage(token: String, text: String, targetLanguage: String = "中文", chatId: String? = null): Result<AiTranslateResponse> =
-        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/translate").addHeader("Authorization", "Bearer $token").post(jsonBody(json.encodeToString(AiTranslateRequest.serializer(), AiTranslateRequest(text, targetLanguage, chatId)))).build(), AiTranslateResponse.serializer())
-
-    suspend fun suggestReplies(token: String, messages: List<AiContextMessage>, tone: String = "natural", count: Int = 3, chatId: String? = null): Result<AiSuggestRepliesResponse> =
-        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/suggest-replies").addHeader("Authorization", "Bearer $token").post(jsonBody(json.encodeToString(AiSuggestRepliesRequest.serializer(), AiSuggestRepliesRequest(messages, tone, count, chatId)))).build(), AiSuggestRepliesResponse.serializer())
-
-    suspend fun streamSuggestedReplies(
-        token: String,
-        messages: List<AiContextMessage>,
-        tone: String = "natural",
-        count: Int = 3,
-        chatId: String? = null,
-        onEvent: (AiStreamEvent) -> Unit
-    ): Result<Unit> = streamNdjsonWithRefresh(
-        Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/suggest-replies/stream")
-            .addHeader("Authorization", "Bearer $token")
-            .addHeader("Accept-Encoding", "identity")
-            .post(jsonBody(json.encodeToString(AiSuggestRepliesRequest.serializer(), AiSuggestRepliesRequest(messages, tone, count, chatId))))
-            .build(),
-        onEvent
-    )
-
-    suspend fun summarizeChat(token: String, messages: List<AiContextMessage>, style: String = "brief", chatId: String? = null): Result<AiSummarizeResponse> =
-        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/summarize").addHeader("Authorization", "Bearer $token").post(jsonBody(json.encodeToString(AiSummarizeRequest.serializer(), AiSummarizeRequest(messages, style, chatId)))).build(), AiSummarizeResponse.serializer())
-
-    suspend fun uploadAiSummarySync(
-        token: String,
-        syncId: String,
-        senderDeviceId: Int,
-        targetDeviceIds: List<Int>,
-        envelope: String
-    ): Result<AiSummarySyncStatusResponse> = send(
-        Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/summary-sync")
-            .addHeader("Authorization", "Bearer $token")
-            .post(jsonBody(json.encodeToString(AiSummarySyncUploadRequest.serializer(), AiSummarySyncUploadRequest(syncId, senderDeviceId, targetDeviceIds, envelope))))
-            .build(),
-        AiSummarySyncStatusResponse.serializer()
-    )
-
-    suspend fun getPendingAiSummarySync(token: String, deviceId: Int, limit: Int = 50): Result<List<AiSummarySyncEnvelopeDto>> =
-        send(
-            Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/summary-sync?deviceId=$deviceId&limit=${limit.coerceIn(1, 100)}")
-                .addHeader("Authorization", "Bearer $token")
-                .get()
-                .build(),
-            ListSerializer(AiSummarySyncEnvelopeDto.serializer())
-        )
-
-    suspend fun acknowledgeAiSummarySync(token: String, deviceId: Int, envelopeIds: List<String>): Result<AiSummarySyncStatusResponse> =
-        send(
-            Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/summary-sync/ack")
-                .addHeader("Authorization", "Bearer $token")
-                .post(jsonBody(json.encodeToString(AiSummarySyncAckRequest.serializer(), AiSummarySyncAckRequest(deviceId, envelopeIds))))
-                .build(),
-            AiSummarySyncStatusResponse.serializer()
-        )
-
-    suspend fun groupAssistant(
-        token: String,
-        query: String,
-        messages: List<AiContextMessage>,
-        mode: String = "answer",
-        chatId: String
-    ): Result<AiGroupAssistantResponse> = send(
-        Request.Builder()
-            .url("${ApiConfig.BASE_URL}/api/ai/group-assistant")
-            .addHeader("Authorization", "Bearer $token")
-            .post(jsonBody(json.encodeToString(AiGroupAssistantRequest.serializer(), AiGroupAssistantRequest(query, messages, mode, chatId))))
-            .build(),
-        AiGroupAssistantResponse.serializer()
-    )
-
-    suspend fun semanticSearch(
-        token: String,
-        query: String,
-        candidates: List<AiSemanticSearchCandidate>,
-        limit: Int = 10,
-        chatId: String
-    ): Result<AiSemanticSearchResponse> = send(
-        Request.Builder()
-            .url("${ApiConfig.BASE_URL}/api/ai/semantic-search")
-            .addHeader("Authorization", "Bearer $token")
-            .post(jsonBody(json.encodeToString(AiSemanticSearchRequest.serializer(), AiSemanticSearchRequest(query, candidates, limit, chatId))))
-            .build(),
-        AiSemanticSearchResponse.serializer()
-    )
-
-    suspend fun globalSemanticSearch(
-        token: String,
-        query: String,
-        candidates: List<AiGlobalSemanticSearchCandidate>,
-        limit: Int = 20
-    ): Result<AiGlobalSemanticSearchResponse> = send(
-        Request.Builder()
-            .url("${ApiConfig.BASE_URL}/api/ai/global-semantic-search")
-            .addHeader("Authorization", "Bearer $token")
-            .post(jsonBody(json.encodeToString(
-                AiGlobalSemanticSearchRequest.serializer(),
-                AiGlobalSemanticSearchRequest(query, candidates, limit)
-            )))
-            .build(),
-        AiGlobalSemanticSearchResponse.serializer()
-    )
-
-    suspend fun transcribeVoice(token: String, audioBase64: String, mimeType: String = "audio/mp4", language: String? = null, chatId: String? = null): Result<AiTranscribeResponse> =
-        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/transcribe").addHeader("Authorization", "Bearer $token").post(jsonBody(json.encodeToString(AiTranscribeRequest.serializer(), AiTranscribeRequest(audioBase64, mimeType, language, chatId)))).build(), AiTranscribeResponse.serializer())
-
-    suspend fun analyzeImage(token: String, imageBase64: String, mode: String, chatId: String): Result<AiImageAnalyzeResponse> =
-        send(
-            Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/analyze-image")
-                .addHeader("Authorization", "Bearer $token")
-                .post(jsonBody(json.encodeToString(AiImageAnalyzeRequest.serializer(), AiImageAnalyzeRequest(imageBase64, "image/jpeg", mode, chatId))))
-                .build(),
-            AiImageAnalyzeResponse.serializer()
-        )
-
-    suspend fun analyzeFile(
-        token: String,
-        fileBase64: String,
-        fileName: String,
-        mimeType: String,
-        mode: String,
-        question: String?,
-        chatId: String
-    ): Result<AiFileAnalyzeResponse> = send(
-        Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/analyze-file")
-            .addHeader("Authorization", "Bearer $token")
-            .post(jsonBody(json.encodeToString(
-                AiFileAnalyzeRequest.serializer(),
-                AiFileAnalyzeRequest(fileBase64, fileName, mimeType, mode, question, chatId)
-            )))
-            .build(),
-        AiFileAnalyzeResponse.serializer()
-    )
-
-    suspend fun getAiSettings(token: String, chatId: String? = null): Result<AiSettingsResponse> {
-        val suffix = chatId?.takeIf { it.isNotBlank() }?.let { "?chatId=${java.net.URLEncoder.encode(it, "UTF-8")}" }.orEmpty()
-        return send(Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/settings$suffix").addHeader("Authorization", "Bearer $token").get().build(), AiSettingsResponse.serializer())
-    }
-
-    suspend fun updateAiSettings(token: String, chatId: String? = null, enabled: Boolean): Result<AiSettingsResponse> =
-        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/settings").addHeader("Authorization", "Bearer $token").put(jsonBody(json.encodeToString(AiSettingsRequest.serializer(), AiSettingsRequest(chatId, enabled)))).build(), AiSettingsResponse.serializer())
-
-    suspend fun getAiAuditLogs(token: String, limit: Int = 50): Result<List<AiAuditLogResponse>> {
-        val safeLimit = limit.coerceIn(1, 100)
-        return send(Request.Builder().url("${ApiConfig.BASE_URL}/api/ai/audit?limit=$safeLimit").addHeader("Authorization", "Bearer $token").get().build(), ListSerializer(AiAuditLogResponse.serializer()))
-    }
 
     suspend fun getUsers(token: String, limit: Int = 30, offset: Int = 0): Result<List<UserDto>> =
         send(
@@ -1922,9 +1591,16 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
         showOnline: Boolean? = null,
         showStatus: Boolean? = null,
         searchable: Boolean? = null,
-        defaultPostVisibility: String? = null
+        defaultPostVisibility: String? = null,
+        onlineVisibility: String? = null
     ): Result<UserPrivacyDto> =
-        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/users/privacy").addHeader("Authorization", "Bearer $token").put(jsonBody(json.encodeToString(UpdatePrivacyRequest.serializer(), UpdatePrivacyRequest(showOnline, showStatus, searchable, defaultPostVisibility)))).build(), UserPrivacyDto.serializer())
+        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/users/privacy").addHeader("Authorization", "Bearer $token").put(jsonBody(json.encodeToString(UpdatePrivacyRequest.serializer(), UpdatePrivacyRequest(showOnline, showStatus, searchable, defaultPostVisibility, onlineVisibility)))).build(), UserPrivacyDto.serializer())
+
+    suspend fun getPublicUpdates(officialBaseUrl: String = BuildConfig.API_BASE_URL): Result<PublicUpdatesDto> =
+        send(
+            Request.Builder().url("${officialBaseUrl.trimEnd('/')}/api/public/updates").get().build(),
+            PublicUpdatesDto.serializer()
+        )
 
     suspend fun getNotificationSettings(token: String): Result<NotificationSettingsResponse> =
         send(Request.Builder().url("${ApiConfig.BASE_URL}/api/users/notification-settings").addHeader("Authorization", "Bearer $token").get().build(), NotificationSettingsResponse.serializer())
@@ -2422,6 +2098,37 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
         return executeForText(req, "bot_token")
     }
 
+
+    suspend fun listChatBotCommands(token: String, chatId: String): Result<String> {
+        val req = Request.Builder()
+            .url("${ApiConfig.BASE_URL}/api/chats/$chatId/bot-commands")
+            .header("Authorization", "Bearer $token")
+            .get()
+            .build()
+        return executeForText(req, "bot_commands")
+    }
+
+    suspend fun postBotInbox(token: String, chatId: String, text: String, botId: String? = null): Result<String> {
+        val payload = org.json.JSONObject().put("text", text).apply {
+            if (!botId.isNullOrBlank()) put("botId", botId)
+        }.toString()
+        val req = Request.Builder()
+            .url("${ApiConfig.BASE_URL}/api/chats/$chatId/bot-inbox")
+            .header("Authorization", "Bearer $token")
+            .post(payload.toRequestBody("application/json".toMediaType()))
+            .build()
+        return executeForText(req, "bot_inbox")
+    }
+
+    suspend fun openBotDirectChat(token: String, botId: String): Result<ChatDto> =
+        send(
+            Request.Builder()
+                .url("${ApiConfig.BASE_URL}/api/bots/$botId/dm")
+                .addHeader("Authorization", "Bearer $token")
+                .post(jsonBody("{}"))
+                .build(),
+            ChatDto.serializer()
+        )
 
     suspend fun inviteBotToChat(token: String, chatId: String, botId: String): Result<String> {
         val payload = org.json.JSONObject().put("botId", botId).toString()

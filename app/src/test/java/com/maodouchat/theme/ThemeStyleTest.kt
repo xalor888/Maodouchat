@@ -8,7 +8,7 @@ import com.maodouchat.util.ThemePreferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
+
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -17,35 +17,52 @@ class ThemeStyleTest {
     @Test
     fun `normalize maps known ids and falls back to maodou`() {
         assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize("maodou"))
-        assertEquals(ThemeFamily.TG_CLASSIC, ThemeFamily.normalize("TG_Classic"))
-        assertEquals(ThemeFamily.TG_MIDNIGHT, ThemeFamily.normalize(" tg_midnight "))
-        assertEquals(ThemeFamily.TG_GRAPHITE, ThemeFamily.normalize("tg_graphite"))
+        assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize("TG_Classic"))
+        assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize(" tg_midnight "))
+        assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize("tg_graphite"))
+        assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize("telegram"))
         assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize(null))
         assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize("unknown"))
+        assertEquals("maodou", ThemePreferences.normalizeStyle("tg_midnight"))
+        assertEquals("maodou", ThemePreferences.normalizeStyle("default"))
+        assertEquals(listOf(ThemeFamily.MAODOU), ThemeFamily.PICKABLE)
     }
 
     @Test
-    fun `maodou paint has no sent bubble override`() {
-        assertNull(resolveThemePaint(ThemeFamily.MAODOU, dark = false).sentBubbleSpec)
-        assertNull(resolveThemePaint(ThemeFamily.MAODOU, dark = true).sentBubbleSpec)
+    fun `default paint uses white surfaces and gray ink bubbles`() {
+        val lightPaint = resolveThemePaint(ThemeFamily.MAODOU, dark = false)
+        val darkPaint = resolveThemePaint(ThemeFamily.MAODOU, dark = true)
+        val light = lightPaint.sentBubbleSpec
+        val dark = darkPaint.sentBubbleSpec
+        assertNotNull(light)
+        assertNotNull(dark)
+        assertEquals(Color(0xFFFFFFFF), lightPaint.colorScheme.background)
+        assertEquals(Color(0xFFFFFFFF), lightPaint.colorScheme.surface)
+        assertEquals(Color(0xFFF2F2F2), light!!.color)
+        assertEquals(Color(0xFF1A1A1A), light.content)
+        assertEquals(Color(0xFF111111), darkPaint.colorScheme.background)
+        assertEquals(Color(0xFF2A2A2A), dark!!.color)
+        assertEquals(Color(0xFFF2F2F2), lightPaint.chatPalette.chatBubbleReceived)
     }
 
     @Test
-    fun `tg families always provide sent bubble spec with light and dark variants`() {
-        listOf(ThemeFamily.TG_CLASSIC, ThemeFamily.TG_MIDNIGHT, ThemeFamily.TG_GRAPHITE).forEach { family ->
-            listOf(false, true).forEach { dark ->
-                val paint = resolveThemePaint(family, dark)
-                assertNotNull("$family dark=$dark should have sent spec", paint.sentBubbleSpec)
+    fun `legacy tg ids still paint as maodou white theme`() {
+        listOf(false, true).forEach { dark ->
+            val paint = resolveThemePaint(ThemeFamily.normalize("tg_classic"), dark)
+            assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize("tg_classic"))
+            assertNotNull("maodou dark=$dark should have sent spec", paint.sentBubbleSpec)
+            if (!dark) {
+                assertEquals(Color(0xFFFFFFFF), paint.colorScheme.background)
+                assertEquals(Color(0xFFF2F2F2), paint.sentBubbleSpec!!.color)
             }
         }
     }
 
     @Test
-    fun `tg classic light uses the signature green bubble with dark content`() {
-        val spec = resolveThemePaint(ThemeFamily.TG_CLASSIC, dark = false).sentBubbleSpec!!
-        assertEquals(Color(0xFFEFFDDE), spec.color)
-        // 绿气泡必须配深色文字，否则不可读
-        assertEquals(Color(0xFF212121), spec.content)
+    fun `default light sent bubble uses gray with dark ink not purple`() {
+        val spec = resolveThemePaint(ThemeFamily.MAODOU, dark = false).sentBubbleSpec!!
+        assertEquals(Color(0xFFF2F2F2), spec.color)
+        assertEquals(Color(0xFF1A1A1A), spec.content)
     }
 
     @Test

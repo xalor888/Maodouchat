@@ -238,7 +238,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         null
     }
 
-    /** 1.171：清空指定会话的本地聊天记录（保留会话/PIN/草稿；服务端密文仍在，重开会再同步）。 */
+    /** 清空指定会话的本地明文（保留会话/PIN/草稿/同步游标）。不清游标，避免重拉密文 Duplicate。 */
     fun clearLocalChatHistory(chatId: String) {
         if (chatId.isBlank()) return
         val ownerUserId = tokenManager.getUserId().orEmpty()
@@ -264,7 +264,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 app.notificationCenter.removeChatItems(chatId)
                 com.maodouchat.util.AppNotifier.cancelMessage(app, chatId)
             }
-            bestEffort { tokenManager.clearChatCursors(chatId) }
             val local = chatRepo.getChatById(chatId)
             if (local != null) {
                 bestEffort {
@@ -1024,6 +1023,8 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
     fun setShowArchived(show: Boolean) { _uiState.update { it.copy(showArchived = show) } }
     fun refresh() = requestLoadChats(ChatListReloadPolicy.Trigger.USER_REFRESH)
 
+    fun refreshOnForeground() = requestLoadChats(ChatListReloadPolicy.Trigger.FOREGROUND)
+
     /**
      * Coalesce bursty WS-driven full list reloads (delete/revoke/group revision).
      * Local preview/unread already update optimistically; getChats is for server truth.
@@ -1031,23 +1032,21 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
     private var debouncedLoadChatsJob: Job? = null
     private var loadChatsJob: Job? = null
     private var loadChatsRequestId: Long = 0L
+    private var disconnectBannerJob: Job? = null
 
     private fun requestLoadChats(trigger: ChatListReloadPolicy.Trigger) {
         val mode = ChatListReloadPolicy.modeFor(trigger)
-        when (mode) {
-            ChatListReloadPolicy.Mode.IMMEDIATE_VISIBLE,
-            ChatListReloadPolicy.Mode.IMMEDIATE_SILENT -> {
-                debouncedLoadChatsJob?.cancel()
-                loadChats(showLoading = ChatListReloadPolicy.shouldShowLoading(mode))
+        val wait = ChatListReloadPolicy.debounceMs(mode, trigger)
+        if (wait > 0L) {
+            debouncedLoadChatsJob?.cancel()
+            debouncedLoadChatsJob = viewModelScope.launch {
+                delay(wait)
+                loadChats(showLoading = false)
             }
-            ChatListReloadPolicy.Mode.DEBOUNCED_SILENT -> {
-                debouncedLoadChatsJob?.cancel()
-                debouncedLoadChatsJob = viewModelScope.launch {
-                    delay(ChatListReloadPolicy.debounceMs(mode))
-                    loadChats(showLoading = false)
-                }
-            }
+            return
         }
+        debouncedLoadChatsJob?.cancel()
+        loadChats(showLoading = ChatListReloadPolicy.shouldShowLoading(mode))
     }
 
     /** Flush SENDING text outbox without requiring ChatDetail to be open. */
@@ -1144,6 +1143,59 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             } catch (error: Exception) {
                 android.util.Log.w("ChatListViewModel", "Failed to persist last-message preview", error)
             }
+        }
+    }
+
+    /**
+     * Inactive group chats never open ChatDetail, so list-side decrypt has no Sender Key
+     * unless we install SK_DIST here first. ChatDetail still owns the active-chat path.
+     */
+    private suspend fun ingestInactiveChatSenderKey(message: Message) {
+        val content = message.content
+        if (content.isBlank()) return
+        val epoch = chatRepo.getChatById(message.chatId)
+            ?.takeIf { it.isGroup && it.memberRevision > 0L }
+            ?.memberRevision
+        val signal = app.signalProtocol
+        val distPlaintext = when {
+            signal.isSenderKeyDistributionEnvelope(content) -> content
+            signal.isEncryptedEnvelope(content) -> {
+                when (val distResult = signal.decryptContentEnvelope(message.senderId, content)) {
+                    is com.maodouchat.crypto.SignalProtocol.DecryptResult.Success -> distResult.plaintext
+                    else -> null
+                }
+            }
+            else -> null
+        } ?: return
+        signal.processSenderKeyDistributionEnvelope(
+            message.senderId,
+            distPlaintext,
+            expectedGroupId = message.chatId,
+            currentEpoch = epoch
+        )
+        // Persist plaintext SK dist so open-chat does not re-decrypt the 1:1 wrapper (Duplicate).
+        messageRepo.insertMessage(message.copy(content = distPlaintext, type = MessageType.SK_DIST))
+    }
+
+    private suspend fun retryDecryptInactiveGroupTail(
+        chatId: String,
+        ownerUserId: String,
+        session: OwnerSessionSnapshot,
+    ) {
+        if (chatId.isBlank() || !isOwnerSessionCurrent(session)) return
+        val recent = messageRepo.getRecentMessages(chatId, limit = 24)
+        var recoveredAny = false
+        for (msg in recent) {
+            if (msg.type !in setOf(MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER, MessageType.LOCATION)) {
+                continue
+            }
+            if (!ChatListPreviewPolicy.isUnreadableListHead(msg)) continue
+            val plain = tryDecryptInlinePreview(msg) ?: continue
+            messageRepo.insertMessage(msg.copy(content = plain))
+            recoveredAny = true
+        }
+        if (recoveredAny) {
+            refreshChatListPreviewFromLocal(chatId, ownerUserId, session.sessionGeneration)
         }
     }
 
@@ -1283,7 +1335,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             return localizedMedia
         }
         return try {
-            val recent = messageRepo.getRecentMessages(localizedMedia.id, limit = 8)
+            val recent = messageRepo.getRecentMessages(localizedMedia.id, limit = 24)
             val preview = ChatListPreviewPolicy.fromLatestMessages(
                 candidatesNewestFirst = recent,
                 mediaLabel = { mediaPreviewLabel(it) },
@@ -1299,7 +1351,20 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     )
                 }
             )
-            if (preview.text.isBlank()) return localizedMedia
+            if (preview.text.isBlank()) {
+                return if (localizedMedia.lastMessageType == MessageType.TEXT ||
+                    localizedMedia.lastMessageType == MessageType.MARKDOWN
+                ) {
+                    localizedMedia.copy(
+                        lastMessage = ChatListPreviewPolicy.listVisibleText(
+                            localizedMedia.lastMessage,
+                            text(R.string.message_preview_encrypted)
+                        )
+                    )
+                } else {
+                    localizedMedia
+                }
+            }
             when (preview.type) {
                 MessageType.NUDGE -> localizedMedia.copy(
                     lastMessage = preview.text,
@@ -1308,9 +1373,16 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 )
                 MessageType.TEXT, MessageType.MARKDOWN -> {
                     // Only replace when local has readable plaintext (own send / decrypted).
-                    val looksEncrypted = ChatListPreviewPolicy.looksLikeWireEnvelope(preview.text) ||
+                    val looksEncrypted = ChatListPreviewPolicy.looksLikeLeftoverPreviewGarbage(preview.text) ||
                         preview.text == text(R.string.message_preview_encrypted)
-                    if (looksEncrypted) localizedMedia
+                    if (looksEncrypted) {
+                        localizedMedia.copy(
+                            lastMessage = ChatListPreviewPolicy.listVisibleText(
+                                localizedMedia.lastMessage,
+                                text(R.string.message_preview_encrypted)
+                            )
+                        )
+                    }
                     else localizedMedia.copy(
                         lastMessage = preview.text.take(280),
                         lastMessageType = MessageType.TEXT,
@@ -1352,7 +1424,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             try {
                 // Fetch a few rows so a trailing SK_DIST does not wipe a real conversation head.
-                val recent = messageRepo.getRecentMessages(chatId, limit = 8)
+                val recent = messageRepo.getRecentMessages(chatId, limit = 24)
                 if (!isOwnerSessionCurrent(session)) return@launch
                 val preview = ChatListPreviewPolicy.fromLatestMessages(
                     candidatesNewestFirst = recent,
@@ -1385,7 +1457,21 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         }
     }
     fun clearError() { _uiState.update { it.copy(errorMessage = null) } }
-    fun clearRealtimeBanner() { _uiState.update { it.copy(realtimeBanner = null) } }
+    fun clearRealtimeBanner() {
+        disconnectBannerJob?.cancel()
+        disconnectBannerJob = null
+        _uiState.update { it.copy(realtimeBanner = null) }
+    }
+
+    /** Brief flaps reconnect inside BANNER_DELAY_MS; only then surface the down banner. */
+    private fun scheduleDisconnectBanner() {
+        if (disconnectBannerJob?.isActive == true) return
+        disconnectBannerJob = viewModelScope.launch {
+            delay(com.maodouchat.network.RealtimeDisconnectPolicy.BANNER_DELAY_MS)
+            if (com.maodouchat.network.WebSocketClient.isConnected()) return@launch
+            _uiState.update { it.copy(realtimeBanner = text(R.string.chat_ws_connection_failed)) }
+        }
+    }
     fun clearOwnerTransferRequired() { _uiState.update { it.copy(ownerTransferRequiredChatId = null) } }
 
     // 9.150：置顶/静音/归档/标未读改为按 chatId 现查 _uiState 最新快照取反，
@@ -2246,9 +2332,30 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                         }
                     }
                     is WebSocketEvent.MessageReceived -> {
+                        if (event.message.type == MessageType.SK_DIST) {
+                            val distChatId = event.message.chatId
+                            val distOwner = liveUserId
+                            if (distChatId.isNotBlank() &&
+                                distOwner.isNotBlank() &&
+                                com.maodouchat.MaodouchatApp.activeChatId != distChatId
+                            ) {
+                                withContext(Dispatchers.IO) {
+                                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                                            expectedUserId = distOwner,
+                                            liveToken = tokenManager.getToken(),
+                                            liveUserId = tokenManager.getUserId(),
+                                        )
+                                    ) {
+                                        return@withContext
+                                    }
+                                    ingestInactiveChatSenderKey(event.message)
+                                    retryDecryptInactiveGroupTail(distChatId, distOwner, realtimeSession)
+                                }
+                            }
+                            return@collect
+                        }
                         // SK_DIST is crypto control traffic — never bump unread / overwrite list preview / notify.
                         val controlOnly = event.message.type in setOf(
-                            MessageType.SK_DIST,
                             MessageType.REVOKED // revoke arrives via MessageRevoked / mutation, not as content head
                         )
                         if (!controlOnly) {
@@ -2402,7 +2509,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                 // so list LIKE / global search hit while chat was never opened.
                                 val shouldPersistInactive = !isActiveChat && when (event.message.type) {
                                     MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER, MessageType.LOCATION ->
-                                        decryptedPlain != null
+                                        decryptedPlain != null || event.message.content.isNotBlank()
                                     MessageType.NUDGE ->
                                         event.message.content.isNotBlank()
                                     else -> false
@@ -2413,19 +2520,16 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                             val existing = messageRepo.getMessageById(event.message.id)
                                             val alreadyPlain = existing != null &&
                                                 existing.content.isNotBlank() &&
-                                                !ChatListPreviewPolicy.looksLikeWireEnvelope(existing.content) &&
+                                                !ChatListPreviewPolicy.looksLikeLeftoverPreviewGarbage(existing.content) &&
                                                 !app.signalProtocol.isEncryptedEnvelope(existing.content) &&
                                                 !app.signalProtocol.isSenderKeyEnvelope(existing.content)
                                             val plainMessage = when (event.message.type) {
                                                 MessageType.NUDGE -> event.message
-                                                else -> {
-                                                    // 8.49 防御：解密失败则不持久化明文（此前依赖 18 行前的
-                                                    // shouldPersistInactive 守卫间接保证 decryptedPlain 非空）
-                                                    val plain = decryptedPlain ?: return@withOwnerRoomWrite
-                                                    event.message.copy(content = plain)
-                                                }
+                                                else -> decryptedPlain?.let { event.message.copy(content = it) }
+                                                    ?: event.message
                                             }
-                                            if (!alreadyPlain) {
+                                            // Placeholder / ciphertext rows must still accept a later list decrypt.
+                                            if (decryptedPlain != null || !alreadyPlain) {
                                                 messageRepo.insertMessage(plainMessage)
                                             }
                                             applyPendingReactionsIfAny(
@@ -2433,17 +2537,20 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                                 messageId = event.message.id,
                                                 session = realtimeSession,
                                             )
-                                            try {
-                                                com.maodouchat.data.repository.MessageSearchRepository(app.database)
-                                                    .indexMessage(plainMessage)
-                                            } catch (error: kotlinx.coroutines.CancellationException) {
-                                                throw error
-                                            } catch (error: Exception) {
-                                                android.util.Log.w(
-                                                    "ChatListViewModel",
-                                                    "indexMessage after list decrypt failed",
-                                                    error
-                                                )
+                                            val indexable = decryptedPlain != null || event.message.type == MessageType.NUDGE
+                                            if (indexable) {
+                                                try {
+                                                    com.maodouchat.data.repository.MessageSearchRepository(app.database)
+                                                        .indexMessage(plainMessage)
+                                                } catch (error: kotlinx.coroutines.CancellationException) {
+                                                    throw error
+                                                } catch (error: Exception) {
+                                                    android.util.Log.w(
+                                                        "ChatListViewModel",
+                                                        "indexMessage after list decrypt failed",
+                                                        error
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -2568,6 +2675,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                                 soundEnabled =
                                                     com.maodouchat.notification.NotificationPreferences.soundEnabled(ctx),
                                                 expectedUserId = listReceiveOwnerUserId,
+                                                isGroup = target?.isGroup == true || target?.isChannel == true,
                                             )
                                         }
                                     }
@@ -2931,8 +3039,10 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     }
                     is WebSocketEvent.Connected -> {
                         if (event.success) {
+                            disconnectBannerJob?.cancel()
+                            disconnectBannerJob = null
                             _uiState.update { it.copy(realtimeBanner = null) }
-                            // Reconnect must refresh immediately; do not wait for debounce.
+                            // Immediate silent: keep previous rows, don't flash isLoading.
                             requestLoadChats(ChatListReloadPolicy.Trigger.RECONNECT)
                             // Leave-chat SENDING text must not wait for ChatDetail re-open.
                             flushTextOutbox()
@@ -2942,22 +3052,16 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                 com.maodouchat.sync.BacklogSyncWorker.requestNow(getApplication())
                             }
                         } else {
-                            _uiState.update {
-                                it.copy(realtimeBanner = text(R.string.chat_ws_connection_failed))
-                            }
+                            scheduleDisconnectBanner()
                         }
                     }
                     is WebSocketEvent.Disconnected -> {
-                        _uiState.update {
-                            it.copy(realtimeBanner = text(R.string.chat_ws_connection_failed))
-                        }
+                        scheduleDisconnectBanner()
                     }
                     is WebSocketEvent.Error -> {
                         // Soft banner only — list remains usable offline from Room.
                         if (event.kind == com.maodouchat.network.WebSocketErrorKind.CONNECTION) {
-                            _uiState.update {
-                                it.copy(realtimeBanner = text(R.string.chat_ws_connection_failed))
-                            }
+                            scheduleDisconnectBanner()
                         }
                     }
                     is WebSocketEvent.UserOnline -> {
@@ -3056,10 +3160,11 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         val token = tokenManager.getToken().orEmpty()
         val loadOwnerUserId = currentUserIdStr
         if (showLoading) {
+            // Keep the previous list; only the first empty load shows shimmer.
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         } else {
             // 静默刷新会取消进行中的可见加载；必须顺带关掉 shimmer，否则空白列表卡死。
-            _uiState.update { it.copy(isLoading = false, errorMessage = null) }
+            _uiState.update { it.copy(isLoading = false) }
         }
         loadChatsJob = viewModelScope.launch {
             fun stillCurrent(): Boolean = requestId == loadChatsRequestId &&
@@ -3270,11 +3375,15 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                         // API 失败，从本地加载
                         val chats = chatRepo.getAllChats().firstOrNull() ?: emptyList()
                         if (requestId != loadChatsRequestId) return@fold
-                        finishIfCurrent(
-                            errorMessage = error.message?.takeIf { message -> message.isNotBlank() }
-                                ?: text(R.string.chat_refresh_failed_cached),
-                            chats = chats
-                        )
+                        val rateLimited = (error as? com.maodouchat.network.ApiException)?.statusCode == 429 ||
+                            error.message.orEmpty().contains("频繁")
+                        // Silent reconnect/foreground must not toast 429 / 频繁 over a populated list.
+                        val nextError = when {
+                            !showLoading || rateLimited -> _uiState.value.errorMessage
+                            else -> error.message?.takeIf { message -> message.isNotBlank() }
+                                ?: text(R.string.chat_refresh_failed_cached)
+                        }
+                        finishIfCurrent(errorMessage = nextError, chats = chats)
                         refreshIdentityWarnings()
                         // 仍可尝试用本地 chat 缓存加密 flush（网络失败时 send 仍可能短暂可用）
                         flushTextOutbox()

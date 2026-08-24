@@ -73,7 +73,7 @@ internal fun ChatDetailViewModel.requireAiRequestCurrent(snapshot: AiRequestSnap
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
             return
         }
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_GROUP_ASSISTANT)) {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.ai_group_assistant_disabled)) }
             return
         }
@@ -110,29 +110,34 @@ internal fun ChatDetailViewModel.requireAiRequestCurrent(snapshot: AiRequestSnap
             try {
                 if (!groupAiGate.isCurrent(generation)) return@launch
                 requireAiRequestCurrent(request)
-                val liveToken = tokenManager.getToken().orEmpty()
-                ApiService.groupAssistant(liveToken, query, contextMessages, mode, request.chatId).fold(
-                    onSuccess = { response ->
+                com.maodouchat.ai.agent.LocalAiGateway.groupAssistant(
+                    getApplication(),
+                    query,
+                    contextMessages,
+                    mode
+                ).fold(
+                    onSuccess = { answer ->
                         if (!groupAiGate.isCurrent(generation)) return@fold
                         requireAiRequestCurrent(request)
+                        val tasks = if (mode == "tasks") {
+                            answer.lineSequence()
+                                .map { it.trim().trimStart('-', '*', '•') }
+                                .filter { it.isNotBlank() }
+                                .take(30)
+                                .map { line ->
+                                    com.maodouchat.network.AiGroupTask(title = line.take(300))
+                                }
+                                .toList()
+                        } else emptyList()
                         _uiState.update {
                             it.copy(
                                 groupAiAnswer = com.maodouchat.ai.AiPromptSafetyPolicy
                                     .annotateIfPrivilegedHallucination(
-                                        response.answer.trim().take(4_000),
+                                        answer.trim().take(4_000),
                                         text(R.string.chat_ai_privilege_hallucination_disclaimer)
                                     ),
-                                groupAiMode = response.mode,
-                                groupAiTasks = response.tasks.take(30).mapNotNull { task ->
-                                    val title = task.title.trim().take(300).takeIf(String::isNotBlank)
-                                        ?: return@mapNotNull null
-                                    task.copy(
-                                        title = title,
-                                        owner = task.owner?.trim()?.take(100)?.takeIf(String::isNotBlank),
-                                        dueText = task.dueText?.trim()?.take(120)?.takeIf(String::isNotBlank),
-                                        dueAt = task.dueAt?.takeIf { dueAt -> dueAt > 0L }
-                                    )
-                                },
+                                groupAiMode = mode,
+                                groupAiTasks = tasks,
                                 isAiWorking = false
                             )
                         }
@@ -209,41 +214,24 @@ internal fun ChatDetailViewModel.requireAiRequestCurrent(snapshot: AiRequestSnap
             }
             try {
                 requireAiRequestCurrent(request)
-                val liveToken = tokenManager.getToken().orEmpty()
-                ApiService.semanticSearch(liveToken, query, candidates, limit = 12, chatId = request.chatId).fold(
-                    onSuccess = { response ->
-                        requireAiRequestCurrent(request)
-                        if (!semanticSearchGate.isCurrent(generation)) return@fold
-                        val allowedIds = candidates.mapTo(hashSetOf()) { it.messageId }
-                        val resultIds = response.matches
-                            .asSequence()
-                            .filter { it.messageId in allowedIds && it.score > 0.0 }
-                            .map { it.messageId }
-                            .distinct()
-                            .take(12)
-                            .toList()
-                        _uiState.update {
-                            it.copy(
-                                semanticSearchResultIds = resultIds,
-                                semanticSearchQuery = query,
-                                isSemanticSearching = false,
-                                semanticSearchError = null
-                            )
-                        }
-                    },
-                    onFailure = { error ->
-                        requireAiRequestCurrent(request)
-                        if (!semanticSearchGate.isCurrent(generation)) return@fold
-                        _uiState.update {
-                            it.copy(
-                                semanticSearchResultIds = emptyList(),
-                                semanticSearchQuery = query,
-                                isSemanticSearching = false,
-                                semanticSearchError = error.message ?: text(R.string.chat_semantic_search_failed)
-                            )
-                        }
-                    }
+                val ranked = com.maodouchat.ai.agent.LocalAiGateway.rankSemantic(
+                    query,
+                    candidates.map { it.messageId to it.text }
                 )
+                requireAiRequestCurrent(request)
+                if (!semanticSearchGate.isCurrent(generation)) return@launch
+                val allowedIds = candidates.mapTo(hashSetOf()) { it.messageId }
+                val resultIds = ranked.filter { it in allowedIds }.distinct().take(12)
+                _uiState.update {
+                    it.copy(
+                        semanticSearchResultIds = resultIds,
+                        semanticSearchQuery = query,
+                        isSemanticSearching = false,
+                        semanticSearchError = if (resultIds.isEmpty()) {
+                            text(R.string.chat_semantic_search_no_context)
+                        } else null
+                    )
+                }
             } catch (error: Throwable) {
                 if (error is kotlinx.coroutines.CancellationException) throw error
                 if (semanticSearchGate.isCurrent(generation) && isAiRequestCurrent(request)) {
@@ -326,24 +314,17 @@ internal fun ChatDetailViewModel.requireAiRequestCurrent(snapshot: AiRequestSnap
         aiRewriteStreamJob = viewModelScope.launch {
             try {
                 requireAiRequestCurrent(request)
-                val liveToken = tokenManager.getToken().orEmpty()
-                val styleHint = com.maodouchat.ai.AiWritingStylePolicy.rewriteStyleHint(
-                    com.maodouchat.ai.AiWritingStylePreferences.snapshot(getApplication())
-                )
-                ApiService.streamRewriteMessage(
-                    token = liveToken,
+                com.maodouchat.ai.agent.LocalAiGateway.rewrite(
+                    context = getApplication(),
                     text = draft,
                     mode = mode,
-                    targetLanguage = targetLanguage,
-                    chatId = request.chatId,
-                    styleHint = styleHint
-                ) { event ->
-                    if (!aiRewriteGate.isCurrent(generation) || event.type != "delta") return@streamRewriteMessage
+                    targetLanguage = targetLanguage
+                ) { delta ->
+                    if (!aiRewriteGate.isCurrent(generation)) return@rewrite
                     if (!isAiRequestCurrent(request)) {
                         throw kotlinx.coroutines.CancellationException("ai_rewrite_session_changed")
                     }
-                    val delta = event.text.orEmpty()
-                    if (delta.isEmpty() || buffer.length >= 4_000) return@streamRewriteMessage
+                    if (delta.isEmpty() || buffer.length >= 4_000) return@rewrite
                     buffer.append(delta.take(4_000 - buffer.length))
                     val now = System.currentTimeMillis()
                     if (now - lastUiUpdateAt >= 32L || '\n' in delta) {
@@ -354,9 +335,9 @@ internal fun ChatDetailViewModel.requireAiRequestCurrent(snapshot: AiRequestSnap
                         }
                     }
                 }.fold(
-                    onSuccess = {
+                    onSuccess = { rewritten ->
                         if (!aiRewriteGate.isCurrent(generation) || !isAiRequestCurrent(request)) return@fold
-                        val preview = buffer.toString().trim().take(4_000)
+                        val preview = buffer.toString().ifBlank { rewritten }.trim().take(4_000)
                         _uiState.update {
                             it.copy(
                                 aiDraftPreview = preview,
@@ -415,26 +396,20 @@ internal fun ChatDetailViewModel.requireAiRequestCurrent(snapshot: AiRequestSnap
         aiReplyStreamJob = viewModelScope.launch {
             try {
                 requireAiRequestCurrent(request)
-                val liveToken = tokenManager.getToken().orEmpty()
-                ApiService.streamSuggestedReplies(liveToken, contextMessages, tone = safeTone, count = 4, chatId = request.chatId) { event ->
-                    if (!aiReplyGate.isCurrent(generation) || event.type != "reply") return@streamSuggestedReplies
-                    if (!isAiRequestCurrent(request)) {
-                        throw kotlinx.coroutines.CancellationException("ai_reply_session_changed")
-                    }
-                    val reply = event.text?.trim()?.take(500).orEmpty()
-                    if (reply.isBlank()) return@streamSuggestedReplies
-                    _uiState.update { state ->
-                        if (!aiReplyGate.isCurrent(generation)) state
-                        else state.copy(aiSuggestions = (state.aiSuggestions + reply).distinct().take(4))
-                    }
-                }.fold(
-                    onSuccess = {
+                com.maodouchat.ai.agent.LocalAiGateway.suggestReplies(
+                    getApplication(),
+                    contextMessages,
+                    safeTone,
+                    4
+                ).fold(
+                    onSuccess = { replies ->
                         if (!aiReplyGate.isCurrent(generation) || !isAiRequestCurrent(request)) return@fold
                         _uiState.update {
                             it.copy(
+                                aiSuggestions = replies.map { reply -> reply.take(500) }.filter { it.isNotBlank() }.take(4),
                                 isAiReplyStreaming = false,
                                 isAiWorking = false,
-                                aiReplyStreamErrorCode = if (it.aiSuggestions.isEmpty()) AiOperationError.EMPTY_RESULT else null
+                                aiReplyStreamErrorCode = if (replies.isEmpty()) AiOperationError.EMPTY_RESULT else null
                             )
                         }
                     },
@@ -487,7 +462,7 @@ internal fun ChatDetailViewModel.requireAiRequestCurrent(snapshot: AiRequestSnap
         contextMessages: List<com.maodouchat.network.AiContextMessage>,
         tone: String
     ): List<String> {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.OFFLINE_AI)) return emptyList()
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) return emptyList()
         val texts = contextMessages.map { it.text.trim() }.filter { it.isNotBlank() }
         if (texts.isEmpty()) return emptyList()
         val seed = texts.last().take(120)
@@ -1199,13 +1174,6 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                 )
             }
             val cached = withContext(Dispatchers.IO) {
-                val requestToken = tokenManager.getToken().orEmpty()
-                aiSummarySyncRepo.pull(
-                    requestToken,
-                    request.userId,
-                    liveToken = tokenManager::getToken,
-                    liveUserId = tokenManager::getUserId
-                )
                 aiSummaryRepo.getSummary(cacheKey)
             }
             if (!manualSummaryGate.isCurrent(generation)) return@launchTrackedAiOperation
@@ -1224,25 +1192,18 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                         isAiWorking = false
                     )
                 }
-                viewModelScope.launch(Dispatchers.IO) {
-                    aiSummarySyncRepo.push(
-                        tokenManager.getToken().orEmpty(),
-                        request.userId,
-                        cached,
-                        scope.name,
-                        liveToken = tokenManager::getToken,
-                        liveUserId = tokenManager::getUserId
-                    )
-                }
                 return@launchTrackedAiOperation
             }
             requireAiRequestCurrent(request)
-            val liveToken = tokenManager.getToken().orEmpty()
-            ApiService.summarizeChat(liveToken, contextMessages, style = safeStyle, chatId = request.chatId).fold(
-                onSuccess = { response ->
+            com.maodouchat.ai.agent.LocalAiGateway.summarize(
+                getApplication(),
+                contextMessages,
+                safeStyle
+            ).fold(
+                onSuccess = { summary ->
                     if (!manualSummaryGate.isCurrent(generation)) return@fold
                     requireAiRequestCurrent(request)
-                    val generatedSummary = response.summary.take(3_000)
+                    val generatedSummary = summary.take(3_000)
                     if (generatedSummary.isBlank()) {
                         failAiOperation(operationId, AiOperationError.EMPTY_RESULT)
                         _uiState.update {
@@ -1277,16 +1238,6 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                         it.copy(
                             aiSummary = displaySummary,
                             isAiWorking = false
-                        )
-                    }
-                    viewModelScope.launch(Dispatchers.IO) {
-                        aiSummarySyncRepo.push(
-                            tokenManager.getToken().orEmpty(),
-                            request.userId,
-                            saved,
-                            scope.name,
-                            liveToken = tokenManager::getToken,
-                            liveUserId = tokenManager::getUserId
                         )
                     }
                 },
@@ -1358,7 +1309,7 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
             return
         }
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_TRANSCRIBE)) {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.ai_transcribe_disabled)) }
             if (operationId != null) {
                 launchTrackedAiOperation(operationId) {
@@ -1412,11 +1363,14 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                 return@launchTrackedAiOperation
             }
             requireAiRequestCurrent(request)
-            val liveToken = tokenManager.getToken().orEmpty()
-            ApiService.transcribeVoice(liveToken, prepared.first, mimeType = prepared.second, chatId = request.chatId).fold(
-                onSuccess = { response ->
+            com.maodouchat.ai.agent.LocalAiGateway.transcribe(
+                getApplication(),
+                prepared.first,
+                prepared.second
+            ).fold(
+                onSuccess = { rawTranscript ->
                     requireAiRequestCurrent(request)
-                    val transcript = com.maodouchat.util.VoiceTranscriptPolicy.normalize(response.text)
+                    val transcript = com.maodouchat.util.VoiceTranscriptPolicy.normalize(rawTranscript)
                     if (transcript.isBlank()) {
                         failAiOperation(operationId, AiOperationError.EMPTY_RESULT)
                         _uiState.update {
@@ -1462,7 +1416,7 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
             return
         }
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_ANALYZE_IMAGE)) {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.ai_analyze_image_disabled)) }
             if (operationId != null) {
                 launchTrackedAiOperation(operationId) { failAiOperation(operationId, AiOperationError.CONTEXT_MISSING) }
@@ -1527,11 +1481,14 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                 return@launchTrackedAiOperation
             }
             requireAiRequestCurrent(request)
-            val liveToken = tokenManager.getToken().orEmpty()
-            ApiService.analyzeImage(liveToken, imageBase64, mode.wireValue, request.chatId).fold(
-                onSuccess = { response ->
+            com.maodouchat.ai.agent.LocalAiGateway.analyzeImage(
+                getApplication(),
+                imageBase64,
+                mode.wireValue
+            ).fold(
+                onSuccess = { analysis ->
                     requireAiRequestCurrent(request)
-                    if (response.mode != mode.wireValue || response.text.isBlank()) {
+                    if (analysis.isBlank()) {
                         failAiOperation(operationId, AiOperationError.EMPTY_RESULT)
                         _uiState.update {
                             it.copy(
@@ -1543,7 +1500,7 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                         }
                         return@fold
                     }
-                    val resultText = response.text.trim().take(6_000)
+                    val resultText = analysis.trim().take(6_000)
                     val current = _uiState.value.messages.firstOrNull { it.id == messageId } ?: message
                     val currentMeta = current.parsedMeta()
                     val updatedMeta = currentMeta.copy(
@@ -1597,7 +1554,7 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
             return
         }
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_ANALYZE_FILE)) {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.ai_analyze_file_disabled)) }
             if (operationId != null) {
                 launchTrackedAiOperation(operationId) { failAiOperation(operationId, AiOperationError.CONTEXT_MISSING) }
@@ -1661,19 +1618,17 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                 return@launchTrackedAiOperation
             }
             requireAiRequestCurrent(request)
-            val liveToken = tokenManager.getToken().orEmpty()
-            ApiService.analyzeFile(
-                token = liveToken,
-                fileBase64 = prepared.base64,
+            com.maodouchat.ai.agent.LocalAiGateway.analyzeFile(
+                context = getApplication(),
                 fileName = prepared.fileName,
                 mimeType = prepared.mimeType,
+                fileBase64 = prepared.base64,
                 mode = mode.wireValue,
-                question = question,
-                chatId = request.chatId
+                question = question
             ).fold(
-                onSuccess = { response ->
+                onSuccess = { analysis ->
                     requireAiRequestCurrent(request)
-                    if (response.mode != mode.wireValue || response.text.isBlank()) {
+                    if (analysis.isBlank()) {
                         failAiOperation(operationId, AiOperationError.EMPTY_RESULT)
                         _uiState.update {
                             it.copy(
@@ -1686,7 +1641,7 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                         }
                         return@fold
                     }
-                    val resultText = response.text.trim().take(8_000)
+                    val resultText = analysis.trim().take(8_000)
                     val analysisKey = if (mode == AiFileAnalysisMode.QUESTION) {
                         "question:" + (question?.trim()?.take(120) ?: "default")
                     } else {
@@ -1716,7 +1671,7 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                             messages = state.messages.map { if (it.id == messageId) updated else it },
                             aiFileAnalysisResult = displayFileResult,
                             aiFileAnalysisMode = mode,
-                            aiFileAnalysisName = response.fileName.take(120)
+                            aiFileAnalysisName = prepared.fileName.take(120)
                         )
                     }
                 },
@@ -1775,7 +1730,7 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
             return
         }
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_TRANSLATE)) {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) {
             _uiState.update { it.copy(errorMessage = text(R.string.chat_ai_translate_disabled)) }
             return
         }
@@ -1814,11 +1769,14 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                 )
             }
             requireAiRequestCurrent(request)
-            val liveToken = tokenManager.getToken().orEmpty()
-            ApiService.translateMessage(liveToken, sourceText.take(4_000), targetLanguage, request.chatId).fold(
-                onSuccess = { response ->
+            com.maodouchat.ai.agent.LocalAiGateway.translate(
+                getApplication(),
+                sourceText.take(4_000),
+                targetLanguage
+            ).fold(
+                onSuccess = { translatedRaw ->
                     requireAiRequestCurrent(request)
-                    val translated = response.text.trim().take(4_000)
+                    val translated = translatedRaw.trim().take(4_000)
                     if (translated.isBlank()) {
                         failAiOperation(operationId, AiOperationError.EMPTY_RESULT)
                         _uiState.update {
@@ -1832,8 +1790,8 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                     val current = _uiState.value.messages.firstOrNull { it.id == messageId } ?: message
                     val currentMeta = current.parsedMeta()
                     val updatedMeta = currentMeta.copy(
-                        translations = currentMeta.translations + (response.targetLanguage to translated),
-                        preferredTranslationLanguage = response.targetLanguage
+                        translations = currentMeta.translations + (targetLanguage to translated),
+                        preferredTranslationLanguage = targetLanguage
                     )
                     val updated = current.copy(
                         content = composeContentWithMeta(current.parsedContent(), updatedMeta),
@@ -1867,7 +1825,12 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
         val exactWindow = unreadSummaryWindow
         val unreadCount = exactWindow?.totalCount ?: state.chat?.unreadCount ?: 0
         if (unreadCount <= 0 || messages.isEmpty() || token.isBlank()) return
-        if (!aiSettingsLoaded || !state.aiEnabled || !com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(app)) return
+        if (
+            !aiSettingsLoaded ||
+            !state.aiEnabled ||
+            !com.maodouchat.ai.AiPrivacyPreferences.userEnabled(app) ||
+            !com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(app)
+        ) return
 
         val exactMessageIds = exactWindow?.messageIds?.toHashSet()
         val candidates = messages
@@ -1917,26 +1880,19 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                             isUnreadSummaryLoading = false
                         )
                     }
-                    viewModelScope.launch(Dispatchers.IO) {
-                        aiSummarySyncRepo.push(
-                            tokenManager.getToken().orEmpty(),
-                            request.userId,
-                            cached,
-                            AiSummaryScope.UNREAD.name,
-                            liveToken = tokenManager::getToken,
-                            liveUserId = tokenManager::getUserId
-                        )
-                    }
                     return@launch
                 }
 
                 requireAiRequestCurrent(request)
-                val liveToken = tokenManager.getToken().orEmpty()
-                ApiService.summarizeChat(liveToken, contextMessages, style = "brief", chatId = request.chatId).fold(
-                    onSuccess = { response ->
+                com.maodouchat.ai.agent.LocalAiGateway.summarize(
+                    getApplication(),
+                    contextMessages,
+                    "brief"
+                ).fold(
+                    onSuccess = { generated ->
                         requireAiRequestCurrent(request)
                         unreadSummaryAttemptedForKey = cacheKey
-                        val summary = response.summary.trim().take(3_000)
+                        val summary = generated.trim().take(3_000)
                         if (summary.isBlank()) {
                             _uiState.update { it.copy(isUnreadSummaryLoading = false) }
                             return@fold
@@ -1961,16 +1917,6 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                                 unreadAiSummary = displaySummary,
                                 unreadAiSummaryCount = candidates.size,
                                 isUnreadSummaryLoading = false
-                            )
-                        }
-                        viewModelScope.launch(Dispatchers.IO) {
-                            aiSummarySyncRepo.push(
-                                tokenManager.getToken().orEmpty(),
-                                request.userId,
-                                saved,
-                                AiSummaryScope.UNREAD.name,
-                                liveToken = tokenManager::getToken,
-                                liveUserId = tokenManager::getUserId
                             )
                         }
                     },

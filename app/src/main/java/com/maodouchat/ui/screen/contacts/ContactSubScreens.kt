@@ -81,13 +81,7 @@ import com.maodouchat.network.ChatDto
 import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
-import com.maodouchat.ui.theme.Background
-import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.MaodouchatTheme
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.Surface
-import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.util.QrCodeGenerator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -141,15 +135,15 @@ fun MyQrCodeScreen(
             title = { Text(stringResource(R.string.profile_my_qr), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(28.dp))
                 }
             },
             actions = {
                 IconButton(onClick = { viewModel.reload() }, enabled = !state.isLoading) {
-                    Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.common_refresh), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.common_refresh), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(24.dp))
                 }
                 IconButton(onClick = onOpenScan) {
-                    Icon(Icons.Outlined.QrCodeScanner, contentDescription = stringResource(R.string.contacts_scan), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Outlined.QrCodeScanner, contentDescription = stringResource(R.string.contacts_scan), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(28.dp))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
@@ -600,7 +594,7 @@ fun ScanScreen(
             title = { Text(stringResource(R.string.contacts_scan), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(28.dp))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))

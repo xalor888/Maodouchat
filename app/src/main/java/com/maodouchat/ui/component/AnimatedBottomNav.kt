@@ -3,7 +3,6 @@ package com.maodouchat.ui.component
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -14,7 +13,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,14 +29,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.TextHint
 
 data class BottomNavItem(
     val icon: ImageVector,
@@ -44,12 +45,20 @@ data class BottomNavItem(
     val badgeCount: Int = 0
 )
 
+/** 贴底导航与悬浮胶囊共用的控件尺寸，关掉悬浮底栏后按钮不应被撑大。 */
+internal object PinnedBottomNavMetrics {
+    val BarHeight = 64.dp
+    val IconSize = 22.dp
+    val LabelSize = 10.sp
+    val PillHeight = 56.dp
+    val SidePadding = 8.dp
+    val PillInset = 4.dp
+}
+
 /**
- * Animated bottom navigation bar with a Telegram-style sliding selection pill.
- *
- * A single rounded pill springs horizontally to the selected tab (instead of
- * appearing/disappearing per tab). Icon scale, tint and label size animate
- * with the unified motion specs and collapse when animations are disabled.
+ * Pinned bottom navigation. Geometry matches the floating capsule dock
+ * (64dp bar, 22dp icons, 10sp labels) so turning the dock off does not
+ * inflate the tab buttons.
  */
 @Composable
 fun AnimatedBottomNav(
@@ -59,17 +68,19 @@ fun AnimatedBottomNav(
     modifier: Modifier = Modifier
 ) {
     val motion = LocalMotionSettings.current
-    val sidePadding = 8.dp
-    val pillWidth = 48.dp
-    val pillHeight = 28.dp
+    val selectedTint = MaterialTheme.colorScheme.primary
+    val unselectedTint = LocalChatPalette.current.textHint
+    val sidePadding = PinnedBottomNavMetrics.SidePadding
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
+            .height(PinnedBottomNavMetrics.BarHeight)
             .background(MaterialTheme.colorScheme.surface)
     ) {
         val tabCount = items.size.coerceAtLeast(1)
         val tabWidth = (maxWidth - sidePadding * 2) / tabCount
+        val pillWidth = (tabWidth - PinnedBottomNavMetrics.PillInset * 2).coerceAtLeast(32.dp)
         val targetPillOffset = sidePadding + tabWidth * selectedIndex + (tabWidth - pillWidth) / 2
 
         val pillOffset by animateDpAsState(
@@ -82,15 +93,13 @@ fun AnimatedBottomNav(
             label = "navPillOffset"
         )
 
-        // Sliding selection pill (drawn behind the items). When motion is off the
-        // offset snaps, so the pill still marks the selected tab without animating.
         if (items.isNotEmpty()) {
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .offset { IntOffset(pillOffset.roundToPx(), 0) }
-                    .size(width = pillWidth, height = pillHeight)
-                    .clip(RoundedCornerShape(14.dp))
+                    .size(width = pillWidth, height = PinnedBottomNavMetrics.PillHeight)
+                    .clip(RoundedCornerShape(percent = 50))
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
             )
         }
@@ -98,24 +107,16 @@ fun AnimatedBottomNav(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = sidePadding, vertical = 8.dp),
+                .fillMaxHeight()
+                .padding(horizontal = sidePadding),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
             items.forEachIndexed { index, item ->
                 val isSelected = index == selectedIndex
 
-                val scale by animateFloatAsState(
-                    targetValue = if (isSelected && motion.animationsEnabled) 1.1f else 1f,
-                    animationSpec = motion.springSpec(
-                        dampingRatio = 0.6f,
-                        stiffness = 400f
-                    ),
-                    label = "navScale$index"
-                )
-
                 val iconTint by animateColorAsState(
-                    targetValue = if (isSelected) Primary else TextHint,
+                    targetValue = if (isSelected) selectedTint else unselectedTint,
                     animationSpec = if (motion.animationsEnabled) {
                         spring(
                             dampingRatio = Spring.DampingRatioNoBouncy,
@@ -131,59 +132,41 @@ fun AnimatedBottomNav(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .weight(1f)
+                        .fillMaxHeight()
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) {
                             onItemSelected(index)
-                        }
-                        .padding(vertical = 4.dp),
-                    verticalArrangement = Arrangement.Center
+                        },
+                    verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box {
                         Icon(
                             imageVector = if (isSelected) item.selectedIcon else item.icon,
                             contentDescription = item.label,
                             tint = iconTint,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .graphicsLayer {
-                                    scaleX = scale
-                                    scaleY = scale
-                                }
+                            modifier = Modifier.size(PinnedBottomNavMetrics.IconSize)
                         )
+                        if (item.badgeCount > 0) {
+                            AnimatedNotificationBadge(
+                                count = item.badgeCount,
+                                modifier = Modifier.align(Alignment.TopEnd)
+                            )
+                        }
                     }
-
-                    // Label with animated size
-                    val labelSize by animateFloatAsState(
-                        targetValue = if (isSelected) 11f else 10f,
-                        animationSpec = motion.springSpec(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessLow
-                        ),
-                        label = "labelSize$index"
-                    )
 
                     Text(
                         text = item.label,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = labelSize.sp,
-                            fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.SemiBold
-                            else androidx.compose.ui.text.font.FontWeight.Normal
+                            fontSize = PinnedBottomNavMetrics.LabelSize,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            letterSpacing = 0.sp
                         ),
-                        color = if (isSelected) Primary else TextHint,
-                        maxLines = 1
+                        color = if (isSelected) selectedTint else unselectedTint,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-
-                    // Badge
-                    if (item.badgeCount > 0) {
-                        AnimatedBadge(
-                            count = item.badgeCount,
-                            modifier = Modifier.offset(y = (-2).dp)
-                        )
-                    }
                 }
             }
         }

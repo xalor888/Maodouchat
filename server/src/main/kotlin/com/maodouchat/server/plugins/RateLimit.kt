@@ -342,7 +342,7 @@ private fun envLong(name: String, default: Long): Long =
  * - Unauthenticated requests (login/register/public endpoints, invalid JWT) keep the
  *   per-IP budget — brute force / unauthenticated DoS protection.
  * - `/ws` is authenticated-only; a valid Bearer is billed per user so NAT reconnects
- *   do not share the 600/min IP budget. Invalid/missing JWT stays on the IP budget.
+ *   do not share the unauthenticated IP budget. Invalid/missing JWT stays on the IP budget.
  * - Attachment chunk uploads have their own per-user limits and are skipped here.
  *
  * JWT is resolved from the Authorization header here: [ApplicationCallPipeline.Plugins]
@@ -376,6 +376,13 @@ fun Application.configureRateLimit() {
         if (isAttachmentUploadBody) return@intercept
         // Skip health checks
         if (path == "/api/health" || path == "/api/status") return@intercept
+        // WebRTC .so is a one-shot ~10MB public download. Billing it on the
+        // unauthenticated IP bucket (emulator/NAT) 429s first-call forever.
+        if (path.startsWith("/api/webrtc/lib")) return@intercept
+        if (path == "/api/internal/app-update" || path == "/api/public/app-update/latest.apk") return@intercept
+        // WS handshake with a valid JWT is billed on the per-user bucket below.
+        // Brief reconnect flaps (heartbeat dead-after 30s) must not 429 the NAT IP
+        // budget and toast 「频繁请稍后再试」 on every chat list refresh.
 
         val clientIp = call.remoteHost()
         if (RuntimeConfigService.isIpBlocked(clientIp)) {

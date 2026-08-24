@@ -1194,10 +1194,13 @@ class MessageRepository {
             val locked = lockChatThenMessage(messageId) ?: return@transaction emptyList()
             val message = locked.message
             val chatId = locked.chat[Chats.id]
-            val isParticipant = ChatParticipants.selectAll().where {
+            val viewerRow = ChatParticipants.selectAll().where {
                 (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq viewerId)
-            }.firstOrNull() != null
-            if (!isParticipant) return@transaction emptyList()
+            }.firstOrNull() ?: return@transaction emptyList()
+            val isSender = message[Messages.senderId] == viewerId
+            val isGroup = locked.chat[Chats.isGroup]
+            val privileged = viewerRow[ChatParticipants.role] in setOf("OWNER", "ADMIN")
+            if (!isSender && !(isGroup && privileged)) return@transaction emptyList()
             val blockedSenders = blockedSenderIdsForViewerInTx(viewerId)
             val receiptCondition = if (blockedSenders.isEmpty()) {
                 ReadReceipts.messageId eq messageId

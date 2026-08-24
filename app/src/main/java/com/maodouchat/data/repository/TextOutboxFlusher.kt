@@ -101,13 +101,17 @@ object TextOutboxFlusher {
                         selfUserId = userId,
                         chatParticipants = chatEntity?.participants
                     ) ?: throw IllegalStateException("outbox_peer_unresolved")
-                    when (msg.type) {
-                        MessageType.TEXT, MessageType.MARKDOWN ->
-                            app.signalProtocol.encryptSyncedContentEnvelope(liveToken, peerId, msg.content, msg.type.name).getOrThrow()
-                        else ->
-                            app.signalProtocol.encryptSyncedContentEnvelope(
-                                liveToken, peerId, msg.content, msg.type.name
-                            ).getOrThrow()
+                    if (com.maodouchat.bot.BotCommandPolicy.isBotUserId(peerId)) {
+                        msg.content
+                    } else {
+                        when (msg.type) {
+                            MessageType.TEXT, MessageType.MARKDOWN ->
+                                app.signalProtocol.encryptSyncedContentEnvelope(liveToken, peerId, msg.content, msg.type.name).getOrThrow()
+                            else ->
+                                app.signalProtocol.encryptSyncedContentEnvelope(
+                                    liveToken, peerId, msg.content, msg.type.name
+                                ).getOrThrow()
+                        }
                     }
                 }
                 // Encrypt can take long enough for logout/switch; re-check before REST.

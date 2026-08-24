@@ -76,15 +76,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.network.ApiService
-import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.MaodouDimens
 import com.maodouchat.ui.theme.MaodouchatTheme
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Outline
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.Surface
-import com.maodouchat.ui.theme.TextHint
-import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MotionTokens
@@ -102,7 +95,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 
 @Composable
@@ -170,11 +162,7 @@ fun LoginScreen(
     }
 
     Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.verticalGradient(
-                listOf(Surface, Surface, MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.08f))
-            )
-        ),
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.TopCenter
     ) {
         Column(
@@ -266,7 +254,7 @@ fun LoginScreen(
                     Text(
                         text = serverBanner,
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (serverMaintenance) Error else Primary,
+                        color = if (serverMaintenance) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -281,7 +269,7 @@ fun LoginScreen(
                 PrimaryTabRow(
                     selectedTabIndex = state.selectedTab,
                     containerColor = Color.Transparent,
-                    contentColor = Primary,
+                    contentColor = MaterialTheme.colorScheme.primary,
                     indicator = {
                         PrimaryIndicator(
                             modifier = Modifier.tabIndicatorOffset(state.selectedTab, matchContentSize = false),
@@ -299,7 +287,7 @@ fun LoginScreen(
                 ) {
                     Tab(selected = state.selectedTab == 0, onClick = { viewModel.onTabSelected(0) },
                         text = { Text(stringResource(R.string.login_tab), fontWeight = if (state.selectedTab == 0) FontWeight.SemiBold else FontWeight.Normal) },
-                        selectedContentColor = Primary, unselectedContentColor = TextSecondary)
+                        selectedContentColor = MaterialTheme.colorScheme.primary, unselectedContentColor = LocalChatPalette.current.textSecondary)
                     Tab(selected = state.selectedTab == 1, onClick = {
                         if (serverRegistrationOpen == false) {
                             Toast.makeText(context, context.getString(R.string.login_register_closed), Toast.LENGTH_SHORT).show()
@@ -308,10 +296,10 @@ fun LoginScreen(
                         }
                     },
                         text = { Text(stringResource(R.string.register_tab), fontWeight = if (state.selectedTab == 1) FontWeight.SemiBold else FontWeight.Normal) },
-                        selectedContentColor = Primary, unselectedContentColor = TextSecondary)
+                        selectedContentColor = MaterialTheme.colorScheme.primary, unselectedContentColor = LocalChatPalette.current.textSecondary)
                     Tab(selected = state.selectedTab == 2, onClick = { viewModel.onTabSelected(2) },
                         text = { Text(stringResource(R.string.forgot_password_tab), fontWeight = if (state.selectedTab == 2) FontWeight.SemiBold else FontWeight.Normal) },
-                        selectedContentColor = Primary, unselectedContentColor = TextSecondary)
+                        selectedContentColor = MaterialTheme.colorScheme.primary, unselectedContentColor = LocalChatPalette.current.textSecondary)
                 }
 
                 // Form
@@ -331,8 +319,8 @@ fun LoginScreen(
                             singleLine = true, shape = RoundedCornerShape(MaodouDimens.ControlRadius),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = LocalChatPalette.current.chatInputBackground, unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                                focusedBorderColor = Primary, unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-                                cursorColor = Primary, focusedTextColor = OnSurface, unfocusedTextColor = OnSurface
+                                focusedBorderColor = MaterialTheme.colorScheme.primary, unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
+                                cursorColor = MaterialTheme.colorScheme.primary, focusedTextColor = MaterialTheme.colorScheme.onSurface, unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                             ), modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -346,8 +334,8 @@ fun LoginScreen(
                         shape = RoundedCornerShape(MaodouDimens.ControlRadius),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = LocalChatPalette.current.chatInputBackground, unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                            focusedBorderColor = Primary, unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-                            cursorColor = Primary, focusedTextColor = OnSurface, unfocusedTextColor = OnSurface
+                            focusedBorderColor = MaterialTheme.colorScheme.primary, unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
+                            cursorColor = MaterialTheme.colorScheme.primary, focusedTextColor = MaterialTheme.colorScheme.onSurface, unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                         ), modifier = Modifier.fillMaxWidth()
                     )
 
@@ -364,11 +352,11 @@ fun LoginScreen(
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = LocalChatPalette.current.chatInputBackground,
                                 unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                                focusedBorderColor = Primary,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-                                cursorColor = Primary,
-                                focusedTextColor = OnSurface,
-                                unfocusedTextColor = OnSurface
+                                cursorColor = MaterialTheme.colorScheme.primary,
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -388,8 +376,8 @@ fun LoginScreen(
                                 shape = RoundedCornerShape(MaodouDimens.ControlRadius),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedContainerColor = LocalChatPalette.current.chatInputBackground, unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                                    focusedBorderColor = Primary, unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-                                    cursorColor = Primary, focusedTextColor = OnSurface, unfocusedTextColor = OnSurface
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary, unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
+                                    cursorColor = MaterialTheme.colorScheme.primary, focusedTextColor = MaterialTheme.colorScheme.onSurface, unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                                 ), modifier = Modifier.weight(1f)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -430,8 +418,8 @@ fun LoginScreen(
                         shape = RoundedCornerShape(MaodouDimens.ControlRadius),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = LocalChatPalette.current.chatInputBackground, unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                            focusedBorderColor = Primary, unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-                            cursorColor = Primary, focusedTextColor = OnSurface, unfocusedTextColor = OnSurface
+                            focusedBorderColor = MaterialTheme.colorScheme.primary, unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
+                            cursorColor = MaterialTheme.colorScheme.primary, focusedTextColor = MaterialTheme.colorScheme.onSurface, unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                         ), modifier = Modifier.fillMaxWidth()
                     )
 
@@ -449,11 +437,11 @@ fun LoginScreen(
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = LocalChatPalette.current.chatInputBackground,
                                 unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                                focusedBorderColor = Primary,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-                                cursorColor = Primary,
-                                focusedTextColor = OnSurface,
-                                unfocusedTextColor = OnSurface
+                                cursorColor = MaterialTheme.colorScheme.primary,
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -465,9 +453,9 @@ fun LoginScreen(
                             com.maodouchat.util.PasswordStrength.evaluate(state.password)
                         }
                         val strengthColor = when (strength.level) {
-                            com.maodouchat.util.PasswordStrength.Level.WEAK -> Error
-                            com.maodouchat.util.PasswordStrength.Level.FAIR -> Color(0xFFE67E22)
-                            else -> Primary
+                            com.maodouchat.util.PasswordStrength.Level.WEAK -> MaterialTheme.colorScheme.error
+                            com.maodouchat.util.PasswordStrength.Level.FAIR -> MaterialTheme.colorScheme.tertiary
+                            else -> MaterialTheme.colorScheme.primary
                         }
                         val strengthLabel = when (strength.level) {
                             com.maodouchat.util.PasswordStrength.Level.WEAK -> stringResource(R.string.password_strength_weak)
@@ -529,7 +517,7 @@ fun LoginScreen(
                             }
                     ) {
                         if (state.isLoading) {
-                            CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
                         } else {
                             val label = when (state.selectedTab) {
                                 0 -> stringResource(R.string.login_tab)
@@ -556,7 +544,7 @@ fun LoginScreen(
                         Text(
                             serverLabel,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis

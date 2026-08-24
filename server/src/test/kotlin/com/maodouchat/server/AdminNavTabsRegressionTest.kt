@@ -6,14 +6,14 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Admin E2E selectors (8 tabs, no `rules`) must stay aligned with the HTML
+ * Admin E2E selectors (11 tabs, no `rules`) must stay aligned with the HTML
  * shipped on main. This does not boot Ktor/Playwright, so it stays stable
  * against parallel visual work (XAL-13 / XAL-14).
  */
 class AdminNavTabsRegressionTest {
 
     @Test
-    fun `admin html ships exactly eight nav tabs and no rules tab`() {
+    fun `admin html ships the current nav tabs and no rules tab`() {
         val html = requireNotNull(javaClass.classLoader.getResource("admin/admin.html")) {
             "admin/admin.html missing from classpath"
         }.readText()
@@ -39,8 +39,11 @@ class AdminNavTabsRegressionTest {
         val EXPECTED_TABS = listOf(
             "dashboard",
             "users",
+            "online",
+            "ranking",
             "content",
             "moderation",
+            "risk",
             "announcements",
             "system",
             "diagnostics",

@@ -18,9 +18,9 @@ internal object SessionPresencePolicy {
         // access 未过期（或未记录过期时间）即视为已登录——refresh 本地记录失准时
         // 不能把仍有效的 access 误踢回登录页。
         if (accessTokenExpiresAt <= 0L || accessTokenExpiresAt > nowMs) return true
-        // access 已过期：必须有 refresh，且 refresh 未明确过期。
-        if (refreshToken.isNullOrBlank()) return false
-        if (refreshTokenExpiresAt > 0L && refreshTokenExpiresAt <= nowMs) return false
-        return true
+        // access 已过期：只要本机还有 refresh 就视为仍登录。本地 refreshExpiresAt
+        // 可能因时钟/落盘失准提前到期；真正作废只能由服务端 refresh 401 判定。
+        // 否则断网 / 模拟器 network=0 会把用户踢回登录页。
+        return !refreshToken.isNullOrBlank()
     }
 }

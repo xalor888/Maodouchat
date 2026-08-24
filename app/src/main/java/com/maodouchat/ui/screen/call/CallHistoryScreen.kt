@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +34,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,9 +53,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.call.CallLogStore
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -88,14 +88,18 @@ fun CallHistoryScreen(
     val showSearch = logs.size >= 6
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.call_log_title)) },
+                title = { Text(stringResource(R.string.call_log_title), color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
                 actions = {
                     if (logs.isNotEmpty()) {
                         TextButton(onClick = {
@@ -128,10 +132,22 @@ fun CallHistoryScreen(
             // 1.333：只看未接（有未接记录时显示）
             if (logs.any { it.state == CallLogStore.State.MISSED }) {
                 Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                    androidx.compose.material3.FilterChip(
+                    FilterChip(
                         selected = onlyMissed,
                         onClick = { onlyMissed = !onlyMissed },
-                        label = { Text(stringResource(R.string.call_history_only_missed)) }
+                        label = { Text(stringResource(R.string.call_history_only_missed)) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = onlyMissed,
+                            borderColor = MaterialTheme.colorScheme.outlineVariant,
+                            selectedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        )
                     )
                 }
             }
@@ -182,14 +198,14 @@ fun CallHistoryScreen(
                         modifier = Modifier
                             .size(40.dp)
                             .background(
-                                if (isMissed) UnreadRed.copy(alpha = 0.12f) else Primary.copy(alpha = 0.10f),
+                                if (isMissed) UnreadRed.copy(alpha = 0.12f) else MaterialTheme.colorScheme.primaryContainer,
                                 CircleShape
                             )
                     ) {
                         Icon(
                             imageVector = if (isMissed) Icons.Filled.CallEnd else Icons.Filled.Call,
                             contentDescription = null,
-                            tint = if (isMissed) UnreadRed else Primary,
+                            tint = if (isMissed) UnreadRed else MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -227,7 +243,7 @@ fun CallHistoryScreen(
                                     }
                                 },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (isMissed) UnreadRed else TextSecondary
+                                color = if (isMissed) UnreadRed else LocalChatPalette.current.textSecondary
                             )
                         }
                     }
@@ -322,7 +338,7 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
         var cursor = 0
         snippet.highlights.forEach { span ->
             if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, background = MaterialTheme.colorScheme.primaryContainer))
             append(snippet.text.substring(span.start, span.end))
             pop()
             cursor = span.end

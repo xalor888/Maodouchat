@@ -1,6 +1,5 @@
 package com.maodouchat.server.repository
 
-import com.maodouchat.server.db.AiPreferences
 import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.BotCommandLogs
 import com.maodouchat.server.db.BotUpdateInbox
@@ -66,6 +65,8 @@ class BotCreateOutcomeTest {
         setupDb()
         val first = BotRepository.create("u1", "Test Bot", "test_bot", "description")
         assertIs<BotRepository.BotCreateResult.Success>(first)
+        val seeded = BotRepository.getMyCommands(first.bot.id).map { it.command }.toSet()
+        assertEquals(setOf("start", "help"), seeded)
 
         val duplicate = BotRepository.create("u1", "Test Bot", "TEST_BOT", "description")
         assertEquals(BotRepository.BotCreateResult.UsernameTaken, duplicate)
@@ -124,13 +125,6 @@ class BotCreateOutcomeTest {
                 it[SenderKeyDistributions.createdAt] = now
                 it[SenderKeyDistributions.updatedAt] = now
             }
-            AiPreferences.insert {
-                it[AiPreferences.userId] = botId
-                it[AiPreferences.scope] = "USER"
-                it[AiPreferences.chatId] = ""
-                it[AiPreferences.enabled] = true
-                it[AiPreferences.updatedAt] = now
-            }
             GroupPolls.insert {
                 it[GroupPolls.id] = "poll_1"
                 it[GroupPolls.chatId] = "c1"
@@ -161,7 +155,6 @@ class BotCreateOutcomeTest {
                         (SenderKeyDistributions.recipientUserId eq botId)
                 }.empty()
             )
-            assertTrue(AiPreferences.selectAll().where { AiPreferences.userId eq botId }.empty())
             assertTrue(GroupPollVotes.selectAll().where { GroupPollVotes.userId eq botId }.empty())
         }
     }
@@ -684,5 +677,60 @@ class BotCreateOutcomeTest {
         transaction {
             assertEquals(1L, BotCommandLogs.selectAll().where { BotCommandLogs.botId eq botId }.count())
         }
+    }
+
+    @Test
+    fun `user command inbox rejects ciphertext and accepts slash`() {
+        setupDb()
+        val created = BotRepository.create("u1", "Inbox Bot", "inbox_bot", "description")
+        assertIs<BotRepository.BotCreateResult.Success>(created)
+        val botId = created.bot.id
+        val now = System.currentTimeMillis()
+        transaction {
+            Users.insert {
+                it[id] = "u2"
+                it[Users.name] = "u2"
+                it[Users.email] = "u2@test.local"
+                it[Users.passwordHash] = "x"
+            }
+            Chats.insert {
+                it[Chats.id] = "g1"
+                it[Chats.isGroup] = true
+                it[Chats.groupName] = "g"
+            }
+            listOf("u1", "u2", botId).forEach { uid ->
+                ChatParticipants.insert {
+                    it[ChatParticipants.chatId] = "g1"
+                    it[ChatParticipants.userId] = uid
+                    it[ChatParticipants.joinedAt] = now
+                }
+            }
+        }
+        assertTrue(
+            BotRepository.enqueueUserCommand(
+                chatId = "g1",
+                userId = "u1",
+                text = """{"ciphertext":"abc"}"""
+            ).isEmpty()
+        )
+        assertTrue(
+            BotRepository.enqueueUserCommand(
+                chatId = "g1",
+                userId = "u1",
+                text = "hello everyone"
+            ).isEmpty()
+        )
+        val delivered = BotRepository.enqueueUserCommand(
+            chatId = "g1",
+            userId = "u1",
+            text = "/help tomorrow"
+        )
+        assertEquals(1, delivered.size)
+        assertEquals(botId, delivered.first().first)
+        assertTrue(delivered.first().second.contains("\"command\":\"help\""))
+        val updates = BotRepository.getUpdates(botId)
+        assertEquals(1, updates.size)
+        assertTrue(updates.first().second.contains("user_command"))
+        assertFalse(updates.first().second.contains("ciphertext"))
     }
 }

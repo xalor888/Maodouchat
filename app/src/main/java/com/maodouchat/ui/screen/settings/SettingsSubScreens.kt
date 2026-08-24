@@ -10,9 +10,6 @@ import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,7 +35,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -118,17 +114,9 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import com.maodouchat.ui.theme.Background
-import com.maodouchat.ui.theme.Divider
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.MaodouchatTheme
-import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.OnlineGreen
-import com.maodouchat.ui.theme.Outline
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.Surface
-import com.maodouchat.ui.theme.TextHint
-import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.foundation.layout.heightIn
@@ -282,6 +270,7 @@ fun AccountSecurityScreen(
                 fingerprint = localFingerprint
             )
             Spacer(modifier = Modifier.height(16.dp))
+            SecuritySectionLabel(stringResource(R.string.security_section_about))
             SecurityGroup {
                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
                     Text(
@@ -298,6 +287,7 @@ fun AccountSecurityScreen(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
+            SecuritySectionLabel(stringResource(R.string.security_section_account))
             SecurityGroup {
                 InfoRow(label = stringResource(R.string.account_id_label), value = state.userId.ifBlank { "—" })
                 HorizontalDividerLite()
@@ -329,6 +319,7 @@ fun AccountSecurityScreen(
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
+            SecuritySectionLabel(stringResource(R.string.security_section_devices))
             SecurityGroup {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
@@ -426,6 +417,7 @@ fun AccountSecurityScreen(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
+            SecuritySectionLabel(stringResource(R.string.security_section_danger))
             // 8.62：退出所有设备（远程撤销全部会话，含当前设备）
             SecurityGroup {
                 Row(
@@ -463,6 +455,7 @@ fun AccountSecurityScreen(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
+            SecuritySectionLabel(stringResource(R.string.security_section_lock))
             // App 锁定分组 — 轻量化安全功能，复用设备已有 PIN / 图案 / 指纹，应用不接触凭据数据
             val sensitiveAuthTitle = stringResource(R.string.sensitive_auth_title)
             val sensitiveAuthDisableLock = stringResource(R.string.sensitive_auth_disable_app_lock)
@@ -566,7 +559,7 @@ fun AccountSecurityScreen(
                                 }) {
                                     Text(
                                         stringResource(label),
-                                        color = if (appLockTimeout == minutes) Primary else TextSecondary,
+                                        color = if (appLockTimeout == minutes) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary,
                                         fontWeight = if (appLockTimeout == minutes) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
                                     )
                                 }
@@ -634,6 +627,7 @@ fun AccountSecurityScreen(
 
             // B2 密聊安全（8 个 surface 开关，仅本机生效）
             Spacer(modifier = Modifier.height(12.dp))
+            SecuritySectionLabel(stringResource(R.string.security_section_secret))
             SecurityGroup {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
@@ -668,7 +662,10 @@ fun AccountSecurityScreen(
                         }
                     )
                 }
-                HorizontalDividerLite()
+            }
+
+            if (false) {
+            SecurityGroup {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -824,6 +821,7 @@ fun AccountSecurityScreen(
                     )
                 }
             }
+            }
 
             // TOTP 2FA
             Spacer(modifier = Modifier.height(12.dp))
@@ -841,7 +839,7 @@ fun AccountSecurityScreen(
                     Text(
                         stringResource(if (totpEnabled) R.string.settings_totp_status_enabled else R.string.settings_totp_status_disabled),
                         style = MaterialTheme.typography.labelLarge,
-                        color = if (totpEnabled) OnlineGreen else TextSecondary
+                        color = if (totpEnabled) OnlineGreen else LocalChatPalette.current.textSecondary
                     )
                     totpMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) }
                     totpSecret?.let { secret ->
@@ -1154,9 +1152,9 @@ fun AccountSecurityScreen(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = LocalChatPalette.current.chatInputBackground,
                         unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                        focusedBorderColor = Primary,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-                        cursorColor = Primary
+                        cursorColor = MaterialTheme.colorScheme.primary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1193,7 +1191,7 @@ private fun DeviceRow(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Outlined.Smartphone, contentDescription = null, tint = if (isCurrent) Primary else TextSecondary, modifier = Modifier.size(22.dp))
+        Icon(Icons.Outlined.Smartphone, contentDescription = null, tint = if (isCurrent) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary, modifier = Modifier.size(22.dp))
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1317,6 +1315,16 @@ private fun SecurityStatusCard(
             color = LocalChatPalette.current.textSecondary
         )
     }
+}
+
+@Composable
+private fun SecuritySectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = LocalChatPalette.current.textSecondary,
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+    )
 }
 
 @Composable
@@ -1470,8 +1478,8 @@ private fun PasswordStrengthIndicator(strength: com.maodouchat.util.PasswordStre
     val (color, label) = when (strength.level) {
         com.maodouchat.util.PasswordStrength.Level.WEAK -> Error to stringResource(R.string.password_strength_weak)
         com.maodouchat.util.PasswordStrength.Level.FAIR -> com.maodouchat.ui.theme.UnreadRed to stringResource(R.string.password_strength_fair)
-        com.maodouchat.util.PasswordStrength.Level.STRONG -> Primary to stringResource(R.string.password_strength_strong)
-        com.maodouchat.util.PasswordStrength.Level.VERY_STRONG -> Primary to stringResource(R.string.password_strength_very_strong)
+        com.maodouchat.util.PasswordStrength.Level.STRONG -> MaterialTheme.colorScheme.primary to stringResource(R.string.password_strength_strong)
+        com.maodouchat.util.PasswordStrength.Level.VERY_STRONG -> MaterialTheme.colorScheme.primary to stringResource(R.string.password_strength_very_strong)
     }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -1526,27 +1534,57 @@ private fun PasswordField(label: String, value: String, onValueChange: (String) 
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = LocalChatPalette.current.chatInputBackground,
             unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-            focusedBorderColor = Primary,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
             unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-            cursorColor = Primary
+            cursorColor = MaterialTheme.colorScheme.primary
         ),
         modifier = Modifier.fillMaxWidth()
     )
 }
 
 /**
- * 「AI 助手与隐私」页 — 全局 AI 开关 + 本机授权 + 调用审计
+ * 「AI 与隐私」页 — 聊天内 AI 开关 + 本机授权 + 调用审计
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiPrivacySettingsScreen(
     onBack: () -> Unit = {},
+    onOpenAgent: () -> Unit = {},
     viewModel: AiPrivacySettingsViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showResetConsentDialog by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     var imageOcrEnabled by remember { mutableStateOf(com.maodouchat.ai.ImageOcrPreferences.isEnabled(context)) }
+    var autoTranslateEnabled by remember { mutableStateOf(com.maodouchat.ai.AiPrivacyPreferences.autoTranslateIncoming(context)) }
+    var providerName by remember {
+        mutableStateOf(com.maodouchat.ai.agent.LocalAiProviderStore.activeProvider(context)?.name.orEmpty())
+    }
+    var providerBaseUrl by remember {
+        mutableStateOf(com.maodouchat.ai.agent.LocalAiProviderStore.activeProvider(context)?.baseUrl.orEmpty())
+    }
+    var providerModel by remember {
+        mutableStateOf(com.maodouchat.ai.agent.LocalAiProviderStore.activeProvider(context)?.model.orEmpty())
+    }
+    var providerApiKey by remember {
+        mutableStateOf(com.maodouchat.ai.agent.LocalAiProviderStore.activeProvider(context)?.apiKey.orEmpty())
+    }
+    val activeProvider = remember { com.maodouchat.ai.agent.LocalAiProviderStore.activeProvider(context) }
+    var providerProtocol by remember {
+        mutableStateOf(activeProvider?.protocol ?: com.maodouchat.ai.agent.LocalAiProtocol.OPENAI_CHAT_COMPLETIONS)
+    }
+    var providerOrg by remember { mutableStateOf(activeProvider?.organization.orEmpty()) }
+    var providerAnthropicVersion by remember {
+        mutableStateOf(activeProvider?.anthropicVersion?.ifBlank { "2023-06-01" } ?: "2023-06-01")
+    }
+    var providerExtraHeaders by remember { mutableStateOf(activeProvider?.extraHeadersJson?.ifBlank { "{}" } ?: "{}") }
+    var providerTemperature by remember { mutableStateOf(activeProvider?.temperature?.toString().orEmpty()) }
+    var providerTopP by remember { mutableStateOf(activeProvider?.topP?.toString().orEmpty()) }
+    var providerMaxTokens by remember { mutableStateOf((activeProvider?.maxTokens ?: 4096).toString()) }
+    var providerContextWindow by remember { mutableStateOf((activeProvider?.contextWindowTokens ?: 128000).toString()) }
+    var providerHistoryLimit by remember { mutableStateOf((activeProvider?.historyMessageLimit ?: 24).toString()) }
+    var providerTimeout by remember { mutableStateOf((activeProvider?.timeoutSeconds ?: 120).toString()) }
+    var providerStream by remember { mutableStateOf(activeProvider?.stream ?: true) }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
@@ -1584,6 +1622,17 @@ fun AiPrivacySettingsScreen(
                 )
                 HorizontalDividerLite()
                 SwitchRow(
+                    title = stringResource(R.string.ai_privacy_auto_translate),
+                    subtitle = stringResource(R.string.ai_privacy_auto_translate_hint),
+                    checked = autoTranslateEnabled,
+                    enabled = !state.isSaving,
+                    onCheckedChange = { enabled ->
+                        autoTranslateEnabled = enabled
+                        com.maodouchat.ai.AiPrivacyPreferences.setAutoTranslateIncoming(context, enabled)
+                    }
+                )
+                HorizontalDividerLite()
+                SwitchRow(
                     title = stringResource(R.string.ai_privacy_local_safety),
                     subtitle = stringResource(R.string.ai_privacy_local_safety_hint),
                     checked = state.localSafetyEnabled,
@@ -1610,6 +1659,204 @@ fun AiPrivacySettingsScreen(
                         }
                     }
                 )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            SecurityGroup {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text(
+                        stringResource(R.string.agent_provider_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.agent_provider_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalChatPalette.current.textSecondary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.agent_provider_protocol),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                        com.maodouchat.ai.agent.LocalAiProtocol.entries.forEach { proto ->
+                            val label = when (proto) {
+                                com.maodouchat.ai.agent.LocalAiProtocol.OPENAI_CHAT_COMPLETIONS ->
+                                    stringResource(R.string.agent_protocol_chat_completions)
+                                com.maodouchat.ai.agent.LocalAiProtocol.OPENAI_RESPONSES ->
+                                    stringResource(R.string.agent_protocol_responses)
+                                com.maodouchat.ai.agent.LocalAiProtocol.ANTHROPIC_MESSAGES ->
+                                    stringResource(R.string.agent_protocol_anthropic)
+                            }
+                            FilterChip(
+                                selected = providerProtocol == proto,
+                                onClick = { providerProtocol = proto },
+                                label = { Text(label) },
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = providerName,
+                        onValueChange = { providerName = it.take(80) },
+                        label = { Text(stringResource(R.string.agent_provider_name)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = providerBaseUrl,
+                        onValueChange = { providerBaseUrl = it.take(240) },
+                        label = { Text(stringResource(R.string.agent_provider_base_url)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = providerModel,
+                        onValueChange = { providerModel = it.take(80) },
+                        label = { Text(stringResource(R.string.agent_provider_model)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = providerApiKey,
+                        onValueChange = { providerApiKey = it.take(200) },
+                        label = { Text(stringResource(R.string.agent_provider_api_key)) },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (providerProtocol != com.maodouchat.ai.agent.LocalAiProtocol.ANTHROPIC_MESSAGES) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = providerOrg,
+                            onValueChange = { providerOrg = it.take(80) },
+                            label = { Text(stringResource(R.string.agent_provider_organization)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = providerAnthropicVersion,
+                            onValueChange = { providerAnthropicVersion = it.take(40) },
+                            label = { Text(stringResource(R.string.agent_provider_anthropic_version)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = providerExtraHeaders,
+                        onValueChange = { providerExtraHeaders = it.take(1_000) },
+                        label = { Text(stringResource(R.string.agent_provider_extra_headers)) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.agent_provider_context_title),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = providerContextWindow,
+                        onValueChange = { providerContextWindow = it.filter(Char::isDigit).take(8) },
+                        label = { Text(stringResource(R.string.agent_provider_context_window)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = providerHistoryLimit,
+                        onValueChange = { providerHistoryLimit = it.filter(Char::isDigit).take(3) },
+                        label = { Text(stringResource(R.string.agent_provider_history_limit)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = providerMaxTokens,
+                        onValueChange = { providerMaxTokens = it.filter(Char::isDigit).take(6) },
+                        label = { Text(stringResource(R.string.agent_provider_max_tokens)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = providerTemperature,
+                        onValueChange = { providerTemperature = it.take(8) },
+                        label = { Text(stringResource(R.string.agent_provider_temperature)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = providerTopP,
+                        onValueChange = { providerTopP = it.take(8) },
+                        label = { Text(stringResource(R.string.agent_provider_top_p)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = providerTimeout,
+                        onValueChange = { providerTimeout = it.filter(Char::isDigit).take(3) },
+                        label = { Text(stringResource(R.string.agent_provider_timeout)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    SwitchRow(
+                        title = stringResource(R.string.agent_provider_stream),
+                        subtitle = stringResource(R.string.agent_provider_stream_hint),
+                        checked = providerStream,
+                        onCheckedChange = { providerStream = it }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row {
+                        TextButton(
+                            onClick = {
+                                val current = com.maodouchat.ai.agent.LocalAiProviderStore.activeProvider(context)
+                                    ?: com.maodouchat.ai.agent.LocalAiProviderStore.newProviderDraft(providerProtocol)
+                                com.maodouchat.ai.agent.LocalAiProviderStore.upsertProvider(
+                                    context,
+                                    current.copy(
+                                        name = providerName.ifBlank { current.name },
+                                        baseUrl = providerBaseUrl.trim().trimEnd('/'),
+                                        model = providerModel.trim(),
+                                        apiKey = providerApiKey.trim(),
+                                        protocol = providerProtocol,
+                                        organization = providerOrg.trim(),
+                                        anthropicVersion = providerAnthropicVersion.trim().ifBlank { "2023-06-01" },
+                                        extraHeadersJson = providerExtraHeaders.trim().ifBlank { "{}" },
+                                        temperature = providerTemperature.trim().toDoubleOrNull(),
+                                        topP = providerTopP.trim().toDoubleOrNull(),
+                                        maxTokens = providerMaxTokens.toIntOrNull() ?: 4_096,
+                                        contextWindowTokens = providerContextWindow.toIntOrNull() ?: 128_000,
+                                        historyMessageLimit = providerHistoryLimit.toIntOrNull() ?: 24,
+                                        timeoutSeconds = providerTimeout.toIntOrNull() ?: 120,
+                                        stream = providerStream
+                                    )
+                                )
+                                Toast.makeText(context, R.string.agent_provider_saved, Toast.LENGTH_SHORT).show()
+                            }
+                        ) { Text(stringResource(R.string.agent_provider_save)) }
+                        if (state.userEnabled && state.aiConsentAccepted) {
+                            TextButton(onClick = onOpenAgent) { Text(stringResource(R.string.agent_open)) }
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -1674,8 +1921,8 @@ fun AiPrivacySettingsScreen(
                                 )
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Primary,
-                                cursorColor = Primary
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                cursorColor = MaterialTheme.colorScheme.primary
                             )
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -1780,7 +2027,7 @@ fun AiPrivacySettingsScreen(
                     text = state.infoMessage ?: state.errorMessage.orEmpty(),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (state.errorMessage == null) Primary else Error
+                    color = if (state.errorMessage == null) MaterialTheme.colorScheme.primary else Error
                 )
             }
 
@@ -1870,7 +2117,7 @@ fun ModerationScreen(
     var selectedRule by remember { mutableStateOf<ModerationRuleResponse?>(null) }
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_moderation), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
@@ -1912,11 +2159,11 @@ fun ModerationScreen(
                         TextButton(
                             onClick = { viewModel.setSection(section) },
                             modifier = Modifier.background(
-                                if (selected) Primary.copy(alpha = 0.12f) else Color.Transparent,
+                                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
                                 RoundedCornerShape(10.dp)
                             )
                         ) {
-                            Text(label, color = if (selected) Primary else TextSecondary, maxLines = 1)
+                            Text(label, color = if (selected) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary, maxLines = 1)
                         }
                     }
                 }
@@ -1936,11 +2183,11 @@ fun ModerationScreen(
                             TextButton(
                                 onClick = { viewModel.setFilter(status) },
                                 modifier = Modifier.background(
-                                    if (selected) Primary.copy(alpha = 0.12f) else Color.Transparent,
+                                    if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
                                     RoundedCornerShape(10.dp)
                                 )
                             ) {
-                                Text(reportStatusLabel(status), color = if (selected) Primary else TextSecondary, maxLines = 1)
+                                Text(reportStatusLabel(status), color = if (selected) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary, maxLines = 1)
                             }
                         }
                     }
@@ -2151,7 +2398,7 @@ private fun RiskEventRow(event: RiskEventResponse, enabled: Boolean, onAcknowled
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(riskActionLabel(event.action), style = MaterialTheme.typography.bodyLarge, color = if (event.needsReview) Error else OnSurface)
+            Text(riskActionLabel(event.action), style = MaterialTheme.typography.bodyLarge, color = if (event.needsReview) Error else MaterialTheme.colorScheme.onSurface)
             Text(
                 stringResource(R.string.moderation_risk_summary, reportTargetLabel(event.source), event.userId, formatAuditTime(event.createdAt)),
                 style = MaterialTheme.typography.bodySmall,
@@ -2217,10 +2464,10 @@ private fun ModerationRuleDialog(
                         TextButton(
                             onClick = { selectedAction = action },
                             modifier = Modifier.background(
-                                if (selectedAction == action) Primary.copy(alpha = 0.12f) else Color.Transparent,
+                                if (selectedAction == action) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
                                 RoundedCornerShape(8.dp)
                             )
-                        ) { Text(riskActionLabel(action), color = if (selectedAction == action) Primary else TextSecondary) }
+                        ) { Text(riskActionLabel(action), color = if (selectedAction == action) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary) }
                     }
                 }
                 OutlinedTextField(
@@ -2311,9 +2558,9 @@ private fun ReportReviewDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = LocalChatPalette.current.chatInputBackground,
                         unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                        focusedBorderColor = Primary,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-                        cursorColor = Primary
+                        cursorColor = MaterialTheme.colorScheme.primary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -2659,7 +2906,7 @@ private fun DndTimeRow(label: String, minute: Int, enabled: Boolean, onPick: () 
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-        Text(formatDndTime(minute), style = MaterialTheme.typography.bodyMedium, color = if (enabled) Primary else TextSecondary)
+        Text(formatDndTime(minute), style = MaterialTheme.typography.bodyMedium, color = if (enabled) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary)
         Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(16.dp))
     }
 }
@@ -2711,8 +2958,6 @@ fun GeneralSettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showClearConfirm by remember { mutableStateOf(false) }
-    // 9.200：主题风格选择（TG 1:1 还原主题）
-    var showThemeStyleDialog by remember { mutableStateOf(false) }
     val appearanceVersion by com.maodouchat.util.ChatAppearancePreferences.appearanceVersion.collectAsState()
     var enterToSend by remember { mutableStateOf(com.maodouchat.util.ComposerPreferences.enterToSend(context)) }
     val bubbleColor = remember(appearanceVersion) {
@@ -2762,24 +3007,20 @@ fun GeneralSettingsScreen(
             ) {
                 ThemeRow(currentTheme = state.themeMode, onThemeChange = viewModel::setThemeMode)
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
-                ActionRow(
-                    label = stringResource(R.string.general_theme_style_title),
-                    subtitle = stringResource(
-                        R.string.general_theme_style_summary,
-                        themeStyleName(state.themeStyle)
-                    )
-                ) { showThemeStyleDialog = true }
+                val floatingDockOn by com.maodouchat.util.ChromePreferences.floatingDock.collectAsState()
+                val isDefaultTheme = true
+                SwitchRow(
+                    title = stringResource(R.string.general_floating_dock),
+                    subtitle = stringResource(R.string.general_floating_dock_subtitle),
+                    checked = if (isDefaultTheme) floatingDockOn else false,
+                    enabled = isDefaultTheme,
+                    onCheckedChange = { com.maodouchat.util.ChromePreferences.setFloatingDockEnabled(context, it) }
+                )
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 AccentColorRow(
                     current = state.accentColor,
                     onChange = viewModel::setAccentColor
                 )
-                androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
-                // 9.253：自定义颜色（TG 式主题编辑器，支持 .attheme 导入导出）
-                ActionRow(
-                    label = stringResource(R.string.settings_theme_customize),
-                    subtitle = stringResource(R.string.theme_editor_hint)
-                ) { onOpenThemeEditor() }
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 LanguageRow(
                     currentLanguage = state.languageMode,
@@ -2887,25 +3128,6 @@ fun GeneralSettingsScreen(
             dismissButton = { TextButton(onClick = { showClearConfirm = false }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) } }
         )
     }
-
-    // 9.200：主题风格选择（含 TG 1:1 还原主题，浅/深双变体预览）
-    if (showThemeStyleDialog) {
-        // 9.259：锁定打开对话框时的主题——预览期间 state.themeStyle 会被临时切换，
-        // 松手恢复必须用此快照而非实时 state
-        val confirmedStyle = remember { state.themeStyle }
-        ThemeStylePickerDialog(
-            currentStyle = confirmedStyle,
-            onSelect = { style ->
-                viewModel.setThemeStyle(style)
-                showThemeStyleDialog = false
-            },
-            // 9.259：长按临时预览——长按即切到该主题（对话框背后整 App 可见），松手恢复
-            onPreview = { previewStyle ->
-                viewModel.setThemeStyle(previewStyle ?: confirmedStyle)
-            },
-            onDismiss = { showThemeStyleDialog = false }
-        )
-    }
 }
 
 /**
@@ -2982,192 +3204,6 @@ private fun ChatBubbleShapeRow(
             ThemeChoiceChip(stringResource(R.string.general_bubble_shape_tg), selected = current == "tg", onClick = { onChange("tg") })
             ThemeChoiceChip(stringResource(R.string.general_bubble_shape_round), selected = current == "round", onClick = { onChange("round") })
         }
-    }
-}
-
-@Composable
-private fun themeStyleName(style: String): String = when (com.maodouchat.ui.theme.ThemeFamily.normalize(style)) {
-    com.maodouchat.ui.theme.ThemeFamily.MAODOU -> stringResource(R.string.general_theme_style_maodou)
-    com.maodouchat.ui.theme.ThemeFamily.TG_CLASSIC -> stringResource(R.string.general_theme_style_tg_classic)
-    com.maodouchat.ui.theme.ThemeFamily.TG_MIDNIGHT -> stringResource(R.string.general_theme_style_tg_midnight)
-    com.maodouchat.ui.theme.ThemeFamily.TG_GRAPHITE -> stringResource(R.string.general_theme_style_tg_graphite)
-}
-
-/**
- * 主题风格选择对话框：每个家族展示浅/深双变体的迷你聊天预览（背景 + 收发气泡），
- * TG 系列附「1:1 还原」标记。
- */
-@Composable
-private fun ThemeStylePickerDialog(
-    currentStyle: String,
-    onSelect: (String) -> Unit,
-    // 9.259：长按临时预览回调（style=临时应用；null=松手恢复原主题）
-    onPreview: (String?) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val currentFamily = com.maodouchat.ui.theme.ThemeFamily.normalize(currentStyle)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.general_theme_style_title), style = MaterialTheme.typography.titleMedium) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // 9.259：长按预览提示
-                Text(
-                    stringResource(R.string.general_theme_style_longpress_hint),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = LocalChatPalette.current.textSecondary
-                )
-                com.maodouchat.ui.theme.ThemeFamily.ALL.forEach { family ->
-                    ThemeStyleCard(
-                        family = family,
-                        selected = family == currentFamily,
-                        onClick = { onSelect(family.id) },
-                        onPreviewStart = { onPreview(family.id) },
-                        onPreviewEnd = { onPreview(null) }
-                    )
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
-        }
-    )
-}
-
-@Composable
-private fun ThemeStyleCard(
-    family: com.maodouchat.ui.theme.ThemeFamily,
-    selected: Boolean,
-    onClick: () -> Unit,
-    // 9.259：TG 式长按临时预览——长按即应用（对话框背后整 App 即时切主题），松手恢复
-    onPreviewStart: () -> Unit,
-    onPreviewEnd: () -> Unit
-) {
-    val lightPaint = remember(family) { com.maodouchat.ui.theme.resolveThemePaint(family, dark = false) }
-    val darkPaint = remember(family) { com.maodouchat.ui.theme.resolveThemePaint(family, dark = true) }
-    val name = when (family) {
-        com.maodouchat.ui.theme.ThemeFamily.MAODOU -> stringResource(R.string.general_theme_style_maodou)
-        com.maodouchat.ui.theme.ThemeFamily.TG_CLASSIC -> stringResource(R.string.general_theme_style_tg_classic)
-        com.maodouchat.ui.theme.ThemeFamily.TG_MIDNIGHT -> stringResource(R.string.general_theme_style_tg_midnight)
-        com.maodouchat.ui.theme.ThemeFamily.TG_GRAPHITE -> stringResource(R.string.general_theme_style_tg_graphite)
-    }
-    val isTg = family != com.maodouchat.ui.theme.ThemeFamily.MAODOU
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-            )
-            .then(
-                if (selected) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
-                else Modifier.border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-            )
-            .clickable(onClick = onClick)
-            .pointerInput(family.id) {
-                // 9.259 长按临时预览：短按仍走 clickable 确认选择；按住达阈即应用，松手恢复。
-                // waitForLongPress 在本 BOM 为 internal，自实现时间戳判定
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    val downTime = down.uptimeMillis
-                    val slop = viewConfiguration.touchSlop
-                    var longPressed = false
-                    var released = false
-                    while (!released) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull() ?: break
-                        if (!change.pressed) {
-                            released = true
-                        } else {
-                            val dist = (change.position - down.position).getDistance()
-                            if (dist > slop) {
-                                // 移动超阈：取消手势（滚动容器接管）
-                                released = true
-                            } else if (!longPressed && change.uptimeMillis - downTime >= android.view.ViewConfiguration.getLongPressTimeout()) {
-                                longPressed = true
-                                onPreviewStart()
-                            }
-                        }
-                    }
-                    if (longPressed) onPreviewEnd()
-                }
-            }
-            .padding(10.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-            if (isTg) {
-                Text(
-                    stringResource(R.string.general_theme_style_tg_badge),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                )
-            }
-            if (selected) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        listOf(lightPaint, darkPaint).forEach { paint ->
-            ThemePreviewStrip(paint = paint)
-            Spacer(modifier = Modifier.height(6.dp))
-        }
-    }
-}
-
-/** 迷你聊天预览条：主题背景 + 收/发气泡，直观展示配色。 */
-@Composable
-private fun ThemePreviewStrip(paint: com.maodouchat.ui.theme.ThemePaint) {
-    // maodou 家族无专属发送气泡：深色变体用深色系品牌蓝，与聊天页一致
-    val sentColor = paint.sentBubbleSpec?.color
-        ?: if (paint.chatPalette === com.maodouchat.ui.theme.DarkChatPalette) Color(0xFF0A84FF)
-        else com.maodouchat.ui.theme.ChatBubbleSent
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(34.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(paint.chatPalette.chatBackground)
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .width(64.dp)
-                .height(18.dp)
-                .clip(RoundedCornerShape(9.dp))
-                .background(paint.chatPalette.chatBubbleReceived)
-                .then(
-                    Modifier.border(
-                        0.5.dp,
-                        paint.chatPalette.chatBubbleReceivedBorder,
-                        RoundedCornerShape(9.dp)
-                    )
-                )
-        )
-        Spacer(modifier = Modifier.weight(1f))
-        Box(
-            modifier = Modifier
-                .width(52.dp)
-                .height(18.dp)
-                .clip(RoundedCornerShape(9.dp))
-                .background(sentColor)
-        )
     }
 }
 
@@ -3564,8 +3600,8 @@ private fun ThemeChoiceChip(
     onClick: () -> Unit,
     leading: (@Composable () -> Unit)? = null
 ) {
-    val backgroundColor by animateColorAsState(if (selected) Primary else LocalChatPalette.current.chatInputBackground, tween(180), label = "choiceBackground")
-    val textColor by animateColorAsState(if (selected) Color.White else OnSurface, tween(180), label = "choiceText")
+    val backgroundColor by animateColorAsState(if (selected) MaterialTheme.colorScheme.primary else LocalChatPalette.current.chatInputBackground, tween(180), label = "choiceBackground")
+    val textColor by animateColorAsState(if (selected) Color.White else MaterialTheme.colorScheme.onSurface, tween(180), label = "choiceText")
     val scale by animateFloatAsState(if (selected) 1f else 0.98f, tween(180), label = "choiceScale")
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -3650,18 +3686,18 @@ private fun reportActionLabel(action: String): String = when (action) {
 
 @Composable
 private fun aiStatusColor(status: String): Color = when (status.lowercase()) {
-    "success" -> Primary
+    "success" -> MaterialTheme.colorScheme.primary
     "failed", "error", "rate_limited" -> Error
-    else -> TextHint
+    else -> LocalChatPalette.current.textHint
 }
 
 @Composable
 private fun reportStatusColor(status: String): Color = when (status) {
     "OPEN" -> Error
-    "IN_REVIEW" -> Primary
-    "RESOLVED" -> TextSecondary
-    "REJECTED" -> TextHint
-    else -> TextSecondary
+    "IN_REVIEW" -> MaterialTheme.colorScheme.primary
+    "RESOLVED" -> LocalChatPalette.current.textSecondary
+    "REJECTED" -> LocalChatPalette.current.textHint
+    else -> LocalChatPalette.current.textSecondary
 }
 
 private fun formatAuditTime(timestamp: Long): String =
@@ -3740,7 +3776,7 @@ fun ServerSettingsScreen(
                     Text(
                         text = currentBase,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (com.maodouchat.network.ApiConfig.isUsingRuntimeServer) Primary else TextHint
+                        color = if (com.maodouchat.network.ApiConfig.isUsingRuntimeServer) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint
                     )
                 }
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider, modifier = Modifier.padding(start = 16.dp))
@@ -3752,8 +3788,8 @@ fun ServerSettingsScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Primary,
-                        unfocusedBorderColor = Outline
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
                     )
                 )
             }
@@ -3832,8 +3868,8 @@ fun ServerSettingsScreen(
                 text = result ?: stringResource(R.string.settings_server_ws_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = result?.let {
-                    if (it == serverSavedText || it == serverTestSuccessText || it == serverTestingText) Primary else Error
-                } ?: TextSecondary,
+                    if (it == serverSavedText || it == serverTestSuccessText || it == serverTestingText) MaterialTheme.colorScheme.primary else Error
+                } ?: LocalChatPalette.current.textSecondary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
@@ -4197,7 +4233,7 @@ fun MyReportsScreen(onBack: () -> Unit = {}) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(com.maodouchat.R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = Background)
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
         )
         when {
             isLoading.value -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -4248,7 +4284,7 @@ private fun MyReportCard(report: com.maodouchat.network.ReportResponse) {
             Text(
                 text = statusLabel,
                 style = MaterialTheme.typography.labelSmall,
-                color = if (report.status.equals("PENDING", ignoreCase = true)) Primary else TextSecondary
+                color = if (report.status.equals("PENDING", ignoreCase = true)) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary
             )
         }
         Text(
@@ -4316,7 +4352,7 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(com.maodouchat.R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
             },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = Background)
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
         )
         when {
             isLoading.value -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

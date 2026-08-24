@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
@@ -109,12 +110,6 @@ import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Outline
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.Secondary
-import com.maodouchat.ui.theme.TextHint
-import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.util.QrCodeGenerator
 import com.maodouchat.util.ImagePicker
@@ -178,10 +173,18 @@ data class GroupDetailUiState(
     val isSecretChat: Boolean = false,
     /** 广播频道（单向一对多）：非 OWNER 订阅者只读。 */
     val isChannel: Boolean = false,
+    val ownedBots: List<OwnedBotUi> = emptyList(),
+    val isInvitingBot: Boolean = false,
 ) {
     val canManageGroup: Boolean get() = myRole == "OWNER" || myRole == "ADMIN"
     val isOwner: Boolean get() = myRole == "OWNER"
 }
+
+data class OwnedBotUi(
+    val id: String,
+    val name: String,
+    val username: String,
+)
 
 class GroupDetailViewModel(
     application: Application,
@@ -374,6 +377,21 @@ class GroupDetailViewModel(
                         val candidates = ApiService.getAllSearchableUsers(liveToken).getOrDefault(emptyList())
                             .filter { it.id !in memberIds && it.id != loadOwnerUserId }
                             .map { User(it.id, it.name, it.avatar, it.email, it.isOnline, it.status) }
+                        val ownedBots = runCatching {
+                            val raw = ApiService.listBots(liveToken).getOrNull().orEmpty()
+                            val arr = org.json.JSONArray(raw)
+                            buildList {
+                                for (i in 0 until arr.length()) {
+                                    val o = arr.optJSONObject(i) ?: continue
+                                    val id = o.optString("id").trim()
+                                    val name = o.optString("name").trim()
+                                    val username = o.optString("username").trim()
+                                    val enabled = o.optBoolean("enabled", true)
+                                    if (id.isBlank() || !enabled) continue
+                                    add(OwnedBotUi(id = id, name = name.ifBlank { username }, username = username))
+                                }
+                            }
+                        }.getOrDefault(emptyList())
                         val self = members.firstOrNull { it.userId == loadOwnerUserId }
                         val secret = try {
                             app.database.secretChatDao().isSecret(chatId)
@@ -402,6 +420,7 @@ class GroupDetailViewModel(
                                 isLoading = false,
                                 isSecretChat = secret,
                                 isChannel = chat?.isChannel == true,
+                                ownedBots = ownedBots,
                                 // 8.48 修复 H1：本机是否实际持有分发（重装/换机后服务端记录仍在但本地无 key）
                                 localHasSenderKey = runCatching {
                                     signalProtocol.hasGroupDistributionId(chatId, chat?.memberRevision ?: 0L)
@@ -1218,6 +1237,43 @@ class GroupDetailViewModel(
             }
         }
     }
+
+    fun inviteOwnedBot(botId: String) {
+        if (botId.isBlank() || chatId.isBlank() || _uiState.value.isInvitingBot) return
+        val ownerUserId = currentUserId
+        viewModelScope.launch {
+            _uiState.update { it.copy(isInvitingBot = true, message = null) }
+            try {
+                val liveToken = tokenManager.getToken().orEmpty()
+                val result = withContext(Dispatchers.IO) {
+                    ApiService.inviteBotToChat(liveToken, chatId, botId)
+                }
+                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = ownerUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = tokenManager.getUserId(),
+                    )
+                ) return@launch
+                result.fold(
+                    onSuccess = {
+                        _uiState.update { it.copy(isInvitingBot = false) }
+                        load(text(R.string.group_play_bot_invited))
+                    },
+                    onFailure = {
+                        _uiState.update {
+                            it.copy(
+                                isInvitingBot = false,
+                                message = text(R.string.group_play_bot_invite_failed)
+                            )
+                        }
+                    }
+                )
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                _uiState.update { it.copy(isInvitingBot = false) }
+                throw error
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1226,7 +1282,11 @@ fun GroupDetailScreen(
     onBack: () -> Unit,
     viewModel: GroupDetailViewModel = viewModel(),
     // 1.08：点击群成员查看资料（userId）
-    onOpenProfile: (String) -> Unit = {}
+    onOpenProfile: (String) -> Unit = {},
+    onOpenGroupPoll: (String) -> Unit = {},
+    onOpenGroupCheckin: (String) -> Unit = {},
+    onOpenGroupChain: (String) -> Unit = {},
+    onOpenGroupPk: (String) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val chatId = viewModel.chatId
@@ -1274,6 +1334,7 @@ fun GroupDetailScreen(
     }
     var showAvatarFull by remember { mutableStateOf(false) }
     var showInviteDialog by rememberSaveable { mutableStateOf(false) }
+    var showBotPicker by rememberSaveable { mutableStateOf(false) }
     var memberSearch by rememberSaveable { mutableStateOf("") }
     var membersExpanded by rememberSaveable { mutableStateOf(false) }
     var auditSearch by rememberSaveable { mutableStateOf("") }
@@ -1528,6 +1589,43 @@ fun GroupDetailScreen(
         }
     }
 
+    if (showBotPicker) {
+        AlertDialog(
+            onDismissRequest = { showBotPicker = false },
+            title = { Text(stringResource(R.string.group_play_invite_bot_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (state.ownedBots.isEmpty()) {
+                        Text(stringResource(R.string.group_play_invite_bot_empty))
+                    } else {
+                        state.ownedBots.forEach { bot ->
+                            TextButton(
+                                onClick = {
+                                    showBotPicker = false
+                                    viewModel.inviteOwnedBot(bot.id)
+                                },
+                                enabled = !state.isInvitingBot,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    "${bot.name}  @${bot.username}",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showBotPicker = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
+    }
+
     if (showInviteDialog) {
         GroupInviteDialog(
             payload = state.groupInvitePayload,
@@ -1665,6 +1763,18 @@ fun GroupDetailScreen(
                         onSave = { viewModel.setMyNickname(nicknameDraft) },
                         saveEnabled = nicknameDraft.trim() != state.myNickname
                     )
+                }
+                item(key = "group_play", contentType = "group_play") {
+                    SectionTitle(stringResource(R.string.group_detail_play))
+                    GroupPlayRow(stringResource(R.string.group_play_poll)) { onOpenGroupPoll(chatId) }
+                    GroupPlayRow(stringResource(R.string.group_play_checkin)) { onOpenGroupCheckin(chatId) }
+                    GroupPlayRow(stringResource(R.string.group_play_chain_title)) { onOpenGroupChain(chatId) }
+                    GroupPlayRow(stringResource(R.string.group_play_pk_title)) { onOpenGroupPk(chatId) }
+                    if (state.canManageGroup && !state.isChannel) {
+                        GroupPlayRow(stringResource(R.string.group_play_invite_bot)) {
+                            showBotPicker = true
+                        }
+                    }
                 }
                 item(key = "members_header", contentType = "section_header") {
                     SectionTitle(stringResource(R.string.group_detail_members_section, state.members.size))
@@ -1940,7 +2050,7 @@ private fun GroupInviteDialog(
                         30L * 24L * 60L * 60L to stringResource(R.string.group_detail_invite_thirty_days)
                     ).forEach { (seconds, label) ->
                         TextButton(onClick = { onExpiryChange(seconds) }) {
-                            Text(label, color = if (expiresInSeconds == seconds) Primary else TextSecondary)
+                            Text(label, color = if (expiresInSeconds == seconds) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary)
                         }
                     }
                 }
@@ -1956,11 +2066,11 @@ private fun GroupInviteDialog(
                         TextButton(
                             onClick = { onMaxUsesChange(uses) },
                             modifier = Modifier.background(
-                                if (selected) Primary.copy(alpha = 0.12f) else Color.Transparent,
+                                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
                                 RoundedCornerShape(8.dp)
                             )
                         ) {
-                            Text(uses.toString(), color = if (selected) Primary else TextSecondary)
+                            Text(uses.toString(), color = if (selected) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary)
                         }
                     }
                 }
@@ -2174,13 +2284,13 @@ private fun GroupSenderKeyStatusSection(
                 Text(
                     senderKeyReasonLabel(assessment.reason),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (needsAction) UnreadRed else TextSecondary
+                    color = if (needsAction) UnreadRed else LocalChatPalette.current.textSecondary
                 )
             }
             Text(
                 if (needsAction) stringResource(R.string.group_detail_retry_needed) else stringResource(R.string.group_detail_status_normal),
                 style = MaterialTheme.typography.labelLarge,
-                color = if (needsAction) UnreadRed else Primary
+                color = if (needsAction) UnreadRed else MaterialTheme.colorScheme.primary
             )
         }
         Button(onClick = onRedistribute, enabled = !isUpdating, modifier = Modifier.fillMaxWidth()) {
@@ -2215,7 +2325,7 @@ private fun GroupSenderKeyStatusSection(
                                 SenderKeyTargetFilter.PENDING -> stringResource(R.string.group_detail_key_filter_pending)
                                 SenderKeyTargetFilter.SENT -> stringResource(R.string.group_detail_key_filter_sent)
                             },
-                            color = if (selected) Primary else TextSecondary,
+                            color = if (selected) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary,
                             style = MaterialTheme.typography.labelSmall,
                             maxLines = 1
                         )
@@ -2491,7 +2601,7 @@ private fun MemberRow(
                 )
                     .joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall,
-                color = if (member.isMuted && member.role != "OWNER") UnreadRed else TextSecondary,
+                color = if (member.isMuted && member.role != "OWNER") UnreadRed else LocalChatPalette.current.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -2574,6 +2684,26 @@ private fun CandidateRow(user: User, enabled: Boolean, onAdd: () -> Unit) {
 }
 
 @Composable
+private fun GroupPlayRow(label: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+        Icon(
+            Icons.AutoMirrored.Outlined.ArrowForwardIos,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.size(16.dp)
+        )
+    }
+}
+
+@Composable
 private fun EmptyRow(text: String) {
     Text(
         text = text,
@@ -2588,13 +2718,13 @@ private fun groupTextFieldColors() = TextFieldDefaults.colors(
     focusedContainerColor = LocalChatPalette.current.chatInputBackground,
     unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
     disabledContainerColor = LocalChatPalette.current.chatInputBackground,
-    focusedIndicatorColor = Primary,
-    unfocusedIndicatorColor = Outline,
-    disabledIndicatorColor = Outline.copy(alpha = 0.5f),
-    cursorColor = Primary,
-    focusedTextColor = OnSurface,
-    unfocusedTextColor = OnSurface,
-    disabledTextColor = TextHint
+    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+    unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+    disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+    cursorColor = MaterialTheme.colorScheme.primary,
+    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+    disabledTextColor = LocalChatPalette.current.textHint
 )
 
 private fun GroupMemberDto.toUi(): GroupMemberUi = GroupMemberUi(
@@ -2636,9 +2766,9 @@ private fun senderKeyStatusLabel(status: String): String = when (status.uppercas
 
 @Composable
 private fun senderKeyStatusColor(status: String) = when (status.uppercase()) {
-    "SENT" -> Primary
+    "SENT" -> MaterialTheme.colorScheme.primary
     "FAILED" -> UnreadRed
-    else -> TextHint
+    else -> LocalChatPalette.current.textHint
 }
 
 /** 0.69：群成员角色置顶排序权重（OWNER > ADMIN > MEMBER）。 */
@@ -2662,7 +2792,7 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
         var cursor = 0
         snippet.highlights.forEach { span ->
             if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)))
             append(snippet.text.substring(span.start, span.end))
             pop()
             cursor = span.end

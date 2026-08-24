@@ -3,22 +3,13 @@ package com.maodouchat.data.repository
 import android.content.Context
 import android.util.Log
 import com.maodouchat.data.local.DatabasePassphraseProvider
-import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.TokenManager
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.json.Json
 import net.sqlcipher.database.SQLiteDatabase
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 /**
  * B4 · AI 增强能力本地存储仓库。
@@ -346,55 +337,4 @@ class AiProfileRepository private constructor(private val context: Context) {
     data class ArchiveRow(val chatId: String, val score: Int, val reason: String, val suggestedAt: Long)
     data class WeeklyReportRow(val chatId: String, val weekStart: Long, val weekEnd: Long, val report: String, val model: String?, val createdAt: Long)
     data class CategoryCount(val category: String, val count: Int, val confidence: Double)
-}
-
-/**
- * B4 · 轻量 HTTP 助手：带 Bearer Token 的 JSON POST，供 AI 增强能力客户端调用服务端
- * /api/ai/enhance/ 端点。独立于 ApiService（ApiService 不在本任务可改范围）。
- */
-internal object AiEnhanceHttp {
-    private val json = Json { ignoreUnknownKeys = true }
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
-        .callTimeout(120, TimeUnit.SECONDS)
-        .build()
-
-    suspend fun <T> post(
-        context: Context,
-        path: String,
-        requestBodyJson: String,
-        deserializer: KSerializer<T>
-    ): Result<T> = withContext(Dispatchers.IO) {
-        val token = TokenManager.getInstance(context.applicationContext).getToken()?.takeIf(String::isNotBlank)
-            ?: return@withContext Result.failure(IllegalStateException("not_logged_in"))
-        try {
-            val request = Request.Builder()
-                .url("${ApiConfig.BASE_URL}$path")
-                .addHeader("Authorization", "Bearer $token")
-                .post(requestBodyJson.toRequestBody(JSON_MEDIA_TYPE))
-                .build()
-            client.newCall(request).execute().use { response ->
-                val body = response.body?.string().orEmpty()
-                if (!response.isSuccessful) {
-                    return@withContext Result.failure(RuntimeException("HTTP ${response.code}: ${body.take(160)}"))
-                }
-                try {
-                    Result.success(json.decodeFromString(deserializer, body))
-                } catch (error: kotlinx.coroutines.CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    Result.failure(error)
-                }
-            }
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            Log.w(TAG, "AI enhance request failed: $path", error)
-            Result.failure(error)
-        }
-    }
-
-    private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
-    private const val TAG = "AiEnhanceHttp"
 }

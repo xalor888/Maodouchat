@@ -1,11 +1,7 @@
 package com.maodouchat.ui.screen.contacts
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -37,7 +33,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Campaign
+import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.focus.FocusRequester
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -52,13 +53,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,18 +85,8 @@ import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
 import com.maodouchat.ui.component.SearchBar
 import com.maodouchat.ui.component.ShimmerContactRow
-import com.maodouchat.ui.theme.Background
-import com.maodouchat.ui.theme.Divider
 import com.maodouchat.ui.theme.MaodouchatTheme
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Outline
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.SurfaceContainerLow
-import com.maodouchat.ui.theme.TextHint
-import com.maodouchat.ui.theme.TextSecondary
-import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.LocalMotionSettings
-import com.maodouchat.ui.theme.MotionTokens
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
@@ -114,8 +103,6 @@ fun ContactsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val motion = LocalMotionSettings.current
-    // rememberSaveable 保证旋转屏幕后不再重复播放入场动画
-    var animPlayed by rememberSaveable { mutableStateOf(false) }
     var showGroupDialog by remember { mutableStateOf(false) }
     var showChannelDialog by remember { mutableStateOf(false) }
     var removeFriendTarget by remember { mutableStateOf<User?>(null) }
@@ -124,7 +111,14 @@ fun ContactsScreen(
     // 1.291：拉黑确认目标
     var blockContactTarget by remember { mutableStateOf<User?>(null) }
     var friendRequestTarget by remember { mutableStateOf<User?>(null) }
-    LaunchedEffect(Unit) { animPlayed = true }
+    val searchFocusRequester = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
+    fun focusAddContactSearch() {
+        scope.launch {
+            delay(50)
+            runCatching { searchFocusRequester.requestFocus() }
+        }
+    }
 
     LaunchedEffect(state.createdChatId) {
         state.createdChatId?.let { chatId ->
@@ -162,16 +156,21 @@ fun ContactsScreen(
                 title = { Text(stringResource(R.string.nav_contacts), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 actions = {
                     // 标题栏搜索图标：点击清空当前搜索框输入（已输入时），否则聚焦体验由下方 SearchBar 承担
-                    IconButton(onClick = { if (state.searchQuery.isNotBlank()) viewModel.onSearchQueryChange("") }) { Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.contacts_search), tint = LocalChatPalette.current.textSecondary) }
-                    IconButton(onClick = { showGroupDialog = true }) { Icon(Icons.Outlined.PersonAdd, contentDescription = stringResource(R.string.contacts_start_group), tint = LocalChatPalette.current.textSecondary) }
+                    IconButton(onClick = onOpenScan) {
+                        Icon(Icons.Outlined.QrCodeScanner, contentDescription = stringResource(R.string.contacts_scan), tint = LocalChatPalette.current.textSecondary)
+                    }
+                    IconButton(onClick = { focusAddContactSearch() }) {
+                        Icon(Icons.Outlined.PersonAdd, contentDescription = stringResource(R.string.contacts_add_contact), tint = LocalChatPalette.current.textSecondary)
+                    }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
+                colors = com.maodouchat.ui.theme.liquidGlassTopAppBarColors()
             )
 
             SearchBar(
                 value = state.searchQuery,
                 onValueChange = { viewModel.onSearchQueryChange(it) },
                 placeholder = stringResource(R.string.contacts_search_placeholder),
+                focusRequester = searchFocusRequester,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
@@ -194,7 +193,7 @@ fun ContactsScreen(
                             Text(
                                 stringResource(R.string.contacts_online_count, state.onlineCount),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = if (state.onlineOnly) Primary else TextHint
+                                color = if (state.onlineOnly) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint
                             )
                         }
                     }
@@ -327,49 +326,56 @@ fun ContactsScreen(
                             )
                         }
                     }
+                    item(key = "add_contact", contentType = "add_contact") {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surface)
+                                .clickable { focusAddContactSearch() }
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape)) {
+                                Icon(Icons.Outlined.PersonAdd, contentDescription = stringResource(R.string.contacts_add_contact), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(stringResource(R.string.contacts_add_contact), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+
                     // 新群聊
                     item(key = "new_group", contentType = "new_group") {
-                        AnimatedVisibility(
-                            visible = animPlayed,
-                            enter = fadeIn(tween(motion.duration(MotionTokens.Emphasized))) + slideInVertically(tween(motion.duration(MotionTokens.Emphasized)) { it / 4 })
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surface)
+                                .clickable { showGroupDialog = true }
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.surface)
-                                    .clickable { showGroupDialog = true }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary, CircleShape)) {
-                                    Icon(Icons.Filled.GroupAdd, contentDescription = stringResource(R.string.contacts_new_group), tint = Color.White, modifier = Modifier.size(22.dp))
-                                }
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(stringResource(R.string.contacts_new_group), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurface)
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary, CircleShape)) {
+                                Icon(Icons.Filled.GroupAdd, contentDescription = stringResource(R.string.contacts_new_group), tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(22.dp))
                             }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(stringResource(R.string.contacts_new_group), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
 
                     // 新建广播频道
                     item(key = "new_channel", contentType = "new_channel") {
-                        AnimatedVisibility(
-                            visible = animPlayed,
-                            enter = fadeIn(tween(motion.duration(MotionTokens.Emphasized))) + slideInVertically(tween(motion.duration(MotionTokens.Emphasized)) { it / 4 })
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surface)
+                                .clickable { showChannelDialog = true }
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.surface)
-                                    .clickable { showChannelDialog = true }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape)) {
-                                    Icon(Icons.Outlined.Campaign, contentDescription = stringResource(R.string.chat_create_channel), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
-                                }
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(stringResource(R.string.chat_create_channel), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurface)
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape)) {
+                                Icon(Icons.Outlined.Campaign, contentDescription = stringResource(R.string.chat_create_channel), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                             }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(stringResource(R.string.chat_create_channel), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
 
@@ -390,12 +396,7 @@ fun ContactsScreen(
                                     subtitle = stringResource(R.string.contacts_empty_subtitle),
                                     type = EmptyStateType.CONTACTS,
                                     actionText = stringResource(R.string.contacts_empty_action_search),
-                                    onAction = {
-                                        // 清空搜索以保持 SearchBar 可见；用户可直接在上方输入用户名
-                                        if (state.searchQuery.isNotBlank()) {
-                                            viewModel.onSearchQueryChange("")
-                                        }
-                                    },
+                                    onAction = { focusAddContactSearch() },
                                     secondaryActionText = stringResource(R.string.contacts_empty_action_scan),
                                     onSecondaryAction = onOpenScan,
                                     modifier = Modifier.fillMaxWidth()
@@ -877,7 +878,7 @@ private fun NewGroupDialog(
         }
         base.sortedWith(compareByDescending<User> { it.isOnline }.thenBy { it.displayName.lowercase() })
     }
-    val canCreate = groupName.trim().isNotEmpty() && selectedMembers.isNotEmpty()
+    val canCreate = groupName.trim().isNotEmpty()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -898,6 +899,12 @@ private fun NewGroupDialog(
                     placeholder = { Text(stringResource(R.string.contacts_search_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.contacts_group_members_optional),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalChatPalette.current.textHint
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(stringResource(R.string.contacts_select_members, selectedMembers.size), style = MaterialTheme.typography.labelLarge, color = LocalChatPalette.current.textSecondary)
@@ -938,7 +945,7 @@ private fun NewGroupDialog(
                                         user.email.isNotBlank() -> user.email
                                         else -> stringResource(R.string.contacts_offline)
                                     }
-                                    Text(subtitle, style = MaterialTheme.typography.labelSmall, color = if (user.isOnline) Primary else TextSecondary, maxLines = 1)
+                                    Text(subtitle, style = MaterialTheme.typography.labelSmall, color = if (user.isOnline) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary, maxLines = 1)
                                 }
                             }
                         }
@@ -1041,7 +1048,7 @@ private fun NewChannelDialog(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(user.displayName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
                                     val subtitle = if (user.isOnline) stringResource(R.string.contacts_online) else stringResource(R.string.contacts_offline)
-                                    Text(subtitle, style = MaterialTheme.typography.labelSmall, color = if (user.isOnline) Primary else TextSecondary, maxLines = 1)
+                                    Text(subtitle, style = MaterialTheme.typography.labelSmall, color = if (user.isOnline) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary, maxLines = 1)
                                 }
                             }
                         }
@@ -1097,7 +1104,7 @@ private fun ContactItem(user: User, onClick: () -> Unit, onLongClick: (() -> Uni
             Text(
                 subtitle,
                 style = MaterialTheme.typography.labelMedium,
-                color = if (user.isOnline && user.nickname.isNullOrBlank()) Primary else TextSecondary,
+                color = if (user.isOnline && user.nickname.isNullOrBlank()) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary,
                 maxLines = 1
             )
         }
@@ -1118,7 +1125,7 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
         var cursor = 0
         snippet.highlights.forEach { span ->
             if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)))
             append(snippet.text.substring(span.start, span.end))
             pop()
             cursor = span.end
@@ -1161,7 +1168,7 @@ private fun AlphabetScroller(
             ) {
                 Text(
                     text = activeLetter ?: "",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -1203,7 +1210,7 @@ private fun AlphabetScroller(
         ) {
             allLetters.forEach { letter ->
                 val isActive = letter == activeLetter
-                val textColor = if (letter in letters) Primary else Outline.copy(alpha = 0.4f)
+                val textColor = if (letter in letters) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
                 Text(
                     text = letter,
                     style = MaterialTheme.typography.labelSmall.copy(

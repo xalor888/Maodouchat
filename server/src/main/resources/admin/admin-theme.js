@@ -12,13 +12,13 @@
     fontscale: 'admin-fontscale'
   };
   var ACCENTS = [
-    { id: 'indigo', c: '#767af1' },
-    { id: 'blue',   c: '#3d9df5' },
-    { id: 'teal',   c: '#2cb8a4' },
-    { id: 'green',  c: '#37ad74' },
-    { id: 'amber',  c: '#eab047' },
-    { id: 'rose',   c: '#ef6d92' },
-    { id: 'violet', c: '#9d6cf0' }
+    { id: 'ink',    c: '#1f2933' },
+    { id: 'blue',   c: '#2563eb' },
+    { id: 'teal',   c: '#0f766e' },
+    { id: 'green',  c: '#178a54' },
+    { id: 'amber',  c: '#b47716' },
+    { id: 'rose',   c: '#cc3d58' },
+    { id: 'indigo', c: '#4f46e5' }
   ];
   var RADII = [['sharp', '锐利'], ['soft', '柔和'], ['round', '圆润']];
   var DENSITY = [['compact', '紧凑'], ['cozy', '适中'], ['spacious', '宽松']];
@@ -32,10 +32,10 @@
   }
   function applyAll() {
     var root = document.documentElement;
-    root.setAttribute('data-theme', get(LS.theme, window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
-    root.setAttribute('data-accent', get(LS.accent, 'indigo'));
-    root.setAttribute('data-radius', get(LS.radius, 'soft'));
-    root.setAttribute('data-density', get(LS.density, 'cozy'));
+    root.setAttribute('data-theme', get(LS.theme, 'light'));
+    root.setAttribute('data-accent', get(LS.accent, 'ink'));
+    root.setAttribute('data-radius', get(LS.radius, 'sharp'));
+    root.setAttribute('data-density', get(LS.density, 'compact'));
     root.setAttribute('data-fontscale', get(LS.fontscale, 'm'));
   }
   applyAll();
@@ -71,9 +71,9 @@
 
     pop.innerHTML =
       section('强调色', accentHtml) +
-      section('明暗', segRow('theme', [['dark', '深色'], ['light', '浅色']], get(LS.theme, 'dark'))) +
-      section('圆角', segRow('radius', RADII, get(LS.radius, 'soft'))) +
-      section('密度', segRow('density', DENSITY, get(LS.density, 'cozy'))) +
+      section('明暗', segRow('theme', [['light', '浅色'], ['dark', '深色']], get(LS.theme, 'light'))) +
+      section('圆角', segRow('radius', RADII, get(LS.radius, 'sharp'))) +
+      section('密度', segRow('density', DENSITY, get(LS.density, 'compact'))) +
       section('字号', segRow('fontscale', FONTS, get(LS.fontscale, 'm')));
 
     document.body.appendChild(pop);
@@ -107,7 +107,7 @@
       });
     });
     pop.querySelectorAll('.accent-dot').forEach(function (b) {
-      b.classList.toggle('active', b.getAttribute('data-accent-pick') === get(LS.accent, 'indigo'));
+      b.classList.toggle('active', b.getAttribute('data-accent-pick') === get(LS.accent, 'ink'));
     });
   }
 

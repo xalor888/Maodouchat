@@ -65,6 +65,38 @@ class DecryptFailurePolicyTest {
     }
 
     @Test
+    fun decryptFailNeverWritesPlaceholderToRoom() {
+        val wire =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"ciphertextType":"prekey","ciphertext":"NAgB"}]}"""
+        val placeholder = "无法解密"
+        val failures = listOf(
+            SignalProtocol.DecryptResult.NoSession,
+            SignalProtocol.DecryptResult.UntrustedIdentity,
+            SignalProtocol.DecryptResult.FutureEpoch,
+            SignalProtocol.DecryptResult.Failed,
+            SignalProtocol.DecryptResult.NotForThisDevice,
+            SignalProtocol.DecryptResult.Duplicate,
+            SignalProtocol.DecryptResult.UnsupportedEnvelope,
+        )
+        failures.forEach { result ->
+            assertTrue(DecryptFailurePolicy.neverPersistUiPlaceholder(result))
+            assertEquals(
+                wire,
+                DecryptFailurePolicy.persistDecryptResultToRoom(result, wire, placeholder)
+            )
+        }
+        assertEquals(
+            "hello",
+            DecryptFailurePolicy.persistDecryptResultToRoom(
+                SignalProtocol.DecryptResult.Success("hello"),
+                wire,
+                placeholder
+            )
+        )
+        assertFalse(DecryptFailurePolicy.neverPersistUiPlaceholder(SignalProtocol.DecryptResult.Success("hello")))
+    }
+
+    @Test
     fun fingerprintIsStableAndDoesNotStoreCiphertext() {
         val a = DecryptFailurePolicy.envelopeFingerprint("alice", "ciphertext-payload")
         val b = DecryptFailurePolicy.envelopeFingerprint("alice", "ciphertext-payload")

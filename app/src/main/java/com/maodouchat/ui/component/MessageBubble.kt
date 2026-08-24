@@ -152,6 +152,8 @@ fun MessageBubble(
     isOwnMessage: Boolean,
     modifier: Modifier = Modifier,
     showAvatar: Boolean = true,
+    showSenderName: Boolean = false,
+    isGroupEdge: Boolean = true,
     senderName: String? = null,
     /** 0.65 新功能：发送者在群内角色（OWNER/ADMIN/MEMBER），群聊时名字旁渲染徽章。 */
     memberRole: String? = null,
@@ -218,7 +220,7 @@ fun MessageBubble(
         MessageType.SYSTEM -> SystemMessageBubble(message.content, modifier)
         MessageType.REVOKED -> SystemMessageBubble(stringResource(R.string.chat_message_revoked_placeholder), modifier)
         MessageType.MARKDOWN, MessageType.TEXT -> TextBubble(
-            message, isOwnMessage, modifier, showAvatar, senderName, mentionedUserIds, replyToPreview, onReply,
+            message, isOwnMessage, modifier, showAvatar, showSenderName, isGroupEdge, senderName, mentionedUserIds, replyToPreview, onReply,
             onReplyPreviewClick, onBoundsMeasured, translationText, isTranslating, isAiAssisted, currentUserId, safetyWarning, onDismissSafety,
             onReactionClick, onPollVote, secretChatId, onInlineKeyboardClick, onContactCardClick, onSenderClick, onStatusClick,
             memberRole = memberRole
@@ -544,16 +546,20 @@ private fun resolveBubbleShape(isOwnMessage: Boolean, isGroupEdge: Boolean): and
     else com.maodouchat.ui.theme.LocalBubbleShapes.current.received
     if (!isGroupEdge) return base
     val rounded = base as? androidx.compose.foundation.shape.RoundedCornerShape ?: return base
-    val tailCorner = androidx.compose.foundation.shape.CornerSize(4.dp)
+    val tight = androidx.compose.foundation.shape.CornerSize(4.5.dp)
     return if (isOwnMessage) {
         androidx.compose.foundation.shape.RoundedCornerShape(
-            topStart = rounded.topStart, topEnd = rounded.topEnd,
-            bottomStart = rounded.bottomStart, bottomEnd = tailCorner
+            topStart = rounded.topStart,
+            topEnd = tight,
+            bottomStart = rounded.bottomStart,
+            bottomEnd = rounded.bottomEnd
         )
     } else {
         androidx.compose.foundation.shape.RoundedCornerShape(
-            topStart = rounded.topStart, topEnd = rounded.topEnd,
-            bottomStart = tailCorner, bottomEnd = rounded.bottomEnd
+            topStart = tight,
+            topEnd = rounded.topEnd,
+            bottomStart = rounded.bottomStart,
+            bottomEnd = rounded.bottomEnd
         )
     }
 }
@@ -565,6 +571,8 @@ private fun TextBubble(
     isOwnMessage: Boolean,
     modifier: Modifier,
     showAvatar: Boolean,
+    showSenderName: Boolean,
+    isGroupEdge: Boolean,
     senderName: String?,
     mentionedUserIds: List<String> = emptyList(),
     replyToPreview: ReplyPreview? = null,
@@ -593,59 +601,59 @@ private fun TextBubble(
     // 9.3xx：气泡层密文兜底——任何漏网的 wire envelope（含 FutureEpoch/断线补拉落库的
     // 原始密文）都渲染为解密失败占位，绝不把 ciphertext/设备号等元数据输出给用户。
     val message = if (
-        message.type in setOf(MessageType.TEXT, MessageType.MARKDOWN) &&
+        message.type in setOf(MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER) &&
         com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(message.parsedContent())
     ) {
-        message.copy(content = stringResource(R.string.chat_decrypt_group_key_missing))
+        message.copy(content = stringResource(R.string.chat_decrypt_failed))
     } else message
     val palette = LocalChatPalette.current
     // 9.252：TG 式动态气泡宽度——此前固定 280dp，大屏上气泡偏窄、长文本折行过多
     // 观感拥挤；参考 TG ChatMessageCell 按屏宽比例（平板封顶 480dp）
     val bubbleMaxWidth = (LocalConfiguration.current.screenWidthDp * 0.78f).coerceAtMost(480f).dp
-    Row(
+    Column(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start,
-        verticalAlignment = Alignment.Bottom
+        horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start
     ) {
-        if (!isOwnMessage) {
-            // 接收方：左侧显示头像
-            if (showAvatar) {
-                Avatar(
-                    name = senderName ?: "?",
-                    size = AvatarSize.SM,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-            } else {
-                Spacer(modifier = Modifier.width(36.dp))
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-        }
-
-        Column(
-            horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start,
-            modifier = Modifier.widthIn(max = bubbleMaxWidth)
-        ) {
-            // 发送者名称（接收方）——1.44：点击打开发送者资料
-            if (!isOwnMessage && senderName != null && showAvatar) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = senderName,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = LocalChatPalette.current.textHint,
-                        modifier = Modifier
-                            .padding(start = 4.dp, bottom = 2.dp)
-                            .clickable(enabled = onSenderClick != null) {
-                                onSenderClick?.invoke(message.senderId)
-                            }
-                    )
-                    // 0.65 新功能：群主/管理员徽章（仅群聊且角色明确时显示）
-                    when (memberRole) {
-                        "OWNER" -> RoleBadge(stringResource(R.string.chat_role_owner), owner = true)
-                        "ADMIN" -> RoleBadge(stringResource(R.string.chat_role_admin), owner = false)
-                        else -> Unit
+        if (!isOwnMessage && senderName != null && showSenderName) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 44.dp, bottom = 2.dp)
+            ) {
+                Text(
+                    text = senderName,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = LocalChatPalette.current.textHint,
+                    modifier = Modifier.clickable(enabled = onSenderClick != null) {
+                        onSenderClick?.invoke(message.senderId)
                     }
+                )
+                when (memberRole) {
+                    "OWNER" -> RoleBadge(stringResource(R.string.chat_role_owner), owner = true)
+                    "ADMIN" -> RoleBadge(stringResource(R.string.chat_role_admin), owner = false)
+                    else -> Unit
                 }
             }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start,
+            verticalAlignment = Alignment.Top
+        ) {
+            if (!isOwnMessage) {
+                if (showAvatar) {
+                    Avatar(
+                        name = senderName ?: "?",
+                        size = AvatarSize.SM,
+                    )
+                } else {
+                    Spacer(modifier = Modifier.width(36.dp))
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Column(
+                horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start,
+                modifier = Modifier.widthIn(max = bubbleMaxWidth)
+            ) {
             // 0.67 新功能：已转发标记（E2EE meta 内传输，密聊转发仅标记不露来源名）
             val forwardedFrom = message.parsedMeta().forwardedFrom
             if (forwardedFrom != null) {
@@ -678,20 +686,16 @@ private fun TextBubble(
 
             // 气泡
             // 9.267：TG 式角尾——showAvatar 即组尾（含单条消息组），尾角侧用小圆角
-            val bubbleShape = resolveBubbleShape(isOwnMessage, isGroupEdge = showAvatar)
+            val bubbleShape = resolveBubbleShape(isOwnMessage, isGroupEdge = isGroupEdge)
             Column(
                 modifier = Modifier
                     .captureBubbleBounds(onBoundsMeasured)
                     .clip(bubbleShape)
-                    .background(if (isOwnMessage) Brush.linearGradient(com.maodouchat.ui.theme.ChatBubbleColorPalette.gradient(LocalChatBubbleColor.current)) else Brush.linearGradient(listOf(palette.chatBubbleReceived, palette.chatBubbleReceived)))
-                    .then(
-                        if (!isOwnMessage) Modifier.border(
-                            1.dp,
-                            palette.chatBubbleReceivedBorder,
-                            bubbleShape
-                        ) else Modifier
+                    .background(
+                        if (isOwnMessage) LocalChatBubbleColor.current.copy(alpha = 0.9f)
+                        else palette.chatBubbleReceived
                     )
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
             ) {
                 if (isAiAssisted) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1181,20 +1185,28 @@ private fun TextBubble(
                         MessageStatusIcon(message.status)
                     }
                 }
-                if (onReply != null && message.type != MessageType.SYSTEM) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    androidx.compose.material3.TextButton(onClick = { onReply(message) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp)) {
-                        Text(stringResource(R.string.message_reply), style = MaterialTheme.typography.labelSmall, color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint)
-                    }
-                }
             }
-            ReactionSummaryRow(
-                message = message,
-                currentUserId = currentUserId,
-                isOwnMessage = isOwnMessage,
-                onReactionClick = onReactionClick
-            )
+            }
         }
+        if (onReply != null && message.type != MessageType.SYSTEM) {
+            androidx.compose.material3.TextButton(
+                onClick = { onReply(message) },
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
+                modifier = Modifier.padding(start = if (isOwnMessage) 0.dp else 44.dp)
+            ) {
+                Text(
+                    stringResource(R.string.message_reply),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
+                )
+            }
+        }
+        ReactionSummaryRow(
+            message = message,
+            currentUserId = currentUserId,
+            isOwnMessage = isOwnMessage,
+            onReactionClick = onReactionClick
+        )
     }
 }
 

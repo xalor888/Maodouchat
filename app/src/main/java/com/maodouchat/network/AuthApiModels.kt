@@ -58,7 +58,8 @@ data class UserPrivacyDto(
     val showOnline: Boolean = true,
     val showStatus: Boolean = true,
     val searchable: Boolean = true,
-    val defaultPostVisibility: String = "PUBLIC"
+    val defaultPostVisibility: String = "PUBLIC",
+    val onlineVisibility: String = "everyone"
 )
 
 @Serializable
@@ -66,7 +67,17 @@ data class UpdatePrivacyRequest(
     val showOnline: Boolean? = null,
     val showStatus: Boolean? = null,
     val searchable: Boolean? = null,
-    val defaultPostVisibility: String? = null
+    val defaultPostVisibility: String? = null,
+    val onlineVisibility: String? = null
+)
+
+@Serializable
+data class PublicUpdatesDto(
+    val versionCode: Int = 0,
+    val versionName: String = "0",
+    val apkUrl: String = "",
+    val serverUrl: String = "",
+    val notes: String = ""
 )
 
 @Serializable

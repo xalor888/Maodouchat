@@ -12,10 +12,14 @@ import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
+import com.maodouchat.ai.AiPrivacyPreferences
 import com.maodouchat.ai.AiRetryPolicy
 import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.attachment.AttachmentTransferSummaryRepository
+import com.maodouchat.crypto.DecryptHistoryPolicy
 import com.maodouchat.crypto.GroupSenderKeyRequestPolicy
+import com.maodouchat.crypto.GroupSenderKeyReloginPolicy
+import com.maodouchat.crypto.OwnSentMediaRestorePolicy
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.repository.resolveDirectOutboxPeerId
@@ -39,9 +43,7 @@ import com.maodouchat.data.model.semanticSearchText
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.AiSummaryRepository
-import com.maodouchat.data.repository.AiMessageMetaSyncRepository
 import com.maodouchat.data.repository.AiMessageResultStore
-import com.maodouchat.data.repository.AiSummarySyncRepository
 import com.maodouchat.data.repository.AiTaskRepository
 import com.maodouchat.data.repository.AiOperationRepository
 import com.maodouchat.data.repository.MessageRepository
@@ -159,8 +161,9 @@ class ChatDetailViewModel(
     private val recordingWaveformBuffer = VoiceRecordingWaveform()
     private var recordingMeterJob: Job? = null
     internal val signalProtocol: SignalProtocol = app.signalProtocol
-    internal val aiSummarySyncRepo = AiSummarySyncRepository(app.database.aiSummaryCacheDao(), signalProtocol)
-    internal val aiMessageMetaSyncRepo = AiMessageMetaSyncRepository(messageRepo, signalProtocol, app.database)
+    /** Senders that already got one ensureSessions this chat open (history must not storm). */
+    private val attemptedSessionRepairIds = mutableSetOf<String>()
+    private val pendingSessionRepairIds = linkedSetOf<String>()
     internal val aiMessageResultStore = AiMessageResultStore(app.database)
     internal fun text(id: Int, vararg args: Any): String = getApplication<Application>().getString(id, *args)
 
@@ -356,15 +359,16 @@ class ChatDetailViewModel(
             refreshChatLockState()
             refreshSecretChatState()
             loadChat()
+            observeLocalMessages()
             connectWebSocket()
             observeWebSocket()
             observePresenceFallbackPolling()
             observeMessageStatus()
+            observeIncompleteGroupReadCounts()
             observeAttachmentTransfers()
             observeAttachmentFinalizedEvents()
             observeAiOperations()
             loadAiSettings()
-            pullSyncedAiSummaries()
             // 阅后即焚：本地周期扫到期消息并删除密文缓存。
             // 30s 粒度足够及时；原先 1s 无条件扫描即使未开启阅后即焚也会常驻唤醒主线程
             // 做 Room 查询（退后台时 ViewModel 存活照跑），浪费电量。App 级 5 分钟清扫兜底。
@@ -385,96 +389,6 @@ class ChatDetailViewModel(
                     if (_uiState.value.disappearingMessageSeconds <= 0) continue
                     purgeExpiredLocalMessages()
                 }
-            }
-        }
-    }
-
-    private fun pullSyncedAiSummaries() {
-        val pullOwnerUserId = currentUserId
-        if (token.isBlank() || pullOwnerUserId.isBlank() || !com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(app)) return
-        viewModelScope.launch(Dispatchers.IO) {
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = pullOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) {
-                return@launch
-            }
-            pullSyncedAiMessageMeta()
-            aiSummarySyncRepo.pull(token, pullOwnerUserId, liveToken = tokenManager::getToken, liveUserId = tokenManager::getUserId).onSuccess { imported ->
-                // Long decrypt/network can outlive switch — drop before painting AI summary.
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = pullOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) {
-                    return@onSuccess
-                }
-                val now = System.currentTimeMillis()
-                val unread = imported
-                    .asSequence()
-                    .filter { it.scope == AiSummaryScope.UNREAD.name }
-                    .map { it.entity }
-                    .filter { it.chatId == activeChatId && now - it.createdAt in 0..SYNCED_UNREAD_SUMMARY_DISPLAY_MAX_AGE_MS }
-                    .maxByOrNull { it.createdAt }
-                if (unread != null) {
-                    _uiState.update { state ->
-                        if (state.unreadAiSummary != null || state.isUnreadSummaryLoading) state
-                        else state.copy(
-                            unreadAiSummary = unread.summary,
-                            unreadAiSummaryCount = unread.messageCount
-                        )
-                    }
-                }
-            }.onFailure { error ->
-                Log.d("ChatDetailViewModel", "Encrypted AI summary sync unavailable: ${error.javaClass.simpleName}")
-            }
-        }
-    }
-
-    private suspend fun pullSyncedAiMessageMeta() {
-        val pullOwnerUserId = currentUserId
-        if (token.isBlank() || pullOwnerUserId.isBlank() || !com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(app)) return
-        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = pullOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
-        ) {
-            return
-        }
-        aiMessageMetaSyncRepo.pull(token, pullOwnerUserId, liveToken = tokenManager::getToken, liveUserId = tokenManager::getUserId).onSuccess { imported ->
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = pullOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) {
-                return@onSuccess
-            }
-            val activeImports = imported
-                .asSequence()
-                .filter { it.chatId == activeChatId }
-                .map { it.message }
-                .toList()
-            if (activeImports.isEmpty()) return@onSuccess
-            _uiState.update { state ->
-                state.copy(messages = mergeMessages(state.messages, activeImports))
-            }
-        }.onFailure { error ->
-            Log.d("ChatDetailViewModel", "Encrypted AI message meta sync unavailable: ${error.javaClass.simpleName}")
-        }
-    }
-
-    private fun pushAiMessageMeta(message: Message, expectedUserId: String = currentUserId) {
-        if (token.isBlank() || expectedUserId.isBlank() || currentUserId != expectedUserId ||
-            !com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(app)
-        ) return
-        viewModelScope.launch(Dispatchers.IO) {
-            aiMessageMetaSyncRepo.push(token, expectedUserId, message, liveToken = tokenManager::getToken, liveUserId = tokenManager::getUserId).onFailure { error ->
-                Log.d("ChatDetailViewModel", "Encrypted AI message meta push unavailable: ${error.javaClass.simpleName}")
             }
         }
     }
@@ -893,7 +807,6 @@ class ChatDetailViewModel(
                     messageRepo.insertMessages(keep)
                     // 8.41：解密失败占位消息不写搜索索引（占位文本是 UI 提示，非真实内容）
                     keep.filterNot { isSyncDecryptFailurePlaceholder(it) }.forEach { indexSearchableMessage(it) }
-                    pullSyncedAiMessageMeta()
                     _uiState.update { it.copy(messages = mergeMessages(it.messages, keep)) }
                 }
             }
@@ -1160,12 +1073,40 @@ class ChatDetailViewModel(
 
     /** 8.52 UX：初次加载失败后手动重试（UI 错误空态的重试按钮）。 */
     fun reloadChat() {
-        _uiState.update { it.copy(initialLoadError = null, isLoading = true) }
+        _uiState.update { it.copy(initialLoadError = null, isLoading = true, initialTimelineReady = false) }
         loadChat()
     }
 
+    /**
+     * Room is the durable plaintext store after list-side decrypt / own send.
+     * Open-chat REST is ciphertext; merge local rows continuously so a readable
+     * tail is not lost if history decrypt returns Duplicate/placeholder.
+     */
+    private fun observeLocalMessages() {
+        val observedChatId = activeChatId.ifBlank { chatId }
+        if (observedChatId.isBlank()) return
+        val ownerUserId = currentUserId
+        viewModelScope.launch {
+            messageRepo.getMessagesByChatId(observedChatId).collect { local ->
+                if (local.isEmpty()) return@collect
+                if (ownerUserId.isBlank() ||
+                    !com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = ownerUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = tokenManager.getUserId(),
+                    )
+                ) {
+                    return@collect
+                }
+                val visible = local.filter { it.type != MessageType.SK_DIST }
+                if (visible.isEmpty()) return@collect
+                _uiState.update { it.copy(messages = mergeMessages(it.messages, visible)) }
+            }
+        }
+    }
+
     private fun loadChat() {
-        _uiState.update { it.copy(isLoading = true) }
+        _uiState.update { it.copy(isLoading = true, initialTimelineReady = false) }
         viewModelScope.launch {
             try {
                 val loadOwnerUserId = currentUserId
@@ -1227,6 +1168,7 @@ class ChatDetailViewModel(
                             )
                         }
                         loadGroupCandidates()
+                        refreshBotCommands(chat.id)
                     } else {
                         val contactUser = chat.participants.firstOrNull { it.id != currentUserId }
                         if (contactUser != null) {
@@ -1239,8 +1181,12 @@ class ChatDetailViewModel(
                                 )
                             }
                             refreshBlockState(contactUser.id)
-                            refreshIdentitySafetyState(contactUser.id)
                             refreshScheduledMessages()
+                            if (com.maodouchat.bot.BotCommandPolicy.isBotUserId(contactUser.id)) {
+                                refreshBotCommands(chat.id)
+                            } else {
+                                refreshIdentitySafetyState(contactUser.id)
+                            }
                         }
                     }
                 } else {
@@ -1296,6 +1242,21 @@ class ChatDetailViewModel(
                         return@withContext
                     }
                     val msgToken = tokenManager.getToken().orEmpty().ifBlank { liveToken }
+                    // Paint already-decrypted local rows first. Open-chat getMessages is wire
+                    // ciphertext; a Duplicate decrypt must not replace a readable Room tail
+                    // with a blank/placeholder list (list preview can already show plaintext).
+                    val localRecent = messageRepo.getRecentMessages(effectiveChatId, HISTORY_PAGE_SIZE)
+                    if (localRecent.isNotEmpty() &&
+                        com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                            expectedUserId = loadOwnerUserId,
+                            liveToken = tokenManager.getToken(),
+                            liveUserId = tokenManager.getUserId(),
+                        )
+                    ) {
+                        _uiState.update {
+                            it.copy(messages = mergeMessages(it.messages, localRecent))
+                        }
+                    }
                     unreadSummaryWindow = ApiService.getUnreadWindow(msgToken, chatId, limit = 36).getOrNull()
                     ApiService.getMessages(msgToken, chatId, limit = HISTORY_PAGE_SIZE)
                         .onSuccess { dtos ->
@@ -1360,18 +1321,31 @@ class ChatDetailViewModel(
                                     unreadSeparatorId = unreadSepId
                                 )
                             }
+                            val localAfterHistory = messageRepo.getRecentMessages(effectiveChatId, HISTORY_PAGE_SIZE)
+                            if (localAfterHistory.isNotEmpty()) {
+                                _uiState.update {
+                                    it.copy(messages = mergeMessages(it.messages, localAfterHistory))
+                                }
+                            }
                             maybeAutoLoadLastGroupReadCount()
+                            hydrateMissingLocalAttachments(messages)
+                            requestMissingGroupSenderKeysForHistory(messages)
                             maybeGenerateUnreadSummary(messages)
                             // 缓存解密后的消息到本地 DB，确保离线时仍可查看
                             if (messages.isNotEmpty()) {
                                 messageRepo.insertMessages(messages)
-                                messages.forEach { indexSearchableMessage(it) }
+                                messages.filterNot { isSyncDecryptFailurePlaceholder(it) }
+                                    .forEach { indexSearchableMessage(it) }
                             }
+                            maybeShowNewDeviceHistoryBanner(messages)
+                            flushDeferredSessionRepairs()
                             // Replace list ciphertext placeholder with decrypted tail after open-chat fetch.
+                            _uiState.update { it.copy(initialTimelineReady = true) }
                             messages
                                 .asSequence()
                                 .filter { it.type != MessageType.SK_DIST }
-                                .maxByOrNull { it.timestamp }
+                                .sortedByDescending { it.timestamp }
+                                .firstOrNull { !isSyncDecryptFailurePlaceholder(it) }
                                 ?.let { emitListPreviewForDecrypted(it) }
                             if ((unreadSummaryWindow?.totalCount ?: 0) > 0) {
                                 // Surface #68: 密聊 read-receipt 门控
@@ -1421,13 +1395,23 @@ class ChatDetailViewModel(
                                 _uiState.update {
                                     it.copy(
                                         messages = mergeMessages(it.messages, cached),
-                                        hasMoreOlderMessages = true
+                                        hasMoreOlderMessages = true,
+                                        initialTimelineReady = true
                                     )
                                 }
+                                hydrateMissingLocalAttachments(cached)
+                                requestMissingGroupSenderKeysForHistory(cached)
                                 maybeGenerateUnreadSummary(cached)
                             } else if (_uiState.value.messages.isEmpty()) {
                                 // 8.52 UX：消息加载失败且无缓存 → 错误态（区别于真实空会话）
-                                _uiState.update { it.copy(initialLoadError = text(R.string.chat_load_failed_title)) }
+                                _uiState.update {
+                                    it.copy(
+                                        initialLoadError = text(R.string.chat_load_failed_title),
+                                        initialTimelineReady = true
+                                    )
+                                }
+                            } else {
+                                _uiState.update { it.copy(initialTimelineReady = true) }
                             }
                         }
                 }
@@ -1548,14 +1532,18 @@ class ChatDetailViewModel(
         olderMessagesCursor = nextCursor
         if (messages.isNotEmpty()) {
             messageRepo.insertMessages(messages)
-            messages.forEach { indexSearchableMessage(it) }
+            messages.filterNot { isSyncDecryptFailurePlaceholder(it) }
+                .forEach { indexSearchableMessage(it) }
         }
+        flushDeferredSessionRepairs()
         _uiState.update {
             it.copy(
                 messages = mergeMessages(it.messages, messages),
                 hasMoreOlderMessages = dtos.size >= HISTORY_PAGE_SIZE
             )
         }
+        hydrateMissingLocalAttachments(messages)
+        requestMissingGroupSenderKeysForHistory(messages)
         return true
     }
 
@@ -2229,6 +2217,7 @@ class ChatDetailViewModel(
                             return@collect
                         }
                         _uiState.update { it.copy(messages = mergeMessages(it.messages, listOf(withPendingReactions))) }
+                        maybeAutoTranslateIncoming(withPendingReactions)
                         withContext(Dispatchers.IO) {
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                     expectedUserId = receiveOwnerUserId,
@@ -2287,6 +2276,11 @@ class ChatDetailViewModel(
                             return@collect
                         }
                         updateMessageStatus(event.messageId, event.status)
+                        if (_uiState.value.chatIsGroup &&
+                            (event.status == MessageStatus.SENT || event.status == MessageStatus.DELIVERED)
+                        ) {
+                            maybeAutoLoadLastGroupReadCount()
+                        }
                     }
                     is WebSocketEvent.MessageDeleted -> {
                         // 对方删除了消息，从 UI 和本地缓存中移除
@@ -2708,6 +2702,8 @@ class ChatDetailViewModel(
                     is WebSocketEvent.Connected -> {
                         // 重连后走按 chat 游标的增量同步，避免仅靠 UI 时间戳窗口漏消息
                         if (event.success) {
+                            disconnectBannerJob?.cancel()
+                            disconnectBannerJob = null
                             // Clear soft WS disconnect banner if it was the connection-failed string.
                             _uiState.update { state ->
                                 if (state.groupEncryptionWarning == text(R.string.chat_ws_connection_failed)) {
@@ -2720,35 +2716,18 @@ class ChatDetailViewModel(
                             // 避免服务端未读长期保留、本地 UI 与服务端不一致
                             retryPendingServerReads()
                         } else {
-                            _uiState.update {
-                                it.copy(groupEncryptionWarning = text(R.string.chat_ws_connection_failed))
-                            }
+                            scheduleDisconnectBanner()
                         }
                     }
                     is WebSocketEvent.Disconnected -> {
                         // Peer typing leases are WS-only; drop them so UI does not stick after drop.
                         remoteTypingCoordinator.clear()
-                        // Soft banner only when no higher-priority encryption/AI warning is showing.
-                        val connectionMsg = text(R.string.chat_ws_connection_failed)
-                        _uiState.update { state ->
-                            if (state.groupEncryptionWarning.isNullOrBlank() ||
-                                state.groupEncryptionWarning == connectionMsg
-                            ) {
-                                state.copy(groupEncryptionWarning = connectionMsg)
-                            } else state
-                        }
+                        scheduleDisconnectBanner()
                     }
                     is WebSocketEvent.Error -> {
                         Log.w("ChatDetailViewModel", "WS error: ${event.kind}; ${event.debugDetail.orEmpty()}")
                         if (event.kind == com.maodouchat.network.WebSocketErrorKind.CONNECTION) {
-                            val connectionMsg = text(R.string.chat_ws_connection_failed)
-                            _uiState.update { state ->
-                                if (state.groupEncryptionWarning.isNullOrBlank() ||
-                                    state.groupEncryptionWarning == connectionMsg
-                                ) {
-                                    state.copy(groupEncryptionWarning = connectionMsg)
-                                } else state
-                            }
+                            scheduleDisconnectBanner()
                         } else {
                             _uiState.update {
                                 it.copy(groupEncryptionWarning = text(R.string.chat_ws_data_invalid))
@@ -3014,7 +2993,24 @@ class ChatDetailViewModel(
     }
 
     private var typingDebounceJob: kotlinx.coroutines.Job? = null
+    private var disconnectBannerJob: kotlinx.coroutines.Job? = null
     private var announcedTypingChatId: String? = null
+
+    private fun scheduleDisconnectBanner() {
+        if (disconnectBannerJob?.isActive == true) return
+        disconnectBannerJob = viewModelScope.launch {
+            delay(com.maodouchat.network.RealtimeDisconnectPolicy.BANNER_DELAY_MS)
+            if (com.maodouchat.network.WebSocketClient.isConnected()) return@launch
+            val connectionMsg = text(R.string.chat_ws_connection_failed)
+            _uiState.update { state ->
+                if (state.groupEncryptionWarning.isNullOrBlank() ||
+                    state.groupEncryptionWarning == connectionMsg
+                ) {
+                    state.copy(groupEncryptionWarning = connectionMsg)
+                } else state
+            }
+        }
+    }
 
     fun onInputChange(text: String) {
         hasUserEditedInput = true
@@ -3067,7 +3063,6 @@ class ChatDetailViewModel(
             aiAutoRetryJobs.remove(operationId)?.cancel()
             aiAutoRetryAt.remove(operationId)
         }
-        pushAiMessageMeta(message, expectedUserId)
         return true
     }
 
@@ -3232,7 +3227,7 @@ class ChatDetailViewModel(
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
             return
         }
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_REWRITE)) {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.ai_rewrite_disabled)) }
             return
         }
@@ -3254,7 +3249,7 @@ class ChatDetailViewModel(
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
             return
         }
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_SUGGEST_REPLIES)) {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.ai_suggest_replies_disabled)) }
             return
         }
@@ -3285,7 +3280,7 @@ class ChatDetailViewModel(
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
             return
         }
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_SUMMARY)) {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.ai_summary_disabled)) }
             return
         }
@@ -3381,6 +3376,25 @@ class ChatDetailViewModel(
         runAiWithConsent(PendingAiAction.TranscribeVoice(messageId))
     }
 
+    private fun maybeAutoTranslateIncoming(message: Message) {
+        if (message.senderId == currentUserId) return
+        if (message.type != MessageType.TEXT && message.type != MessageType.MARKDOWN) return
+        if (_uiState.value.isSecretChat == true) return
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) return
+        if (!_uiState.value.aiEnabled) return
+        val app = getApplication<Application>()
+        if (!com.maodouchat.ai.AiPrivacyPreferences.autoTranslateIncoming(app)) return
+        if (!com.maodouchat.ai.AiPrivacyPreferences.mayUploadCloudContext(app)) return
+        val text = message.parsedContent().trim()
+        if (text.isBlank()) return
+        val target = when (com.maodouchat.util.AppLocaleManager.getMode(app)) {
+            com.maodouchat.util.AppLocaleManager.MODE_ENGLISH -> "en"
+            else -> "zh"
+        }
+        if (!message.parsedMeta().translations[target].isNullOrBlank()) return
+        requestMessageTranslation(message.id, target)
+    }
+
     fun requestMessageTranslation(messageId: String, targetLanguage: String = DEFAULT_TRANSLATION_LANGUAGE) {
         val message = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
         if (message.type != MessageType.TEXT && message.type != MessageType.MARKDOWN) return
@@ -3406,7 +3420,6 @@ class ChatDetailViewModel(
             }
             viewModelScope.launch(Dispatchers.IO) {
                 messageRepo.insertMessage(updated)
-                pushAiMessageMeta(updated)
             }
             return
         }
@@ -3416,7 +3429,7 @@ class ChatDetailViewModel(
     fun requestAiImageAnalysis(messageId: String, mode: AiImageAnalysisMode) {
         val message = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
         if (message.type != MessageType.IMAGE || _uiState.value.isAiWorking) return
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_ANALYZE_IMAGE)) {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.ai_analyze_image_disabled)) }
             return
         }
@@ -3440,7 +3453,6 @@ class ChatDetailViewModel(
             }
             viewModelScope.launch(Dispatchers.IO) {
                 messageRepo.insertMessage(updated)
-                pushAiMessageMeta(updated)
             }
             return
         }
@@ -3452,7 +3464,7 @@ class ChatDetailViewModel(
     }
 
     fun requestAiFileAnalysis(messageId: String, mode: AiFileAnalysisMode, question: String? = null) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_ANALYZE_FILE)) {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.ai_analyze_file_disabled)) }
             return
         }
@@ -3492,7 +3504,6 @@ class ChatDetailViewModel(
             }
             viewModelScope.launch(Dispatchers.IO) {
                 messageRepo.insertMessage(updated)
-                pushAiMessageMeta(updated)
             }
             return
         }
@@ -3556,7 +3567,7 @@ class ChatDetailViewModel(
 
     fun requestMediaAttachment(messageId: String) {
         val message = _uiState.value.messages.firstOrNull {
-            it.id == messageId && it.type in AUTO_DOWNLOAD_MEDIA_TYPES
+            it.id == messageId && it.type in RELIABLE_ATTACHMENT_TYPES
         } ?: return
         if (MediaCache.isReadableLocalUri(getApplication(), message.parsedContent())) return
         if (messageId in _uiState.value.downloadingFileMessageIds) return
@@ -3687,7 +3698,6 @@ class ChatDetailViewModel(
             retryOperationId != null -> retryAiOperation(retryOperationId)
             action != null -> executeAiAction(action)
         }
-        pullSyncedAiSummaries()
         maybeGenerateUnreadSummary(_uiState.value.messages)
     }
 
@@ -3722,14 +3732,6 @@ class ChatDetailViewModel(
         viewModelScope.launch {
             try {
                 val summaries = withContext(Dispatchers.IO) {
-                    if (com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(app)) {
-                        aiSummarySyncRepo.pull(
-                            tokenManager.getToken().orEmpty(),
-                            request.userId,
-                            liveToken = tokenManager::getToken,
-                            liveUserId = tokenManager::getUserId
-                        )
-                    }
                     aiSummaryRepo.getSummariesForChat(request.chatId, limit = 30)
                 }
                 requireAiRequestCurrent(request)
@@ -3916,45 +3918,42 @@ class ChatDetailViewModel(
                     }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                ApiService.updateAiSettings(liveToken, activeChatId, enabled).fold(
-                    onSuccess = { settings ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            return@fold
-                        }
-                        _uiState.update {
-                            it.copy(
-                                aiEnabled = settings.effectiveEnabled,
-                                aiSuggestions = if (settings.effectiveEnabled) it.aiSuggestions else emptyList(),
-                                isUpdatingAiSetting = false,
-                                groupEncryptionWarning = if (settings.effectiveEnabled) {
-                                    text(R.string.chat_ai_enabled_status)
-                                } else {
-                                    text(R.string.chat_ai_disabled_status)
-                                }
-                            )
-                        }
-                        if (settings.effectiveEnabled) {
-                            maybeGenerateUnreadSummary(_uiState.value.messages)
-                        } else {
-                            discardAiDraftPreview()
-                            cancelAiReplyStream(clearSuggestions = true)
-                            _uiState.value.aiOperations
-                                .filter { it.state in setOf(AiOperationState.QUEUED, AiOperationState.RUNNING) }
-                                .forEach { cancelAiOperation(it.id) }
-                        }
-                    },
-                    onFailure = { error ->
-                        _uiState.update {
-                            it.copy(isUpdatingAiSetting = false, groupEncryptionWarning = error.message ?: text(R.string.chat_ai_setting_failed))
-                        }
+                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = ownerUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = tokenManager.getUserId(),
+                    )
+                ) {
+                    _uiState.update {
+                        it.copy(isUpdatingAiSetting = false, groupEncryptionWarning = text(R.string.error_session_expired))
                     }
-                )
+                    return@launch
+                }
+                AiPrivacyPreferences.setUserEnabled(app, enabled)
+                val effective = enabled &&
+                    AiPrivacyPreferences.consentAccepted(app) &&
+                    RuntimeFlags.isEnabled(app, RuntimeFlags.AI_MASTER)
+                _uiState.update {
+                    it.copy(
+                        aiEnabled = effective,
+                        aiSuggestions = if (effective) it.aiSuggestions else emptyList(),
+                        isUpdatingAiSetting = false,
+                        groupEncryptionWarning = if (effective) {
+                            text(R.string.chat_ai_enabled_status)
+                        } else {
+                            text(R.string.chat_ai_disabled_status)
+                        }
+                    )
+                }
+                if (effective) {
+                    maybeGenerateUnreadSummary(_uiState.value.messages)
+                } else {
+                    discardAiDraftPreview()
+                    cancelAiReplyStream(clearSuggestions = true)
+                    _uiState.value.aiOperations
+                        .filter { it.state in setOf(AiOperationState.QUEUED, AiOperationState.RUNNING) }
+                        .forEach { cancelAiOperation(it.id) }
+                }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 _uiState.update { it.copy(isUpdatingAiSetting = false) }
                 throw error
@@ -4830,6 +4829,17 @@ class ChatDetailViewModel(
             _uiState.update { it.copy(isLoadingReadReceipts = false, readReceipts = emptyList()) }
             return
         }
+        val target = _uiState.value.messages.firstOrNull { it.id == messageId }
+        if (target != null && !ReadReceiptPolicy.canViewReceipts(
+                viewerId = currentUserId,
+                senderId = target.senderId,
+                isGroup = _uiState.value.chatIsGroup,
+                viewerRole = _uiState.value.myMemberRole,
+            )
+        ) {
+            _uiState.update { it.copy(isLoadingReadReceipts = false, readReceipts = emptyList()) }
+            return
+        }
 
         val ownerUserId = currentUserId
         if (token.isBlank() || ownerUserId.isBlank()) {
@@ -4890,9 +4900,17 @@ class ChatDetailViewModel(
                                 ReadReceiptUi(userId = receipt.userId, name = receipt.userId, readAt = receipt.readAt)
                             }
                         }
-                        _uiState.update { it.copy(isLoadingReadReceipts = false, readReceipts = rows) }
+                        val (read, total) = ReadReceiptPolicy.computeGroupReadCount(
+                            viewerId = ownerUserId,
+                            memberIds = members.map { it.id },
+                            receiptUserIds = receipts.map { it.userId },
+                        )
                         _uiState.update {
-                            it.copy(groupReadCounts = it.groupReadCounts + (messageId to ReadCountUi(rows.count { r -> r.readAt != null }, rows.size)))
+                            it.copy(
+                                isLoadingReadReceipts = false,
+                                readReceipts = rows,
+                                groupReadCounts = it.groupReadCounts + (messageId to ReadCountUi(read, total))
+                            )
                         }
                     },
                     onFailure = { error ->
@@ -4916,7 +4934,7 @@ class ChatDetailViewModel(
         _uiState.update { it.copy(readReceipts = emptyList(), isLoadingReadReceipts = false) }
     }
 
-    /** 1.163：群聊加载后，自动拉取最后一条自己已送达消息的已读人数（仅单次轻量请求）。 */
+    /** 群聊加载后预拉最近几条自己已送达消息的已读人数（每条一次轻量请求）。 */
     private fun maybeAutoLoadLastGroupReadCount() {
         if (!_uiState.value.chatIsGroup) return
         // 1.167：只保留最近 20 条消息的已读缓存，防止无限增长
@@ -4928,20 +4946,43 @@ class ChatDetailViewModel(
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.READ_RECEIPTS)) return
         val ownerUserId = currentUserId
         if (ownerUserId.isBlank() || token.isBlank()) return
-        val lastOutgoing = _uiState.value.messages.lastOrNull {
-            it.senderId == ownerUserId &&
-                it.type != com.maodouchat.data.model.MessageType.SK_DIST &&
-                it.status != MessageStatus.SENDING &&
-                it.status != MessageStatus.FAILED
-        } ?: return
-        loadGroupReadCount(lastOutgoing.id)
+        val prefetchIds = ReadReceiptPolicy.outgoingMessageIdsForGroupReadPrefetch(
+            viewerId = ownerUserId,
+            messagesNewestLast = _uiState.value.messages.map { message ->
+                ReadReceiptPolicy.PrefetchMessage(
+                    id = message.id,
+                    senderId = message.senderId,
+                    eligibleForGroupReadCount = message.type != MessageType.SK_DIST &&
+                        message.status != MessageStatus.SENDING &&
+                        message.status != MessageStatus.FAILED,
+                )
+            },
+        )
+        prefetchIds.forEach { loadGroupReadCount(it) }
+    }
+
+    private fun hydrateMissingLocalAttachments(messages: List<Message>) {
+        if (_uiState.value.isSecretChat == true) return
+        messages.asSequence()
+            .filter { message ->
+                OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                    isSecretChat = false,
+                    type = message.type,
+                    attachmentId = message.parsedMeta().attachmentId,
+                    localUriReadable = MediaCache.isReadableLocalUri(getApplication(), message.parsedContent()),
+                    senderIsCurrentUser = message.senderId == currentUserId,
+                    autoDownload = message.type in AUTO_DOWNLOAD_MEDIA_TYPES
+                )
+            }
+            .take(12)
+            .forEach { requestMediaAttachment(it.id) }
     }
 
     /** 1.163：拉取指定群消息已读人数并缓存（不打开阅读详情弹窗）。 */
-    fun loadGroupReadCount(messageId: String) {
+    fun loadGroupReadCount(messageId: String, force: Boolean = false) {
         val ownerUserId = currentUserId
         if (messageId.isBlank() || ownerUserId.isBlank() || token.isBlank()) return
-        if (_uiState.value.groupReadCounts.containsKey(messageId)) return
+        if (!force && _uiState.value.groupReadCounts.containsKey(messageId)) return
         viewModelScope.launch {
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
@@ -4963,14 +5004,50 @@ class ChatDetailViewModel(
                         return@fold
                     }
                     val members = _uiState.value.chat?.participants.orEmpty()
-                    val total = if (members.isNotEmpty()) members.count { it.id != ownerUserId } else receipts.size
-                    val read = receipts.size
+                    val (read, total) = ReadReceiptPolicy.computeGroupReadCount(
+                        viewerId = ownerUserId,
+                        memberIds = members.map { it.id },
+                        receiptUserIds = receipts.map { it.userId },
+                    )
                     _uiState.update {
                         it.copy(groupReadCounts = it.groupReadCounts + (messageId to ReadCountUi(read, total)))
                     }
                 },
                 onFailure = { /* 失败静默，点击状态图标仍可走完整阅读详情 */ }
             )
+        }
+    }
+
+    /**
+     * 群聊 READ 不走 MESSAGE_STATUS。发送后立刻预拉会得到 0/Y，之后必须再拉一次
+     * 才能变成 1/Y。只轮询尚未读满的自己消息。
+     */
+    private fun observeIncompleteGroupReadCounts() {
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(2_500)
+                if (!_uiState.value.chatIsGroup) continue
+                val thisChatId = activeChatId.ifBlank { chatId }
+                if (com.maodouchat.MaodouchatApp.activeChatId != thisChatId) continue
+                if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.READ_RECEIPTS)) continue
+                val ownerUserId = currentUserId
+                if (ownerUserId.isBlank() || token.isBlank()) continue
+                val ids = ReadReceiptPolicy.incompleteGroupReadMessageIds(
+                    viewerId = ownerUserId,
+                    messagesNewestLast = _uiState.value.messages.map { message ->
+                        ReadReceiptPolicy.PrefetchMessage(
+                            id = message.id,
+                            senderId = message.senderId,
+                            eligibleForGroupReadCount = message.type != MessageType.SK_DIST &&
+                                message.status != MessageStatus.SENDING &&
+                                message.status != MessageStatus.FAILED,
+                        )
+                    },
+                    counts = _uiState.value.groupReadCounts,
+                )
+                if (ids.isEmpty()) continue
+                ids.forEach { loadGroupReadCount(it, force = true) }
+            }
         }
     }
 
@@ -6123,6 +6200,10 @@ class ChatDetailViewModel(
      */
     fun exportChatHistory() {
         viewModelScope.launch {
+            if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_EXPORT)) {
+                _uiState.update { it.copy(infoMessage = text(R.string.chat_export_disabled)) }
+                return@launch
+            }
             val chat = _uiState.value.chat ?: return@launch
             if (tokenManager.getToken().isNullOrBlank()) {
                 _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
@@ -6309,7 +6390,69 @@ class ChatDetailViewModel(
         return fmt.format(java.util.Date(millis))
     }
 
-fun inviteFirstOwnedBot() {
+    private suspend fun maybeForwardBotInbox(
+        liveToken: String,
+        chatId: String,
+        plaintext: String,
+        isGroup: Boolean,
+        peerId: String
+    ) {
+        val isDirectWithBot = !isGroup && com.maodouchat.bot.BotCommandPolicy.isBotUserId(peerId)
+        val hasGroupBots = isGroup && (
+            _uiState.value.botCommands.isNotEmpty() ||
+                _uiState.value.chat?.participants.orEmpty().any {
+                    com.maodouchat.bot.BotCommandPolicy.isBotUserId(it.id)
+                }
+            )
+        if (!com.maodouchat.bot.BotCommandPolicy.shouldSendInbox(plaintext, isDirectWithBot, hasGroupBots)) {
+            return
+        }
+        ApiService.postBotInbox(liveToken, chatId, plaintext).onFailure { error ->
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            android.util.Log.w("ChatDetail", "bot-inbox failed: ${error.message}")
+        }
+    }
+
+    private fun refreshBotCommands(chatId: String) {
+        if (chatId.isBlank()) return
+        val ownerUserId = currentUserId
+        viewModelScope.launch(Dispatchers.IO) {
+            val liveToken = tokenManager.getToken().orEmpty()
+            if (liveToken.isBlank()) return@launch
+            val raw = ApiService.listChatBotCommands(liveToken, chatId).getOrNull() ?: return@launch
+            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                    expectedUserId = ownerUserId,
+                    liveToken = tokenManager.getToken(),
+                    liveUserId = tokenManager.getUserId(),
+                )
+            ) return@launch
+            val parsed = parseBotCommands(raw)
+            _uiState.update { it.copy(botCommands = parsed) }
+        }
+    }
+
+    private fun parseBotCommands(raw: String): List<com.maodouchat.bot.BotCommandPolicy.BotCommandItem> {
+        val root = runCatching { org.json.JSONObject(raw) }.getOrNull() ?: return emptyList()
+        val arr = root.optJSONArray("commands") ?: return emptyList()
+        val out = ArrayList<com.maodouchat.bot.BotCommandPolicy.BotCommandItem>(arr.length())
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            val command = o.optString("command").trim()
+            val username = o.optString("username").trim()
+            val botId = o.optString("botId").trim()
+            if (command.isBlank() || username.isBlank() || botId.isBlank()) continue
+            out += com.maodouchat.bot.BotCommandPolicy.BotCommandItem(
+                botId = botId,
+                username = username,
+                name = o.optString("name").ifBlank { username },
+                command = command,
+                description = o.optString("description")
+            )
+        }
+        return out
+    }
+
+    fun inviteFirstOwnedBot() {
         viewModelScope.launch {
             val liveToken = tokenManager.getToken().orEmpty()
             if (liveToken.isBlank()) {
@@ -7839,20 +7982,23 @@ fun sendCurrentLocation() {
                     }
                     val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
                     val effectiveChatId = resolveOutgoingChatId().getOrThrow()
+                    val peerId = _uiState.value.contact.id
+                    val isBotDirect = !_uiState.value.chatIsGroup &&
+                        com.maodouchat.bot.BotCommandPolicy.isBotUserId(peerId)
                     val groupEpoch = if (_uiState.value.chat?.isGroup == true) {
                         requireGroupEpoch(effectiveChatId).also { ensureGroupSenderKeyDistributed(effectiveChatId, it) }
                     } else null
-                    val wireContent = if (groupEpoch != null) {
-                        signalProtocol.encryptGroupTextEnvelope(
+                    val wireContent = when {
+                        groupEpoch != null -> signalProtocol.encryptGroupTextEnvelope(
                             effectiveChatId,
                             contentWithMeta,
                             messageType.name,
                             groupEpoch
                         ).getOrThrow()
-                    } else {
-                        signalProtocol.encryptSyncedContentEnvelope(
+                        isBotDirect -> contentWithMeta
+                        else -> signalProtocol.encryptSyncedContentEnvelope(
                             liveToken,
-                            _uiState.value.contact.id,
+                            peerId,
                             contentWithMeta,
                             messageType.name
                         ).getOrThrow()
@@ -7866,6 +8012,13 @@ fun sendCurrentLocation() {
                         silent = wantSilent
                     )
                     if (groupEpoch != null) markGroupSenderKeyMessageSent(effectiveChatId, groupEpoch, msgId)
+                    maybeForwardBotInbox(
+                        liveToken = liveToken,
+                        chatId = effectiveChatId,
+                        plaintext = text,
+                        isGroup = groupEpoch != null,
+                        peerId = peerId
+                    )
                     effectiveChatId to delivered
                 }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -7911,7 +8064,11 @@ fun sendCurrentLocation() {
                         messages = state.messages.map { if (it.id == msgId) next else it },
                         isSending = false,
                         groupEncryptionWarning = if (terminalFailed) {
-                            error.message?.take(120) ?: text(R.string.chat_send_failed)
+                            when (error) {
+                                is com.maodouchat.crypto.NoRecipientDevicesException ->
+                                    text(R.string.chat_send_failed_no_devices)
+                                else -> error.message?.take(120) ?: text(R.string.chat_send_failed)
+                            }
                         } else state.groupEncryptionWarning
                     )
                 }
@@ -8102,15 +8259,71 @@ fun sendCurrentLocation() {
         }
     }
 
-    private var lastSenderKeyRequestAt = 0L
+    private val lastSenderKeyRequestAtBySender = mutableMapOf<String, Long>()
 
     private fun requestMissingGroupSenderKey(chatId: String, senderId: String) {
-        if (chatId.isBlank() || senderId.isBlank() || senderId == currentUserId) return
+        if (chatId.isBlank()) return
+        if (!GroupSenderKeyRequestPolicy.shouldRequestFromSender(senderId, currentUserId)) return
         val now = System.currentTimeMillis()
-        if (now - lastSenderKeyRequestAt < 8_000L) return
-        lastSenderKeyRequestAt = now
+        if (!GroupSenderKeyRequestPolicy.shouldSendNow(senderId, now, lastSenderKeyRequestAtBySender)) return
+        lastSenderKeyRequestAtBySender[senderId.trim()] = now
         val epoch = _uiState.value.chat?.memberRevision ?: 0L
         WebSocketClient.requestSenderKey(chatId, epoch)
+    }
+
+    private fun requestMissingGroupSenderKeysForHistory(messages: List<Message>) {
+        if (!_uiState.value.chatIsGroup) return
+        val chatId = (_uiState.value.chat?.id ?: activeChatId).ifBlank { return }
+        val senders = GroupSenderKeyRequestPolicy.sendersNeedingRedistribution(
+            messages.asSequence()
+                .filter { it.type.isDecryptable() }
+                .filter {
+                    GroupSenderKeyReloginPolicy.shouldRequestMissingPeerKey(
+                        isGroup = true,
+                        stillWire = GroupSenderKeyReloginPolicy.stillWireForRequest(
+                            signalProtocol.isSenderKeyEnvelope(it.content),
+                            it.content.isSenderKeyMessage()
+                        ),
+                        senderId = it.senderId,
+                        currentUserId = currentUserId
+                    )
+                }
+                .map { it.senderId }
+                .asIterable(),
+            currentUserId
+        )
+        senders.forEach { requestMissingGroupSenderKey(chatId, it) }
+    }
+
+    private fun noteDeferredSessionRepair(senderId: String, result: SignalProtocol.DecryptResult) {
+        if (!DecryptHistoryPolicy.shouldDeferSessionRepair(result)) return
+        val id = senderId.trim()
+        if (!DecryptHistoryPolicy.shouldAttemptSessionRepair(id, attemptedSessionRepairIds)) return
+        pendingSessionRepairIds += id
+    }
+
+    private fun flushDeferredSessionRepairs() {
+        if (pendingSessionRepairIds.isEmpty()) return
+        val ids = pendingSessionRepairIds.toList()
+        pendingSessionRepairIds.clear()
+        attemptedSessionRepairIds += ids
+        val repairToken = token
+        if (repairToken.isBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            ids.forEach { senderId ->
+                runCatching { signalProtocol.ensureSessions(repairToken, senderId) }
+            }
+        }
+    }
+
+    private fun maybeShowNewDeviceHistoryBanner(messages: List<Message>) {
+        if (!DecryptHistoryPolicy.newDeviceHistoryCannotDecrypt(signalProtocol.wasIdentityRestoredFromStore())) {
+            return
+        }
+        val hasUndecryptedHistory = messages.any { isSyncDecryptFailurePlaceholder(it) }
+        if (!hasUndecryptedHistory) return
+        if (!_uiState.value.groupEncryptionWarning.isNullOrBlank()) return
+        _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_decrypt_new_device)) }
     }
 
     private suspend fun handleSenderKeyRequested(event: WebSocketEvent.SenderKeyRequested) {
@@ -8312,54 +8525,49 @@ fun sendCurrentLocation() {
             if (message.content.isSenderKeyMessage()) {
                 return when (val result = signalProtocol.decryptGroupContentEnvelope(senderId, message.content, expectedGroupId = message.chatId, currentEpoch = epoch)) {
                     is SignalProtocol.DecryptResult.Success -> if (message.type in setOf(MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER, MessageType.LOCATION)) message.copy(content = result.plaintext) else restoreDecryptedMediaMessage(message, result.plaintext)
-                    SignalProtocol.DecryptResult.NotForThisDevice -> localPlainOwnMessage(message)
+                    SignalProtocol.DecryptResult.NotForThisDevice ->
+                        localReadableMessage(message) ?: message
                     SignalProtocol.DecryptResult.FutureEpoch -> {
                         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_group_member_state_updated)) }
                         if (GroupSenderKeyRequestPolicy.shouldRequestRedistribution(true, result)) {
                             requestMissingGroupSenderKey(message.chatId, senderId)
                         }
-                        localPlainOwnMessage(message) ?: message
+                        localReadableMessage(message) ?: message
                     }
                     SignalProtocol.DecryptResult.NoSession -> {
-                        signalProtocol.ensureSessions(token, senderId)
+                        noteDeferredSessionRepair(senderId, result)
                         if (GroupSenderKeyRequestPolicy.shouldRequestRedistribution(true, result)) {
                             requestMissingGroupSenderKey(message.chatId, senderId)
                         }
-                        localPlainOwnMessage(message) ?: message
+                        localReadableMessage(message) ?: message
                     }
                     SignalProtocol.DecryptResult.UntrustedIdentity -> {
                         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_decrypt_group_identity_changed)) }
-                        localPlainOwnMessage(message) ?: message
+                        localReadableMessage(message) ?: message
                     }
-                    SignalProtocol.DecryptResult.Duplicate -> localPlainOwnMessage(message) ?: message
-                    else -> {
-                        if (GroupSenderKeyRequestPolicy.shouldKeepGroupWire(result)) {
-                            localPlainOwnMessage(message) ?: message
-                        } else {
-                            localPlainOwnMessage(message) ?: message.copy(
-                                content = if (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) {
-                                    text(R.string.chat_decrypt_group_failed)
-                                } else {
-                                    message.mediaDecryptFailedText()
-                                }
-                            )
-                        }
-                    }
+                    SignalProtocol.DecryptResult.Duplicate -> localReadableMessage(message) ?: message
+                    else -> localReadableMessage(message) ?: message
                 }
             }
             return message
         }
-        if (message.type.isDecryptable() && signalProtocol.isEncryptedEnvelope(message.content)) {
+        if (message.type.isDecryptable() &&
+            (signalProtocol.isEncryptedEnvelope(message.content) ||
+                ChatListPreviewPolicy.isSignalWireEnvelope(message.content))
+        ) {
             return when (val result = signalProtocol.decryptContentEnvelope(senderId, message.content)) {
                 is SignalProtocol.DecryptResult.Success -> { if (message.type in setOf(MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER, MessageType.LOCATION)) message.copy(content = result.plaintext) else restoreDecryptedMediaMessage(message, result.plaintext) }
-                SignalProtocol.DecryptResult.NotForThisDevice -> localPlainOwnMessage(message)
+                SignalProtocol.DecryptResult.NotForThisDevice -> localReadableMessage(message) ?: message
                 SignalProtocol.DecryptResult.NoSession -> {
-                    signalProtocol.ensureSessions(token, senderId)
-                    localPlainOwnMessage(message) ?: message.copy(content = if (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) text(R.string.chat_decrypt_session_missing) else message.mediaDecryptFailedText())
+                    noteDeferredSessionRepair(senderId, result)
+                    localReadableMessage(message) ?: message
                 }
-                SignalProtocol.DecryptResult.UntrustedIdentity -> { localPlainOwnMessage(message) ?: message.copy(content = if (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) text(R.string.chat_decrypt_identity_changed) else message.mediaDecryptFailedText()) }
-                SignalProtocol.DecryptResult.Duplicate -> localPlainOwnMessage(message) ?: message
-                else -> localPlainOwnMessage(message) ?: message.copy(content = if (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) text(R.string.chat_decrypt_failed) else message.mediaDecryptFailedText())
+                SignalProtocol.DecryptResult.UntrustedIdentity -> {
+                    noteDeferredSessionRepair(senderId, result)
+                    localReadableMessage(message) ?: message
+                }
+                SignalProtocol.DecryptResult.Duplicate -> localReadableMessage(message) ?: message
+                else -> localReadableMessage(message) ?: message
             }
         }
         return message
@@ -8396,13 +8604,32 @@ fun sendCurrentLocation() {
                 status = message.status.takeIf { it != MessageStatus.SENDING } ?: current.status
             )
         }
-        val cached = messageRepo.getMessageById(message.id) ?: return null
-        if (!cached.isUsablePlaintext() || !cached.sameRevisionAs(message)) return null
-        return cached.copy(
-            editedAt = message.editedAt ?: cached.editedAt,
+        val cached = messageRepo.getMessageById(message.id)
+        if (cached != null && cached.isUsablePlaintext() && cached.sameRevisionAs(message)) {
+            return cached.copy(
+                editedAt = message.editedAt ?: cached.editedAt,
+                starred = message.starred,
+                reactions = message.reactions,
+                status = message.status.takeIf { it != MessageStatus.SENDING } ?: cached.status
+            )
+        }
+        // Optimistic local id vs server id: same chat/sender/timestamp can still hold plaintext
+        // after list-side decrypt or own send.
+        val hinted = messageRepo.findMessagesByDeliveryHint(
+            message.chatId,
+            message.senderId,
+            message.timestamp,
+        ).firstOrNull { candidate ->
+            candidate.type == message.type &&
+                candidate.isUsablePlaintext() &&
+                candidate.sameRevisionAs(message)
+        } ?: return null
+        return hinted.copy(
+            id = message.id,
+            editedAt = message.editedAt ?: hinted.editedAt,
             starred = message.starred,
             reactions = message.reactions,
-            status = message.status.takeIf { it != MessageStatus.SENDING } ?: cached.status
+            status = message.status.takeIf { it != MessageStatus.SENDING } ?: hinted.status
         )
     }
 
@@ -8951,7 +9178,8 @@ fun sendCurrentLocation() {
     }
 
     /**
-     * 忘记 PIN：清除本会话本地消息与锁（不删服务端历史；重新拉取可恢复密文）。
+     * 忘记 PIN：清除本会话本地明文与锁。服务端仍是密文；再拉同一信封会 Duplicate，解不开。
+     * 同步游标必须保留，否则会整段重拉密文变成「无法解密」。
      */
     fun forgotChatLockAndClearLocal() {
         val lockChatId = activeChatId.ifBlank { chatId }
@@ -8969,7 +9197,6 @@ fun sendCurrentLocation() {
                 return@launch
             }
             clearLocalChatContent(lockChatId, removePin = true)
-            tokenManager.clearChatCursors(lockChatId)
             try {
                 val local = chatRepo.getChatById(lockChatId)
                 if (local != null) {
@@ -9009,8 +9236,8 @@ fun sendCurrentLocation() {
     }
 
     /**
-     * 清除本会话本地消息/索引/媒体缓存与待发定时（保留会话、PIN、草稿）。
-     * 服务端密文仍在，重新打开可能再次同步。
+     * 清除本会话本地明文/索引/媒体与待发定时（保留会话、PIN、草稿、同步游标）。
+     * 服务端仍是密文。清空游标再同步会 Duplicate，气泡变成「无法解密」。
      */
     fun clearLocalChatHistory() {
         val targetChatId = activeChatId.ifBlank { chatId }
@@ -9029,7 +9256,6 @@ fun sendCurrentLocation() {
                 return@launch
             }
             clearLocalChatContent(targetChatId, removePin = false)
-            tokenManager.clearChatCursors(targetChatId)
             try {
                 val local = chatRepo.getChatById(targetChatId)
                 if (local != null) {

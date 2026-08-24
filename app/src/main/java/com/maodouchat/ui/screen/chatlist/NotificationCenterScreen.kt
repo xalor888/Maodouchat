@@ -42,6 +42,7 @@ import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -79,14 +80,10 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.data.repository.NotificationCenterRepository
-import com.maodouchat.ui.theme.Background
-import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.MaodouDimens
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MotionTokens
-import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.Surface
 import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed
@@ -260,7 +257,7 @@ fun NotificationCenterScreen(
     val showSearch = items.size >= 5
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -277,15 +274,15 @@ fun NotificationCenterScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.markAllRead() }, enabled = unreadCount > 0) {
-                        Icon(Icons.Outlined.DoneAll, contentDescription = stringResource(R.string.notif_center_mark_all_read), tint = if (unreadCount > 0) Primary else TextHint)
+                        Icon(Icons.Outlined.DoneAll, contentDescription = stringResource(R.string.notif_center_mark_all_read), tint = if (unreadCount > 0) MaterialTheme.colorScheme.onSurface else TextHint)
                     }
                     IconButton(onClick = { showClearConfirm = true }, enabled = items.isNotEmpty()) {
-                        Icon(Icons.Outlined.DeleteSweep, contentDescription = stringResource(R.string.notif_center_clear_all), tint = if (items.isNotEmpty()) Primary else TextHint)
+                        Icon(Icons.Outlined.DeleteSweep, contentDescription = stringResource(R.string.notif_center_clear_all), tint = if (items.isNotEmpty()) MaterialTheme.colorScheme.onSurface else TextHint)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
@@ -477,7 +474,7 @@ private fun NotificationRow(
         modifier = modifier
             .fillMaxWidth()
             // 8.48 修复 M4：未读行用淡主色背景区分（此前两分支相同 → 视觉高亮失效）
-            .background(if (item.read) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primary.copy(alpha = 0.05f))
+            .background(if (item.read) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primaryContainer)
             .then(
                 if (onLongClick != null) Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 else Modifier.clickable(onClick = onClick)
@@ -514,10 +511,10 @@ private fun NotificationRow(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                            .background(MaterialTheme.colorScheme.primaryContainer)
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
-                        Text("${item.count}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        Text("${item.count}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                 }
                 Spacer(modifier = Modifier.width(8.dp))
@@ -638,14 +635,26 @@ private fun NotificationFilterStrip(
             FilterChip(
                 selected = selected == filter,
                 onClick = { onSelect(filter) },
-                label = { Text(label) }
+                label = { Text(label) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = selected == filter,
+                    borderColor = MaterialTheme.colorScheme.outlineVariant,
+                    selectedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                )
             )
         }
     }
 }
 
 private fun iconForType(item: NotificationCenterItem): Pair<ImageVector, Color> {
-    // 1.124：动态互动按 kind 区分图标（赞=爱心，评论/回复/评论赞=聊天气泡）
+    // 非 Composable：不能读 MaterialTheme.colorScheme。图标色用常量。
     if (item.type == NotificationCenterType.POST_INTERACTION) {
         val kind = item.extra["kind"].orEmpty()
         return if (kind == "comment" || kind == "comment_like") {
@@ -737,7 +746,7 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
         var cursor = 0
         highlighted.highlights.forEach { span ->
             if (span.start > cursor) append(highlighted.text.substring(cursor, span.start))
-            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, background = MaterialTheme.colorScheme.primaryContainer))
             append(highlighted.text.substring(span.start, span.end))
             pop()
             cursor = span.end

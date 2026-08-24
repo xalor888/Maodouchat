@@ -27,20 +27,18 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-internal fun coerceCapsuleTabIndex(selectedTabIndex: Int, tabCount: Int): Int {
+internal fun coerceCapsuleTabIndex(index: Int, tabCount: Int): Int {
     if (tabCount <= 0) return 0
-    return selectedTabIndex.coerceIn(0, tabCount - 1)
+    return index.coerceIn(0, tabCount - 1)
 }
 
-/**
- * 页内胶囊分段控件，抄自 Murexide `CapsuleTabBar`（40.dp / CircleShape / 滑动指示条）。
- */
+/** Murexide CapsuleTabBar：圆胶囊轨道 + 滑动选中块。 */
 @Composable
 fun CapsuleTabBar(
     tabs: List<String>,
     selectedTabIndex: Int,
     onTabSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     if (tabs.isEmpty()) return
 
@@ -49,7 +47,7 @@ fun CapsuleTabBar(
     val horizontalInset = 6.dp
     val selectionMotion = tween<androidx.compose.ui.unit.Dp>(
         durationMillis = 260,
-        easing = FastOutSlowInEasing
+        easing = FastOutSlowInEasing,
     )
 
     BoxWithConstraints(
@@ -58,13 +56,13 @@ fun CapsuleTabBar(
             .height(40.dp)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(horizontal = horizontalInset, vertical = 6.dp)
+            .padding(horizontal = horizontalInset, vertical = 6.dp),
     ) {
         val tabWidth = maxWidth / tabs.size
         val indicatorOffset by animateDpAsState(
             targetValue = tabWidth * selectedIndex,
             animationSpec = selectionMotion,
-            label = "capsule tab indicator offset"
+            label = "capsule tab indicator offset",
         )
 
         Box(
@@ -73,7 +71,7 @@ fun CapsuleTabBar(
                 .width(tabWidth)
                 .fillMaxHeight()
                 .clip(CircleShape)
-                .background(selectedIndicatorColor)
+                .background(selectedIndicatorColor),
         )
 
         Row(Modifier.fillMaxWidth().fillMaxHeight()) {
@@ -86,9 +84,8 @@ fun CapsuleTabBar(
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
                     animationSpec = tween(durationMillis = 180),
-                    label = "capsule tab text color"
+                    label = "capsule tab text color",
                 )
-
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -96,16 +93,16 @@ fun CapsuleTabBar(
                         .selectable(
                             selected = selected,
                             role = Role.Tab,
-                            onClick = { onTabSelected(index) }
+                            onClick = { onTabSelected(index) },
                         ),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = label,
                         style = MaterialTheme.typography.bodyMedium,
                         color = textColor,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }

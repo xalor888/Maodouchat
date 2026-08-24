@@ -162,7 +162,7 @@ object ChatBubbleColorPalette {
 }
 
 /** 当前会话的发送气泡颜色（默认品牌蓝；由设置页「聊天气泡颜色」与账号偏好控制）。 */
-val LocalChatBubbleColor = androidx.compose.runtime.staticCompositionLocalOf { Color(0xFF007AFF) }
+val LocalChatBubbleColor = androidx.compose.runtime.staticCompositionLocalOf { Color(0xFFF2F2F2) }
 
 // ─── Story / Moment Ring Gradient ───────────────────────────
 val StoryRingGradient = listOf(

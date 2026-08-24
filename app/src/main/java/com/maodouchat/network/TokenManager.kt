@@ -149,6 +149,7 @@ class TokenManager private constructor(private val context: Context) {
                 .putString(ApiConfig.Prefs.TOKEN_KEY, token)
                 .putString(ApiConfig.Prefs.REFRESH_TOKEN_KEY, refreshToken)
                 .putString(ApiConfig.Prefs.USER_ID_KEY, userId)
+                .putString(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY, userId)
                 .putLong(ApiConfig.Prefs.ACCESS_TOKEN_EXPIRES_AT_KEY, accessTokenExpiresAt)
                 .putLong(ApiConfig.Prefs.REFRESH_TOKEN_EXPIRES_AT_KEY, refreshTokenExpiresAt)
                 .commit()
@@ -158,13 +159,28 @@ class TokenManager private constructor(private val context: Context) {
 
     /** @return true if the value was successfully saved */
     fun saveUserId(userId: String): Boolean {
-        return runCatching { prefs.edit().putString(ApiConfig.Prefs.USER_ID_KEY, userId).apply() }
+        return runCatching {
+            prefs.edit()
+                .putString(ApiConfig.Prefs.USER_ID_KEY, userId)
+                .putString(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY, userId)
+                .apply()
+        }
             .onFailure { Log.w(TAG, "saveUserId failed", it) }
             .isSuccess
     }
 
     fun getUserId(): String? =
         readPrefsWithRetry(ApiConfig.Prefs.USER_ID_KEY) { it.getString(ApiConfig.Prefs.USER_ID_KEY, null) }
+
+    /**
+     * Last account that owned the local encrypted store. Logout clears [getUserId] but
+     * must keep this so [com.maodouchat.security.AccountIsolationPolicy] can tell
+     * same-account re-login from a real account switch.
+     */
+    fun getLastOwnerUserId(): String? =
+        readPrefsWithRetry(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY) {
+            it.getString(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY, null)
+        } ?: getUserId()
 
     fun isLoggedIn(): Boolean = SessionPresencePolicy.isLoggedIn(
         token = getToken(),
@@ -324,7 +340,15 @@ class TokenManager private constructor(private val context: Context) {
 
     /** @return true if the preferences were successfully cleared */
     fun clear(): Boolean = synchronized(sessionLock) {
-        runCatching { prefs.edit().clear().commit() }
+        runCatching {
+            val lastOwner = prefs.getString(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY, null)
+                ?: prefs.getString(ApiConfig.Prefs.USER_ID_KEY, null)
+            val editor = prefs.edit().clear()
+            if (!lastOwner.isNullOrBlank()) {
+                editor.putString(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY, lastOwner)
+            }
+            editor.commit()
+        }
             .onFailure { Log.w(TAG, "clear failed", it) }
             // commit() may fail by returning false without throwing. isSuccess would turn
             // that storage failure into a false-positive logout and revive old JWTs on restart.

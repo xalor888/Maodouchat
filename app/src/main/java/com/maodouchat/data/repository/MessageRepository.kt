@@ -111,11 +111,18 @@ class MessageRepository(
         existingById?.put(entity.id, entity)
     }
 
+    suspend fun findMessagesByDeliveryHint(
+        chatId: String,
+        senderId: String,
+        timestamp: Long,
+    ): List<Message> {
+        if (chatId.isBlank() || senderId.isBlank() || timestamp <= 0L) return emptyList()
+        return messageDao.getMessagesByDeliveryHint(chatId, senderId, timestamp).map { it.toDomain() }
+    }
+
     private suspend fun findSameDelivery(message: Message): Message? {
         if (message.chatId.isBlank() || message.senderId.isBlank() || message.timestamp <= 0L) return null
-        return messageDao.getMessagesByDeliveryHint(message.chatId, message.senderId, message.timestamp)
-            .asSequence()
-            .map { it.toDomain() }
+        return findMessagesByDeliveryHint(message.chatId, message.senderId, message.timestamp)
             .firstOrNull { it.id != message.id && MessageDuplicatePolicy.isSameDelivery(it, message) }
     }
 

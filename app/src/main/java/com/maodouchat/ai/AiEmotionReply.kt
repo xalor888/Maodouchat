@@ -4,23 +4,17 @@ import android.content.Context
 import com.maodouchat.R
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
-import com.maodouchat.data.repository.AiEnhanceHttp
 import com.maodouchat.network.AiContextMessage
-import com.maodouchat.network.AiEmotionReplyRequest
-import com.maodouchat.network.AiEmotionReplyResponse
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 
 /**
  * B4 · 情绪感知回复（本地情绪检测 + 服务端 AiGateway 回复生成）。
  *
  * 本地：基于关键词/表情词典检测最近消息的情绪（开心/难过/生气/焦虑/中性），
  *       纯本地规则，不引入 embedding。
- * 服务端：把消毒后的最近会话 POST /api/ai/enhance/emotion-reply，服务端复用
- *       AiGateway.suggestReplies（按情绪映射到「empathetic/warm/gentle/encouraging」等
- *       白名单语气）生成一条自然回复。
+ * 模型：用户自配的本机 OpenAI 兼容接口按情绪映射语气生成一条自然回复。
  *
  * 约束：
  * - 走 AiPromptSafetyPolicy 消毒；消息数上限 16（与服务端白名单一致）；
@@ -31,7 +25,7 @@ object AiEmotionReply {
 
     fun isAllowed(context: Context): Boolean =
         AiPrivacyPreferences.mayUploadCloudContext(context) &&
-            RuntimeFlags.isEnabled(context, RuntimeFlags.AI_SUGGEST_REPLIES)
+            RuntimeFlags.isEnabled(context, RuntimeFlags.AI_MASTER)
 
     enum class Emotion(val wire: String) {
         HAPPY("happy"),
@@ -42,8 +36,6 @@ object AiEmotionReply {
     }
 
     data class EmotionResult(val emotion: Emotion, val confidence: Double)
-
-    private val json = Json { ignoreUnknownKeys = true }
 
     /** 本地情绪检测（纯词典规则）。 */
     fun detectEmotion(texts: List<String>): EmotionResult {
@@ -97,20 +89,21 @@ object AiEmotionReply {
             )?.let { AiContextMessage(it.sender, it.text) }
         }
         if (contextMessages.isEmpty()) return Result.success(localFallback(context, emotion.emotion))
-        val request = AiEmotionReplyRequest(
-            messages = contextMessages,
-            emotion = emotion.emotion.wire,
-            chatId = chatId
-        )
-        val body = json.encodeToString(AiEmotionReplyRequest.serializer(), request)
+        val tone = when (emotion.emotion) {
+            Emotion.HAPPY -> "warm"
+            Emotion.SAD -> "empathetic"
+            Emotion.ANGRY -> "gentle"
+            Emotion.ANXIOUS -> "encouraging"
+            Emotion.NEUTRAL -> "friendly"
+        }
         return try {
-            val response = AiEnhanceHttp.post(
+            val replies = com.maodouchat.ai.agent.LocalAiGateway.suggestReplies(
                 context,
-                "/api/ai/enhance/emotion-reply",
-                body,
-                AiEmotionReplyResponse.serializer()
-            ).getOrNull()
-            val text = response?.reply?.trim()?.take(MAX_REPLY_CHARS).orEmpty()
+                contextMessages,
+                tone,
+                1
+            ).getOrNull().orEmpty()
+            val text = replies.firstOrNull()?.trim()?.take(MAX_REPLY_CHARS).orEmpty()
             Result.success(text.ifBlank { localFallback(context, emotion.emotion) })
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error

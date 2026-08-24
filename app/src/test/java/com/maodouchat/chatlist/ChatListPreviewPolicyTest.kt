@@ -234,6 +234,62 @@ class ChatListPreviewPolicyTest {
     }
 
     @Test
+    fun textWithMetaTagShowsOnlyBody() {
+        val msg = sample(
+            type = MessageType.TEXT,
+            content = "hello<meta>{\"attachmentId\":\"att_abc\"}</meta>",
+            ts = 9L
+        )
+        val preview = ChatListPreviewPolicy.fromLatestMessage(msg, mediaLabel, "[enc]", "[revoked]")
+        assertEquals("hello", preview.text)
+    }
+
+    @Test
+    fun leftoverYunhuJoinUrlIsPlaceholderNotRawDump() {
+        val placeholder = "[enc]"
+        val leftover = "https://www.yhfx.jwznb.com/share?id=abc123"
+        // User-typed 云湖/https join URL is ordinary plaintext — keep it.
+        assertFalse(ChatListPreviewPolicy.looksLikeLeftoverPreviewGarbage(leftover))
+        assertEquals(leftover, ChatListPreviewPolicy.listVisibleText(leftover, placeholder))
+        assertEquals(
+            "https://example.com/notes",
+            ChatListPreviewPolicy.listVisibleText("https://example.com/notes", placeholder)
+        )
+        assertEquals("see https://example.com/notes", ChatListPreviewPolicy.listVisibleText("see https://example.com/notes", placeholder))
+        val withMeta = leftover + "<meta>{\"attachmentId\":\"att\"}</meta>"
+        assertEquals(leftover, ChatListPreviewPolicy.listVisibleText(withMeta, placeholder))
+        val msg = sample(type = MessageType.TEXT, content = leftover, ts = 9L)
+        val preview = ChatListPreviewPolicy.fromLatestMessage(msg, mediaLabel, placeholder, "[revoked]")
+        assertEquals(leftover, preview.text)
+        val attachmentDump = "https://host/api/attachments/att_abc"
+        assertTrue(ChatListPreviewPolicy.looksLikeLeftoverPreviewGarbage(attachmentDump))
+        assertEquals(placeholder, ChatListPreviewPolicy.listVisibleText(attachmentDump, placeholder))
+        val compactWire =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"ciphertextType":"prekey","ciphertext":"NAgB"}]}"""
+        assertTrue(ChatListPreviewPolicy.looksLikeLeftoverPreviewGarbage(compactWire))
+        assertEquals(placeholder, ChatListPreviewPolicy.listVisibleText(compactWire, placeholder))
+        assertEquals(placeholder, ChatListPreviewPolicy.listVisibleText("无法解密", placeholder))
+        assertEquals(
+            placeholder,
+            ChatListPreviewPolicy.fromLatestMessage(
+                sample(type = MessageType.TEXT, content = compactWire, ts = 9L),
+                mediaLabel,
+                placeholder,
+                "[revoked]"
+            ).text
+        )
+    }
+
+    @Test
+    fun localFileUriIsNotShownAsPreview() {
+        val msg = sample(type = MessageType.TEXT, content = "file:///data/cache/img.jpg", ts = 9L)
+        val preview = ChatListPreviewPolicy.fromLatestMessage(msg, mediaLabel, "[enc]", "[revoked]")
+        assertEquals("[enc]", preview.text)
+        assertEquals("", ChatListPreviewPolicy.visiblePreviewText("content://media/1"))
+        assertEquals("hi", ChatListPreviewPolicy.visiblePreviewText("hi<meta>{}</meta>"))
+    }
+
+    @Test
     fun fromLatestMessagesSkipsTrailingSkDist() {
         val sk = sample(type = MessageType.SK_DIST, content = "dist", ts = 100L).copy(id = "sk")
         val textMsg = sample(type = MessageType.TEXT, content = "hello", ts = 90L).copy(id = "t1")
@@ -245,6 +301,25 @@ class ChatListPreviewPolicyTest {
         )
         assertEquals("hello", preview.text)
         assertEquals(MessageType.TEXT, preview.type)
+        assertEquals(90L, preview.timestamp)
+    }
+
+    @Test
+    fun fromLatestMessagesSkipsNewerCiphertextToReadableTail() {
+        val wire = sample(
+            type = MessageType.TEXT,
+            content = """{"version":3,"algorithm":"signal-multi-device-v1","ciphertext":"abc"}""",
+            ts = 100L
+        ).copy(id = "wire")
+        val failed = sample(type = MessageType.TEXT, content = "[无法解密的消息]", ts = 95L).copy(id = "fail")
+        val textMsg = sample(type = MessageType.TEXT, content = "t11b_group_from_alex", ts = 90L).copy(id = "t1")
+        val preview = ChatListPreviewPolicy.fromLatestMessages(
+            candidatesNewestFirst = listOf(wire, failed, textMsg),
+            mediaLabel = mediaLabel,
+            encryptedPlaceholder = "[enc]",
+            revokedPlaceholder = "[revoked]"
+        )
+        assertEquals("t11b_group_from_alex", preview.text)
         assertEquals(90L, preview.timestamp)
     }
 

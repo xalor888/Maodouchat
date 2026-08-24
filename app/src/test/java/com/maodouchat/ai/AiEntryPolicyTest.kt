@@ -55,19 +55,56 @@ class AiEntryPolicyTest {
     fun `composer and run gates`() {
         assertTrue(AiEntryPolicy.isComposerEntryActive(true))
         assertFalse(AiEntryPolicy.isComposerEntryActive(false))
-        // 入口必须可点：会话关 / 总开关关都不能变成死按钮，busy 才挡住。
         assertTrue(AiEntryPolicy.canRunContextAction(chatAiEnabled = true, isBusy = false))
-        assertTrue(AiEntryPolicy.canRunContextAction(chatAiEnabled = false, isBusy = false))
+        assertFalse(AiEntryPolicy.canRunContextAction(chatAiEnabled = false, isBusy = false))
         assertFalse(AiEntryPolicy.canRunContextAction(chatAiEnabled = true, isBusy = true))
-        assertTrue(
+        assertFalse(
             AiEntryPolicy.canRunContextAction(
                 masterEnabled = false,
-                chatAiEnabled = false,
+                chatAiEnabled = true,
                 isBusy = false
             )
         )
         assertTrue(AiEntryPolicy.canOpenComposerMenu(isBusy = false, isUpdatingSetting = false))
         assertFalse(AiEntryPolicy.canOpenComposerMenu(isBusy = true))
         assertFalse(AiEntryPolicy.canOpenComposerMenu(isBusy = false, isUpdatingSetting = true))
+    }
+
+    @Test
+    fun `ai surfaces stay hidden until settings are on`() {
+        assertFalse(
+            AiEntryPolicy.shouldShowAiSurfaces(
+                chatAiEnabled = true,
+                consentAccepted = true
+            )
+        )
+        assertFalse(
+            AiEntryPolicy.shouldShowAiSurfaces(
+                chatAiEnabled = true,
+                consentAccepted = true,
+                userEnabled = false
+            )
+        )
+        assertFalse(
+            AiEntryPolicy.shouldShowAiSurfaces(
+                chatAiEnabled = true,
+                consentAccepted = false,
+                userEnabled = true
+            )
+        )
+        assertFalse(
+            AiEntryPolicy.shouldShowAiSurfaces(
+                chatAiEnabled = false,
+                consentAccepted = true,
+                userEnabled = true
+            )
+        )
+        assertTrue(
+            AiEntryPolicy.shouldShowAiSurfaces(
+                chatAiEnabled = true,
+                consentAccepted = true,
+                userEnabled = true
+            )
+        )
     }
 }

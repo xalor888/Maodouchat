@@ -20,8 +20,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -35,8 +39,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import com.maodouchat.R
+import com.maodouchat.network.ApiService
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.update.AppUpdatePolicy
+import com.maodouchat.update.OfficialApkInstaller
+import kotlinx.coroutines.launch
 
 /**
  * 关于 / 版本页 — 展示应用图标、名称、版本、版权与安全摘要。
@@ -48,6 +59,17 @@ fun AboutScreen(onBack: () -> Unit = {}) {
     val versionName = remember {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.0" }.getOrDefault("1.0.0")
     }
+    val versionCode = remember {
+        runCatching {
+            val info = context.packageManager.getPackageInfo(context.packageName, 0)
+            if (Build.VERSION.SDK_INT >= 28) info.longVersionCode.toInt() else @Suppress("DEPRECATION") info.versionCode
+        }.getOrDefault(0)
+    }
+    val scope = rememberCoroutineScope()
+    var checkingUpdate by remember { mutableStateOf(false) }
+    var downloadingUpdate by remember { mutableStateOf(false) }
+    var updateMessage by remember { mutableStateOf<String?>(null) }
+    var downloadUrl by remember { mutableStateOf<String?>(null) }
     // 9.209：关于页展示当前连接的服务器身份（第三方模式显示运营方名称）
     val serverIdentity by com.maodouchat.network.ServerIdentity.current.collectAsState()
 
@@ -108,6 +130,19 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 AboutRow(label = stringResource(R.string.about_privacy), value = stringResource(R.string.about_privacy_value))
                 HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 AboutRow(label = stringResource(R.string.about_security), value = stringResource(R.string.about_security_value))
+                HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
+                TextButton(
+                    onClick = {
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(context.getString(R.string.about_source_url)))
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.about_source))
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -118,6 +153,73 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = LocalChatPalette.current.textSecondary
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            TextButton(
+                onClick = {
+                    if (checkingUpdate) return@TextButton
+                    checkingUpdate = true
+                    updateMessage = null
+                    downloadUrl = null
+                    scope.launch {
+                        val result = ApiService.getPublicUpdates()
+                        checkingUpdate = false
+                        result.fold(
+                            onSuccess = { remote ->
+                                if (AppUpdatePolicy.shouldOfferUpdate(versionCode, remote.versionCode, remote.apkUrl)) {
+                                    updateMessage = context.getString(
+                                        R.string.about_update_available,
+                                        remote.versionName.ifBlank { remote.versionCode.toString() }
+                                    )
+                                    downloadUrl = remote.apkUrl
+                                } else {
+                                    updateMessage = context.getString(R.string.about_update_latest)
+                                }
+                            },
+                            onFailure = {
+                                updateMessage = context.getString(R.string.about_update_failed)
+                            }
+                        )
+                    }
+                },
+                enabled = !checkingUpdate && !downloadingUpdate
+            ) {
+                Text(stringResource(R.string.about_check_update))
+            }
+            updateMessage?.let { msg ->
+                Text(
+                    text = msg,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalChatPalette.current.textSecondary
+                )
+            }
+            downloadUrl?.let { url ->
+                TextButton(
+                    onClick = {
+                        if (downloadingUpdate) return@TextButton
+                        downloadingUpdate = true
+                        scope.launch {
+                            val result = OfficialApkInstaller.downloadAndPromptInstall(
+                                context = context,
+                                apkUrl = url,
+                                onProgress = { percent ->
+                                    updateMessage = context.getString(R.string.about_update_downloading, percent)
+                                },
+                            )
+                            downloadingUpdate = false
+                            result.fold(
+                                onSuccess = { },
+                                onFailure = {
+                                    updateMessage = context.getString(R.string.about_update_install_failed)
+                                }
+                            )
+                        }
+                    },
+                    enabled = !downloadingUpdate
+                ) {
+                    Text(stringResource(R.string.about_update_download))
+                }
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
             Text(

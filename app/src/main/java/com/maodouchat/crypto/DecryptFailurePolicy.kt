@@ -39,6 +39,25 @@ object DecryptFailurePolicy {
     fun shouldSkipCryptoAttempt(previousFailures: Int): Boolean =
         previousFailures >= MAX_RETRY_ATTEMPTS
 
+    /**
+     * Room must keep the original envelope on any non-success result.
+     * UI placeholders cannot be re-decrypted after SK/session repair.
+     */
+    fun persistDecryptResultToRoom(
+        result: SignalProtocol.DecryptResult,
+        originalWire: String,
+        @Suppress("UNUSED_PARAMETER") uiPlaceholder: String
+    ): String {
+        if (originalWire.isBlank()) return originalWire
+        return when (result) {
+            is SignalProtocol.DecryptResult.Success -> result.plaintext
+            else -> originalWire
+        }
+    }
+
+    fun neverPersistUiPlaceholder(result: SignalProtocol.DecryptResult): Boolean =
+        result !is SignalProtocol.DecryptResult.Success
+
     fun envelopeFingerprint(senderId: String, content: String): String {
         var hash = 1125899906842597L
         val seed = senderId.length * 31L + content.length

@@ -30,7 +30,7 @@ object NotificationSoundPolicy {
         runtimeFlagEnabled && userPreferenceEnabled
 
     /**
-     * 当前打开的会话内短提示音（ToneGenerator，避开系统通知渠道 / Web autoplay）。
+     * 当前打开的会话内短提示音（与托盘共用 raw/notify_message，避开系统通知渠道）。
      * 需同时满足：应用内音效 flag、总通知开关、消息声音 flag+偏好。
      */
     fun inAppReceiveToneEnabled(

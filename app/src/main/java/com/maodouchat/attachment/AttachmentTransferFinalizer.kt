@@ -14,14 +14,12 @@ import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.MessageRepository
 import com.maodouchat.network.ApiException
-import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.TokenManager
 import com.maodouchat.util.JsonFormat
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CancellationException
-import java.io.IOException
 
 sealed interface AttachmentFinalizeOutcome {
     data class Sent(val message: Message) : AttachmentFinalizeOutcome
@@ -240,10 +238,13 @@ object AttachmentTransferFinalizer {
             val sendResult = ApiService.sendMessage(sessionToken, transfer.chatId, sendWire, messageType.name, messageId)
             if (sendResult.isFailure) {
                 val err = sendResult.exceptionOrNull()
+                // 409 附件尚未上传完成 ≠ 已投递。commitPendingAttachment 失败时服务端也回 409，
+                // 若当 duplicate 收敛会本地 SENT 而对端永远下不到 blob（QA：上传完成，消息发送失败）。
+                if (AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err)) {
+                    throw err ?: IllegalStateException("attachment_not_ready")
+                }
                 // 409 / 消息 ID 已存在：与文本 outbox 一致，按已投递收敛，避免重加密后永久 FAILED。
-                val alreadyAccepted = err is ApiException &&
-                    err.kind == ApiFailureKind.HTTP &&
-                    (err.statusCode == 409 || err.serverMessage?.contains("消息 ID") == true)
+                val alreadyAccepted = AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(err)
                 if (!alreadyAccepted) throw err ?: IllegalStateException("attachment_send_failed")
             }
             sendAttempted = true // BUG 1.2: sendMessage 已成功
@@ -391,33 +392,7 @@ object AttachmentTransferFinalizer {
         disappearingMessageSeconds = disappearingMessageSeconds
     )
 
-    fun isRetryable(error: Throwable): Boolean = when (error) {
-        is ApiException -> error.kind in setOf(ApiFailureKind.NETWORK, ApiFailureKind.TIMEOUT) || (error.statusCode ?: 0) >= 500
-        is IOException -> true
-        // 9.297：Signal 会话未建立/身份变更/prekey 失效属瞬态错误——Signal 初始化在后台
-        // 进行，worker 重试（指数退避，上限 MAX_RETRIES）通常能成功。此前这类异常直接标
-        // FAILED 不重试，导致 fresh 安装/重装/会话重建窗口期发图必败（「附件发送失败」）
-        else -> isTransientCryptoError(error)
-    }
-
-    /** libsignal 会话层瞬态异常识别（沿 cause 链检查，避免被包装后漏判）。 */
-    private fun isTransientCryptoError(error: Throwable): Boolean {
-        var t: Throwable? = error
-        var depth = 0
-        while (t != null && depth < 6) {
-            val simpleName = t.javaClass.simpleName
-            if (simpleName in setOf(
-                    "NoSessionException", "UntrustedIdentityException",
-                    "InvalidKeyIdException", "InvalidKeyException", "StaleKeyException"
-                )
-            ) return true
-            val msg = t.message.orEmpty()
-            if ("not ready" in msg || "protocol initialization" in msg) return true
-            t = t.cause
-            depth++
-        }
-        return false
-    }
+    fun isRetryable(error: Throwable): Boolean = AttachmentSendAfterUploadPolicy.isRetryable(error)
 
     private suspend fun fail(
         dao: com.maodouchat.data.local.dao.AttachmentTransferDao,

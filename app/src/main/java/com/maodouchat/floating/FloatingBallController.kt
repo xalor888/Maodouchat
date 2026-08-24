@@ -68,59 +68,24 @@ object FloatingBallController {
     fun isEnabled(context: Context): Boolean = FloatingBallPreferences.isEnabled(context)
 
     fun setEnabled(context: Context, enabled: Boolean) {
-        FloatingBallPreferences.setEnabled(context, enabled)
         val app = context.applicationContext
         if (enabled) {
-            if (isGranted(app)) start(app)
-            else {
-                Toast.makeText(app, R.string.floating_ball_permission_needed, Toast.LENGTH_SHORT).show()
-                openOverlaySettings(app)
-            }
-        } else {
+            android.util.Log.w("FloatingBall", "floating ball is retired; refusing enable")
+            FloatingBallPreferences.setEnabled(context, false)
             stop(app)
+            return
         }
+        FloatingBallPreferences.setEnabled(context, false)
+        stop(app)
     }
 
-    /** 应用内显式启动（权限已具备时调用） */
+    /** Retired: overlay ball is cut. Callers that still invoke start() are no-ops. */
     @Synchronized
     fun start(context: Context) {
         val app = context.applicationContext
-        if (isShowing()) return
-        if (!isGranted(app)) return
-        val wm = app.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val size = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            BALL_SIZE_DP.toFloat(),
-            app.resources.displayMetrics
-        ).toInt()
-        val ball = ImageView(app).apply {
-            setImageResource(R.drawable.ic_notification)
-            background = circleBackground()
-            contentDescription = app.getString(R.string.floating_ball_content_description)
-            alpha = 0.92f
-        }
-        val bounds = boundsOf(wm)
-        val saved = FloatingBallPreferences.position(app)
-        val params = WindowManager.LayoutParams(
-            size,
-            size,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = ((saved.first * bounds.width()).toInt()).coerceIn(0, (bounds.width() - size).coerceAtLeast(0))
-            y = ((saved.second * bounds.height()).toInt()).coerceIn(0, (bounds.height() - size).coerceAtLeast(0))
-        }
-        ball.setOnTouchListener { _, event ->
-            FloatingBallGesture.handle(app, wm, ball, params, event, this)
-        }
-        runCatching { wm.addView(ball, params) }.onFailure { return }
-        windowManager = wm
-        ballView = WeakReference(ball)
-        layoutParams = params
+        android.util.Log.w("FloatingBall", "floating ball is retired; refusing start")
+        FloatingBallPreferences.setEnabled(app, false)
+        stop(app)
     }
 
     /** 停止并移除悬浮球 */

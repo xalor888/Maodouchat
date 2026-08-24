@@ -39,6 +39,20 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE id = :messageId")
     suspend fun getMessageById(messageId: String): MessageEntity?
 
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE starred = 1
+          AND chatId NOT IN (SELECT chatId FROM secret_chats)
+        ORDER BY timestamp DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getStarredMessages(limit: Int): List<MessageEntity>
+
+    @Query("UPDATE messages SET starred = :starred WHERE id = :messageId")
+    suspend fun setStarred(messageId: String, starred: Boolean)
+
     /** 9.213：批量预查——消除批量插入路径的逐条 SELECT（N+1）。 */
     @Query("SELECT * FROM messages WHERE id IN (:ids)")
     suspend fun getMessagesByIds(ids: List<String>): List<MessageEntity>

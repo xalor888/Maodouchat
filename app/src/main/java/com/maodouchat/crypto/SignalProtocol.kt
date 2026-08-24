@@ -64,6 +64,8 @@ class SignalProtocol(
     @Volatile private var currentUserId: String? = null
     /** True only after a successful initialize() for [currentUserId]; never after failed upload/restore. */
     @Volatile private var initializationSucceeded: Boolean = false
+    /** True when identity/registration were loaded from SQLCipher (same-device re-login), not minted. */
+    @Volatile private var identityRestoredFromStore: Boolean = false
     private var registrationId: Int = 0
     private lateinit var identityKeyPair: IdentityKeyPair
     private var signedPreKey: SignedPreKeyRecord? = null
@@ -105,11 +107,12 @@ class SignalProtocol(
             if (currentUserId != accountId) {
                 currentUserId = accountId
                 initializationSucceeded = false
+                identityRestoredFromStore = false
                 generateIdentityKeys()
                 signedPreKey = null
                 preKeys = emptyList()
             }
-            restoreRegistrationAndIdentity()
+            identityRestoredFromStore = restoreRegistrationAndIdentity()
             restoreDeviceId()
             // loadPersistedState 修改非线程安全的内存 map。
             // initializationMutex 已防止并发 initialize；与 decrypt/encrypt 的 cryptoLock 互斥
@@ -201,7 +204,7 @@ class SignalProtocol(
         }
     }
 
-    private suspend fun restoreRegistrationAndIdentity() {
+    private suspend fun restoreRegistrationAndIdentity(): Boolean {
         val savedRegId = signalKeyDao.getKey(scopedKey(KEY_REGISTRATION_ID))
         val savedIdentity = signalKeyDao.getKey(scopedKey(KEY_IDENTITY_KEY_PAIR))
         // 腐败数据兜底：用 toIntOrNull + runCatching 避免单条腐败记录杀死整个 Signal 栈
@@ -210,8 +213,10 @@ class SignalProtocol(
             val identityKeyPair = runCatching { IdentityKeyPair(Base64.decode(savedIdentity.keyData, Base64.NO_WRAP)) }.getOrNull()
             if (regId != null && identityKeyPair != null) {
                 restoreIdentityKeys(regId, identityKeyPair)
+                return true
             }
         }
+        return false
     }
 
     private suspend fun restoreDeviceId() {
@@ -554,6 +559,8 @@ class SignalProtocol(
             Result.success(
                 json.encodeToString(
                     MultiDeviceMessageEnvelope(
+                        version = MULTI_DEVICE_ENVELOPE_VERSION,
+                        algorithm = ALGORITHM_SIGNAL_MULTI_DEVICE,
                         senderDeviceId = getDeviceId(),
                         payloadType = payloadType,
                         entries = entries
@@ -619,6 +626,8 @@ class SignalProtocol(
                 }
             if (entries.isEmpty()) throw NoRecipientDevicesException()
             val envelope = json.encodeToString(MultiDeviceMessageEnvelope(
+                version = MULTI_DEVICE_ENVELOPE_VERSION,
+                algorithm = ALGORITHM_SIGNAL_MULTI_DEVICE,
                 senderDeviceId = getDeviceId(),
                 payloadType = payloadType,
                 entries = entries
@@ -700,9 +709,9 @@ class SignalProtocol(
             return DecryptResult.Failed
         }
         val result = try {
-            val multiDeviceEnvelope = runCatching { json.decodeFromString(MultiDeviceMessageEnvelope.serializer(), content) }.getOrNull()
-            if (multiDeviceEnvelope?.version == MULTI_DEVICE_ENVELOPE_VERSION && multiDeviceEnvelope.algorithm == ALGORITHM_SIGNAL_MULTI_DEVICE) {
-                decryptMultiDeviceEnvelope(senderId, multiDeviceEnvelope)
+            val parsedMulti = MultiDeviceEnvelopePolicy.parse(content)
+            if (parsedMulti != null) {
+                decryptParsedMultiDeviceEnvelope(senderId, parsedMulti)
             } else {
                 val envelope = json.decodeFromString(EncryptedMessageEnvelope.serializer(), content)
                 when (envelope.version) {
@@ -744,14 +753,12 @@ class SignalProtocol(
         return result
     }
 
-    private fun decryptMultiDeviceEnvelope(senderId: String, envelope: MultiDeviceMessageEnvelope): DecryptResult {
-        val entry = envelope.entries.firstOrNull {
-            (it.recipientUserId == null || it.recipientUserId == currentUserId) && it.recipientDeviceId == getDeviceId()
-        } ?: envelope.entries.firstOrNull {
-            (it.recipientUserId == null || it.recipientUserId == currentUserId) &&
-                it.recipientDeviceId == DEFAULT_DEVICE_ID &&
-                getDeviceId() == DEFAULT_DEVICE_ID
-        } ?: return DecryptResult.NotForThisDevice
+    private fun decryptParsedMultiDeviceEnvelope(
+        senderId: String,
+        envelope: MultiDeviceEnvelopePolicy.ParsedEnvelope
+    ): DecryptResult {
+        val entry = MultiDeviceEnvelopePolicy.selectEntry(envelope, currentUserId, getDeviceId())
+            ?: return DecryptResult.NotForThisDevice
         val ciphertext = Base64.decode(entry.ciphertext, Base64.NO_WRAP)
         return DecryptResult.Success(
             decryptMessage(
@@ -764,13 +771,12 @@ class SignalProtocol(
     }
 
     fun envelopePayloadType(content: String): String? {
-        return runCatching { json.decodeFromString(MultiDeviceMessageEnvelope.serializer(), content).payloadType }.getOrNull()
+        return MultiDeviceEnvelopePolicy.parse(content)?.payloadType
             ?: runCatching { json.decodeFromString(EncryptedMessageEnvelope.serializer(), content).payloadType }.getOrNull()
     }
 
     fun isEncryptedEnvelope(content: String): Boolean {
-        val multiDevice = runCatching { json.decodeFromString(MultiDeviceMessageEnvelope.serializer(), content) }.getOrNull()
-        if (multiDevice?.version == MULTI_DEVICE_ENVELOPE_VERSION && multiDevice.algorithm == ALGORITHM_SIGNAL_MULTI_DEVICE) return true
+        if (MultiDeviceEnvelopePolicy.parse(content) != null) return true
         return runCatching { json.decodeFromString(EncryptedMessageEnvelope.serializer(), content) }
             .getOrNull()?.version?.let { it >= 1 } == true
     }
@@ -1095,6 +1101,9 @@ class SignalProtocol(
     }
     fun isInitializedFor(userId: String): Boolean =
         userId.isNotBlank() && initializationSucceeded && currentUserId == userId
+
+    /** Same-device restore vs a newly minted identity after a true wipe. */
+    fun wasIdentityRestoredFromStore(): Boolean = identityRestoredFromStore
     fun getLocalIdentityFingerprint(): String = identityFingerprint(identityKeyPair.publicKey.serialize())
 
     private fun buildDeviceConfirmationPayload(
@@ -1199,6 +1208,7 @@ class SignalProtocol(
         cryptoLock.withLock {
             currentUserId = null
             initializationSucceeded = false
+            identityRestoredFromStore = false
             registrationId = KeyHelper.generateRegistrationId(false)
             identityKeyPair = IdentityKeyPair.generate()
             signedPreKey = null
@@ -1468,7 +1478,7 @@ class SignalProtocol(
         const val TRUST_VERIFIED = "VERIFIED"
         const val TRUST_CHANGED = "CHANGED"
 
-        val json = Json { ignoreUnknownKeys = true }
+        val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
         val secureRandom = SecureRandom()
     }
 }

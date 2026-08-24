@@ -52,14 +52,6 @@ internal fun maxGroupMembers(): Int =
         .getInt(com.maodouchat.server.service.RuntimeConfigService.KEY_MAX_GROUP_SIZE, 200)
         .coerceIn(2, MAX_GROUP_MEMBERS_HARD_CAP)
 
-internal const val MAX_AI_IMAGE_BYTES = 1_200_000
-internal const val MAX_AI_IMAGE_DIMENSION = 4_096
-internal const val MAX_AI_IMAGE_PIXELS = 16_000_000L
-/** 8.52 修复 AI-3：图片分析发送前降采样的最长边（视觉模型按像素计费）。 */
-internal const val AI_IMAGE_TARGET_MAX_EDGE = 1_568
-internal const val MAX_AI_FILE_BYTES = 1_200_000
-internal const val MAX_AI_TEXT_FILE_CHARS = 120_000
-internal val ALLOWED_AI_TEXT_FILE_EXTENSIONS = setOf("txt", "md", "markdown", "csv", "json", "xml")
 internal const val MAX_ATTACHMENT_CIPHER_BYTES = 100L * 1024L * 1024L + 64L
 internal const val MAX_ATTACHMENT_CHUNK_BYTES = 4L * 1024L * 1024L
 /** Per-user encrypted-attachment quota; env-tunable via USER_STORAGE_QUOTA_BYTES (20 GB default). */

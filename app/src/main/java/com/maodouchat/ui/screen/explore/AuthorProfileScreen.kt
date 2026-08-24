@@ -65,12 +65,7 @@ import com.maodouchat.network.UserDto
 import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
-import com.maodouchat.ui.theme.Background
 import com.maodouchat.ui.theme.MaodouchatTheme
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.Surface
-import com.maodouchat.ui.theme.TextSecondary
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -459,13 +454,13 @@ fun AuthorProfileScreen(
                 title = { Text(state.author?.name ?: stringResource(R.string.explore_author_home), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(28.dp))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
             )
         },
-        containerColor = Background
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         if (state.isLoading) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
@@ -500,7 +495,7 @@ fun AuthorProfileScreen(
                 item(key = "info", contentType = "info") {
                     Text(
                         info,
-                        color = if (state.isBlocked) Primary else TextSecondary,
+                        color = if (state.isBlocked) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)
                     )
@@ -522,7 +517,12 @@ fun AuthorProfileScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(author.name, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(author.id, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
+                                Text(
+                                    author.username?.takeIf { it.isNotBlank() }?.let { "@$it" }
+                                        ?: if (author.id.length > 16) author.id.take(8) + "…" + author.id.takeLast(4) else author.id,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = LocalChatPalette.current.textSecondary
+                                )
                                 if (author.status.isNotBlank()) {
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(author.status, style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
@@ -541,7 +541,7 @@ fun AuthorProfileScreen(
                                         Text(
                                             if (state.isBlocked) stringResource(R.string.explore_author_unblock)
                                             else stringResource(R.string.explore_author_block),
-                                            color = if (state.isBlocked) Primary else com.maodouchat.ui.theme.UnreadRed
+                                            color = if (state.isBlocked) MaterialTheme.colorScheme.primary else com.maodouchat.ui.theme.UnreadRed
                                         )
                                     }
                                 }
@@ -619,7 +619,7 @@ fun AuthorProfileScreen(
                                         Icon(
                                             imageVector = if (post.likedByMe) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
                                             contentDescription = stringResource(R.string.explore_like),
-                                            tint = if (post.likedByMe) androidx.compose.ui.graphics.Color(0xFFE91E63) else TextSecondary,
+                                            tint = if (post.likedByMe) androidx.compose.ui.graphics.Color(0xFFE91E63) else LocalChatPalette.current.textSecondary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))

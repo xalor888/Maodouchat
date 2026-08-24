@@ -209,6 +209,33 @@ jobs:
           files: |
             release-assets/*
 
+      - name: Upload APK to chat server
+        if: success()
+        continue-on-error: true
+        env:
+          UPDATE_DEPLOY_TOKEN: ${{ secrets.UPDATE_DEPLOY_TOKEN }}
+          UPDATE_SERVER_URL: ${{ secrets.UPDATE_SERVER_URL }}
+        run: |
+          if [ -z "$UPDATE_DEPLOY_TOKEN" ]; then
+            echo "Skip server APK upload (secret UPDATE_DEPLOY_TOKEN not set)"
+            exit 0
+          fi
+          API="${UPDATE_SERVER_URL:-${{ steps.urls.outputs.api }}}"
+          API="${API%/}"
+          APK="release-assets/maodouchat-${{ steps.version.outputs.version }}.apk"
+          if [ ! -f "$APK" ]; then
+            echo "::error::APK missing: $APK"
+            exit 1
+          fi
+          NOTES="$(tr '\r\n' '  ' < RELEASE_NOTES.md | cut -c1-800)"
+          curl --fail-with-body -sS -X PUT "${API}/api/internal/app-update" \
+            -H "Authorization: Bearer ${UPDATE_DEPLOY_TOKEN}" \
+            -H "X-Version-Code: ${{ steps.version.outputs.version_code }}" \
+            -H "X-Version-Name: ${{ steps.version.outputs.version }}" \
+            -H "X-Update-Notes: ${NOTES}" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            --data-binary @"${APK}"
+
       - name: Notify Yunhu about release
         if: success()
         continue-on-error: true

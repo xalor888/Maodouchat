@@ -45,7 +45,6 @@ import androidx.fragment.app.FragmentActivity
 import com.maodouchat.R
 import com.maodouchat.security.AppLockManager
 import com.maodouchat.ui.theme.LocalMotionSettings
-import com.maodouchat.ui.theme.Primary
 
 /** Full-screen privacy gate using strong biometrics or the system device credential. */
 @Composable

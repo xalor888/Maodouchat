@@ -867,15 +867,8 @@ private fun buildCapabilityManifest(): CapabilityManifestResponse {
             supportsPolls = RuntimeConfigService.isPollsEnabled()
         ),
         ai = AiCapabilities(
-            translateEnabled = RuntimeConfigService.isAiTranslateEnabled(),
-            summarizeEnabled = RuntimeConfigService.isAiSummaryEnabled(),
-            rewriteEnabled = RuntimeConfigService.isAiRewriteEnabled(),
-            suggestRepliesEnabled = RuntimeConfigService.isAiSuggestRepliesEnabled(),
-            transcribeEnabled = RuntimeConfigService.isAiTranscribeEnabled(),
-            analyzeImageEnabled = RuntimeConfigService.isAiAnalyzeImageEnabled(),
-            analyzeFileEnabled = RuntimeConfigService.isAiAnalyzeFileEnabled(),
-            semanticSearchEnabled = RuntimeConfigService.isAiSemanticSearchEnabled(),
-            groupAssistantEnabled = RuntimeConfigService.isAiGroupAssistantEnabled()
+            clientAiEnabled = RuntimeConfigService.isAiEnabled(),
+            contentModerationEnabled = RuntimeConfigService.isAiContentModerationEnabled()
         ),
         integrations = IntegrationCapabilities(
             webhookSupported = true,
@@ -1046,15 +1039,8 @@ data class GroupCapabilities(
 
 @Serializable
 data class AiCapabilities(
-    val translateEnabled: Boolean,
-    val summarizeEnabled: Boolean,
-    val rewriteEnabled: Boolean,
-    val suggestRepliesEnabled: Boolean,
-    val transcribeEnabled: Boolean,
-    val analyzeImageEnabled: Boolean,
-    val analyzeFileEnabled: Boolean,
-    val semanticSearchEnabled: Boolean,
-    val groupAssistantEnabled: Boolean
+    val clientAiEnabled: Boolean,
+    val contentModerationEnabled: Boolean
 )
 
 @Serializable

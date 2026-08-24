@@ -4,21 +4,16 @@ import android.content.Context
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.repository.AiProfileRepository
-import com.maodouchat.data.repository.AiEnhanceHttp
 import com.maodouchat.network.AiContextMessage
-import com.maodouchat.network.AiWeeklyReportRequest
-import com.maodouchat.network.AiWeeklyReportResponse
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 
 /**
  * B4 · 群周报（服务端 AiGateway + 本地 SQLCipher 周报缓存）。
  *
  * 客户端只做两件事：
- * 1. 从本地 SQLCipher 库取本周群聊消息，消毒后按服务端白名单格式提交
- *    POST /api/ai/enhance/weekly-report（服务端复用 AiGateway.groupAssistant 生成结构化周报）；
+ * 1. 从本地 SQLCipher 库取本周群聊消息，消毒后由用户自配的本机模型生成结构化周报；
  * 2. 结果按 (chatId, weekStart) 缓存进独立 SQLCipher 库，离线可读历史周报。
  *
  * 约束：
@@ -30,7 +25,7 @@ object AiWeeklyReport {
 
     fun isAllowed(context: Context): Boolean =
         AiPrivacyPreferences.mayUploadCloudContext(context) &&
-            RuntimeFlags.isEnabled(context, RuntimeFlags.AI_SUMMARY)
+            RuntimeFlags.isEnabled(context, RuntimeFlags.AI_MASTER)
 
     data class WeeklyReport(
         val chatId: String,
@@ -40,8 +35,6 @@ object AiWeeklyReport {
         val model: String? = null,
         val createdAt: Long = System.currentTimeMillis()
     )
-
-    private val json = Json { ignoreUnknownKeys = true }
 
     /** 本周起点（周一 00:00）与终点（下周一 00:00），按本地时区。 */
     fun currentWeekRange(now: Long = System.currentTimeMillis()): Pair<Long, Long> {
@@ -87,25 +80,18 @@ object AiWeeklyReport {
         }
         if (contextMessages.isEmpty()) return null
 
-        val request = AiWeeklyReportRequest(
-            messages = contextMessages,
-            weekStart = weekStart,
-            weekEnd = weekEnd,
-            chatId = chatId
-        )
-        val body = json.encodeToString(AiWeeklyReportRequest.serializer(), request)
-        val response = AiEnhanceHttp.post(
+        val report = com.maodouchat.ai.agent.LocalAiGateway.groupAssistant(
             context,
-            "/api/ai/enhance/weekly-report",
-            body,
-            AiWeeklyReportResponse.serializer()
-        ).getOrNull() ?: return null
-        val report = response.report.trim().take(MAX_REPORT_CHARS)
+            "本周群报",
+            contextMessages,
+            "summary"
+        ).getOrNull()?.trim()?.take(MAX_REPORT_CHARS) ?: return null
         if (report.isBlank()) return null
+        val model = com.maodouchat.ai.agent.LocalAiProviderStore.activeProvider(context)?.model
         withContext(Dispatchers.IO) {
-            repository.saveWeeklyReport(chatId, weekStart, weekEnd, report, response.model)
+            repository.saveWeeklyReport(chatId, weekStart, weekEnd, report, model)
         }
-        return WeeklyReport(chatId, weekStart, weekEnd, report, response.model)
+        return WeeklyReport(chatId, weekStart, weekEnd, report, model)
     }
 
     /** 读取某会话的历史周报（仅本地缓存）。 */

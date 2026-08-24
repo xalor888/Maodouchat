@@ -28,6 +28,15 @@ interface AiTaskDao {
     @Query(
         """
         SELECT * FROM ai_tasks
+        ORDER BY isCompleted ASC, updatedAt DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun listRecent(limit: Int): List<AiTaskEntity>
+
+    @Query(
+        """
+        SELECT * FROM ai_tasks
         WHERE isCompleted = 0
             AND dueAt IS NOT NULL
             AND remindedAt IS NULL

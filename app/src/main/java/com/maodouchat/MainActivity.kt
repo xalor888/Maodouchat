@@ -113,6 +113,10 @@ class MainActivity : FragmentActivity() {
                 //（否则聊天页被指纹弹窗遮挡时到的新消息会被误判为后台消息而弹托盘通知）。
                 // ChatDetailViewModel 回前台会重新设置。
                 com.maodouchat.MaodouchatApp.activeChatId = null
+                com.maodouchat.network.WebSocketClient.sendPresence(false)
+            }
+            override fun onStart(owner: LifecycleOwner) {
+                com.maodouchat.network.WebSocketClient.sendPresence(true)
             }
             override fun onResume(owner: LifecycleOwner) {
                 if (!showFakeChat && FakeChatManager.shouldShowFake(this@MainActivity)) {
@@ -624,19 +628,14 @@ class MainActivity : FragmentActivity() {
         lifecycleScope.launch {
             var lastGeneration = MaodouchatApp.currentSessionGeneration()
             // 8.40：冷启动也按账号设置恢复悬浮球（此前仅代际变化时处理，进程重启后永不恢复）
-            if (com.maodouchat.floating.FloatingBallController.isEnabled(this@MainActivity)) {
-                com.maodouchat.floating.FloatingBallController.start(this@MainActivity)
-            }
+            com.maodouchat.floating.FloatingBallController.stop(this@MainActivity)
+            com.maodouchat.floating.FloatingBallController.setEnabled(this@MainActivity, false)
             while (true) {
                 val current = MaodouchatApp.currentSessionGeneration()
                 if (current != lastGeneration) {
                     lastGeneration = current
                     com.maodouchat.floating.FloatingBallController.stop(this@MainActivity)
-                    // 8.40：账号切换后按新账号的设置恢复悬浮球（此前只 stop 不 start，
-                    // 重启进程/切换账号后设置仍显示「开」但悬浮球永不出现）
-                    if (com.maodouchat.floating.FloatingBallController.isEnabled(this@MainActivity)) {
-                        com.maodouchat.floating.FloatingBallController.start(this@MainActivity)
-                    }
+                    com.maodouchat.floating.FloatingBallController.setEnabled(this@MainActivity, false)
                 }
                 delay(1000)
             }

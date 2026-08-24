@@ -60,7 +60,9 @@ data class CallUiState(
     val availableAudioRoutes: Set<CallAudioRoute> = emptySet(),
     val selectedAudioRoute: CallAudioRoute? = null,
     val groupParticipants: List<GroupCallParticipantUi> = emptyList(),
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    /** 0–100 while downloading the self-hosted WebRTC .so; 0 when idle. */
+    val nativeDownloadProgress: Int = 0
 )
 
 /** 通话链路质量分级，供顶部小条 + ICE reconnect 提示使用 */
@@ -149,6 +151,11 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
+        viewModelScope.launch {
+            WebRtcNativeLibraryLoader.progress.collect { pct ->
+                _uiState.update { it.copy(nativeDownloadProgress = pct) }
+            }
+        }
         viewModelScope.launch {
             CallActionBus.hangUpRequests.collect { req ->
                 // Drop hang-ups buffered before logout/account switch.

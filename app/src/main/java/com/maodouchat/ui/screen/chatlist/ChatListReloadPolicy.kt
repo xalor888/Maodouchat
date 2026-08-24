@@ -4,8 +4,9 @@ package com.maodouchat.ui.screen.chatlist
  * Decide how WS / lifecycle triggers should refresh the chat list via getChats.
  *
  * Bursty delete/revoke/group-revision events already apply local preview/tombstone
- * optimistically; full getChats is coalesced. Reconnect and explicit pull-to-refresh
- * stay immediate. Unknown-chat new messages need a row soon (immediate, silent).
+ * optimistically; full getChats is coalesced. Reconnect and foreground stay silent
+ * (no isLoading shimmer); reconnect additionally waits [RECONNECT_DEBOUNCE_MS].
+ * Pull-to-refresh stays visible.
  */
 object ChatListReloadPolicy {
 
@@ -16,6 +17,8 @@ object ChatListReloadPolicy {
         INITIAL,
         /** WebSocket Connected after reconnect. */
         RECONNECT,
+        /** Activity ON_RESUME while already logged in. */
+        FOREGROUND,
         /** Remote delete while list is open. */
         MESSAGE_DELETED,
         /** Remote revoke while list is open. */
@@ -38,16 +41,22 @@ object ChatListReloadPolicy {
     /** Default coalesce window for bursty WS mutations. */
     const val DEFAULT_DEBOUNCE_MS: Long = 400L
 
+    /** WS flaps: still silent (no isLoading) but coalesce getChats. */
+    const val RECONNECT_DEBOUNCE_MS: Long = 800L
+
     fun modeFor(trigger: Trigger): Mode = when (trigger) {
         Trigger.USER_REFRESH, Trigger.INITIAL -> Mode.IMMEDIATE_VISIBLE
-        Trigger.RECONNECT -> Mode.IMMEDIATE_VISIBLE
-        Trigger.UNKNOWN_CHAT_MESSAGE -> Mode.IMMEDIATE_SILENT
+        Trigger.RECONNECT, Trigger.FOREGROUND, Trigger.UNKNOWN_CHAT_MESSAGE -> Mode.IMMEDIATE_SILENT
         Trigger.MESSAGE_DELETED, Trigger.MESSAGE_REVOKED, Trigger.GROUP_REVISION ->
             Mode.DEBOUNCED_SILENT
     }
 
     fun shouldShowLoading(mode: Mode): Boolean = mode == Mode.IMMEDIATE_VISIBLE
 
-    fun debounceMs(mode: Mode): Long =
-        if (mode == Mode.DEBOUNCED_SILENT) DEFAULT_DEBOUNCE_MS else 0L
+    fun debounceMs(mode: Mode, trigger: Trigger? = null): Long =
+        when {
+            trigger == Trigger.RECONNECT -> RECONNECT_DEBOUNCE_MS
+            mode == Mode.DEBOUNCED_SILENT -> DEFAULT_DEBOUNCE_MS
+            else -> 0L
+        }
 }

@@ -46,4 +46,23 @@ class AttachmentTransferRetryPolicyTest {
             )
         )
     }
+
+    @Test
+    fun missingPeerPrekeysAndSignalInitAreRetryable() {
+        assertTrue(
+            AttachmentTransferFinalizer.isRetryable(
+                com.maodouchat.crypto.NoRecipientDevicesException()
+            )
+        )
+        assertTrue(
+            AttachmentTransferFinalizer.isRetryable(
+                IllegalStateException("signal_initialization_failed")
+            )
+        )
+        assertTrue(
+            AttachmentTransferFinalizer.isRetryable(
+                RuntimeException("wrap", com.maodouchat.crypto.NoRecipientDevicesException())
+            )
+        )
+    }
 }

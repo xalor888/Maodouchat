@@ -1984,7 +1984,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
     fun onEntryClick(entryId: String) {
         when (entryId) {
-            "scan", "nearby", "moments", "my_qr_code" -> showEntryNavigation(entryId)
+            "scan", "moments", "my_qr_code" -> showEntryNavigation(entryId)
+            "nearby" -> showEntryPrompt(entryId)
             else -> showEntryPrompt(entryId)
         }
     }

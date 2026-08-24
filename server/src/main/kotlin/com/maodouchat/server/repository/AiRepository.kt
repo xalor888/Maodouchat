@@ -1,21 +1,17 @@
 package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.AiAuditLogs
-import com.maodouchat.server.db.AiPreferences
 import com.maodouchat.server.model.AiAuditLogResponse
-import com.maodouchat.server.model.AiSettingsResponse
 import org.jetbrains.exposed.sql.LongColumnType
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.VarCharColumnType
-import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
@@ -24,41 +20,6 @@ import org.slf4j.LoggerFactory
 class AiRepository {
 
     private val logger = LoggerFactory.getLogger(AiRepository::class.java)
-
-    fun getSettings(userId: String, chatId: String? = null): AiSettingsResponse = transaction {
-        getSettingsInTransaction(userId, chatId)
-    }
-
-    fun setUserEnabled(userId: String, enabled: Boolean): AiSettingsResponse = try {
-        transaction {
-            upsertPreference(userId, SCOPE_USER, "", enabled)
-            getSettingsInTransaction(userId, null)
-        }
-    } catch (error: Exception) {
-        if (!isUniqueViolation(error)) throw error
-        // 并发首插撞 (userId, scope, chatId) PK：本事务已回滚，新事务重放 UPDATE
-        transaction {
-            upsertPreference(userId, SCOPE_USER, "", enabled)
-            getSettingsInTransaction(userId, null)
-        }
-    }
-
-    fun setChatEnabled(userId: String, chatId: String, enabled: Boolean): AiSettingsResponse = try {
-        transaction {
-            upsertPreference(userId, SCOPE_CHAT, chatId, enabled)
-            getSettingsInTransaction(userId, chatId)
-        }
-    } catch (error: Exception) {
-        if (!isUniqueViolation(error)) throw error
-        transaction {
-            upsertPreference(userId, SCOPE_CHAT, chatId, enabled)
-            getSettingsInTransaction(userId, chatId)
-        }
-    }
-
-    fun isEnabled(userId: String, chatId: String? = null): Boolean {
-        return getSettings(userId, chatId).effectiveEnabled
-    }
 
     fun recordAudit(
         userId: String,
@@ -73,10 +34,6 @@ class AiRepository {
         inputTokens: Long? = null,
         outputTokens: Long? = null
     ) {
-        // 9.137：审计尽力而为——此前 token 列靠运行时 ALTER + 事务内裸 SQL UPDATE 写入，
-        // ALTER 失败（DDL 权限不足/锁冲突）后 PG 事务被毒化：runCatching 吞掉 SQL 错误，
-        // 提交时抛 25P02 逃逸出 recordAudit，导致 AI 网关已成功后端点 500 且审计行回滚丢失。
-        // 现列已在 Table 单例声明（启动迁移补列），走 Exposed 普通 INSERT，且失败不再影响主流程。
         try {
             transaction {
                 AiAuditLogs.insert {
@@ -100,7 +57,6 @@ class AiRepository {
         }
     }
 
-    /** 清理超过保留期的 AI 审计日志，防止无限增长。默认保留 90 天。 */
     fun purgeOldAuditLogs(retentionDays: Int = 90): Int {
         val cutoff = System.currentTimeMillis() - retentionDays * 86_400_000L
         return transaction {
@@ -108,12 +64,6 @@ class AiRepository {
         }
     }
 
-    /**
-     * 汇总某用户今日（服务器时区）已消耗的 input + output token 总量。
-     * 供 AiGatewayService 的每用户每日预算检查使用。
-     * 9.137：token 列已进 Table 单例（启动迁移补列），此前 ensureTokenColumns 失败
-     * 会导致此处裸 SQL 抛异常、上层 runCatching 回落 0 → 每日预算形同虚设。
-     */
     fun sumTokensForUserToday(userId: String): Long {
         return transaction {
             val startOfDay = startOfTodayMillis()
@@ -127,9 +77,6 @@ class AiRepository {
         }
     }
 
-    /**
-     * 服务器时区今日 00:00 的 epoch 毫秒。预算按此边界每日重置。
-     */
     fun startOfTodayMillis(zone: ZoneId = ZoneId.systemDefault()): Long {
         val today = LocalDate.now(zone)
         return today.atStartOfDay(zone).toInstant().toEpochMilli()
@@ -154,68 +101,5 @@ class AiRepository {
                     createdAt = it[AiAuditLogs.createdAt]
                 )
             }
-    }
-
-    private fun readPreference(userId: String, scope: String, chatId: String): Boolean? {
-        return AiPreferences.selectAll()
-            .where {
-                (AiPreferences.userId eq userId) and
-                    (AiPreferences.scope eq scope) and
-                    (AiPreferences.chatId eq chatId)
-            }
-            .firstOrNull()
-            ?.get(AiPreferences.enabled)
-    }
-
-    private fun getSettingsInTransaction(userId: String, chatId: String?): AiSettingsResponse {
-        val userEnabled = readPreference(userId, SCOPE_USER, "") ?: true
-        val normalizedChatId = chatId?.takeIf(String::isNotBlank)
-        val chatEnabled = normalizedChatId?.let { readPreference(userId, SCOPE_CHAT, it) }
-        return AiSettingsResponse(
-            userEnabled = userEnabled,
-            chatId = normalizedChatId,
-            chatEnabled = chatEnabled,
-            effectiveEnabled = userEnabled && (chatEnabled ?: true)
-        )
-    }
-
-    private fun upsertPreference(userId: String, scope: String, chatId: String, enabled: Boolean) {
-        // 先 UPDATE 再 INSERT：并发首插撞 (userId, scope, chatId) PK 时异常交给调用方
-        // 事务外 catch 重试（PG abort 语义安全）。不用 Exposed upsert()——H2 2.x 不支持
-        // 其生成的 MERGE ... USING (VALUES)（与 RateLimitStatsRepository.recordMinute
-        // 的 isH2Db 分支同结论），生产 PG / 测试 H2 双兼容。
-        val updated = AiPreferences.update({
-            (AiPreferences.userId eq userId) and
-                (AiPreferences.scope eq scope) and
-                (AiPreferences.chatId eq chatId)
-        }) {
-            it[AiPreferences.enabled] = enabled
-            it[updatedAt] = System.currentTimeMillis()
-        }
-        if (updated == 0) {
-            AiPreferences.insert {
-                it[AiPreferences.userId] = userId
-                it[AiPreferences.scope] = scope
-                it[AiPreferences.chatId] = chatId
-                it[AiPreferences.enabled] = enabled
-                it[updatedAt] = System.currentTimeMillis()
-            }
-        }
-    }
-
-    private fun isUniqueViolation(error: Throwable): Boolean {
-        var current: Throwable? = error
-        while (current != null) {
-            val message = current.message.orEmpty().lowercase()
-            if (current is java.sql.SQLException && current.sqlState == "23505") return true
-            if (message.contains("unique") || message.contains("duplicate key")) return true
-            current = current.cause
-        }
-        return false
-    }
-
-    private companion object {
-        const val SCOPE_USER = "USER"
-        const val SCOPE_CHAT = "CHAT"
     }
 }

@@ -11,14 +11,11 @@ import com.maodouchat.server.plugins.configureSerialization
 import com.maodouchat.server.plugins.configureSockets
 import com.maodouchat.server.plugins.configureStatusPages
 import com.maodouchat.server.plugins.configurePollRouting
-import com.maodouchat.server.plugins.configureAiEnhanceRouting
 import com.maodouchat.server.plugins.configureAdminEnhanceRouting
 import com.maodouchat.server.plugins.configureSecretSurfaceRouting
 import com.maodouchat.server.plugins.startRateLimitStatsSampler
-import com.maodouchat.server.plugins.BoundedRateLimiter
 import com.maodouchat.server.plugins.CachingPlugin
 import com.maodouchat.server.plugins.SecurityHeaders
-import com.maodouchat.server.repository.AiRepository
 import com.maodouchat.server.repository.ChatRepository
 import com.maodouchat.server.repository.MessageRepository
 import com.maodouchat.server.repository.PostRepository
@@ -87,8 +84,7 @@ fun main() {
     val announcementRepo = AnnouncementRepository()
     val userTagRepo = UserTagRepository()
     val rateLimitStatsRepo = RateLimitStatsRepository()
-    // 8.52 修复 AI-5：AI 网关单例——configureRouting（/api/ai/*）与 configureAiEnhanceRouting
-    //（/api/ai/enhance/*）共享同一实例，否则预算预留/幂等缓存/并发信号量互相不可见（TOCTOU 绕开）
+    // 聊天明文推理已下放到客户端自配模型。服务端 AiGateway 仅给动态/评论审核（默认关）。
     val aiGateway = AiGatewayService()
 
     // 开发/测试模式可创建演示用户
@@ -140,14 +136,6 @@ fun main() {
         // 群玩法 B3：群签到+排行 / 群接龙 / 群 PK / 投票同步（REST + WS 推送）
         configurePollRouting()
         configureDeveloperRouting()
-        // B4 · AI 增强能力（会话画像 / 群周报 / 情绪感知回复 / 跨聊天问答 / 消息分类）
-        // 服务端编排复用 AiGateway，端点统一挂载 /api/ai/enhance，实现见 plugins/AiEnhanceRouting.kt。
-        configureAiEnhanceRouting(
-            aiGateway = aiGateway,
-            chatRepo = chatRepo,
-            aiRepo = AiRepository(),
-            aiRateLimiter = BoundedRateLimiter()
-        )
         // B6 运维增强：公告广播 / 用户标签+风控联动 / 审计时间范围导出 / 限流仪表盘 / 设备一致性
         configureAdminEnhanceRouting(
             announcementRepo = announcementRepo,

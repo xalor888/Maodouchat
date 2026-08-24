@@ -9,8 +9,8 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
@@ -48,6 +48,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -100,8 +101,8 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Today
-import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SentimentSatisfied
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -129,7 +130,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallFloatingActionButton
+
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
@@ -215,7 +216,12 @@ import com.maodouchat.security.MessageSafetyScanner
 import com.maodouchat.security.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
 import com.maodouchat.security.findActivity
+import com.maodouchat.ui.component.FloatingGlassTopBar
 import com.maodouchat.ui.component.MessageBubble
+import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
+import com.maodouchat.ui.theme.LocalLiquidGlassEnabled
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.maodouchat.ui.component.ReplyPreview
 import com.maodouchat.ui.component.ReplyTargetBar
 import com.maodouchat.ui.component.ParticleDeleteEffect
@@ -348,14 +354,6 @@ fun ChatDetailScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val motion = LocalMotionSettings.current
     val listState = rememberLazyListState()
-    // 1.188：向上翻阅历史时显示「回到最新」
-    val chatDetailScope = rememberCoroutineScope()
-    var showJumpToLatest by remember { mutableStateOf(false) }
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }.distinctUntilChanged().collect { index ->
-            showJumpToLatest = index > 5
-        }
-    }
     val listScrollScope = rememberCoroutineScope()
     // 8.47：滚动合并执行器（B7 帧预算）——高频回底/跳转连点合并同帧请求，
     // 超距跳转瞬时 snap，避免长动画占帧（此前 4 处裸 animateScrollToItem）
@@ -431,6 +429,21 @@ fun ChatDetailScreen(
     var searchMode by rememberSaveable { mutableStateOf(ChatSearchMode.KEYWORD) }
     var searchScope by rememberSaveable { mutableStateOf(ChatSearchScope.ALL) }
     var searchWindow by rememberSaveable { mutableStateOf(ChatSearchWindow.ALL) }
+    val chatAiSurfacesVisible = com.maodouchat.ai.AiEntryPolicy.shouldShowAiSurfaces(
+        chatAiEnabled = state.aiEnabled,
+        consentAccepted = com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(context),
+        userEnabled = com.maodouchat.ai.AiPrivacyPreferences.userEnabled(context),
+        masterEnabled = com.maodouchat.util.RuntimeFlags.isEnabled(
+            context,
+            com.maodouchat.util.RuntimeFlags.AI_MASTER
+        )
+    )
+    androidx.compose.runtime.LaunchedEffect(chatAiSurfacesVisible) {
+        if (!chatAiSurfacesVisible && searchMode == ChatSearchMode.SEMANTIC) {
+            searchMode = ChatSearchMode.KEYWORD
+            viewModel.clearSemanticSearch()
+        }
+    }
     var fullScreenImage by remember { mutableStateOf<Message?>(null) }
     var fullScreenVideo by remember { mutableStateOf<Message?>(null) }
     // 0.83：清空本机聊天记录确认
@@ -585,6 +598,13 @@ fun ChatDetailScreen(
         state.messages.filter { it.id in selectedMessageIds }
     }
     val messageSelectionMode = selectedMessageIds.isNotEmpty()
+    BackHandler(enabled = showChatOverflow || messageSelectionMode || showSearchBar) {
+        when {
+            showChatOverflow -> showChatOverflow = false
+            messageSelectionMode -> selectedMessageIds = emptySet()
+            showSearchBar -> showSearchBar = false
+        }
+    }
     val searchDocuments = remember(state.messages) { buildChatSearchDocuments(state.messages) }
     val localSearchResults = remember(searchQuery, searchScope, searchWindow, searchDocuments) {
         searchChatDocuments(
@@ -624,10 +644,15 @@ fun ChatDetailScreen(
     var pendingVideoConfirm by remember { mutableStateOf<PendingImageSend?>(null) }
     // 8.48：禁言提示到期重组触发器（到期时刻写入以驱动提示条消失）
     var muteTick by remember { mutableLongStateOf(0L) }
+    // Photo Picker (PickVisualMedia) on some AVDs finishes MainActivity and lands on the launcher.
+    // GetContent stays in our task and is enough for IMAGE/VIDEO send confirmation.
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
+        contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
             pendingImageConfirm = PendingImageSend(it, pendingViewOnce, pendingSpoiler)
         }
         pendingViewOnce = false
@@ -635,10 +660,13 @@ fun ChatDetailScreen(
     }
 
     val videoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
+        contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         // 0.69：视频改为先预览确认（与图片一致），确认后才发送
         uri?.let {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
             pendingVideoConfirm = PendingImageSend(it, pendingViewOnce, pendingSpoiler)
         }
         pendingViewOnce = false
@@ -671,14 +699,6 @@ fun ChatDetailScreen(
     val gifMediaPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { /* GifSearchDialog reloads when recomposed after grant */ }
-
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri: Uri? ->
-        if (uri != null) {
-            viewModel.exportToUri(context, uri)
-        }
-    }
 
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -735,7 +755,12 @@ fun ChatDetailScreen(
         particleStates = listOf(ParticleState(message.id, bounds.offset, bounds.size, bubbleColor))
     }
 
-    LaunchedEffect(state.messages.lastOrNull()?.id, state.currentUserId) {
+    LaunchedEffect(
+        state.messages.lastOrNull()?.id,
+        state.currentUserId,
+        state.initialTimelineReady,
+        reversedChatItems.size
+    ) {
         val latestMessage = state.messages.lastOrNull() ?: return@LaunchedEffect
         val latestId = latestMessage.id
         if (state.navigationTargetMessageId != null || navigationHighlightMessageId != null) {
@@ -744,12 +769,16 @@ fun ChatDetailScreen(
         }
         val previousId = lastAutoScrollMessageId
         lastAutoScrollMessageId = latestId
-        if (previousId == null || previousId == latestId) return@LaunchedEffect
-        val shouldStickToBottom = isNearBottom || latestMessage.senderId == state.currentUserId
+        // Open-chat: local seed paints an older tail first; history then prepends newer
+        // bubbles in reverseLayout. Keep index 0 until that merge finishes, otherwise
+        // the viewport stays on yesterday while list preview already shows today.
+        val openingPin = !state.initialTimelineReady || previousId == null
+        if (previousId == latestId && !openingPin) return@LaunchedEffect
+        val shouldStickToBottom = openingPin || isNearBottom || latestMessage.senderId == state.currentUserId
         if (shouldStickToBottom) {
-            chatListScroller.scrollToItem(listState, 0)
+            chatListScroller.scrollToItem(listState, 0, animated = !openingPin)
             pendingNewMessageCount = 0
-        } else if (latestMessage.senderId != state.currentUserId) {
+        } else if (latestMessage.senderId != state.currentUserId && previousId != latestId) {
             pendingNewMessageCount += 1
         }
     }
@@ -2184,7 +2213,7 @@ if (showGroupCallTypeDialog) {
     if (showClearHistoryConfirm) {
         AlertDialog(
             onDismissRequest = { showClearHistoryConfirm = false },
-            title = { Text(stringResource(R.string.chat_clear_history_title)) },
+            title = { Text(stringResource(R.string.chat_clear_local_history)) },
             text = { Text(stringResource(R.string.chat_clear_history_body)) },
             confirmButton = {
                 TextButton(onClick = {
@@ -2279,24 +2308,29 @@ if (showGroupCallTypeDialog) {
             }
         )
     }
+    val chatLiquidBackdrop = rememberLayerBackdrop()
+    CompositionLocalProvider(LocalLiquidGlassBackdrop provides chatLiquidBackdrop) {
     Scaffold(
-        containerColor = chatBackgroundColor,
-        // 1.188：向上翻阅历史时显示「回到最新」
-        floatingActionButton = {
-            if (showJumpToLatest) {
-                SmallFloatingActionButton(
-                    onClick = { chatDetailScope.launch { listState.animateScrollToItem(0) } },
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = Primary
-                ) {
-                    Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.chat_jump_to_latest))
-                }
-            }
-        },
+        containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
+            FloatingGlassTopBar(
+                consumeStatusBars = true,
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp)
+                            .clickable {
+                                if (state.chatIsGroup) {
+                                    state.chat?.id?.let(onOpenGroupDetail)
+                                } else {
+                                    val peerId = state.contact.id
+                                    if (onOpenProfile != null && peerId.isNotBlank()) {
+                                        onOpenProfile(peerId)
+                                    }
+                                }
+                            }
+                    ) {
                         Avatar(name = state.contact.displayName, avatarUrl = state.contact.avatar, size = AvatarSize.SM, isOnline = state.contact.isOnline)
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
@@ -2374,10 +2408,6 @@ if (showGroupCallTypeDialog) {
                     }
                 },
                 actions = {
-                    // 9.3xx：拍一拍仅限单聊（服务端同步拒绝群聊拍一拍）
-                    if (RuntimeFlags.isEnabled(context, RuntimeFlags.NUDGE) && !state.chatIsGroup) {
-                        IconButton(onClick = { viewModel.sendNudge() }) { Icon(Icons.Outlined.Pets, contentDescription = stringResource(R.string.chat_nudge), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp)) }
-                    }
                     if (state.chatIsGroup) {
                         IconButton(onClick = { state.chat?.id?.let(onOpenGroupDetail) ?: run { showGroupInfo = true } }) {
                             Icon(Icons.Outlined.Group, contentDescription = stringResource(R.string.chat_group_info), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
@@ -2440,70 +2470,18 @@ if (showGroupCallTypeDialog) {
                                     onOpenCallHistory?.invoke()
                                 }
                             )
-                            // 0.78：导出聊天记录（ChatExport 早已实现但无入口）
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.chat_export_menu)) },
-                                onClick = {
-                                    showChatOverflow = false
-                                    val chatName = state.chat?.let {
-                                        if (it.isGroup) it.groupName ?: ""
-                                        else it.participants.firstOrNull { p -> p.id != state.currentUserId }?.displayName ?: ""
-                                    }.orEmpty()
-                                    val exportText = com.maodouchat.util.ChatExport.buildText(
-                                        chatName = chatName,
-                                        ownerId = state.currentUserId,
-                                        resolveSenderName = { sid ->
-                                            participantNamesById[sid]?.trim()?.takeIf { it.isNotEmpty() }
-                                                ?: truncatedSenderId(sid)
-                                                ?: unknownSenderLabel
-                                        },
-                                        messages = state.messages
-                                    )
-                                    val file = com.maodouchat.util.ChatExport.write(
-                                        context,
-                                        chatName.ifBlank { "chat" },
-                                        exportText
-                                    )
-                                    if (file != null) {
-                                        com.maodouchat.util.ChatExport.share(
-                                            context,
-                                            file,
-                                            context.getString(R.string.chat_export_share_title)
-                                        )
-                                    } else {
-                                        Toast.makeText(context, context.getString(R.string.chat_export_failed), Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            )
-                            // 0.83：清空本机聊天记录
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.chat_clear_history), color = LocalChatPalette.current.unreadRed) },
-                                onClick = { showChatOverflow = false; showClearHistoryConfirm = true }
-                            )
+                            if (RuntimeFlags.isEnabled(context, RuntimeFlags.NUDGE) && !state.chatIsGroup && state.chat?.isChannel != true) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.chat_nudge)) },
+                                    onClick = { showChatOverflow = false; viewModel.sendNudge() }
+                                )
+                            }
                             if (state.chatIsGroup) {
-                                // 9.3xx：移除约 190 个"假群玩法"入口（只发随机文字，不是真功能）。
-                                // 保留 4 个服务端真实实现的功能页（投票/签到/接龙/PK）与邀请 Bot。
                                 DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_poll)) },
-                                    onClick = { showChatOverflow = false; onOpenGroupPoll(state.chat?.id.orEmpty()) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_checkin)) },
-                                    onClick = { showChatOverflow = false; onOpenGroupCheckin(state.chat?.id.orEmpty()) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_chain_title)) },
-                                    onClick = { showChatOverflow = false; onOpenGroupChain(state.chat?.id.orEmpty()) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_pk_title)) },
-                                    onClick = { showChatOverflow = false; onOpenGroupPk(state.chat?.id.orEmpty()) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_play_invite_bot)) },
+                                    text = { Text(stringResource(R.string.chat_group_info)) },
                                     onClick = {
                                         showChatOverflow = false
-                                        viewModel.inviteFirstOwnedBot()
+                                        state.chat?.id?.let(onOpenGroupDetail) ?: run { showGroupInfo = true }
                                     }
                                 )
                             }
@@ -2563,57 +2541,20 @@ if (showGroupCallTypeDialog) {
                                 text = { Text(stringResource(R.string.chat_jump_date)) },
                                 onClick = { showChatOverflow = false; showDateJumpDialog = true }
                             )
-                            if (state.isSecretChat != true) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.chat_export)) },
-                                    onClick = {
-                                        showChatOverflow = false
-                                        SensitiveActionGate.confirm(
-                                            context = context,
-                                            action = SensitiveAction.EXPORT_CHAT,
-                                            title = sensitiveAuthTitle,
-                                            subtitle = sensitiveAuthExport,
-                                            onSuccess = {
-                                                exportLauncher.launch("maodouchat_chat_${state.chat?.id ?: "chat"}.json")
-                                            },
-                                            onFailure = { msg ->
-                                                Toast.makeText(
-                                                    context,
-                                                    msg?.takeIf { it.isNotBlank() } ?: sensitiveAuthFailed,
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                        )
-                                    }
-                                )
-                            }
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.chat_clear_history)) },
+                                text = { Text(stringResource(R.string.chat_clear_local_history), color = LocalChatPalette.current.unreadRed) },
                                 onClick = {
                                     showChatOverflow = false
                                     showClearHistoryConfirm = true
                                 }
                             )
-                            // 8.54：导出聊天记录（本地解密消息 → 文本 → 系统分享）
-                            // 8.55：密聊门控与 JSON 导出一致——明文文本不得经分享面板泄出
-                            if (state.isSecretChat != true) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.chat_export_history)) },
-                                    onClick = {
-                                        showChatOverflow = false
-                                        viewModel.exportChatHistory()
-                                    }
-                                )
-                            }
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
-                modifier = Modifier.shadow(1.dp)
             )
             }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().layerBackdrop(chatLiquidBackdrop).background(chatBackgroundColor)) {
             // 自定义图片壁纸（本地 URI，按账号隔离）：绘制在聊天内容之下，无壁纸时不引入额外层
             customWallpaperUri?.let { uri ->
                 coil.compose.AsyncImage(
@@ -2729,7 +2670,7 @@ if (showGroupCallTypeDialog) {
                 )
             }
             AnimatedVisibility(
-                visible = state.isUnreadSummaryLoading || state.unreadAiSummary != null,
+                visible = chatAiSurfacesVisible && (state.isUnreadSummaryLoading || state.unreadAiSummary != null),
                 enter = expandVertically() + LocalMotionSettings.current.composerBarEnter(),
                 exit = shrinkVertically() + fadeOut()
             ) {
@@ -2767,6 +2708,7 @@ if (showGroupCallTypeDialog) {
                     semanticSearchQuery = state.semanticSearchQuery,
                     semanticSearchResultCount = state.semanticSearchResultIds.size,
                     semanticSearchError = state.semanticSearchError,
+                    aiEnabled = chatAiSurfacesVisible,
                     onQueryChange = { query ->
                         searchQuery = query
                         searchIndex = 0
@@ -2878,13 +2820,6 @@ if (showGroupCallTypeDialog) {
 
             // 消息列表
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                // 1.163：群聊最后一条自己消息（用于气泡下「已读 X/Y」）
-                val lastOutgoingMsgId = state.messages.lastOrNull {
-                    it.senderId == state.currentUserId &&
-                        it.type != com.maodouchat.data.model.MessageType.SK_DIST &&
-                        it.status != com.maodouchat.data.model.MessageStatus.SENDING &&
-                        it.status != com.maodouchat.data.model.MessageStatus.FAILED
-                }?.id
                 LazyColumn(
                     state = listState,
                     reverseLayout = true,
@@ -2964,8 +2899,13 @@ if (showGroupCallTypeDialog) {
                             val canShowSafety = (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) &&
                                 !isOwn &&
                                 message.id !in dismissedSafetyMessageIds
-                            // 1.163：群聊最后一条自己消息气泡下「已读 X/Y」
-                            val groupReadLabel = if (message.id == lastOutgoingMsgId && state.chatIsGroup) {
+                            val groupReadLabel = if (
+                                ReadReceiptPolicy.shouldShowGroupReadCount(
+                                    isGroup = state.chatIsGroup,
+                                    isOwnMessage = isOwn,
+                                    viewerRole = state.myMemberRole,
+                                )
+                            ) {
                                 state.groupReadCounts[message.id]?.let { count ->
                                     stringResource(R.string.chat_group_read_status, count.read, count.total)
                                 }
@@ -2983,11 +2923,17 @@ if (showGroupCallTypeDialog) {
                                     message = displayMessage,
                                     isOwn = isOwn,
                                     showAvatar = item.showAvatar,
+                                    showSenderName = item.showSenderName,
+                                    isGroupEdge = item.isGroupEdge,
                                     senderName = resolveSenderName(message, isOwn),
                                     replyToPreview = meta.replyToId?.let(messagesById::get)?.let {
+                                        val replyBody = com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
+                                            it.parsedContent(),
+                                            ""
+                                        )
                                         ReplyPreview(
                                             senderName = resolveSenderName(it, isOwn = false) ?: "",
-                                            preview = it.parsedContent().take(60)
+                                            preview = replyBody.take(60)
                                         )
                                     },
                                     isSearchHit = isSearchHit,
@@ -3085,7 +3031,13 @@ if (showGroupCallTypeDialog) {
                                 },
                                 // 1.51：点击已读状态图标 → 打开阅读详情（仅自己消息）
                                 onStatusClick = { msg ->
-                                    if (msg.senderId == state.currentUserId) {
+                                    if (ReadReceiptPolicy.canViewReceipts(
+                                            viewerId = state.currentUserId,
+                                            senderId = msg.senderId,
+                                            isGroup = state.chatIsGroup,
+                                            viewerRole = state.myMemberRole,
+                                        )
+                                    ) {
                                         messageForReadReceipts = msg
                                         viewModel.loadReadReceipts(msg.id)
                                     }
@@ -3100,8 +3052,16 @@ if (showGroupCallTypeDialog) {
                                         .padding(top = 2.dp, end = 14.dp)
                                         // 1.180：点击「已读 X/Y」打开该消息阅读详情
                                         .clickable {
-                                            messageForReadReceipts = message
-                                            viewModel.loadReadReceipts(message.id)
+                                            if (ReadReceiptPolicy.canViewReceipts(
+                                                    viewerId = state.currentUserId,
+                                                    senderId = message.senderId,
+                                                    isGroup = state.chatIsGroup,
+                                                    viewerRole = state.myMemberRole,
+                                                )
+                                            ) {
+                                                messageForReadReceipts = message
+                                                viewModel.loadReadReceipts(message.id)
+                                            }
                                         }
                                 ) {
                                     Text(groupReadLabel, style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textSecondary)
@@ -3354,20 +3314,42 @@ if (showGroupCallTypeDialog) {
                 contactCardTargets = state.forwardTargets,
                 onLoadForwardTargets = { viewModel.loadForwardTargets() },
                 onSendContactCard = { userId, name -> viewModel.sendContactCard(userId, name) },
-                onSendImage = { pendingViewOnce = false; pendingSpoiler = false; imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                onSendImage = {
+                    pendingViewOnce = false
+                    pendingSpoiler = false
+                    listScrollScope.launch {
+                        kotlinx.coroutines.yield()
+                        runCatching { imagePickerLauncher.launch("image/*") }
+                            .onFailure {
+                                Toast.makeText(context, context.getString(R.string.chat_image_picker_unavailable), Toast.LENGTH_SHORT).show()
+                            }
+                    }
+                },
                 onSendViewOnceImage = {
                     if (state.chat?.isGroup == true) {
                         Toast.makeText(context, context.getString(R.string.view_once_direct_only), Toast.LENGTH_SHORT).show()
                     } else {
                         pendingViewOnce = true
                         pendingSpoiler = false
-                        imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        listScrollScope.launch {
+                            kotlinx.coroutines.yield()
+                            runCatching { imagePickerLauncher.launch("image/*") }
+                                .onFailure {
+                                    Toast.makeText(context, context.getString(R.string.chat_image_picker_unavailable), Toast.LENGTH_SHORT).show()
+                                }
+                        }
                     }
                 },
                 onSendSpoilerImage = {
                     pendingSpoiler = true
                     pendingViewOnce = false
-                    imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    listScrollScope.launch {
+                        kotlinx.coroutines.yield()
+                        runCatching { imagePickerLauncher.launch("image/*") }
+                            .onFailure {
+                                Toast.makeText(context, context.getString(R.string.chat_image_picker_unavailable), Toast.LENGTH_SHORT).show()
+                            }
+                    }
                 },
                 // 8.48：从系统剪贴板粘贴图片直接进入确认发送流程
                 onPasteFromClipboard = {
@@ -3375,52 +3357,57 @@ if (showGroupCallTypeDialog) {
                     // 会泄漏到后续普通视频/图片发送
                     pendingViewOnce = false
                     pendingSpoiler = false
-                    val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    val clip = cm.primaryClip
-                    var pastedUri: Uri? = null
-                    var clipboardHandled = false
-                    if (clip != null && clip.itemCount > 0) {
-                        val item = clip.getItemAt(0)
-                        val uri = item.uri
-                        if (uri != null && context.contentResolver.getType(uri)?.startsWith("image/") == true) {
-                            pastedUri = uri
-                        } else {
-                            // 8.48 修复：bitmap 解码移 IO 线程（coerceToBitmap 同步解码大图会卡主线程 ANR）
-                            listScrollScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                val resultUri = runCatching {
-                                    val bmp = item.uri?.let { uri ->
-                                        context.contentResolver.openInputStream(uri)?.use { stream ->
-                                            android.graphics.BitmapFactory.decodeStream(stream)
-                                        }
-                                    } ?: return@runCatching null
-                                    val dir = java.io.File(context.cacheDir, "attachment-sources").apply { mkdirs() }
-                                    val file = java.io.File(dir, "paste_${System.currentTimeMillis()}.png")
-                                    file.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 90, it) }
-                                    bmp.recycle()
-                                    // 8.48 修复：用 file:// 而非 FileProvider content://——
-                                    // MediaCache.deletePreparedAttachmentSource 只匹配 file://，
-                                    // content:// 发送后源 PNG 永不被清理（attachment-sources/ 累积）
-                                    android.net.Uri.fromFile(file)
-                                }.getOrNull()
-                                if (resultUri != null) {
-                                    pendingImageConfirm = PendingImageSend(resultUri, false, false)
-                                } else {
-                                    Toast.makeText(context, context.getString(R.string.chat_clipboard_no_image), Toast.LENGTH_SHORT).show()
-                                }
+                    listScrollScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val resultUri = runCatching {
+                            val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clip = cm.primaryClip ?: return@runCatching null
+                            if (clip.itemCount <= 0) return@runCatching null
+                            val item = clip.getItemAt(0)
+                            val uri = item.uri
+                            val mime = uri?.let { u ->
+                                runCatching { context.contentResolver.getType(u) }.getOrNull()
                             }
-                            clipboardHandled = true
-                        }
-                    }
-                    if (!clipboardHandled) {
-                        if (pastedUri != null) {
-                            pendingImageConfirm = PendingImageSend(pastedUri, false, false)
-                        } else {
-                            Toast.makeText(context, context.getString(R.string.chat_clipboard_no_image), Toast.LENGTH_SHORT).show()
+                            if (uri != null && mime?.startsWith("image/") == true) {
+                                return@runCatching uri
+                            }
+                            val bmp = uri?.let { source ->
+                                context.contentResolver.openInputStream(source)?.use { stream ->
+                                    android.graphics.BitmapFactory.decodeStream(stream)
+                                }
+                            } ?: return@runCatching null
+                            val dir = java.io.File(context.cacheDir, "attachment-sources").apply { mkdirs() }
+                            val file = java.io.File(dir, "paste_${System.currentTimeMillis()}.png")
+                            file.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 90, it) }
+                            bmp.recycle()
+                            android.net.Uri.fromFile(file)
+                        }.getOrNull()
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            if (resultUri != null) {
+                                pendingImageConfirm = PendingImageSend(resultUri, false, false)
+                            } else {
+                                Toast.makeText(context, context.getString(R.string.chat_clipboard_no_image), Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                 },
-                onSendVideo = { videoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
-                onSendFile = { filePickerLauncher.launch(arrayOf("*/*")) },
+                onSendVideo = {
+                    listScrollScope.launch {
+                        kotlinx.coroutines.yield()
+                        runCatching { videoPickerLauncher.launch("video/*") }
+                            .onFailure {
+                                Toast.makeText(context, context.getString(R.string.chat_video_picker_unavailable), Toast.LENGTH_SHORT).show()
+                            }
+                    }
+                },
+                onSendFile = {
+                    listScrollScope.launch {
+                        kotlinx.coroutines.yield()
+                        runCatching { filePickerLauncher.launch(arrayOf("*/*")) }
+                            .onFailure {
+                                Toast.makeText(context, context.getString(R.string.chat_image_picker_unavailable), Toast.LENGTH_SHORT).show()
+                            }
+                    }
+                },
                 onSendGif = { showGifSearch = true },
                 onSendSticker = { viewModel.sendSticker(it) },
                 onSendLocation = {
@@ -3465,6 +3452,8 @@ if (showGroupCallTypeDialog) {
                 isUpdatingAiSetting = state.isUpdatingAiSetting,
                 onAiEnabledChange = { viewModel.setAiEnabledForChat(it) },
                 isGroupChat = state.chatIsGroup,
+                isChannelChat = state.chat?.isChannel == true,
+                onSendNudge = { viewModel.sendNudge() },
                 mentionParticipants = state.chat?.participants.orEmpty(),
                 currentUserId = state.currentUserId,
                 // 1.37：仅群主/管理员可选「@所有人」（1.45：角色未加载时 fail-open 避免误拦管理员）
@@ -3476,9 +3465,11 @@ if (showGroupCallTypeDialog) {
                 onToggleSilentSend = viewModel::toggleSilentSend,
                 isSending = state.isSending,
                 readOnly = state.chat?.isChannel == true && state.myMemberRole != "OWNER",
+                botCommands = state.botCommands,
             )
             }
         }
+    }
     }
 
     // 8.57：群公告全文弹窗
@@ -3610,7 +3601,13 @@ if (showGroupCallTypeDialog) {
                         TextButton(
                             onClick = {
                                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, msg.parsedContent()))
+                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(
+                                    chatClipboardMessageLabel,
+                                    com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
+                                        msg.parsedContent(),
+                                        context.getString(R.string.chat_decrypt_failed)
+                                    )
+                                ))
                                 Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
                                 messageToActions = null
                             },
@@ -3620,7 +3617,11 @@ if (showGroupCallTypeDialog) {
                         TextButton(
                             onClick = {
                                 val sender = resolveSenderName(msg) ?: ""
-                                val label = if (sender.isBlank()) msg.parsedContent() else "$sender: ${msg.parsedContent()}"
+                                val copied = com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
+                                    msg.parsedContent(),
+                                    context.getString(R.string.chat_decrypt_failed)
+                                )
+                                val label = if (sender.isBlank()) copied else "$sender: $copied"
                                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, label))
                                 Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
@@ -3633,7 +3634,10 @@ if (showGroupCallTypeDialog) {
                             onClick = {
                                 val sender = resolveSenderName(msg) ?: ""
                                 val time = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(msg.timestamp))
-                                val body = msg.parsedContent()
+                                val body = com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
+                                    msg.parsedContent(),
+                                    context.getString(R.string.chat_decrypt_failed)
+                                )
                                 val label = when {
                                     body.isBlank() -> time
                                     sender.isBlank() -> "$time $body"
@@ -3783,7 +3787,11 @@ if (showGroupCallTypeDialog) {
                         messageType = msg.type.name,
                         hasTranscript = !voiceTranscript.isNullOrBlank()
                     )
-                    if (contextAiActions.isNotEmpty() && state.isSecretChat != true) {
+                    if (
+                        contextAiActions.isNotEmpty() &&
+                        state.isSecretChat != true &&
+                        chatAiSurfacesVisible
+                    ) {
                         Text(
                             stringResource(R.string.chat_ai_section_context),
                             style = MaterialTheme.typography.labelMedium,
@@ -3935,7 +3943,13 @@ if (showGroupCallTypeDialog) {
                             modifier = Modifier.fillMaxWidth()
                         ) { Text(stringResource(R.string.chat_retry), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
                     }
-                    if (isOwn) {
+                    if (ReadReceiptPolicy.canViewReceipts(
+                            viewerId = state.currentUserId,
+                            senderId = msg.senderId,
+                            isGroup = state.chatIsGroup,
+                            viewerRole = state.myMemberRole,
+                        )
+                    ) {
                         TextButton(
                             onClick = {
                                 messageForReadReceipts = msg
@@ -4033,7 +4047,13 @@ if (showGroupCallTypeDialog) {
                             pendingImageConfirm = null
                             pendingViewOnce = pending.viewOnce
                             pendingSpoiler = pending.spoiler
-                            imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            listScrollScope.launch {
+                                kotlinx.coroutines.yield()
+                                runCatching { imagePickerLauncher.launch("image/*") }
+                                    .onFailure {
+                                        Toast.makeText(context, context.getString(R.string.chat_image_picker_unavailable), Toast.LENGTH_SHORT).show()
+                                    }
+                            }
                         },
                         modifier = Modifier.align(Alignment.End)
                     ) { Text(stringResource(R.string.chat_rechoose), color = MaterialTheme.colorScheme.primary) }
@@ -4175,14 +4195,24 @@ if (showGroupCallTypeDialog) {
                 }.sortedBy { it.readAt != null }
             }
         }
-        AlertDialog(
+        ModalBottomSheet(
             onDismissRequest = {
                 messageForReadReceipts = null
                 viewModel.clearReadReceipts()
-            },
-            title = {
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.chat_read_details), modifier = Modifier.weight(1f))
+                    Text(
+                        stringResource(R.string.chat_read_details),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f)
+                    )
                     if (totalCount > 0 && !state.isLoadingReadReceipts) {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -4196,7 +4226,6 @@ if (showGroupCallTypeDialog) {
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }
-                        // 1.64：存在未读成员时显示「未读 N」
                         if (totalCount > readCount) {
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
@@ -4213,10 +4242,9 @@ if (showGroupCallTypeDialog) {
                         }
                     }
                 }
-            },
-            text = {
+                Spacer(modifier = Modifier.height(10.dp))
                 Column(
-                    modifier = Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState()),
+                    modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     if (totalCount > 0 && !state.isLoadingReadReceipts) {
@@ -4314,14 +4342,15 @@ if (showGroupCallTypeDialog) {
                         }
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    messageForReadReceipts = null
-                    viewModel.clearReadReceipts()
-                }) { Text(stringResource(R.string.common_done)) }
+                TextButton(
+                    onClick = {
+                        messageForReadReceipts = null
+                        viewModel.clearReadReceipts()
+                    },
+                    modifier = Modifier.align(Alignment.End)
+                ) { Text(stringResource(R.string.common_done)) }
             }
-        )
+        }
     }
 
     // 长按撤回消息确认弹窗（带粒子动效）
@@ -4522,7 +4551,10 @@ if (showGroupCallTypeDialog) {
                                 MessageType.VIDEO -> stringResource(R.string.message_preview_video)
                                 MessageType.FILE -> stringResource(R.string.message_preview_file)
                                 MessageType.LOCATION -> stringResource(R.string.message_preview_location)
-                                else -> fm.parsedContent().replace('\n', ' ').take(40)
+                                else -> com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
+                                    fm.parsedContent(),
+                                    context.getString(R.string.chat_decrypt_failed)
+                                ).replace('\n', ' ').take(40)
                             }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -4848,24 +4880,6 @@ if (showGroupCallTypeDialog) {
     }
 
     // 全屏视频播放器
-    // 0.83：清空本机聊天记录确认
-    if (showClearHistoryConfirm) {
-        AlertDialog(
-            onDismissRequest = { showClearHistoryConfirm = false },
-            title = { Text(stringResource(R.string.chat_clear_history), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
-            text = { Text(stringResource(R.string.chat_clear_history_confirm), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showClearHistoryConfirm = false
-                    viewModel.clearLocalChatHistory()
-                }) { Text(stringResource(R.string.chat_clear_history_yes), color = LocalChatPalette.current.unreadRed) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearHistoryConfirm = false }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
-            }
-        )
-    }
-
     fullScreenVideo?.let { msg ->
         val videoContent = msg.content
         // 内容为空/非法时直接关闭弹窗，避免 Uri.parse 失败或 VideoView 加载异常
@@ -8083,6 +8097,7 @@ private fun VoicePreviewBar(
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 private fun ChatInputBar(
@@ -8126,6 +8141,8 @@ private fun ChatInputBar(
     isUpdatingAiSetting: Boolean,
     onAiEnabledChange: (Boolean) -> Unit,
     isGroupChat: Boolean,
+    isChannelChat: Boolean = false,
+    onSendNudge: () -> Unit = {},
     mentionParticipants: List<com.maodouchat.data.model.User> = emptyList(),
     currentUserId: String = "",
     /** 1.37：仅群主/管理员可选「@所有人」候选。 */
@@ -8143,7 +8160,8 @@ private fun ChatInputBar(
     /** 1.11：发送名片——转发目标列表与回调（ChatInputBar 无 viewModel 引用）。 */
     contactCardTargets: List<com.maodouchat.data.model.Chat> = emptyList(),
     onLoadForwardTargets: () -> Unit = {},
-    onSendContactCard: (userId: String, displayName: String) -> Unit = { _, _ -> }
+    onSendContactCard: (userId: String, displayName: String) -> Unit = { _, _ -> },
+    botCommands: List<com.maodouchat.bot.BotCommandPolicy.BotCommandItem> = emptyList()
 ) {
     // 设备旋转时保留附件菜单展开状态
     var showAttachMenu by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
@@ -8172,6 +8190,14 @@ private fun ChatInputBar(
         )
     }
     val everyoneLabel = stringResource(R.string.chat_mention_everyone)
+    BackHandler(enabled = showAttachMenu || showExpressionPanel || showAiMenu || showQuickPhrases) {
+        when {
+            showAiMenu -> showAiMenu = false
+            showQuickPhrases -> showQuickPhrases = false
+            showAttachMenu -> showAttachMenu = false
+            showExpressionPanel -> showExpressionPanel = false
+        }
+    }
 
     if (showDraftTranslationLanguages) {
         TranslationLanguageDialog(
@@ -8185,7 +8211,15 @@ private fun ChatInputBar(
 
     // 9.4xx：外层 Column 已 imePadding()，这里再去 navigationBarsPadding 会在键盘弹出时叠出
     // 双份空隙（ime inset 已含导航栏高度）；改为仅保留背景色，insets 由外层统一处理
-    Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
+    // ChatInputBar 画在 layerBackdrop 采样层内部。对同一层 drawBackdrop 会让
+    // RenderThread prepareTree 无限递归（SIGSEGV stack overflow，打开任意会话即崩）。
+    // 输入栏只用不透明表面；顶栏仍可安全采样，因为它在 Scaffold.topBar 外层。
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
         if (readOnly) {
             // 广播频道订阅者：单向只读，仅显示提示条
             Row(
@@ -8320,127 +8354,142 @@ private fun ChatInputBar(
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()
         ) {
-            // 1.13：菜单项增多后改横向滚动（含名片项），避免窄屏裁切
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            val attachKinds = AttachMenuPolicy.items(
+                isGroup = isGroupChat,
+                isChannel = isChannelChat,
+                viewOnceEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.VIEW_ONCE),
+                contactCardEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.CONTACT_CARD),
+                nudgeEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.NUDGE),
+                aiEnabled = com.maodouchat.ai.AiEntryPolicy.isComposerEntryActive(context, aiEnabled),
+            )
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp, vertical = 12.dp)
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
             ) {
-                AttachMenuItem(
-                    icon = Icons.Outlined.Image,
-                    label = stringResource(R.string.chat_attachment_image),
-                    enabled = attachmentsEnabled,
-                    onClick = { onSendImage(); showAttachMenu = false },
-                    onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
-                )
-                AttachMenuItem(
-                    icon = Icons.Outlined.VisibilityOff,
-                    label = stringResource(R.string.chat_view_once_send),
-                    enabled = attachmentsEnabled,
-                    onClick = { onSendViewOnceImage(); showAttachMenu = false },
-                    onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
-                )
-                AttachMenuItem(
-                    icon = Icons.Outlined.Apps,
-                    label = stringResource(R.string.chat_spoiler_media_send),
-                    enabled = attachmentsEnabled,
-                    onClick = { onSendSpoilerImage(); showAttachMenu = false },
-                    onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
-                )
-                AttachMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    label = stringResource(R.string.chat_attachment_paste),
-                    enabled = attachmentsEnabled,
-                    onClick = { onPasteFromClipboard(); showAttachMenu = false },
-                    onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
-                )
-                AttachMenuItem(
-                    icon = Icons.Outlined.CameraAlt,
-                    label = stringResource(R.string.chat_attachment_video),
-                    enabled = attachmentsEnabled,
-                    onClick = { onSendVideo(); showAttachMenu = false },
-                    onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
-                )
-                AttachMenuItem(
-                    icon = Icons.Outlined.AttachFile,
-                    label = stringResource(R.string.chat_attachment_file),
-                    enabled = attachmentsEnabled,
-                    onClick = { onSendFile(); showAttachMenu = false },
-                    onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
-                )
-                AttachMenuItem(
-                    icon = Icons.Outlined.Mic,
-                    label = stringResource(R.string.chat_attachment_voice),
-                    enabled = attachmentsEnabled,
-                    onClick = { onRecordStart(); showAttachMenu = false },
-                    onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
-                )
-                AttachMenuItem(
-                    icon = Icons.Outlined.LocationOn,
-                    label = stringResource(R.string.chat_attachment_location),
-                    enabled = attachmentsEnabled,
-                    onClick = { onSendLocation(); showAttachMenu = false },
-                    onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
-                )
-                AttachMenuItem(
-                    icon = Icons.Outlined.NearMe,
-                    label = stringResource(R.string.chat_live_location_send),
-                    enabled = attachmentsEnabled,
-                    onClick = { onSendLiveLocation(); showAttachMenu = false },
-                    onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
-                )
-                AttachMenuItem(
-                    icon = Icons.Outlined.Schedule,
-                    label = stringResource(R.string.schedule_send),
-                    enabled = attachmentsEnabled && value.isNotBlank(),
-                    onClick = { onScheduleSend(); showAttachMenu = false },
-                    onDisabledClick = {
-                        Toast.makeText(
-                            context,
-                            if (value.isBlank()) context.getString(R.string.schedule_need_text) else attachmentDisabledText,
-                            Toast.LENGTH_SHORT
-                        ).show()
+                attachKinds.forEach { kind ->
+                    if ((isGroupChat || isChannelChat) &&
+                        (kind == AttachMenuKind.VIEW_ONCE || kind == AttachMenuKind.LIVE_LOCATION || kind == AttachMenuKind.NUDGE)
+                    ) {
+                        return@forEach
                     }
-                )
-                AttachMenuItem(
-                    icon = Icons.Outlined.SentimentSatisfied,
-                    label = stringResource(R.string.chat_quick_phrases),
-                    enabled = true,
-                    onClick = { showAttachMenu = false; showQuickPhrases = true },
-                    onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
-                )
-                // 1.11：发送名片（联系人卡片）——按服务端 contact_card_enabled 开关显隐
-                if (RuntimeFlags.isEnabled(context, RuntimeFlags.CONTACT_CARD)) {
-                    AttachMenuItem(
-                        icon = Icons.Outlined.ContactPage,
-                        label = stringResource(R.string.chat_send_contact_card),
-                        enabled = true,
-                        onClick = {
-                            showAttachMenu = false
-                            onLoadForwardTargets()
-                            showContactCardPicker = true
-                        },
-                        onDisabledClick = { Toast.makeText(context, context.getString(R.string.contact_card_disabled), Toast.LENGTH_SHORT).show() }
-                    )
+                    when (kind) {
+                        AttachMenuKind.IMAGE -> AttachMenuItem(
+                            icon = Icons.Outlined.Image,
+                            label = stringResource(R.string.chat_attachment_image),
+                            enabled = attachmentsEnabled,
+                            onClick = { showAttachMenu = false; onSendImage() },
+                            onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
+                        )
+                        AttachMenuKind.VIEW_ONCE -> AttachMenuItem(
+                            icon = Icons.Outlined.VisibilityOff,
+                            label = stringResource(R.string.chat_view_once_send),
+                            enabled = attachmentsEnabled,
+                            onClick = { showAttachMenu = false; onSendViewOnceImage() },
+                            onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
+                        )
+                        AttachMenuKind.SPOILER -> AttachMenuItem(
+                            icon = Icons.Outlined.Apps,
+                            label = stringResource(R.string.chat_spoiler_media_send),
+                            enabled = attachmentsEnabled,
+                            onClick = { showAttachMenu = false; onSendSpoilerImage() },
+                            onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
+                        )
+                        AttachMenuKind.PASTE -> AttachMenuItem(
+                            icon = Icons.Outlined.ContentCopy,
+                            label = stringResource(R.string.chat_attachment_paste),
+                            enabled = attachmentsEnabled,
+                            onClick = { showAttachMenu = false; onPasteFromClipboard() },
+                            onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
+                        )
+                        AttachMenuKind.VIDEO -> AttachMenuItem(
+                            icon = Icons.Outlined.CameraAlt,
+                            label = stringResource(R.string.chat_attachment_video),
+                            enabled = attachmentsEnabled,
+                            onClick = { showAttachMenu = false; onSendVideo() },
+                            onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
+                        )
+                        AttachMenuKind.FILE -> AttachMenuItem(
+                            icon = Icons.Outlined.AttachFile,
+                            label = stringResource(R.string.chat_attachment_file),
+                            enabled = attachmentsEnabled,
+                            onClick = { showAttachMenu = false; onSendFile() },
+                            onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
+                        )
+                        AttachMenuKind.VOICE -> AttachMenuItem(
+                            icon = Icons.Outlined.Mic,
+                            label = stringResource(R.string.chat_attachment_voice),
+                            enabled = attachmentsEnabled,
+                            onClick = { showAttachMenu = false; onRecordStart() },
+                            onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
+                        )
+                        AttachMenuKind.LOCATION -> AttachMenuItem(
+                            icon = Icons.Outlined.LocationOn,
+                            label = stringResource(R.string.chat_attachment_location),
+                            enabled = attachmentsEnabled,
+                            onClick = { showAttachMenu = false; onSendLocation() },
+                            onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
+                        )
+                        AttachMenuKind.LIVE_LOCATION -> AttachMenuItem(
+                            icon = Icons.Outlined.NearMe,
+                            label = stringResource(R.string.chat_live_location_send),
+                            enabled = attachmentsEnabled,
+                            onClick = { showAttachMenu = false; onSendLiveLocation() },
+                            onDisabledClick = { Toast.makeText(context, attachmentDisabledText, Toast.LENGTH_SHORT).show() }
+                        )
+                        AttachMenuKind.SCHEDULE -> AttachMenuItem(
+                            icon = Icons.Outlined.Schedule,
+                            label = stringResource(R.string.schedule_send),
+                            enabled = attachmentsEnabled && value.isNotBlank(),
+                            onClick = { showAttachMenu = false; onScheduleSend() },
+                            onDisabledClick = {
+                                Toast.makeText(
+                                    context,
+                                    if (value.isBlank()) context.getString(R.string.schedule_need_text) else attachmentDisabledText,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
+                        AttachMenuKind.QUICK_PHRASES -> AttachMenuItem(
+                            icon = Icons.Outlined.SentimentSatisfied,
+                            label = stringResource(R.string.chat_quick_phrases),
+                            enabled = true,
+                            onClick = { showAttachMenu = false; showQuickPhrases = true }
+                        )
+                        AttachMenuKind.CONTACT_CARD -> AttachMenuItem(
+                            icon = Icons.Outlined.ContactPage,
+                            label = stringResource(R.string.chat_send_contact_card),
+                            enabled = true,
+                            onClick = {
+                                showAttachMenu = false
+                                onLoadForwardTargets()
+                                showContactCardPicker = true
+                            }
+                        )
+                        AttachMenuKind.AI -> AttachMenuItem(
+                            icon = Icons.Outlined.AutoAwesome,
+                            label = stringResource(R.string.chat_ai_assistant),
+                            enabled = !isAiWorking && !isUpdatingAiSetting,
+                            onClick = { showAttachMenu = false; showAiMenu = true }
+                        )
+                        AttachMenuKind.SILENT -> AttachMenuItem(
+                            icon = if (silentSend) Icons.Outlined.NotificationsOff else Icons.Outlined.Notifications,
+                            label = stringResource(
+                                if (silentSend) R.string.chat_silent_send_on else R.string.chat_silent_send_off
+                            ),
+                            enabled = true,
+                            onClick = { onToggleSilentSend() }
+                        )
+                        AttachMenuKind.NUDGE -> AttachMenuItem(
+                            icon = Icons.Outlined.TouchApp,
+                            label = stringResource(R.string.chat_nudge),
+                            enabled = true,
+                            onClick = { showAttachMenu = false; onSendNudge() }
+                        )
+                    }
                 }
-                AttachMenuItem(
-                    icon = Icons.Outlined.AutoAwesome,
-                    label = stringResource(R.string.chat_ai_assistant),
-                    enabled = !isAiWorking && !isUpdatingAiSetting,
-                    onClick = { showAttachMenu = false; showAiMenu = true },
-                    onDisabledClick = { }
-                )
-                AttachMenuItem(
-                    icon = if (silentSend) Icons.Outlined.NotificationsOff else Icons.Outlined.Notifications,
-                    label = stringResource(
-                        if (silentSend) R.string.chat_silent_send_on else R.string.chat_silent_send_off
-                    ),
-                    enabled = true,
-                    onClick = { onToggleSilentSend() },
-                    onDisabledClick = { }
-                )
             }
         }
 
@@ -8538,6 +8587,57 @@ private fun ChatInputBar(
                             color = LocalChatPalette.current.textHint,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
                         )
+                    }
+                }
+            }
+            val slashCandidates = remember(value, botCommands) {
+                com.maodouchat.bot.BotCommandPolicy.filterCommands(botCommands, value)
+            }
+            AnimatedVisibility(
+                visible = slashCandidates.isNotEmpty(),
+                enter = expandVertically(tween(180)) + fadeIn(tween(180)),
+                exit = shrinkVertically(tween(140)) + fadeOut(tween(140))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f))
+                        .padding(vertical = 4.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.chat_bot_slash_picker_title),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = LocalChatPalette.current.textSecondary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    )
+                    val multiBot = slashCandidates.map { it.botId }.distinct().size > 1
+                    slashCandidates.forEach { item ->
+                        TextButton(
+                            onClick = {
+                                onValueChange(com.maodouchat.bot.BotCommandPolicy.insertCommand(item, multiBot))
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = "/${item.command}" + if (multiBot) " @${item.username}" else "",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (item.description.isNotBlank()) {
+                                    Text(
+                                        text = item.description,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = LocalChatPalette.current.textSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -8641,11 +8741,22 @@ private fun ChatInputBar(
                     }
                 }
             }
-        Row(verticalAlignment = Alignment.Bottom) {
-            IconButton(onClick = { showAttachMenu = !showAttachMenu; if (showAttachMenu) showExpressionPanel = false }, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.chat_attachment), tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(28.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
+        ) {
+            IconButton(
+                onClick = { showAttachMenu = !showAttachMenu; if (showAttachMenu) showExpressionPanel = false },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    Icons.Outlined.Add,
+                    contentDescription = stringResource(R.string.chat_attachment),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
             }
-            Box(modifier = Modifier.weight(1f).clip(RoundedCornerShape(20.dp)).background(LocalChatPalette.current.chatInputBackground)) {
+            Box(modifier = Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(LocalChatPalette.current.chatInputBackground)) {
                 // 1.175：回车发送偏好（开 → 单行 + IME Send；关 → 多行回车换行）
                 val enterToSend = com.maodouchat.util.ComposerPreferences.enterToSend(context)
                 TextField(
@@ -8658,27 +8769,38 @@ private fun ChatInputBar(
                     keyboardActions = androidx.compose.foundation.text.KeyboardActions(
                         onSend = { if (enterToSend && !isSending) onSend() }
                     ),
-                    trailingIcon = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            // 8.52 UX：接近上限时显示字符计数（>90% 变红，配合 onInputChange 截断）
-                            if (value.length >= com.maodouchat.ui.screen.chatdetail.ChatDetailViewModel.MAX_COMPOSER_TEXT_LENGTH * 8 / 10) {
-                                Text(
-                                    text = "${value.length}/${com.maodouchat.ui.screen.chatdetail.ChatDetailViewModel.MAX_COMPOSER_TEXT_LENGTH}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = if (value.length >= com.maodouchat.ui.screen.chatdetail.ChatDetailViewModel.MAX_COMPOSER_TEXT_LENGTH * 9 / 10) UnreadRed else TextHint
-                                )
-                            }
-                            IconButton(onClick = { showExpressionPanel = !showExpressionPanel; if (showExpressionPanel) showAttachMenu = false }, modifier = Modifier.size(40.dp)) {
-                                Icon(Icons.Outlined.SentimentSatisfied, contentDescription = stringResource(R.string.chat_emoji), tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(24.dp))
-                            }
+                    trailingIcon = if (value.length >= com.maodouchat.ui.screen.chatdetail.ChatDetailViewModel.MAX_COMPOSER_TEXT_LENGTH * 8 / 10) {
+                        {
+                            Text(
+                                text = "${value.length}/${com.maodouchat.ui.screen.chatdetail.ChatDetailViewModel.MAX_COMPOSER_TEXT_LENGTH}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (value.length >= com.maodouchat.ui.screen.chatdetail.ChatDetailViewModel.MAX_COMPOSER_TEXT_LENGTH * 9 / 10) UnreadRed else TextHint
+                            )
                         }
-                    },
+                    } else null,
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                         focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
-                        cursorColor = Primary, focusedTextColor = OnSurface, unfocusedTextColor = OnSurface
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
-                    textStyle = MaterialTheme.typography.bodyLarge, maxLines = 4, modifier = Modifier.fillMaxWidth()
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    maxLines = 4,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 40.dp)
+                )
+            }
+            IconButton(
+                onClick = { showExpressionPanel = !showExpressionPanel; if (showExpressionPanel) showAttachMenu = false },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    Icons.Outlined.SentimentSatisfied,
+                    contentDescription = stringResource(R.string.chat_emoji),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
                 )
             }
             Spacer(modifier = Modifier.width(2.dp))
@@ -8861,7 +8983,6 @@ private fun ChatInputBar(
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(2.dp))
             val canSend = value.isNotBlank()
             val haptic = LocalHapticFeedback.current
             val hapticContext = LocalContext.current

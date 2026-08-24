@@ -32,6 +32,11 @@
 # Keep Signal Protocol
 -keep class org.signal.libsignal.protocol.** { *; }
 
+# Kyant liquid-glass backdrop (RuntimeShader + JNI-adjacent draw effects)
+-keep class com.kyant.backdrop.** { *; }
+-keep class com.kyant.shapes.** { *; }
+-dontwarn com.kyant.**
+
 # Keep WebRTC
 # B1 审计：org.webrtc.** 的 JNI 方法按符号名被原生侧回调（nativeCreatePeerConnection 等），
 # 且 PeerConnectionFactory 内部按反射装配，故保持整包 keep 是必要的，不可收窄到子集（避免原生崩溃）。

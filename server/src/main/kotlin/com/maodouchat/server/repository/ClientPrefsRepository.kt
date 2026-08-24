@@ -24,7 +24,7 @@ class ClientPrefsRepository {
             ?.let { row ->
                 ClientPrefsDto(
                     themeMode = row[ClientPrefs.themeMode],
-                    themeStyle = row[ClientPrefs.themeStyle],
+                    themeStyle = normalizeThemeStyle(row[ClientPrefs.themeStyle]),
                     accentColor = row[ClientPrefs.accentColor],
                     languageMode = row[ClientPrefs.languageMode],
                     chatWallpaper = row[ClientPrefs.chatWallpaper],
@@ -60,9 +60,9 @@ class ClientPrefsRepository {
         val theme = request.themeMode?.let { normalizeTheme(it) }
             ?: existing?.get(ClientPrefs.themeMode)
             ?: "system"
-        val themeStyle = request.themeStyle?.let { normalizeThemeStyle(it) }
-            ?: existing?.get(ClientPrefs.themeStyle)
-            ?: "maodou"
+        val themeStyle = normalizeThemeStyle(
+            request.themeStyle ?: existing?.get(ClientPrefs.themeStyle) ?: "maodou"
+        )
         val accentColor = request.accentColor?.let { normalizeAccentColor(it) }
             ?: existing?.get(ClientPrefs.accentColor)
             ?: "none"
@@ -168,10 +168,7 @@ class ClientPrefsRepository {
         else -> "system"
     }
 
-    private fun normalizeThemeStyle(raw: String): String {
-        val id = raw.trim().lowercase().take(24)
-        return if (id in ALLOWED_THEME_STYLES) id else "maodou"
-    }
+    private fun normalizeThemeStyle(@Suppress("UNUSED_PARAMETER") raw: String): String = "maodou"
 
     private fun normalizeAccentColor(raw: String): String {
         val id = raw.trim().lowercase().take(16)
@@ -212,7 +209,7 @@ class ClientPrefsRepository {
             "indigo", "amber", "teal", "graphite"
         )
         private val ALLOWED_FONTS = setOf("small", "normal", "large", "xlarge", "xxlarge")
-        private val ALLOWED_THEME_STYLES = setOf("maodou", "tg_classic", "tg_midnight", "tg_graphite")
+        private val ALLOWED_THEME_STYLES = setOf("maodou")
         private val ALLOWED_ACCENT_COLORS = setOf("none", "blue", "green", "purple", "orange", "pink", "red", "teal")
         private val ALLOWED_WRITING_PRESETS = setOf(
             "none", "concise", "formal", "warm", "professional", "casual", "witty", "empathetic",

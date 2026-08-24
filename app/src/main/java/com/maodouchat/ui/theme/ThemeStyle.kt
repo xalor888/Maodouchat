@@ -9,13 +9,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 
 /**
- * 主题风格家族（Telegram 级可切换主题）。
- *
- * 每个家族提供浅 / 深两个变体，由「主题模式」(system/light/dark) 决定当前使用哪一个：
- * - MAODOU     品牌默认（现有浅 / 深色）
- * - TG_CLASSIC Telegram 经典 1:1（浅=经典绿气泡，深=TG Dark #0E1621）
- * - TG_MIDNIGHT Telegram 朝霞/午夜（浅=Daybreak 暖色，深=Midnight 深蓝）
- * - TG_GRAPHITE Telegram 冰蓝/石墨（浅=Ice 冷色，深=Graphite 灰黑）
+ * 主题风格家族。产品只留一档 MAODOU（白底液态玻璃）。
+ * 旧 TG id 读入时一律归一到 MAODOU，保持悬浮胶囊底栏。
  */
 enum class ThemeFamily(val id: String) {
     MAODOU("maodou"),
@@ -23,13 +18,14 @@ enum class ThemeFamily(val id: String) {
     TG_MIDNIGHT("tg_midnight"),
     TG_GRAPHITE("tg_graphite");
 
+    val isLiquidGlass: Boolean get() = true
+    val isTelegram: Boolean get() = false
+
     companion object {
-        fun normalize(raw: String?): ThemeFamily {
-            val id = raw?.trim()?.lowercase().orEmpty()
-            return entries.firstOrNull { it.id == id } ?: MAODOU
-        }
+        fun normalize(@Suppress("UNUSED_PARAMETER") raw: String?): ThemeFamily = MAODOU
 
         val ALL: List<ThemeFamily> = entries
+        val PICKABLE: List<ThemeFamily> = listOf(MAODOU)
     }
 }
 
@@ -71,8 +67,8 @@ fun accentFor(id: String, dark: Boolean): Color? =
 data class BubbleShapes(val sent: androidx.compose.ui.graphics.Shape, val received: androidx.compose.ui.graphics.Shape)
 
 val BUBBLE_SHAPE_DEFAULT = BubbleShapes(
-    sent = androidx.compose.foundation.shape.RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp),
-    received = androidx.compose.foundation.shape.RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp)
+    sent = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+    received = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
 )
 val BUBBLE_SHAPE_TG = BubbleShapes(
     sent = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
@@ -83,13 +79,13 @@ val BUBBLE_SHAPE_ROUND = BubbleShapes(
     received = androidx.compose.foundation.shape.RoundedCornerShape(22.dp)
 )
 
-fun bubbleShapesFor(styleId: String): BubbleShapes = when (styleId) {
-    "round" -> BUBBLE_SHAPE_ROUND
-    "wechat" -> BUBBLE_SHAPE_DEFAULT
-    else -> BUBBLE_SHAPE_TG
+fun bubbleShapesFor(styleId: String, family: ThemeFamily = ThemeFamily.MAODOU): BubbleShapes {
+    if (styleId == "round") return BUBBLE_SHAPE_ROUND
+    if (styleId == "tg" || family.isTelegram) return BUBBLE_SHAPE_TG
+    return BUBBLE_SHAPE_DEFAULT
 }
 
-val LocalBubbleShapes = compositionLocalOf { BUBBLE_SHAPE_TG }
+val LocalBubbleShapes = compositionLocalOf { BUBBLE_SHAPE_DEFAULT }
 
 /** 当前主题对发送气泡的接管（maodou 家族为 null）。 */
 val LocalSentBubbleSpec = compositionLocalOf<SentBubbleSpec?> { null }
@@ -357,51 +353,16 @@ private fun relativeLuminance(color: Color): Float {
     return 0.2126f * lin(color.red) + 0.7152f * lin(color.green) + 0.0722f * lin(color.blue)
 }
 
-/** 解析当前主题家族 + 深浅 → 完整绘制参数。maodou 家族返回 null 保持原有行为。 */
-fun resolveThemePaint(family: ThemeFamily, dark: Boolean): ThemePaint = when (family) {
-    ThemeFamily.MAODOU -> ThemePaint(
+/** 解析当前主题家族 + 深浅 → 完整绘制参数。产品只使用 MAODOU 白底/近黑。 */
+fun resolveThemePaint(@Suppress("UNUSED_PARAMETER") family: ThemeFamily, dark: Boolean): ThemePaint {
+    val maodou = ThemePaint(
         colorScheme = if (dark) MaodouDarkScheme else MaodouLightScheme,
         chatPalette = if (dark) DarkChatPalette else LightChatPalette,
-        sentBubbleSpec = null
+        sentBubbleSpec = if (dark) {
+            SentBubbleSpec(Color(0xFF2A2A2A), Color(0xFFF2F2F2), Color(0xB3F2F2F2))
+        } else {
+            SentBubbleSpec(Color(0xFFF2F2F2), Color(0xFF1A1A1A), Color(0x991A1A1A))
+        }
     )
-    ThemeFamily.TG_CLASSIC -> if (dark) {
-        ThemePaint(
-            colorScheme = TgDarkScheme,
-            chatPalette = TgDarkPalette,
-            sentBubbleSpec = SentBubbleSpec(Color(0xFF2B5278), Color(0xFFF5F8FA), Color(0xB3FFFFFF))
-        )
-    } else {
-        ThemePaint(
-            colorScheme = TgClassicScheme,
-            chatPalette = TgClassicPalette,
-            // 经典绿气泡 + 深色文字（Telegram 1:1）
-            sentBubbleSpec = SentBubbleSpec(Color(0xFFEFFDDE), Color(0xFF212121), Color(0xFF52914A))
-        )
-    }
-    ThemeFamily.TG_MIDNIGHT -> if (dark) {
-        ThemePaint(
-            colorScheme = TgMidnightScheme,
-            chatPalette = TgMidnightPalette,
-            sentBubbleSpec = SentBubbleSpec(Color(0xFF2B5278), Color(0xFFF1F5F8), Color(0xB3FFFFFF))
-        )
-    } else {
-        ThemePaint(
-            colorScheme = TgDaybreakScheme,
-            chatPalette = TgDaybreakPalette,
-            sentBubbleSpec = SentBubbleSpec(Color(0xFFF5A96B), Color(0xFF3B2A1A), Color(0xFFA9683C))
-        )
-    }
-    ThemeFamily.TG_GRAPHITE -> if (dark) {
-        ThemePaint(
-            colorScheme = TgGraphiteScheme,
-            chatPalette = TgGraphitePalette,
-            sentBubbleSpec = SentBubbleSpec(Color(0xFF3C3C3C), Color(0xFFF0F0F0), Color(0xB3FFFFFF))
-        )
-    } else {
-        ThemePaint(
-            colorScheme = TgIceScheme,
-            chatPalette = TgIcePalette,
-            sentBubbleSpec = SentBubbleSpec(Color(0xFFD8E9F9), Color(0xFF1C2733), Color(0xFF5E87AC))
-        )
-    }
+    return maodou
 }

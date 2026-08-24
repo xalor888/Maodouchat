@@ -33,9 +33,15 @@ object RuntimeConfigService {
     const val KEY_MAX_MESSAGE_PER_MIN = "max_message_per_min"
     const val KEY_IP_BLOCKLIST = "ip_blocklist"
     const val KEY_AI_ENABLED = "ai_enabled"
+    const val KEY_AI_CONTENT_MODERATION_ENABLED = "ai_content_moderation_enabled"
     const val KEY_PUBLIC_ANNOUNCEMENT = "public_announcement"
     const val KEY_PQXDH_PREVIEW = "pqxdh_preview"
     const val KEY_MIN_APP_VERSION = "min_app_version"
+    const val KEY_UPDATE_VERSION_CODE = "update_version_code"
+    const val KEY_UPDATE_VERSION_NAME = "update_version_name"
+    const val KEY_UPDATE_APK_URL = "update_apk_url"
+    const val KEY_UPDATE_SERVER_URL = "update_server_url"
+    const val KEY_UPDATE_NOTES = "update_notes"
     const val KEY_SECRET_CHAT_REQUIRED = "secret_chat_required"
     const val KEY_MAX_BOTS_PER_USER = "max_bots_per_user"
     const val KEY_CAPTURE_ALERT_ENABLED = "capture_alert_enabled"
@@ -76,7 +82,6 @@ object RuntimeConfigService {
     const val KEY_POLLS_ENABLED = "polls_enabled"
     const val KEY_APP_LOCK_ENABLED = "app_lock_enabled"
     const val KEY_CHAT_DRAFTS_ENABLED = "chat_drafts_enabled"
-    const val KEY_AI_TRANSLATE_ENABLED = "ai_translate_enabled"
     const val KEY_GROUP_INVITES_ENABLED = "group_invites_enabled"
     const val KEY_MENTIONS_ENABLED = "mentions_enabled"
     const val KEY_NUDGE_ENABLED = "nudge_enabled"
@@ -91,18 +96,8 @@ object RuntimeConfigService {
     const val KEY_SCREEN_SECURE_RUNTIME_ENABLED = "screen_secure_runtime_enabled"
     const val KEY_IMAGE_SEND_ENABLED = "image_send_enabled"
     const val KEY_VIDEO_SEND_ENABLED = "video_send_enabled"
-    const val KEY_AI_SUMMARY_ENABLED = "ai_summary_enabled"
-    const val KEY_AI_REWRITE_ENABLED = "ai_rewrite_enabled"
-    const val KEY_AI_SUGGEST_REPLIES_ENABLED = "ai_suggest_replies_enabled"
-    const val KEY_AI_TRANSCRIBE_ENABLED = "ai_transcribe_enabled"
-    const val KEY_AI_ANALYZE_IMAGE_ENABLED = "ai_analyze_image_enabled"
-    const val KEY_AI_GROUP_ASSISTANT_ENABLED = "ai_group_assistant_enabled"
-    const val KEY_AI_ANALYZE_FILE_ENABLED = "ai_analyze_file_enabled"
-    const val KEY_AI_SEMANTIC_SEARCH_ENABLED = "ai_semantic_search_enabled"
     const val KEY_AI_DAILY_TOKEN_BUDGET_PER_USER = "ai_daily_token_budget_per_user"
-    const val KEY_AI_CACHE_ENABLED = "ai_cache_enabled"
     const val KEY_AI_RETRY_ENABLED = "ai_retry_enabled"
-    const val KEY_AI_MULTI_MODEL_ENABLED = "ai_multi_model_enabled"
     const val KEY_GIF_SEND_ENABLED = "gif_send_enabled"
     const val KEY_BLIND_WATERMARK_ENABLED = "blind_watermark_enabled"
     const val KEY_VOICE_CALL_ENABLED = "voice_call_enabled"
@@ -116,7 +111,6 @@ object RuntimeConfigService {
     const val KEY_PUSH_NOTIFICATIONS_ENABLED = "push_notifications_enabled"
     const val KEY_TASK_REMINDERS_ENABLED = "task_reminders_enabled"
     const val KEY_DND_ENABLED = "dnd_enabled"
-    const val KEY_OFFLINE_AI_ENABLED = "offline_ai_enabled"
     const val KEY_IN_APP_SOUNDS_ENABLED = "in_app_sounds_enabled"
     const val KEY_HAPTICS_ENABLED = "haptics_enabled"
     const val KEY_CHAT_ANIMATIONS_ENABLED = "chat_animations_enabled"
@@ -162,9 +156,15 @@ object RuntimeConfigService {
         KEY_MAX_MESSAGE_PER_MIN,
         KEY_IP_BLOCKLIST,
         KEY_AI_ENABLED,
+        KEY_AI_CONTENT_MODERATION_ENABLED,
         KEY_PUBLIC_ANNOUNCEMENT,
         KEY_PQXDH_PREVIEW,
         KEY_MIN_APP_VERSION,
+        KEY_UPDATE_VERSION_CODE,
+        KEY_UPDATE_VERSION_NAME,
+        KEY_UPDATE_APK_URL,
+        KEY_UPDATE_SERVER_URL,
+        KEY_UPDATE_NOTES,
         KEY_SECRET_CHAT_REQUIRED,
         KEY_MAX_BOTS_PER_USER,
         KEY_CAPTURE_ALERT_ENABLED,
@@ -205,7 +205,6 @@ object RuntimeConfigService {
         KEY_POLLS_ENABLED,
         KEY_APP_LOCK_ENABLED,
         KEY_CHAT_DRAFTS_ENABLED,
-        KEY_AI_TRANSLATE_ENABLED,
         KEY_GROUP_INVITES_ENABLED,
         KEY_MENTIONS_ENABLED,
         KEY_NUDGE_ENABLED,
@@ -220,18 +219,8 @@ object RuntimeConfigService {
         KEY_SCREEN_SECURE_RUNTIME_ENABLED,
         KEY_IMAGE_SEND_ENABLED,
         KEY_VIDEO_SEND_ENABLED,
-        KEY_AI_SUMMARY_ENABLED,
-        KEY_AI_REWRITE_ENABLED,
-        KEY_AI_SUGGEST_REPLIES_ENABLED,
-        KEY_AI_TRANSCRIBE_ENABLED,
-        KEY_AI_ANALYZE_IMAGE_ENABLED,
-        KEY_AI_GROUP_ASSISTANT_ENABLED,
-        KEY_AI_ANALYZE_FILE_ENABLED,
-        KEY_AI_SEMANTIC_SEARCH_ENABLED,
         KEY_AI_DAILY_TOKEN_BUDGET_PER_USER,
-        KEY_AI_CACHE_ENABLED,
         KEY_AI_RETRY_ENABLED,
-        KEY_AI_MULTI_MODEL_ENABLED,
         KEY_GIF_SEND_ENABLED,
         KEY_BLIND_WATERMARK_ENABLED,
         KEY_VOICE_CALL_ENABLED,
@@ -245,7 +234,6 @@ object RuntimeConfigService {
         KEY_PUSH_NOTIFICATIONS_ENABLED,
         KEY_TASK_REMINDERS_ENABLED,
         KEY_DND_ENABLED,
-        KEY_OFFLINE_AI_ENABLED,
         KEY_IN_APP_SOUNDS_ENABLED,
         KEY_HAPTICS_ENABLED,
         KEY_CHAT_ANIMATIONS_ENABLED,
@@ -288,12 +276,18 @@ object RuntimeConfigService {
         KEY_SEALED_SENDER_ENABLED to "true",
         KEY_ALLOW_BOTS to "true",
         KEY_FORCE_E2EE_BANNER to "",
-        KEY_MAX_MESSAGE_PER_MIN to "60",
+        KEY_MAX_MESSAGE_PER_MIN to "180",
         KEY_IP_BLOCKLIST to "",
         KEY_AI_ENABLED to "true",
+        KEY_AI_CONTENT_MODERATION_ENABLED to "false",
         KEY_PUBLIC_ANNOUNCEMENT to "",
         KEY_PQXDH_PREVIEW to "false",
         KEY_MIN_APP_VERSION to "0",
+        KEY_UPDATE_VERSION_CODE to "0",
+        KEY_UPDATE_VERSION_NAME to "",
+        KEY_UPDATE_APK_URL to "",
+        KEY_UPDATE_SERVER_URL to "",
+        KEY_UPDATE_NOTES to "",
         KEY_SECRET_CHAT_REQUIRED to "false",
         KEY_MAX_BOTS_PER_USER to "20",
         KEY_CAPTURE_ALERT_ENABLED to "true",
@@ -313,7 +307,7 @@ object RuntimeConfigService {
         KEY_READ_RECEIPTS_ENABLED to "true",
         KEY_PRESENCE_ENABLED to "true",
         KEY_MESSAGE_STARRING_ENABLED to "true",
-        KEY_CHAT_EXPORT_ENABLED to "true",
+        KEY_CHAT_EXPORT_ENABLED to "false",
         KEY_MESSAGE_FORWARDING_ENABLED to "true",
         KEY_GLOBAL_SEARCH_ENABLED to "true",
         KEY_FRIEND_REQUESTS_ENABLED to "true",
@@ -322,7 +316,7 @@ object RuntimeConfigService {
         KEY_BLOCK_REPORT_ENABLED to "true",
         KEY_CHANNELS_ENABLED to "true",
         KEY_CHAT_ARCHIVE_ENABLED to "true",
-        KEY_NEARBY_ENABLED to "true",
+        KEY_NEARBY_ENABLED to "false",
         KEY_CHAT_PIN_ENABLED to "true",
         KEY_MARKED_UNREAD_ENABLED to "true",
         KEY_CHAT_MUTE_ENABLED to "true",
@@ -334,7 +328,6 @@ object RuntimeConfigService {
         KEY_POLLS_ENABLED to "true",
         KEY_APP_LOCK_ENABLED to "true",
         KEY_CHAT_DRAFTS_ENABLED to "true",
-        KEY_AI_TRANSLATE_ENABLED to "true",
         KEY_GROUP_INVITES_ENABLED to "true",
         KEY_MENTIONS_ENABLED to "true",
         KEY_NUDGE_ENABLED to "true",
@@ -349,18 +342,8 @@ object RuntimeConfigService {
         KEY_SCREEN_SECURE_RUNTIME_ENABLED to "true",
         KEY_IMAGE_SEND_ENABLED to "true",
         KEY_VIDEO_SEND_ENABLED to "true",
-        KEY_AI_SUMMARY_ENABLED to "true",
-        KEY_AI_REWRITE_ENABLED to "true",
-        KEY_AI_SUGGEST_REPLIES_ENABLED to "true",
-        KEY_AI_TRANSCRIBE_ENABLED to "true",
-        KEY_AI_ANALYZE_IMAGE_ENABLED to "true",
-        KEY_AI_GROUP_ASSISTANT_ENABLED to "true",
-        KEY_AI_ANALYZE_FILE_ENABLED to "true",
-        KEY_AI_SEMANTIC_SEARCH_ENABLED to "true",
         KEY_AI_DAILY_TOKEN_BUDGET_PER_USER to "200000",
-        KEY_AI_CACHE_ENABLED to "true",
         KEY_AI_RETRY_ENABLED to "true",
-        KEY_AI_MULTI_MODEL_ENABLED to "true",
         KEY_GIF_SEND_ENABLED to "true",
         KEY_BLIND_WATERMARK_ENABLED to "true",
         KEY_VOICE_CALL_ENABLED to "true",
@@ -374,7 +357,6 @@ object RuntimeConfigService {
         KEY_PUSH_NOTIFICATIONS_ENABLED to "true",
         KEY_TASK_REMINDERS_ENABLED to "true",
         KEY_DND_ENABLED to "true",
-        KEY_OFFLINE_AI_ENABLED to "true",
         KEY_IN_APP_SOUNDS_ENABLED to "true",
         KEY_HAPTICS_ENABLED to "true",
         KEY_CHAT_ANIMATIONS_ENABLED to "true",
@@ -447,10 +429,14 @@ object RuntimeConfigService {
         getBoolean(KEY_ALLOW_BOTS, true)
 
     fun maxMessagePerMinute(): Int =
-        getInt(KEY_MAX_MESSAGE_PER_MIN, 60).coerceIn(10, 600)
+        getInt(KEY_MAX_MESSAGE_PER_MIN, 180).coerceIn(10, 600)
 
     fun isAiEnabled(): Boolean =
         getBoolean(KEY_AI_ENABLED, true)
+
+    /** 动态/评论 AI 审帖。默认关；聊天密文永不送模型。 */
+    fun isAiContentModerationEnabled(): Boolean =
+        getBoolean(KEY_AI_CONTENT_MODERATION_ENABLED, false)
 
     fun ipBlocklist(): Set<String> =
         get(KEY_IP_BLOCKLIST)
@@ -522,7 +508,7 @@ object RuntimeConfigService {
         getBoolean(KEY_MESSAGE_STARRING_ENABLED, true)
 
     fun isChatExportEnabled(): Boolean =
-        getBoolean(KEY_CHAT_EXPORT_ENABLED, true)
+        getBoolean(KEY_CHAT_EXPORT_ENABLED, false)
 
     fun isMessageForwardingEnabled(): Boolean =
         getBoolean(KEY_MESSAGE_FORWARDING_ENABLED, true)
@@ -549,7 +535,7 @@ object RuntimeConfigService {
         getBoolean(KEY_CHAT_ARCHIVE_ENABLED, true)
 
     fun isNearbyEnabled(): Boolean =
-        getBoolean(KEY_NEARBY_ENABLED, true)
+        getBoolean(KEY_NEARBY_ENABLED, false)
 
     fun isChatPinEnabled(): Boolean =
         getBoolean(KEY_CHAT_PIN_ENABLED, true)
@@ -583,9 +569,6 @@ object RuntimeConfigService {
 
     fun isChatDraftsEnabled(): Boolean =
         getBoolean(KEY_CHAT_DRAFTS_ENABLED, true)
-
-    fun isAiTranslateEnabled(): Boolean =
-        getBoolean(KEY_AI_TRANSLATE_ENABLED, true)
 
     fun isGroupInvitesEnabled(): Boolean =
         getBoolean(KEY_GROUP_INVITES_ENABLED, true)
@@ -629,45 +612,13 @@ object RuntimeConfigService {
     fun isVideoSendEnabled(): Boolean =
         getBoolean(KEY_VIDEO_SEND_ENABLED, true)
 
-    fun isAiSummaryEnabled(): Boolean =
-        getBoolean(KEY_AI_SUMMARY_ENABLED, true)
-
-    fun isAiRewriteEnabled(): Boolean =
-        getBoolean(KEY_AI_REWRITE_ENABLED, true)
-
-    fun isAiSuggestRepliesEnabled(): Boolean =
-        getBoolean(KEY_AI_SUGGEST_REPLIES_ENABLED, true)
-
-    fun isAiTranscribeEnabled(): Boolean =
-        getBoolean(KEY_AI_TRANSCRIBE_ENABLED, true)
-
-    fun isAiAnalyzeImageEnabled(): Boolean =
-        getBoolean(KEY_AI_ANALYZE_IMAGE_ENABLED, true)
-
-    fun isAiGroupAssistantEnabled(): Boolean =
-        getBoolean(KEY_AI_GROUP_ASSISTANT_ENABLED, true)
-
-    fun isAiAnalyzeFileEnabled(): Boolean =
-        getBoolean(KEY_AI_ANALYZE_FILE_ENABLED, true)
-
-    fun isAiSemanticSearchEnabled(): Boolean =
-        getBoolean(KEY_AI_SEMANTIC_SEARCH_ENABLED, true)
-
     /** 每用户每日 token 预算（input + output）。超限时网关应返回 BudgetExceeded。 */
     fun aiDailyTokenBudgetPerUser(): Long =
         getLong(KEY_AI_DAILY_TOKEN_BUDGET_PER_USER, 200_000L).coerceIn(0L, 1_000_000_000L)
 
-    /** 是否启用 AI 网关内的幂等缓存（translate / summarize）。 */
-    fun isAiCacheEnabled(): Boolean =
-        getBoolean(KEY_AI_CACHE_ENABLED, true)
-
     /** 是否启用 AI 网关的瞬态错误重试与退避。 */
     fun isAiRetryEnabled(): Boolean =
         getBoolean(KEY_AI_RETRY_ENABLED, true)
-
-    /** 是否启用按任务类型的多模型路由 + 兜底模型回退。 */
-    fun isAiMultiModelEnabled(): Boolean =
-        getBoolean(KEY_AI_MULTI_MODEL_ENABLED, true)
 
     fun isGifSendEnabled(): Boolean =
         getBoolean(KEY_GIF_SEND_ENABLED, true)
@@ -707,9 +658,6 @@ object RuntimeConfigService {
 
     fun isDndEnabled(): Boolean =
         getBoolean(KEY_DND_ENABLED, true)
-
-    fun isOfflineAiEnabled(): Boolean =
-        getBoolean(KEY_OFFLINE_AI_ENABLED, true)
 
     fun isInAppSoundsEnabled(): Boolean =
         getBoolean(KEY_IN_APP_SOUNDS_ENABLED, true)
@@ -811,6 +759,25 @@ object RuntimeConfigService {
         if (ip in list) return true
         // simple prefix match for CIDR-ish "1.2.3." entries
         return list.any { rule -> rule.endsWith(".") && ip.startsWith(rule) }
+    }
+
+    /** GitHub Release 上传成功后只改更新元数据，不走站长 JWT。 */
+    fun applyPublishedUpdate(versionCode: Int, versionName: String, apkUrl: String, notes: String) {
+        val now = System.currentTimeMillis()
+        val actorId = "github-release"
+        val values = mapOf(
+            KEY_UPDATE_VERSION_CODE to versionCode.toString(),
+            KEY_UPDATE_VERSION_NAME to versionName,
+            KEY_UPDATE_APK_URL to apkUrl,
+            KEY_UPDATE_NOTES to notes,
+        )
+        transaction {
+            values.forEach { (key, cleaned) ->
+                writeSettingInTx(key, cleaned.take(4_000), actorId, now)
+            }
+        }
+        values.forEach { (key, cleaned) -> cache[key] = cleaned.take(4_000) }
+        loadedAt.set(now)
     }
 
     fun set(key: String, value: String, actorId: String?): Boolean {

@@ -40,8 +40,8 @@ import kotlinx.coroutines.withContext
 data class AiPrivacySettingsUiState(
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
-    val userEnabled: Boolean = true,
-    val effectiveEnabled: Boolean = true,
+    val userEnabled: Boolean = false,
+    val effectiveEnabled: Boolean = false,
     val aiConsentAccepted: Boolean = false,
     val localSafetyEnabled: Boolean = false,
     val writingStyleEnabled: Boolean = false,
@@ -65,6 +65,9 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
 
     private val _uiState = MutableStateFlow(
         AiPrivacySettingsUiState(
+            userEnabled = AiPrivacyPreferences.userEnabled(application),
+            effectiveEnabled = AiPrivacyPreferences.userEnabled(application) &&
+                AiPrivacyPreferences.consentAccepted(application),
             aiConsentAccepted = AiPrivacyPreferences.consentAccepted(application),
             localSafetyEnabled = AiPrivacyPreferences.localSafetyEnabled(application)
         )
@@ -114,8 +117,7 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                val settingsResult = ApiService.getAiSettings(liveToken)
-                val auditResult = ApiService.getAiAuditLogs(liveToken, limit = 50)
+                val localEnabled = AiPrivacyPreferences.userEnabled(getApplication())
                 // Pull multi-device writing-style prefs (non-secret tone hints)
                 ApiService.getClientPrefs(liveToken).onSuccess { remote ->
                     if (!isCurrentOwner(ownerUserId)) return@onSuccess
@@ -126,20 +128,22 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
                 if (refreshGeneration != generation || !isCurrentOwner(ownerUserId)) {
                     return@launch
                 }
-                val settings = settingsResult.getOrNull()
                 val style = loadWritingStyleSnapshot()
                 _uiState.update { state ->
                     val settingsAreCurrent = aiSettingsRevision == aiSettingsRevisionAtStart
+                    val masterOn = com.maodouchat.util.RuntimeFlags.isEnabled(
+                        getApplication(),
+                        com.maodouchat.util.RuntimeFlags.AI_MASTER
+                    )
                     state.copy(
                         isLoading = false,
-                        userEnabled = if (settingsAreCurrent) settings?.userEnabled ?: state.userEnabled else state.userEnabled,
-                        effectiveEnabled = if (settingsAreCurrent) settings?.effectiveEnabled ?: state.effectiveEnabled else state.effectiveEnabled,
+                        userEnabled = if (settingsAreCurrent) localEnabled else state.userEnabled,
+                        effectiveEnabled = if (settingsAreCurrent) (localEnabled && masterOn) else state.effectiveEnabled,
                         writingStyleEnabled = style.enabled,
                         writingStylePresetId = style.preset.id,
                         writingStyleCustomNote = style.customNote,
-                        auditLogs = auditResult.getOrNull() ?: state.auditLogs,
-                        errorMessage = (if (settingsAreCurrent) settingsResult.exceptionOrNull()?.message else null)
-                            ?: auditResult.exceptionOrNull()?.message
+                        auditLogs = emptyList(),
+                        errorMessage = null
                     )
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
@@ -239,29 +243,20 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
                     if (aiSettingsRevision != revision || !isCurrentOwner(ownerUserId)) {
                         return@withLock
                     }
-                    val liveToken = tokenManager.getToken() ?: token
-                    ApiService.updateAiSettings(liveToken, chatId = null, enabled = enabled).fold(
-                        onSuccess = { settings ->
-                            if (aiSettingsRevision != revision || !isCurrentOwner(ownerUserId)) {
-                                return@fold
-                            }
-                            pendingAiMutationKey = null
-                            _uiState.update {
-                                it.copy(
-                                    isSaving = false,
-                                    userEnabled = settings.userEnabled,
-                                    effectiveEnabled = settings.effectiveEnabled,
-                                    infoMessage = if (settings.userEnabled) text(R.string.ai_privacy_global_enabled) else text(R.string.ai_privacy_global_disabled)
-                                )
-                            }
-                        },
-                        onFailure = { error ->
-                            if (aiSettingsRevision == revision && isCurrentOwner(ownerUserId)) {
-                                pendingAiMutationKey = null
-                                _uiState.update { it.copy(isSaving = false, errorMessage = error.message ?: text(R.string.ai_privacy_save_failed)) }
-                            }
-                        }
+                    pendingAiMutationKey = null
+                    AiPrivacyPreferences.setUserEnabled(getApplication(), enabled)
+                    val masterOn = com.maodouchat.util.RuntimeFlags.isEnabled(
+                        getApplication(),
+                        com.maodouchat.util.RuntimeFlags.AI_MASTER
                     )
+                    _uiState.update {
+                        it.copy(
+                            isSaving = false,
+                            userEnabled = enabled,
+                            effectiveEnabled = enabled && masterOn,
+                            infoMessage = if (enabled) text(R.string.ai_privacy_global_enabled) else text(R.string.ai_privacy_global_disabled)
+                        )
+                    }
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 if (aiSettingsRevision == revision && isCurrentOwner(ownerUserId)) {
@@ -435,47 +430,19 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
                         if (aiSettingsRevision != revision || !isCurrentOwner(revokeOwnerUserId)) {
                             return@withLock
                         }
-                        val liveToken = tokenManager.getToken() ?: token
-                        ApiService.updateAiSettings(liveToken, chatId = null, enabled = false).fold(
-                            onSuccess = {
-                                if (aiSettingsRevision != revision || !isCurrentOwner(revokeOwnerUserId)) {
-                                    return@fold
-                                }
-                                pendingAiMutationKey = null
-                                _uiState.update {
-                                    it.copy(
-                                        isSaving = false,
-                                        aiConsentAccepted = false,
-                                        localSafetyEnabled = false,
-                                        writingStyleEnabled = false,
-                                        writingStylePresetId = AiWritingStylePolicy.Preset.NONE.id,
-                                        writingStyleCustomNote = "",
-                                        userEnabled = false,
-                                        infoMessage = text(R.string.ai_privacy_reset_done)
-                                    )
-                                }
-                            },
-                            onFailure = { error ->
-                                if (aiSettingsRevision != revision || !isCurrentOwner(revokeOwnerUserId)) {
-                                    return@fold
-                                }
-                                pendingAiMutationKey = null
-                                // Local revoke already applied; remote disable failure is still visible.
-                                _uiState.update {
-                                    it.copy(
-                                        isSaving = false,
-                                        aiConsentAccepted = false,
-                                        localSafetyEnabled = false,
-                                        writingStyleEnabled = false,
-                                        writingStylePresetId = AiWritingStylePolicy.Preset.NONE.id,
-                                        writingStyleCustomNote = "",
-                                        userEnabled = false,
-                                        errorMessage = error.message ?: text(R.string.ai_privacy_save_failed),
-                                        infoMessage = text(R.string.ai_privacy_reset_done)
-                                    )
-                                }
-                            }
-                        )
+                        pendingAiMutationKey = null
+                        _uiState.update {
+                            it.copy(
+                                isSaving = false,
+                                aiConsentAccepted = false,
+                                localSafetyEnabled = false,
+                                writingStyleEnabled = false,
+                                writingStylePresetId = AiWritingStylePolicy.Preset.NONE.id,
+                                writingStyleCustomNote = "",
+                                userEnabled = false,
+                                infoMessage = text(R.string.ai_privacy_reset_done)
+                            )
+                        }
                     }
                 } catch (error: kotlinx.coroutines.CancellationException) {
                     if (aiSettingsRevision == revision && isCurrentOwner(revokeOwnerUserId)) {
@@ -1370,7 +1337,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
 
 data class GeneralSettingsUiState(
     val themeMode: String = "system", // system / light / dark
-    val themeStyle: String = "maodou", // maodou / tg_classic / tg_midnight / tg_graphite
+    val themeStyle: String = "maodou", // 仅 maodou；旧 tg_* 读入归一
     val accentColor: String = "none", // none / blue / green / purple / orange / pink / red / teal
     val languageMode: String = AppLocaleManager.MODE_SYSTEM,
     val linkPreviewEnabled: Boolean = true,
@@ -1808,7 +1775,12 @@ fun SettingsViewModel.changePassword(old: String, new: String, confirm: String, 
                         // 9.140：带账号归属校验 purge——此前无 expectedOwnerUserId，
                         // 断连窗口内换号会把新账号的会话一并清掉
                         (getApplication() as com.maodouchat.MaodouchatApp).secureSessionManager
-                            .purgeLocalSession(expectedOwnerUserId = ownerUserId)
+                            .purgeLocalSession(
+                                destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
+                                    com.maodouchat.security.LogoutStorePolicy.Reason.LOGOUT
+                                ),
+                                expectedOwnerUserId = ownerUserId
+                            )
                     }
                     if (!purged) {
                         _uiState.update { it.copy(isSaving = false) }

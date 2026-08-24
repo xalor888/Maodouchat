@@ -136,7 +136,8 @@ data class Message(
      * composeContentWithMeta 追加在末尾；此前 substringBefore 取首个出现位置，
      * 含该字面量的消息会被截断显示（正文后段丢失）。 */
     fun parsedContent(): String = content.lastIndexOf(META_TAG_PREFIX).let { idx ->
-        if (idx < 0) content else content.substring(0, idx)
+        val body = if (idx < 0) content else content.substring(0, idx)
+        com.maodouchat.util.ChatTextDisplayPolicy.unescapeHtmlEntities(body)
     }
 
     fun parsedMeta(): MessageMeta {

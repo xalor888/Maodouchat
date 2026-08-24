@@ -28,7 +28,8 @@ class ModerationRuleRepository {
         val ruleId: String,
         val action: String,
         val matched: String?,
-        val needsReview: Boolean
+        val needsReview: Boolean,
+        val eventId: String? = null
     )
 
     data class Evaluation(
@@ -130,10 +131,13 @@ class ModerationRuleRepository {
             )
         }
 
+        val insertedIds = mutableListOf<String>()
         transaction {
             pendingEvents.forEach { event ->
+                val id = "risk_${UUID.randomUUID()}"
+                insertedIds += id
                 RiskEvents.insert {
-                    it[RiskEvents.id] = "risk_${UUID.randomUUID()}"
+                    it[RiskEvents.id] = id
                     it[RiskEvents.userId] = userId
                     it[RiskEvents.sourceValue] = normalizedSource
                     it[RiskEvents.ruleId] = event.ruleId
@@ -147,8 +151,9 @@ class ModerationRuleRepository {
         }
 
         val matches = pendingEvents
-            .filter { it.action != "OBSERVED" }
-            .map { RuleMatch(it.ruleId, it.action, it.matched, it.needsReview) }
+            .mapIndexed { index, event -> Triple(event, insertedIds.getOrNull(index), index) }
+            .filter { it.first.action != "OBSERVED" }
+            .map { (event, eventId, _) -> RuleMatch(event.ruleId, event.action, event.matched, event.needsReview, eventId) }
         val strongest = matches.maxByOrNull { ACTION_RANK[it.action] ?: 0 }
         return when (strongest?.action) {
             "AUTO_DELETE" -> Evaluation(true, strongest.action, "内容触发安全规则，已被拦截", matches)
@@ -263,6 +268,38 @@ class ModerationRuleRepository {
 
     fun acknowledgeRiskEvent(eventId: String): Boolean = transaction {
         RiskEvents.update({ RiskEvents.id eq eventId }) { it[RiskEvents.needsReview] = false } > 0
+    }
+
+    fun recordAiDecision(
+        userId: String,
+        source: String,
+        action: String,
+        matched: String?,
+        referenceId: String? = null,
+        needsReview: Boolean = true
+    ): String = transaction {
+        val id = "risk_${UUID.randomUUID()}"
+        RiskEvents.insert {
+            it[RiskEvents.id] = id
+            it[RiskEvents.userId] = userId
+            it[RiskEvents.sourceValue] = source.trim().uppercase().take(20)
+            it[RiskEvents.ruleId] = com.maodouchat.server.service.AiContentModerationPolicy.RULE_ID
+            it[RiskEvents.action] = action.take(20)
+            it[RiskEvents.matched] = matched?.take(MAX_MATCHED_LENGTH)
+            it[RiskEvents.referenceId] = referenceId
+            it[RiskEvents.needsReview] = needsReview
+            it[RiskEvents.createdAt] = System.currentTimeMillis()
+        }
+        id
+    }
+
+    fun attachReference(eventIds: List<String>, referenceId: String): Int {
+        if (eventIds.isEmpty() || referenceId.isBlank()) return 0
+        return transaction {
+            RiskEvents.update({ RiskEvents.id inList eventIds }) {
+                it[RiskEvents.referenceId] = referenceId
+            }
+        }
     }
 
     private fun ResultRow.toRuleResponse() = ModerationRuleResponse(

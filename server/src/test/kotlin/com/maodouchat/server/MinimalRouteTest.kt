@@ -9,7 +9,6 @@ import com.maodouchat.server.plugins.configureSockets
 import com.maodouchat.server.plugins.configureStatusPages
 import com.maodouchat.server.plugins.bearerTokenOrNull
 import com.maodouchat.server.plugins.configureAdminEnhanceRouting
-import com.maodouchat.server.plugins.configureAiEnhanceRouting
 import com.maodouchat.server.plugins.configureDeveloperRouting
 import com.maodouchat.server.plugins.configurePollRouting
 import com.maodouchat.server.plugins.configureSecretSurfaceRouting
@@ -117,12 +116,6 @@ private fun Application.moduleUnderTest(seedDemoUsers: Boolean = false, aiGatewa
     // B1-B8 新增路由（与 Application.kt 生产注册一致，供测试覆盖）
     configurePollRouting()
     configureDeveloperRouting()
-    configureAiEnhanceRouting(
-        aiGateway = aiGateway,
-        chatRepo = chatRepo,
-        aiRepo = AiRepository(),
-        aiRateLimiter = com.maodouchat.server.plugins.BoundedRateLimiter()
-    )
     configureAdminEnhanceRouting(
         announcementRepo = com.maodouchat.server.repository.AnnouncementRepository(),
         userTagRepo = com.maodouchat.server.repository.UserTagRepository(),
@@ -268,78 +261,6 @@ private fun extractToken(body: String): String =
 
 private class FakeAiGateway : AiGateway {
     override val model: String = "test-model"
-
-    override suspend fun rewrite(
-        text: String,
-        mode: String,
-        targetLanguage: String?,
-        styleHint: String?
-    ): AiGatewayResult<String> {
-        return AiGatewayResult.Success("改写：${text.trim()}", model)
-    }
-
-    override suspend fun suggestReplies(
-        messages: List<com.maodouchat.server.model.AiContextMessage>,
-        tone: String,
-        count: Int
-    ): AiGatewayResult<List<String>> {
-        return AiGatewayResult.Success(listOf("好的", "我看看", "稍后回复").take(count), model)
-    }
-
-    override suspend fun summarize(
-        messages: List<com.maodouchat.server.model.AiContextMessage>,
-        style: String
-    ): AiGatewayResult<String> {
-        return AiGatewayResult.Success("总结：${messages.size} 条消息", model)
-    }
-
-    override suspend fun groupAssistant(
-        query: String,
-        messages: List<com.maodouchat.server.model.AiContextMessage>,
-        mode: String
-    ): AiGatewayResult<com.maodouchat.server.model.AiGroupAssistantResult> {
-        val tasks = if (mode == "tasks") {
-            listOf(com.maodouchat.server.model.AiGroupTask("发布新版本", "Alice", "周六十点", 1_700_000_000_000))
-        } else {
-            emptyList()
-        }
-        return AiGatewayResult.Success(com.maodouchat.server.model.AiGroupAssistantResult("群助手：${query.trim()}", tasks), model)
-    }
-
-    override suspend fun translate(text: String, targetLanguage: String): AiGatewayResult<String> {
-        return AiGatewayResult.Success("翻译：${text.trim()}", model)
-    }
-
-    override suspend fun semanticSearch(
-        query: String,
-        candidates: List<com.maodouchat.server.model.AiSemanticSearchCandidate>,
-        limit: Int
-    ): AiGatewayResult<List<com.maodouchat.server.model.AiSemanticSearchMatch>> {
-        return AiGatewayResult.Success(
-            candidates.take(limit).mapIndexed { index, candidate ->
-                com.maodouchat.server.model.AiSemanticSearchMatch(candidate.messageId, 1.0 - index * 0.05)
-            },
-            model
-        )
-    }
-
-    override suspend fun transcribe(audioBytes: ByteArray, mimeType: String, language: String?): AiGatewayResult<String> {
-        return AiGatewayResult.Success("test transcript", model)
-    }
-
-    override suspend fun analyzeImage(imageBase64: String, mimeType: String, mode: String): AiGatewayResult<String> {
-        return AiGatewayResult.Success("图片分析：$mode", model)
-    }
-
-    override suspend fun analyzeFile(
-        fileBase64: String,
-        fileName: String,
-        mimeType: String,
-        mode: String,
-        question: String?
-    ): AiGatewayResult<String> {
-        return AiGatewayResult.Success("文件分析：$fileName / $mode", model)
-    }
 }
 
 class HealthCheckRouteTest {
@@ -1283,21 +1204,8 @@ class GroupProfilePermissionRouteTest {
 
 class AiRouteTest {
     @Test
-    @org.junit.jupiter.api.Disabled("Known rate-limit side effect: test makes >20 AI calls/min; re-enable with delayed retries in CI")
-    fun `AI rewrite and suggested replies require auth and return gateway results`() = testApplication {
+    fun `cloud chat AI endpoints including settings and summary-sync are gone`() = testApplication {
         application { moduleUnderTest(seedDemoUsers = true) }
-
-        val unauthorized = client.post("/api/ai/rewrite") {
-            contentType(ContentType.Application.Json)
-            setBody("""{"text":"hello","mode":"polish"}""")
-        }
-        assertEquals(HttpStatusCode.Unauthorized, unauthorized.status)
-
-        val unauthorizedStream = client.post("/api/ai/rewrite/stream") {
-            contentType(ContentType.Application.Json)
-            setBody("""{"text":"hello","mode":"polish"}""")
-        }
-        assertEquals(HttpStatusCode.Unauthorized, unauthorizedStream.status)
 
         val login = client.post("/api/auth/login") {
             contentType(ContentType.Application.Json)
@@ -1305,299 +1213,57 @@ class AiRouteTest {
         }
         val token = extractToken(login.bodyAsText())
 
-        val invalidSummarySync = client.post("/api/ai/summary-sync") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"syncId":"bad","senderDeviceId":1,"targetDeviceIds":[],"envelope":""}""")
+        for (path in listOf(
+            "/api/ai/settings",
+            "/api/ai/summary-sync",
+            "/api/ai/summary-sync/ack",
+            "/api/ai/rewrite",
+            "/api/ai/rewrite/stream",
+            "/api/ai/suggest-replies",
+            "/api/ai/summarize",
+            "/api/ai/translate",
+            "/api/ai/analyze-file",
+            "/api/ai/analyze-image",
+            "/api/ai/transcribe",
+            "/api/ai/group-assistant",
+            "/api/ai/semantic-search",
+            "/api/ai/global-semantic-search",
+            "/api/ai/audit",
+            "/api/ai/enhance/conversation-profile"
+        )) {
+            val response = client.post(path) {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                contentType(ContentType.Application.Json)
+                setBody("""{"text":"hello"}""")
+            }
+            assertEquals(HttpStatusCode.NotFound, response.status, "$path ${response.bodyAsText()}")
         }
-        assertEquals(HttpStatusCode.BadRequest, invalidSummarySync.status, invalidSummarySync.bodyAsText())
-
-        val defaultSettings = client.get("/api/ai/settings") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-        }
-        assertEquals(HttpStatusCode.OK, defaultSettings.status, defaultSettings.bodyAsText())
-
-        val disabled = client.put("/api/ai/settings") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"enabled":false}""")
-        }
-        assertEquals(HttpStatusCode.OK, disabled.status, disabled.bodyAsText())
-
-        val blockedRewrite = client.post("/api/ai/rewrite") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"text":"hello","mode":"polish"}""")
-        }
-        assertEquals(HttpStatusCode.Forbidden, blockedRewrite.status, blockedRewrite.bodyAsText())
-
-        val blockedRewriteStream = client.post("/api/ai/rewrite/stream") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"text":"hello","mode":"polish"}""")
-        }
-        assertEquals(HttpStatusCode.Forbidden, blockedRewriteStream.status, blockedRewriteStream.bodyAsText())
-
-        val enabled = client.put("/api/ai/settings") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"enabled":true}""")
-        }
-        assertEquals(HttpStatusCode.OK, enabled.status, enabled.bodyAsText())
-
-        val rewrite = client.post("/api/ai/rewrite") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"text":"hello","mode":"polish"}""")
-        }
-        assertEquals(HttpStatusCode.OK, rewrite.status, rewrite.bodyAsText())
-        assertTrue(rewrite.bodyAsText().contains("改写"))
-        assertTrue(rewrite.bodyAsText().contains("test-model"))
-
-        val suggestions = client.post("/api/ai/suggest-replies") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"messages":[{"sender":"u2","text":"今晚一起吃饭吗？"}],"tone":"friendly","count":2}""")
-        }
-        assertEquals(HttpStatusCode.OK, suggestions.status, suggestions.bodyAsText())
-        assertTrue(suggestions.bodyAsText().contains("好的"))
-        assertTrue(suggestions.bodyAsText().contains("test-model"))
-
-        val rewriteStream = client.post("/api/ai/rewrite/stream") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"text":"hello","mode":"polish"}""")
-        }
-        assertEquals(HttpStatusCode.OK, rewriteStream.status, rewriteStream.bodyAsText())
-        assertTrue(rewriteStream.bodyAsText().contains("\"type\":\"start\""))
-        assertTrue(rewriteStream.bodyAsText().contains("\"type\":\"delta\""))
-        assertTrue(rewriteStream.bodyAsText().contains("改写"))
-        assertTrue(rewriteStream.bodyAsText().contains("\"type\":\"done\""))
-
-        val suggestionStream = client.post("/api/ai/suggest-replies/stream") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"messages":[{"sender":"u2","text":"今晚一起吃饭吗？"}],"tone":"friendly","count":2}""")
-        }
-        assertEquals(HttpStatusCode.OK, suggestionStream.status, suggestionStream.bodyAsText())
-        assertTrue(suggestionStream.bodyAsText().contains("\"type\":\"reply\""))
-        assertTrue(suggestionStream.bodyAsText().contains("好的"))
-        assertTrue(suggestionStream.bodyAsText().contains("\"type\":\"done\""))
-
-        val summary = client.post("/api/ai/summarize") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"messages":[{"sender":"u2","text":"今晚一起吃饭吗？"},{"sender":"me","text":"可以，七点见"}],"style":"brief"}""")
-        }
-        assertEquals(HttpStatusCode.OK, summary.status, summary.bodyAsText())
-        assertTrue(summary.bodyAsText().contains("总结"))
-        assertTrue(summary.bodyAsText().contains("test-model"))
-
-        val chatResponse = client.post("/api/chats") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"participantIds":["u2"],"isGroup":false}""")
-        }
-        assertEquals(HttpStatusCode.Created, chatResponse.status, chatResponse.bodyAsText())
-        val chatId = (Json.parseToJsonElement(chatResponse.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
-
-        val imageAnalysis = client.post("/api/ai/analyze-image") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(
-                """{"imageBase64":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=","mimeType":"image/png","mode":"describe","chatId":"$chatId"}"""
-            )
-        }
-        assertEquals(HttpStatusCode.OK, imageAnalysis.status, imageAnalysis.bodyAsText())
-        assertTrue(imageAnalysis.bodyAsText().contains("图片分析"), imageAnalysis.bodyAsText())
-
-        val fileAnalysis = client.post("/api/ai/analyze-file") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(
-                """{"fileBase64":"5Lya6K6u57qq6KaB77ya5ZGo5YWt5Y+R5biD44CC","fileName":"meeting.txt","mimeType":"text/plain","mode":"summarize","chatId":"$chatId"}"""
-            )
-        }
-        assertEquals(HttpStatusCode.OK, fileAnalysis.status, fileAnalysis.bodyAsText())
-        assertTrue(fileAnalysis.bodyAsText().contains("meeting.txt"), fileAnalysis.bodyAsText())
-
-        val invalidPdf = client.post("/api/ai/analyze-file") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(
-                """{"fileBase64":"AAECAwQ=","fileName":"fake.pdf","mimeType":"application/pdf","mode":"summarize","chatId":"$chatId"}"""
-            )
-        }
-        assertEquals(HttpStatusCode.BadRequest, invalidPdf.status, invalidPdf.bodyAsText())
-
-        val semanticSearch = client.post("/api/ai/semantic-search") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(
-                """{"query":"上次说的见面地点","chatId":"$chatId","limit":5,"candidates":[{"messageId":"m_semantic_1","sender":"Alice","text":"我们周六在人民广场地铁站见","timestamp":1700000000000}]}"""
-            )
-        }
-        assertEquals(HttpStatusCode.OK, semanticSearch.status, semanticSearch.bodyAsText())
-        assertTrue(semanticSearch.bodyAsText().contains("m_semantic_1"))
-        assertTrue(semanticSearch.bodyAsText().contains("test-model"))
-
-        val groupResponse = client.post("/api/chats") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"participantIds":["u2","u3"],"isGroup":true,"groupName":"AI Test Group"}""")
-        }
-        assertEquals(HttpStatusCode.Created, groupResponse.status, groupResponse.bodyAsText())
-        val groupId = (Json.parseToJsonElement(groupResponse.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
-
-        val groupAssistant = client.post("/api/ai/group-assistant") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(
-                """{"query":"提取待办","chatId":"$groupId","mode":"tasks","messages":[{"sender":"Alice","text":"周六十点发布新版本"}]}"""
-            )
-        }
-        assertEquals(HttpStatusCode.OK, groupAssistant.status, groupAssistant.bodyAsText())
-        assertTrue(groupAssistant.bodyAsText().contains("群助手"))
-        assertTrue(groupAssistant.bodyAsText().contains("tasks"))
-        assertTrue(groupAssistant.bodyAsText().contains("发布新版本"))
-
-        val globalSemanticSearch = client.post("/api/ai/global-semantic-search") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(
-                """{"query":"发布安排","limit":10,"candidates":[{"chatId":"$chatId","messageId":"m_global_1","sender":"Alice","text":"周六发布客户端","timestamp":1700000000000},{"chatId":"$groupId","messageId":"m_global_2","sender":"Bob","text":"周日发布服务端","timestamp":1700000001000}]}"""
-            )
-        }
-        assertEquals(HttpStatusCode.OK, globalSemanticSearch.status, globalSemanticSearch.bodyAsText())
-        assertTrue(globalSemanticSearch.bodyAsText().contains("m_global_1"))
-        assertTrue(globalSemanticSearch.bodyAsText().contains("$chatId"))
-
-        val audit = client.get("/api/ai/audit") {
+        val settingsGet = client.get("/api/ai/settings") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
-        assertEquals(HttpStatusCode.OK, audit.status, audit.bodyAsText())
-        assertTrue(audit.bodyAsText().contains("rewrite"))
-        assertTrue(audit.bodyAsText().contains("suggest_replies"))
-        assertTrue(audit.bodyAsText().contains("summarize"))
-        assertTrue(audit.bodyAsText().contains("semantic_search"))
-        assertTrue(audit.bodyAsText().contains("global_semantic_search"))
-        assertTrue(audit.bodyAsText().contains("group_assistant"))
+        assertEquals(HttpStatusCode.NotFound, settingsGet.status, settingsGet.bodyAsText())
     }
 }
 
-class AiSummarySyncSessionIsolationRouteTest {
+class RetiredAiSummarySyncGoneTest {
     @Test
-    fun `summary sync is isolated to the signal device bound to the jwt session`() = testApplication {
+    fun `summary-sync queue is gone`() = testApplication {
         application { moduleUnderTest(seedDemoUsers = true) }
-
-        suspend fun login(): String {
-            val response = client.post("/api/auth/login") {
-                contentType(ContentType.Application.Json)
-                setBody("""{"email":"alex@example.com","password":"password123"}""")
-            }
-            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
-            return extractToken(response.bodyAsText())
-        }
-
-        fun authSessionId(token: String): String {
-            val jwt = checkNotNull(com.maodouchat.server.auth.JwtConfig.verifyToken(token))
-            return checkNotNull(com.maodouchat.server.auth.JwtConfig.authSessionId(jwt))
-        }
-
-        val deviceOneToken = login()
-        val deviceTwoToken = login()
-        val deviceOneSession = authSessionId(deviceOneToken)
-        val deviceTwoSession = authSessionId(deviceTwoToken)
-        val signalKeyRepo = SignalKeyRepository()
-        val deviceOneKeyPair = Curve.generateKeyPair()
-        val deviceOneIdentity = Base64.getEncoder().encodeToString(deviceOneKeyPair.publicKey.serialize())
-        // 9.298：服务端上传验签——deviceTwo 也用真实密钥对（原假字符串无法通过 decodePoint/验签）
-        val deviceTwoKeyPair = Curve.generateKeyPair()
-        val deviceTwoIdentity = Base64.getEncoder().encodeToString(deviceTwoKeyPair.publicKey.serialize())
-
-        fun uploadDevice(sessionId: String, deviceId: Int, identityKey: String, identityPrivateKey: org.signal.libsignal.protocol.ecc.ECPrivateKey) {
-            val spkPair = Curve.generateKeyPair()
-            val spkSignature = Curve.calculateSignature(identityPrivateKey, spkPair.publicKey.serialize())
-            assertEquals(
-                SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
-                signalKeyRepo.uploadKeyPackage(
-                    userId = "u1",
-                    authSessionId = sessionId,
-                    deviceId = deviceId,
-                    identityKey = identityKey,
-                    registrationId = 20_000 + deviceId,
-                    signedPreKeyId = deviceId,
-                    signedPreKey = Base64.getEncoder().encodeToString(spkPair.publicKey.serialize()),
-                    signedPreKeySignature = Base64.getEncoder().encodeToString(spkSignature),
-                    preKeys = emptyList()
-                )
-            )
-        }
-
-        uploadDevice(deviceOneSession, 1, deviceOneIdentity, deviceOneKeyPair.privateKey)
-        uploadDevice(deviceTwoSession, 2, deviceTwoIdentity, deviceTwoKeyPair.privateKey)
-        val confirmationPayload = "maodouchat-device-confirm:v1\nu1\n1\n2\n$deviceTwoIdentity".toByteArray()
-        val confirmationProof = Base64.getEncoder().encodeToString(
-            Curve.calculateSignature(deviceOneKeyPair.privateKey, confirmationPayload)
-        )
-        assertEquals(
-            SignalKeyRepository.ConfirmDeviceResult.CONFIRMED,
-            signalKeyRepo.confirmDevice("u1", 2, 1, confirmationProof)
-        )
-        assertTrue(signalKeyRepo.isDeviceConfirmed("u1", 1))
-        assertTrue(signalKeyRepo.isDeviceConfirmed("u1", 2))
-        assertTrue(signalKeyRepo.isAuthSessionBoundToDevice("u1", deviceOneSession, 1))
-        assertTrue(signalKeyRepo.isAuthSessionBoundToDevice("u1", deviceTwoSession, 2))
-        assertFalse(signalKeyRepo.isAuthSessionBoundToDevice("u1", deviceOneSession, 2))
-        assertFalse(signalKeyRepo.isAuthSessionBoundToDevice("u1", deviceTwoSession, 1))
-
-        val initialUpload = client.post("/api/ai/summary-sync") {
-            header(HttpHeaders.Authorization, "Bearer $deviceOneToken")
+        val login = client.post("/api/auth/login") {
             contentType(ContentType.Application.Json)
-            setBody(
-                """{"syncId":"sync_session_1","senderDeviceId":1,"targetDeviceIds":[2],"envelope":"original-envelope"}"""
-            )
+            setBody("""{"email":"alex@example.com","password":"password123"}""")
         }
-        assertEquals(HttpStatusCode.OK, initialUpload.status, initialUpload.bodyAsText())
-
-        val crossDeviceGet = client.get("/api/ai/summary-sync?deviceId=2") {
-            header(HttpHeaders.Authorization, "Bearer $deviceOneToken")
-        }
-        assertEquals(HttpStatusCode.Forbidden, crossDeviceGet.status, crossDeviceGet.bodyAsText())
-
-        val legitimateGet = client.get("/api/ai/summary-sync?deviceId=2") {
-            header(HttpHeaders.Authorization, "Bearer $deviceTwoToken")
-        }
-        assertEquals(HttpStatusCode.OK, legitimateGet.status, legitimateGet.bodyAsText())
-        val initialPending = Json.parseToJsonElement(legitimateGet.bodyAsText()).jsonArray
-        assertEquals(1, initialPending.size)
-        val envelopeId = initialPending.single().jsonObject["id"]!!.jsonPrimitive.content
-        assertEquals("original-envelope", initialPending.single().jsonObject["envelope"]!!.jsonPrimitive.content)
-
-        val forgedSender = client.post("/api/ai/summary-sync") {
-            header(HttpHeaders.Authorization, "Bearer $deviceTwoToken")
+        val token = extractToken(login.bodyAsText())
+        val post = client.post("/api/ai/summary-sync") {
+            header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
-            setBody(
-                """{"syncId":"sync_session_1","senderDeviceId":1,"targetDeviceIds":[2],"envelope":"forged-envelope"}"""
-            )
+            setBody("""{"syncId":"x","senderDeviceId":1,"targetDeviceIds":[2],"envelope":"e"}""")
         }
-        assertEquals(HttpStatusCode.Forbidden, forgedSender.status, forgedSender.bodyAsText())
-
-        val crossDeviceAck = client.post("/api/ai/summary-sync/ack") {
-            header(HttpHeaders.Authorization, "Bearer $deviceOneToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"deviceId":2,"envelopeIds":["$envelopeId"]}""")
+        assertEquals(HttpStatusCode.NotFound, post.status, post.bodyAsText())
+        val get = client.get("/api/ai/summary-sync?deviceId=1") {
+            header(HttpHeaders.Authorization, "Bearer $token")
         }
-        assertEquals(HttpStatusCode.Forbidden, crossDeviceAck.status, crossDeviceAck.bodyAsText())
-
-        val stillPendingResponse = client.get("/api/ai/summary-sync?deviceId=2") {
-            header(HttpHeaders.Authorization, "Bearer $deviceTwoToken")
-        }
-        assertEquals(HttpStatusCode.OK, stillPendingResponse.status, stillPendingResponse.bodyAsText())
-        val stillPending = Json.parseToJsonElement(stillPendingResponse.bodyAsText()).jsonArray
-        assertEquals(1, stillPending.size)
-        assertEquals(envelopeId, stillPending.single().jsonObject["id"]!!.jsonPrimitive.content)
-        assertEquals("original-envelope", stillPending.single().jsonObject["envelope"]!!.jsonPrimitive.content)
+        assertEquals(HttpStatusCode.NotFound, get.status, get.bodyAsText())
     }
 }
 
@@ -2991,42 +2657,19 @@ class SecretSurfaceHealthzTest {
 
 class AiEnhanceRoutesTest {
     @Test
-    fun `conversation profile and emotion reply endpoints`() = testApplication {
+    fun `enhance endpoints are gone`() = testApplication {
         application { moduleUnderTest(seedDemoUsers = true) }
-
         val login = client.post("/api/auth/login") {
             contentType(ContentType.Application.Json)
             setBody("""{"email":"alex@example.com","password":"password123"}""")
         }
-        assertEquals(HttpStatusCode.OK, login.status, login.bodyAsText())
-        val userToken = extractToken(login.bodyAsText())
-
-        // 建 1:1 聊天（alex + bob=u3）
-        val chat = client.post("/api/chats") {
-            header(HttpHeaders.Authorization, "Bearer $userToken")
+        val token = extractToken(login.bodyAsText())
+        val gone = client.post("/api/ai/enhance/emotion-reply") {
+            header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
-            setBody("""{"participantIds":["u3"],"isGroup":false}""")
+            setBody("""{"messages":[{"sender":"u1","text":"hi"}],"emotion":"happy"}""")
         }
-        assertEquals(HttpStatusCode.Created, chat.status, chat.bodyAsText())
-        val chatId = Json.parseToJsonElement(chat.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
-
-        // 会话画像（FakeAiGateway 返回固定摘要）
-        val profile = client.post("/api/ai/enhance/conversation-profile") {
-            header(HttpHeaders.Authorization, "Bearer $userToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"messages":[{"sender":"u1","text":"hello there"}],"chatId":"$chatId"}""")
-        }
-        assertEquals(HttpStatusCode.OK, profile.status, profile.bodyAsText())
-        assertTrue(profile.bodyAsText().contains("summary"), profile.bodyAsText())
-
-        // 情绪感知回复
-        val emotion = client.post("/api/ai/enhance/emotion-reply") {
-            header(HttpHeaders.Authorization, "Bearer $userToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"messages":[{"sender":"u1","text":"I am so happy today"}],"emotion":"happy","chatId":"$chatId"}""")
-        }
-        assertEquals(HttpStatusCode.OK, emotion.status, emotion.bodyAsText())
-        assertTrue(emotion.bodyAsText().contains("reply"), emotion.bodyAsText())
+        assertEquals(HttpStatusCode.NotFound, gone.status, gone.bodyAsText())
     }
 }
 
@@ -3140,8 +2783,8 @@ class MessageIdempotencyRouteTest {
 
         val first = send(keepId, "cipher-keep")
         assertEquals(HttpStatusCode.Created, first.status, first.bodyAsText())
-        // 打满 message_send 120/min 桶：首条 + 119 条唯一消息。
-        for (i in 1..119) {
+        // 打满 message_send 默认桶（RuntimeConfig max_message_per_min=180）：首条 + 179 条唯一消息。
+        for (i in 1..179) {
             val filled = send("m_rest_quota_$i", "cipher-$i")
             assertEquals(HttpStatusCode.Created, filled.status, filled.bodyAsText())
         }
@@ -3330,5 +2973,139 @@ class PreKeyBundleStabilityRouteTest {
         }
         assertEquals(HttpStatusCode.Forbidden, unknown.status, unknown.bodyAsText())
         assertFalse(unknown.status.value in 500..599)
+    }
+}
+
+class SoloGroupChannelRouteTest {
+    @Test
+    fun `creator alone can open a group and a channel`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+        val login = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"alex@example.com","password":"password123"}""")
+        }
+        val token = extractToken(login.bodyAsText())
+
+        val emptyDirect = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":[],"isGroup":false}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, emptyDirect.status, emptyDirect.bodyAsText())
+
+        val soloGroup = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":[],"isGroup":true,"groupName":"Solo"}""")
+        }
+        assertEquals(HttpStatusCode.Created, soloGroup.status, soloGroup.bodyAsText())
+        val groupBody = Json.parseToJsonElement(soloGroup.bodyAsText()).jsonObject
+        assertEquals("GROUP", groupBody["chatType"]!!.jsonPrimitive.content)
+        assertEquals(1, groupBody["participants"]!!.jsonArray.size)
+        assertEquals("u1", groupBody["participants"]!!.jsonArray[0].jsonObject["id"]!!.jsonPrimitive.content)
+
+        val soloChannel = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":[],"isGroup":true,"groupName":"SoloChannel","chatType":"CHANNEL"}""")
+        }
+        assertEquals(HttpStatusCode.Created, soloChannel.status, soloChannel.bodyAsText())
+        val channelBody = Json.parseToJsonElement(soloChannel.bodyAsText()).jsonObject
+        assertEquals("CHANNEL", channelBody["chatType"]!!.jsonPrimitive.content)
+        assertEquals(1, channelBody["participants"]!!.jsonArray.size)
+    }
+}
+
+class BotInboxRouteTest {
+    @Test
+    fun `bot inbox rejects ciphertext and delivers slash without dumping group text`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+
+        suspend fun login(email: String): String {
+            val response = client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"$email","password":"password123"}""")
+            }
+            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+            return extractToken(response.bodyAsText())
+        }
+
+        val alex = login("alex@example.com")
+        val alice = login("alice@example.com")
+
+        val createdBot = client.post("/api/bots") {
+            header(HttpHeaders.Authorization, "Bearer $alex")
+            contentType(ContentType.Application.Json)
+            setBody("""{"name":"Inbox Bot","username":"inbox_route_bot"}""")
+        }
+        assertEquals(HttpStatusCode.OK, createdBot.status, createdBot.bodyAsText())
+        val botJson = Json.parseToJsonElement(createdBot.bodyAsText()).jsonObject
+        val botId = botJson["id"]!!.jsonPrimitive.content
+        val botToken = botJson["tokenOnce"]!!.jsonPrimitive.content
+
+        val group = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $alex")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":["u2"],"isGroup":true,"groupName":"Bot Inbox Group"}""")
+        }
+        assertEquals(HttpStatusCode.Created, group.status, group.bodyAsText())
+        val chatId = Json.parseToJsonElement(group.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        acceptAllGroupInvites(alice)
+
+        val invite = client.post("/api/chats/$chatId/bots") {
+            header(HttpHeaders.Authorization, "Bearer $alex")
+            contentType(ContentType.Application.Json)
+            setBody("""{"botId":"$botId"}""")
+        }
+        assertEquals(HttpStatusCode.OK, invite.status, invite.bodyAsText())
+
+        val commands = client.get("/api/chats/$chatId/bot-commands") {
+            header(HttpHeaders.Authorization, "Bearer $alice")
+        }
+        assertEquals(HttpStatusCode.OK, commands.status, commands.bodyAsText())
+        val commandBody = Json.parseToJsonElement(commands.bodyAsText()).jsonObject
+        assertTrue(commandBody["commands"]!!.jsonArray.size >= 2, commands.bodyAsText())
+
+        val ciphertext = client.post("/api/chats/$chatId/bot-inbox") {
+            header(HttpHeaders.Authorization, "Bearer $alice")
+            contentType(ContentType.Application.Json)
+            setBody("""{"text":"{\"ciphertext\":\"abc\"}"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, ciphertext.status, ciphertext.bodyAsText())
+
+        val chatter = client.post("/api/chats/$chatId/bot-inbox") {
+            header(HttpHeaders.Authorization, "Bearer $alice")
+            contentType(ContentType.Application.Json)
+            setBody("""{"text":"hello everyone"}""")
+        }
+        assertEquals(HttpStatusCode.Forbidden, chatter.status, chatter.bodyAsText())
+
+        val help = client.post("/api/chats/$chatId/bot-inbox") {
+            header(HttpHeaders.Authorization, "Bearer $alice")
+            contentType(ContentType.Application.Json)
+            setBody("""{"text":"/help tomorrow"}""")
+        }
+        assertEquals(HttpStatusCode.OK, help.status, help.bodyAsText())
+
+        val updates = client.get("/api/bot/getUpdates") {
+            header("X-Bot-Token", botToken)
+        }
+        assertEquals(HttpStatusCode.OK, updates.status, updates.bodyAsText())
+        val updateText = updates.bodyAsText()
+        assertTrue(updateText.contains("user_command"), updateText)
+        assertTrue(updateText.contains("/help tomorrow") || updateText.contains("\"command\":\"help\""), updateText)
+        assertFalse(updateText.contains("hello everyone"), updateText)
+
+        val dm = client.post("/api/bots/$botId/dm") {
+            header(HttpHeaders.Authorization, "Bearer $alice")
+        }
+        assertEquals(HttpStatusCode.Created, dm.status, dm.bodyAsText())
+        val dmId = Json.parseToJsonElement(dm.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        val dmInbox = client.post("/api/chats/$dmId/bot-inbox") {
+            header(HttpHeaders.Authorization, "Bearer $alice")
+            contentType(ContentType.Application.Json)
+            setBody("""{"text":"hi bot"}""")
+        }
+        assertEquals(HttpStatusCode.OK, dmInbox.status, dmInbox.bodyAsText())
     }
 }

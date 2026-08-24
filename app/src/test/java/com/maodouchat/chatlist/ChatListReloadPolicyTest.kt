@@ -19,8 +19,15 @@ class ChatListReloadPolicyTest {
     }
 
     @Test
-    fun reconnectIsImmediateVisible() {
-        assertEquals(Mode.IMMEDIATE_VISIBLE, ChatListReloadPolicy.modeFor(Trigger.RECONNECT))
+    fun reconnectAndForegroundAreImmediateSilent() {
+        assertEquals(Mode.IMMEDIATE_SILENT, ChatListReloadPolicy.modeFor(Trigger.RECONNECT))
+        assertEquals(Mode.IMMEDIATE_SILENT, ChatListReloadPolicy.modeFor(Trigger.FOREGROUND))
+        assertFalse(ChatListReloadPolicy.shouldShowLoading(Mode.IMMEDIATE_SILENT))
+        assertEquals(
+            ChatListReloadPolicy.RECONNECT_DEBOUNCE_MS,
+            ChatListReloadPolicy.debounceMs(Mode.IMMEDIATE_SILENT, Trigger.RECONNECT)
+        )
+        assertEquals(0L, ChatListReloadPolicy.debounceMs(Mode.IMMEDIATE_SILENT, Trigger.FOREGROUND))
     }
 
     @Test

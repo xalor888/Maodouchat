@@ -350,7 +350,23 @@ class UserRepository {
     fun shouldBroadcastOnline(userId: String): Boolean {
         return transaction {
             Users.selectAll().where { Users.id eq userId }
-                .firstOrNull()?.get(Users.showOnline) ?: false
+                .firstOrNull()?.let { row ->
+                    onlineVisibleToAnyone(row[Users.showOnline], row[Users.onlineVisibility])
+                } ?: false
+        }
+    }
+
+    fun shouldShowOnlineTo(targetId: String, viewerId: String?): Boolean {
+        if (viewerId.isNullOrBlank()) return false
+        if (targetId == viewerId) return true
+        return transaction {
+            val row = Users.selectAll().where { Users.id eq targetId }.firstOrNull() ?: return@transaction false
+            onlineVisibleToViewer(
+                showOnline = row[Users.showOnline],
+                visibility = row[Users.onlineVisibility],
+                targetId = targetId,
+                viewerId = viewerId
+            )
         }
     }
 
@@ -537,11 +553,7 @@ class UserRepository {
             RefreshTokens.deleteWhere { RefreshTokens.userId eq userId }
             AuthSessions.deleteWhere { AuthSessions.userId eq userId }
             RevokedAccessTokens.deleteWhere { RevokedAccessTokens.userId eq userId }
-            AiPreferences.deleteWhere { AiPreferences.userId eq userId }
             AiAuditLogs.deleteWhere { AiAuditLogs.userId eq userId }
-            // Moderation audit records are intentionally retained. Account deactivation must not
-            // erase the administrative history associated with the target account.
-            AiSummarySyncEnvelopes.deleteWhere { AiSummarySyncEnvelopes.userId eq userId }
             NotificationPreferences.deleteWhere { NotificationPreferences.userId eq userId }
             ClientPrefs.deleteWhere { ClientPrefs.userId eq userId }
             ChatFolders.deleteWhere { ChatFolders.userId eq userId }
@@ -549,9 +561,6 @@ class UserRepository {
             UserTagAssignments.deleteWhere { UserTagAssignments.userId eq userId }
             DeviceEventSequences.deleteWhere { DeviceEventSequences.userId eq userId }
             DeviceEventConsistencyLog.deleteWhere { DeviceEventConsistencyLog.userId eq userId }
-            FriendRequests.deleteWhere {
-                (FriendRequests.fromUserId eq userId) or (FriendRequests.toUserId eq userId)
-            }
             Friendships.deleteWhere {
                 (Friendships.userLowId eq userId) or (Friendships.userHighId eq userId)
             }
@@ -695,7 +704,6 @@ class UserRepository {
             (SenderKeyDistributions.senderId inList botIds) or
                 (SenderKeyDistributions.recipientUserId inList botIds)
         }
-        AiPreferences.deleteWhere { AiPreferences.userId inList botIds }
         botIds.forEach { botId ->
             BotCommandLogs.deleteWhere {
                 (BotCommandLogs.botId eq botId) or (BotCommandLogs.userId eq botId)
@@ -903,7 +911,6 @@ class UserRepository {
         DirectChatPairs.deleteWhere { DirectChatPairs.chatId eq chatId }
         MessageMutations.deleteWhere { MessageMutations.chatId eq chatId }
         SenderKeyDistributions.deleteWhere { SenderKeyDistributions.chatId eq chatId }
-        AiPreferences.deleteWhere { AiPreferences.chatId eq chatId }
         ChatUserSettings.deleteWhere { ChatUserSettings.chatId eq chatId }
         GroupAuditLogs.deleteWhere { GroupAuditLogs.chatId eq chatId }
         ChatParticipants.deleteWhere { ChatParticipants.chatId eq chatId }
@@ -918,7 +925,8 @@ class UserRepository {
                     showOnline = it[Users.showOnline],
                     showStatus = it[Users.showStatus],
                     searchable = it[Users.searchable],
-                    defaultPostVisibility = normalizeVisibility(it[Users.defaultPostVisibility])
+                    defaultPostVisibility = normalizeVisibility(it[Users.defaultPostVisibility]),
+                    onlineVisibility = normalizeOnlineVisibility(it[Users.onlineVisibility], it[Users.showOnline])
                 )
             }
         }
@@ -929,28 +937,37 @@ class UserRepository {
         showOnline: Boolean? = null,
         showStatus: Boolean? = null,
         searchable: Boolean? = null,
-        defaultPostVisibility: String? = null
+        defaultPostVisibility: String? = null,
+        onlineVisibility: String? = null
     ): PrivacyUpdateResult? {
         return transaction {
             val normalizedVisibility = defaultPostVisibility?.let(::normalizeVisibility)
             val previous = Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
                 ?: return@transaction null
+            val previousOnlineVis = normalizeOnlineVisibility(previous[Users.onlineVisibility], previous[Users.showOnline])
+            val nextOnlineVis = onlineVisibility?.let(::normalizeOnlineVisibility)
+                ?: showOnline?.let { if (it) previousOnlineVis.takeUnless { vis -> vis == "nobody" } ?: "everyone" else "nobody" }
             Users.update({ Users.id eq userId }) {
                 if (showOnline != null) it[Users.showOnline] = showOnline
+                if (nextOnlineVis != null) {
+                    it[Users.onlineVisibility] = nextOnlineVis
+                    it[Users.showOnline] = nextOnlineVis != "nobody"
+                }
                 if (showStatus != null) it[Users.showStatus] = showStatus
                 if (searchable != null) it[Users.searchable] = searchable
                 if (normalizedVisibility != null) it[Users.defaultPostVisibility] = normalizedVisibility
             }
             val privacy = UserPrivacyResponse(
-                showOnline = showOnline ?: previous[Users.showOnline],
+                showOnline = (nextOnlineVis ?: previousOnlineVis) != "nobody",
                 showStatus = showStatus ?: previous[Users.showStatus],
                 searchable = searchable ?: previous[Users.searchable],
                 defaultPostVisibility = normalizedVisibility
-                    ?: normalizeVisibility(previous[Users.defaultPostVisibility])
+                    ?: normalizeVisibility(previous[Users.defaultPostVisibility]),
+                onlineVisibility = nextOnlineVis ?: previousOnlineVis
             )
             PrivacyUpdateResult(
                 privacy = privacy,
-                onlineRevoked = previous[Users.showOnline] && !privacy.showOnline,
+                onlineRevoked = previousOnlineVis != "nobody" && privacy.onlineVisibility == "nobody",
                 statusRevoked = previous[Users.showStatus] && !privacy.showStatus
             )
         }
@@ -1218,6 +1235,35 @@ class UserRepository {
         private const val DELETED_USER_NAME = "已注销用户"
         private val secureRandom = SecureRandom()
         val ALLOWED_POST_VISIBILITIES = setOf("PUBLIC", "CONTACTS", "PRIVATE")
+        val ALLOWED_ONLINE_VISIBILITIES = setOf("everyone", "contacts", "nobody")
+
+        fun normalizeOnlineVisibility(value: String?, showOnlineFallback: Boolean = true): String {
+            val raw = value?.trim()?.lowercase().orEmpty()
+            return when (raw) {
+                "everyone", "contacts", "nobody" -> raw
+                else -> if (showOnlineFallback) "everyone" else "nobody"
+            }
+        }
+
+        fun onlineVisibleToAnyone(showOnline: Boolean, visibility: String?): Boolean {
+            if (!showOnline) return false
+            return normalizeOnlineVisibility(visibility, showOnline) != "nobody"
+        }
+
+        fun onlineVisibleToViewer(
+            showOnline: Boolean,
+            visibility: String?,
+            targetId: String,
+            viewerId: String
+        ): Boolean {
+            if (targetId == viewerId) return true
+            if (!showOnline) return false
+            return when (normalizeOnlineVisibility(visibility, showOnline)) {
+                "everyone" -> true
+                "contacts" -> FriendRepository().areFriends(targetId, viewerId)
+                else -> false
+            }
+        }
 
         /**
          * 8.49 修复 BOOTSTRAP_FIRST_USER_AS_ADMIN 并发竞态：READ COMMITTED 下两个并发

@@ -45,27 +45,12 @@ import kotlinx.serialization.json.Json
                 aiSettingsLoaded = true
                 return@launch
             }
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            ApiService.getAiSettings(liveToken, activeChatId).fold(
-                onSuccess = { settings ->
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
-                    ) {
-                        return@fold
-                    }
-                    aiSettingsLoaded = true
-                    _uiState.update { it.copy(aiEnabled = settings.effectiveEnabled) }
-                    maybeGenerateUnreadSummary(_uiState.value.messages)
-                },
-                onFailure = {
-                    // Fail closed: do not leave AI in an unknown half-loaded state.
-                    aiSettingsLoaded = true
-                    _uiState.update { it.copy(aiEnabled = false) }
-                }
-            )
+            aiSettingsLoaded = true
+            val enabled = com.maodouchat.ai.AiPrivacyPreferences.userEnabled(app) &&
+                com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(app) &&
+                com.maodouchat.util.RuntimeFlags.isEnabled(app, com.maodouchat.util.RuntimeFlags.AI_MASTER)
+            _uiState.update { it.copy(aiEnabled = enabled) }
+            if (enabled) maybeGenerateUnreadSummary(_uiState.value.messages)
         }
     }
 

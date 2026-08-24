@@ -81,12 +81,6 @@ import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.ShimmerBox
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Outline
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.Secondary
-import com.maodouchat.ui.theme.TextHint
-import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -765,7 +759,7 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
     var cursor = 0
     snippet.highlights.forEach { span ->
         if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-        pushStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+        pushStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)))
         append(snippet.text.substring(span.start, span.end))
         pop()
         cursor = span.end

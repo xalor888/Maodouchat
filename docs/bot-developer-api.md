@@ -3,7 +3,7 @@
 **更新时间**：2026-07-20  
 **角色**：机器人接入契约（与 `Routing.kt` bot 路由对齐；以代码为准）  
 **鉴权**：多数接口使用 `X-Bot-Token: <token>` 或 `Authorization: Bearer <bot_token>`  
-**注意**：Bot **不得**假设能读取用户 E2EE 明文正文；导出 / 审计仅元数据。Admin/Bot 不得 dump 密聊明文。
+**注意**：Bot **不得**假设能读取用户 E2EE 明文正文；导出 / 审计仅元数据。Admin/Bot 不得 dump 密聊明文。人对人、群成员互发始终 E2EE（Sender Key）。用户主动发给 bot 的命令走独立明文 inbox，不是把群降成云聊。
 
 ---
 
@@ -118,7 +118,7 @@ Bot 可通过一系列 `get*Flags` 读取服务端运行时开关，用于自适
 | 消息策略 | `getMessagePolicyFlags` 等 |
 | 媒体发送 | `getMediaSendFlags` / 媒体 privacy |
 | 通话 | `getCallMediaFlags` |
-| AI | `getAiFeatureFlags`, `getAiAssistFlags`, `getAiVisionFlags`, `getAiSearchFlags` |
+| AI | 无（聊天 AI 只在客户端；服务端仅审帖） |
 | 外观 / 动效 | `getAppearanceFlags`, `getMotionFlags`, `slidez` |
 | 通知 / 静音 | `getNotifyFlags`, `getQuietFlags`, `quietz` |
 | 触感 / 音效 | `getFeelFlags`, `fealz` |
@@ -147,8 +147,15 @@ Bot 侧 flags 与 public/status **同源** `RuntimeConfigService`。
 2. **密聊**：尊重 secret_* block 开关；hint 仅 SYSTEM 元提示。  
 3. **senderId**：聊天 WS / 历史路径 **禁止** 错误 redact（sealed 相关实现约束）。  
 4. **Admin 导出**：CSV 为开关/元数据，不是消息正文。  
-5. **邀请进群**：bot 以 ADMIN 邀请策略以服务端为准（历史为有意设计）。  
-6. **Health 名唯一**：`leakz` / `vaultz` / `sealz` / `markz` / `linkz` / `privz` / `metaz` 等不可撞名。
+5. **邀请进群**：群管 `POST /api/chats/{chatId}/bots`，只能拉自己的 bot。  
+6. **用户命令 inbox（明文，拒绝密文）**：
+   - 用户 JWT `POST /api/chats/{chatId}/bot-inbox` `{ "text": "/help", "botId": "optional" }`
+   - 斜杠菜单 `GET /api/chats/{chatId}/bot-commands`
+   - 用户↔bot 私聊 `POST /api/bots/{botId}/dm`
+   - 群里 `/cmd`、`/cmd@username`、`@bot text` 由客户端双发：成员气泡仍是 Sender Key，命令另送 inbox。
+   - webhook `message` 事件不再携带用户 TEXT 库存（那是密文）；命令正文只出现在 `user_command` 更新。
+7. **Health 名唯一**：`leakz` / `vaultz` / `sealz` / `markz` / `linkz` / `privz` / `metaz` 等不可撞名。  
+
 
 ---
 

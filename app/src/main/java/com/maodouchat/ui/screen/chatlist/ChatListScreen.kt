@@ -36,6 +36,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
@@ -53,6 +54,7 @@ import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.Campaign
+import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Notifications
@@ -66,6 +68,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
@@ -79,7 +83,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -127,20 +130,17 @@ import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
+import com.maodouchat.ui.component.AnimatedBottomNav
+import com.maodouchat.ui.component.BottomNavItem
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
 import com.maodouchat.ui.component.LiquidBottomTabItem
 import com.maodouchat.ui.component.LiquidBottomTabs
 import com.maodouchat.ui.component.PullToRefreshLayout
+import com.maodouchat.ui.component.SearchBar
 import com.maodouchat.ui.component.SwipeableChatItem
 import com.maodouchat.ui.component.ShimmerChatRow
 import com.maodouchat.ui.navigation.MainTab
 import com.maodouchat.ui.theme.LocalMotionSettings
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.Secondary
-import com.maodouchat.ui.theme.TextHint
-import com.maodouchat.ui.theme.TextSecondary
-import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.util.ChatFolderPolicy
 import com.maodouchat.util.HapticGate
 import kotlinx.coroutines.Dispatchers
@@ -151,6 +151,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.ui.theme.LocalLiquidGlassEnabled
 
 /** 1.54：底部导航「会话」未读角标总计数（ChatListViewModel 推送，BottomNavBar 订阅）。 */
 object UnreadBadgeStore {
@@ -202,6 +203,7 @@ fun ChatListScreen(
     var showMissedCallsSheet by rememberSaveable { mutableStateOf(false) }
     var showFolderManager by rememberSaveable { mutableStateOf(false) }
     var showCreateFolder by rememberSaveable { mutableStateOf(false) }
+    var showCreateMenu by remember { mutableStateOf(false) }
     var createFolderName by remember { mutableStateOf("") }
     var createFolderError by remember { mutableStateOf<String?>(null) }
     var renameFolderId by remember { mutableStateOf<String?>(null) }
@@ -231,7 +233,7 @@ fun ChatListScreen(
                 viewModel.refreshUnreadPriorityPreference()
                 viewModel.refreshLockedChats()
                 viewModel.refreshSecretChats()
-                viewModel.refresh()
+                viewModel.refreshOnForeground()
                 viewModel.refreshAnnouncements()
                 // 1.146：定时消息数随恢复刷新（详情页排期/取消后回到列表即时反映）
                 viewModel.refreshScheduledCounts()
@@ -264,15 +266,7 @@ fun ChatListScreen(
             val minApp = safeOpt("minAppVersion")
             val pqxdh = o.optBoolean("pqxdhPreview", false)
             val secretRequired = o.optBoolean("secretChatRequired", false)
-            val aiAnalyzeFileEnabledOn = if (o.has("aiAnalyzeFileEnabled")) o.optBoolean("aiAnalyzeFileEnabled", true) else true
-            val aiAnalyzeImageEnabledOn = if (o.has("aiAnalyzeImageEnabled")) o.optBoolean("aiAnalyzeImageEnabled", true) else true
-            val aiGroupAssistantEnabledOn = if (o.has("aiGroupAssistantEnabled")) o.optBoolean("aiGroupAssistantEnabled", true) else true
-            val aiRewriteEnabledOn = if (o.has("aiRewriteEnabled")) o.optBoolean("aiRewriteEnabled", true) else true
-            val aiSemanticSearchEnabledOn = if (o.has("aiSemanticSearchEnabled")) o.optBoolean("aiSemanticSearchEnabled", true) else true
-            val aiSuggestRepliesEnabledOn = if (o.has("aiSuggestRepliesEnabled")) o.optBoolean("aiSuggestRepliesEnabled", true) else true
-            val aiSummaryEnabledOn = if (o.has("aiSummaryEnabled")) o.optBoolean("aiSummaryEnabled", true) else true
-            val aiTranscribeEnabledOn = if (o.has("aiTranscribeEnabled")) o.optBoolean("aiTranscribeEnabled", true) else true
-            val aiTranslateEnabledOn = if (o.has("aiTranslateEnabled")) o.optBoolean("aiTranslateEnabled", true) else true
+
             val appLockEnabledOn = if (o.has("appLockEnabled")) o.optBoolean("appLockEnabled", true) else true
             val autoDownloadEnabledOn = if (o.has("autoDownloadEnabled")) o.optBoolean("autoDownloadEnabled", true) else true
             val blindWatermarkEnabledOn = if (o.has("blindWatermarkEnabled")) o.optBoolean("blindWatermarkEnabled", true) else true
@@ -282,7 +276,7 @@ fun ChatListScreen(
             val chatAnimationsEnabledOn = if (o.has("chatAnimationsEnabled")) o.optBoolean("chatAnimationsEnabled", true) else true
             val chatArchiveEnabledOn = if (o.has("chatArchiveEnabled")) o.optBoolean("chatArchiveEnabled", true) else true
             val chatDraftsEnabledOn = if (o.has("chatDraftsEnabled")) o.optBoolean("chatDraftsEnabled", true) else true
-            val chatExportEnabledOn = if (o.has("chatExportEnabled")) o.optBoolean("chatExportEnabled", true) else true
+            val chatExportEnabledOn = if (o.has("chatExportEnabled")) o.optBoolean("chatExportEnabled", false) else false
             val chatFoldersEnabledOn = if (o.has("chatFoldersEnabled")) o.optBoolean("chatFoldersEnabled", true) else true
             val chatFontScaleEnabledOn = if (o.has("chatFontScaleEnabled")) o.optBoolean("chatFontScaleEnabled", true) else true
             val chatLockEnabledOn = if (o.has("chatLockEnabled")) o.optBoolean("chatLockEnabled", true) else true
@@ -313,11 +307,10 @@ fun ChatListScreen(
             val messageRevokeEnabledOn = if (o.has("messageRevokeEnabled")) o.optBoolean("messageRevokeEnabled", true) else true
             val messageStarringEnabledOn = if (o.has("messageStarringEnabled")) o.optBoolean("messageStarringEnabled", true) else true
             val navTransitionsEnabledOn = if (o.has("navTransitionsEnabled")) o.optBoolean("navTransitionsEnabled", true) else true
-            val nearbyEnabledOn = if (o.has("nearbyEnabled")) o.optBoolean("nearbyEnabled", true) else true
+            val nearbyEnabledOn = if (o.has("nearbyEnabled")) o.optBoolean("nearbyEnabled", false) else false
             val notificationPreviewEnabledOn = if (o.has("notificationPreviewEnabled")) o.optBoolean("notificationPreviewEnabled", true) else true
             val notificationSoundEnabledOn = if (o.has("notificationSoundEnabled")) o.optBoolean("notificationSoundEnabled", true) else true
             val nudgeEnabledOn = if (o.has("nudgeEnabled")) o.optBoolean("nudgeEnabled", true) else true
-            val offlineAiEnabledOn = if (o.has("offlineAiEnabled")) o.optBoolean("offlineAiEnabled", true) else true
             val pollsEnabledOn = if (o.has("pollsEnabled")) o.optBoolean("pollsEnabled", true) else true
             val postsEnabledOn = if (o.has("postsEnabled")) o.optBoolean("postsEnabled", true) else true
             val presenceEnabledOn = if (o.has("presenceEnabled")) o.optBoolean("presenceEnabled", true) else true
@@ -361,15 +354,7 @@ fun ChatListScreen(
             val viewOnceEnabledOn = if (o.has("viewOnceEnabled")) o.optBoolean("viewOnceEnabled", true) else true
             val voiceCallEnabledOn = if (o.has("voiceCallEnabled")) o.optBoolean("voiceCallEnabled", true) else true
             val voiceMessagesEnabledOn = if (o.has("voiceMessagesEnabled")) o.optBoolean("voiceMessagesEnabled", true) else true
-            RuntimeFlags.setEnabled(context, RuntimeFlags.AI_ANALYZE_FILE, aiAnalyzeFileEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.AI_ANALYZE_IMAGE, aiAnalyzeImageEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.AI_GROUP_ASSISTANT, aiGroupAssistantEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.AI_REWRITE, aiRewriteEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.AI_SEMANTIC_SEARCH, aiSemanticSearchEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.AI_SUGGEST_REPLIES, aiSuggestRepliesEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.AI_SUMMARY, aiSummaryEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.AI_TRANSCRIBE, aiTranscribeEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.AI_TRANSLATE, aiTranslateEnabledOn)
+
             RuntimeFlags.setEnabled(context, RuntimeFlags.APP_LOCK, appLockEnabledOn)
             RuntimeFlags.setEnabled(context, RuntimeFlags.AUTO_DOWNLOAD, autoDownloadEnabledOn)
             RuntimeFlags.setEnabled(context, RuntimeFlags.BLIND_WATERMARK, blindWatermarkEnabledOn)
@@ -414,7 +399,6 @@ fun ChatListScreen(
             RuntimeFlags.setEnabled(context, RuntimeFlags.NOTIFICATION_PREVIEW, notificationPreviewEnabledOn)
             RuntimeFlags.setEnabled(context, RuntimeFlags.NOTIFICATION_SOUND, notificationSoundEnabledOn)
             RuntimeFlags.setEnabled(context, RuntimeFlags.NUDGE, nudgeEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.OFFLINE_AI, offlineAiEnabledOn)
             RuntimeFlags.setEnabled(context, RuntimeFlags.POLLS, pollsEnabledOn)
             RuntimeFlags.setEnabled(context, RuntimeFlags.POSTS, postsEnabledOn)
             RuntimeFlags.setEnabled(context, RuntimeFlags.PRESENCE, presenceEnabledOn)
@@ -518,7 +502,7 @@ fun ChatListScreen(
                             else -> stringResource(R.string.announcement_level_maintenance)
                         },
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (priorityAnnouncement.level == "EMERGENCY") UnreadRed else Primary
+                        color = if (priorityAnnouncement.level == "EMERGENCY") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                     )
                     Text(
                         priorityAnnouncement.content,
@@ -543,6 +527,9 @@ fun ChatListScreen(
         viewModel.exitSelectionMode()
     }
 
+    val liquidGlass = LocalLiquidGlassEnabled.current
+    val floatingDockOn by com.maodouchat.util.ChromePreferences.floatingDock.collectAsState()
+    val floatingDock = liquidGlass && floatingDockOn
     Scaffold(
         topBar = {
             TopAppBar(
@@ -593,20 +580,20 @@ fun ChatListScreen(
                             onClick = viewModel::batchTogglePinSelected,
                             enabled = hasSelection
                         ) {
-                            Icon(Icons.Outlined.PushPin, contentDescription = stringResource(R.string.chat_pin), tint = if (hasSelection) MaterialTheme.colorScheme.onSurface else TextHint)
+                            Icon(Icons.Outlined.PushPin, contentDescription = stringResource(R.string.chat_pin), tint = if (hasSelection) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         IconButton(
                             onClick = viewModel::batchMarkReadSelected,
                             enabled = hasSelection
                         ) {
-                            Icon(Icons.Outlined.DoneAll, contentDescription = stringResource(R.string.chat_mark_read), tint = if (hasSelection) MaterialTheme.colorScheme.onSurface else TextHint)
+                            Icon(Icons.Outlined.DoneAll, contentDescription = stringResource(R.string.chat_mark_read), tint = if (hasSelection) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         IconButton(
                             // 1.373：批量删除先确认（防止误触批量清空）
                             onClick = { showBatchDeleteConfirm = true },
                             enabled = hasSelection
                         ) {
-                            Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.chat_delete), tint = if (hasSelection) UnreadRed else TextHint)
+                            Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.chat_delete), tint = if (hasSelection) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
                         if (state.selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID) {
@@ -640,17 +627,107 @@ fun ChatListScreen(
                         IconButton(onClick = { viewModel.setShowArchived(!state.showArchived) }) {
                             Icon(if (state.showArchived) Icons.Outlined.Unarchive else Icons.Outlined.Archive, contentDescription = stringResource(R.string.chat_archived_title))
                         }
+                        if (liquidGlass) {
+                            Box {
+                                IconButton(onClick = { showCreateMenu = true }) {
+                                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.chat_empty_action_add))
+                                }
+                                DropdownMenu(
+                                    expanded = showCreateMenu,
+                                    onDismissRequest = { showCreateMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.contacts_add_contact)) },
+                                        onClick = {
+                                            showCreateMenu = false
+                                            onNavigateToTab(MainTab.CONTACTS)
+                                        },
+                                        leadingIcon = { Icon(Icons.Outlined.PersonAdd, contentDescription = null) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.contacts_start_group)) },
+                                        onClick = {
+                                            showCreateMenu = false
+                                            onNavigateToTab(MainTab.CONTACTS)
+                                        },
+                                        leadingIcon = { Icon(Icons.Filled.Group, contentDescription = null) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.chat_create_channel)) },
+                                        onClick = {
+                                            showCreateMenu = false
+                                            onNavigateToTab(MainTab.CONTACTS)
+                                        },
+                                        leadingIcon = { Icon(Icons.Outlined.Campaign, contentDescription = null) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.contacts_scan)) },
+                                        onClick = {
+                                            showCreateMenu = false
+                                            onOpenScan()
+                                        },
+                                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) }
+                                    )
+                                }
+                            }
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors()
+                colors = com.maodouchat.ui.theme.liquidGlassTopAppBarColors()
             )
         },
+        containerColor = if (liquidGlass) Color.Transparent else MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { onNavigateToTab(MainTab.CONTACTS) }) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.chat_empty_action_add))
+            if (!liquidGlass && !state.selectionMode) {
+                Box {
+                    FloatingActionButton(
+                        onClick = { showCreateMenu = true },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ) {
+                        Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.chat_empty_action_add))
+                    }
+                    DropdownMenu(
+                        expanded = showCreateMenu,
+                        onDismissRequest = { showCreateMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.contacts_add_contact)) },
+                            onClick = {
+                                showCreateMenu = false
+                                onNavigateToTab(MainTab.CONTACTS)
+                            },
+                            leadingIcon = { Icon(Icons.Outlined.PersonAdd, contentDescription = null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.contacts_start_group)) },
+                            onClick = {
+                                showCreateMenu = false
+                                onNavigateToTab(MainTab.CONTACTS)
+                            },
+                            leadingIcon = { Icon(Icons.Filled.Group, contentDescription = null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.chat_create_channel)) },
+                            onClick = {
+                                showCreateMenu = false
+                                onNavigateToTab(MainTab.CONTACTS)
+                            },
+                            leadingIcon = { Icon(Icons.Outlined.Campaign, contentDescription = null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.contacts_scan)) },
+                            onClick = {
+                                showCreateMenu = false
+                                onOpenScan()
+                            },
+                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) }
+                        )
+                    }
+                }
             }
-        }
+        },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             val bannerText = publicBanner ?: state.realtimeBanner
@@ -674,6 +751,13 @@ fun ChatListScreen(
                     }
                 }
             }
+
+            SearchBar(
+                value = state.searchQuery,
+                onValueChange = viewModel::onSearchQueryChange,
+                placeholder = stringResource(R.string.global_search_chats_placeholder),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+            )
 
             ChatFolderStrip(
                 folders = state.folders,
@@ -758,7 +842,12 @@ fun ChatListScreen(
                                 onScan = onOpenScan
                             )
                         } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = FloatingBottomBarContentPadding)) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                bottom = if (floatingDock) FloatingBottomBarContentPadding else 80.dp
+                            )
+                        ) {
                             val archivedCount = state.chats.count { it.archived }
                             if (!state.showArchived && archivedCount > 0 && state.searchQuery.isBlank()) {
                                 item(key = "archive-row") {
@@ -1319,7 +1408,10 @@ private fun ChatFolderStrip(
 ) {
     val scroll = rememberScrollState()
     Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(scroll).padding(horizontal = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(scroll)
+            .padding(horizontal = 8.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         FolderChip(stringResource(R.string.chat_folder_all), selectedFolderId.isNullOrBlank(), 0) { onSelectFolder(null) }
@@ -1335,44 +1427,46 @@ private fun ChatFolderStrip(
         folders.forEach { folder ->
             FolderChip(folder.name, selectedFolderId == folder.id, unreadInFolder(folder.id)) { onSelectFolder(folder.id) }
         }
-        TextButton(onClick = onCreate) { Text(stringResource(R.string.chat_folder_create)) }
-        TextButton(onClick = onManage) { Text(stringResource(R.string.chat_folder_manage)) }
+        TextButton(
+            onClick = onCreate,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+            modifier = Modifier.height(32.dp),
+            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                contentColor = MaterialTheme.colorScheme.onSurface
+            )
+        ) { Text(stringResource(R.string.chat_folder_create), style = MaterialTheme.typography.labelMedium) }
+        TextButton(
+            onClick = onManage,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+            modifier = Modifier.height(32.dp),
+            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                contentColor = MaterialTheme.colorScheme.onSurface
+            )
+        ) { Text(stringResource(R.string.chat_folder_manage), style = MaterialTheme.typography.labelMedium) }
     }
 }
 
 @Composable
 private fun FolderChip(label: String, selected: Boolean, badge: Int, onClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                label,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
-                ),
-                color = if (selected) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary
-            )
-            if (badge > 0) {
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    if (badge > 99) "99+" else badge.toString(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (selected) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint
-                )
-            }
-        }
-        Spacer(Modifier.height(6.dp))
-        Box(
-            modifier = Modifier
-                .height(2.dp)
-                .width(if (selected) 28.dp else 0.dp)
-                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(1.dp))
+    val chipLabel = if (badge > 0) "$label ${if (badge > 99) "99+" else badge}" else label
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(chipLabel, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelMedium) },
+        modifier = Modifier.padding(end = 6.dp).height(32.dp),
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
+        border = FilterChipDefaults.filterChipBorder(
+            enabled = true,
+            selected = selected,
+            borderColor = MaterialTheme.colorScheme.outlineVariant,
+            selectedBorderColor = MaterialTheme.colorScheme.outline,
         )
-    }
+    )
 }
 
 @Composable
@@ -1493,7 +1587,15 @@ private fun ChatListItem(
         MessageType.VIDEO -> stringResource(R.string.message_preview_video)
         MessageType.FILE -> stringResource(R.string.message_preview_file)
         MessageType.NUDGE -> stringResource(R.string.message_preview_nudge)
-        else -> com.maodouchat.ui.component.ChatMarkdown.stripContactCardMarker(chat.lastMessage)
+        else -> {
+            val placeholder = stringResource(R.string.message_preview_encrypted)
+            val stripped = com.maodouchat.data.repository.ChatListPreviewPolicy.listVisibleText(
+                chat.lastMessage,
+                placeholder
+            )
+            if (stripped == placeholder) placeholder
+            else com.maodouchat.ui.component.ChatMarkdown.stripContactCardMarker(stripped)
+        }
     }
     // 1.103：对端正在输入 → 预览最优先（锁/密聊不泄露输入状态）
     val typingPreview = if (typingUserId != null && !isLocked && !secretListBlock) stringResource(R.string.chat_typing) else null
@@ -1511,7 +1613,13 @@ private fun ChatListItem(
             .fillMaxWidth()
             .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
             .alpha(if (isDeleting) 0.45f else 1f)
-            .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f) else MaterialTheme.colorScheme.surface)
+            .background(
+                when {
+                    isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    chat.pinnedAt > 0 -> MaterialTheme.colorScheme.surfaceContainer
+                    else -> MaterialTheme.colorScheme.surface
+                }
+            )
             .combinedClickable(
                 interactionSource = interactionSource,
                 onClick = {
@@ -1530,7 +1638,7 @@ private fun ChatListItem(
             Icon(
                 imageVector = if (isSelected) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
                 contentDescription = null,
-                tint = if (isSelected) Primary else TextHint,
+                tint = if (isSelected) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint,
                 modifier = Modifier.size(22.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -1556,7 +1664,7 @@ private fun ChatListItem(
                     formatChatTime(chat.lastMessageTime),
                     style = MaterialTheme.typography.labelSmall,
                     // 9.276：TG 式——有未读时时间用强调色，否则中性 hint
-                    color = if (hasUnread) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Spacer(modifier = Modifier.height(2.dp))
@@ -1580,7 +1688,7 @@ private fun ChatListItem(
                 Text(
                     if (searchQuery.isNotBlank()) highlightedText(finalPreview, searchQuery) else androidx.compose.ui.text.AnnotatedString(finalPreview),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (typingPreview != null) Primary else if (scheduledLabel != null) Secondary else TextSecondary,
+                    color = if (typingPreview != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
@@ -1598,23 +1706,21 @@ private fun ChatListItem(
                     Spacer(Modifier.width(8.dp))
                     // 1.182：点击未读角标直接标记已读（不进入会话）
                     // 9.269：TG 式未读角标——全胶囊形 + 绿色（TG 标志观感，原主题色圆角矩形）
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(percent = 50))
-                            .background(LocalChatPalette.current.onlineGreen)
-                            .then(
-                                if (unreadLabel.isBlank()) Modifier.size(10.dp)
-                                else Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                            )
-                            .then(if (onBadgeClick != null) Modifier.clickable(onClick = onBadgeClick) else Modifier),
-                        contentAlignment = Alignment.Center
+                    androidx.compose.material3.Badge(
+                        modifier = if (onBadgeClick != null) Modifier.clickable(onClick = onBadgeClick) else Modifier,
+                        containerColor = if (chat.notificationsMuted) {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                        contentColor = if (chat.notificationsMuted) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onPrimary
+                        }
                     ) {
                         if (unreadLabel.isNotBlank()) {
-                            Text(
-                                unreadLabel,
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
-                            )
+                            Text(unreadLabel, style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -1632,11 +1738,11 @@ private fun MissedCallsCard(calls: List<MissedCall>, onOpen: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f))
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f))
             .combinedClickable(onClick = onOpen)
-            .padding(12.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(Icons.Filled.Call, contentDescription = null, tint = MaterialTheme.colorScheme.error)
@@ -1766,15 +1872,30 @@ fun BottomNavBar(
             label = stringResource(R.string.nav_settings)
         )
     )
-    LiquidBottomTabs(
-        selectedTabIndex = selectedTab,
-        onTabSelected = onTabSelected,
-        tabs = tabs,
-        modifier = modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(start = 20.dp, top = 8.dp, end = 20.dp, bottom = 10.dp)
-    )
+    val liquidGlass = LocalLiquidGlassEnabled.current
+    val floatingDockOn by com.maodouchat.util.ChromePreferences.floatingDock.collectAsState()
+    if (liquidGlass && floatingDockOn) {
+        LiquidBottomTabs(
+            selectedTabIndex = selectedTab,
+            onTabSelected = onTabSelected,
+            tabs = tabs,
+            modifier = modifier
+        )
+    } else {
+        AnimatedBottomNav(
+            selectedIndex = selectedTab,
+            onItemSelected = onTabSelected,
+            items = tabs.map { tab ->
+                BottomNavItem(
+                    icon = tab.icon,
+                    selectedIcon = tab.selectedIcon,
+                    label = tab.label,
+                    badgeCount = tab.badgeCount
+                )
+            },
+            modifier = modifier.navigationBarsPadding()
+        )
+    }
 }
 
 private fun relativeTime(ts: Long): String {
@@ -1899,7 +2020,7 @@ private fun highlightedText(text: String, query: String) = buildAnnotatedString 
     var cursor = 0
     snippet.highlights.forEach { span ->
         if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-        pushStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+        pushStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)))
         append(snippet.text.substring(span.start, span.end))
         pop()
         cursor = span.end

@@ -105,7 +105,8 @@
     <plurals name="time_days_ago"><item quantity="other">%d 天前</item></plurals>
     <string name="contacts_search">搜索</string>
     <string name="contacts_start_group">发起群聊</string>
-    <string name="contacts_search_placeholder">搜索联系人</string>
+    <string name="contacts_search_placeholder">搜索用户名添加联系人</string>
+    <string name="contacts_add_contact">添加联系人</string>
     <string name="contacts_new_group">新群聊</string>
     <string name="contacts_empty">没有找到联系人</string>
     <string name="contacts_new_group_search_empty">无匹配联系人（可按姓名/ID/邮箱搜索）</string>
@@ -116,10 +117,11 @@
     </plurals>
     <string name="contacts_no_matching_users">没有找到匹配的用户</string>
     <string name="contacts_group_name">群聊名称</string>
-    <string name="contacts_select_members">选择群成员（%1$d）</string>
+    <string name="contacts_select_members">选择群成员（%1$d，可留空）</string>
     <string name="contacts_create">创建</string>
     <string name="contacts_enter_group_name">请输入群聊名称</string>
-    <string name="contacts_select_group_members">请选择群成员</string>
+    <string name="contacts_select_group_members">可先不选成员，创建后再邀请</string>
+    <string name="contacts_group_members_optional">成员可选，一个人也能建群，之后再邀请。</string>
     <string name="error_session_expired">登录已过期，请重新登录</string>
     <string name="contacts_create_chat_failed">创建聊天失败</string>
     <string name="contacts_load_failed">联系人加载失败，请检查网络后重试</string>
@@ -343,9 +345,9 @@
         <item quantity="other">已导出 %1$d 条消息</item>
     </plurals>
     <string name="chat_export_empty">当前会话没有可导出的消息</string>
-    <string name="chat_clear_history_title">清除本地消息？</string>
-    <string name="chat_clear_history_body">将删除本机该会话消息与媒体缓存，无法撤销。服务端密文仍在，重新打开可能再次同步。会话 PIN、草稿与群设置保留。</string>
-    <string name="chat_clear_history_done">已清除本地消息</string>
+    <string name="chat_clear_history_title">删除本机缓存？</string>
+    <string name="chat_clear_history_body">将删除本机该会话已解密的消息和媒体，无法撤销。服务端只有密文，没有明文备份；同一条密文不能再解一次，不会变回可读记录。对方设备不受影响。</string>
+    <string name="chat_clear_history_done">已清除本机明文。云端没有可读备份。</string>
     <string name="chat_permission_record">需要麦克风权限才能录音</string>
     <string name="chat_permission_voice_call">需要麦克风权限才能进行语音通话</string>
     <string name="chat_permission_video_call">需要麦克风和摄像头权限才能进行视频通话</string>
@@ -627,6 +629,7 @@
     </plurals>
     <string name="chat_forward_search_empty">没有匹配的会话</string>
     <string name="chat_send_failed">发送失败</string>
+    <string name="chat_send_failed_no_devices">对方还没有可用的加密设备（尚未登录过 App）。等对方登录后再发。</string>
     <string name="chat_send_failed_retry">消息发送失败，是否重新发送？</string>
     <string name="chat_retry">重发</string>
     <string name="chat_fullscreen_image">全屏图片</string>
@@ -1166,6 +1169,7 @@
     <string name="chat_decrypt_session_missing">[缺少会话密钥，请等待对方重新发送]</string>
     <string name="chat_decrypt_identity_changed">[对方安全码已变化，请验证身份]</string>
     <string name="chat_decrypt_failed">[无法解密的消息]</string>
+    <string name="chat_decrypt_new_device">此设备是新设备。云端历史仍是密文，需对方重新发消息或等待群密钥重分发后才能阅读。本机已发送且未保存在本机的消息无法由本设备解密。</string>
     <string name="chat_decrypt_image_failed">[无法解密的图片]</string>
     <string name="chat_decrypt_gif_failed">[无法解密的 GIF]</string>
     <string name="chat_decrypt_sticker_failed">[无法解密的贴纸]</string>
@@ -1329,7 +1333,7 @@
     <string name="chat_lock_disabled">已关闭聊天 PIN</string>
     <string name="chat_lock_cleared_local">已清除本地记录并解除 PIN</string>
     <string name="chat_lock_forgot_confirm_title">清除本地聊天？</string>
-    <string name="chat_lock_forgot_confirm_body">将删除本机该会话消息与 PIN，无法撤销。服务端密文历史仍在，重新打开可能再次同步。</string>
+    <string name="chat_lock_forgot_confirm_body">将删除本机该会话已解密消息与 PIN，无法撤销。云端没有明文备份，不会变回可读记录。</string>
     <string name="chat_lock_list_indicator">已锁定</string>
     <string name="chat_lock_list_preview">内容已锁定</string>
     <string name="secret_chat_menu_enable">开启密聊</string>
@@ -1410,6 +1414,7 @@
     <string name="call_peer_busy">对方忙线中</string>
     <string name="call_handle_signaling_failed">处理通话信令失败：%1$s</string>
     <string name="call_establishing">正在建立通话…</string>
+    <string name="call_webrtc_downloading">正在下载通话组件 %1$d%%</string>
     <string name="call_calling_video">正在呼叫（视频）…</string>
     <string name="call_calling">正在呼叫…</string>
     <string name="call_incoming_ringing">来电响铃中…</string>
@@ -1435,6 +1440,12 @@
     <string name="settings_account_security">安全中心</string>
     <string name="security_center_title">安全中心</string>
     <string name="security_center_subtitle">设备、端到端加密与应用锁一页看懂</string>
+    <string name="security_section_about">加密范围</string>
+    <string name="security_section_account">账号</string>
+    <string name="security_section_devices">登录设备</string>
+    <string name="security_section_danger">危险操作</string>
+    <string name="security_section_lock">本机锁与防截屏</string>
+    <string name="security_section_secret">密聊（仅本机）</string>
     <string name="security_e2ee_ready">端到端加密已就绪</string>
     <string name="security_e2ee_not_ready">端到端加密未就绪</string>
     <string name="security_e2ee_hint">私聊与群聊默认加密；服务端无法读取消息明文</string>
@@ -1450,12 +1461,12 @@
     <string name="security_scope_body">• 私聊/群聊正文与加密附件：端到端加密，服务端只存密文与路由元数据\n• 安全码：本应用自研 5 位分组格式，用于人工核对身份；变更时会在聊天内提示\n• 密聊：本机防截屏（FLAG_SECURE）+ 盲水印 + 通知/导出脱敏；非双端协议，无法对抗外置相机\n• 本地库：SQLCipher 加密；退出登录会按策略清理本机会话\n• 推送：WebSocket 长连接 + 前台保活（无 FCM / 厂商通道）\n• AI：默认不读密文；需你主动触发且可在设置关闭；管理端审计不含 prompt/正文\n• 备份：若启用服务端备份，范围以备份说明为准，不等于明文可读</string>
     <string name="settings_notifications">新消息通知</string>
     <string name="settings_privacy">隐私</string>
-    <string name="settings_ai_privacy">AI 助手与隐私</string>
-    <string name="settings_moderation">内容审核</string>
+    <string name="settings_ai_privacy">AI 与隐私</string>
+    <string name="settings_moderation">内容审核与风控</string>
     <string name="settings_general">通用</string>
     <string name="settings_starred_messages">全部星标消息</string>
     <string name="settings_logout">退出登录</string>
-    <string name="settings_logout_message">退出后将清除本地聊天数据，确定要退出吗？</string>
+    <string name="settings_logout_message">退出后仍保留本机加密身份和聊天记录。换账号登录才会清空本地库。确定退出？</string>
     <string name="settings_logout_confirm">退出</string>
     <string name="profile_change_avatar">更换头像</string>
     <string name="profile_remove_avatar">移除头像</string>
@@ -1474,8 +1485,26 @@
     <string name="settings_username_updated">用户名已更新</string>
     <string name="settings_username_update_failed">用户名更新失败</string>
     <string name="settings_share_profile">分享个人主页</string>
-    <string name="privacy_show_online_title">展示在线状态</string>
+    <string name="privacy_show_online_title">在线状态可见范围</string>
     <string name="privacy_show_online_subtitle">关闭后，其他人不会看到你的在线状态</string>
+    <string name="privacy_online_visibility_subtitle">谁可以看到你在使用毛豆聊天</string>
+    <string name="privacy_online_everyone">所有人</string>
+    <string name="privacy_online_contacts">仅联系人</string>
+    <string name="privacy_online_nobody">无人</string>
+    <string name="about_source">开源地址</string>
+    <string name="about_source_url">https://github.com/xalor888/Maodouchat</string>
+    <string name="about_check_update">检查更新</string>
+    <string name="about_update_latest">已是最新版本</string>
+    <string name="about_update_available">发现新版本 %1$s</string>
+    <string name="about_update_download">下载并安装</string>
+    <string name="about_update_downloading">正在下载更新 %1$d%%</string>
+    <string name="about_update_install_failed">无法安装更新。请允许本应用安装未知来源应用后重试。</string>
+    <string name="about_update_failed">暂时无法检查更新</string>
+    <string name="about_update_notes">更新说明</string>
+    <string name="developer_bots_commands_title">可用 Bot 命令</string>
+    <string name="developer_bots_commands_body">创建 / 轮换 Token / Webhook / sendMessage / 置顶 / 反应 / 投票 / getUpdates / listCapabilities。完整契约见开源仓库 docs/bot-developer-api.md。</string>
+    <string name="ai_privacy_auto_translate">自动翻译收到的消息</string>
+    <string name="ai_privacy_auto_translate_hint">开启后，收到的外文消息会用本机配置的模型译成当前界面语言。不会把聊天明文发到毛豆服务器。</string>
     <string name="privacy_searchable_title">允许被发现</string>
     <string name="privacy_searchable_subtitle">关闭后，不会出现在公开联系人列表中</string>
     <string name="privacy_default_post_visibility">默认动态可见范围</string>
@@ -1525,10 +1554,13 @@
     <string name="media_saved">已保存到相册</string>
     <string name="media_save_failed">保存失败</string>
     <string name="chat_clear_history">清空聊天记录</string>
-    <string name="chat_clear_history_confirm">确定清空本机聊天记录？此操作不可恢复，且不影响对方设备上的记录。</string>
+    <string name="chat_clear_history_confirm">确定清空本机已解密的聊天记录？无法撤销。云端没有明文备份，不会变回可读记录。对方设备不受影响。</string>
     <string name="chat_clear_history_yes">清空</string>
-    <string name="chat_clear_local_history">清除本地记录</string>
-    <string name="chat_clear_local_history_confirm">清除「%1$s」的本地聊天记录？此操作不可恢复，不影响对方设备与服务端密文。</string>
+    <string name="chat_clear_local_history">删除本机缓存</string>
+    <string name="chat_clear_local_history_confirm">删除「%1$s」在本机已解密的消息和媒体？无法撤销。云端没有明文，不会变回可读记录。</string>
+    <string name="general_floating_dock">悬浮底栏</string>
+    <string name="general_floating_dock_subtitle">默认主题下用悬浮胶囊底栏；关闭后贴底导航，避免挡住会话列表加号。</string>
+    <string name="group_detail_play">群功能</string>
     <string name="chat_view_shared_media">查看共享媒体</string>
     <string name="chat_view_starred">查看收藏</string>
     <string name="settings_blocked_users">黑名单</string>
@@ -1751,9 +1783,44 @@
     <string name="moderation_report_closed">举报已结案</string>
     <string name="moderation_action_failed">处置失败</string>
 
-    <string name="ai_privacy_global">全局 AI 助手</string>
-    <string name="ai_privacy_global_enabled_hint">允许在聊天中使用 AI 改写、回复建议和摘要</string>
-    <string name="ai_privacy_global_disabled_hint">关闭后所有聊天 AI 功能不可用</string>
+    <string name="ai_privacy_global">聊天内 AI</string>
+    <string name="ai_privacy_global_enabled_hint">允许在聊天中改写、建议回复和摘要。模型由本机配置，聊天明文不经毛豆服务器。</string>
+    <string name="agent_title">毛豆助手</string>
+    <string name="agent_new_session">新对话</string>
+    <string name="agent_privacy_hint">助手跑在本机，可读已解密会话、草稿、星标、联系人、待办、未接来电和通知。置顶/免打扰/发消息/改草稿等要你批准，发送走现有端到端加密。密聊与未解锁 PIN 会话不可读。不能点屏幕、写任意 SQL 或改系统。</string>
+    <string name="agent_role_you">你</string>
+    <string name="agent_role_assistant">助手</string>
+    <string name="agent_approval_title">需要你批准</string>
+    <string name="agent_reject">拒绝</string>
+    <string name="agent_approve">批准</string>
+    <string name="agent_input_hint">问本机助手…</string>
+    <string name="agent_send">发送</string>
+    <string name="agent_open">打开助手</string>
+    <string name="agent_provider_title">本机模型</string>
+    <string name="agent_provider_hint">模型配置只存在本机加密存储，不会发到毛豆服务器。支持 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages。聊天密文也不会经毛豆服务器送模型。</string>
+    <string name="agent_provider_name">名称</string>
+    <string name="agent_provider_base_url">接口地址</string>
+    <string name="agent_provider_model">模型名</string>
+    <string name="agent_provider_api_key">API Key</string>
+    <string name="agent_provider_protocol">协议</string>
+    <string name="agent_protocol_chat_completions">OpenAI Chat Completions</string>
+    <string name="agent_protocol_responses">OpenAI Responses</string>
+    <string name="agent_protocol_anthropic">Anthropic Messages</string>
+    <string name="agent_provider_organization">OpenAI Organization（可选）</string>
+    <string name="agent_provider_anthropic_version">Anthropic-Version</string>
+    <string name="agent_provider_extra_headers">额外 HTTP 头（JSON）</string>
+    <string name="agent_provider_context_title">上下文与采样</string>
+    <string name="agent_provider_context_window">上下文窗口（token 估算）</string>
+    <string name="agent_provider_history_limit">助手历史条数</string>
+    <string name="agent_provider_max_tokens">最大输出 token</string>
+    <string name="agent_provider_temperature">Temperature（可空）</string>
+    <string name="agent_provider_top_p">Top P（可空）</string>
+    <string name="agent_provider_timeout">超时秒数</string>
+    <string name="agent_provider_stream">流式输出</string>
+    <string name="agent_provider_stream_hint">无工具调用时按 SSE 流式返回。工具轮次仍走非流式。</string>
+    <string name="agent_provider_save">保存模型</string>
+    <string name="agent_provider_saved">已保存本机模型</string>
+    <string name="ai_privacy_global_disabled_hint">关闭后聊天内 AI 功能不可用</string>
     <string name="ai_privacy_local_consent">本机 AI 授权</string>
     <string name="ai_privacy_local_consent_hint">关闭后，下次使用 AI 前会重新确认数据处理方式</string>
     <string name="ai_privacy_recent_calls">最近 AI 调用</string>
@@ -1780,8 +1847,8 @@
     <string name="ai_status_disabled">已关闭</string>
     <string name="ai_status_rate_limited">限流</string>
     <string name="ai_status_unknown">未知</string>
-    <string name="ai_privacy_global_enabled">已开启全局 AI 助手</string>
-    <string name="ai_privacy_global_disabled">已关闭全局 AI 助手</string>
+    <string name="ai_privacy_global_enabled">已开启聊天内 AI</string>
+    <string name="ai_privacy_global_disabled">已关闭聊天内 AI</string>
     <string name="ai_privacy_save_failed">AI 设置保存失败</string>
     <string name="ai_privacy_local_allowed">已允许本机使用 AI 功能</string>
     <string name="ai_privacy_local_revoked">已撤销本机 AI 授权</string>
@@ -1933,10 +2000,10 @@
     <string name="general_night_window_title">夜间模式时段</string>
     <string name="general_night_start">开始时间</string>
     <string name="general_night_end">结束时间</string>
-    <string name="general_theme_style_title">主题风格</string>
+    <string name="general_theme_style_title">外观</string>
     <string name="general_theme_style_summary">当前：%1$s</string>
-    <string name="general_theme_style_maodou">毛豆（默认）</string>
-    <string name="general_theme_style_tg_classic">TG 经典</string>
+    <string name="general_theme_style_maodou">默认</string>
+    <string name="general_theme_style_tg_classic">默认</string>
     <string name="general_theme_style_tg_midnight">TG 朝霞·午夜</string>
     <string name="general_theme_style_tg_graphite">TG 冰蓝·石墨</string>
     <string name="general_theme_style_tg_badge">1:1 还原</string>
@@ -2298,6 +2365,11 @@
     <string name="group_play_bot_invited">机器人已加入群聊</string>
     <string name="group_play_bot_invite_failed">邀请机器人失败</string>
     <string name="group_play_invite_bot">邀请我的机器人</string>
+    <string name="group_play_invite_bot_title">选择要邀请的机器人</string>
+    <string name="group_play_invite_bot_empty">还没有可邀请的机器人。请先在设置里创建。</string>
+    <string name="chat_bot_slash_picker_title">机器人命令</string>
+    <string name="developer_bots_open_chat">打开私聊</string>
+    <string name="developer_bots_open_chat_failed">无法打开与机器人的私聊</string>
     <string name="group_play_lucky">群抽奖</string>
     <string name="group_play_lucky_empty">群内没有可抽奖成员</string>
     <string name="ai_offline_suggestions_hint">云端 AI 暂不可用，已生成本地建议回复</string>
@@ -2828,6 +2900,8 @@
 
     <string name="chat_attachment_paste">剪贴板图片</string>
     <string name="chat_clipboard_no_image">剪贴板中没有可发送的图片</string>
+    <string name="chat_image_picker_unavailable">无法打开图库，请稍后重试</string>
+    <string name="chat_video_picker_unavailable">无法打开视频选择器，请稍后重试</string>
 
     <string name="chat_group_muted_until">你已被群管理员禁言，剩余约 %1$s</string>
     <string name="chat_mute_minutes">%1$d 分钟</string>

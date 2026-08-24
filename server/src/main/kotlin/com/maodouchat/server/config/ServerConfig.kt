@@ -52,6 +52,11 @@ object ServerConfig {
             .toIntOrNull()?.coerceIn(2, 128) ?: (Runtime.getRuntime().availableProcessors() * 2 + 1).coerceAtMost(64)
 
     val storageDir: String = env("STORAGE_DIR", "./uploads")
+    /**
+     * GitHub Actions 把 Release APK 推到本机的 Bearer token（≥16 字符）。
+     * 空 = 关闭 PUT /api/internal/app-update。
+     */
+    val updateDeployToken: String get() = env("UPDATE_DEPLOY_TOKEN", "")
     /** Trust proxy-supplied client IP headers only when the Ktor port is isolated behind a known proxy. */
     val trustProxyHeaders: Boolean get() = env("TRUST_PROXY_HEADERS", "false").toBooleanStrictOrNull() ?: false
 
@@ -71,13 +76,13 @@ object ServerConfig {
      * Authenticated requests use [authenticatedRateLimitPerMinute] keyed by user id instead,
      * so several real users behind one NAT IP can never exhaust each other's budget.
      */
-    val globalRateLimitPerMinute: Int get() = env("GLOBAL_RATE_LIMIT_PER_MINUTE", "600").toIntOrNull()?.coerceIn(30, 60_000) ?: 600
+    val globalRateLimitPerMinute: Int get() = env("GLOBAL_RATE_LIMIT_PER_MINUTE", "1200").toIntOrNull()?.coerceIn(30, 60_000) ?: 1200
     /**
      * Per-user rate limit: requests per minute for authenticated requests.
      * Normal client bursts (chat list + per-chat sync + prekey bundles for every group member)
      * easily reach several hundred requests in a minute, so the budget must be generous.
      */
-    val authenticatedRateLimitPerMinute: Int get() = env("USER_RATE_LIMIT_PER_MINUTE", "2000").toIntOrNull()?.coerceIn(120, 120_000) ?: 2000
+    val authenticatedRateLimitPerMinute: Int get() = env("USER_RATE_LIMIT_PER_MINUTE", "4000").toIntOrNull()?.coerceIn(120, 120_000) ?: 4000
     /** Login/register rate limit: attempts per minute per IP. */
     val authRateLimitPerMinute: Int get() = env("AUTH_RATE_LIMIT_PER_MINUTE", "10").toIntOrNull()?.coerceIn(3, 100) ?: 10
     /** AI endpoint rate limit: requests per minute per user. */
@@ -101,18 +106,8 @@ object ServerConfig {
 
     val openAiApiKey: String get() = env("OPENAI_API_KEY", "")
     val openAiBaseUrl: String get() = normalizeHttpScheme(env("OPENAI_BASE_URL", "https://api.openai.com/v1"))
-    /**
-     * 默认/轻量模型别名，向后兼容。新代码应使用 [openAiModelLight] / [openAiModelStrong] / [openAiModelFallback]。
-     * 默认值必须是 OpenAI 公开 API 上真实可用的模型，避免全新部署时 404。
-     */
-    val openAiModel: String get() = env("OPENAI_MODEL", openAiModelLight)
-    /** 轻量模型：translate / suggestReplies / rewrite 等低延迟任务。 */
-    val openAiModelLight: String get() = env("OPENAI_MODEL_LIGHT", "gpt-4o-mini")
-    /** 强力模型：summarize / groupAssistant / analyzeFile / analyzeImage / semanticSearch 等需要推理的任务。 */
-    val openAiModelStrong: String get() = env("OPENAI_MODEL_STRONG", "gpt-4o")
-    /** 兜底模型：主模型上游错误时的单次回退尝试。 */
-    val openAiModelFallback: String get() = env("OPENAI_MODEL_FALLBACK", "gpt-4o-mini")
-    val openAiTranscriptionModel: String get() = env("OPENAI_TRANSCRIPTION_MODEL", "whisper-1")
+    /** 仅给动态/评论审核用。聊天推理不走毛豆云。 */
+    val openAiModel: String get() = env("OPENAI_MODEL", env("OPENAI_MODEL_LIGHT", "gpt-4o-mini"))
 
     /**
      * 历史 HMAC 密钥（/api/push/verify-key）。FCM 已移除，不再用于离线投递。
@@ -233,7 +228,7 @@ object ServerConfig {
         require(!smtpDevMode) { "Production requires SMTP_HOST; email verification dev mode is not allowed. For self-hosted deployments without SMTP set RELAXED_VERIFICATION=true." }
         require(turnUrls.isNotEmpty()) { "Production requires TURN_URLS for reliable WebRTC connectivity. For self-hosted deployments set RELAXED_VERIFICATION=true." }
         require(turnSharedSecret.length >= 32) { "Production TURN_SHARED_SECRET must be at least 32 characters." }
-        // OPENAI_API_KEY is optional: empty disables /api/ai/* with 503; chat still works.
+        // OPENAI_API_KEY is optional: used only for feed/comment moderation when that flag is on.
     }
 
     private fun env(name: String, defaultValue: String): String {

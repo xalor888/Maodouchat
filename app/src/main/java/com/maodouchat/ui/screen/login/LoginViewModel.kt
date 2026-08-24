@@ -371,6 +371,10 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                             .onFailure { android.util.Log.w("LoginViewModel", "ai task reminder scheduling failed", it) }
                         runCatching { com.maodouchat.attachment.AttachmentTransferCoordinator.reconcile(app) }
                             .onFailure { android.util.Log.w("LoginViewModel", "attachment reconcile after login failed", it) }
+                        runCatching {
+                            com.maodouchat.crypto.SenderKeyRetryWorkScheduler.ensureScheduled(app)
+                            app.senderKeyRetryManager.processDueTasks()
+                        }.onFailure { android.util.Log.w("LoginViewModel", "sender-key retry resume after login failed", it) }
                     },
                     onFailure = { error ->
                         _uiState.update {
@@ -401,7 +405,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         // 8.61：重入守卫——连点登出/与 NavGraph tokenExpired 并发 purge 只执行一次
         if (logoutJob?.isActive == true) return
         logoutJob = viewModelScope.launch {
-            app.secureSessionManager.purgeLocalSession()
+            app.secureSessionManager.purgeLocalSession(
+                destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
+                    com.maodouchat.security.LogoutStorePolicy.Reason.LOGOUT
+                )
+            )
             _uiState.update { LoginUiState() }
         }
     }

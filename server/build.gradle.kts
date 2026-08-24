@@ -97,18 +97,21 @@ dependencies {
 // 手工同步的 server/src/main/resources/webrtc/ 被 gitignore，Docker 构建拿不到，
 // 只能靠此任务在 installDist 前落盘。本地已存在的同步文件不重复覆盖。
 val extractWebRtcNativeLib = tasks.register("extractWebRtcNativeLib") {
-    val dest = layout.projectDirectory.file("src/main/resources/webrtc/arm64-v8a/libjingle_peerconnection_so.so")
-    outputs.file(dest)
+    val destDir = layout.projectDirectory.dir("src/main/resources/webrtc")
+    val abis = listOf("arm64-v8a", "x86_64")
+    outputs.files(abis.map { destDir.file("$it/libjingle_peerconnection_so.so") })
     doLast {
         val aar = webrtcNative.singleFile
-        if (!dest.asFile.isFile) {
-            dest.asFile.parentFile.mkdirs()
-            ZipFile(aar).use { zip ->
-                val entry = zip.getEntry("jni/arm64-v8a/libjingle_peerconnection_so.so")
-                    ?: error("webrtc aar missing jni/arm64-v8a/libjingle_peerconnection_so.so")
-                zip.getInputStream(entry).use { input -> dest.asFile.outputStream().use { input.copyTo(it) } }
+        ZipFile(aar).use { zip ->
+            for (abi in abis) {
+                val dest = destDir.file("$abi/libjingle_peerconnection_so.so").asFile
+                if (dest.isFile) continue
+                dest.parentFile.mkdirs()
+                val entry = zip.getEntry("jni/$abi/libjingle_peerconnection_so.so")
+                    ?: error("webrtc aar missing jni/$abi/libjingle_peerconnection_so.so")
+                zip.getInputStream(entry).use { input -> dest.outputStream().use { input.copyTo(it) } }
+                logger.lifecycle("extracted WebRTC native lib ($abi) to $dest")
             }
-            logger.lifecycle("extracted WebRTC native lib to ${dest.asFile}")
         }
     }
 }

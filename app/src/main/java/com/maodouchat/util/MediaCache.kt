@@ -228,7 +228,15 @@ object MediaCache {
             }
         }
         var copied = 0L
-        context.contentResolver.openInputStream(source)?.use { input ->
+        val inputStream = if (source.scheme == "file") {
+            source.path?.let { path ->
+                val file = File(path)
+                if (file.isFile) file.inputStream() else null
+            }
+        } else {
+            context.contentResolver.openInputStream(source)
+        }
+        inputStream?.use { input ->
             target.outputStream().buffered().use { output ->
                 val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                 while (true) {

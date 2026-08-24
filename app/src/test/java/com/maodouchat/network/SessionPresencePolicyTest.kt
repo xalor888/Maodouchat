@@ -64,8 +64,8 @@ class SessionPresencePolicyTest {
     }
 
     @Test
-    fun expiredAccessWithExpiredRefreshIsLoggedOut() {
-        assertFalse(
+    fun expiredAccessWithExpiredLocalRefreshStillLoggedInUntilServerRevokes() {
+        assertTrue(
             SessionPresencePolicy.isLoggedIn(
                 token = "access",
                 userId = "u1",

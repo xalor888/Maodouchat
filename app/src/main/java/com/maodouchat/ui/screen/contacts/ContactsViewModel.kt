@@ -924,10 +924,10 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
 
     fun createGroupChat(groupName: String, members: List<User>) {
         val name = groupName.trim()
-        when {
-            name.isBlank() -> _uiState.update { it.copy(errorMessage = text(R.string.contacts_enter_group_name)) }
-            members.isEmpty() -> _uiState.update { it.copy(errorMessage = text(R.string.contacts_select_group_members)) }
-            else -> createChat(participantIds = members.map { it.id }, isGroup = true, groupName = name)
+        if (name.isBlank()) {
+            _uiState.update { it.copy(errorMessage = text(R.string.contacts_enter_group_name)) }
+        } else {
+            createChat(participantIds = members.map { it.id }, isGroup = true, groupName = name)
         }
     }
 

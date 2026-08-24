@@ -14,18 +14,9 @@ object RuntimeFlags {
     /** 单个开关的键与默认值。 */
     data class Flag(val key: String, val default: Boolean)
 
-    val AI_ANALYZE_FILE: Flag = Flag("ai_analyze_file_enabled", true)
-    val AI_ANALYZE_IMAGE: Flag = Flag("ai_analyze_image_enabled", true)
-    /** 服务端 AI 总开关（/api/public/status 的 aiEnabled）——false 时折叠全部 AI 入口。 */
+    /** 服务端入口闸（/api/public/status 的 aiEnabled）——false 时折叠全部客户端 AI 入口。 */
     val AI_MASTER: Flag = Flag("ai_master_enabled", true)
     val AI_IMAGE_OCR: Flag = Flag("ai_image_ocr_enabled", true)
-    val AI_GROUP_ASSISTANT: Flag = Flag("ai_group_assistant_enabled", true)
-    val AI_REWRITE: Flag = Flag("ai_rewrite_enabled", true)
-    val AI_SEMANTIC_SEARCH: Flag = Flag("ai_semantic_search_enabled", true)
-    val AI_SUGGEST_REPLIES: Flag = Flag("ai_suggest_replies_enabled", true)
-    val AI_SUMMARY: Flag = Flag("ai_summary_enabled", true)
-    val AI_TRANSCRIBE: Flag = Flag("ai_transcribe_enabled", true)
-    val AI_TRANSLATE: Flag = Flag("ai_translate_enabled", true)
     val APP_LOCK: Flag = Flag("app_lock_enabled", true)
     val AUTO_DOWNLOAD: Flag = Flag("auto_download_enabled", true)
     val BLIND_WATERMARK: Flag = Flag("blind_watermark_enabled", true)
@@ -35,7 +26,7 @@ object RuntimeFlags {
     val CHAT_ANIMATIONS: Flag = Flag("chat_animations_enabled", true)
     val CHAT_ARCHIVE: Flag = Flag("chat_archive_enabled", true)
     val CHAT_DRAFTS: Flag = Flag("chat_drafts_enabled", true)
-    val CHAT_EXPORT: Flag = Flag("chat_export_enabled", true)
+    val CHAT_EXPORT: Flag = Flag("chat_export_enabled", false)
     val CHAT_FOLDERS: Flag = Flag("chat_folders_enabled", true)
     val CHAT_FONT_SCALE: Flag = Flag("chat_font_scale_enabled", true)
     val CHAT_LOCK: Flag = Flag("chat_lock_enabled", true)
@@ -45,7 +36,7 @@ object RuntimeFlags {
     val CONTACT_CARD: Flag = Flag("contact_card_enabled", true)
     val DISAPPEARING_MESSAGES: Flag = Flag("disappearing_messages_enabled", true)
     val DND: Flag = Flag("dnd_enabled", true)
-    val FAKE_CHAT: Flag = Flag("fake_chat_enabled", true)
+    val FAKE_CHAT: Flag = Flag("fake_chat_enabled", false)
     val FILE_SHARE: Flag = Flag("file_share_enabled", true)
     val FRIEND_REQUESTS: Flag = Flag("friend_requests_enabled", true)
     val GIF_SEND: Flag = Flag("gif_send_enabled", true)
@@ -67,11 +58,10 @@ object RuntimeFlags {
     val MESSAGE_REVOKE: Flag = Flag("message_revoke_enabled", true)
     val MESSAGE_STARRING: Flag = Flag("message_starring_enabled", true)
     val NAV_TRANSITIONS: Flag = Flag("nav_transitions_enabled", true)
-    val NEARBY: Flag = Flag("nearby_enabled", true)
+    val NEARBY: Flag = Flag("nearby_enabled", false)
     val NOTIFICATION_PREVIEW: Flag = Flag("notification_preview_enabled", true)
     val NOTIFICATION_SOUND: Flag = Flag("notification_sound_enabled", true)
     val NUDGE: Flag = Flag("nudge_enabled", true)
-    val OFFLINE_AI: Flag = Flag("offline_ai_enabled", true)
     val POLLS: Flag = Flag("polls_enabled", true)
     val POSTS: Flag = Flag("posts_enabled", true)
     val PRESENCE: Flag = Flag("presence_enabled", true)
@@ -115,14 +105,20 @@ object RuntimeFlags {
     val VOICE_CALL: Flag = Flag("voice_call_enabled", true)
     val VOICE_MESSAGES: Flag = Flag("voice_messages_enabled", true)
 
-    fun isEnabled(context: Context, flag: Flag): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    fun isEnabled(context: Context, flag: Flag): Boolean {
+        if (flag == NEARBY || flag == CHAT_EXPORT) return false
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getBoolean(flag.key, flag.default)
+    }
 
     fun setEnabled(context: Context, flag: Flag, enabled: Boolean) {
+        val value = when (flag) {
+            NEARBY, CHAT_EXPORT -> false
+            else -> enabled
+        }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
-            .putBoolean(flag.key, enabled)
+            .putBoolean(flag.key, value)
             .apply()
     }
 }

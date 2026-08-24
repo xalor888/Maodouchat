@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -115,17 +116,30 @@ internal fun AttachMenuItem(
     onClick: () -> Unit,
     onDisabledClick: () -> Unit = {}
 ) {
-    val itemColor = if (enabled) Primary else Outline
-    val itemAlpha = if (enabled) 0.2f else 0.08f
+    val itemColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline
+    val itemAlpha = if (enabled) 0.10f else 0.05f
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = if (enabled) onClick else onDisabledClick)
+        modifier = Modifier
+            .width(56.dp)
+            .clickable(onClick = if (enabled) onClick else onDisabledClick)
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primaryFixed.copy(alpha = itemAlpha), RoundedCornerShape(12.dp))) {
-            Icon(icon, contentDescription = label, tint = itemColor, modifier = Modifier.size(24.dp))
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(40.dp)
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = itemAlpha), RoundedCornerShape(12.dp))
+        ) {
+            Icon(icon, contentDescription = label, tint = itemColor, modifier = Modifier.size(20.dp))
         }
         Spacer(modifier = Modifier.height(4.dp))
-        Text(label, style = MaterialTheme.typography.labelMedium, color = itemColor)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = itemColor,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+        )
     }
 }
 

@@ -28,7 +28,7 @@ import kotlinx.coroutines.withContext
  *
  * 运行条件（任一不满足即整体跳过/中止）：
  * - 已登录；
- * - RuntimeFlags.AI_IMAGE_OCR 与 AI_ANALYZE_IMAGE 开启；
+ * - RuntimeFlags.AI_IMAGE_OCR 与 AI_MASTER 开启；
  * - [AiPrivacyPreferences.mayUploadCloudContext]（同意过 AI 处理；未登录 / 已撤销 fail-closed）；
  * - [ImageOcrPreferences.isEnabled]（本机开关，默认开）。
  *
@@ -36,9 +36,8 @@ import kotlinx.coroutines.withContext
  * - 仅处理 IMAGE 类型消息；GIF/VIDEO 帧不处理（与手动入口一致，UI 仅对 IMAGE 显示）；
  * - 密聊（secret chat）图片一律跳过：结果不应落到可搜索的本地索引；
  * - 已有 ocr 结果（parsedMeta().aiImageAnalyses["ocr"]）的消息跳过；
- * - 服务端要求用户级+聊天级 AI 均开启，isParticipant 校验由服务端完成；
- * - 单个运行轮次上限 OCR_IMAGES_PER_RUN 张，避免冷启动后台烧掉整日 AI 预算；
- * - 每张图上传压缩 Base64（1024px / q72，与手动入口一致）。
+ * - 走用户本机模型，结果只写本机消息 meta；
+ * - 单个运行轮次上限 OCR_IMAGES_PER_RUN 张；
  */
 class ImageOcrAutoIndexer(
     private val context: Context,
@@ -66,7 +65,7 @@ class ImageOcrAutoIndexer(
 
     private fun preconditionsMet(): Boolean {
         if (!RuntimeFlags.isEnabled(context, RuntimeFlags.AI_IMAGE_OCR)) return false
-        if (!RuntimeFlags.isEnabled(context, RuntimeFlags.AI_ANALYZE_IMAGE)) return false
+        if (!RuntimeFlags.isEnabled(context, RuntimeFlags.AI_MASTER)) return false
         if (!AiPrivacyPreferences.mayUploadCloudContext(context)) return false
         if (!ImageOcrPreferences.isEnabled(context)) return false
         return true
@@ -159,10 +158,8 @@ class ImageOcrAutoIndexer(
             }.getOrNull()
         }
         if (base64.isNullOrBlank()) return ""
-        return ApiService.analyzeImage(token, base64, OCR_MODE, message.chatId)
+        return com.maodouchat.ai.agent.LocalAiGateway.analyzeImage(context, base64, OCR_MODE)
             .getOrNull()
-            ?.takeIf { it.mode == OCR_MODE }
-            ?.text
             ?.trim()
             ?.take(OCR_RESULT_MAX_CHARS)
             .orEmpty()

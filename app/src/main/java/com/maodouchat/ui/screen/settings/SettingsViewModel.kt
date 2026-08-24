@@ -40,6 +40,7 @@ data class SettingsUiState(
     val showStatusDialog: Boolean = false,
     val showBlockedUsersDialog: Boolean = false,
     val showOnline: Boolean = true,
+    val onlineVisibility: String = "everyone",
     val showStatus: Boolean = true,
     val editStatus: String = "",
     val searchable: Boolean = true,
@@ -62,14 +63,15 @@ data class SettingsUiState(
     val errorMessage: String? = null
 )
 
-private enum class PrivacyField { SHOW_ONLINE, SHOW_STATUS, SEARCHABLE, DEFAULT_POST_VISIBILITY }
+private enum class PrivacyField { SHOW_ONLINE, SHOW_STATUS, SEARCHABLE, DEFAULT_POST_VISIBILITY, ONLINE_VISIBILITY }
 
 private data class LoadedPrivacy(
     val ownerUserId: String,
     val showOnline: Boolean,
     val showStatus: Boolean,
     val searchable: Boolean,
-    val defaultPostVisibility: String
+    val defaultPostVisibility: String,
+    val onlineVisibility: String
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -216,12 +218,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         showOnline = privacy.showOnline,
                         showStatus = privacy.showStatus,
                         searchable = privacy.searchable,
-                        defaultPostVisibility = normalizeVisibility(privacy.defaultPostVisibility)
+                        defaultPostVisibility = normalizeVisibility(privacy.defaultPostVisibility),
+                        onlineVisibility = privacy.onlineVisibility.ifBlank { if (privacy.showOnline) "everyone" else "nobody" }
                     )
                     loadedPrivacy = loaded
                     _uiState.update { current ->
                         current.copy(
                             showOnline = if (PrivacyField.SHOW_ONLINE in dirtyPrivacyFields) current.showOnline else loaded.showOnline,
+                            onlineVisibility = if (PrivacyField.ONLINE_VISIBILITY in dirtyPrivacyFields) current.onlineVisibility else loaded.onlineVisibility,
                             showStatus = if (PrivacyField.SHOW_STATUS in dirtyPrivacyFields) current.showStatus else loaded.showStatus,
                             searchable = if (PrivacyField.SEARCHABLE in dirtyPrivacyFields) current.searchable else loaded.searchable,
                             defaultPostVisibility = if (PrivacyField.DEFAULT_POST_VISIBILITY in dirtyPrivacyFields) {
@@ -456,6 +460,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             it.copy(
                 showPrivacyDialog = false,
                 showOnline = baseline?.showOnline ?: it.showOnline,
+                onlineVisibility = baseline?.onlineVisibility ?: it.onlineVisibility,
                 showStatus = baseline?.showStatus ?: it.showStatus,
                 searchable = baseline?.searchable ?: it.searchable,
                 defaultPostVisibility = baseline?.defaultPostVisibility ?: it.defaultPostVisibility
@@ -465,12 +470,28 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun onShowOnlineChange(v: Boolean) {
         if (_uiState.value.isSavingPrivacy) return
-        if (loadedPrivacy?.takeIf { it.ownerUserId == tokenManager.getUserId() }?.showOnline == v) {
+        val vis = if (v) {
+            _uiState.value.onlineVisibility.takeUnless { it == "nobody" } ?: "everyone"
+        } else {
+            "nobody"
+        }
+        onOnlineVisibilityChange(vis)
+    }
+
+    fun onOnlineVisibilityChange(v: String) {
+        if (_uiState.value.isSavingPrivacy) return
+        val normalized = when (v) {
+            "contacts", "nobody" -> v
+            else -> "everyone"
+        }
+        if (loadedPrivacy?.takeIf { it.ownerUserId == tokenManager.getUserId() }?.onlineVisibility == normalized) {
+            dirtyPrivacyFields -= PrivacyField.ONLINE_VISIBILITY
             dirtyPrivacyFields -= PrivacyField.SHOW_ONLINE
         } else {
+            dirtyPrivacyFields += PrivacyField.ONLINE_VISIBILITY
             dirtyPrivacyFields += PrivacyField.SHOW_ONLINE
         }
-        _uiState.update { it.copy(showOnline = v) }
+        _uiState.update { it.copy(onlineVisibility = normalized, showOnline = normalized != "nobody") }
     }
 
     fun onShowStatusChange(v: Boolean) {
@@ -947,7 +968,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     searchable = snapshot.searchable.takeIf { PrivacyField.SEARCHABLE in changedFields },
                     defaultPostVisibility = snapshot.defaultPostVisibility.takeIf {
                         PrivacyField.DEFAULT_POST_VISIBILITY in changedFields
-                    }
+                    },
+                    onlineVisibility = snapshot.onlineVisibility.takeIf { PrivacyField.ONLINE_VISIBILITY in changedFields }
                 ).fold(
                     onSuccess = { privacy ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -964,12 +986,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                             showOnline = privacy.showOnline,
                             showStatus = privacy.showStatus,
                             searchable = privacy.searchable,
-                            defaultPostVisibility = normalizedVisibility
+                            defaultPostVisibility = normalizedVisibility,
+                            onlineVisibility = privacy.onlineVisibility.ifBlank { if (privacy.showOnline) "everyone" else "nobody" }
                         )
                         dirtyPrivacyFields.clear()
                         _uiState.update {
                             it.copy(
                                 showOnline = privacy.showOnline,
+                                onlineVisibility = privacy.onlineVisibility.ifBlank { if (privacy.showOnline) "everyone" else "nobody" },
                                 showStatus = privacy.showStatus,
                                 searchable = privacy.searchable,
                                 defaultPostVisibility = normalizedVisibility,
@@ -1064,7 +1088,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         accountMutationJob = viewModelScope.launch {
             withContext(NonCancellable) {
                 com.maodouchat.network.WebSocketClient.disconnect()
-                app.secureSessionManager.purgeLocalSession(expectedOwnerUserId = ownerUserId.takeIf { it.isNotBlank() })
+                app.secureSessionManager.purgeLocalSession(
+                    destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
+                        com.maodouchat.security.LogoutStorePolicy.Reason.LOGOUT
+                    ),
+                    expectedOwnerUserId = ownerUserId.takeIf { it.isNotBlank() }
+                )
                 // 1.103：登出清空「正在输入」presence，避免残留对端状态。
                 // 放在 NonCancellable 内，避免 purge 后协程取消导致清理被跳过。
                 com.maodouchat.util.TypingPresenceStore.clear()
@@ -1103,7 +1132,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         if (!isCurrentOwner(ownerUserId)) return@fold
                         withContext(NonCancellable) {
                             com.maodouchat.network.WebSocketClient.disconnect()
-                            app.secureSessionManager.purgeLocalSession(expectedOwnerUserId = ownerUserId)
+                            app.secureSessionManager.purgeLocalSession(
+                                destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
+                                    com.maodouchat.security.LogoutStorePolicy.Reason.LOGOUT
+                                ),
+                                expectedOwnerUserId = ownerUserId
+                            )
                             com.maodouchat.util.TypingPresenceStore.clear()
                         }
                         _uiState.update { it.copy(isLoggingOutAll = false, isLoggedOut = true) }
@@ -1155,6 +1189,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         if (!isCurrentOwner(deleteOwnerUserId)) return@fold
                         val purged = withContext(kotlinx.coroutines.NonCancellable) {
                             val result = app.secureSessionManager.purgeLocalSession(
+                                destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
+                                    com.maodouchat.security.LogoutStorePolicy.Reason.DELETE_ACCOUNT
+                                ),
                                 expectedOwnerUserId = deleteOwnerUserId
                             )
                             com.maodouchat.util.TypingPresenceStore.clear()

@@ -38,12 +38,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.R
-import com.maodouchat.ui.theme.Background
-import com.maodouchat.ui.theme.Error
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.Surface
-import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
@@ -85,10 +79,10 @@ fun ChatLockGate(
                         modifier = Modifier
                             .size(width = 32.dp, height = 40.dp)
                             .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-                            .background(if (filled) Primary else Surface),
+                            .background(if (filled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (filled) Text("•", color = androidx.compose.ui.graphics.Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        if (filled) Text("•", color = MaterialTheme.colorScheme.onPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -155,7 +149,7 @@ private fun NumberPad(
                             contentAlignment = Alignment.Center
                         ) {
                             IconButton(onClick = onBackspace) {
-                                Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = stringResource(R.string.chat_lock_delete_digit), tint = OnSurface)
+                                Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = stringResource(R.string.chat_lock_delete_digit), tint = MaterialTheme.colorScheme.onSurface)
                             }
                         }
                         else -> Box(
@@ -182,7 +176,7 @@ private fun NumberPad(
                 .clickableNumber { onSubmit() },
             contentAlignment = Alignment.Center
         ) {
-            Text(stringResource(R.string.chat_lock_unlock), color = androidx.compose.ui.graphics.Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.chat_lock_unlock), color = MaterialTheme.colorScheme.onPrimary, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         }
     }
 }

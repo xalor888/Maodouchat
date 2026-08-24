@@ -41,6 +41,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -82,15 +83,8 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.MessageSearchRepository
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.AiGlobalSemanticSearchCandidate
+
 import com.maodouchat.network.TokenManager
-import com.maodouchat.ui.theme.Background
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Outline
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.Surface
-import com.maodouchat.ui.theme.TextHint
-import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
@@ -272,7 +266,7 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
             _uiState.update { it.copy(error = text(R.string.global_search_disabled)) }
             return
         }
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_SEMANTIC_SEARCH)) {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) {
             _uiState.update { it.copy(error = text(R.string.ai_semantic_search_disabled)) }
             return
         }
@@ -477,54 +471,21 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
                     }
                     return@launch
                 }
-                val settingsToken = tokenManager.getToken().orEmpty().ifBlank { token }
                 val selectedChatIds = localCandidates.map(MessageSearchDocumentEntity::chatId).distinct().take(32)
-                val settings = coroutineScope {
-                    selectedChatIds.map { chatId ->
-                        async { chatId to ApiService.getAiSettings(settingsToken, chatId).getOrNull()?.effectiveEnabled }
-                    }.awaitAll()
-                }
-                val enabledChatIds = settings.filter { it.second == true }.mapTo(hashSetOf()) { it.first }
-                val excluded = selectedChatIds.size - enabledChatIds.size
-                val allowedDocuments = localCandidates
-                    .filter { it.chatId in enabledChatIds && SERVER_MESSAGE_ID.matches(it.messageId) }
-                    .take(80)
+                val allowedDocuments = localCandidates.take(80)
                 val outcome = if (allowedDocuments.isEmpty()) {
-                    AiSearchOutcome(emptyList(), excluded, noContext = true)
+                    AiSearchOutcome(emptyList(), 0, noContext = true)
                 } else {
-                    val candidates = allowedDocuments.map { document ->
-                        AiGlobalSemanticSearchCandidate(
-                            chatId = document.chatId,
-                            messageId = document.messageId,
-                            sender = "${chatName(document.chatId)} / ${senderName(document)}".take(80),
-                            text = document.searchableText.take(1000),
-                            timestamp = document.timestamp
-                        )
-                    }
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = searchOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
-                    ) {
-                        _uiState.update {
-                            it.copy(isSearching = false, error = text(R.string.error_session_expired))
-                        }
-                        return@launch
-                    }
-                    val liveToken = tokenManager.getToken() ?: token
-                    val response = ApiService.globalSemanticSearch(liveToken, query, candidates, limit = 32).getOrThrow()
-                    val documentsByKey = allowedDocuments.associateBy { it.chatId to it.messageId }
-                    val allowedKeys = documentsByKey.keys
-                    val hits = response.matches.asSequence()
-                        .filter { (it.chatId to it.messageId) in allowedKeys && it.score > 0.0 }
+                    val ranked = com.maodouchat.ai.agent.LocalAiGateway.rankSemanticScored(
+                        query,
+                        allowedDocuments.map { "${it.chatId}\t${it.messageId}" to it.searchableText }
+                    )
+                    val documentsByKey = allowedDocuments.associateBy { "${it.chatId}\t${it.messageId}" }
+                    val hits = ranked
+                        .mapNotNull { (key, score) -> documentsByKey[key]?.let { toHit(it, score) } }
                         .distinctBy { it.chatId to it.messageId }
                         .take(32)
-                        .mapNotNull { match ->
-                            documentsByKey[match.chatId to match.messageId]?.let { toHit(it, match.score) }
-                        }
-                        .toList()
-                    AiSearchOutcome(hits, excluded, noContext = false)
+                    AiSearchOutcome(hits, selectedChatIds.size - allowedDocuments.map { it.chatId }.toSet().size, noContext = false)
                 }
                 if (requestGeneration != generation) return@launch
                 _uiState.update {
@@ -655,15 +616,22 @@ fun GlobalSearchScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val motion = LocalMotionSettings.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val aiSearchEnabled = com.maodouchat.ai.AiEntryPolicy.shouldShowGlobalAiEntry(context)
+    androidx.compose.runtime.LaunchedEffect(aiSearchEnabled) {
+        if (!aiSearchEnabled && state.mode == GlobalSearchMode.AI) {
+            viewModel.setMode(GlobalSearchMode.KEYWORD)
+        }
+    }
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.global_search_title), color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -696,7 +664,7 @@ fun GlobalSearchScreen(
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
-                Row(
+                if (aiSearchEnabled) Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -718,11 +686,23 @@ fun GlobalSearchScreen(
                                 Text(stringResource(if (mode == GlobalSearchMode.KEYWORD) R.string.global_search_mode_keyword else R.string.global_search_mode_ai))
                             },
                             modifier = Modifier.weight(1f).graphicsLayer { scaleX = pressScale; scaleY = pressScale },
-                            interactionSource = interactionSource
+                            interactionSource = interactionSource,
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = selected,
+                                borderColor = MaterialTheme.colorScheme.outlineVariant,
+                                selectedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                            )
                         )
                     }
                 }
-                if (state.mode == GlobalSearchMode.AI) {
+                if (aiSearchEnabled && state.mode == GlobalSearchMode.AI) {
                     Button(
                         onClick = viewModel::requestAiSearch,
                         enabled = state.query.isNotBlank() && !state.isIndexing && !state.isSearching,
@@ -763,7 +743,19 @@ fun GlobalSearchScreen(
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                 },
-                                modifier = Modifier.height(28.dp)
+                                modifier = Modifier.height(28.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = selected,
+                                    borderColor = MaterialTheme.colorScheme.outlineVariant,
+                                    selectedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                )
                             )
                         }
                     }
@@ -915,7 +907,7 @@ private fun GlobalSearchResultRow(hit: GlobalSearchHit, query: String, onClick: 
                 else -> if (hit.semanticScore != null) Icons.Outlined.AutoAwesome else Icons.Outlined.Search
             },
             contentDescription = null,
-            tint = if (hit.semanticScore != null) Primary else TextHint,
+            tint = if (hit.semanticScore != null) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint,
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.width(10.dp))
@@ -932,7 +924,7 @@ private fun GlobalSearchResultRow(hit: GlobalSearchHit, query: String, onClick: 
                 )
                 Text(time, style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
             }
-            Text(hit.senderName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            Text(hit.senderName, style = MaterialTheme.typography.labelMedium, color = LocalChatPalette.current.textSecondary)
             Text(
                 highlightedText(hit.text, query),
                 style = MaterialTheme.typography.bodyMedium,
@@ -956,7 +948,7 @@ private fun highlightedText(text: String, query: String) = buildAnnotatedString 
     var cursor = 0
     snippet.highlights.forEach { span ->
         if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-        pushStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+        pushStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, background = MaterialTheme.colorScheme.primaryContainer))
         append(snippet.text.substring(span.start, span.end))
         pop()
         cursor = span.end

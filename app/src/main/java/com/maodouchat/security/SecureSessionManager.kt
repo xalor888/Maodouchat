@@ -30,7 +30,7 @@ class SecureSessionManager(
 ) {
 
     suspend fun purgeLocalSession(
-        destroyEncryptedDatabase: Boolean = true,
+        destroyEncryptedDatabase: Boolean = false,
         expectedOwnerUserId: String? = null
     ): Boolean {
         // 退出/换号清理必须跑完：中途 cancel 会留下半清状态与串号风险；
@@ -113,7 +113,9 @@ class SecureSessionManager(
             PushRegistrationManager.resetRegistrationStateForAccountChange(context)
             var authCleared = false
             try {
-                AttachmentTransferCoordinator.deleteAll(context)
+                if (destroyEncryptedDatabase) {
+                    AttachmentTransferCoordinator.deleteAll(context)
+                }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -158,7 +160,9 @@ class SecureSessionManager(
             // After hang-up: invalidate deep-link / wake / hang-up session epoch for next account.
             runCatching { MaodouchatApp.invalidateSessionGeneration() }
             try {
-                SenderKeyRetryWorkScheduler.cancelAll(context)
+                if (destroyEncryptedDatabase) {
+                    SenderKeyRetryWorkScheduler.cancelAll(context)
+                }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -261,9 +265,13 @@ class SecureSessionManager(
             } catch (error: Exception) {
                 Log.w(TAG, "Failed to purge notification center during local purge", error)
             }
-            // Decrypted media / attachment staging must not survive logout or account switch.
+            // Secret-chat plaintext media is always wiped. Ordinary decrypted media
+            // follows the encrypted-store rule so same-account re-login can show
+            // own-sent images/voice without a full re-download.
             try {
-                com.maodouchat.util.MediaCache.cleanupReturningBytes(context)
+                if (destroyEncryptedDatabase) {
+                    com.maodouchat.util.MediaCache.cleanupReturningBytes(context)
+                }
                 // 8.40：密聊明文媒体目录整目录擦除——clearAllSurfaces 只删「当前活跃 surface」
                 // 的会话，进程被杀后残留密聊明文会无限期留在磁盘
                 com.maodouchat.util.MediaCache.deleteAllSecretChatMedia(context)
@@ -328,9 +336,15 @@ class SecureSessionManager(
             } catch (error: Exception) {
                 Log.w(TAG, "Failed to clear writing style prefs during local purge", error)
             }
-            // Coil memory/disk may hold prior-account avatars and explore images (non-isolated keys).
+            // Coil: memory is process-local (always drop). Disk is decoded chat
+            // images — keep it on same-account logout so re-login still shows
+            // IMAGE/VIDEO; account switch / delete still wipe leftovers.
             try {
-                clearCoilImageCaches(context.applicationContext)
+                if (destroyEncryptedDatabase) {
+                    clearCoilImageCaches(context.applicationContext)
+                } else {
+                    coil.Coil.imageLoader(context.applicationContext).memoryCache?.clear()
+                }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -353,27 +367,10 @@ class SecureSessionManager(
                     AppDatabase.destroyDatabase(context.applicationContext)
                     onEncryptedDatabaseDestroyed?.invoke()
                 } else {
-                    // Soft purge keeps SQLCipher file but must wipe every privacy table
-                    // (search index / missed calls / locks / AI summary were previously orphaned).
-                    database.withTransaction {
-                        database.messageDao().deleteAllMessages()
-                        database.chatDao().deleteAllChats()
-                        database.chatDraftDao().deleteAll()
-                        database.userDao().deleteAllUsers()
-                        database.senderKeyRetryDao().deleteAll()
-                        database.aiTaskDao().deleteAll()
-                        database.aiOperationDao().deleteAll()
-                        database.attachmentTransferDao().deleteAll()
-                        database.messageSearchDao().deleteAll()
-                        database.missedCallDao().deleteAll()
-                        database.chatLockDao().deleteAll()
-                        database.secretChatDao().deleteAll()
-                        database.aiSummaryCacheDao().deleteAll()
-                    }
-                    // 8.49 修复：clearLocalState 内部会先取 cryptoLock，而任意解密线程持 cryptoLock
-                    // 期间会阻塞等待 DB 写锁——在 withTransaction（持有唯一写锁）内调用它构成
-                    // 锁序倒置死锁。移到事务提交后执行，统一全链路锁序 cryptoLock -> DB。
-                    signalProtocol.clearLocalState()
+                    // Same-account logout / token expiry: keep SQLCipher + Signal identity
+                    // so re-login can decrypt history and own-sent rows. Drop only the
+                    // in-memory Signal session so the next initialize() reloads from Room.
+                    signalProtocol.invalidateInMemoryAccountState()
                     com.maodouchat.security.SecretChatSession.clearAllSurfaces()
                 }
             } catch (error: Throwable) {
@@ -392,12 +389,16 @@ class SecureSessionManager(
     }
 
     suspend fun purgeIfAccountChanged(nextUserId: String) {
-        val currentUserId = tokenManager.getUserId()
+        val previousOwner = tokenManager.getLastOwnerUserId() ?: tokenManager.getUserId()
         if (
-            AccountIsolationPolicy.onLoginAccount(currentUserId, nextUserId) ==
+            AccountIsolationPolicy.onLoginAccount(previousOwner, nextUserId) ==
             AccountSwitchAction.PURGE_LOCAL_DATA
         ) {
-            purgeLocalSession(destroyEncryptedDatabase = true)
+            purgeLocalSession(
+                destroyEncryptedDatabase = LogoutStorePolicy.destroyEncryptedDatabase(
+                    LogoutStorePolicy.Reason.ACCOUNT_SWITCH
+                )
+            )
         }
     }
 

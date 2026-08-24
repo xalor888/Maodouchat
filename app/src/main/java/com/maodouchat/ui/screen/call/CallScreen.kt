@@ -77,8 +77,6 @@ import com.maodouchat.R
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.MaodouchatTheme
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.rememberMotionPulse
 import com.maodouchat.webrtc.CallState
@@ -115,6 +113,7 @@ fun CallScreen(
     selectedAudioRoute: CallAudioRoute? = null,
     groupParticipants: List<GroupCallParticipantUi> = emptyList(),
     errorMessage: String? = null,
+    nativeDownloadProgress: Int = 0,
     onDismissError: () -> Unit = {},
     onHangUp: () -> Unit = {},
     onAccept: () -> Unit = {},
@@ -149,7 +148,7 @@ fun CallScreen(
     // 已经调用 endCall(notifyPeer=true) 处理超时；重复调用会导致双 hang-up 信号
 
     Box(
-        modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A2E)),
+        modifier = Modifier.fillMaxSize().background(Color(0xFF111111)),
         contentAlignment = Alignment.Center
     ) {
         // 远端视频（全屏背景）
@@ -304,6 +303,8 @@ fun CallScreen(
                 Text(
                     text = when {
                         errorMessage != null -> errorMessage
+                        isInitializing && nativeDownloadProgress in 1..99 ->
+                            stringResource(R.string.call_webrtc_downloading, nativeDownloadProgress)
                         isInitializing -> stringResource(R.string.call_establishing)
                         callState == CallState.CALLING -> if (callType == CallType.VIDEO) stringResource(R.string.call_calling_video) else stringResource(R.string.call_calling)
                         callState == CallState.RINGING -> if (isIncoming) stringResource(R.string.call_incoming_ringing) else stringResource(R.string.call_remote_ringing)
@@ -542,7 +543,7 @@ private fun GroupParticipantTile(
             .fillMaxWidth()
             .aspectRatio(if (showVideo) 0.78f else 1f)
             .clip(RoundedCornerShape(18.dp))
-            .background(Color(0xFF292942))
+            .background(Color(0xFF1A1A1A))
     ) {
         if (showVideo && onRendererReady != null) {
             androidx.compose.ui.viewinterop.AndroidView(

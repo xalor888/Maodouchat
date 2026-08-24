@@ -37,34 +37,73 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.maodouchat.util.ThemePreferences
 import kotlinx.coroutines.launch
 
+/** 单一默认浅色：白底 + 克制蓝灰墨色，不是 Murexide / Material 3 紫。 */
 val MaodouLightScheme = lightColorScheme(
-    primary = Primary, onPrimary = OnPrimary, primaryContainer = PrimaryContainer, onPrimaryContainer = OnPrimaryContainer,
-    secondary = Secondary, onSecondary = OnSecondary, secondaryContainer = SecondaryContainer, onSecondaryContainer = OnSecondaryContainer,
-    background = Background, onBackground = OnBackground, surface = Surface, onSurface = OnSurface,
-    surfaceVariant = SurfaceVariant, onSurfaceVariant = OnSurfaceVariant, error = Error, onError = OnError,
-    errorContainer = ErrorContainer, onErrorContainer = OnErrorContainer, outline = Outline, outlineVariant = OutlineVariant
+    primary = Color(0xFF3A4450),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFE8EAED),
+    onPrimaryContainer = Color(0xFF1A1A1A),
+    secondary = Color(0xFF5C6370),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFF2F2F2),
+    onSecondaryContainer = Color(0xFF1A1A1A),
+    tertiary = Color(0xFF5A6570),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFFE8EAED),
+    onTertiaryContainer = Color(0xFF1A1A1A),
+    error = Color(0xFFB3261E),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFF9DEDC),
+    onErrorContainer = Color(0xFF410E0B),
+    background = Color(0xFFFFFFFF),
+    onBackground = Color(0xFF1A1A1A),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF1A1A1A),
+    surfaceVariant = Color(0xFFF2F2F2),
+    onSurfaceVariant = Color(0xFF5C6370),
+    outline = Color(0xFF8A9099),
+    outlineVariant = Color(0xFFE0E0E0),
+    surfaceTint = Color(0xFF3A4450),
+    inverseSurface = Color(0xFF1A1A1A),
+    inverseOnSurface = Color(0xFFF5F5F5),
+    inversePrimary = Color(0xFFC5CCD4),
 )
 
 private val LightColorScheme = MaodouLightScheme
 
 // 9.3xx：补全深色 token（此前缺 secondaryContainer/tertiary/errorContainer/inverse* 等，
 // 依赖 darkColorScheme 兜底导致弹窗/卡片/进度条等组件深色下配色错乱）。
+/** 单一默认深色：近黑表面，不是紫调 #141218。 */
 val MaodouDarkScheme = darkColorScheme(
-    primary = Color(0xFF0A84FF), onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFF004880), onPrimaryContainer = Color(0xFFD1E4FF),
-    secondary = Color(0xFF8E8E93), onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFF3A3A3C), onSecondaryContainer = Color(0xFFF2F2F7),
-    tertiary = Color(0xFFBF5AF2), onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFF4A2C63), onTertiaryContainer = Color(0xFFF0D9FF),
-    background = Color(0xFF1C1C1E), onBackground = Color(0xFFF2F2F7),
-    surface = Color(0xFF2C2C2E), onSurface = Color(0xFFF2F2F7),
-    surfaceVariant = Color(0xFF3A3A3C), onSurfaceVariant = Color(0xFFEBEBF5),
-    error = Color(0xFFFF453A), onError = Color(0xFFFFFFFF),
-    errorContainer = Color(0xFF6E1A1A), onErrorContainer = Color(0xFFFFDAD6),
-    outline = Color(0xFF48484A), outlineVariant = Color(0xFF636366),
-    inverseSurface = Color(0xFFF2F2F7), inverseOnSurface = Color(0xFF2C2C2E),
-    inversePrimary = Color(0xFF004880),
-    surfaceTint = Color(0xFF0A84FF), scrim = Color(0xFF000000)
+    primary = Color(0xFFC5CCD4),
+    onPrimary = Color(0xFF1A1A1A),
+    primaryContainer = Color(0xFF2A2A2A),
+    onPrimaryContainer = Color(0xFFF2F2F2),
+    secondary = Color(0xFFB8BEC6),
+    onSecondary = Color(0xFF1A1A1A),
+    secondaryContainer = Color(0xFF2A2A2A),
+    onSecondaryContainer = Color(0xFFF2F2F2),
+    tertiary = Color(0xFFB8BEC6),
+    onTertiary = Color(0xFF1A1A1A),
+    tertiaryContainer = Color(0xFF2A2A2A),
+    onTertiaryContainer = Color(0xFFF2F2F2),
+    error = Color(0xFFF2B8B5),
+    onError = Color(0xFF601410),
+    errorContainer = Color(0xFF8C1D18),
+    onErrorContainer = Color(0xFFF9DEDC),
+    background = Color(0xFF111111),
+    onBackground = Color(0xFFF2F2F2),
+    surface = Color(0xFF111111),
+    onSurface = Color(0xFFF2F2F2),
+    surfaceVariant = Color(0xFF2A2A2A),
+    onSurfaceVariant = Color(0xFFC5CCD4),
+    outline = Color(0xFF8A9099),
+    outlineVariant = Color(0xFF2A2A2A),
+    surfaceTint = Color(0xFFC5CCD4),
+    inverseSurface = Color(0xFFF2F2F2),
+    inverseOnSurface = Color(0xFF1A1A1A),
+    inversePrimary = Color(0xFF3A4450),
+    scrim = Color(0xFF000000),
 )
 
 private val DarkColorScheme = MaodouDarkScheme
@@ -94,6 +133,7 @@ fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
     // 用户主题偏好（general_settings + 云同步）：system / light / dark；可响应多端拉取
     val ctx = LocalContext.current
     ThemePreferences.ensureSeeded(ctx)
+    com.maodouchat.util.ChromePreferences.ensureSeeded(ctx)
     val themePref by ThemePreferences.mode.collectAsState()
     val themeStylePref by ThemePreferences.family.collectAsState()
     val accentPref by ThemePreferences.accent.collectAsState()
@@ -177,7 +217,9 @@ fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
         LocalChatPalette provides paint.chatPalette,
         LocalSentBubbleSpec provides paint.sentBubbleSpec,
         LocalDarkTheme provides useDark,
-        LocalMotionSettings provides motionSettings
+        LocalMotionSettings provides motionSettings,
+        LocalLiquidGlassEnabled provides com.maodouchat.ui.theme.ThemeFamily.normalize(themeStylePref).isLiquidGlass,
+        LocalLiquidGlassBlur provides 1f,
     ) {
         MaterialTheme(colorScheme = paint.colorScheme, typography = MaodouchatTypography, shapes = MaodouchatShapes) {
             Box {

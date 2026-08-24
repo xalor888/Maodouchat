@@ -88,7 +88,11 @@ object FakeChatManager {
     fun setEnabled(ctx: Context, enabled: Boolean): Boolean {
         val userId = userId(ctx)
         if (userId.isBlank()) return false
-        if (enabled && !hasPin(ctx)) return false
+        // Hide-app / fake-chat is a trap: leftover prefs can still intercept the real UI.
+        if (enabled) {
+            Log.w("FakeChatManager", "refusing to enable fake chat")
+            return false
+        }
         prefs(ctx).edit()
             .putBoolean(key(KEY_ENABLED, userId), enabled)
             .remove(key(KEY_BACKGROUND_AT, userId))
@@ -292,13 +296,15 @@ object FakeChatManager {
     fun setLauncherIconHidden(ctx: Context, hidden: Boolean): Boolean {
         val userId = userId(ctx)
         if (userId.isBlank()) return false
+        // Hiding the launcher icon is a trap: many launchers never restore from the
+        // dialer secret code, so the only recovery is uninstall. Disable hide.
+        if (hidden) {
+            Log.w("FakeChatManager", "refusing to hide launcher icon")
+            return false
+        }
         val pm = ctx.packageManager
         val component = ComponentName(ctx, MainActivity::class.java)
-        val newState = if (hidden) {
-            PackageManager.COMPONENT_ENABLED_STATE_DISABLED
-        } else {
-            PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-        }
+        val newState = PackageManager.COMPONENT_ENABLED_STATE_ENABLED
         return runCatching {
             pm.setComponentEnabledSetting(component, newState, PackageManager.DONT_KILL_APP)
             true

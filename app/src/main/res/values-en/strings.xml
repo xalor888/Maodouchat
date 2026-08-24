@@ -109,7 +109,8 @@
     <plurals name="time_days_ago"><item quantity="one">%d day ago</item><item quantity="other">%d days ago</item></plurals>
     <string name="contacts_search">Search</string>
     <string name="contacts_start_group">Start group chat</string>
-    <string name="contacts_search_placeholder">Search contacts</string>
+    <string name="contacts_search_placeholder">Search username to add a contact</string>
+    <string name="contacts_add_contact">Add contact</string>
     <string name="contacts_new_group">New group</string>
     <string name="contacts_empty">No contacts found</string>
     <string name="contacts_new_group_search_empty">No matching contacts (search name / ID / email)</string>
@@ -121,10 +122,11 @@
     </plurals>
     <string name="contacts_no_matching_users">No matching users</string>
     <string name="contacts_group_name">Group name</string>
-    <string name="contacts_select_members">Select members (%1$d)</string>
+    <string name="contacts_select_members">Select members (%1$d, optional)</string>
     <string name="contacts_create">Create</string>
     <string name="contacts_enter_group_name">Enter a group name</string>
-    <string name="contacts_select_group_members">Select at least one group member</string>
+    <string name="contacts_select_group_members">Members are optional — invite later</string>
+    <string name="contacts_group_members_optional">Members are optional. You can create a group alone and invite people later.</string>
     <string name="error_session_expired">Your session expired. Sign in again.</string>
     <string name="contacts_create_chat_failed">Could not create the chat</string>
     <string name="contacts_load_failed">Could not load contacts. Check your network and try again.</string>
@@ -351,9 +353,9 @@
         <item quantity="other">Exported %1$d messages</item>
     </plurals>
     <string name="chat_export_empty">No messages to export in this chat</string>
-    <string name="chat_clear_history_title">Clear local messages?</string>
-    <string name="chat_clear_history_body">Deletes local messages and media cache for this chat. This cannot be undone. Server ciphertext may resync when you reopen. Chat PIN, drafts, and group settings are kept.</string>
-    <string name="chat_clear_history_done">Local messages cleared</string>
+    <string name="chat_clear_history_title">Delete cache on this device?</string>
+    <string name="chat_clear_history_body">Deletes decrypted messages and media for this chat on this device. This cannot be undone. The server only has ciphertext, not a readable backup; the same envelopes cannot be decrypted again. Other devices are not affected.</string>
+    <string name="chat_clear_history_done">Local plaintext cleared. There is no readable cloud backup.</string>
     <string name="chat_permission_record">Microphone access is required to record audio</string>
     <string name="chat_permission_voice_call">Microphone access is required for voice calls</string>
     <string name="chat_permission_video_call">Microphone and camera access are required for video calls</string>
@@ -642,6 +644,7 @@
     </plurals>
     <string name="chat_forward_search_empty">No matching chats</string>
     <string name="chat_send_failed">Send failed</string>
+    <string name="chat_send_failed_no_devices">This person has no encryption device yet (they have never signed in). Ask them to sign in, then try again.</string>
     <string name="chat_send_failed_retry">This message failed to send. Try again?</string>
     <string name="chat_retry">Retry</string>
     <string name="chat_fullscreen_image">Full-screen image</string>
@@ -1184,6 +1187,7 @@
     <string name="chat_decrypt_session_missing">[Missing session key. Waiting for resend]</string>
     <string name="chat_decrypt_identity_changed">[Safety number changed. Verify identity]</string>
     <string name="chat_decrypt_failed">[Unable to decrypt message]</string>
+    <string name="chat_decrypt_new_device">This is a new device. Cloud history stays encrypted until peers re-session or group Sender Keys are redistributed. Messages you sent from another device cannot be decrypted here unless that device still has them.</string>
     <string name="chat_decrypt_image_failed">[Unable to decrypt image]</string>
     <string name="chat_decrypt_gif_failed">[Unable to decrypt GIF]</string>
     <string name="chat_decrypt_sticker_failed">[Unable to decrypt sticker]</string>
@@ -1349,7 +1353,7 @@
     <string name="chat_lock_disabled">Chat PIN disabled</string>
     <string name="chat_lock_cleared_local">Local history cleared and PIN removed</string>
     <string name="chat_lock_forgot_confirm_title">Clear local chat?</string>
-    <string name="chat_lock_forgot_confirm_body">This deletes local messages and the PIN for this chat. Server ciphertext may resync when you reopen the chat.</string>
+    <string name="chat_lock_forgot_confirm_body">This deletes decrypted messages and the PIN for this chat on this device. There is no readable cloud backup.</string>
     <string name="chat_lock_list_indicator">Locked</string>
     <string name="chat_lock_list_preview">Content locked</string>
     <string name="secret_chat_menu_enable">Enable secret chat</string>
@@ -1429,6 +1433,7 @@
     <string name="call_peer_busy">User is busy</string>
     <string name="call_handle_signaling_failed">Could not process call signaling: %1$s</string>
     <string name="call_establishing">Connecting…</string>
+    <string name="call_webrtc_downloading">Downloading call component %1$d%%</string>
     <string name="call_calling_video">Calling with video…</string>
     <string name="call_calling">Calling…</string>
     <string name="call_incoming_ringing">Incoming call…</string>
@@ -1454,6 +1459,12 @@
     <string name="settings_account_security">Security Center</string>
     <string name="security_center_title">Security Center</string>
     <string name="security_center_subtitle">Devices, E2EE, and app lock at a glance</string>
+    <string name="security_section_about">Encryption scope</string>
+    <string name="security_section_account">Account</string>
+    <string name="security_section_devices">Signed-in devices</string>
+    <string name="security_section_danger">Danger zone</string>
+    <string name="security_section_lock">App lock and screen capture</string>
+    <string name="security_section_secret">Secret chat (this device)</string>
     <string name="security_e2ee_ready">End-to-end encryption is ready</string>
     <string name="security_e2ee_not_ready">End-to-end encryption is not ready</string>
     <string name="security_e2ee_hint">Chats and groups are encrypted by default; the server cannot read message plaintext</string>
@@ -1470,12 +1481,12 @@
     <string name="security_scope_body">• 1:1 / group bodies and encrypted attachments: E2EE; the server stores ciphertext and routing metadata only\n• Safety codes: Maodouchat\u2019s own 5-digit groups for out-of-band checks; changes surface as in-chat warnings\n• Secret chat: local FLAG_SECURE + blind watermark + redacted notify/export; device-local only, not a two-party protocol; cannot stop external cameras\n• Local DB: SQLCipher; sign-out purges this device session per policy\n• Push: WebSocket keep-alive (no FCM or vendor channels)\n• AI: never reads ciphertext by default; user-triggered and can be disabled; admin audit has no prompts/bodies\n• Backups: if server backup is enabled, scope follows the backup notice — not plaintext access</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_privacy">Privacy</string>
-    <string name="settings_ai_privacy">AI assistant and privacy</string>
-    <string name="settings_moderation">Content moderation</string>
+    <string name="settings_ai_privacy">AI and privacy</string>
+    <string name="settings_moderation">Moderation and risk control</string>
     <string name="settings_general">General</string>
     <string name="settings_starred_messages">All starred messages</string>
     <string name="settings_logout">Sign out</string>
-    <string name="settings_logout_message">Signing out clears local chat data. Continue?</string>
+    <string name="settings_logout_message">Signing out keeps this account’s encrypted identity and chat history on this device. Switching accounts clears the local store. Continue?</string>
     <string name="settings_logout_confirm">Sign out</string>
     <string name="profile_change_avatar">Change profile photo</string>
     <string name="profile_remove_avatar">Remove profile photo</string>
@@ -1493,8 +1504,26 @@
     <string name="settings_username_updated">Username updated</string>
     <string name="settings_username_update_failed">Could not update username</string>
     <string name="settings_share_profile">Share profile</string>
-    <string name="privacy_show_online_title">Show online status</string>
+    <string name="privacy_show_online_title">Who can see you online</string>
     <string name="privacy_show_online_subtitle">People will not see when you are online</string>
+    <string name="privacy_online_visibility_subtitle">Who can see when you are using Maodouchat</string>
+    <string name="privacy_online_everyone">Everyone</string>
+    <string name="privacy_online_contacts">Contacts</string>
+    <string name="privacy_online_nobody">Nobody</string>
+    <string name="about_source">Source code</string>
+    <string name="about_source_url">https://github.com/xalor888/Maodouchat</string>
+    <string name="about_check_update">Check for updates</string>
+    <string name="about_update_latest">You are on the latest version</string>
+    <string name="about_update_available">New version %1$s is available</string>
+    <string name="about_update_download">Download and install</string>
+    <string name="about_update_downloading">Downloading update %1$d%%</string>
+    <string name="about_update_install_failed">Could not install the update. Allow installing unknown apps for Maodouchat, then try again.</string>
+    <string name="about_update_failed">Could not check for updates</string>
+    <string name="about_update_notes">Release notes</string>
+    <string name="developer_bots_commands_title">Available bot commands</string>
+    <string name="developer_bots_commands_body">Create / rotate token / webhook / sendMessage / pin / reactions / polls / getUpdates / listCapabilities. Full contract: docs/bot-developer-api.md in the open-source repo.</string>
+    <string name="ai_privacy_auto_translate">Auto-translate incoming messages</string>
+    <string name="ai_privacy_auto_translate_hint">When on, incoming foreign-language messages are translated with the model configured on this device. Chat plaintext is not sent to the Maodou server.</string>
     <string name="privacy_searchable_title">Allow discovery</string>
     <string name="privacy_searchable_subtitle">Do not appear in the public contact directory</string>
     <string name="privacy_default_post_visibility">Default post audience</string>
@@ -1544,10 +1573,13 @@
     <string name="media_saved">Saved to gallery</string>
     <string name="media_save_failed">Save failed</string>
     <string name="chat_clear_history">Clear chat history</string>
-    <string name="chat_clear_history_confirm">Clear this chat history on this device? This cannot be undone and does not affect the other device.</string>
+    <string name="chat_clear_history_confirm">Clear decrypted messages on this device? This cannot be undone. There is no readable cloud backup. Other devices are not affected.</string>
     <string name="chat_clear_history_yes">Clear</string>
-    <string name="chat_clear_local_history">Clear local history</string>
-    <string name="chat_clear_local_history_confirm">Clear local chat history for "%1$s"? This cannot be undone and does not affect the other device or server ciphertext.</string>
+    <string name="chat_clear_local_history">Delete cache on this device</string>
+    <string name="chat_clear_local_history_confirm">Delete decrypted messages and media for "%1$s" on this device? This cannot be undone. There is no readable cloud backup.</string>
+    <string name="general_floating_dock">Floating dock</string>
+    <string name="general_floating_dock_subtitle">Use the floating capsule dock in Default theme. Turn it off to pin the bar and keep the chat-list plus uncovered.</string>
+    <string name="group_detail_play">Group tools</string>
     <string name="chat_view_shared_media">View shared media</string>
     <string name="chat_view_starred">View starred</string>
     <string name="settings_blocked_users">Blocked users</string>
@@ -1771,9 +1803,44 @@
     <string name="moderation_report_closed">Report closed</string>
     <string name="moderation_action_failed">Could not apply action</string>
 
-    <string name="ai_privacy_global">Global AI assistant</string>
-    <string name="ai_privacy_global_enabled_hint">Allow AI rewriting, reply suggestions, and summaries in chats</string>
-    <string name="ai_privacy_global_disabled_hint">All chat AI features are unavailable when disabled</string>
+    <string name="ai_privacy_global">In-chat AI</string>
+    <string name="ai_privacy_global_enabled_hint">Allow rewrite, reply suggestions, and summaries in chats. The model is configured on this device; chat plaintext is not sent through the Maodou server.</string>
+    <string name="agent_title">Maodou assistant</string>
+    <string name="agent_new_session">New chat</string>
+    <string name="agent_privacy_hint">The assistant runs on this device. It can read decrypted chats, drafts, stars, contacts, tasks, missed calls, and notifications. Pin/mute/send/draft changes need your approval and sending uses the existing E2EE outbox. Secret and locked PIN chats stay unread. It cannot tap the UI, run SQL, or change system settings.</string>
+    <string name="agent_role_you">You</string>
+    <string name="agent_role_assistant">Assistant</string>
+    <string name="agent_approval_title">Needs your approval</string>
+    <string name="agent_reject">Reject</string>
+    <string name="agent_approve">Approve</string>
+    <string name="agent_input_hint">Ask the on-device assistant…</string>
+    <string name="agent_send">Send</string>
+    <string name="agent_open">Open assistant</string>
+    <string name="agent_provider_title">On-device model</string>
+    <string name="agent_provider_hint">Model settings stay in encrypted storage on this device and are never sent to Maodou. Supports OpenAI Chat Completions, OpenAI Responses, and Anthropic Messages. Chat ciphertext is never sent through Maodou to a model.</string>
+    <string name="agent_provider_name">Name</string>
+    <string name="agent_provider_base_url">Base URL</string>
+    <string name="agent_provider_model">Model</string>
+    <string name="agent_provider_api_key">API key</string>
+    <string name="agent_provider_protocol">Protocol</string>
+    <string name="agent_protocol_chat_completions">OpenAI Chat Completions</string>
+    <string name="agent_protocol_responses">OpenAI Responses</string>
+    <string name="agent_protocol_anthropic">Anthropic Messages</string>
+    <string name="agent_provider_organization">OpenAI organization (optional)</string>
+    <string name="agent_provider_anthropic_version">Anthropic-Version</string>
+    <string name="agent_provider_extra_headers">Extra HTTP headers (JSON)</string>
+    <string name="agent_provider_context_title">Context and sampling</string>
+    <string name="agent_provider_context_window">Context window (token estimate)</string>
+    <string name="agent_provider_history_limit">Assistant history messages</string>
+    <string name="agent_provider_max_tokens">Max output tokens</string>
+    <string name="agent_provider_temperature">Temperature (optional)</string>
+    <string name="agent_provider_top_p">Top P (optional)</string>
+    <string name="agent_provider_timeout">Timeout seconds</string>
+    <string name="agent_provider_stream">Streaming</string>
+    <string name="agent_provider_stream_hint">SSE streaming when no tools are used. Tool rounds stay non-stream.</string>
+    <string name="agent_provider_save">Save model</string>
+    <string name="agent_provider_saved">On-device model saved</string>
+    <string name="ai_privacy_global_disabled_hint">Chat AI features are unavailable when this is off</string>
     <string name="ai_privacy_local_consent">AI consent on this device</string>
     <string name="ai_privacy_local_consent_hint">You will be asked to review data processing again before the next AI request</string>
     <string name="ai_privacy_recent_calls">Recent AI requests</string>
@@ -1800,8 +1867,8 @@
     <string name="ai_status_disabled">Disabled</string>
     <string name="ai_status_rate_limited">Rate limited</string>
     <string name="ai_status_unknown">Unknown</string>
-    <string name="ai_privacy_global_enabled">Global AI assistant enabled</string>
-    <string name="ai_privacy_global_disabled">Global AI assistant disabled</string>
+    <string name="ai_privacy_global_enabled">In-chat AI on</string>
+    <string name="ai_privacy_global_disabled">In-chat AI off</string>
     <string name="ai_privacy_save_failed">Could not save AI settings</string>
     <string name="ai_privacy_local_allowed">AI features allowed on this device</string>
     <string name="ai_privacy_local_revoked">AI consent revoked on this device</string>
@@ -1953,10 +2020,10 @@
     <string name="general_night_window_title">Night mode window</string>
     <string name="general_night_start">Start time</string>
     <string name="general_night_end">End time</string>
-    <string name="general_theme_style_title">Theme Style</string>
+    <string name="general_theme_style_title">Appearance</string>
     <string name="general_theme_style_summary">Current: %1$s</string>
-    <string name="general_theme_style_maodou">Maodou (Default)</string>
-    <string name="general_theme_style_tg_classic">TG Classic</string>
+    <string name="general_theme_style_maodou">Default</string>
+    <string name="general_theme_style_tg_classic">Default</string>
     <string name="general_theme_style_tg_midnight">TG Daybreak &amp; Midnight</string>
     <string name="general_theme_style_tg_graphite">TG Ice &amp; Graphite</string>
     <string name="general_theme_style_tg_badge">1:1 Replica</string>
@@ -2322,6 +2389,11 @@
     <string name="group_play_bot_invited">Bot added to chat</string>
     <string name="group_play_bot_invite_failed">Failed to invite bot</string>
     <string name="group_play_invite_bot">Invite my bot</string>
+    <string name="group_play_invite_bot_title">Choose a bot to invite</string>
+    <string name="group_play_invite_bot_empty">You have no bots to invite. Create one in Settings first.</string>
+    <string name="chat_bot_slash_picker_title">Bot commands</string>
+    <string name="developer_bots_open_chat">Open chat</string>
+    <string name="developer_bots_open_chat_failed">Could not open a chat with this bot</string>
     <string name="group_play_lucky">Lucky draw</string>
     <string name="group_play_lucky_empty">No members available for draw</string>
     <string name="ai_offline_suggestions_hint">Cloud AI unavailable — showing offline reply suggestions</string>
@@ -2862,6 +2934,8 @@
 
     <string name="chat_attachment_paste">Paste image</string>
     <string name="chat_clipboard_no_image">No image in clipboard to send</string>
+    <string name="chat_image_picker_unavailable">Could not open the gallery. Try again later.</string>
+    <string name="chat_video_picker_unavailable">Could not open the video picker. Try again later.</string>
 
     <string name="chat_group_muted_until">You are muted in this group, about %1$s left</string>
     <string name="chat_mute_minutes" tools:ignore="PluralsCandidate">%1$d min</string>

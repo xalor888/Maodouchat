@@ -16,7 +16,6 @@ import com.maodouchat.server.db.GroupPkVotes
 import com.maodouchat.server.db.GroupPolls
 import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.Chats
-import com.maodouchat.server.db.AiPreferences
 import com.maodouchat.server.db.EncryptedAttachments
 import com.maodouchat.server.db.MessageMutations
 import com.maodouchat.server.db.MessageReactions
@@ -1458,10 +1457,8 @@ class ChatRepository {
         DirectChatPairs.deleteWhere { DirectChatPairs.chatId eq chatId }
         MessageMutations.deleteWhere { MessageMutations.chatId eq chatId }
         SenderKeyDistributions.deleteWhere { SenderKeyDistributions.chatId eq chatId }
-        AiPreferences.deleteWhere { AiPreferences.chatId eq chatId }
         ChatUserSettings.deleteWhere { ChatUserSettings.chatId eq chatId }
         GroupAuditLogs.deleteWhere { GroupAuditLogs.chatId eq chatId }
-        // B3 群玩法：先删明细/投票（FK 指向主表），再删主表，避免删群后残留孤儿行
         GroupChainEntries.deleteWhere { GroupChainEntries.chainId inList chainIds(chatId) }
         GroupChains.deleteWhere { GroupChains.chatId eq chatId }
         GroupPkVotes.deleteWhere { GroupPkVotes.pkId inList pkIds(chatId) }
@@ -1504,9 +1501,6 @@ class ChatRepository {
             (SenderKeyDistributions.chatId eq chatId) and
                 ((SenderKeyDistributions.senderId eq userId) or
                     (SenderKeyDistributions.recipientUserId eq userId))
-        }
-        AiPreferences.deleteWhere {
-            (AiPreferences.chatId eq chatId) and (AiPreferences.userId eq userId)
         }
         GroupCheckins.deleteWhere {
             (GroupCheckins.chatId eq chatId) and (GroupCheckins.userId eq userId)

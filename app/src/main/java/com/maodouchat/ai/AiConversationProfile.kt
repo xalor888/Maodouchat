@@ -5,10 +5,7 @@ import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.repository.AiProfileRepository
-import com.maodouchat.data.repository.AiEnhanceHttp
 import com.maodouchat.network.AiContextMessage
-import com.maodouchat.network.AiConversationProfileRequest
-import com.maodouchat.network.AiConversationProfileResponse
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,8 +20,7 @@ import kotlinx.serialization.json.Json
  * - 表情使用
  * - 高频主题词（CJK 二元组 + 拉丁词，本地轻量统计，不引入 embedding）
  *
- * 服务端叙事：可选地把最近一段会话消毒后 POST /api/ai/enhance/conversation-profile，
- * 由服务端复用 AiGateway.summarize 生成一段「对端画像/话题画像」叙事，缓存到本地。
+ * 叙事：用户自配的本机模型根据已解密上下文生成一段「对端画像/话题画像」，缓存到本地。
  *
  * 约束：
  * - 走 AiPromptSafetyPolicy 消毒（控制符剥离、截断、标注不可信）；
@@ -38,7 +34,7 @@ object AiConversationProfile {
         AiPrivacyPreferences.mayUploadCloudContext(context) && isLocalProfileEnabled(context)
 
     fun isLocalProfileEnabled(context: Context): Boolean =
-        RuntimeFlags.isEnabled(context, RuntimeFlags.AI_SUMMARY)
+        RuntimeFlags.isEnabled(context, RuntimeFlags.AI_MASTER)
 
     @Serializable
     data class LocalStats(
@@ -126,17 +122,12 @@ object AiConversationProfile {
             )?.let { AiContextMessage(it.sender, it.text) }
         }
         if (contextMessages.isEmpty()) return ""
-        val request = AiConversationProfileRequest(
-            messages = contextMessages,
-            chatId = chatId
-        )
-        val body = json.encodeToString(AiConversationProfileRequest.serializer(), request)
-        return AiEnhanceHttp.post(
+        val statsHint = "消息 ${stats.messageCount} 条，活跃 ${stats.activeDays} 天，主题 ${stats.topTerms.take(8).joinToString("、")}"
+        return com.maodouchat.ai.agent.LocalAiGateway.summarize(
             context,
-            "/api/ai/enhance/conversation-profile",
-            body,
-            AiConversationProfileResponse.serializer()
-        ).getOrNull()?.summary?.trim()?.take(MAX_NARRATIVE_CHARS).orEmpty()
+            contextMessages,
+            "brief"
+        ).getOrNull()?.let { "$statsHint。$it" }?.trim()?.take(MAX_NARRATIVE_CHARS).orEmpty()
     }
 
     private fun computeStats(messages: List<Message>): LocalStats {

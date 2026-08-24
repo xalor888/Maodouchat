@@ -48,6 +48,7 @@ __pycache__/
 *.pyc
 
 # AI tooling workspace state
+.dsh-worktrees/
 .agent-teams/
 .qoder/
 .opencode/
@@ -63,6 +64,9 @@ _tools/
 
 # stray file
 f
+
+# Local emulator QA screenshots (not product assets)
+.tmp-qa/
 
 # Logs
 *.log

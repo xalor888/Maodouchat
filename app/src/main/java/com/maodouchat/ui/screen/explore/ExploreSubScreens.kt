@@ -103,13 +103,7 @@ import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.PullToRefreshLayout
-import com.maodouchat.ui.theme.Background
 import com.maodouchat.ui.theme.MaodouchatTheme
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.Surface
-import com.maodouchat.ui.theme.TextHint
-import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.util.NearbyPolicy
 import kotlinx.coroutines.delay
@@ -485,7 +479,7 @@ fun NearbyScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
             )
         },
-        containerColor = Background
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             Row(
@@ -499,7 +493,7 @@ fun NearbyScreen(
                 Icon(
                     Icons.Outlined.LocationOn,
                     contentDescription = null,
-                    tint = if (state.isSharing) Primary else TextHint,
+                    tint = if (state.isSharing) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -718,7 +712,7 @@ private fun NearbyItem(person: NearbyPerson, onClick: () -> Unit) {
                 Text(
                     text = distanceText,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (user.isOnline) Primary else TextSecondary
+                    color = if (user.isOnline) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary
                 )
                 if (updatedText != null) {
                     Spacer(modifier = Modifier.height(2.dp))
@@ -773,7 +767,7 @@ fun MomentsScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
             )
         },
-        containerColor = Background
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         var momentsSearch by rememberSaveable { mutableStateOf("") }
         // 1.330：只看带图片的动态（与 Explore 动态流 1.192 一致）
@@ -890,7 +884,7 @@ fun MomentsScreen(
                                 Icon(
                                     if (post.likedByMe) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                     contentDescription = stringResource(R.string.explore_like),
-                                    tint = if (post.likedByMe) androidx.compose.ui.graphics.Color(0xFFE91E63) else TextSecondary,
+                                    tint = if (post.likedByMe) androidx.compose.ui.graphics.Color(0xFFE91E63) else LocalChatPalette.current.textSecondary,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -1005,7 +999,7 @@ fun PostDetailScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
             )
         },
-        containerColor = Background
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (post == null && state.isPostDetailLoading) {
@@ -1113,7 +1107,7 @@ fun PostDetailScreen(
                                 Icon(
                                     if (post.likedByMe) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
                                     contentDescription = stringResource(R.string.explore_like),
-                                    tint = if (post.likedByMe) androidx.compose.ui.graphics.Color(0xFFE91E63) else TextSecondary,
+                                    tint = if (post.likedByMe) androidx.compose.ui.graphics.Color(0xFFE91E63) else LocalChatPalette.current.textSecondary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -1263,7 +1257,7 @@ fun PostDetailScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(
-                                    if (c.id == highlightedCommentId) Primary.copy(alpha = 0.08f)
+                                    if (c.id == highlightedCommentId) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
                                     else Color.Transparent,
                                     RoundedCornerShape(8.dp)
                                 )
@@ -1356,7 +1350,7 @@ fun PostDetailScreen(
                                     Icon(
                                         if (c.likedByMe) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                         contentDescription = stringResource(R.string.explore_comment_like),
-                                        tint = if (c.likedByMe) androidx.compose.ui.graphics.Color(0xFFE91E63) else TextSecondary,
+                                        tint = if (c.likedByMe) androidx.compose.ui.graphics.Color(0xFFE91E63) else LocalChatPalette.current.textSecondary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -1375,7 +1369,7 @@ fun PostDetailScreen(
                                     Text(
                                         c.likeCount.toString(),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = if (c.likedByMe) androidx.compose.ui.graphics.Color(0xFFE91E63) else TextSecondary
+                                        color = if (c.likedByMe) androidx.compose.ui.graphics.Color(0xFFE91E63) else LocalChatPalette.current.textSecondary
                                     )
                                 }
                                 // 1.97：回复该评论
@@ -1583,7 +1577,7 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
         var cursor = 0
         snippet.highlights.forEach { span ->
             if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)))
             append(snippet.text.substring(span.start, span.end))
             pop()
             cursor = span.end

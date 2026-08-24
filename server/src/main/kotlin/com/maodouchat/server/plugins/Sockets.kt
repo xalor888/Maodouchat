@@ -421,6 +421,14 @@ private suspend fun WebSocketSession.handleWsMessage(
             val payload = runCatching { wsMsg.payload }.getOrDefault("")
             sendSafe(this, json.encodeToString(WsMessage("PONG", payload)))
         }
+        "PRESENCE" -> {
+            val foreground = wsMsg.payload.equals("true", ignoreCase = true) ||
+                wsMsg.payload.contains("\"foreground\":true", ignoreCase = true)
+            userStatusLock(senderId).withLock {
+                userRepo.setOnline(senderId, foreground)
+            }
+            broadcastUserStatus(senderId, foreground, json, userRepo)
+        }
         "SEND_MESSAGE" -> {
             if (RuntimeConfigService.isMaintenanceMode()) {
                 sendError(
@@ -552,8 +560,9 @@ private suspend fun WebSocketSession.handleWsMessage(
         }
 
         "STATUS_UPDATE" -> {
-            // 频率限制：每用户每分钟最多 60 次状态回执，防止已读/送达回执被高频刷量（廉价 DoS 放大）
-            if (!wsStatusRateLimiter.acquire(senderId, maxPerMinute = 60)) return
+            // 频率限制：每用户每分钟最多 240 次状态回执。打开会话会把可见消息
+            // 逐条 DELIVERED/READ，60/min 在正常聊天里就会被打满并静默丢回执。
+            if (!wsStatusRateLimiter.acquire(senderId, maxPerMinute = 240)) return
             val payload = json.decodeFromString<StatusUpdatePayload>(wsMsg.payload)
             if (payload.status !in ALLOWED_STATUSES) {
                 sendError("消息状态无效", json)
@@ -678,7 +687,9 @@ private suspend fun WebSocketSession.handleWsMessage(
         }
 
         "REQUEST_SENDER_KEY" -> {
-            if (!wsMessageRateLimiter.acquire(senderId, maxPerMinute = RuntimeConfigService.maxMessagePerMinute())) {
+            // Do not share the chat-message 60/min bucket: group restore fans out
+            // one request per missing epoch and would otherwise 429 as "频繁".
+            if (!wsMessageRateLimiter.acquire("sk:$senderId", maxPerMinute = 240)) {
                 sendError("请求过于频繁，请稍后再试", json)
                 return
             }
@@ -698,8 +709,9 @@ private suspend fun WebSocketSession.handleWsMessage(
         }
 
         "TYPING" -> {
-                // 频率限制：每用户每分钟最多 30 次打字指示，防止群 fanout 放大攻击
-                if (!wsTypingRateLimiter.acquire(senderId, maxPerMinute = 30)) return
+                // 打字指示：每用户每分钟 120 次。30/min 会被正常连打 + 3s debounce 打满，
+                // 表现为「正在输入」丢失；丢弃即可，不回 ERROR（避免客户端 toast 频繁）。
+                if (!wsTypingRateLimiter.acquire(senderId, maxPerMinute = 120)) return
                 val payload = json.decodeFromString<TypingPayload>(wsMsg.payload)
                 if (!chatRepo.isParticipant(payload.chatId, senderId)) return
                 // 双向拉黑过滤（与 NUDGE/SEND_MESSAGE 一致）：被对方拉黑或拉黑对方都不再收到 typing 侧信道
@@ -806,7 +818,7 @@ private suspend fun WebSocketSession.handleWsMessage(
 }
 
 private suspend fun broadcastUserStatus(userId: String, isOnline: Boolean, json: Json, userRepo: UserRepository) {
-    // 隐私保护：showOnline=false 的用户不广播在线状态
+    // 隐私保护：nobody / showOnline=false 不广播在线状态
     if (!userRepo.shouldBroadcastOnline(userId)) return
     // 频控：防重连风暴放大（单用户 connect/disconnect 反复触发 O(N) 全量广播）。
     // 丢弃超额广播不影响最终状态——客户端以定期轮询在线状态兜底收敛。
@@ -822,7 +834,7 @@ private suspend fun broadcastUserStatus(userId: String, isOnline: Boolean, json:
     val onlineIds = onlineUsers.keys.filter { it != userId }
     val blockedIds = try { userRepo.blockedEitherWayIdsInTx(userId, onlineIds) } catch (_: Exception) { emptySet() }
     onlineIds.forEach { uid ->
-        if (uid !in blockedIds) {
+        if (uid !in blockedIds && userRepo.shouldShowOnlineTo(userId, uid)) {
             sendToUser(uid, msg)
         }
     }

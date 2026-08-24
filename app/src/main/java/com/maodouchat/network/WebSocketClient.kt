@@ -585,6 +585,9 @@ object WebSocketClient {
             if (refreshed != null && refreshed.isNotBlank()) {
                 authToken.set(refreshed)
                 scheduleReconnect()
+            } else if (TokenManager.getInstanceOrNull()?.isLoggedIn() == true) {
+                // Refresh failed on a live session (offline / 5xx). Keep retrying.
+                scheduleReconnect()
             } else {
                 shouldReconnect = false
             }
@@ -678,8 +681,9 @@ object WebSocketClient {
                     }
                     if (refreshed != null && refreshed.isNotBlank()) {
                         token = refreshed
+                    } else if (tokenManager.isLoggedIn()) {
+                        // Offline / 5xx refresh: keep the existing JWT and retry.
                     } else {
-                        // 刷新失败：会话可能已失效，停止重连（避免用过期 JWT 反复 1008 空转）
                         shouldReconnect = false
                         return@launch
                     }
@@ -741,6 +745,10 @@ object WebSocketClient {
         val payload = json.encodeToString(TypingPayload.serializer(), TypingPayload("", chatId, isTyping))
         return send(WsMessage("TYPING", payload))
     }
+
+    /** 前台才算在线：Activity onStart/onStop 上报，不把后台保活 WS 当成在线。 */
+    fun sendPresence(foreground: Boolean): Boolean =
+        send(WsMessage(type = "PRESENCE", payload = if (foreground) "true" else "false"))
 
     fun sendNudge(chatId: String, targetName: String): Boolean {
         val payload = json.encodeToString(NudgePayload.serializer(), NudgePayload(

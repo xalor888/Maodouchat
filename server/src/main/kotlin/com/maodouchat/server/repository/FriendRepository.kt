@@ -300,6 +300,8 @@ class FriendRepository {
             (Friendships.userLowId eq userId) or (Friendships.userHighId eq userId)
         }.count()
 
+    fun areFriends(a: String, b: String): Boolean = transaction { areFriendsInTransaction(a, b) }
+
     private fun areFriendsInTransaction(a: String, b: String): Boolean {
         if (a == b) return false
         val (low, high) = orderedPair(a, b)

@@ -19,13 +19,13 @@ object ContactsIndexPolicy {
     /**
      * Rows that sit above the first letter header in ContactsScreen:
      * incoming requests (header + N), outgoing (header + M), group invites
-     * (header + K), then the always-on "new group" and "new channel" rows.
+     * (header + K), then the always-on add-contact / new-group / new-channel rows.
      */
     fun leadingFixedItemCount(
         incomingCount: Int,
         outgoingCount: Int,
         groupInviteCount: Int,
-        trailingActionRows: Int = 2
+        trailingActionRows: Int = 3
     ): Int {
         var n = trailingActionRows.coerceAtLeast(0)
         if (incomingCount > 0) n += incomingCount + 1

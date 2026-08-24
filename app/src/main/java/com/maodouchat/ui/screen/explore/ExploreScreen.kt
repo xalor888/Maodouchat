@@ -41,7 +41,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
-import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
@@ -62,8 +61,6 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.outlined.NearMe
-import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
@@ -99,8 +96,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -122,13 +119,12 @@ import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
+import com.maodouchat.ui.component.SearchBar
 import com.maodouchat.ui.component.ShimmerPostCard
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MaodouchatTheme
-import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.Secondary
-import com.maodouchat.ui.theme.TextSecondary
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -153,10 +149,13 @@ fun ExploreScreen(
     // 1.178：滚动较深时显示「回到最新」
     var showScrollToTop by remember { mutableStateOf(false) }
     var feedSearch by rememberSaveable { mutableStateOf("") }
+    val feedSearchFocus = remember { FocusRequester() }
+    var requestFeedSearchFocus by remember { mutableStateOf(0) }
     // 1.109：只看我发布的动态
     var showOnlyMine by rememberSaveable { mutableStateOf(false) }
     // 1.192：只看带图片的动态
     var showOnlyMedia by rememberSaveable { mutableStateOf(false) }
+    var composerExpanded by rememberSaveable { mutableStateOf(false) }
     val currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId().orEmpty()
     val filteredPosts = remember(uiState.posts, feedSearch, showOnlyMine, showOnlyMedia) {
         val mine = if (showOnlyMine) { post: PostDto ->
@@ -212,7 +211,13 @@ fun ExploreScreen(
     // 1.196：发布成功后滚动流到顶部（新动态在列表头部）
     LaunchedEffect(uiState.publishRevision) {
         if (uiState.publishRevision > 0) {
+            composerExpanded = false
             listState.animateScrollToItem(0)
+        }
+    }
+    LaunchedEffect(uiState.composerText, uiState.imageDrafts, uiState.composerDraftRestored) {
+        if (uiState.composerText.isNotBlank() || uiState.imageDrafts.isNotEmpty() || uiState.composerDraftRestored) {
+            composerExpanded = true
         }
     }
 
@@ -222,28 +227,41 @@ fun ExploreScreen(
             showScrollToTop = index > 4
         }
     }
+    LaunchedEffect(requestFeedSearchFocus) {
+        if (requestFeedSearchFocus <= 0) return@LaunchedEffect
+        listState.scrollToItem(0)
+        kotlinx.coroutines.delay(50)
+        runCatching { feedSearchFocus.requestFocus() }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.nav_explore), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 actions = {
+                    IconButton(onClick = { requestFeedSearchFocus++ }) {
+                        Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.contacts_search))
+                    }
+                    IconButton(onClick = { viewModel.onEntryClick("scan") }) {
+                        Icon(Icons.Outlined.QrCodeScanner, contentDescription = stringResource(R.string.explore_scan))
+                    }
                     IconButton(onClick = viewModel::refresh) {
                         Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.explore_refresh))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+                colors = com.maodouchat.ui.theme.liquidGlassTopAppBarColors()
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         // 1.178：回到最新
         floatingActionButton = {
             if (showScrollToTop) {
                 SmallFloatingActionButton(
                     onClick = { scope.launch { listState.animateScrollToItem(0) } },
                     containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.primary
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = FloatingBottomBarContentPadding)
                 ) {
                     Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.explore_back_to_top))
                 }
@@ -264,8 +282,35 @@ fun ExploreScreen(
             contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = FloatingBottomBarContentPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item(key = "entry_grid", contentType = "entry_grid") { EntryGrid(onEntryClick = viewModel::onEntryClick) }
-            // 1.177：发布框已恢复上次未发布草稿 → 顶部提示
+            stickyHeader(key = "feed_header") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(bottom = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SearchBar(
+                        value = feedSearch,
+                        onValueChange = { feedSearch = it.take(160) },
+                        placeholder = stringResource(R.string.explore_feed_search_hint),
+                        modifier = Modifier.fillMaxWidth(),
+                        focusRequester = feedSearchFocus
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = showOnlyMine,
+                            onClick = { showOnlyMine = !showOnlyMine },
+                            label = { Text(stringResource(R.string.explore_feed_only_mine)) }
+                        )
+                        FilterChip(
+                            selected = showOnlyMedia,
+                            onClick = { showOnlyMedia = !showOnlyMedia },
+                            label = { Text(stringResource(R.string.explore_feed_only_media)) }
+                        )
+                    }
+                }
+            }
             if (uiState.composerDraftRestored) {
                 item(key = "composer_draft_hint", contentType = "draft_hint") {
                     Row(
@@ -290,7 +335,10 @@ fun ExploreScreen(
                 }
             }
             item(key = "composer", contentType = "composer") {
-                ComposerCard(
+                CompactComposer(
+                    expanded = composerExpanded,
+                    onExpand = { composerExpanded = true },
+                    onCollapse = { composerExpanded = false },
                     text = uiState.composerText,
                     imageDrafts = uiState.imageDrafts,
                     visibilityOptions = viewModel.visibilityOptions,
@@ -302,13 +350,10 @@ fun ExploreScreen(
                     onPickImages = {
                         imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                     },
-                    // 1.158：从剪贴板粘贴图片（解码到缓存 file:// → addImages）
                     onPasteImages = {
                         val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                         val clip = runCatching { cm.primaryClip }.getOrNull()
                         val item = clip?.takeIf { it.itemCount > 0 }?.let { runCatching { it.getItemAt(0) }.getOrNull() }
-                        // 9.284：剪贴板 content:// URI 可能无持久读权限（跨应用分享），
-                        // getType/openInputStream 会抛 SecurityException——此前未接导致点粘贴直接闪退
                         val directUri = item?.uri?.takeIf { uri ->
                             runCatching { context.contentResolver.getType(uri)?.startsWith("image/") == true }.getOrDefault(false)
                         }
@@ -317,7 +362,6 @@ fun ExploreScreen(
                         } else if (item != null) {
                             scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                 val pasted = runCatching {
-                                    // 纯文本剪贴板无 uri：尝试把文本当作图片 URL 无效则直接 null
                                     val bmp = item.uri?.let { uri ->
                                         context.contentResolver.openInputStream(uri)?.use { stream ->
                                             android.graphics.BitmapFactory.decodeStream(stream)
@@ -339,42 +383,14 @@ fun ExploreScreen(
                         }
                     },
                     onRemoveImage = viewModel::removeImage,
-                    // 1.211：重试失败上传
                     onRetryImage = viewModel::retryDraftImage,
                     onVisibilitySelected = viewModel::onVisibilitySelected,
-                    // 1.202：清空发布框
-                    onClear = viewModel::clearComposer,
+                    onClear = {
+                        viewModel.clearComposer()
+                        composerExpanded = false
+                    },
                     onPublish = viewModel::publishPost
                 )
-            }
-
-            if (!uiState.isLoading && uiState.posts.isNotEmpty()) {
-                item(key = "feed_search", contentType = "feed_search") {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = feedSearch,
-                            onValueChange = { feedSearch = it.take(160) },
-                            singleLine = true,
-                            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                            placeholder = { Text(stringResource(R.string.explore_feed_search_hint)) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        // 1.109：只看我的动态
-                        FilterChip(
-                            selected = showOnlyMine,
-                            onClick = { showOnlyMine = !showOnlyMine },
-                            label = { Text(stringResource(R.string.explore_feed_only_mine)) },
-                            modifier = Modifier
-                        )
-                        // 1.192：只看带图片的动态
-                        FilterChip(
-                            selected = showOnlyMedia,
-                            onClick = { showOnlyMedia = !showOnlyMedia },
-                            label = { Text(stringResource(R.string.explore_feed_only_media)) },
-                            modifier = Modifier
-                        )
-                    }
-                }
             }
 
             when {
@@ -399,9 +415,11 @@ fun ExploreScreen(
                         title = stringResource(R.string.explore_empty_title),
                         subtitle = stringResource(R.string.explore_empty_subtitle),
                         type = EmptyStateType.MOMENTS,
-                        // 1.131：空态直达发布框（composer 为列表第 2 项）
                         actionText = stringResource(R.string.explore_empty_action),
-                        onAction = { scope.launch { listState.animateScrollToItem(1) } }
+                        onAction = {
+                            composerExpanded = true
+                            scope.launch { listState.animateScrollToItem(1) }
+                        }
                     )
                 }
                 filteredPosts.isEmpty() -> item(key = "search_empty", contentType = "empty") {
@@ -419,7 +437,7 @@ fun ExploreScreen(
                     placementSpec = motion.listItemPlacementSpec()
                 ),
                 onLike = { viewModel.toggleLike(post) },
-                onComment = { viewModel.openComments(post.id) },
+                onComment = { onOpenPost(post.id) },
                 onDelete = { viewModel.requestDeletePost(post.id) },
                 onEdit = { viewModel.requestEditPost(post.id) },
                 onReport = { viewModel.reportPost(post) },
@@ -559,53 +577,90 @@ fun ExploreScreen(
 }
 
 @Composable
-private fun EntryGrid(onEntryClick: (String) -> Unit) {
-    // 仅保留已实现的"朋友圈"（即本页动态流）；其余入口目前占位意义大于功能，暂不展示。
-    val ctx = androidx.compose.ui.platform.LocalContext.current
-    val postsEnabled = RuntimeFlags.isEnabled(ctx, RuntimeFlags.POSTS)
-    val nearbyEnabled = RuntimeFlags.isEnabled(ctx, RuntimeFlags.NEARBY)
-    val entries = buildList {
-        if (postsEnabled) {
-            add(EntryItem("moments", stringResource(R.string.explore_moments), stringResource(R.string.explore_moments_subtitle), Icons.Outlined.Public))
-        }
-        add(EntryItem("scan", stringResource(R.string.explore_scan), stringResource(R.string.explore_scan_subtitle), Icons.Outlined.QrCodeScanner))
-        if (nearbyEnabled) {
-            add(EntryItem("nearby", stringResource(R.string.explore_nearby), stringResource(R.string.explore_nearby_subtitle), Icons.Outlined.NearMe))
-        }
-    }
-    // 9.292：TG 式紧凑入口条——替代 88dp 大卡片（视觉重、AI 感强），
-    // 单行白卡内平铺「圆图标+标题」，克制接近 Telegram 观感
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
+private fun CompactComposer(
+    expanded: Boolean,
+    onExpand: () -> Unit,
+    onCollapse: () -> Unit,
+    text: String,
+    imageDrafts: List<PostImageDraft>,
+    visibilityOptions: List<VisibilityOption>,
+    selectedVisibility: String,
+    isPublishing: Boolean,
+    canPublish: Boolean,
+    visibilityReady: Boolean,
+    onTextChange: (String) -> Unit,
+    onPickImages: () -> Unit,
+    onPasteImages: () -> Unit,
+    onRemoveImage: (String) -> Unit,
+    onRetryImage: (String) -> Unit,
+    onVisibilitySelected: (String) -> Unit,
+    onClear: () -> Unit,
+    onPublish: () -> Unit,
+) {
+    if (!expanded) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .clickable(onClick = onExpand)
+                .padding(horizontal = 14.dp, vertical = 12.dp)
         ) {
-            entries.forEachIndexed { index, entry ->
-                if (index > 0) {
-                    androidx.compose.material3.HorizontalDivider(
-                        modifier = Modifier.width(0.5.dp).height(28.dp),
-                        thickness = 0.5.dp,
-                        color = LocalChatPalette.current.divider
-                    )
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onEntryClick(entry.id) }
-                        .padding(vertical = 10.dp),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(entry.icon, contentDescription = entry.title, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(7.dp))
-                    Text(entry.title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                }
+            Icon(
+                Icons.Outlined.EditNote,
+                contentDescription = null,
+                tint = LocalChatPalette.current.textSecondary,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                stringResource(R.string.explore_share_placeholder),
+                style = MaterialTheme.typography.bodyLarge,
+                color = LocalChatPalette.current.textHint,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                Icons.Outlined.AddPhotoAlternate,
+                contentDescription = stringResource(R.string.explore_add_images, 0),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                stringResource(R.string.explore_share_title),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = onCollapse) {
+                Text(stringResource(R.string.common_close), color = LocalChatPalette.current.textSecondary)
             }
         }
+        ComposerCard(
+            text = text,
+            imageDrafts = imageDrafts,
+            visibilityOptions = visibilityOptions,
+            selectedVisibility = selectedVisibility,
+            isPublishing = isPublishing,
+            canPublish = canPublish,
+            visibilityReady = visibilityReady,
+            onTextChange = onTextChange,
+            onPickImages = onPickImages,
+            onPasteImages = onPasteImages,
+            onRemoveImage = onRemoveImage,
+            onRetryImage = onRetryImage,
+            onVisibilitySelected = onVisibilitySelected,
+            onClear = onClear,
+            onPublish = onPublish
+        )
     }
 }
 
@@ -632,9 +687,9 @@ private fun ComposerCard(
 ) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(22.dp)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.explore_share_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                if (text.isNotBlank() || imageDrafts.isNotEmpty()) {
+            if (text.isNotBlank() || imageDrafts.isNotEmpty()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.weight(1f))
                     TextButton(onClick = onClear) {
                         Text(stringResource(R.string.explore_composer_clear), color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.labelMedium)
                     }
@@ -677,7 +732,7 @@ private fun ComposerCard(
                 supportingText = {
                     Text(
                         "${text.length}/2000",
-                        color = if (text.length > 1800) Error else TextSecondary,
+                        color = if (text.length > 1800) Error else LocalChatPalette.current.textSecondary,
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
@@ -935,7 +990,7 @@ private fun AnimatedLikeButton(likedByMe: Boolean, onLike: () -> Unit) {
         Icon(
             imageVector = if (likedByMe) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
             contentDescription = stringResource(R.string.explore_like),
-            tint = if (likedByMe) Color(0xFFE91E63) else TextSecondary,
+            tint = if (likedByMe) Color(0xFFE91E63) else LocalChatPalette.current.textSecondary,
             modifier = Modifier
                 .size(20.dp)
                 .graphicsLayer {
@@ -1147,6 +1202,7 @@ internal fun ImageGrid(imageUrls: List<String>) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CommentsDialog(
     comments: List<PostCommentDto>,
@@ -1190,11 +1246,16 @@ private fun CommentsDialog(
             commentListState.animateScrollToItem(comments.lastIndex)
         }
     }
-    AlertDialog(
+    androidx.compose.material3.ModalBottomSheet(
         onDismissRequest = onDismiss,
-        // 1.145：标题显示已加载评论数
-        title = { Text(stringResource(R.string.explore_comments_count, comments.size)) },
-        text = {
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text(
+                stringResource(R.string.explore_comments_count, comments.size),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (isLoading && comments.isEmpty()) {
                     Box(Modifier.fillMaxWidth().height(96.dp), contentAlignment = Alignment.Center) {
@@ -1344,7 +1405,7 @@ private fun CommentsDialog(
                                             Icon(
                                                 if (comment.likedByMe) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                                 contentDescription = stringResource(R.string.explore_comment_like),
-                                                tint = if (comment.likedByMe) Color(0xFFE91E63) else TextSecondary,
+                                                tint = if (comment.likedByMe) Color(0xFFE91E63) else LocalChatPalette.current.textSecondary,
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -1352,7 +1413,7 @@ private fun CommentsDialog(
                                             Text(
                                                 comment.likeCount.toString(),
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = if (comment.likedByMe) Color(0xFFE91E63) else TextSecondary
+                                                color = if (comment.likedByMe) Color(0xFFE91E63) else LocalChatPalette.current.textSecondary
                                             )
                                         }
                                         // 1.246：举报评论（他人评论）
@@ -1441,9 +1502,11 @@ private fun CommentsDialog(
                     }
                 }
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.explore_close)) } }
-    )
+            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                Text(stringResource(R.string.explore_close))
+            }
+        }
+    }
 }
 
 // 1.93：动态点赞者弹窗（Explore 与 PostDetail 共用）
@@ -1510,8 +1573,13 @@ private fun visibilityOptionLabel(value: String): String = when (value) {
     else -> stringResource(R.string.explore_visibility_public)
 }
 
+@Composable
 private fun relativeTime(timestamp: Long): String {
-    return DateUtils.getRelativeTimeSpanString(timestamp, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+    val now = System.currentTimeMillis()
+    if (RelativeTimePolicy.shouldUseJustNow(timestamp, now)) {
+        return stringResource(R.string.time_just_now)
+    }
+    return DateUtils.getRelativeTimeSpanString(timestamp, now, DateUtils.MINUTE_IN_MILLIS).toString()
 }
 
 // 1.270：搜索关键词高亮（与 ChatList/收藏页一致）
@@ -1527,15 +1595,13 @@ private fun highlightedText(text: String, query: String): androidx.compose.ui.te
     var cursor = 0
     snippet.highlights.forEach { span ->
         if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-        pushStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = Primary.copy(alpha = 0.12f)))
+        pushStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)))
         append(snippet.text.substring(span.start, span.end))
         pop()
         cursor = span.end
     }
     if (cursor < snippet.text.length) append(snippet.text.substring(cursor))
 }
-
-private data class EntryItem(val id: String, val title: String, val subtitle: String, val icon: ImageVector)
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

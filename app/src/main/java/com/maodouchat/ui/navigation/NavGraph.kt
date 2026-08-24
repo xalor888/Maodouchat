@@ -24,6 +24,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,8 +43,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
+import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MotionTokens
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
@@ -79,8 +83,15 @@ import com.maodouchat.webrtc.WebRTCSignaling
 // B5 新增（仅追加）：平板双栏布局
 import com.maodouchat.ui.layout.AdaptiveLayout
 import com.maodouchat.ui.layout.rememberAdaptiveLayoutState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.compose.rememberNavController
+import com.maodouchat.network.PublicUpdatesDto
+import com.maodouchat.update.AppUpdatePolicy
+import com.maodouchat.update.AppUpdatePromptStore
+import com.maodouchat.update.OfficialApkInstaller
 
 /**
  * 路由定义
@@ -101,6 +112,7 @@ object Routes {
     const val SETTINGS_BLOCKED_USERS = "settings/blocked_users"
     const val SETTINGS_NOTIFICATIONS = "settings/notifications"
     const val SETTINGS_AI_PRIVACY = "settings/ai_privacy"
+    const val AGENT = "agent"
     const val SETTINGS_MODERATION = "settings/moderation"
     const val SETTINGS_GENERAL = "settings/general"
     const val SETTINGS_ABOUT = "settings/about"
@@ -118,7 +130,6 @@ object Routes {
     const val GLOBAL_SEARCH = "global_search"
     const val NOTIFICATION_CENTER = "notification_center"
     const val PUBLIC_PROFILE = "public_profile/{username}"
-    const val FAKE_CHAT_SETTINGS = "settings/fake_chat"
     // 群玩法 B3：群投票 / 群签到+排行 / 群接龙 / 群 PK
     const val GROUP_POLL = "group_poll/{chatId}"
     const val GROUP_CHECKIN = "group_checkin/{chatId}"
@@ -183,6 +194,100 @@ fun MaodouchatNavGraph(
     val groupCallDisplayName = stringResource(R.string.chat_group_call)
     val sessionExpiredMsg = stringResource(R.string.error_session_expired)
     val createChatFailedMsg = stringResource(R.string.contacts_create_chat_failed)
+    val adminBroadcastDefaultTitle = stringResource(R.string.notification_admin_broadcast_default_title)
+    var adminBroadcastDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var appUpdateOffer by remember { mutableStateOf<PublicUpdatesDto?>(null) }
+    var appUpdateDownloading by remember { mutableStateOf(false) }
+    var appUpdateProgress by remember { mutableIntStateOf(0) }
+    val appUpdateScope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        val ownerUserId = TokenManager.getInstance(context).getUserId().orEmpty()
+        WebSocketClient.events.collect { event ->
+            if (event !is WebSocketEvent.AdminBroadcast) return@collect
+            if (ownerUserId.isBlank() ||
+                !com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                    expectedUserId = ownerUserId,
+                    liveToken = TokenManager.getInstance(context).getToken(),
+                    liveUserId = TokenManager.getInstance(context).getUserId(),
+                )
+            ) {
+                return@collect
+            }
+            val body = event.text.trim()
+            if (body.isBlank()) return@collect
+            adminBroadcastDialog = (event.title.ifBlank { adminBroadcastDefaultTitle }) to body
+        }
+    }
+
+    LaunchedEffect(currentRoute) {
+        if (currentRoute != Routes.MAIN) return@LaunchedEffect
+        val currentCode = runCatching {
+            val info = context.packageManager.getPackageInfo(context.packageName, 0)
+            if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode.toInt() else @Suppress("DEPRECATION") info.versionCode
+        }.getOrDefault(0)
+        val remote = ApiService.getPublicUpdates().getOrNull() ?: return@LaunchedEffect
+        if (!AppUpdatePolicy.shouldOfferUpdate(currentCode, remote.versionCode, remote.apkUrl)) return@LaunchedEffect
+        if (AppUpdatePromptStore.lastOfferedVersionCode(context) >= remote.versionCode) return@LaunchedEffect
+        AppUpdatePromptStore.markOffered(context, remote.versionCode)
+        appUpdateOffer = remote
+    }
+
+    appUpdateOffer?.let { offer ->
+        AlertDialog(
+            onDismissRequest = { if (!appUpdateDownloading) appUpdateOffer = null },
+            title = { Text(stringResource(R.string.about_update_available, offer.versionName.ifBlank { offer.versionCode.toString() })) },
+            text = {
+                Text(
+                    if (appUpdateDownloading) {
+                        stringResource(R.string.about_update_downloading, appUpdateProgress)
+                    } else {
+                        offer.notes.ifBlank { stringResource(R.string.about_update_notes) }
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !appUpdateDownloading,
+                    onClick = {
+                        appUpdateDownloading = true
+                        appUpdateScope.launch {
+                            val result = OfficialApkInstaller.downloadAndPromptInstall(
+                                context = context,
+                                apkUrl = offer.apkUrl,
+                                onProgress = { percent -> appUpdateProgress = percent },
+                            )
+                            appUpdateDownloading = false
+                            if (result.isSuccess) appUpdateOffer = null
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.about_update_download))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !appUpdateDownloading,
+                    onClick = { appUpdateOffer = null }
+                ) {
+                    Text(stringResource(R.string.common_later))
+                }
+            }
+        )
+    }
+
+    adminBroadcastDialog?.let { (title, body) ->
+        AlertDialog(
+            onDismissRequest = { adminBroadcastDialog = null },
+            title = { Text(title) },
+            text = { Text(body) },
+            confirmButton = {
+                TextButton(onClick = { adminBroadcastDialog = null }) {
+                    Text(stringResource(R.string.chat_acknowledge))
+                }
+            }
+        )
+    }
 
     // Bug #20: 监听 Token 过期事件（401），完整清理本地会话后跳转登录页
     LaunchedEffect(Unit) {
@@ -197,7 +302,9 @@ fun MaodouchatNavGraph(
             ) return@collectLatest
             val purged = try {
                 app?.secureSessionManager?.purgeLocalSession(
-                    destroyEncryptedDatabase = true,
+                    destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
+                        com.maodouchat.security.LogoutStorePolicy.Reason.TOKEN_EXPIRED
+                    ),
                     expectedOwnerUserId = event.ownerUserId
                 ) ?: false
             } catch (error: kotlinx.coroutines.CancellationException) {
@@ -364,9 +471,13 @@ fun MaodouchatNavGraph(
                 val customized = com.maodouchat.util.ChatAppearancePreferences.hasCustomBubbleColor(bubbleCtx)
                 com.maodouchat.ui.theme.resolveSentBubble(themeSentSpec, customized, userColor)
             }
-            val bubbleShapes = remember(chatIdArg, appearanceVersion) {
+            val themeFamily = com.maodouchat.ui.theme.ThemeFamily.normalize(
+                com.maodouchat.util.ThemePreferences.family.collectAsState().value
+            )
+            val bubbleShapes = remember(chatIdArg, appearanceVersion, themeFamily) {
                 com.maodouchat.ui.theme.bubbleShapesFor(
-                    com.maodouchat.util.ChatAppearancePreferences.getBubbleShape(bubbleCtx)
+                    com.maodouchat.util.ChatAppearancePreferences.getBubbleShape(bubbleCtx),
+                    themeFamily,
                 )
             }
             androidx.compose.runtime.CompositionLocalProvider(
@@ -376,7 +487,11 @@ fun MaodouchatNavGraph(
                 com.maodouchat.ui.theme.LocalBubbleShapes provides bubbleShapes
             ) {
                 ChatDetailScreen(
-                    onBack = { navController.popBackStack() },
+                    onBack = {
+                        if (!navController.popBackStack(Routes.MAIN, inclusive = false)) {
+                            navController.navigate(Routes.MAIN) { launchSingleTop = true }
+                        }
+                    },
                     onVoiceCall = { contactId, contactName ->
                         navController.navigate(Routes.call(contactId, contactName, "AUDIO"))
                     },
@@ -407,7 +522,11 @@ fun MaodouchatNavGraph(
             GroupDetailScreen(
                 onBack = { navController.popBackStack() },
                 // 1.08：点击群成员查看资料
-                onOpenProfile = { userId -> navController.navigate(Routes.authorProfile(userId)) }
+                onOpenProfile = { userId -> navController.navigate(Routes.authorProfile(userId)) },
+                onOpenGroupPoll = { id -> navController.navigate(Routes.groupPoll(id)) },
+                onOpenGroupCheckin = { id -> navController.navigate(Routes.groupCheckin(id)) },
+                onOpenGroupChain = { id -> navController.navigate(Routes.groupChain(id)) },
+                onOpenGroupPk = { id -> navController.navigate(Routes.groupPk(id)) },
             )
         }
 
@@ -672,6 +791,7 @@ fun MaodouchatNavGraph(
                 selectedAudioRoute = callState.selectedAudioRoute,
                 groupParticipants = callState.groupParticipants,
                 errorMessage = callState.errorMessage,
+                nativeDownloadProgress = callState.nativeDownloadProgress,
                 onDismissError = { callViewModel.clearError() },
                 onHangUp = {
                     callViewModel.hangUp()
@@ -728,7 +848,13 @@ fun MaodouchatNavGraph(
             com.maodouchat.ui.screen.settings.NotificationSettingsScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.SETTINGS_AI_PRIVACY) {
-            com.maodouchat.ui.screen.settings.AiPrivacySettingsScreen(onBack = { navController.popBackStack() })
+            com.maodouchat.ui.screen.settings.AiPrivacySettingsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenAgent = { navController.navigate(Routes.AGENT) }
+            )
+        }
+        composable(Routes.AGENT) {
+            com.maodouchat.ai.agent.MaodouAgentScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.SETTINGS_MODERATION) {
             com.maodouchat.ui.screen.settings.ModerationScreen(onBack = { navController.popBackStack() })
@@ -744,11 +870,6 @@ fun MaodouchatNavGraph(
         }
         composable(Routes.SETTINGS_THEME_EDITOR) {
             com.maodouchat.ui.screen.settings.ThemeEditorScreen(onBack = { navController.popBackStack() })
-        }
-        composable(Routes.FAKE_CHAT_SETTINGS) {
-            com.maodouchat.ui.screen.settings.FakeChatSettingsScreen(
-                onBack = { navController.popBackStack() }
-            )
         }
         composable(Routes.SETTINGS_ABOUT) {
             com.maodouchat.ui.screen.settings.AboutScreen(onBack = { navController.popBackStack() })
@@ -770,7 +891,12 @@ fun MaodouchatNavGraph(
         }
         composable(Routes.DEVELOPER_BOTS) {
             com.maodouchat.ui.screen.settings.DeveloperBotsScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onOpenChat = { chatId ->
+                    navController.navigate(Routes.chatDetail(chatId)) {
+                        launchSingleTop = true
+                    }
+                }
             )
         }
         composable(Routes.MY_QR_CODE) {
@@ -793,10 +919,7 @@ fun MaodouchatNavGraph(
             )
         }
         composable(Routes.NEARBY) {
-            com.maodouchat.ui.screen.explore.NearbyScreen(
-                onBack = { navController.popBackStack() },
-                onOpenChat = { user -> com.maodouchat.call.CallOrchestrator.requestDirectChat(user.id, user.name) }
-            )
+            androidx.compose.runtime.LaunchedEffect(Unit) { navController.popBackStack() }
         }
         composable(Routes.MOMENTS) {
             com.maodouchat.ui.screen.explore.MomentsScreen(
@@ -1378,6 +1501,7 @@ private fun IncomingCallRoute(navController: NavHostController) {
         selectedAudioRoute = callState.selectedAudioRoute,
         groupParticipants = callState.groupParticipants,
         errorMessage = callState.errorMessage,
+        nativeDownloadProgress = callState.nativeDownloadProgress,
         onDismissError = { callViewModel.clearError() },
         onAccept = {
             // 先标记"待接听"，权限通过后再触发 LaunchedEffect 执行 answerCall
@@ -1494,24 +1618,20 @@ private fun MainContainer(navController: NavHostController) {
     }
 
     // 悬浮胶囊底栏叠在内容之上，不走 Scaffold.bottomBar（否则会变成贴底 NavigationBar）。
-    // 状态栏由各一级页自己的 TopAppBar/Scaffold 消费，避免外层再垫一层造成双倍留白。
+    // 内容层用 kyant layerBackdrop 采样，底栏才能做出 Murexide 同款液态玻璃折射。
+    val liquidBackdrop = rememberLayerBackdrop()
+    CompositionLocalProvider(LocalLiquidGlassBackdrop provides liquidBackdrop) {
     Box(modifier = Modifier.fillMaxSize()) {
         AnimatedContent(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(liquidBackdrop),
             targetState = selectedTab,
             transitionSpec = {
                 if (!motion.animationsEnabled) {
                     EnterTransition.None togetherWith ExitTransition.None
                 } else {
-                    val forward = targetState > initialState
-                    val direction = if (forward) 1 else -1
-                    val enterMs = motion.duration(MotionTokens.Emphasized)
-                    val exitMs = motion.duration(MotionTokens.Standard)
-                    (slideInHorizontally(spring(dampingRatio = 0.85f, stiffness = 380f)) { full -> full * direction / 8 } +
-                        fadeIn(tween(enterMs)))
-                        .togetherWith(
-                            slideOutHorizontally(spring(dampingRatio = 0.85f, stiffness = 380f)) { full -> -full * direction / 12 } +
-                                fadeOut(tween(exitMs))
-                        )
+                    fadeIn(tween(motion.duration(90))) togetherWith fadeOut(tween(motion.duration(70)))
                 }
             },
             label = "mainTabContent"
@@ -1546,7 +1666,6 @@ private fun MainContainer(navController: NavHostController) {
                         onNavigateTo = { target ->
                             when (target) {
                                 "scan" -> navController.navigate(Routes.SCAN)
-                                "nearby" -> navController.navigate(Routes.NEARBY)
                                 "moments" -> navController.navigate(Routes.MOMENTS)
                                 "my_qr_code" -> navController.navigate(Routes.MY_QR_CODE)
                             }
@@ -1567,12 +1686,13 @@ private fun MainContainer(navController: NavHostController) {
                         onOpenBlockedUsers = { navController.navigate(Routes.SETTINGS_BLOCKED_USERS) },
                         onOpenNotifications = { navController.navigate(Routes.SETTINGS_NOTIFICATIONS) },
                         onOpenAiPrivacy = { navController.navigate(Routes.SETTINGS_AI_PRIVACY) },
+                        onOpenAgent = { navController.navigate(Routes.AGENT) },
                         onOpenModeration = { navController.navigate(Routes.SETTINGS_MODERATION) },
                         onOpenGeneral = { navController.navigate(Routes.SETTINGS_GENERAL) },
                         onOpenMyQrCode = { navController.navigate(Routes.MY_QR_CODE) },
                         onOpenStarredMessages = { navController.navigate(Routes.starredMessages()) },
-                        onOpenFakeChat = { navController.navigate(Routes.FAKE_CHAT_SETTINGS) },
                         onOpenServer = { navController.navigate(Routes.SETTINGS_SERVER) },
+                        onOpenAbout = { navController.navigate(Routes.SETTINGS_ABOUT) },
                         // 1.116：我的动态 → 作者主页（当前用户）
                         onOpenMyPosts = {
                             val myUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId().orEmpty()
@@ -1588,6 +1708,7 @@ private fun MainContainer(navController: NavHostController) {
             onTabSelected = { selectedTab = it },
             modifier = Modifier.align(Alignment.BottomCenter)
         )
+    }
     }
 }
 
@@ -1662,9 +1783,13 @@ private fun ChatDetailListPaneRoute(navController: NavHostController) {
                             val customized = com.maodouchat.util.ChatAppearancePreferences.hasCustomBubbleColor(bubbleCtx)
                             com.maodouchat.ui.theme.resolveSentBubble(themeSentSpec, customized, userColor)
                         }
-                        val bubbleShapes = remember(chatId, appearanceVersion) {
+                        val themeFamily = com.maodouchat.ui.theme.ThemeFamily.normalize(
+                            com.maodouchat.util.ThemePreferences.family.collectAsState().value
+                        )
+                        val bubbleShapes = remember(chatId, appearanceVersion, themeFamily) {
                             com.maodouchat.ui.theme.bubbleShapesFor(
-                                com.maodouchat.util.ChatAppearancePreferences.getBubbleShape(bubbleCtx)
+                                com.maodouchat.util.ChatAppearancePreferences.getBubbleShape(bubbleCtx),
+                                themeFamily,
                             )
                         }
                         androidx.compose.runtime.CompositionLocalProvider(

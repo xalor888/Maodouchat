@@ -66,7 +66,12 @@ object ThemePreferences {
             if (seeded) return
             val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             _mode.value = normalize(prefs.getString(KEY_THEME, "system"))
-            _family.value = normalizeStyle(prefs.getString(KEY_THEME_STYLE, "maodou"))
+            val storedStyle = prefs.getString(KEY_THEME_STYLE, "maodou")
+            val normalizedStyle = normalizeStyle(storedStyle)
+            if (storedStyle != normalizedStyle) {
+                prefs.edit().putString(KEY_THEME_STYLE, normalizedStyle).apply()
+            }
+            _family.value = normalizedStyle
             _accent.value = normalizeAccent(prefs.getString(KEY_ACCENT, "none"))
             _nightStart.value = prefs.getInt(KEY_NIGHT_START, NIGHT_START_DEFAULT).coerceIn(0, 23 * 60 + 59)
             _nightEnd.value = prefs.getInt(KEY_NIGHT_END, NIGHT_END_DEFAULT).coerceIn(0, 23 * 60 + 59)
@@ -114,11 +119,8 @@ object ThemePreferences {
         _family.value = normalized
     }
 
-    /** 主题风格家族 id（maodou / tg_classic / tg_midnight / tg_graphite）。 */
-    fun normalizeStyle(raw: String?): String {
-        val id = raw?.trim()?.lowercase().orEmpty()
-        return if (id in setOf("maodou", "tg_classic", "tg_midnight", "tg_graphite")) id else "maodou"
-    }
+    /** 主题风格只留 maodou；云端 leftover tg_* 一律归一，保持液态玻璃悬浮底栏。 */
+    fun normalizeStyle(@Suppress("UNUSED_PARAMETER") raw: String?): String = "maodou"
 
     fun getAccent(context: Context): String {
         ensureSeeded(context)

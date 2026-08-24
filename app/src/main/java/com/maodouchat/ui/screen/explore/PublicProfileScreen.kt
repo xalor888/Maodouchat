@@ -71,12 +71,7 @@ import androidx.compose.ui.unit.sp
 import com.maodouchat.R
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
-import com.maodouchat.ui.theme.Background
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.Surface
 import com.maodouchat.ui.theme.TextHint
-import com.maodouchat.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
 
@@ -163,9 +158,9 @@ fun PublicProfileScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Background,
-                    titleContentColor = OnSurface,
-                    navigationIconContentColor = OnSurface
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         }
@@ -336,7 +331,10 @@ private fun ProfileContentView(
             onClick = onStartChat,
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Primary)
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
         ) {
             Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
