@@ -622,7 +622,9 @@ fun Application.configureRouting(
                     call.request.header("X-Update-Notes")
                 )
                 val saved = runCatching {
-                    com.maodouchat.server.update.AppUpdateStorage.saveFromStream(call.receiveStream())
+                    withContext(Dispatchers.IO) {
+                        com.maodouchat.server.update.AppUpdateStorage.saveFromStream(call.receiveStream())
+                    }
                 }.getOrElse { error ->
                     call.application.environment.log.warn("app-update write failed: ${error.message}", error)
                     val msg = when (error.message) {
