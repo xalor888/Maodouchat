@@ -60,6 +60,7 @@ class AdminNavTabsRegressionTest {
             "id=\"audit-export\"",
             "/api/admin/chats?groupOnly=true",
             "requiresTotp",
+            "settings-advanced",
         )
     }
 }
