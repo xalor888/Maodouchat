@@ -63,10 +63,15 @@ object AppUpdateStorage {
 
     private fun typeRoot(): File {
         val root = File(ServerConfig.storageDir).canonicalFile
-        require(root.isDirectory || root.mkdirs()) { "storage root missing" }
+        require(root.isDirectory || root.mkdirs()) { "storage root missing: ${root.path}" }
         val dir = File(root, DIR)
-        require(dir.isDirectory || dir.mkdirs()) { "app-updates dir missing" }
-        require(dir.canonicalFile.parentFile == root) { "app-updates path illegal" }
-        return dir.canonicalFile
+        require(dir.isDirectory || dir.mkdirs()) { "app-updates dir missing: ${dir.path}" }
+        val canonicalDir = dir.canonicalFile
+        val rootPath = root.toPath()
+        val dirPath = canonicalDir.toPath()
+        require(canonicalDir.name == DIR && dirPath.startsWith(rootPath)) {
+            "app-updates path illegal: dir=${canonicalDir.path} root=${root.path}"
+        }
+        return canonicalDir
     }
 }

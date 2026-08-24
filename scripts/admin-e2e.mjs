@@ -109,7 +109,19 @@ try {
   await page.locator("tbody tr").first().waitFor();
   assert.ok(await page.locator("tbody").innerText().then(text => text.includes("u1")));
 
-  const navTabs = ["dashboard", "users", "content", "moderation", "announcements", "system", "diagnostics", "audit"];
+  const navTabs = [
+    "dashboard",
+    "users",
+    "online",
+    "ranking",
+    "content",
+    "moderation",
+    "risk",
+    "announcements",
+    "system",
+    "diagnostics",
+    "audit"
+  ];
   for (const tab of navTabs) {
     assert.equal(await page.locator(`nav button[data-tab="${tab}"]`).count(), 1);
   }
@@ -125,11 +137,16 @@ try {
   await page.locator('nav button[data-tab="announcements"]').click();
   await page.locator("#b6-ann-create").waitFor();
 
+  await page.locator('nav button[data-tab="risk"]').click();
+  await page.locator("#filter-risk-events").waitFor();
+
   await page.locator('nav button[data-tab="system"]').click();
-  await page.locator("#settings-save").waitFor();
+  await page.locator("#ops-copy-save").waitFor();
+  await page.locator("details.settings-advanced summary").click();
+  await page.locator("#settings-save").waitFor({ state: "visible" });
 
   await page.locator('nav button[data-tab="diagnostics"]').click();
-  await page.locator("#filter-risk-events").waitFor();
+  await page.locator("#ai-usage-search").waitFor();
 
   await page.locator('nav button[data-tab="audit"]').click();
   await page.locator("#audit-export").waitFor();

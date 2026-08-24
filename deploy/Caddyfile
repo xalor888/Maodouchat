@@ -23,13 +23,13 @@
         }
     }
 
-    encode zstd gzip
-
     # WebRTC native .so is SHA-256 checked on the client. Compressing it
     # rewrites the body while the ETag still names the uncompressed hash.
+    # Caddy 2.10 has no http.encoders.none — skip encode for that path instead.
     @webrtc_lib path /api/webrtc/lib/*
     header @webrtc_lib Content-Encoding identity
-    encode @webrtc_lib none
+    @compressible not path /api/webrtc/lib/*
+    encode @compressible zstd gzip
 
     # 8.48 修复：上限须与 server 的 MAX_ATTACHMENT_BYTES 匹配（附件为 base64 载荷，约 4/3 膨胀）。
     # 默认 140MB 覆盖默认 100MB 附件上限；两个变量请在 .env 中一起调整

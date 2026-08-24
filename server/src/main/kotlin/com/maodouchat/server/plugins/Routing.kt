@@ -624,6 +624,7 @@ fun Application.configureRouting(
                 val saved = runCatching {
                     com.maodouchat.server.update.AppUpdateStorage.saveFromStream(call.receiveStream())
                 }.getOrElse { error ->
+                    call.application.environment.log.warn("app-update write failed: ${error.message}", error)
                     val msg = when (error.message) {
                         "too_large" -> "APK 过大"
                         "too_small", "not_apk" -> "不是有效的 APK"

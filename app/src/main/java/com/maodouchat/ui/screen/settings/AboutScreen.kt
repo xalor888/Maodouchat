@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.settings
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -54,6 +55,7 @@ import kotlinx.coroutines.launch
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串在点击/协程回调里读，非组合作用域
 fun AboutScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
     val versionName = remember {

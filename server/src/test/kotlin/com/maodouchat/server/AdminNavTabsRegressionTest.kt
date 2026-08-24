@@ -53,8 +53,10 @@ class AdminNavTabsRegressionTest {
             "id=\"search-btn-' + kind + '\"",
             "id=\"filter-reports\"",
             "id=\"b6-ann-create\"",
+            "id=\"ops-copy-save\"",
             "id=\"settings-save\"",
             "id=\"filter-risk-events\"",
+            "id=\"ai-usage-search\"",
             "id=\"audit-export\"",
         )
     }
