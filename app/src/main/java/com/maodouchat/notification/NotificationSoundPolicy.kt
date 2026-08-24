@@ -31,15 +31,25 @@ object NotificationSoundPolicy {
 
     /**
      * 当前打开的会话内短提示音（与托盘共用 raw/notify_message，避开系统通知渠道）。
-     * 需同时满足：应用内音效 flag、总通知开关、消息声音 flag+偏好。
+     * 应用在前台时一律不响——用户已经看着屏幕。
      */
     fun inAppReceiveToneEnabled(
         inAppSoundsFlag: Boolean,
         notificationsEnabled: Boolean,
         notificationSoundFlag: Boolean,
         soundPreference: Boolean,
+        appInForeground: Boolean = false,
     ): Boolean =
-        inAppSoundsFlag &&
+        !appInForeground &&
+            inAppSoundsFlag &&
             notificationsEnabled &&
             messageSoundEnabled(notificationSoundFlag, soundPreference)
+
+    /**
+     * 托盘消息铃声：后台才响。应用在前台时静音（仍可出无声通知条目）。
+     */
+    fun traySoundAllowed(
+        appInForeground: Boolean,
+        preferenceSoundEnabled: Boolean,
+    ): Boolean = !appInForeground && preferenceSoundEnabled
 }

@@ -19,6 +19,8 @@ class DisappearingMessagePolicyTest {
     fun `groups always force off`() {
         assertEquals(0, DisappearingMessagePolicy.effectiveSeconds(isGroup = true, requestedSeconds = 60))
         assertEquals(60, DisappearingMessagePolicy.effectiveSeconds(isGroup = false, requestedSeconds = 60))
+        assertEquals(30, DisappearingMessagePolicy.effectiveSeconds(isGroup = false, requestedSeconds = 0, isSecret = true))
+        assertEquals(30, DisappearingMessagePolicy.effectiveSeconds(isGroup = false, requestedSeconds = 86_400, isSecret = true))
     }
 
     @Test
@@ -54,6 +56,16 @@ class DisappearingMessagePolicyTest {
                 readAtMs = 1_000L
             )
         )
+    }
+
+    @Test
+    fun `secret chat arms timer on visible without read receipts`() {
+        assertTrue(DisappearingMessagePolicy.shouldArmOnVisible(isSecretChat = true, timerSeconds = 30))
+        assertTrue(DisappearingMessagePolicy.shouldArmOnVisible(isSecretChat = true, timerSeconds = 0))
+        assertFalse(DisappearingMessagePolicy.shouldArmOnVisible(isSecretChat = false, timerSeconds = 30))
+        assertTrue(DisappearingMessagePolicy.shouldSkipReadReceipts(isSecretChat = true, blockReadReceipts = true))
+        assertTrue(DisappearingMessagePolicy.shouldSkipReadReceipts(isSecretChat = true, blockReadReceipts = false))
+        assertFalse(DisappearingMessagePolicy.shouldSkipReadReceipts(isSecretChat = false, blockReadReceipts = true))
     }
 
     @Test

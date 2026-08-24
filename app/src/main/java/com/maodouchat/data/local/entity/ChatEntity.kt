@@ -24,7 +24,7 @@ data class ChatEntity(
     val lastMessageTime: Long = System.currentTimeMillis(),
     val unreadCount: Int = 0,
     val isGroup: Boolean = false,
-    /** 会话类型：DIRECT / GROUP / CHANNEL（广播频道，单向一对多）。 */
+    /** 会话类型：DIRECT / GROUP / CHANNEL / SECRET（密聊独立 1:1）。 */
     val chatType: String = if (isGroup) "GROUP" else "DIRECT",
     val groupName: String? = null,
     val groupAnnouncement: String? = null,

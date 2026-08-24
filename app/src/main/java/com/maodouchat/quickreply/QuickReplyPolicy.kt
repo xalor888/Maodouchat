@@ -16,7 +16,7 @@ import java.security.MessageDigest
  * B5 快捷回复门禁与去重（纯策略，不触碰任何 View/通知）。
  *
  * 红线约定：快捷回复**不绕过**密聊/锁定门禁——
- *  1. 密聊会话（secretChatDao）一律拒绝；
+ *  1. 密聊会话（chatType=SECRET）一律拒绝；
  *  2. 会话 PIN 锁（chatLockDao 磁盘锁）一律拒绝，即使 ChatLockSession 进程内已解锁
  *     （后台无法完成 PIN 验证，宁可不发）；
  *  3. 会话失效/账号切换（BackgroundSessionGate）一律拒绝；
@@ -79,7 +79,7 @@ object QuickReplyPolicy {
                 return@withContext ChatGateVerdict.Rejected("session_changed")
             }
             // 密聊：拒绝
-            if (app.database.secretChatDao().isSecret(chatId)) {
+            if (app.database.chatDao().isSecretChat(chatId)) {
                 return@withContext ChatGateVerdict.Rejected("secret_chat")
             }
             // 会话 PIN 锁：磁盘有锁即拒绝（后台无法验证 PIN）

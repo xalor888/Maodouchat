@@ -47,7 +47,7 @@ object AgentToolPolicy {
     val tools: List<ToolSpec> = listOf(
         ToolSpec(
             name = "list_chats",
-            description = "List local conversations (id, title, last preview). Skips PIN-locked chats that are not unlocked in this process.",
+            description = "List local conversations (id, title, last preview). Secret chats are omitted. PIN-locked chats that are not unlocked in this process are omitted.",
             parameters = mapOf(
                 "query" to ToolSpec.Parameter("string", "Optional title/preview substring filter")
             ),
@@ -56,7 +56,7 @@ object AgentToolPolicy {
         ),
         ToolSpec(
             name = "get_chat_history",
-            description = "Read already-decrypted local messages for one chat, newest first. Secret chats require an active secret surface; PIN-locked chats must be unlocked.",
+            description = "Read already-decrypted local messages for one chat, newest first. Secret chats are never readable. PIN-locked chats must be unlocked.",
             parameters = mapOf(
                 "chatId" to ToolSpec.Parameter("string", "Local chat id"),
                 "limit" to ToolSpec.Parameter("integer", "How many messages, default 20, max 40")
@@ -66,7 +66,7 @@ object AgentToolPolicy {
         ),
         ToolSpec(
             name = "search_messages",
-            description = "Keyword search over the on-device message index. Secret and PIN-locked chats are excluded unless already unlocked.",
+            description = "Keyword search over the on-device message index. Secret chats are excluded. PIN-locked chats are excluded unless already unlocked.",
             parameters = mapOf(
                 "query" to ToolSpec.Parameter("string", "Search query"),
                 "limit" to ToolSpec.Parameter("integer", "Max hits, default 12, max 20")
@@ -547,7 +547,7 @@ object AgentToolPolicy {
         appendLine("你可以在用户批准后：置顶/免打扰/归档、改草稿、星标、撤回、反应、消息置顶、好友申请、拉黑、发纯文本动态/评论、建单聊/群、改群公告、发文本。")
         appendLine("禁止要求用户把聊天明文贴到服务器。禁止声称能点屏幕、写任意 SQL、发红包、通话、改系统设置、编辑已发出的加密消息（编辑会走明文 REST）。")
         appendLine("人对人、群成员互发仍是端到端加密：代发必须走 send_text_message，由本机 outbox 加密。")
-        appendLine("密聊与未解锁的 PIN 会话不可读。不要编造已发送、已删除、已转账等特权结果。")
+        appendLine("密聊与未解锁的 PIN 会话不可读、不可发、不可改草稿。不要编造已发送、已删除、已转账等特权结果。")
         appendLine("写操作与发消息会先弹出用户审批；被拒绝后改方案，不要死循环同一调用。")
         appendLine("回复简洁。没有工具结果就不要声称已经操作成功。")
         if (!styleHint.isNullOrBlank()) {

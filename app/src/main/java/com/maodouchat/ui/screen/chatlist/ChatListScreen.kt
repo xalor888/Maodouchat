@@ -243,6 +243,12 @@ fun ChatListScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    LaunchedEffect(state.createdSecretChatId) {
+        val secretId = state.createdSecretChatId ?: return@LaunchedEffect
+        viewModel.clearCreatedSecretChat()
+        onChatClick(secretId)
+    }
+
     LaunchedEffect(openMissedCallsRequest) {
         if (openMissedCallsRequest > 0L) {
             showMissedCallsSheet = true
@@ -957,6 +963,21 @@ fun ChatListScreen(
             DropdownMenuItem(text = { Text(stringResource(if (chat.pinnedAt > 0) R.string.chat_unpin else R.string.chat_pin)) }, onClick = { viewModel.togglePinned(chat.id); menuChat = null })
             DropdownMenuItem(text = { Text(stringResource(if (chat.notificationsMuted) R.string.chat_unmute_notifications else R.string.chat_mute_notifications)) }, onClick = { viewModel.toggleNotificationsMuted(chat.id); menuChat = null })
             // 1.31：临时静音至快捷项（本地，1/8/24 小时）
+            if (
+                com.maodouchat.security.SecretChatPolicy.canStartFromDirect(
+                    isGroup = chat.isGroup,
+                    chatType = chat.chatType
+                )
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.secret_chat_menu_start)) },
+                    onClick = {
+                        val peerId = chat.participants.firstOrNull()?.id.orEmpty()
+                        menuChat = null
+                        viewModel.startSecretChatWithPeer(peerId)
+                    }
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.chat_silent_until_menu)) },
                 onClick = { silentUntilChat = chat; menuChat = null }
@@ -1554,11 +1575,14 @@ private fun ChatListItem(
     onBadgeClick: (() -> Unit)? = null
 ) {
     val otherUser = chat.participants.firstOrNull()
-    val displayName = when {
+    val rawDisplayName = when {
         chat.isChannel -> chat.groupName?.takeIf(String::isNotBlank) ?: stringResource(R.string.chat_channel_default_name)
         chat.isGroup -> chat.groupName?.takeIf(String::isNotBlank) ?: stringResource(R.string.chat_group)
         else -> otherUser?.displayName?.takeIf(String::isNotBlank) ?: stringResource(R.string.chat_unknown)
     }
+    val displayName = if (isSecret || chat.isSecret) {
+        com.maodouchat.security.SecretChatPolicy.mosaicDisplayName(rawDisplayName)
+    } else rawDisplayName
     val haptic = LocalHapticFeedback.current
     val hapticContext = LocalContext.current
     val motion = LocalMotionSettings.current
@@ -1645,7 +1669,7 @@ private fun ChatListItem(
         }
         Avatar(
             name = displayName,
-            avatarUrl = if (chat.isGroup) chat.groupAvatar else otherUser?.avatar,
+            avatarUrl = if (isSecret || chat.isSecret) null else if (chat.isGroup) chat.groupAvatar else otherUser?.avatar,
             // 9.268：TG 式会话列表头像 54dp（原 48dp）
             size = AvatarSize.CHAT_LIST,
             // 1.128：单聊显示对方在线绿点（群聊不显示）；1.141：密聊不显示（隐私）
@@ -1659,6 +1683,15 @@ private fun ChatListItem(
                     Text(highlightedText(displayName, searchQuery), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 } else {
                     Text(displayName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                }
+                if (isSecret || chat.isSecret) {
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        stringResource(R.string.secret_chat_list_indicator),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1
+                    )
                 }
                 Text(
                     formatChatTime(chat.lastMessageTime),

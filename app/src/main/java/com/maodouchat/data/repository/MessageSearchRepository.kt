@@ -17,7 +17,7 @@ import java.util.Locale
 class MessageSearchRepository(private val database: AppDatabase) {
     private val messageDao = database.messageDao()
     private val searchDao = database.messageSearchDao()
-    private val secretChatDao = database.secretChatDao()
+    private val chatDao = database.chatDao()
 
     /**
      * 全量重建搜索索引（8.31 性能优化 F18 的快速路径）：
@@ -61,7 +61,7 @@ class MessageSearchRepository(private val database: AppDatabase) {
         var changed = 0
         var lastTs = -1L
         var lastId = ""
-        val secretChatIds = secretChatDao.listSecretChatIds().toSet()
+        val secretChatIds = chatDao.listSecretChatIds().toSet()
         val pageSize = 500
         while (true) {
             val batch = messageDao.getSearchableMessagesAfterCursor(lastTs, lastId, pageSize)
@@ -95,7 +95,7 @@ class MessageSearchRepository(private val database: AppDatabase) {
     ): Boolean {
         // 密聊明文永不进全局搜索：任何入口都先删除该会话已有索引，再拒绝写入。
         val isSecretChat = secretChatIds?.contains(message.chatId)
-            ?: (message.chatId.isNotBlank() && secretChatDao.isSecret(message.chatId))
+            ?: (message.chatId.isNotBlank() && chatDao.isSecretChat(message.chatId))
         if (isSecretChat) {
             searchDao.deleteDocument(message.id)
             return knownFingerprint != null

@@ -52,7 +52,7 @@ object Users : Table("users") {
 object Chats : Table("chats") {
     val id = varchar("id", 50)
     val isGroup = bool("is_group").default(false)
-    /** 会话类型：DIRECT / GROUP / CHANNEL（广播频道，单向一对多）。 */
+    /** 会话类型：DIRECT / GROUP / CHANNEL / SECRET（密聊独立 1:1）。 */
     val chatType = varchar("chat_type", 20).default("DIRECT")
     val groupName = varchar("group_name", 200).nullable()
     val groupAnnouncement = text("group_announcement").nullable()
@@ -157,6 +157,21 @@ object DirectChatPairs : Table("direct_chat_pairs") {
 
     init {
         index("idx_direct_chat_pairs_chat", false, chatId)
+    }
+}
+
+/**
+ * 密聊唯一对：与 [DirectChatPairs] 分开，同一对人可同时有普通私聊和密聊。
+ * pairKey = sorted(userA,userB).join(":")
+ */
+object SecretChatPairs : Table("secret_chat_pairs") {
+    val pairKey = varchar("pair_key", 120)
+    val chatId = varchar("chat_id", 50) references Chats.id
+    val createdAt = long("created_at")
+    override val primaryKey = PrimaryKey(pairKey)
+
+    init {
+        index("idx_secret_chat_pairs_chat", false, chatId)
     }
 }
 
@@ -711,7 +726,7 @@ fun initDatabase() {
             BlockedUsers, UserLocations, AuthSessions, RefreshTokens, RevokedAccessTokens, StarMessages, PinnedMessages,
             ReadReceipts, MessageReactions, SenderKeyDistributions, NotificationPreferences,
             PushTokens, GroupPolls, GroupPollVotes, BotApps, BotCommandLogs, BotUpdateInbox, Reports, ModerationAuditLog, AiAuditLogs, ModerationRules,
-            RiskEvents, DirectChatPairs, FriendRequests, Friendships, ChatFolders, ClientPrefs, SystemSettings,
+            RiskEvents, DirectChatPairs, SecretChatPairs, FriendRequests, Friendships, ChatFolders, ClientPrefs, SystemSettings,
             // 9.3xx：群邀请同意流程（成员入群前须本人接受）
             GroupInvitations,
             // 群玩法 B3：群签到 / 群接龙 / 群 PK（表定义见 PollTables.kt）

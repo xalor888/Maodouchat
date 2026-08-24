@@ -15,6 +15,7 @@ import com.maodouchat.server.db.ReadReceipts
 import com.maodouchat.server.db.SenderKeyDistributions
 import com.maodouchat.server.db.StarMessages
 import com.maodouchat.server.db.Users
+import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.plugins.isAllowedWebhookAddress
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
@@ -750,6 +751,7 @@ object BotRepository {
         val now = System.currentTimeMillis()
         val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
             ?: return@transaction emptyList()
+        if (chat[Chats.chatType] == ChatType.SECRET) return@transaction emptyList()
         val participants = ChatParticipants.selectAll().where { ChatParticipants.chatId eq chatId }.toList()
         if (participants.none { it[ChatParticipants.userId] == userId }) return@transaction emptyList()
         val isGroup = chat[Chats.isGroup]

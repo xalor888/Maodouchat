@@ -954,7 +954,7 @@
     <string name="settings_sensitive_gate">Require verification for sensitive actions</string>
     <string name="settings_sensitive_gate_subtitle">Verify with biometrics or device credentials before logout, export, turning off App lock, or deleting the account; preference syncs across devices</string>
     <string name="settings_screen_secure">Block screenshots &amp; recording</string>
-    <string name="settings_screen_secure_subtitle">For normal chats only: system screenshots/recordings are typically black frames and are not saved. Secret chat always forces FLAG_SECURE even when this switch is off. External cameras and some OEM capture apps cannot be blocked</string>
+    <string name="settings_screen_secure_subtitle">When on, the window blocks system screenshots/recordings (secure flag is written to window attributes and re-applied on focus). If an OEM still writes a file to the gallery, that capture is deleted immediately. Secret chat always forces this on. External cameras cannot be blocked</string>
     <string name="schedule_send">Schedule send</string>
     <string name="schedule_title">Choose send time</string>
     <string name="message_reminder_menu">Remind me later</string>
@@ -1187,6 +1187,7 @@
     <string name="chat_decrypt_session_missing">[Missing session key. Waiting for resend]</string>
     <string name="chat_decrypt_identity_changed">[Safety number changed. Verify identity]</string>
     <string name="chat_decrypt_failed">[Unable to decrypt message]</string>
+    <string name="chat_decrypt_pending">[Encrypted message]</string>
     <string name="chat_decrypt_new_device">This is a new device. Cloud history stays encrypted until peers re-session or group Sender Keys are redistributed. Messages you sent from another device cannot be decrypted here unless that device still has them.</string>
     <string name="chat_decrypt_image_failed">[Unable to decrypt image]</string>
     <string name="chat_decrypt_gif_failed">[Unable to decrypt GIF]</string>
@@ -1356,13 +1357,20 @@
     <string name="chat_lock_forgot_confirm_body">This deletes decrypted messages and the PIN for this chat on this device. There is no readable cloud backup.</string>
     <string name="chat_lock_list_indicator">Locked</string>
     <string name="chat_lock_list_preview">Content locked</string>
-    <string name="secret_chat_menu_enable">Enable secret chat</string>
-    <string name="secret_chat_menu_disable">Disable secret chat</string>
+    <string name="secret_chat_menu_enable">Start secret chat</string>
+    <string name="secret_chat_menu_start">Start secret chat</string>
+    <string name="secret_chat_started">Opened a separate secret chat. It is not this conversation.</string>
+    <string name="secret_chat_start_failed">Could not start secret chat</string>
+    <string name="secret_chat_direct_only">Secret chat is 1:1 only. Groups cannot have secret chat.</string>
+    <string name="secret_chat_already">Already in a secret chat</string>
+    <string name="secret_chat_timer_required">Secret chat must keep disappearing messages on</string>
+    <string name="secret_chat_timer_locked">Secret chat always burns after 30 seconds; the timer cannot be changed</string>
+    <string name="secret_chat_masked_name">%1$s···</string>
     <string name="secret_chat_enabled">Secret chat on: anti-screenshot and blind watermark on this device</string>
     <string name="secret_chat_enabled_sealed">Secret chat on: capture protection + watermark active; sealed-sender cert ready</string>
     <string name="secret_chat_safety_hint">Verify the safety code in person to confirm the peer identity</string>
     <string name="secret_chat_sealed_unavailable">Sealed-sender cert unavailable; message still sent with E2EE</string>
-    <string name="secret_chat_disabled">Secret chat off</string>
+
     <string name="secret_chat_indicator">Secret chat</string>
     <string name="secret_chat_list_indicator">Secret</string>
     <string name="secret_chat_notification_preview">Secret message</string>
@@ -1370,11 +1378,10 @@
     <string name="secret_chat_forward_blocked">Messages in secret chats cannot be forwarded</string>
     <string name="secret_chat_copy_blocked">Messages in secret chats cannot be copied</string>
     <string name="secret_chat_media_export_blocked">Media in secret chats cannot be saved or shared</string>
-    <string name="secret_chat_confirm_enable_title">Enable secret chat?</string>
-    <string name="secret_chat_confirm_enable_body">This device forces FLAG_SECURE (system screenshots/recordings are typically black and not saved) and overlays a full-page blind watermark. Images also get a frequency-domain watermark. Capture toasts only fire on bypasses (OEM/adb/external camera); blocked system screenshots do not toast. Notification previews are redacted; export, forward, copy, and media save/share are blocked. Local-only — not synced to the other party.</string>
-    <string name="secret_chat_confirm_disable_title">Disable secret chat?</string>
-    <string name="secret_chat_confirm_disable_body">Restores normal display for this chat. The global anti-screenshot switch still applies on its own.</string>
-    <string name="secret_chat_banner">Secret chat · system captures are black frames · full-page blind watermark on</string>
+    <string name="secret_chat_confirm_enable_title">Start a secret chat?</string>
+    <string name="secret_chat_confirm_enable_body">Opens a separate 1:1 secret chat with this person. It does not convert this conversation. The other person also gets that secret chat. Groups cannot have secret chat. Messages burn after read, cannot be copied or forwarded, and the window blocks screenshots with masked names/avatars.</string>
+
+    <string name="secret_chat_banner">Secret chat · burns after read · system captures are black frames · watermark on</string>
     <string name="secret_chat_banner_limit">Blocked system screenshots do not alert; the detector only covers bypasses. External cameras cannot be stopped. AOSP recording is typically black frames — not a guarantee against every OEM capture app</string>
     <string name="secret_chat_screenshot_detected">Bypass screenshot/recording attempt detected (secret chat)</string>
     <string name="starred_load_failed">Could not load starred messages</string>
@@ -2531,6 +2538,7 @@
     <string name="static_location_disabled">Location share is disabled by admin</string>
     <string name="file_share_disabled">File sharing is disabled by admin</string>
     <string name="secret_chat_feature_disabled">Secret chat is disabled by admin</string>
+
     <string name="group_play_pin_drop">Pin drop</string>
     <string name="group_play_file_relay">File relay</string>
     <string name="group_play_map_dash">Map dash</string>

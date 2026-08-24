@@ -159,7 +159,12 @@ class ConversationWidgetProvider : AppWidgetProvider() {
                         liveUserId = tokenManager.getUserId(),
                     )
                 ) {
-                    val serverResult = com.maodouchat.network.ApiService.markAllAsRead(token, chatId)
+                    val isSecret = runCatching { app.database.chatDao().isSecretChat(chatId) }.getOrDefault(false)
+                    val serverResult = if (isSecret) {
+                        com.maodouchat.network.ApiService.armSecretChatExpiry(token, chatId)
+                    } else {
+                        com.maodouchat.network.ApiService.markAllAsRead(token, chatId)
+                    }
                     if (serverResult.isFailure) {
                         android.util.Log.w("ConversationWidgetProvider", "widget mark-read server sync failed", serverResult.exceptionOrNull())
                     }

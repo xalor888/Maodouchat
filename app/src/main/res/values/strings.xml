@@ -936,7 +936,7 @@
     <string name="settings_sensitive_gate">敏感操作需验证</string>
     <string name="settings_sensitive_gate_subtitle">注销、导出聊天、关闭 App 锁、删除账号前需生物识别或设备密码；开关可多端同步</string>
     <string name="settings_screen_secure">防止截屏/录屏</string>
-    <string name="settings_screen_secure_subtitle">仅作用于普通聊天：系统截屏/录屏通常得到黑帧且不会进相册。密聊始终强制 FLAG_SECURE，不受此开关关闭影响。无法挡住外置相机或全部 OEM 取证应用</string>
+    <string name="settings_screen_secure_subtitle">打开后整窗禁止系统截屏/录屏（窗口安全旗标写入 attributes，焦点变化会再钉一次）。若厂商仍把图写进相册，会立刻删除该截图。密聊始终强制开启。外置相机拍屏幕挡不住</string>
     <string name="schedule_send">定时发送</string>
     <string name="schedule_title">选择发送时间</string>
     <string name="message_reminder_menu">稍后提醒</string>
@@ -1169,6 +1169,7 @@
     <string name="chat_decrypt_session_missing">[缺少会话密钥，请等待对方重新发送]</string>
     <string name="chat_decrypt_identity_changed">[对方安全码已变化，请验证身份]</string>
     <string name="chat_decrypt_failed">[无法解密的消息]</string>
+    <string name="chat_decrypt_pending">[加密消息]</string>
     <string name="chat_decrypt_new_device">此设备是新设备。云端历史仍是密文，需对方重新发消息或等待群密钥重分发后才能阅读。本机已发送且未保存在本机的消息无法由本设备解密。</string>
     <string name="chat_decrypt_image_failed">[无法解密的图片]</string>
     <string name="chat_decrypt_gif_failed">[无法解密的 GIF]</string>
@@ -1336,13 +1337,20 @@
     <string name="chat_lock_forgot_confirm_body">将删除本机该会话已解密消息与 PIN，无法撤销。云端没有明文备份，不会变回可读记录。</string>
     <string name="chat_lock_list_indicator">已锁定</string>
     <string name="chat_lock_list_preview">内容已锁定</string>
-    <string name="secret_chat_menu_enable">开启密聊</string>
-    <string name="secret_chat_menu_disable">关闭密聊</string>
+    <string name="secret_chat_menu_enable">发起密聊</string>
+    <string name="secret_chat_menu_start">发起密聊</string>
+    <string name="secret_chat_started">已进入密聊。这是独立会话，与普通聊天分开。</string>
+    <string name="secret_chat_start_failed">无法发起密聊</string>
+    <string name="secret_chat_direct_only">密聊只能和一个人单独发起，群聊没有密聊</string>
+    <string name="secret_chat_already">已经在密聊里</string>
+    <string name="secret_chat_timer_required">密聊必须开启阅后即焚</string>
+    <string name="secret_chat_timer_locked">密聊销毁时长固定为 30 秒，不可关闭或改长</string>
+    <string name="secret_chat_masked_name">%1$s···</string>
     <string name="secret_chat_enabled">已开启密聊：本机防截屏并显示盲水印</string>
     <string name="secret_chat_enabled_sealed">已开启密聊：防截屏/盲水印已生效，密封发送证书就绪</string>
     <string name="secret_chat_safety_hint">密聊建议当面核对安全码，确认对方身份未变</string>
     <string name="secret_chat_sealed_unavailable">密聊密封证书暂不可用，消息仍端到端加密发送</string>
-    <string name="secret_chat_disabled">已关闭密聊</string>
+
     <string name="secret_chat_indicator">密聊</string>
     <string name="secret_chat_list_indicator">密聊</string>
     <string name="secret_chat_notification_preview">密聊消息</string>
@@ -1351,11 +1359,10 @@
     <string name="secret_chat_ai_blocked">密聊会话不提供 AI 功能（防明文外泄）</string>
     <string name="secret_chat_copy_blocked">密聊消息不可复制到剪贴板</string>
     <string name="secret_chat_media_export_blocked">密聊媒体不可保存或分享</string>
-    <string name="secret_chat_confirm_enable_title">开启密聊？</string>
-    <string name="secret_chat_confirm_enable_body">开启后本机强制 FLAG_SECURE（系统截屏/录屏通常为黑帧、不进相册），并叠加整页盲水印；图片另嵌频域盲水印。检测提示只针对 OEM/adb/外置相机等绕过，被挡住的系统截屏不会弹窗。通知预览脱敏；不可导出/转发/复制/保存媒体。仅本机生效，对方不会同步该模式。</string>
-    <string name="secret_chat_confirm_disable_title">关闭密聊？</string>
-    <string name="secret_chat_confirm_disable_body">关闭后恢复普通会话显示；全局防截屏开关仍按其自身设置生效。</string>
-    <string name="secret_chat_banner">密聊中 · 系统截屏为黑帧 · 整页盲水印已启用</string>
+    <string name="secret_chat_confirm_enable_title">发起密聊？</string>
+    <string name="secret_chat_confirm_enable_body">将另开一场仅两人的密聊，和现在这条普通聊天分开。对方列表也会出现这条密聊。群不能密聊。消息已读后销毁、不可复制/转发；窗内防截屏、头像名字打码。不会改写当前聊天的历史。</string>
+
+    <string name="secret_chat_banner">密聊 · 已读销毁 · 系统截屏为黑帧 · 整页盲水印</string>
     <string name="secret_chat_banner_limit">系统截屏被挡住时不会告警；检测器只覆盖绕过。外置相机无法阻止；AOSP 录屏多为黑帧，不保证全部 OEM 取证应用</string>
     <string name="secret_chat_screenshot_detected">检测到绕过系统防护的截屏/录屏尝试（密聊）</string>
     <string name="starred_load_failed">星标消息加载失败</string>
@@ -2559,6 +2566,7 @@
     <string name="static_location_disabled">位置分享已由管理员关闭</string>
     <string name="file_share_disabled">文件发送已由管理员关闭</string>
     <string name="secret_chat_feature_disabled">密聊已由管理员关闭</string>
+
     <string name="group_play_pin_drop">位置速投</string>
     <string name="group_play_file_relay">文件接力</string>
     <string name="group_play_map_dash">地图竞速</string>

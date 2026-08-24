@@ -56,6 +56,20 @@ class ChatListReceiptPolicyTest {
     }
 
     @Test
+    fun groupDeliveredShowsAsSentSingleCheck() {
+        val receipt = ChatListReceiptPolicy.fromLatest(
+            latest = message(senderId = "me", status = MessageStatus.DELIVERED),
+            currentUserId = "me",
+            isGroup = true,
+        )
+        assertNotNull(receipt)
+        assertEquals(MessageStatus.SENT, receipt.status)
+        assertEquals(MessageStatus.SENT, ChatListReceiptPolicy.displayStatus(MessageStatus.DELIVERED, isGroup = true))
+        assertEquals(MessageStatus.READ, ChatListReceiptPolicy.displayStatus(MessageStatus.READ, isGroup = true))
+        assertEquals(MessageStatus.DELIVERED, ChatListReceiptPolicy.displayStatus(MessageStatus.DELIVERED, isGroup = false))
+    }
+
+    @Test
     fun markedUnreadKeepsBadgeWithoutNumber() {
         assertTrue(ChatListReceiptPolicy.showUnreadBadge(0, markedUnread = true))
         assertEquals("", ChatListReceiptPolicy.unreadBadgeText(0, markedUnread = true))

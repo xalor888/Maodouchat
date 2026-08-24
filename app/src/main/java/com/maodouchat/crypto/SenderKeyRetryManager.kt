@@ -358,7 +358,9 @@ class SenderKeyRetryManager(
         }
         liveToken = tokenManager.getToken().orEmpty().ifBlank { liveToken }
         val members = ApiService.getGroupMembers(liveToken, task.chatId).getOrThrow()
-        val recipientIds = members.map { it.userId }.filter { it.isNotBlank() }.distinct()
+        val recipientIds = members.map { it.userId }
+            .filter { it.isNotBlank() && !com.maodouchat.bot.BotCommandPolicy.isBotUserId(it) }
+            .distinct()
         // 始终先 mint 本地 distribution：单成员群 / 仅本机多设备也必须有本地 SK，
         // 否则 encrypt 路径 hasGroupDistributionId=false 会永久失败。
         val payload = signalProtocol.createGroupSenderKeyDistribution(task.chatId, epoch)

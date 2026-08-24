@@ -439,10 +439,13 @@ class MaodouchatApp : Application() {
         fun emitMessageSent(
             chatId: String,
             previewText: String,
-            messageTypeWire: String = "TEXT"
+            messageTypeWire: String = "TEXT",
+            playSendSound: Boolean = true,
         ) {
-            // 0.81：应用内发送成功提示音（受 IN_APP_SOUNDS flag 门控）
-            com.maodouchat.util.InAppSoundPlayer.playSendTone()
+            // 只在用户真正发出消息时响。解密预览/进会话刷新不得走发送音。
+            if (playSendSound) {
+                com.maodouchat.util.InAppSoundPlayer.playSendTone()
+            }
             _chatMessageSentEvents.tryEmit(
                 ChatMessageSentEvent(
                     chatId = chatId,
@@ -485,6 +488,21 @@ class MaodouchatApp : Application() {
          */
         @Volatile
         var activeChatId: String? = null
+
+        /**
+         * ChatDetail VM 仍活着的会话。Activity onStop 会清 [activeChatId] 以便后台弹托盘，
+         * 但不得让列表对同一条 1:1 密文再解一次（双 ratchet → 永久无法解密）。
+         */
+        @Volatile
+        var openChatDetailId: String? = null
+
+        /** Process is visible (MainActivity STARTED). Foreground messages must not play tray/in-app receive tones. */
+        @Volatile
+        var appInForeground: Boolean = false
+
+        /** When the current chat surface became active. Used so backlog ingest does not play a receive tone. */
+        @Volatile
+        var activeChatOpenedAtMs: Long = 0L
 
         /**
          * Process-local session epoch for deep-links / buffered navigation.

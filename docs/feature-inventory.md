@@ -1,6 +1,6 @@
 # Maodouchat 功能全景与完整度盘点
   
-**更新时间**：2026-08-19（9.2 系列调优：TG 级主题系统/玻璃底栏/第三方服务器玩法/plurals 治理/N+1 消除；主体表继承盘点）  
+**更新时间**：2026-04-25（密聊独立 SECRET 会话 + 管理后台排除密聊/禁解散 1:1；主体表继承盘点）  
 **完整度标签**：
 
 | 标签 | 含义 |
@@ -61,7 +61,7 @@
 | 会话列表 | 完整 | 预览/草稿/未读/置顶/静音/归档 | `ui/screen/chatlist/` |
 | 滑动与多选批处理 | 完整 | 左滑归档/删除/静音；多选批归档/静音/已读/删除；归档视图可切回 | `ChatListScreen` |
 | 未读文件夹「全部已读」 | 完整 | 未读文件夹选中时顶栏「全部已读」：逐会话服务端 mark-read（广播 CHAT_MARKED_READ 同步多设备）+ 乐观清零落库 | `ChatListViewModel.markAllUnreadChatsRead` + ChatListScreen |
-| 会话文件夹 | 完整 | 本地缓存 + `/api/chat-folders` 云同步；最多 28 个、名 48 字；创建/重命名/删除/移入；系统筛选：群聊/单聊/未读（含手动标未读）/密聊/已锁（后二者有数据时再显示）；空态引导；全部芯片显示未读会话数；未读优先条可进未读筛选；WS 失败条可手动刷新；管理/移入弹窗 ≥5 可搜文件夹名（64 字） | `ChatFolderPolicy` + ChatList 管理/移入弹窗 |
+| 会话文件夹 | 完整 | 本地缓存 + `/api/chat-folders` 云同步；最多 28 个、名 48 字；创建/重命名/删除/移入；系统筛选：群聊/单聊/未读（含手动标未读）/密聊/已锁（后二者有数据时再显示）；自定义文件夹与「已锁」芯片强制排除 SECRET；空态引导；全部芯片显示未读会话数；未读优先条可进未读筛选；WS 失败条可手动刷新；管理/移入弹窗 ≥5 可搜文件夹名（64 字） | `ChatFolderPolicy` + `SecretChatPolicy` + ChatList 管理/移入弹窗 |
 | 未读优先排序 | 完整 | 设置可关 | `util/UnreadPriorityPolicy.kt` |
 | 全局消息搜索 | 完整 | 本地索引 + 跳转定位；排除 PIN 锁定/密聊正文并明示排除会话数 | `GlobalSearchScreen.kt` |
 | 智能归档建议 | 完整 | 纯本地启发式（静置时长/消息密度/收尾信号打分）；会话列表顶部卡片前 3 条，采纳走现有归档流程、可单条/一键忽略；账号隔离、一次性计算 | `AiArchiveSuggestion` + `ChatListScreen` |
@@ -87,7 +87,7 @@
 | 已读回执 | 完整 | 单聊双勾/已读；群可读详情比例；≥5 人可按姓名/ID 搜索 | MessageStatus + `chat_read_details_*` |
 | 转发 | 完整 | 目标按置顶/最近排序；排除归档；可搜索；默认 64 条可展开；可滚动；**可附带留言**（最长 500 字，转发后向目标会话发送一条加密文本，1:1 Signal / 群 Sender Key） | ChatDetail 转发弹窗 + `sendTextToChat` |
 | 定时发送 | 完整 | 本地 WorkManager；1:1/群纯文本；快捷 1m/5m/15m/30m/1h/2h/3h/4h/6h/12h/24h/2d/3d/7d + 自定义；每会话待发上限 56；待发列表/改期/取消；≥4 条可搜 | `ScheduledMessageWorker` + ChatDetail 横幅/Sheet |
-| 阅后即焚 | 完整 | 单聊；群强制关；时长 30s/1m/2m/5m/15m/1h/2h/4h/8h/12h/24h/7d/30d；会话列表计时指示；对话框明示截屏/他端备份边界 | `DisappearingMessagePolicy` + ChatList 计时标 |
+| 阅后即焚 | 完整 | 普通单聊可选时长；群强制关；密聊固定 30s（可见即 arm，不写已读回执）；会话列表计时指示；对话框明示截屏/他端备份边界 | `DisappearingMessagePolicy` + ChatList 计时标 |
 | 输入草稿 | 完整 | 按账号/会话隔离；防抖约 350ms | `ChatDraftPolicy.kt` |
 | 对方输入中 | 完整 | 会话门闩防串号 | `TypingSessionPolicy.kt` |
 | 会话内搜索 | 完整 | 关键词/语义双模式；范围含媒体/星标；时间窗全部/今天/7天/30天；语义候选上限 100 | `ChatSearchBar` + `ChatSearchModel` |
@@ -97,8 +97,8 @@
 | 导出聊天 | 完整 | 敏感 step-up；空/失败/成功；PIN 未解锁拒绝 | `ChatDetailViewModel.exportToUri` + SensitiveAction |
 | 清除本地消息 | 完整 | 菜单确认 + 敏感 step-up；清消息/索引/媒体/定时；保留会话与 PIN | `ChatDetailViewModel.clearLocalChatHistory` |
 | 媒体中心 | 完整 | 图/GIF/视频/贴纸/文件/语音/位置/链接；预览/保存/分享/跳原消息；文件长按导出；PIN 门闩；分类内按文件名/链接/位置搜索 | `MediaCenterScreen.kt` + `ChatLockSession` |
-| 会话 PIN 锁 | 完整 | 本地 PIN（单聊/群）；设置/关闭/忘记清本地；列表锁标+预览隐藏+系统「已锁」筛选；搜索/媒体/AI 任务/星标/通知脱敏；进程内解锁缓存；登出清缓存；轻量 SHA-256 | `ChatLockGate` + `ChatLockSession` + ChatDetail/MediaCenter/AiTasks/ChatList/AppNotifier |
-| 密聊 | 完整 | 本机会话开关；强制 FLAG_SECURE（全局关也生效）；详情/群资料/媒体/AI 任务/星标整页盲水印；列表预览脱敏+指示+系统「密聊」筛选；通知脱敏；禁导出；确认开关；横幅明示本机/外置相机边界；全局/列表搜索排除；退群/删会话/登出清本地；非服务端协议 | `SecretChatEntity` + `SecretChatSession` + `ScreenSecurePolicy` + `secretPageBlindWatermark` |
+| 会话 PIN 锁 | 完整 | 本地 PIN（单聊/群）；设置/关闭/忘记清本地；列表锁标+预览隐藏+系统「已锁」筛选；搜索/媒体/AI 任务/星标/通知脱敏；进程内解锁缓存；登出清缓存；新 PIN 为 PBKDF2-HMAC-SHA256，旧 SHA-256(pin+salt) 验证成功后升级 | `ChatLockGate` + `ChatLockSession` + ChatDetail/MediaCenter/AiTasks/ChatList/AppNotifier |
+| 密聊 | 完整 | 钉钉同款独立 1:1 `ChatType.SECRET`（与同人 DIRECT 不同 chat id，双方同步）；群无密聊；已读销毁 30s；禁复制/转发/拍一拍/通话/导出/AI；列表显示「密聊」+ 无头像；强制 FLAG_SECURE；系统「密聊」筛选；通知脱敏；OCR/Agent/搜索/星标排除；`secret_chats` 仅 TTL 心跳 | `ChatType.SECRET` + `SecretChatPolicy` + `ScreenSecurePolicy` + `SessionCipherOccupancy` |
 
 > 实现密度极高：`ChatDetailScreen` / `ChatDetailViewModel` 体量巨大，维护风险在复杂度，而非功能空壳。
 
@@ -123,7 +123,7 @@
 | 联系人列表与索引 | 完整 | 主列表 = 好友关系（非全站目录） | `ui/screen/contacts/` |
 | 搜索用户开聊 | 完整 | 防抖服务端搜索；结果可开聊 | Contacts + `/api/users/search` |
 | 联系人本地备注 | 完整 | Room 备注最长 50 字；同步用户资料时保留；长按设置 | `UserDao.setNickname` + Contacts UI |
-| 建群入口 | 完整 | 成员搜索（姓名/ID/邮箱/备注）/在线优先排序；匹配空态；需群名+至少 1 成员才可创建 | Contacts `NewGroupDialog` |
+| 建群入口 | 完整 | 成员搜索（姓名/ID/邮箱/备注）/在线优先排序；匹配空态；只要群名即可创建（可 0 成员，创建者单独成群）；频道同理 | Contacts `NewGroupDialog` |
 | 在线状态 | 完整 | WS 二元在线点 + lastSeen 时间戳协议；单聊标题显式离线+最后在线时间；通讯录「仅在线」筛选+人数 | Contacts + ChatHeaderStatus |
 | 我的二维码 | 完整 | 号展示/复制；二维码保存相册/分享图/分享号；刷新；扫一扫入口 | `MyQrCodeScreen` + `MediaExport.saveBitmapToGallery` |
 | 扫一扫加好友/入群 | 完整 | 相机扫码；好友/入群/安全码分流 | `ScanScreen` |
@@ -193,7 +193,7 @@
 | 图片/文件分析 | 完整 | 描述/OCR/风险走本机视觉接口；文本文件 UTF-8；PDF 本机渲染前 4 页 JPEG 再走用户模型。不经毛豆 `/api/ai` | ChatDetail AI 图片/文件对话框 + `LocalAiFileAnalyzer` |
 | 语义搜索 | 完整 | 本机关键词打分，非全库向量；密聊/PIN 排除 | `LocalAiGateway.rankSemantic` + `ChatSearchBar` |
 | 费用/限流/取消可见 | 完整 | 调用中可取消；限流/费用提示条 | `AiCostVisibilityPolicy` |
-| Prompt 注入防护 | 完整 | 用户输入消毒与系统提示隔离 | `AiPromptSafetyPolicy` |
+| Prompt 注入防护 | 完整 | 上下文消毒、角色前缀打散；疑似注入启发式命中则整段丢弃（fail-closed） | `AiPromptSafetyPolicy` |
 | 写作风格偏好 | 完整 | 默关、账号隔离 + `/api/client-prefs` 多端同步；预设含简洁/正式/温和/商务/轻松/俏皮/共情/直接/热情/得体；自定义说明 320 字 | `AiWritingStyle*` |
 | AI 任务列表与本地提醒 | 完整 | 完成/删除/日历；待办/已完成筛选；≥4 条可按标题/负责人/来源搜索；WorkManager 到期提醒；PIN 门闩 | `AiTasksScreen` + `AiTaskReminderWorker` + `ChatLockSession` |
 | 端侧 embedding | 暂不考虑
@@ -230,7 +230,7 @@
 | Signal 1:1 多设备会话 | 完整 | libsignal + 持久化 store；逐设备 fan-out + 自身多设备同步 |
 | 群 Sender Key | 完整 | 分发/epoch/覆盖重试；弱网退避细化（网络错误 10s 起 8 次 vs 协议错误 30s 起 5 次 + ±25% 抖动防惊群） | `crypto/SenderKeyRetryManager` |
 | PreKey 上传/拉取/设备管理 | 完整 | 批量校验：最少 10 个 PreKey + keyId 1..16777215 + 签名长度 64..512 + base64 字符集 + 去重；账号安全页设备列表可搜索 |
-| 身份信任 + 安全码 + QR | 完整 | 自研 5 位分组 digest；TOFU + CHANGED 拦截 + QR 扫码核验 + **一键验证所有设备**（verifyAllDevices）；多设备 ≥4 可搜 ID/信任/指纹并可滚动 |
+| 身份信任 + 安全码 + QR | 完整 | `SafetyCodePolicy` 自研 5 位分组 digest（非 Signal 官方 safety number）；TOFU + CHANGED 拦截 + QR 扫码核验 + **一键验证所有设备**（verifyAllDevices）；多设备 ≥4 可搜 ID/信任/指纹并可滚动 |
 | 附件 AES-GCM（服务端只存密文） | 完整 | IMAGE/VIDEO/GIF/VOICE/FILE 全部走加密附件管道；客户端加解密；密钥随消息 meta；服务端密文；兼容旧版 inline FILE 消息 |
 | SQLCipher 本地库 | 完整 | Keystore 包 passphrase；损坏记录隔离删除；打开失败时销毁重建 |
 | 换号/删号本地硬销毁 | 完整 | 换号与删号 purge DB/缓存/任务/Signal；同账号登出保留加密库 |
@@ -285,7 +285,7 @@
 | 禁动态/解除（模板+API） | 完整 | `PUT .../post-restriction` |
 | 停用账号（匿名化） | 完整 | 不可逆确认后匿名化 |
 | 动态/评论管理删除 | 完整 | 版主删除 + 审计 |
-| 群聊管理/解散 | 完整 | 列表/解散确认 |
+| 群聊管理/解散 | 完整 | 只列群/频道，排除 SECRET；解散接口拒 1:1/密聊 |
 | 举报处理 | 完整 | 队列处置 + 模板原因 |
 | 风控规则 CRUD + 二次确认 | 完整 | 规则启停/编辑需确认 |
 | 风险事件处理 | 完整 | 事件列表 + 处置 |
@@ -419,8 +419,8 @@
 | FLAG_SECURE / recents 排除 | 完整 | 密聊 / 全局策略联动 |
 | 密聊整页盲水印 / 图片 DWT+SVD | 完整 | 无可读 overlay；时间 / 用户 ID 等载荷；后台可提取路径存在 |
 | 截屏检测 + 对端 CAPTURE_ALERT | 完整 | ContentObserver + prefs |
-| 阅后即焚 / 消失消息 / view-once / spoiler | 完整 | 与密聊默认 24h（可关）联动 |
-| 密聊复制 / 导出 / 转发 / 会话导出 | 完整 | runtime 可关 |
+| 阅后即焚 / 消失消息 / view-once / spoiler | 完整 | 密聊默认 30s 已读销毁；普通单聊可选时长 |
+| 密聊复制 / 导出 / 转发 / 会话导出 | 完整 | 硬拒绝（不依赖 runtime 开关） |
 | 密聊链接预览 / 外链 | 完整 | 外链默认更松（false） |
 | 密聊通知 / 列表预览脱敏 | 完整 | AppNotifier + ChatList |
 | 密聊反应 / 标星封堵 | 完整 | 防元数据侧信道 |
@@ -455,10 +455,9 @@
 
 ### 12.5 下一步（文档层）
 
-1. **#67**：密聊 typing / read-receipt 门控（客户端钩子已存在）。  
-2. 持续 #68+：侧信道收敛、群玩法、后台体验。  
-3. 功能面收敛后：静态 bug hunt → 少次编译 → 真机验收填表。  
-4. 勿宣称 TG/微信/QQ 级或 Signal 全量对等，直至跨端与取证证据齐备。
+1. 真机双机验收密聊：独立会话、occupancy、30s 销毁、禁复制转发、FLAG_SECURE。  
+2. 功能面收敛后：静态 bug hunt → 少次编译 → 真机验收填表。  
+3. 勿宣称 TG/微信/QQ 级或 Signal 全量对等，直至跨端与取证证据齐备。
 
 ---
 

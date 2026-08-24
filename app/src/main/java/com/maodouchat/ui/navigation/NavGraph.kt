@@ -498,6 +498,9 @@ fun MaodouchatNavGraph(
                     onVideoCall = { contactId, contactName ->
                         navController.navigate(Routes.call(contactId, contactName, "VIDEO"))
                     },
+                    onOpenSecretChat = { secretChatId ->
+                        navController.navigate(Routes.chatDetail(secretChatId)) { launchSingleTop = true }
+                    },
                     onOpenGroupDetail = { chatId -> navController.navigate(Routes.groupDetail(chatId)) },
                     onOpenStarredMessages = { chatId -> navController.navigate(Routes.starredMessages(chatId)) },
                     onOpenMediaCenter = { chatId -> navController.navigate(Routes.mediaCenter(chatId)) },
@@ -831,7 +834,12 @@ fun MaodouchatNavGraph(
         composable(Routes.SETTINGS_ACCOUNT_SECURITY) {
             com.maodouchat.ui.screen.settings.AccountSecurityScreen(
                 onBack = { navController.popBackStack() },
-                onOpenMyQrCode = { navController.navigate(Routes.MY_QR_CODE) }
+                onOpenMyQrCode = { navController.navigate(Routes.MY_QR_CODE) },
+                onLogout = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.MAIN) { inclusive = true }
+                    }
+                }
             )
         }
         composable(Routes.SETTINGS_MY_REPORTS) {
@@ -1805,6 +1813,9 @@ private fun ChatDetailListPaneRoute(navController: NavHostController) {
                                 },
                                 onVideoCall = { contactId, contactName ->
                                     navController.navigate(Routes.call(contactId, contactName, "VIDEO")) { launchSingleTop = true }
+                                },
+                                onOpenSecretChat = { secretChatId ->
+                                    detailNavController.navigate(Routes.chatDetailTwoPane(secretChatId)) { launchSingleTop = true }
                                 },
                                 onOpenGroupDetail = { id -> navController.navigate(Routes.groupDetail(id)) { launchSingleTop = true } },
                                 onOpenStarredMessages = { id -> navController.navigate(Routes.starredMessages(id)) { launchSingleTop = true } },

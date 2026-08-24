@@ -99,7 +99,7 @@ object ConversationWidgetData {
                 val app = context.applicationContext as? MaodouchatApp
                     ?: return@withContext WidgetSnapshot(emptyList(), 0, ownerUserId, false, System.currentTimeMillis())
                 val chatRepo = ChatRepository(app.database.chatDao(), app.database.userDao())
-                val secretIds = app.database.secretChatDao().listSecretChatIds().toSet()
+                val secretIds = app.database.chatDao().listSecretChatIds().toSet()
                 val appLockOn = AppLockManager.isEnabled(context)
                 val appName = context.getString(R.string.app_name)
                 val genericPreview = context.getString(R.string.notification_encrypted_message)

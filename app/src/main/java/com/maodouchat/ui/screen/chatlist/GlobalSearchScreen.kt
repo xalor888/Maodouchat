@@ -388,7 +388,7 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
                 recordRecentSearch(query)
                 val (documents, redactedChatCount) = withContext(Dispatchers.IO) {
                     val locked = app.database.chatLockDao().listLockedChatIds().toSet()
-                    val secret = app.database.secretChatDao().listSecretChatIds().toSet()
+                    val secret = app.database.chatDao().listSecretChatIds().toSet()
                     val redacted = locked + secret
                     val filterType = _uiState.value.filterType
                     val all = filterToMessageTypes(filterType)?.let { types ->
@@ -451,7 +451,7 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
             try {
                 val localCandidates = withContext(Dispatchers.IO) {
                     val locked = app.database.chatLockDao().listLockedChatIds().toSet()
-                    val secret = app.database.secretChatDao().listSecretChatIds().toSet()
+                    val secret = app.database.chatDao().listSecretChatIds().toSet()
                     val filterType = _uiState.value.filterType
                     val docs = filterToMessageTypes(filterType)?.let { types ->
                         searchRepository.searchByTypes(query, types, limit = 80)

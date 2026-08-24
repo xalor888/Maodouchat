@@ -195,7 +195,7 @@ class StarredMessagesViewModel(
                             emptySet()
                         }
                         val secretChatIds = try {
-                            app.database.secretChatDao().listSecretChatIds().toSet()
+                            app.database.chatDao().listSecretChatIds().toSet()
                         } catch (e: kotlinx.coroutines.CancellationException) {
                             throw e
                         } catch (_: Exception) {
@@ -218,10 +218,15 @@ class StarredMessagesViewModel(
                                 return@mapNotNull null
                             }
                             val scopeChat = chatsById[dto.chatId] ?: chat
-                            cached[dto.id]?.copy(
+                            val cachedRow = cached[dto.id]?.takeIf { row ->
+                                row.content.isNotBlank() &&
+                                    !com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(row.content) &&
+                                    !com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(row.parsedContent())
+                            }
+                            cachedRow?.copy(
                                 starred = true,
-                                editedAt = dto.editedAt ?: cached[dto.id]?.editedAt,
-                                reactions = dto.reactions.ifEmpty { cached[dto.id]?.reactions.orEmpty() }
+                                editedAt = dto.editedAt ?: cachedRow.editedAt,
+                                reactions = dto.reactions.ifEmpty { cachedRow.reactions }
                             ) ?: decryptDto(dto, scopeChat, if (isSecretScoped) chatId else null).copy(starred = true)
                         }
                         Result.success(StarredLoadPayload(chat, chatsById, messages, isSecretScoped, isChatLockedNow))
@@ -376,7 +381,7 @@ class StarredMessagesViewModel(
         }
     }
 
-    private fun decryptDto(dto: MessageDto, chat: Chat?, secretChatId: String? = null): Message {
+    private suspend fun decryptDto(dto: MessageDto, chat: Chat?, secretChatId: String? = null): Message {
         val base = Message(
             id = dto.id,
             chatId = dto.chatId,
@@ -393,6 +398,24 @@ class StarredMessagesViewModel(
         // 8.48 修复 M3：自己消息不再无条件显示占位符——本地自有设备会话存在时尝试解密
         //（自己的文本消息本地就是明文存储，收藏页此前全局列表每条自己消息都隐藏正文）。
         // 解密失败（无会话/多设备格式）才回退占位，行为与聊天详情一致。
+        val localPlain = runCatching { messageRepo.getMessageById(dto.id) }.getOrNull()
+            ?.takeIf { cached ->
+                cached.content.isNotBlank() &&
+                    !com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(cached.content) &&
+                    !com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(cached.parsedContent()) &&
+                    !signalProtocol.isEncryptedEnvelope(cached.content) &&
+                    !signalProtocol.isSenderKeyEnvelope(cached.content)
+            }
+        if (localPlain != null) {
+            return localPlain.copy(starred = true)
+        }
+        val skipSession = com.maodouchat.crypto.SessionCipherOccupancy.shouldSkipSessionCipher(
+            dto.chatId,
+            dto.senderId
+        ) && !(chat?.isGroup == true && signalProtocol.isSenderKeyEnvelope(dto.content))
+        if (skipSession) {
+            return base.copy(content = encryptedPreview(base.type))
+        }
         if (dto.senderId == currentUserId) {
             val own = runCatching {
                 if (base.type == MessageType.TEXT || base.type == MessageType.MARKDOWN) {
@@ -404,7 +427,10 @@ class StarredMessagesViewModel(
             if (own is SignalProtocol.DecryptResult.Success &&
                 (base.type == MessageType.TEXT || base.type == MessageType.MARKDOWN)
             ) {
-                return base.copy(content = own.plaintext)
+                val plaintext = own.plaintext
+                if (!com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(plaintext)) {
+                    return base.copy(content = plaintext)
+                }
             }
             return base.copy(content = encryptedPreview(base.type))
         }
@@ -417,7 +443,14 @@ class StarredMessagesViewModel(
         }
         return when (result) {
             is SignalProtocol.DecryptResult.Success -> {
-                if (base.type == MessageType.TEXT || base.type == MessageType.MARKDOWN) base.copy(content = result.plaintext)
+                if (base.type == MessageType.TEXT || base.type == MessageType.MARKDOWN) {
+                    val plaintext = result.plaintext
+                    if (com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(plaintext)) {
+                        base.copy(content = encryptedPreview(base.type))
+                    } else {
+                        base.copy(content = plaintext)
+                    }
+                }
                 else {
                     val restored = MediaCache.restoreDecryptedMedia(getApplication(), result.plaintext, base.id, base.type, secretChatId)
                     val metadata = restored?.fileMetadata
@@ -731,7 +764,11 @@ private fun chatTitle(chat: Chat?, currentUserId: String): String {
 
 @Composable
 private fun Message.starredPreview(context: android.content.Context): String = when (type) {
-    MessageType.TEXT, MessageType.MARKDOWN -> parsedContent()
+    MessageType.TEXT, MessageType.MARKDOWN ->
+        com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
+            parsedContent(),
+            context.getString(R.string.starred_encrypted_message),
+        )
     MessageType.IMAGE -> stringResource(R.string.message_preview_image)
     MessageType.GIF -> stringResource(R.string.message_preview_gif)
     MessageType.STICKER -> stringResource(R.string.message_preview_sticker)

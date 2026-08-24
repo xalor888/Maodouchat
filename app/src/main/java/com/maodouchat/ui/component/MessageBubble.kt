@@ -197,6 +197,16 @@ fun MessageBubble(
     /** 1.51：点击已读状态图标（✓✓）→ 打开阅读详情。 */
     onStatusClick: ((Message) -> Unit)? = null
 ) {
+    val message = if (isGroupChat) {
+        message.copy(
+            status = com.maodouchat.ui.screen.chatlist.ChatListReceiptPolicy.displayStatus(
+                message.status,
+                isGroup = true,
+            )
+        )
+    } else {
+        message
+    }
     when (message.type) {
         MessageType.NUDGE -> {
             // Hoist format templates via stringResource so locale changes recompose correctly.
@@ -598,13 +608,12 @@ private fun TextBubble(
     /** 0.65：发送者群内角色（群主/管理员徽章，仅群聊显示）。 */
     memberRole: String? = null
 ) {
-    // 9.3xx：气泡层密文兜底——任何漏网的 wire envelope（含 FutureEpoch/断线补拉落库的
-    // 原始密文）都渲染为解密失败占位，绝不把 ciphertext/设备号等元数据输出给用户。
+    // 漏网信封绝不把 algorithm/ciphertext 渲成正文。已有可读明文时不要盖成「无法解密」。
     val message = if (
         message.type in setOf(MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER) &&
         com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(message.parsedContent())
     ) {
-        message.copy(content = stringResource(R.string.chat_decrypt_failed))
+        message.copy(content = stringResource(R.string.chat_decrypt_pending))
     } else message
     val palette = LocalChatPalette.current
     // 9.252：TG 式动态气泡宽度——此前固定 280dp，大屏上气泡偏窄、长文本折行过多
@@ -949,6 +958,7 @@ private fun TextBubble(
                     MarkdownMessageContent(
                         text = message.parsedContent(),
                         isOwnMessage = isOwnMessage,
+                        allowSelection = secretChatId.isNullOrBlank(),
                         onLinkClick = { url ->
                             // scheme 白名单：仅允许 http/https（防 javascript:/intent: 等危险 scheme）
                             val parsed = android.net.Uri.parse(url)
@@ -2266,9 +2276,10 @@ internal fun MessageStatusIcon(
     status: MessageStatus,
     tint: Color = LocalSentBubbleContentSecondary.current,
 ) {
+    val displayStatus = status
     // 状态切换时做轻量 spring，解释发送中→已送达→已读；系统关闭动画时瞬时到位
     val motion = LocalMotionSettings.current
-    val targetScale = when (status) {
+    val targetScale = when (displayStatus) {
         MessageStatus.FAILED -> 1.08f
         MessageStatus.SENDING -> 0.92f
         else -> 1f
@@ -2283,7 +2294,7 @@ internal fun MessageStatusIcon(
         targetValue = 1f,
         durationMillis = 900,
         label = "messageStatusSendingPulse",
-        active = status == MessageStatus.SENDING,
+        active = displayStatus == MessageStatus.SENDING,
         staticValue = 0.85f
     )
     Box(
@@ -2292,11 +2303,11 @@ internal fun MessageStatusIcon(
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
-                alpha = if (status == MessageStatus.SENDING) pulse else 1f
+                alpha = if (displayStatus == MessageStatus.SENDING) pulse else 1f
             },
         contentAlignment = Alignment.Center
     ) {
-        when (status) {
+        when (displayStatus) {
             MessageStatus.SENDING -> {
                 CircularProgressIndicator(
                     modifier = Modifier.size(12.dp),

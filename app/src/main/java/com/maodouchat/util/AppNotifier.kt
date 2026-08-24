@@ -174,7 +174,12 @@ object AppNotifier {
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!effectiveSoundEnabled(context, soundEnabled))
+            .setSilent(
+                !NotificationSoundPolicy.traySoundAllowed(
+                    appInForeground = com.maodouchat.MaodouchatApp.appInForeground,
+                    preferenceSoundEnabled = effectiveSoundEnabled(context, soundEnabled),
+                )
+            )
         // 9.209：第三方服务器模式标注服务器名——服务器身份非隐私内容，脱敏模式下也展示，
         // 避免同时连多个自建服务器的用户分不清通知来自哪台
         if (com.maodouchat.network.ServerIdentity.isThirdPartyServer) {
@@ -940,7 +945,7 @@ object AppNotifier {
         val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return false
         return try {
             kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
-                app.database.secretChatDao().isSecret(chatId)
+                app.database.chatDao().isSecretChat(chatId)
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e

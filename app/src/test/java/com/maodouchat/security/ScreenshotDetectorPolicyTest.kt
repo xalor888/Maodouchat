@@ -24,4 +24,20 @@ class ScreenshotDetectorPolicyTest {
         assertFalse(ScreenshotDetector.isScreenshotPath("DCIM/Camera/", "IMG_0001.jpg"))
         assertTrue(ScreenshotDetector.isScreenRecordPath("Movies/Screen recordings/", "screenrecord.mp4"))
     }
+
+    @Test
+    fun `scrubber deletes fresh screenshot files only`() {
+        assertTrue(
+            SecureCaptureScrubber.shouldDeleteImage("Pictures/Screenshots/", "Screenshot_1.png", 1)
+        )
+        assertFalse(
+            SecureCaptureScrubber.shouldDeleteImage("Pictures/Screenshots/", "Screenshot_1.png", 30)
+        )
+        assertFalse(
+            SecureCaptureScrubber.shouldDeleteImage("DCIM/Camera/", "IMG_0001.jpg", 1)
+        )
+        assertTrue(
+            SecureCaptureScrubber.shouldDeleteVideo("Movies/Screen recordings/", "screenrecord.mp4", 2)
+        )
+    }
 }

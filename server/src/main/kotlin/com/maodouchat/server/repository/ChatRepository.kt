@@ -6,6 +6,7 @@ import com.maodouchat.server.db.BotCommandLogs
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.ChatUserSettings
 import com.maodouchat.server.db.DirectChatPairs
+import com.maodouchat.server.db.SecretChatPairs
 import com.maodouchat.server.db.GroupAuditLogs
 import com.maodouchat.server.db.GroupChainEntries
 import com.maodouchat.server.db.GroupChains
@@ -185,6 +186,7 @@ class ChatRepository {
                 Chats.insert {
                     it[Chats.id] = chatId
                     it[Chats.isGroup] = false
+                    it[Chats.chatType] = ChatType.DIRECT
                     it[Chats.groupName] = null
                     it[Chats.memberRevision] = 0
                 }
@@ -245,6 +247,90 @@ class ChatRepository {
     private fun isIntactDirectChatInTx(chatId: String, userId1: String, userId2: String): Boolean {
         val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull() ?: return false
         if (chat[Chats.isGroup]) return false
+        if (chat[Chats.chatType] == ChatType.SECRET) return false
+        val members = ChatParticipants.selectAll().where { ChatParticipants.chatId eq chatId }
+            .map { it[ChatParticipants.userId] }
+            .toSet()
+        return members.size == 2 && userId1 in members && userId2 in members
+    }
+
+    /**
+     * 密聊幂等创建：独立 secret_chat_pairs，同一对人可同时有普通私聊。
+     * 默认已读后 30 秒销毁（钉钉式阅后即焚）；群不能建密聊。
+     */
+    fun getOrCreateSecretChat(userId1: String, userId2: String): ChatResponse {
+        require(userId1 != userId2) { "secret_chat_self" }
+        val pairKey = listOf(userId1, userId2).sorted().joinToString(":")
+        val burnSeconds = com.maodouchat.server.service.DisappearingMessagePolicy.SECRET_DEFAULT_SECONDS
+
+        return try {
+            transaction {
+                val activeUsers = lockUsersInTx(listOf(userId1, userId2))
+                require(activeUsers.size == 2 && activeUsers.none { it[Users.deletedAt] != null }) {
+                    "secret_chat_user_not_found"
+                }
+                require(!isBlockedEitherWayInTx(userId1, userId2)) { "secret_chat_blocked" }
+                lookupSecretChatInTx(pairKey, userId1, userId2)?.let { return@transaction it }
+
+                val chatId = "s_${UUID.randomUUID()}"
+                val now = System.currentTimeMillis()
+                Chats.insert {
+                    it[Chats.id] = chatId
+                    it[Chats.isGroup] = false
+                    it[Chats.chatType] = ChatType.SECRET
+                    it[Chats.groupName] = null
+                    it[Chats.memberRevision] = 0
+                    it[Chats.disappearingMessageSeconds] = burnSeconds
+                }
+                listOf(userId1, userId2).forEach { uid ->
+                    ChatParticipants.insert {
+                        it[ChatParticipants.chatId] = chatId
+                        it[ChatParticipants.userId] = uid
+                        it[ChatParticipants.joinedAt] = now
+                        it[ChatParticipants.role] = "MEMBER"
+                    }
+                }
+                SecretChatPairs.insert {
+                    it[SecretChatPairs.pairKey] = pairKey
+                    it[SecretChatPairs.chatId] = chatId
+                    it[SecretChatPairs.createdAt] = now
+                }
+                getChatByIdInTx(chatId, userId1)!!
+            }
+        } catch (e: Exception) {
+            if (!isUniqueViolation(e)) throw e
+            lookupSecretChat(pairKey, userId1, userId2) ?: throw e
+        }
+    }
+
+    private fun lookupSecretChat(pairKey: String, userId1: String, userId2: String): ChatResponse? {
+        return transaction {
+            val activeUsers = lockUsersInTx(listOf(userId1, userId2))
+            if (activeUsers.size != 2 || activeUsers.any { it[Users.deletedAt] != null }) {
+                return@transaction null
+            }
+            lookupSecretChatInTx(pairKey, userId1, userId2)
+        }
+    }
+
+    private fun lookupSecretChatInTx(pairKey: String, userId1: String, userId2: String): ChatResponse? {
+        val mapped = SecretChatPairs.selectAll()
+            .where { SecretChatPairs.pairKey eq pairKey }
+            .firstOrNull()
+            ?.get(SecretChatPairs.chatId)
+        if (mapped != null) {
+            if (isIntactSecretChatInTx(mapped, userId1, userId2)) {
+                getChatByIdInTx(mapped, userId1)?.let { return it }
+            } else {
+                SecretChatPairs.deleteWhere { SecretChatPairs.pairKey eq pairKey }
+            }
+        }
+        return null
+    }
+
+    private fun isIntactSecretChatInTx(chatId: String, userId1: String, userId2: String): Boolean {
+        val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull() ?: return false
+        if (chat[Chats.isGroup] || chat[Chats.chatType] != ChatType.SECRET) return false
         val members = ChatParticipants.selectAll().where { ChatParticipants.chatId eq chatId }
             .map { it[ChatParticipants.userId] }
             .toSet()
@@ -289,7 +375,13 @@ class ChatRepository {
             .groupBy { it[ChatParticipants.chatId] }
             .mapValues { it.value.size }
         // 稳定选取：按 chatId 排序，避免 firstOrNull  nondeterministic
-        return common.filter { id -> groupFlags[id] == false && counts[id] == 2 }.minOrNull()
+        val types = Chats.selectAll().where { Chats.id inList common.toList() }
+            .associate { it[Chats.id] to it[Chats.chatType] }
+        return common.filter { id ->
+            groupFlags[id] == false &&
+                counts[id] == 2 &&
+                types[id] != ChatType.SECRET
+        }.minOrNull()
     }
 
     /** 已在 transaction 内调用 */
@@ -340,7 +432,8 @@ class ChatRepository {
             memberRevision = chat[Chats.memberRevision],
             disappearingMessageSeconds = com.maodouchat.server.service.DisappearingMessagePolicy.effectiveSeconds(
                 isGroup = chat[Chats.isGroup],
-                requestedSeconds = chat[Chats.disappearingMessageSeconds]
+                requestedSeconds = chat[Chats.disappearingMessageSeconds],
+                isSecret = chat[Chats.chatType] == ChatType.SECRET
             )
         )
     }
@@ -410,7 +503,8 @@ class ChatRepository {
                 memberRevision = chat[Chats.memberRevision],
                 disappearingMessageSeconds = com.maodouchat.server.service.DisappearingMessagePolicy.effectiveSeconds(
                     isGroup = chat[Chats.isGroup],
-                    requestedSeconds = chat[Chats.disappearingMessageSeconds]
+                    requestedSeconds = chat[Chats.disappearingMessageSeconds],
+                    isSecret = chat[Chats.chatType] == ChatType.SECRET
                 )
             )
         }
@@ -560,7 +654,8 @@ class ChatRepository {
                         settingsUpdatedAt = settings?.get(ChatUserSettings.updatedAt) ?: 0,
                         disappearingMessageSeconds = com.maodouchat.server.service.DisappearingMessagePolicy.effectiveSeconds(
                             isGroup = chatRow[Chats.isGroup],
-                            requestedSeconds = chatRow[Chats.disappearingMessageSeconds]
+                            requestedSeconds = chatRow[Chats.disappearingMessageSeconds],
+                            isSecret = chatRow[Chats.chatType] == ChatType.SECRET
                         )
                     )
                 }
@@ -690,9 +785,14 @@ class ChatRepository {
             (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq actorId)
         }.firstOrNull() != null) { "not_a_participant" }
         require(!chat[Chats.isGroup]) { "group_not_supported" }
-        val seconds = com.maodouchat.server.service.DisappearingMessagePolicy.normalizeSeconds(requestedSeconds)
-        require(com.maodouchat.server.service.DisappearingMessagePolicy.isAllowedSeconds(seconds)) {
-            "invalid_timer"
+        val seconds = if (chat[Chats.chatType] == ChatType.SECRET) {
+            com.maodouchat.server.service.DisappearingMessagePolicy.SECRET_DEFAULT_SECONDS
+        } else {
+            val normalized = com.maodouchat.server.service.DisappearingMessagePolicy.normalizeSeconds(requestedSeconds)
+            require(com.maodouchat.server.service.DisappearingMessagePolicy.isAllowedSeconds(normalized)) {
+                "invalid_timer"
+            }
+            normalized
         }
         val now = System.currentTimeMillis()
         Chats.update({ Chats.id eq chatId }) {
@@ -770,6 +870,7 @@ class ChatRepository {
                 // 1:1 任一方离开后 pair 映射失效：否则 getOrCreateDirectChat 会回落到半空 chat，重开私聊永远加不回自己
                 if (!chat[Chats.isGroup]) {
                     DirectChatPairs.deleteWhere { DirectChatPairs.chatId eq chatId }
+                    SecretChatPairs.deleteWhere { SecretChatPairs.chatId eq chatId }
                 }
                 if (deleted > 0) {
                     if (chat[Chats.isGroup]) {
@@ -1453,8 +1554,9 @@ class ChatRepository {
             GroupPolls.deleteWhere { GroupPolls.id inList pollIds }
         }
         BotCommandLogs.deleteWhere { BotCommandLogs.chatId eq chatId }
-        // FK: direct_chat_pairs.chat_id / message_mutations.chat_id → chats.id
+        // FK: direct_chat_pairs / secret_chat_pairs / message_mutations → chats.id
         DirectChatPairs.deleteWhere { DirectChatPairs.chatId eq chatId }
+        SecretChatPairs.deleteWhere { SecretChatPairs.chatId eq chatId }
         MessageMutations.deleteWhere { MessageMutations.chatId eq chatId }
         SenderKeyDistributions.deleteWhere { SenderKeyDistributions.chatId eq chatId }
         ChatUserSettings.deleteWhere { ChatUserSettings.chatId eq chatId }

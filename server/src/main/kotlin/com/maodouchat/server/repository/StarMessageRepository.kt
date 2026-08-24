@@ -41,12 +41,13 @@ class StarMessageRepository {
             val message = Messages.selectAll().where { Messages.id eq messageId }.forUpdate().firstOrNull()
                 ?: return@transaction null
             val chatId = message[Messages.chatId]
-            Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
+            val chatRow = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
                 ?: return@transaction null
             val isMember = ChatParticipants.selectAll().where {
                 (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq userId)
             }.firstOrNull() != null
             if (!isMember) return@transaction null
+            if (chatRow[Chats.chatType] == com.maodouchat.server.model.ChatType.SECRET) return@transaction null
             val msgType = message[Messages.type]
             val expiresAt = message[Messages.expiresAt]
             val expired = expiresAt != null && expiresAt > 0L && expiresAt <= System.currentTimeMillis()
@@ -145,11 +146,21 @@ class StarMessageRepository {
             val notExpired = Messages.expiresAt.isNull() or
                 (Messages.expiresAt eq 0L) or
                 (Messages.expiresAt greater now)
-            val base = (Messages.id inList starredIds) and
+            val secretChatIds = Chats.select(Chats.id)
+                .where { Chats.chatType eq com.maodouchat.server.model.ChatType.SECRET }
+                .map { it[Chats.id] }
+                .toSet()
+            if (chatId != null && chatId in secretChatIds) return@transaction emptyList()
+            var base = (Messages.id inList starredIds) and
                 (ChatParticipants.userId eq userId) and
                 (Messages.type notInList NON_STARRABLE_TYPES.toList()) and
-                notExpired and
-                if (chatId != null) (Messages.chatId eq chatId) else Op.TRUE
+                notExpired
+            if (secretChatIds.isNotEmpty()) {
+                base = base and (Messages.chatId notInList secretChatIds)
+            }
+            if (chatId != null) {
+                base = base and (Messages.chatId eq chatId)
+            }
             val condition = if (blockedSenders.isEmpty()) base
             else base and (Messages.senderId notInList blockedSenders.toList())
             val messages = membershipJoin.selectAll()

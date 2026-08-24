@@ -101,6 +101,37 @@ class NotificationSoundPolicyTest {
                 soundPreference = true,
             )
         )
+        assertFalse(
+            NotificationSoundPolicy.inAppReceiveToneEnabled(
+                inAppSoundsFlag = true,
+                notificationsEnabled = true,
+                notificationSoundFlag = true,
+                soundPreference = true,
+                appInForeground = true,
+            )
+        )
+    }
+
+    @Test
+    fun traySoundSilentWhileAppInForeground() {
+        assertTrue(
+            NotificationSoundPolicy.traySoundAllowed(
+                appInForeground = false,
+                preferenceSoundEnabled = true,
+            )
+        )
+        assertFalse(
+            NotificationSoundPolicy.traySoundAllowed(
+                appInForeground = true,
+                preferenceSoundEnabled = true,
+            )
+        )
+        assertFalse(
+            NotificationSoundPolicy.traySoundAllowed(
+                appInForeground = false,
+                preferenceSoundEnabled = false,
+            )
+        )
     }
 
     @Test

@@ -692,6 +692,7 @@ class UserRepository {
                 }
             } else {
                 DirectChatPairs.deleteWhere { DirectChatPairs.chatId eq chatId }
+                SecretChatPairs.deleteWhere { SecretChatPairs.chatId eq chatId }
             }
         }
 
@@ -833,6 +834,7 @@ class UserRepository {
         }
         if (directPairCleanups.isNotEmpty()) {
             DirectChatPairs.deleteWhere { DirectChatPairs.chatId inList directPairCleanups }
+            SecretChatPairs.deleteWhere { SecretChatPairs.chatId inList directPairCleanups }
         }
         revisionBumps.forEach { chatId ->
             val latest = chatsById[chatId]
@@ -907,8 +909,9 @@ class UserRepository {
         }
         GroupPkRounds.deleteWhere { GroupPkRounds.chatId eq chatId }
         BotCommandLogs.deleteWhere { BotCommandLogs.chatId eq chatId }
-        // FK: direct_chat_pairs.chat_id / message_mutations.chat_id → chats.id
+        // FK: direct_chat_pairs / secret_chat_pairs / message_mutations → chats.id
         DirectChatPairs.deleteWhere { DirectChatPairs.chatId eq chatId }
+        SecretChatPairs.deleteWhere { SecretChatPairs.chatId eq chatId }
         MessageMutations.deleteWhere { MessageMutations.chatId eq chatId }
         SenderKeyDistributions.deleteWhere { SenderKeyDistributions.chatId eq chatId }
         ChatUserSettings.deleteWhere { ChatUserSettings.chatId eq chatId }

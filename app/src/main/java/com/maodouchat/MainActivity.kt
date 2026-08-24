@@ -66,6 +66,9 @@ class MainActivity : FragmentActivity() {
     /** 8.48：当前导航路由（供通话 PiP 判断） */
     @Volatile
     private var currentNavRoute: String? = null
+    @Volatile
+    private var windowSecureRequested: Boolean = false
+    private var captureScrubber: com.maodouchat.security.ScreenshotDetector? = null
 
     // 多权限请求
     private val permissionLauncher = registerForActivityResult(
@@ -79,6 +82,7 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         showAppLock = AppLockManager.shouldLock(this)
         showFakeChat = FakeChatManager.shouldShowFake(this)
+        com.maodouchat.MaodouchatApp.appInForeground = true
         refreshWindowPrivacy()
         observeCallLockScreenFlags()
         // B5 新增（仅追加）：会话失效/账号切换时兜底移除悬浮球，避免跨账号残留窗口。
@@ -112,11 +116,16 @@ class MainActivity : FragmentActivity() {
                 // onPause 会在系统认证/权限框/通知栏下拉时误触发，此时仍是前台，不应清空
                 //（否则聊天页被指纹弹窗遮挡时到的新消息会被误判为后台消息而弹托盘通知）。
                 // ChatDetailViewModel 回前台会重新设置。
+                // 不清 openChatDetailId：列表不得对仍打开的会话再解 1:1 密文。
                 com.maodouchat.MaodouchatApp.activeChatId = null
+                com.maodouchat.MaodouchatApp.activeChatOpenedAtMs = 0L
+                com.maodouchat.MaodouchatApp.appInForeground = false
                 com.maodouchat.network.WebSocketClient.sendPresence(false)
             }
             override fun onStart(owner: LifecycleOwner) {
+                com.maodouchat.MaodouchatApp.appInForeground = true
                 com.maodouchat.network.WebSocketClient.sendPresence(true)
+                refreshWindowPrivacy()
             }
             override fun onResume(owner: LifecycleOwner) {
                 if (!showFakeChat && FakeChatManager.shouldShowFake(this@MainActivity)) {
@@ -216,7 +225,7 @@ class MainActivity : FragmentActivity() {
             val isSecret = if (chatId != null) {
                 withContext(Dispatchers.IO) {
                     try {
-                        (application as MaodouchatApp).database.secretChatDao().isSecret(chatId)
+                        (application as MaodouchatApp).database.chatDao().isSecretChat(chatId)
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (_: Exception) {
@@ -538,9 +547,25 @@ class MainActivity : FragmentActivity() {
         refreshWindowPrivacy()
     }
 
+    fun notifyScreenSecurePreferenceChanged() {
+        refreshWindowPrivacy()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) refreshWindowPrivacy()
+    }
+
     private fun updateWindowPrivacy(secure: Boolean) {
-        if (secure) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        windowSecureRequested = secure
+        // addFlags 不够：enableEdgeToEdge / 部分 OEM 会覆盖 LayoutParams.flags。
+        // 必须同时写 window.attributes，并在下一帧再钉一次。
+        applySecureFlagToWindow(window, secure)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            runCatching { setRecentsScreenshotEnabled(!secure) }
+        }
+        window.decorView.post { applySecureFlagToWindow(window, windowSecureRequested) }
+        syncCaptureScrubber(secure)
         // Hide task snapshot in recents while secure surfaces are active (secret / chat lock).
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             runCatching {
@@ -548,6 +573,38 @@ class MainActivity : FragmentActivity() {
                 val hideRecents = secure && RuntimeFlags.isEnabled(this, RuntimeFlags.RECENTS_EXCLUSION)
                 am.appTasks.firstOrNull()?.setExcludeFromRecents(hideRecents)
             }
+        }
+    }
+
+    private fun applySecureFlagToWindow(target: android.view.Window, secure: Boolean) {
+        val attrs = target.attributes
+        val next = if (secure) {
+            attrs.flags or WindowManager.LayoutParams.FLAG_SECURE
+        } else {
+            attrs.flags and WindowManager.LayoutParams.FLAG_SECURE.inv()
+        }
+        if (attrs.flags != next) {
+            attrs.flags = next
+            target.attributes = attrs
+        }
+        if (secure) target.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        else target.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+    }
+
+    /**
+     * FLAG_SECURE 被部分 OEM 忽略时，系统仍可能把截图写进相册。
+     * 全局防截屏 / 密聊开启时立刻删掉刚写入的截图/录屏文件。
+     */
+    private fun syncCaptureScrubber(secure: Boolean) {
+        if (secure) {
+            if (captureScrubber == null) {
+                captureScrubber = com.maodouchat.security.ScreenshotDetector(this) {
+                    com.maodouchat.security.SecureCaptureScrubber.deleteLatestCapture(this)
+                }.also { it.start() }
+            }
+        } else {
+            captureScrubber?.stop()
+            captureScrubber = null
         }
     }
 
@@ -614,6 +671,8 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onDestroy() {
+        captureScrubber?.stop()
+        captureScrubber = null
         // Activity instances must never hand lock-screen visibility to a later instance.
         applyCallLockScreenFlags(false)
         super.onDestroy()

@@ -7,6 +7,8 @@ package com.maodouchat.util
 object DisappearingMessagePolicy {
     /** 关闭 */
     const val OFF_SECONDS = 0
+    /** 钉钉式密聊默认已读后销毁时长（秒）。 */
+    const val SECRET_DEFAULT_SECONDS = 30
 
     /** 允许的会话级定时器（秒）：关 / 30 秒 / 1 分 / 2 分 / 5 分 / 15 分 / 1 时 / 2 时 / 4 时 / 8 时 / 12 时 / 24 时 / 7 天 / 30 天 */
     val ALLOWED_SECONDS: List<Int> = listOf(
@@ -33,9 +35,10 @@ object DisappearingMessagePolicy {
         return if (isAllowedSeconds(value)) value else OFF_SECONDS
     }
 
-    /** 仅 1:1 可开启；群聊强制关闭。 */
-    fun effectiveSeconds(isGroup: Boolean, requestedSeconds: Int?): Int {
+    /** 仅 1:1 可开启；群聊强制关闭；密聊固定 30 秒。 */
+    fun effectiveSeconds(isGroup: Boolean, requestedSeconds: Int?, isSecret: Boolean = false): Int {
         if (isGroup) return OFF_SECONDS
+        if (isSecret) return SECRET_DEFAULT_SECONDS
         return normalizeSeconds(requestedSeconds)
     }
 
@@ -52,6 +55,16 @@ object DisappearingMessagePolicy {
         if (existingExpiresAt != null && existingExpiresAt > 0L) return existingExpiresAt
         return readAtMs + timerSeconds * 1000L
     }
+
+    /**
+     * 密聊不报已读回执，但销毁必须武装。
+     * 对端打开会话（可见）时起算，不依赖 markAllAsRead。
+     */
+    fun shouldArmOnVisible(isSecretChat: Boolean, timerSeconds: Int): Boolean =
+        isSecretChat
+
+    fun shouldSkipReadReceipts(isSecretChat: Boolean, blockReadReceipts: Boolean = true): Boolean =
+        isSecretChat
 
     fun isExpired(expiresAt: Long?, nowMs: Long): Boolean {
         val deadline = expiresAt ?: return false

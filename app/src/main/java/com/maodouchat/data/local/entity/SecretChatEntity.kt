@@ -4,9 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * Local-only secret chat (密聊) flag for a conversation.
- * Forces FLAG_SECURE + blind watermark on this device; not a server mode.
- * lastActivityAt 供密聊无活动 TTL 清扫（SecretSessionTtl.sweepExpired）使用。
+ * 密聊本机无活动 TTL 心跳。身份以 chats.chatType=SECRET 为准，本表不是开关。
  */
 @Entity(tableName = "secret_chats")
 data class SecretChatEntity(

@@ -275,8 +275,9 @@
       if (r.ok && d && d.requiresTotp) {
         el('totp-field').classList.remove('hidden');
         el('totp-code').focus();
-        btnLabel.textContent = '验证并登录';
         el('login-error').textContent = '';
+        btn.disabled = false;
+        btnLabel.textContent = '验证并登录';
         return;
       }
       if (!r.ok || !d || !d.token) {
@@ -315,7 +316,11 @@
       el('login-error').textContent = x.message;
     } finally {
       btn.disabled = false;
-      btnLabel.textContent = '登录';
+      if (el('totp-field') && !el('totp-field').classList.contains('hidden') && !token) {
+        btnLabel.textContent = '验证并登录';
+      } else {
+        btnLabel.textContent = '登录';
+      }
     }
   });
 
@@ -1160,7 +1165,7 @@
 async function loadChats(seq) {
     var q = searchQuery.chats || '';
     var offset = (page.chats || 0) * pageSize;
-    var url = '/api/admin/chats?limit=' + pageSize + '&offset=' + offset;
+    var url = '/api/admin/chats?groupOnly=true&limit=' + pageSize + '&offset=' + offset;
     if (q) url += '&q=' + encodeURIComponent(q);
     var rows = asList(await api(url));
 
@@ -1174,7 +1179,7 @@ async function loadChats(seq) {
       html += '<tr><td colspan="5"><div class="empty-state"><p>暂无群聊数据</p></div></td></tr>';
     } else {
       rows.forEach(function (c) {
-        var typeBadge = c.isGroup ? '<span class="badge badge-blue">群聊</span>' : '<span class="badge">单聊</span>';
+        var typeBadge = c.chatType === 'CHANNEL' ? '<span class="badge badge-purple">频道</span>' : '<span class="badge badge-blue">群聊</span>';
         html += '<tr>' +
           '<td><div class="cell-main">' + esc(c.groupName || '(未命名)') + '</div><div class="cell-id">' + esc(c.id) + '</div></td>' +
           '<td>' + typeBadge + '</td>' +
