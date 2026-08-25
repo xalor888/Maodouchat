@@ -183,6 +183,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
@@ -1240,12 +1242,14 @@ fun ChatDetailScreen(
         val chat = state.chat
         var groupNameDraft by remember(chat?.id, chat?.groupName) { mutableStateOf(chat?.groupName.orEmpty()) }
         var groupInfoSearch by remember(chat?.id) { mutableStateOf("") }
+        var groupInfoSearchExpanded by remember(chat?.id) { mutableStateOf(false) }
         var groupInfoCandidatesExpanded by remember(chat?.id) { mutableStateOf(false) }
         val groupInfoCandidatePage = 20
         AlertDialog(
             onDismissRequest = {
                 showGroupInfo = false
                 groupInfoSearch = ""
+                groupInfoSearchExpanded = false
                 groupInfoCandidatesExpanded = false
             },
             title = { Text(chat?.groupName ?: stringResource(R.string.chat_group)) },
@@ -1304,23 +1308,45 @@ fun ChatDetailScreen(
                         else Text(stringResource(R.string.chat_save_group_name))
                     }
                     if (members.size + state.groupCandidates.size >= 4) {
-                        OutlinedTextField(
-                            value = groupInfoSearch,
-                            onValueChange = { groupInfoSearch = it.take(100) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text(stringResource(R.string.chat_group_info_search_hint)) },
-                            leadingIcon = {
-                                Icon(Icons.Outlined.Search, contentDescription = null, tint = Secondary)
-                            },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Primary,
-                                unfocusedBorderColor = Outline,
-                                focusedTextColor = OnSurface,
-                                unfocusedTextColor = OnSurface,
-                                cursorColor = Primary
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            IconButton(
+                                onClick = {
+                                    groupInfoSearchExpanded = !groupInfoSearchExpanded
+                                    if (!groupInfoSearchExpanded) groupInfoSearch = ""
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (groupInfoSearchExpanded) Icons.Outlined.Close else Icons.Outlined.Search,
+                                    contentDescription = stringResource(
+                                        if (groupInfoSearchExpanded) R.string.chat_search_close else R.string.chat_search_action
+                                    ),
+                                    tint = Primary,
+                                )
+                            }
+                        }
+                        AnimatedVisibility(
+                            visible = groupInfoSearchExpanded,
+                            enter = expandVertically() + fadeIn(),
+                            exit = shrinkVertically() + fadeOut(),
+                        ) {
+                            OutlinedTextField(
+                                value = groupInfoSearch,
+                                onValueChange = { groupInfoSearch = it.take(100) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text(stringResource(R.string.chat_group_info_search_hint)) },
+                                leadingIcon = {
+                                    Icon(Icons.Outlined.Search, contentDescription = null, tint = Secondary)
+                                },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Primary,
+                                    unfocusedBorderColor = Outline,
+                                    focusedTextColor = OnSurface,
+                                    unfocusedTextColor = OnSurface,
+                                    cursorColor = Primary
+                                )
                             )
-                        )
+                        }
                     }
                     Text(pluralStringResource(R.plurals.chat_members_count, members.size, members.size), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
                     if (filteredMembers.isEmpty() && q.isNotEmpty()) {
@@ -1396,6 +1422,7 @@ fun ChatDetailScreen(
                 TextButton(onClick = {
                     showGroupInfo = false
                     groupInfoSearch = ""
+                    groupInfoSearchExpanded = false
                     groupInfoCandidatesExpanded = false
                 }) { Text(stringResource(R.string.common_done)) }
             }
@@ -2468,9 +2495,6 @@ if (showGroupCallTypeDialog) {
                 },
                 actions = {
                     if (state.chatIsGroup) {
-                        IconButton(onClick = { state.chat?.id?.let(onOpenGroupDetail) ?: run { showGroupInfo = true } }) {
-                            Icon(Icons.Outlined.Group, contentDescription = stringResource(R.string.chat_group_info), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
-                        }
                         IconButton(onClick = { showGroupCallTypeDialog = true }) {
                             Icon(Icons.Outlined.Videocam, contentDescription = stringResource(R.string.chat_group_call), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                         }
@@ -2539,16 +2563,6 @@ if (showGroupCallTypeDialog) {
                                     onClick = { showChatOverflow = false; viewModel.sendNudge() }
                                 )
                             }
-                            if (state.chatIsGroup) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.chat_group_info)) },
-                                    onClick = {
-                                        showChatOverflow = false
-                                        state.chat?.id?.let(onOpenGroupDetail) ?: run { showGroupInfo = true }
-                                    }
-                                )
-                            }
-
                             // Local device PIN gate — works for 1:1 and groups (Room chatId key).
                             DropdownMenuItem(
                                 text = {
@@ -2592,10 +2606,12 @@ if (showGroupCallTypeDialog) {
                                 text = { Text(stringResource(R.string.chat_starred_messages)) },
                                 onClick = { showChatOverflow = false; state.chat?.id?.let(onOpenStarredMessages) }
                             )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.media_center_title)) },
-                                onClick = { showChatOverflow = false; state.chat?.id?.let(onOpenMediaCenter) }
-                            )
+                            if (!state.chatIsGroup) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.media_center_title)) },
+                                    onClick = { showChatOverflow = false; state.chat?.id?.let(onOpenMediaCenter) }
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_search_action)) },
                                 onClick = { showChatOverflow = false; showSearchBar = !showSearchBar }
@@ -2966,16 +2982,14 @@ if (showGroupCallTypeDialog) {
                             val canShowSafety = (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) &&
                                 !isOwn &&
                                 message.id !in dismissedSafetyMessageIds
-                            val groupReadLabel = if (
+                            val groupReadCount = if (
                                 ReadReceiptPolicy.shouldShowGroupReadCount(
                                     isGroup = state.chatIsGroup,
                                     isOwnMessage = isOwn,
                                     viewerRole = state.myMemberRole,
                                 )
                             ) {
-                                state.groupReadCounts[message.id]?.let { count ->
-                                    stringResource(R.string.chat_group_read_status, count.read, count.total)
-                                }
+                                state.groupReadCounts[message.id]
                             } else null
                             // 9.264：TG 式分组密度——同一发送者 6 分钟内的连续消息紧凑成组（3dp），
                             // 换人/超时/跨分隔符额外补 5dp（总 8dp）；reverseLayout 下时间上更早的
@@ -3122,13 +3136,24 @@ if (showGroupCallTypeDialog) {
                                 },
                                 modifier = if (itemPlacementSpec != null) Modifier.animateItem(placementSpec = itemPlacementSpec) else Modifier
                             )
-                            if (groupReadLabel != null) {
+                            groupReadCount?.let { count ->
+                                val readProgress = if (count.total > 0) {
+                                    (count.read.toFloat() / count.total.toFloat()).coerceIn(0f, 1f)
+                                } else {
+                                    0f
+                                }
+                                val readDescription = stringResource(
+                                    R.string.chat_group_read_status,
+                                    count.read,
+                                    count.total,
+                                )
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
                                         .align(Alignment.End)
                                         .padding(top = 2.dp, end = 14.dp)
-                                        // 1.180：点击「已读 X/Y」打开该消息阅读详情
+                                        .semantics { contentDescription = readDescription }
+                                        // 1.180：点击群消息已读状态打开该消息阅读详情
                                         .clickable {
                                             if (ReadReceiptPolicy.canViewReceipts(
                                                     viewerId = state.currentUserId,
@@ -3142,7 +3167,13 @@ if (showGroupCallTypeDialog) {
                                             }
                                         }
                                 ) {
-                                    Text(groupReadLabel, style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textSecondary)
+                                    CircularProgressIndicator(
+                                        progress = { readProgress },
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    )
                                 }
                             }
                             }

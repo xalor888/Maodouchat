@@ -531,6 +531,7 @@ fun MaodouchatNavGraph(
             arguments = listOf(navArgument("chatId") { type = NavType.StringType })
         ) { entry ->
             val groupViewModel: GroupDetailViewModel = viewModel(entry)
+            val groupChatId = Uri.decode(entry.arguments?.getString("chatId") ?: "")
             GroupDetailScreen(
                 onBack = { navController.popBackStack() },
                 viewModel = groupViewModel,
@@ -542,6 +543,12 @@ fun MaodouchatNavGraph(
                 onOpenGroupCheckin = { id -> navController.navigate(Routes.groupCheckin(id)) },
                 onOpenGroupChain = { id -> navController.navigate(Routes.groupChain(id)) },
                 onOpenGroupPk = { id -> navController.navigate(Routes.groupPk(id)) },
+                onOpenMessage = { messageId ->
+                    navController.navigate(Routes.chatDetail(groupChatId, messageId)) {
+                        popUpTo(Routes.GROUP_DETAIL) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
             )
         }
 

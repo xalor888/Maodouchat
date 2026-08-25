@@ -8,8 +8,11 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -298,12 +301,8 @@ fun MediaCenterScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var category by rememberSaveable { mutableStateOf(MediaCenterCategory.MEDIA) }
-    var searchQuery by rememberSaveable { mutableStateOf("") }
     val categories = MediaCenterCategory.entries
-    var previewMessage by remember { mutableStateOf<Message?>(null) }
-    var exportTarget by remember { mutableStateOf<Message?>(null) }
     val context = LocalContext.current
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val secretPagePayload = rememberSecretPageWatermarkPayload(
         isSecretChat = state.isSecretChat,
         userId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
@@ -313,16 +312,6 @@ fun MediaCenterScreen(
             android.provider.Settings.Secure.ANDROID_ID
         )
     )
-
-    val categoryItems = remember(state.items, category, searchQuery) {
-        val inCategory = state.items.filter { it.category == category }
-        val query = searchQuery.trim()
-        if (query.isBlank()) {
-            inCategory
-        } else {
-            inCategory.filter { item -> mediaCenterItemMatches(item, query) }
-        }
-    }
 
     if (state.isChatLocked == true) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -368,10 +357,7 @@ fun MediaCenterScreen(
                         val count = state.items.count { it.category == tab }
                         Tab(
                             selected = category == tab,
-                            onClick = {
-                                category = tab
-                                searchQuery = ""
-                            },
+                            onClick = { category = tab },
                             text = { Text("${stringResource(tab.labelResource())} ($count)", maxLines = 1) }
                         )
                     }
@@ -379,40 +365,90 @@ fun MediaCenterScreen(
             }
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (!state.isLoading && state.isChatLocked == false && state.items.isNotEmpty()) {
+        MediaCenterCategoryContent(
+            category = category,
+            state = state,
+            viewModel = viewModel,
+            onOpenMessage = onOpenMessage,
+            modifier = Modifier.fillMaxSize().padding(padding)
+        )
+    }
+
+    } // secret watermark Box
+    } // unlocked branch
+}
+
+@Composable
+internal fun MediaCenterCategoryContent(
+    category: MediaCenterCategory,
+    state: MediaCenterUiState,
+    viewModel: MediaCenterViewModel,
+    onOpenMessage: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var searchQuery by rememberSaveable(category) { mutableStateOf("") }
+    var searchExpanded by rememberSaveable(category) { mutableStateOf(false) }
+    var previewMessage by remember { mutableStateOf<Message?>(null) }
+    var exportTarget by remember { mutableStateOf<Message?>(null) }
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val hasCategoryItems = remember(state.items, category) { state.items.any { it.category == category } }
+
+    Column(modifier = modifier) {
+        if (!state.isLoading && state.isChatLocked == false && hasCategoryItems) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = {
+                        searchExpanded = !searchExpanded
+                        if (!searchExpanded) searchQuery = ""
+                    }
+                ) {
+                    Icon(
+                        imageVector = if (searchExpanded) Icons.Outlined.Close else Icons.Outlined.Search,
+                        contentDescription = stringResource(
+                            if (searchExpanded) R.string.chat_search_close else R.string.chat_search_action
+                        ),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+            AnimatedVisibility(
+                visible = searchExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+            ) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it.take(200) },
                     singleLine = true,
                     leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                     placeholder = { Text(stringResource(R.string.media_center_search_hint)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                 )
             }
+        }
+
         AnimatedContent(
             targetState = category,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
             label = "mediaCenterCategory",
-            modifier = Modifier.fillMaxSize().weight(1f)
+            modifier = Modifier.fillMaxSize().weight(1f),
         ) { selected ->
-            val selectedItems = if (selected == category) {
-                categoryItems
-            } else {
-                val query = searchQuery.trim()
+            val selectedItems = remember(state.items, selected, category, searchQuery) {
                 val inCategory = state.items.filter { it.category == selected }
+                val query = searchQuery.trim().takeIf { selected == category }.orEmpty()
                 if (query.isBlank()) inCategory else inCategory.filter { mediaCenterItemMatches(it, query) }
             }
             if (state.isLoading || state.isChatLocked == null) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
-            } else if (selectedItems.isEmpty()) {
-                if (searchQuery.isNotBlank()) {
-                    MediaCenterSearchEmpty()
-                } else {
-                    MediaCenterEmpty(selected)
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
+            } else if (selectedItems.isEmpty()) {
+                if (searchQuery.isNotBlank()) MediaCenterSearchEmpty() else MediaCenterEmpty(selected)
             } else when (selected) {
                 MediaCenterCategory.MEDIA -> MediaGrid(
                     items = selectedItems,
@@ -420,24 +456,19 @@ fun MediaCenterScreen(
                     onPreview = { previewMessage = it },
                     onExportActions = { exportTarget = it },
                     secretChatId = if (state.isSecretChat) viewModel.chatId else null,
-                    currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId()
+                    currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
                 )
                 MediaCenterCategory.FILES -> FileList(
                     items = selectedItems,
                     onOpenMessage = onOpenMessage,
                     onExportActions = { exportTarget = it },
-                    // 1.320：搜索关键词高亮
-                    highlightQuery = searchQuery
+                    highlightQuery = searchQuery,
                 )
-                MediaCenterCategory.VOICE -> VoiceList(
-                    items = selectedItems,
-                    onOpenMessage = onOpenMessage
-                )
+                MediaCenterCategory.VOICE -> VoiceList(selectedItems, onOpenMessage)
                 MediaCenterCategory.LINKS -> LinkList(selectedItems, onOpenMessage, highlightQuery = searchQuery)
                 MediaCenterCategory.LOCATION -> LocationList(selectedItems, onOpenMessage)
             }
         }
-        } // Column
     }
 
     previewMessage?.let { msg ->
@@ -540,8 +571,6 @@ fun MediaCenterScreen(
             }
         )
     }
-    } // secret watermark Box
-    } // unlocked branch
 }
 
 @OptIn(ExperimentalFoundationApi::class)
