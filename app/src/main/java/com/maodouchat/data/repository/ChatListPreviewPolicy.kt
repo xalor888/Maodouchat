@@ -1,5 +1,6 @@
 package com.maodouchat.data.repository
 
+import com.maodouchat.crypto.DecryptPlaceholderPolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 
@@ -133,25 +134,16 @@ object ChatListPreviewPolicy {
         val t = content.trim()
         if (t.isBlank()) return true
         if (looksLikeLocalMediaUri(t)) return true
-        if (looksLikeWireEnvelope(t) || isSignalWireEnvelope(t)) return true
+        if (isSignalWireEnvelope(t)) return true
         if (t.startsWith("eyJ") && t.length >= 40) return true
         if (t.contains("<meta>", ignoreCase = true) || t.contains("</meta>", ignoreCase = true)) return true
-        val lower = t.lowercase()
-        if (lower.contains("ciphertext") || lower.contains("senderdeviceid") || lower.contains("distributionmessage")) {
-            return true
-        }
         if (looksLikeDecryptFailurePlaceholder(t)) return true
         if (isUrlOnly(t) && looksLikeLeftoverCipherOrJoinUrl(t)) return true
         return false
     }
 
     fun looksLikeDecryptFailurePlaceholder(content: String): Boolean {
-        val lower = content.lowercase()
-        return lower.contains("decrypt") ||
-            lower.contains("解密") ||
-            lower.contains("无法解密") ||
-            (lower.contains("密钥") && (lower.contains("缺失") || lower.contains("失败"))) ||
-            (lower.contains("session") && lower.contains("missing"))
+        return DecryptPlaceholderPolicy.isPlaceholder(content)
     }
 
     private fun isUrlOnly(text: String): Boolean {

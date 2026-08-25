@@ -66,6 +66,34 @@ class DecryptFailurePersistencePolicyTest {
         assertEquals(wire, mergeMessageForPersistence(incoming, existing).content)
     }
 
+    @Test
+    fun `ordinary json containing ciphertext field remains readable plaintext`() {
+        val readable = base("json").copy(content = "{\"ciphertext\":\"this is a user field\",\"devices\":2}")
+        val placeholder = base("json").copy(content = "无法解密")
+
+        assertEquals(readable.content, mergeMessageForPersistence(readable, placeholder).content)
+        assertEquals(readable.content, mergeMessageForPersistence(placeholder, readable).content)
+    }
+
+    @Test
+    fun `decrypt related user plaintext wins over wire in both merge directions`() {
+        val wire =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"ciphertext":"NAgB"}]}"""
+        listOf(
+            "这个怎么解密？",
+            "这个消息该怎么解密？",
+            "decrypt this message",
+            "How do I decrypt this?",
+            "session missing 是什么意思？",
+        ).forEachIndexed { index, plaintext ->
+            val readable = base("m$index").copy(content = plaintext)
+            val encrypted = base("m$index").copy(content = wire)
+
+            assertEquals(plaintext, mergeMessageForPersistence(readable, encrypted).content)
+            assertEquals(plaintext, mergeMessageForPersistence(encrypted, readable).content)
+        }
+    }
+
     private fun base(id: String) = Message(
         id = id,
         chatId = "c1",

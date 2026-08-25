@@ -152,13 +152,17 @@ internal suspend fun ApplicationCall.rejectIfSuspended(userRepo: UserRepository,
     return true
 }
 
-private suspend fun ApplicationCall.rejectIfMaintenance(): Boolean {
+private suspend fun ApplicationCall.rejectIfMaintenance(messageId: String? = null): Boolean {
     if (!RuntimeConfigService.isMaintenanceMode()) return false
     respond(
         HttpStatusCode.ServiceUnavailable,
-        ErrorResponse(RuntimeConfigService.get(RuntimeConfigService.KEY_MAINTENANCE_MESSAGE).ifBlank {
-            "System under maintenance"
-        })
+        ErrorResponse(
+            error = RuntimeConfigService.get(RuntimeConfigService.KEY_MAINTENANCE_MESSAGE).ifBlank {
+                "System under maintenance"
+            },
+            code = "MAINTENANCE",
+            messageId = messageId,
+        )
     )
     return true
 }
@@ -13298,14 +13302,8 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
             }
 
             post("/api/chats/{chatId}/messages") {
-                if (call.rejectIfMaintenance()) return@post
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
                 val chatId = call.parameters["chatId"]!!
-                if (call.rejectIfMessageRestricted(userRepo, userId)) return@post
-                if (!chatRepo.isParticipant(chatId, userId)) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权向该聊天发送消息"))
-                    return@post
-                }
                 val req = call.receiveBoundedText(MAX_UPLOAD_JSON_BODY_CHARS)?.let { parseJson<SendMessageRequest>(it) } ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("消息内容无效"))
                     return@post
@@ -13314,81 +13312,179 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 不一致"))
                     return@post
                 }
-                val requireGroupSenderKey = chatRepo.getChatById(chatId)?.isGroup == true
-                if (!isValidMessagePayload(req.content, req.type, req.id, requireGroupSenderKey = requireGroupSenderKey)) {
+                val sealedHeader = call.request.headers["X-Maodouchat-Sealed-Sender-Cert"]
+                val requestedSealed = req.sealedSender ||
+                    !sealedHeader.isNullOrBlank() ||
+                    !req.sealedSenderCertificate.isNullOrBlank()
+                // Retry authorization is intentionally the same as a fresh send. Perform all
+                // checks before touching the global message-id table so a departed/muted user
+                // cannot replay an old row to current members or probe ids cross-chat.
+                if (call.rejectIfMaintenance(req.id)) return@post
+                if (call.rejectIfMessageRestricted(userRepo, userId)) return@post
+                val preflightChat = chatRepo.getChatById(chatId)
+                if (preflightChat == null || !chatRepo.isParticipant(chatId, userId)) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权向该聊天发送消息"))
+                    return@post
+                }
+                if (!isValidMessagePayload(
+                        req.content,
+                        req.type,
+                        req.id,
+                        requireGroupSenderKey = preflightChat.isGroup,
+                    )
+                ) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("消息内容无效"))
                     return@post
                 }
-                // 与 WS SEND_MESSAGE 对齐：断线重连/outbox flush 以相同 messageId 重发不得消耗
-                // message_send 配额。此前 limiter 在幂等判断之前，REST 补偿通道会把积压重试打成 429。
-                val existingById = req.id?.takeIf { it.isNotBlank() }?.let(messageRepo::getMessageById)
-                val isIdempotentRetry = existingById != null &&
-                    existingById.chatId == chatId &&
-                    existingById.senderId == userId &&
-                    existingById.content == req.content &&
-                    existingById.type == req.type
-                if (!isIdempotentRetry && !aiRateLimiter.acquire(
-                        "message_send:$userId",
-                        maxPerMinute = RuntimeConfigService.maxMessagePerMinute()
-                    )
-                ) {
-                    call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("发送过于频繁，请稍后再试"))
-                    return@post
-                }
-                val isGroup = chatRepo.getChatById(chatId)?.isGroup == true
-                // 广播频道：仅创建者（OWNER）可发；订阅者只读（与群禁言一致由服务端强制）
                 if (chatRepo.getChatType(chatId) == ChatType.CHANNEL && !chatRepo.isChannelOwner(chatId, userId)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("频道为单向广播，仅创建者可发送消息"))
                     return@post
                 }
-                if (isGroup && chatRepo.isMuted(chatId, userId)) {
+                if (preflightChat.isGroup && chatRepo.isMuted(chatId, userId)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("你已被禁言，暂时无法发送消息"))
                     return@post
                 }
-                // 1:1 拉黑预检：双向（与 sendMessage 事务内复检一致）
-                if (!isGroup) {
+                if (!preflightChat.isGroup) {
                     val peers = chatRepo.getParticipantIds(chatId).filter { it != userId }
                     if (userRepo.blockedEitherWayIdsInTx(userId, peers).isNotEmpty()) {
                         call.respond(HttpStatusCode.Forbidden, ErrorResponse("存在屏蔽关系，无法发送消息"))
                         return@post
                     }
                 }
-                val sealedHeader = call.request.headers["X-Maodouchat-Sealed-Sender-Cert"]
+                val existingById = req.id?.takeIf { it.isNotBlank() }?.let(messageRepo::getMessageById)
+                if (isMatchingIdempotentMessageRetry(
+                        existing = existingById,
+                        senderId = userId,
+                        chatId = chatId,
+                        content = req.content,
+                        type = req.type,
+                        sealedSender = requestedSealed,
+                    )
+                ) {
+                    val sent = try {
+                        // Re-enter the repository idempotency path so attachment retries also
+                        // commit an UPLOADED blob before replaying transport delivery.
+                        messageRepo.sendMessage(
+                            chatId = chatId,
+                            senderId = userId,
+                            content = req.content,
+                            type = req.type,
+                            requestedId = req.id,
+                            sealedSender = existingById!!.sealedSender,
+                        )
+                    } catch (_: AttachmentNotReadyException) {
+                        call.respond(HttpStatusCode.Conflict, ErrorResponse("附件尚未上传完成，请稍后重试", messageId = req.id))
+                        return@post
+                    } catch (_: DuplicateMessageIdException) {
+                        call.respond(
+                            HttpStatusCode.Conflict,
+                            ErrorResponse("消息 ID 已存在", code = "MESSAGE_ID_CONFLICT", messageId = req.id)
+                        )
+                        return@post
+                    } catch (_: InvalidMessageTypeException) {
+                        call.respond(
+                            HttpStatusCode.BadRequest,
+                            ErrorResponse("消息类型无效", messageId = req.id)
+                        )
+                        return@post
+                    } catch (_: NotParticipantException) {
+                        call.respond(
+                            HttpStatusCode.Forbidden,
+                            ErrorResponse("无权向该聊天发送消息", messageId = req.id)
+                        )
+                        return@post
+                    } catch (_: MutedException) {
+                        call.respond(
+                            HttpStatusCode.Forbidden,
+                            ErrorResponse("你已被禁言，暂时无法发送消息", messageId = req.id)
+                        )
+                        return@post
+                    } catch (_: BlockedException) {
+                        call.respond(
+                            HttpStatusCode.Forbidden,
+                            ErrorResponse("对方已屏蔽你，无法发送消息", messageId = req.id)
+                        )
+                        return@post
+                    }
+                    val message = sent.message
+                    val participants = sent.participantIds
+                    val blockedIds = try {
+                        userRepo.blockedEitherWayIdsInTx(userId, participants)
+                    } catch (_: Exception) { emptySet() }
+                    participants.filter { it !in blockedIds }.forEach { participantId ->
+                        val viewerMsg = SealedSenderDelivery.forViewer(message, participantId)
+                        val msgJson = json.encodeToString(
+                            WsMessage("NEW_MESSAGE", json.encodeToString(viewerMsg))
+                        )
+                        sendToUser(participantId, msgJson)
+                    }
+                    call.respond(HttpStatusCode.Created, message)
+                    return@post
+                }
+                // A proven exact retry repairs an ACK/fan-out gap; it should not consume a
+                // second send quota. New/conflicting ids still pass through the limiter.
+                if (!aiRateLimiter.acquire(
+                        "message_send:$userId",
+                        maxPerMinute = RuntimeConfigService.maxMessagePerMinute()
+                    )
+                ) {
+                    call.respond(
+                        HttpStatusCode.TooManyRequests,
+                        ErrorResponse("发送过于频繁，请稍后再试", messageId = req.id)
+                    )
+                    return@post
+                }
                 val sealedOk = SealedSenderDelivery.authorize(
-                    requested = req.sealedSender || !sealedHeader.isNullOrBlank() || !req.sealedSenderCertificate.isNullOrBlank(),
+                    requested = requestedSealed,
                     certificateHeader = sealedHeader,
                     certificateBody = req.sealedSenderCertificate,
                     userId = userId
                 )
-                if ((req.sealedSender || !req.sealedSenderCertificate.isNullOrBlank()) && !sealedOk) {
+                if (requestedSealed && !sealedOk) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid sealed sender certificate"))
                     return@post
                 }
                 val sent = try {
                     messageRepo.sendMessage(chatId, userId, req.content, req.type, req.id, sealedSender = sealedOk)
                 } catch (_: DuplicateMessageIdException) {
-                    call.respond(HttpStatusCode.Conflict, ErrorResponse("消息 ID 已存在"))
+                    call.respond(
+                        HttpStatusCode.Conflict,
+                        ErrorResponse("消息 ID 已存在", code = "MESSAGE_ID_CONFLICT", messageId = req.id)
+                    )
                     return@post
                 } catch (_: AttachmentNotReadyException) {
-                    call.respond(HttpStatusCode.Conflict, ErrorResponse("附件尚未上传完成，请稍后重试"))
+                    call.respond(
+                        HttpStatusCode.Conflict,
+                        ErrorResponse("附件尚未上传完成，请稍后重试", messageId = req.id)
+                    )
                     return@post
                 } catch (_: NotParticipantException) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权向该聊天发送消息"))
+                    call.respond(
+                        HttpStatusCode.Forbidden,
+                        ErrorResponse("无权向该聊天发送消息", messageId = req.id)
+                    )
                     return@post
                 } catch (_: MutedException) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("你已被禁言，暂时无法发送消息"))
+                    call.respond(
+                        HttpStatusCode.Forbidden,
+                        ErrorResponse("你已被禁言，暂时无法发送消息", messageId = req.id)
+                    )
                     return@post
                 } catch (_: BlockedException) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("对方已屏蔽你，无法发送消息"))
+                    call.respond(
+                        HttpStatusCode.Forbidden,
+                        ErrorResponse("对方已屏蔽你，无法发送消息", messageId = req.id)
+                    )
                     return@post
                 } catch (_: InvalidMessageTypeException) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("消息类型无效"))
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse("消息类型无效", messageId = req.id)
+                    )
                     return@post
                 }
                 val message = sent.message
                 val participants = sent.participantIds
-                // 断线重连后以相同 messageId 重发（首次投递 ACK 丢失）：仓库层返回已存的既有消息。
-                // 收件人首次投递时已收到 NEW_MESSAGE，这里不再二次 fan-out / 推送 / 触发 bot，避免重复消息与重复通知。
                 if (!sent.wasExisting) {
                     // Notify chat bots via webhook (metadata; plaintext only for non-e2ee-looking content).
                     com.maodouchat.server.service.BotWebhookService.notifyChatEvent(
@@ -13400,28 +13496,29 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
                         textPreview = if (message.type in setOf("SYSTEM", "NUDGE")) message.content.take(200) else null,
                         sealedSender = message.sealedSender
                     )
-                    // 8.30 性能优化 A1：批量双向拉黑 + 批量静音（替代逐成员事务）
-                    val blockedIds = try {
-                        userRepo.blockedEitherWayIdsInTx(userId, participants)
-                    } catch (_: Exception) { emptySet() }
-                    val recipients = participants.filter { it !in blockedIds }
-                    recipients.forEach { participantId ->
-                        val viewerMsg = SealedSenderDelivery.forViewer(message, participantId)
-                        val msgJson = json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(viewerMsg)))
-                        sendToUser(participantId, msgJson)
-                    }
-                    // SK_DIST is crypto control — never wake devices with a message notification.
-                    if (message.type != "SK_DIST" && !req.silent) {
-                        val mutedIds = chatRepo.mutedUserIdsInTx(chatId, recipients)
-                        pushService.enqueueEncryptedMessage(
-                            recipientIds = recipients.filter { it !in mutedIds },
-                            chatId = message.chatId,
-                            messageId = message.id,
-                            senderId = userId,
-                            messageType = message.type,
-                            sealedSender = message.sealedSender
-                        )
-                    }
+                }
+                // At-least-once WS delivery closes the commit-before-fanout crash window.
+                // Clients de-duplicate by message id; webhook and push remain first-send only.
+                val blockedIds = try {
+                    userRepo.blockedEitherWayIdsInTx(userId, participants)
+                } catch (_: Exception) { emptySet() }
+                val recipients = participants.filter { it !in blockedIds }
+                recipients.forEach { participantId ->
+                    val viewerMsg = SealedSenderDelivery.forViewer(message, participantId)
+                    val msgJson = json.encodeToString(WsMessage("NEW_MESSAGE", json.encodeToString(viewerMsg)))
+                    sendToUser(participantId, msgJson)
+                }
+                // SK_DIST is crypto control — never wake devices with a message notification.
+                if (!sent.wasExisting && message.type != "SK_DIST" && !req.silent) {
+                    val mutedIds = chatRepo.mutedUserIdsInTx(chatId, recipients)
+                    pushService.enqueueEncryptedMessage(
+                        recipientIds = recipients.filter { it !in mutedIds },
+                        chatId = message.chatId,
+                        messageId = message.id,
+                        senderId = userId,
+                        messageType = message.type,
+                        sealedSender = message.sealedSender
+                    )
                 }
                 call.respond(HttpStatusCode.Created, message)
             }
@@ -15284,6 +15381,13 @@ put("likeCount", likeCount)
                         )
                         return@post
                     }
+                    SignalKeyRepository.UploadKeyPackageResult.DEVICE_IDENTITY_MISMATCH -> {
+                        call.respond(
+                            HttpStatusCode.Conflict,
+                            ErrorResponse("设备身份密钥与服务器记录不一致，请重新登录", code = "DEVICE_IDENTITY_MISMATCH")
+                        )
+                        return@post
+                    }
                     SignalKeyRepository.UploadKeyPackageResult.SESSION_CONFLICT -> {
                         call.respond(
                             HttpStatusCode.Conflict,
@@ -15296,6 +15400,13 @@ put("likeCount", likeCount)
                         call.respond(
                             HttpStatusCode.BadRequest,
                             ErrorResponse("密钥包签名校验失败，请更新客户端重新生成密钥", code = "INVALID_KEY_SIGNATURE")
+                        )
+                        return@post
+                    }
+                    SignalKeyRepository.UploadKeyPackageResult.INVALID_PRE_KEY -> {
+                        call.respond(
+                            HttpStatusCode.BadRequest,
+                            ErrorResponse("一次性预密钥无效", code = "INVALID_PRE_KEY")
                         )
                         return@post
                     }

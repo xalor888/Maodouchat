@@ -60,6 +60,20 @@ class BacklogSyncWorker(
 
         val messageRepo = MessageRepository(app.database.messageDao(), app.database)
         val chats = app.database.chatDao().getAllChatsDirect()
+
+        // Application initialization is asynchronous. This network-constrained worker also
+        // retries publication after an earlier offline login, even when there is no outbox.
+        val localCryptoReady = try {
+            if (!app.signalProtocol.isInitializedFor(ownerId)) {
+                app.signalProtocol.initialize(token, ownerId)
+            }
+            app.signalProtocol.isLocalCryptoReadyFor(ownerId)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Log.w(TAG, "Signal local restore/publication failed before backlog sync", error)
+            false
+        }
         if (chats.isEmpty()) return Result.success()
 
         val now = System.currentTimeMillis()
@@ -144,7 +158,7 @@ class BacklogSyncWorker(
                         if (msg.id !in existingIds) msg.id else null
                     }.toSet()
                     messageRepo.insertMessages(messages)
-                    if (chat.isGroup &&
+                    if (localCryptoReady && chat.isGroup &&
                         !com.maodouchat.crypto.SessionCipherOccupancy.isChatOccupied(chat.id)
                     ) {
                         val chatRepo = com.maodouchat.data.repository.ChatRepository(
@@ -158,6 +172,7 @@ class BacklogSyncWorker(
                                     chatRepo = chatRepo,
                                     messageRepo = messageRepo,
                                     message = dist,
+                                    token = token,
                                 )
                             }
                         }

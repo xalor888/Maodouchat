@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,10 +31,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Edit
@@ -61,6 +68,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -133,6 +142,16 @@ private const val AUDIT_PAGE_SIZE = 80
 private const val CANDIDATE_PAGE_SIZE = 32
 private const val MEMBER_PAGE_SIZE = 100
 private const val SENDER_KEY_TARGET_PAGE = 20
+
+private enum class GroupDetailTab(val mediaCategory: MediaCenterCategory? = null) {
+    MEMBERS,
+    AUDIT,
+    MEDIA(MediaCenterCategory.MEDIA),
+    FILES(MediaCenterCategory.FILES),
+    VOICE(MediaCenterCategory.VOICE),
+    LOCATION(MediaCenterCategory.LOCATION),
+    LINKS(MediaCenterCategory.LINKS),
+}
 
 data class GroupMemberUi(
     val userId: String,
@@ -1291,6 +1310,7 @@ class GroupDetailViewModel(
 fun GroupDetailScreen(
     onBack: () -> Unit,
     viewModel: GroupDetailViewModel = viewModel(),
+    mediaCenterViewModel: MediaCenterViewModel = viewModel(),
     onEditGroup: (String) -> Unit = {},
     onOpenGroupInvite: (String) -> Unit = {},
     // 1.08：点击群成员查看资料（userId）
@@ -1299,9 +1319,12 @@ fun GroupDetailScreen(
     onOpenGroupCheckin: (String) -> Unit = {},
     onOpenGroupChain: (String) -> Unit = {},
     onOpenGroupPk: (String) -> Unit = {},
+    onOpenMessage: (String) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val mediaCenterState by mediaCenterViewModel.uiState.collectAsStateWithLifecycle()
     val chatId = viewModel.chatId
+    var selectedTab by rememberSaveable { mutableStateOf(GroupDetailTab.MEMBERS) }
     var titleTarget by remember { mutableStateOf<GroupMemberUi?>(null) }
     var titleDraft by rememberSaveable { mutableStateOf("") }
     var removeTarget by remember { mutableStateOf<GroupMemberUi?>(null) }
@@ -1321,10 +1344,13 @@ fun GroupDetailScreen(
     var showAvatarFull by remember { mutableStateOf(false) }
     var showBotPicker by rememberSaveable { mutableStateOf(false) }
     var memberSearch by rememberSaveable { mutableStateOf("") }
+    var memberSearchExpanded by rememberSaveable { mutableStateOf(false) }
     var membersExpanded by rememberSaveable { mutableStateOf(false) }
     var auditSearch by rememberSaveable { mutableStateOf("") }
+    var auditSearchExpanded by rememberSaveable { mutableStateOf(false) }
     var auditExpanded by rememberSaveable { mutableStateOf(false) }
     var candidateSearch by rememberSaveable { mutableStateOf("") }
+    var candidateSearchExpanded by rememberSaveable { mutableStateOf(false) }
     var candidatesExpanded by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val filteredMembers = remember(state.members, memberSearch) {
@@ -1401,6 +1427,75 @@ fun GroupDetailScreen(
             android.provider.Settings.Secure.ANDROID_ID
         )
     )
+    val groupOverview: @Composable () -> Unit = {
+        GroupHeader(
+            groupName = state.groupName,
+            groupAvatar = state.groupAvatar,
+            memberCount = state.members.size,
+            myRole = state.myRole,
+            onShowAvatarFull = { showAvatarFull = true }
+        )
+        GroupAnnouncementCard(state.groupAnnouncement)
+        if (state.isChannel) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Icon(
+                    Icons.Outlined.Campaign,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    if (state.canManageGroup) {
+                        pluralStringResource(
+                            R.plurals.chat_channel_member_count,
+                            state.members.size,
+                            state.members.size
+                        )
+                    } else {
+                        stringResource(R.string.chat_channel_subscriber_hint)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalChatPalette.current.textSecondary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+        SectionTitle(stringResource(R.string.group_detail_play))
+        GroupFeaturesCard(
+            actions = buildList {
+                add(GroupFeatureAction(stringResource(R.string.group_play_poll), Icons.Outlined.Checklist) { onOpenGroupPoll(chatId) })
+                add(GroupFeatureAction(stringResource(R.string.group_play_checkin), Icons.Outlined.History) { onOpenGroupCheckin(chatId) })
+                add(GroupFeatureAction(stringResource(R.string.group_play_chain_title), Icons.Outlined.Link) { onOpenGroupChain(chatId) })
+                add(GroupFeatureAction(stringResource(R.string.group_play_pk_title), Icons.Outlined.SwapHoriz) { onOpenGroupPk(chatId) })
+                if (state.canManageGroup && !state.isChannel) {
+                    add(GroupFeatureAction(stringResource(R.string.group_play_invite_bot), Icons.Outlined.PersonAdd) { showBotPicker = true })
+                }
+            }
+        )
+    }
+    val groupTabs: @Composable () -> Unit = {
+        ScrollableTabRow(
+            selectedTabIndex = selectedTab.ordinal,
+            edgePadding = 8.dp,
+            containerColor = MaterialTheme.colorScheme.surface,
+            divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)) },
+        ) {
+            GroupDetailTab.entries.forEach { tab ->
+                Tab(
+                    selected = selectedTab == tab,
+                    onClick = { selectedTab = tab },
+                    text = { Text(stringResource(tab.labelResource()), maxLines = 1) },
+                )
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -1656,243 +1751,218 @@ fun GroupDetailScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                item(key = "group_header", contentType = "group_header") {
-                    GroupHeader(
-                        groupName = state.groupName,
-                        groupAvatar = state.groupAvatar,
-                        memberCount = state.members.size,
-                        myRole = state.myRole,
-                        onShowAvatarFull = { showAvatarFull = true }
-                    )
-                }
-                item(key = "group_announcement", contentType = "group_announcement") {
-                    GroupAnnouncementCard(state.groupAnnouncement)
-                }
-                if (state.isChannel) {
-                    item(key = "channel_banner", contentType = "channel_banner") {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.surface)
-                                .padding(horizontal = 16.dp, vertical = 10.dp)
-                        ) {
-                            Icon(Icons.Outlined.Campaign, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
+                item(key = "group_overview", contentType = "group_overview") { groupOverview() }
+                item(key = "group_tabs", contentType = "group_tabs") { groupTabs() }
+                when (selectedTab) {
+                    GroupDetailTab.MEMBERS -> {
+                        item(key = "sender_key_status", contentType = "sender_key_status") {
+                            GroupSenderKeyStatusSection(
+                                status = state.senderKeyStatus,
+                                memberRevision = state.memberRevision,
+                                members = state.members,
+                                isUpdating = state.isUpdating,
+                                hasLocalDistribution = state.localHasSenderKey,
+                                onRedistribute = viewModel::redistributeSenderKey
+                            )
+                        }
+                        item(key = "members_header", contentType = "section_header") {
+                            SearchableSectionHeader(
+                                text = stringResource(R.string.group_detail_members_section, state.members.size),
+                                searchExpanded = memberSearchExpanded,
+                                onToggleSearch = {
+                                    memberSearchExpanded = !memberSearchExpanded
+                                    if (!memberSearchExpanded) memberSearch = ""
+                                },
+                                showSearch = state.members.isNotEmpty(),
+                            ) {
                                 if (state.canManageGroup) {
-                                    pluralStringResource(R.plurals.chat_channel_member_count, state.members.size, state.members.size)
-                                } else {
-                                    stringResource(R.string.chat_channel_subscriber_hint)
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = LocalChatPalette.current.textSecondary,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-                item(key = "group_play", contentType = "group_play") {
-                    SectionTitle(stringResource(R.string.group_detail_play))
-                    GroupFeaturesCard(
-                        actions = buildList {
-                            add(GroupFeatureAction(stringResource(R.string.group_play_poll), Icons.Outlined.Checklist) { onOpenGroupPoll(chatId) })
-                            add(GroupFeatureAction(stringResource(R.string.group_play_checkin), Icons.Outlined.History) { onOpenGroupCheckin(chatId) })
-                            add(GroupFeatureAction(stringResource(R.string.group_play_chain_title), Icons.Outlined.Link) { onOpenGroupChain(chatId) })
-                            add(GroupFeatureAction(stringResource(R.string.group_play_pk_title), Icons.Outlined.SwapHoriz) { onOpenGroupPk(chatId) })
-                            if (state.canManageGroup && !state.isChannel) {
-                                add(GroupFeatureAction(stringResource(R.string.group_play_invite_bot), Icons.Outlined.PersonAdd) { showBotPicker = true })
+                                    IconButton(onClick = { showMuteAllConfirm = true }) {
+                                        Icon(
+                                            Icons.Outlined.NotificationsOff,
+                                            contentDescription = stringResource(R.string.group_detail_mute_all),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
                             }
-                        }
-                    )
-                }
-                item(key = "sender_key_status", contentType = "sender_key_status") {
-                    GroupSenderKeyStatusSection(
-                        status = state.senderKeyStatus,
-                        memberRevision = state.memberRevision,
-                        members = state.members,
-                        isUpdating = state.isUpdating,
-                        hasLocalDistribution = state.localHasSenderKey,
-                        onRedistribute = viewModel::redistributeSenderKey
-                    )
-                }
-                item(key = "members_header", contentType = "section_header") {
-                    SectionTitle(stringResource(R.string.group_detail_members_section, state.members.size))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextField(
-                            value = memberSearch,
-                            onValueChange = {
-                                memberSearch = it.take(120)
-                                membersExpanded = false
-                            },
-                            singleLine = true,
-                            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                            placeholder = { Text(stringResource(R.string.group_detail_search_members)) },
-                            modifier = Modifier.weight(1f).background(MaterialTheme.colorScheme.surface).padding(horizontal = 16.dp, vertical = 8.dp),
-                            colors = groupTextFieldColors()
-                        )
-                        // 0.99：全员静音（管理员可用）
-                        if (state.canManageGroup) {
-                            IconButton(onClick = { showMuteAllConfirm = true }) {
-                                Icon(
-                                    Icons.Outlined.NotificationsOff,
-                                    contentDescription = stringResource(R.string.group_detail_mute_all),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-                }
-                if (visibleMembers.isEmpty()) {
-                    item(key = "members_empty", contentType = "empty") { EmptyRow(stringResource(R.string.group_detail_no_member_results)) }
-                }
-                items(visibleMembers, key = { it.userId }, contentType = { "group_member" }) { member ->
-                    Column {
-                        MemberRow(
-                            member = member,
-                            isMe = member.userId == state.currentUserId,
-                            canManage = state.canManageGroup,
-                            isOwner = state.isOwner,
-                            isUpdating = state.isUpdating,
-                            onSetTitle = {
-                                titleTarget = member
-                                titleDraft = member.title.orEmpty()
-                            },
-                            onPromote = { viewModel.updateRole(member.userId, "ADMIN") },
-                            onDemote = { viewModel.updateRole(member.userId, "MEMBER") },
-                            onTransferOwnership = { ownershipTarget = member },
-                            onMute = { muteTarget = member },
-                            onRemove = { removeTarget = member },
-                            // 1.08：点击成员查看资料
-                            onOpenProfile = { onOpenProfile(member.userId) },
-                            // 1.295：成员搜索关键词高亮
-                            highlightQuery = memberSearch
-                        )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), modifier = Modifier.padding(start = 68.dp))
-                    }
-                }
-                if (!membersExpanded && filteredMembers.size > MEMBER_PAGE_SIZE) {
-                    item(key = "members_more", contentType = "more") {
-                        val remaining = filteredMembers.size - MEMBER_PAGE_SIZE
-                        TextButton(
-                            onClick = { membersExpanded = true },
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
-                        ) {
-                            Text(pluralStringResource(R.plurals.group_detail_members_more, remaining, remaining), color = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
-                if (state.canManageGroup) {
-                    item(key = "candidates_header", contentType = "section_header") {
-                        SectionTitle(stringResource(R.string.chat_add_member))
-                        if (state.candidates.isNotEmpty()) {
-                            TextField(
-                                value = candidateSearch,
+                            CollapsibleGroupSearchField(
+                                visible = memberSearchExpanded,
+                                value = memberSearch,
                                 onValueChange = {
-                                    candidateSearch = it.take(120)
-                                    candidatesExpanded = false
+                                    memberSearch = it
+                                    membersExpanded = false
                                 },
-                                singleLine = true,
-                                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                                placeholder = { Text(stringResource(R.string.group_detail_search_candidates)) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.surface)
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                colors = groupTextFieldColors()
+                                placeholder = stringResource(R.string.group_detail_search_members),
                             )
                         }
-                    }
-                    if (state.candidates.isEmpty()) {
-                        item(key = "candidates_empty", contentType = "empty") { EmptyRow(stringResource(R.string.group_detail_no_addable_contacts)) }
-                    } else if (filteredCandidates.isEmpty()) {
-                        item(key = "candidates_no_results", contentType = "empty") {
-                            EmptyRow(stringResource(R.string.group_detail_no_candidate_results))
+                        if (visibleMembers.isEmpty()) {
+                            item(key = "members_empty", contentType = "empty") { EmptyRow(stringResource(R.string.group_detail_no_member_results)) }
                         }
-                    } else {
-                        items(visibleCandidates, key = { it.id }, contentType = { "group_candidate" }) { user ->
-                            CandidateRow(user = user, enabled = !state.isUpdating, onAdd = { viewModel.addMember(user.id) })
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), modifier = Modifier.padding(start = 68.dp))
+                        items(visibleMembers, key = { it.userId }, contentType = { "group_member" }) { member ->
+                            Column {
+                                MemberRow(
+                                    member = member,
+                                    isMe = member.userId == state.currentUserId,
+                                    canManage = state.canManageGroup,
+                                    isOwner = state.isOwner,
+                                    isUpdating = state.isUpdating,
+                                    onSetTitle = {
+                                        titleTarget = member
+                                        titleDraft = member.title.orEmpty()
+                                    },
+                                    onPromote = { viewModel.updateRole(member.userId, "ADMIN") },
+                                    onDemote = { viewModel.updateRole(member.userId, "MEMBER") },
+                                    onTransferOwnership = { ownershipTarget = member },
+                                    onMute = { muteTarget = member },
+                                    onRemove = { removeTarget = member },
+                                    onOpenProfile = { onOpenProfile(member.userId) },
+                                    highlightQuery = memberSearch
+                                )
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), modifier = Modifier.padding(start = 68.dp))
+                            }
                         }
-                        if (filteredCandidates.size > CANDIDATE_PAGE_SIZE) {
-                            item(key = "candidates_toggle", contentType = "toggle") {
-                                val remaining = filteredCandidates.size - CANDIDATE_PAGE_SIZE
+                        if (!membersExpanded && filteredMembers.size > MEMBER_PAGE_SIZE) {
+                            item(key = "members_more", contentType = "more") {
+                                val remaining = filteredMembers.size - MEMBER_PAGE_SIZE
                                 TextButton(
-                                    onClick = { candidatesExpanded = !candidatesExpanded },
-                                    modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
+                                    onClick = { membersExpanded = true },
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                                 ) {
-                                    Text(
-                                        if (candidatesExpanded) {
-                                            stringResource(R.string.chat_transcript_collapse)
-                                        } else {
-                                            pluralStringResource(R.plurals.group_detail_candidates_more, remaining, remaining)
-                                        }
-                                    )
+                                    Text(pluralStringResource(R.plurals.group_detail_members_more, remaining, remaining), color = MaterialTheme.colorScheme.primary)
                                 }
                             }
                         }
-                    }
-                }
-                item(key = "audit_header", contentType = "section_header") {
-                    SectionTitle(stringResource(R.string.group_detail_audit_title))
-                    if (state.auditLogs.isNotEmpty()) {
-                        TextField(
-                            value = auditSearch,
-                            onValueChange = {
-                                auditSearch = it.take(120)
-                                auditExpanded = false
-                            },
-                            singleLine = true,
-                            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                            placeholder = { Text(stringResource(R.string.group_detail_audit_search)) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.surface)
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            colors = groupTextFieldColors()
-                        )
-                    }
-                }
-                if (state.auditLogs.isEmpty()) {
-                    item(key = "audit_empty", contentType = "empty") { EmptyRow(stringResource(R.string.group_detail_audit_empty)) }
-                } else if (filteredAuditLogs.isEmpty()) {
-                    item(key = "audit_no_results", contentType = "empty") {
-                        EmptyRow(stringResource(R.string.group_detail_audit_no_results))
-                    }
-                } else {
-                    items(visibleAuditLogs, key = { it.id }, contentType = { "audit_log" }) { audit ->
-                        GroupAuditRow(audit)
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 52.dp))
-                    }
-                    if (filteredAuditLogs.size > AUDIT_PAGE_SIZE || state.hasMoreAudit) {
-                        item(key = "audit_toggle", contentType = "toggle") {
-                            val remaining = filteredAuditLogs.size - AUDIT_PAGE_SIZE
-                            // 8.64：展开后若仍有更多历史（hasMoreAudit）则继续分页加载；
-                            // 全部展开后显示「收起」
-                            TextButton(
-                                onClick = {
-                                    if (auditExpanded && state.hasMoreAudit && !state.isLoadingMoreAudit) {
-                                        viewModel.loadMoreAudit()
-                                    } else {
-                                        auditExpanded = !auditExpanded
-                                    }
-                                },
-                                enabled = !state.isLoadingMoreAudit,
-                                modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
-                            ) {
-                                Text(
-                                    when {
-                                        state.isLoadingMoreAudit -> stringResource(R.string.group_detail_audit_loading)
-                                        auditExpanded && state.hasMoreAudit ->
-                                            stringResource(R.string.group_detail_audit_load_more)
-                                        auditExpanded -> stringResource(R.string.chat_transcript_collapse)
-                                        else -> pluralStringResource(R.plurals.group_detail_audit_more, remaining.coerceAtLeast(0), remaining.coerceAtLeast(0))
-                                    }
+                        if (state.canManageGroup) {
+                            item(key = "candidates_header", contentType = "section_header") {
+                                SearchableSectionHeader(
+                                    text = stringResource(R.string.chat_add_member),
+                                    searchExpanded = candidateSearchExpanded,
+                                    onToggleSearch = {
+                                        candidateSearchExpanded = !candidateSearchExpanded
+                                        if (!candidateSearchExpanded) candidateSearch = ""
+                                    },
+                                    showSearch = state.candidates.isNotEmpty(),
+                                )
+                                CollapsibleGroupSearchField(
+                                    visible = candidateSearchExpanded,
+                                    value = candidateSearch,
+                                    onValueChange = {
+                                        candidateSearch = it
+                                        candidatesExpanded = false
+                                    },
+                                    placeholder = stringResource(R.string.group_detail_search_candidates),
                                 )
                             }
+                            if (state.candidates.isEmpty()) {
+                                item(key = "candidates_empty", contentType = "empty") { EmptyRow(stringResource(R.string.group_detail_no_addable_contacts)) }
+                            } else if (filteredCandidates.isEmpty()) {
+                                item(key = "candidates_no_results", contentType = "empty") {
+                                    EmptyRow(stringResource(R.string.group_detail_no_candidate_results))
+                                }
+                            } else {
+                                items(visibleCandidates, key = { it.id }, contentType = { "group_candidate" }) { user ->
+                                    CandidateRow(user = user, enabled = !state.isUpdating, onAdd = { viewModel.addMember(user.id) })
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), modifier = Modifier.padding(start = 68.dp))
+                                }
+                                if (filteredCandidates.size > CANDIDATE_PAGE_SIZE) {
+                                    item(key = "candidates_toggle", contentType = "toggle") {
+                                        val remaining = filteredCandidates.size - CANDIDATE_PAGE_SIZE
+                                        TextButton(
+                                            onClick = { candidatesExpanded = !candidatesExpanded },
+                                            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
+                                        ) {
+                                            Text(
+                                                if (candidatesExpanded) {
+                                                    stringResource(R.string.chat_transcript_collapse)
+                                                } else {
+                                                    pluralStringResource(R.plurals.group_detail_candidates_more, remaining, remaining)
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        item(key = "members_footer", contentType = "footer") { Spacer(modifier = Modifier.height(24.dp)) }
+                    }
+
+                    GroupDetailTab.AUDIT -> {
+                        item(key = "audit_header", contentType = "section_header") {
+                            SearchableSectionHeader(
+                                text = stringResource(R.string.group_detail_audit_title),
+                                searchExpanded = auditSearchExpanded,
+                                onToggleSearch = {
+                                    auditSearchExpanded = !auditSearchExpanded
+                                    if (!auditSearchExpanded) auditSearch = ""
+                                },
+                                showSearch = state.auditLogs.isNotEmpty(),
+                            )
+                            CollapsibleGroupSearchField(
+                                visible = auditSearchExpanded,
+                                value = auditSearch,
+                                onValueChange = {
+                                    auditSearch = it
+                                    auditExpanded = false
+                                },
+                                placeholder = stringResource(R.string.group_detail_audit_search),
+                            )
+                        }
+                        if (state.auditLogs.isEmpty()) {
+                            item(key = "audit_empty", contentType = "empty") { EmptyRow(stringResource(R.string.group_detail_audit_empty)) }
+                        } else if (filteredAuditLogs.isEmpty()) {
+                            item(key = "audit_no_results", contentType = "empty") {
+                                EmptyRow(stringResource(R.string.group_detail_audit_no_results))
+                            }
+                        } else {
+                            items(visibleAuditLogs, key = { it.id }, contentType = { "audit_log" }) { audit ->
+                                GroupAuditRow(audit)
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 52.dp))
+                            }
+                            if (filteredAuditLogs.size > AUDIT_PAGE_SIZE || state.hasMoreAudit) {
+                                item(key = "audit_toggle", contentType = "toggle") {
+                                    val remaining = filteredAuditLogs.size - AUDIT_PAGE_SIZE
+                                    TextButton(
+                                        onClick = {
+                                            if (auditExpanded && state.hasMoreAudit && !state.isLoadingMoreAudit) {
+                                                viewModel.loadMoreAudit()
+                                            } else {
+                                                auditExpanded = !auditExpanded
+                                            }
+                                        },
+                                        enabled = !state.isLoadingMoreAudit,
+                                        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
+                                    ) {
+                                        Text(
+                                            when {
+                                                state.isLoadingMoreAudit -> stringResource(R.string.group_detail_audit_loading)
+                                                auditExpanded && state.hasMoreAudit -> stringResource(R.string.group_detail_audit_load_more)
+                                                auditExpanded -> stringResource(R.string.chat_transcript_collapse)
+                                                else -> pluralStringResource(R.plurals.group_detail_audit_more, remaining.coerceAtLeast(0), remaining.coerceAtLeast(0))
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        item(key = "audit_footer", contentType = "footer") { Spacer(modifier = Modifier.height(24.dp)) }
+                    }
+
+                    else -> {
+                        item(key = "media_content", contentType = "media_content") {
+                            MediaCenterCategoryContent(
+                                category = requireNotNull(selectedTab.mediaCategory),
+                                state = mediaCenterState,
+                                viewModel = mediaCenterViewModel,
+                                onOpenMessage = onOpenMessage,
+                                // MediaCenterCategoryContent owns the category list, so give it
+                                // a bounded viewport while the outer page remains scrollable.
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 240.dp, max = 560.dp),
+                            )
                         }
                     }
                 }
-                item(key = "group_footer", contentType = "footer") { Spacer(modifier = Modifier.height(24.dp)) }
             }
         }
     }
@@ -2908,6 +2978,73 @@ private fun SectionTitle(text: String) {
         color = MaterialTheme.colorScheme.secondary,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
     )
+}
+
+private fun GroupDetailTab.labelResource(): Int = when (this) {
+    GroupDetailTab.MEMBERS -> R.string.chat_group_member
+    GroupDetailTab.AUDIT -> R.string.group_detail_audit_title
+    GroupDetailTab.MEDIA -> R.string.media_center_media
+    GroupDetailTab.FILES -> R.string.media_center_files
+    GroupDetailTab.VOICE -> R.string.media_center_voice
+    GroupDetailTab.LOCATION -> R.string.media_center_location
+    GroupDetailTab.LINKS -> R.string.media_center_links
+}
+
+@Composable
+private fun SearchableSectionHeader(
+    text: String,
+    searchExpanded: Boolean,
+    onToggleSearch: () -> Unit,
+    showSearch: Boolean = true,
+    trailingContent: @Composable () -> Unit = {},
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(start = 16.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier.weight(1f),
+        )
+        if (showSearch) {
+            IconButton(onClick = onToggleSearch) {
+                Icon(
+                    imageVector = if (searchExpanded) Icons.Outlined.Close else Icons.Outlined.Search,
+                    contentDescription = stringResource(
+                        if (searchExpanded) R.string.chat_search_close else R.string.chat_search_action
+                    ),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        trailingContent()
+    }
+}
+
+@Composable
+private fun CollapsibleGroupSearchField(
+    visible: Boolean,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut(),
+    ) {
+        TextField(
+            value = value,
+            onValueChange = { onValueChange(it.take(120)) },
+            singleLine = true,
+            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+            placeholder = { Text(placeholder) },
+            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(horizontal = 16.dp, vertical = 8.dp),
+            colors = groupTextFieldColors(),
+        )
+    }
 }
 
 @Composable

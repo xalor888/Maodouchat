@@ -71,7 +71,7 @@ class InvalidMessageTypeException(type: String) :
 data class SentMessage(
     val message: MessageResponse,
     val participantIds: List<String>,
-    /** true when the message id already existed (idempotent re-send after a lost ACK); the caller must NOT re-fan-out. */
+    /** True for an exact idempotent retry; callers re-fan-out transport but skip one-shot side effects. */
     val wasExisting: Boolean = false
 )
 
@@ -114,39 +114,9 @@ class MessageRepository {
         val requestedMessageId = requestedId?.takeIf { it.isNotBlank() }
         return try {
             transaction {
-                // 与 leave/kick/mute 串行：先锁 chat 行再校验成员与禁言
-                val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
-                    ?: throw NotParticipantException(chatId, senderId)
-                val participantRow = ChatParticipants.selectAll().where {
-                    (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq senderId)
-                }.forUpdate().firstOrNull()
-                    ?: throw NotParticipantException(chatId, senderId)
-                // 群禁言：在锁内复检，避免 isMuted 预检通过后管理员立刻禁言仍插入
-                if (chat[Chats.isGroup] &&
-                    participantRow[ChatParticipants.role] != "OWNER" &&
-                    participantRow[ChatParticipants.mutedUntil] > System.currentTimeMillis()
-                ) {
-                    throw MutedException(chatId, senderId)
-                }
-
-                val participantIds = ChatParticipants.selectAll()
-                    .where { ChatParticipants.chatId eq chatId }
-                    .map { it[ChatParticipants.userId] }
-
-                // 1:1 拉黑：双向 — 任一方拉黑则拒绝（与创建私聊策略一致）
-                if (!chat[Chats.isGroup]) {
-                    val peers = participantIds.filter { it != senderId }
-                    val blocked = peers.any { peerId ->
-                        !BlockedUsers.selectAll().where {
-                            (
-                                (BlockedUsers.blockerId eq peerId) and (BlockedUsers.blockedId eq senderId)
-                            ) or (
-                                (BlockedUsers.blockerId eq senderId) and (BlockedUsers.blockedId eq peerId)
-                            )
-                        }.empty()
-                    }
-                    if (blocked) throw BlockedException(chatId, senderId)
-                }
+                // Fresh sends and exact retries share the same lock-protected authorization.
+                // This closes the preflight -> leave/mute/block race before any replay fan-out.
+                val participantIds = authorizeSendInTx(chatId, senderId)
 
                 if (requestedMessageId != null) {
                     val existing = Messages.selectAll().where { Messages.id eq requestedMessageId }.firstOrNull()
@@ -184,7 +154,17 @@ class MessageRepository {
                     }
                 }
                 SentMessage(
-                    message = MessageResponse(id, chatId, senderId, content, type, timestamp, "SENT", editedAt = null),
+                    message = MessageResponse(
+                        id,
+                        chatId,
+                        senderId,
+                        content,
+                        type,
+                        timestamp,
+                        "SENT",
+                        editedAt = null,
+                        sealedSender = sealedSender
+                    ),
                     participantIds = participantIds,
                     wasExisting = false
                 )
@@ -198,11 +178,9 @@ class MessageRepository {
             // 并发同 id 插入：赢家已提交；本事务已回滚，新事务回读做幂等
             val conflictId = requestedMessageId ?: throw e
             transaction {
+                val participantIds = authorizeSendInTx(chatId, senderId)
                 val existing = Messages.selectAll().where { Messages.id eq conflictId }.firstOrNull()
                     ?: throw e
-                val participantIds = ChatParticipants.selectAll()
-                    .where { ChatParticipants.chatId eq chatId }
-                    .map { it[ChatParticipants.userId] }
                 resolveExistingSend(
                     existing = existing,
                     chatId = chatId,
@@ -216,6 +194,41 @@ class MessageRepository {
         }
     }
 
+    /** Must run inside a transaction; locks the chat before membership/permission checks. */
+    private fun authorizeSendInTx(chatId: String, senderId: String): List<String> {
+        val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
+            ?: throw NotParticipantException(chatId, senderId)
+        val participantRow = ChatParticipants.selectAll().where {
+            (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq senderId)
+        }.forUpdate().firstOrNull()
+            ?: throw NotParticipantException(chatId, senderId)
+
+        if (chat[Chats.chatType] == ChatType.CHANNEL && participantRow[ChatParticipants.role] != "OWNER") {
+            throw NotParticipantException(chatId, senderId)
+        }
+        if (chat[Chats.isGroup] &&
+            participantRow[ChatParticipants.role] != "OWNER" &&
+            participantRow[ChatParticipants.mutedUntil] > System.currentTimeMillis()
+        ) {
+            throw MutedException(chatId, senderId)
+        }
+
+        val participantIds = ChatParticipants.selectAll()
+            .where { ChatParticipants.chatId eq chatId }
+            .map { it[ChatParticipants.userId] }
+        if (!chat[Chats.isGroup]) {
+            val peers = participantIds.filter { it != senderId }
+            val blocked = peers.any { peerId ->
+                !BlockedUsers.selectAll().where {
+                    ((BlockedUsers.blockerId eq peerId) and (BlockedUsers.blockedId eq senderId)) or
+                        ((BlockedUsers.blockerId eq senderId) and (BlockedUsers.blockedId eq peerId))
+                }.empty()
+            }
+            if (blocked) throw BlockedException(chatId, senderId)
+        }
+        return participantIds
+    }
+
     private fun resolveExistingSend(
         existing: org.jetbrains.exposed.sql.ResultRow,
         chatId: String,
@@ -226,11 +239,14 @@ class MessageRepository {
         participantIds: List<String>,
     ): SentMessage {
         val existingResponse = existing.toMessageResponse()
-        if (existingResponse.chatId == chatId &&
-            existingResponse.senderId == senderId &&
-            existingResponse.content == content &&
-            existingResponse.type == type &&
-            existing[Messages.sealedSender] == sealedSender
+        if (MessageIdempotencyPolicy.matches(
+                existing = existingResponse,
+                senderId = senderId,
+                chatId = chatId,
+                content = content,
+                type = type,
+                sealedSender = sealedSender,
+            )
         ) {
             if (type in ATTACHMENT_MESSAGE_TYPES &&
                 !commitPendingAttachment(existingResponse.id, chatId, senderId)

@@ -103,8 +103,12 @@ android {
         }
 
         release {
-            val releaseApiBaseUrl = readGradleProperty("MAODOU_RELEASE_API_BASE_URL", "MAODOU_API_BASE_URL")
-            val releaseWsUrl = readGradleProperty("MAODOU_RELEASE_WS_URL", "MAODOU_WS_URL")
+            // Do not let a local Debug LAN endpoint (http/ws) become a Release
+            // endpoint merely because Gradle configures all build types eagerly.
+            val releaseApiBaseUrl = readGradleProperty("MAODOU_RELEASE_API_BASE_URL")
+                ?: if (releaseBuildRequested) readGradleProperty("MAODOU_API_BASE_URL") else null
+            val releaseWsUrl = readGradleProperty("MAODOU_RELEASE_WS_URL")
+                ?: if (releaseBuildRequested) readGradleProperty("MAODOU_WS_URL") else null
 
             if (releaseBuildRequested) {
                 require(!releaseApiBaseUrl.isNullOrBlank()) {

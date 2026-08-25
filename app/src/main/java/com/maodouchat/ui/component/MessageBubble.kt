@@ -195,7 +195,9 @@ fun MessageBubble(
     /** 1.44：点击消息发送者名称 → 打开其资料。 */
     onSenderClick: ((String) -> Unit)? = null,
     /** 1.51：点击已读状态图标（✓✓）→ 打开阅读详情。 */
-    onStatusClick: ((Message) -> Unit)? = null
+    onStatusClick: ((Message) -> Unit)? = null,
+    /** Allows the chat row to render the status in its shared action column. */
+    showStatusIcon: Boolean = true
 ) {
     val message = if (isGroupChat) {
         message.copy(
@@ -233,25 +235,28 @@ fun MessageBubble(
             message, isOwnMessage, modifier, showAvatar, showSenderName, isGroupEdge, senderName, mentionedUserIds, replyToPreview, onReply,
             onReplyPreviewClick, onBoundsMeasured, translationText, isTranslating, isAiAssisted, currentUserId, safetyWarning, onDismissSafety,
             onReactionClick, onPollVote, secretChatId, onInlineKeyboardClick, onContactCardClick, onSenderClick, onStatusClick,
-            memberRole = memberRole
+            memberRole = memberRole,
+            showStatusIcon = showStatusIcon
         )
         MessageType.IMAGE -> ImageBubble(
             message, isOwnMessage, modifier, showAvatar, senderName, onImageClick, onBoundsMeasured,
             fileTransferProgress, fileTransferState, fileTransferError,
             onPauseFileTransfer, onResumeFileTransfer, onCancelFileTransfer, onRequestMediaAttachment, mediaDownloadFailed,
-            currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler, onStatusClick
+            currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler, onStatusClick, showStatusIcon
         )
         MessageType.GIF -> ImageBubble(
             message, isOwnMessage, modifier, showAvatar, senderName, onImageClick, onBoundsMeasured,
             fileTransferProgress, fileTransferState, fileTransferError,
             onPauseFileTransfer, onResumeFileTransfer, onCancelFileTransfer, onRequestMediaAttachment, mediaDownloadFailed,
-            currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler, onStatusClick
+            currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler, onStatusClick, showStatusIcon
         )
         MessageType.STICKER -> StickerBubble(
-            message, isOwnMessage, modifier, showAvatar, senderName, onBoundsMeasured, currentUserId, onReactionClick, onStatusClick
+            message, isOwnMessage, modifier, showAvatar, senderName, onBoundsMeasured, currentUserId, onReactionClick, onStatusClick,
+            showStatusIcon
         )
         MessageType.LOCATION -> LocationBubble(
-            message, isOwnMessage, modifier, showAvatar, senderName, onBoundsMeasured, currentUserId, onReactionClick, onStatusClick
+            message, isOwnMessage, modifier, showAvatar, senderName, onBoundsMeasured, currentUserId, onReactionClick, onStatusClick,
+            showStatusIcon
         )
         MessageType.VOICE -> VoiceBubble(
             message, isOwnMessage, modifier, showAvatar, senderName, onBoundsMeasured,
@@ -259,13 +264,13 @@ fun MessageBubble(
             fileTransferProgress, fileTransferState,
             fileTransferError, onPauseFileTransfer, onResumeFileTransfer,
             onCancelFileTransfer, onRequestMediaAttachment, mediaDownloadFailed,
-            currentUserId, onReactionClick, onStatusClick
+            currentUserId, onReactionClick, onStatusClick, showStatusIcon
         )
         MessageType.VIDEO -> VideoBubble(
             message, isOwnMessage, modifier, showAvatar, senderName, onVideoClick, onBoundsMeasured,
             fileTransferProgress, fileTransferState, fileTransferError,
             onPauseFileTransfer, onResumeFileTransfer, onCancelFileTransfer, onRequestMediaAttachment, mediaDownloadFailed,
-            currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler, onStatusClick
+            currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler, onStatusClick, showStatusIcon
         )
         MessageType.FILE -> FileBubble(
             message,
@@ -283,7 +288,8 @@ fun MessageBubble(
             onCancelFileTransfer,
             currentUserId,
             onReactionClick,
-            onStatusClick
+            onStatusClick,
+            showStatusIcon
         )
         MessageType.SK_DIST -> Unit
     }
@@ -364,7 +370,8 @@ private fun LocationBubble(
     currentUserId: String?,
     onReactionClick: ((String) -> Unit)? = null,
     /** 1.70：点击已读状态图标打开阅读详情。 */
-    onStatusClick: ((Message) -> Unit)? = null
+    onStatusClick: ((Message) -> Unit)? = null,
+    showStatusIcon: Boolean = true
 ) {
     val palette = LocalChatPalette.current
     val payload = remember(message.content) { message.parsedLocation() }
@@ -460,7 +467,7 @@ private fun LocationBubble(
                 Text(formatTime(message.timestamp), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
                 DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = isOwnMessage)
                 // 1.51：点击已读状态图标打开阅读详情（仅自己消息可看）
-                if (isOwnMessage) {
+                if (isOwnMessage && showStatusIcon) {
                     Spacer(modifier = Modifier.width(4.dp))
                     if (onStatusClick != null) {
                         Box(modifier = Modifier.clickable { onStatusClick(message) }) {
@@ -487,7 +494,8 @@ private fun StickerBubble(
     currentUserId: String?,
     onReactionClick: ((String) -> Unit)? = null,
     /** 1.70：点击已读状态图标打开阅读详情。 */
-    onStatusClick: ((Message) -> Unit)? = null
+    onStatusClick: ((Message) -> Unit)? = null,
+    showStatusIcon: Boolean = true
 ) {
     var entered by remember(message.id) { mutableStateOf(false) }
     LaunchedEffect(message.id) { entered = true }
@@ -519,7 +527,7 @@ private fun StickerBubble(
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
                 Text(formatTime(message.timestamp), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
                 DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = isOwnMessage)
-                if (isOwnMessage) {
+                if (isOwnMessage && showStatusIcon) {
                     Spacer(modifier = Modifier.width(4.dp))
                     if (onStatusClick != null) {
                         Box(modifier = Modifier.clickable { onStatusClick(message) }) {
@@ -606,7 +614,8 @@ private fun TextBubble(
     /** 9.1xx：点击已读状态图标（✓✓）→ 打开阅读详情。 */
     onStatusClick: ((Message) -> Unit)? = null,
     /** 0.65：发送者群内角色（群主/管理员徽章，仅群聊显示）。 */
-    memberRole: String? = null
+    memberRole: String? = null,
+    showStatusIcon: Boolean = true
 ) {
     // 漏网信封绝不把 algorithm/ciphertext 渲成正文。已有可读明文时不要盖成「无法解密」。
     val message = if (
@@ -1185,7 +1194,7 @@ private fun TextBubble(
                         color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
                     )
                 }
-                if (isOwnMessage) {
+                if (isOwnMessage && showStatusIcon) {
                     Spacer(modifier = Modifier.width(4.dp))
                     if (onStatusClick != null) {
                         Box(modifier = Modifier.clickable { onStatusClick(message) }) {
@@ -1244,7 +1253,8 @@ private fun ImageBubble(
     onRevealSpoiler: ((String) -> Unit)? = null,
     /** 9.302：图片/GIF 气泡此前不渲染发送状态图标（文本/语音/文件都有），
      * 用户发图后看不到已发送/已送达反馈，误以为发图卡死。 */
-    onStatusClick: ((Message) -> Unit)? = null
+    onStatusClick: ((Message) -> Unit)? = null,
+    showStatusIcon: Boolean = true
 ) {
     val palette = LocalChatPalette.current
     val context = LocalContext.current
@@ -1407,7 +1417,7 @@ private fun ImageBubble(
                     )
                     DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = true)
                     // 9.302：自己的媒体消息补上发送状态图标（与文本/语音/文件气泡一致）
-                    if (isOwnMessage) {
+                    if (isOwnMessage && showStatusIcon) {
                         Spacer(modifier = Modifier.width(3.dp))
                         if (onStatusClick != null) {
                             Box(modifier = Modifier.clickable { onStatusClick(message) }) {
@@ -1447,7 +1457,8 @@ private fun VoiceBubble(
     currentUserId: String? = null,
     onReactionClick: ((String) -> Unit)? = null,
     /** 1.70：点击已读状态图标打开阅读详情。 */
-    onStatusClick: ((Message) -> Unit)? = null
+    onStatusClick: ((Message) -> Unit)? = null,
+    showStatusIcon: Boolean = true
 ) {
     val palette = LocalChatPalette.current
     val context = LocalContext.current
@@ -1683,7 +1694,7 @@ private fun VoiceBubble(
                                     .padding(horizontal = 6.dp, vertical = 2.dp),
                             )
                         }
-                        if (isOwnMessage) {
+                        if (isOwnMessage && showStatusIcon) {
                             if (onStatusClick != null) {
                                 Box(modifier = Modifier.clickable { onStatusClick(message) }) {
                                     MessageStatusIcon(message.status)
@@ -1845,7 +1856,8 @@ private fun VideoBubble(
     onViewOnceOpened: ((String) -> Unit)? = null,
     onRevealSpoiler: ((String) -> Unit)? = null,
     /** 9.302：与图片气泡一致，补上发送状态图标 */
-    onStatusClick: ((Message) -> Unit)? = null
+    onStatusClick: ((Message) -> Unit)? = null,
+    showStatusIcon: Boolean = true
 ) {
     val palette = LocalChatPalette.current
     val context = LocalContext.current
@@ -2004,7 +2016,7 @@ private fun VideoBubble(
                     )
                     DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = true)
                     // 9.302：自己的媒体消息补上发送状态图标（与文本/语音/文件气泡一致）
-                    if (isOwnMessage) {
+                    if (isOwnMessage && showStatusIcon) {
                         Spacer(modifier = Modifier.width(3.dp))
                         if (onStatusClick != null) {
                             Box(modifier = Modifier.clickable { onStatusClick(message) }) {
@@ -2039,7 +2051,8 @@ private fun FileBubble(
     currentUserId: String? = null,
     onReactionClick: ((String) -> Unit)? = null,
     /** 1.70：点击已读状态图标打开阅读详情。 */
-    onStatusClick: ((Message) -> Unit)? = null
+    onStatusClick: ((Message) -> Unit)? = null,
+    showStatusIcon: Boolean = true
 ) {
     val palette = LocalChatPalette.current
     val defaultFileName = stringResource(R.string.message_file)
@@ -2142,7 +2155,7 @@ private fun FileBubble(
                     }
                     Column(horizontalAlignment = Alignment.End) {
                         DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = isOwnMessage)
-                        if (isOwnMessage) {
+                        if (isOwnMessage && showStatusIcon) {
                             Spacer(modifier = Modifier.width(6.dp))
                             if (onStatusClick != null) {
                                 Box(modifier = Modifier.clickable { onStatusClick(message) }) {

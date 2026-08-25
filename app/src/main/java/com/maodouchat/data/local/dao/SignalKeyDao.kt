@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.maodouchat.data.local.entity.SignalKeyEntity
 
 @Dao
@@ -27,6 +28,7 @@ interface SignalKeyDao {
     fun insertKeyBlocking(key: SignalKeyEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Transaction
     suspend fun insertKeys(keys: List<SignalKeyEntity>)
 
     @Query("DELETE FROM signal_keys WHERE keyType = :keyType")

@@ -1,5 +1,6 @@
 package com.maodouchat.data.repository
 
+import com.maodouchat.crypto.DecryptPlaceholderPolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
@@ -35,7 +36,13 @@ internal fun mergeMessageForPersistence(existing: Message, incoming: Message): M
             reactions = preferred.reactions
         )
     }
-    val withStatus = base.copy(status = mergeDeliveryStatusForPersistence(existing.status, incoming.status))
+    val withStatus = base.copy(
+        status = mergeDeliveryStatusForPersistence(existing.status, incoming.status),
+        // The server treats this flag as part of a client-message-id's immutable identity.
+        // A later optimistic/status snapshot built before certificate resolution must not
+        // downgrade a sealed send and turn an ACK-loss retry into MESSAGE_ID_CONFLICT.
+        sealedSender = existing.sealedSender || incoming.sealedSender,
+    )
     return preserveLocalMediaFlags(existing, incoming, withStatus)
 }
 
@@ -90,26 +97,18 @@ private fun looksLikePersistedWire(content: String): Boolean {
     if (content.isBlank()) return false
     if (content.startsWith("eyJ")) return true
     if (content.startsWith("MD:") || content.startsWith("SK:")) return true
-    return ChatListPreviewPolicy.looksLikeWireEnvelope(content) ||
-        ChatListPreviewPolicy.isSignalWireEnvelope(content)
+    // A user may legitimately send arbitrary JSON. Only a complete Signal
+    // envelope is wire data; the old `{..."ciphertext"...}` heuristic could
+    // discard readable plaintext during Room merges.
+    return ChatListPreviewPolicy.isSignalWireEnvelope(content)
 }
 
 private fun isReadablePlaintextForPersistence(content: String): Boolean {
     if (content.isBlank()) return false
     if (content.startsWith("eyJ")) return false
     if (content.startsWith("MD:") || content.startsWith("SK:")) return false
-    if (content.startsWith("{") &&
-        (content.contains("\"ciphertext\"") || content.contains("\"devices\""))
-    ) {
-        return false
-    }
-    val lower = content.lowercase()
-    if (lower.contains("解密") || lower.contains("decrypt") ||
-        (lower.contains("密钥") && (lower.contains("缺失") || lower.contains("失败")))
-    ) {
-        return false
-    }
-    return true
+    if (ChatListPreviewPolicy.isSignalWireEnvelope(content)) return false
+    return !DecryptPlaceholderPolicy.isPlaceholder(content)
 }
 
 /**

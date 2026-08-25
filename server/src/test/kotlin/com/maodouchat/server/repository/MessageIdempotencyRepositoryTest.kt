@@ -91,6 +91,7 @@ class MessageIdempotencyRepositoryTest {
         assertEquals(first.message.id, retry.message.id)
         assertEquals(first.message.timestamp, retry.message.timestamp)
         assertEquals("cipher-v1", retry.message.content)
+        assertEquals(setOf("u1", "u2"), retry.participantIds.toSet())
 
         transaction {
             val rows = Messages.selectAll().where { Messages.chatId eq "c1" }.toList()
@@ -125,6 +126,62 @@ class MessageIdempotencyRepositoryTest {
             val rows = Messages.selectAll().where { Messages.id eq "m_repo_conflict" }.toList()
             assertEquals(1, rows.size)
             assertEquals("cipher-v1", rows.single()[Messages.content])
+        }
+    }
+
+    @Test
+    fun `same encrypted message id accepts re-encryption without rewriting original wire`() {
+        setupDb()
+        val repo = MessageRepository()
+        val firstWire =
+            """{"version":3,"algorithm":"signal-multi-device-v1","senderDeviceId":1,"payloadType":"TEXT","entries":[{"recipientUserId":"u2","recipientDeviceId":1,"ciphertextType":"prekey","ciphertext":"Y2lwaGVyLWE="}]}"""
+        val retryWire =
+            """{"version":3,"algorithm":"signal-multi-device-v1","senderDeviceId":1,"payloadType":"TEXT","entries":[{"recipientUserId":"u2","recipientDeviceId":1,"ciphertextType":"signal","ciphertext":"Y2lwaGVyLWI="}]}"""
+
+        val first = repo.sendMessage(
+            chatId = "c1",
+            senderId = "u1",
+            content = firstWire,
+            type = "TEXT",
+            requestedId = "m_repo_reencrypted",
+        )
+        val retry = repo.sendMessage(
+            chatId = "c1",
+            senderId = "u1",
+            content = retryWire,
+            type = "TEXT",
+            requestedId = "m_repo_reencrypted",
+        )
+
+        assertFalse(first.wasExisting)
+        assertTrue(retry.wasExisting)
+        assertEquals(firstWire, retry.message.content)
+        assertEquals(first.message.timestamp, retry.message.timestamp)
+        transaction {
+            val rows = Messages.selectAll().where { Messages.id eq "m_repo_reencrypted" }.toList()
+            assertEquals(1, rows.size)
+            assertEquals(firstWire, rows.single()[Messages.content])
+        }
+    }
+
+    @Test
+    fun `new send response preserves sealed sender flag`() {
+        setupDb()
+        val repo = MessageRepository()
+
+        val sent = repo.sendMessage(
+            chatId = "c1",
+            senderId = "u1",
+            content = "cipher-sealed",
+            type = "TEXT",
+            requestedId = "m_repo_sealed",
+            sealedSender = true
+        )
+
+        assertTrue(sent.message.sealedSender)
+        transaction {
+            val row = Messages.selectAll().where { Messages.id eq "m_repo_sealed" }.single()
+            assertTrue(row[Messages.sealedSender])
         }
     }
 }

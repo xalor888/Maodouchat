@@ -407,6 +407,10 @@ class SignalKeyRepository {
                 (SignalKeys.keyType eq PRE_KEY_TYPE)
         }) {
             it[keyType] = CONSUMED_PRE_KEY_TYPE
+            // createdAt doubles as the retention timestamp for consumed rows. Refresh it at
+            // consumption time so an old uploaded batch still remains protected from key-id
+            // revival during the post-consumption reordering window.
+            it[createdAt] = System.currentTimeMillis()
         }
         return KeyData(keyId, keyData)
     }
@@ -444,9 +448,16 @@ class SignalKeyRepository {
 
     /**
      * Full key package in one transaction so SPK + signature never diverge mid-upload.
-     * @return the upload result, including session and device-ID conflicts.
+     * @return the upload result, including session, device-ID, and identity conflicts.
      */
-    enum class UploadKeyPackageResult { UPLOADED, SESSION_CONFLICT, DEVICE_ID_CONFLICT, INVALID_SIGNATURE }
+    enum class UploadKeyPackageResult {
+        UPLOADED,
+        SESSION_CONFLICT,
+        DEVICE_ID_CONFLICT,
+        DEVICE_IDENTITY_MISMATCH,
+        INVALID_SIGNATURE,
+        INVALID_PRE_KEY,
+    }
 
     fun uploadKeyPackage(
         userId: String,
@@ -465,6 +476,12 @@ class SignalKeyRepository {
         // 与该用户建会话的对端永远报「密钥包无效」（发图/发消息全挂）。入库前拦住
         if (!verifyKeyPackageSignature(identityKey, signedPreKey, signedPreKeySignature)) {
             return UploadKeyPackageResult.INVALID_SIGNATURE
+        }
+        // Validate every one-time public key before opening the write transaction.  The route
+        // performs shape checks as well, but repository callers (jobs/tests) must get the same
+        // deterministic result and, importantly, must not leave a partially published bundle.
+        if (!preKeys.all(::isValidPreKeyUpload) || hasConflictingPreKeyIds(preKeys)) {
+            return UploadKeyPackageResult.INVALID_PRE_KEY
         }
         return transaction {
             com.maodouchat.server.db.Users.selectAll()
@@ -485,6 +502,21 @@ class SignalKeyRepository {
             if (boundDeviceId != null && boundDeviceId != deviceId) {
                 return@transaction UploadKeyPackageResult.SESSION_CONFLICT
             }
+            val existingIdentity = SignalKeys.selectAll().where {
+                (SignalKeys.userId eq userId) and
+                    (SignalKeys.deviceId eq deviceId) and
+                    (SignalKeys.keyType eq "identity_key")
+            }.forUpdate().firstOrNull()?.get(SignalKeys.keyData)
+            // An authenticated session is already pinned to this device slot.  A different
+            // identity on that slot is a stale/corrupt local store, not a free identity-migration
+            // candidate: returning IDENTITY_MISMATCH would make the client switch slots even
+            // though every subsequent upload is rejected by the session binding.
+            if (boundDeviceId != null && existingIdentity != null && existingIdentity != identityKey) {
+                return@transaction UploadKeyPackageResult.SESSION_CONFLICT
+            }
+            if (existingIdentity != null && existingIdentity != identityKey) {
+                return@transaction UploadKeyPackageResult.DEVICE_IDENTITY_MISMATCH
+            }
             if (boundDeviceId == null) {
                 val occupiedByAnotherSession = AuthSessions.selectAll().where {
                     (AuthSessions.userId eq userId) and
@@ -495,15 +527,6 @@ class SignalKeyRepository {
                 if (occupiedByAnotherSession) {
                     return@transaction UploadKeyPackageResult.DEVICE_ID_CONFLICT
                 }
-            }
-
-            val existingIdentity = SignalKeys.selectAll().where {
-                (SignalKeys.userId eq userId) and
-                    (SignalKeys.deviceId eq deviceId) and
-                    (SignalKeys.keyType eq "identity_key")
-            }.forUpdate().firstOrNull()?.get(SignalKeys.keyData)
-            if (existingIdentity != null && existingIdentity != identityKey) {
-                return@transaction UploadKeyPackageResult.DEVICE_ID_CONFLICT
             }
             if (boundDeviceId == null) {
                 AuthSessions.update({ AuthSessions.id eq authSessionId }) {
@@ -556,15 +579,41 @@ class SignalKeyRepository {
         }
     }
 
-    /** Must run inside an open transaction that already holds the user row lock. */
+    /**
+     * Must run inside an open transaction that already holds the user row lock.
+     *
+     * A live `pre_key` has not been handed out yet: `getBundle` changes it to
+     * `consumed_pre_key` in the same transaction before returning it.  Re-publishing a
+     * different public key for a live id is therefore safe and repairs a local key-store
+     * regeneration/ID-wrap collision.  A consumed id, however, may already have an
+     * encrypted message in flight and must remain byte-for-byte untouched; the incoming
+     * row is simply treated as an idempotent no-op (it will never be served again).
+     */
     private fun uploadPreKeyInTx(userId: String, deviceId: Int, preKey: PreKeyUpload) {
-        val existing = SignalKeys.selectAll().where {
+        val existingRows = SignalKeys.selectAll().where {
             (SignalKeys.userId eq userId) and
                 (SignalKeys.deviceId eq deviceId) and
                 (SignalKeys.keyId eq preKey.keyId) and
                 (SignalKeys.keyType inList PRE_KEY_STATES)
-        }.forUpdate().firstOrNull()
-        if (existing != null) return
+        }.forUpdate().toList()
+
+        // Once an id has been consumed, never revive it and never overwrite the original
+        // public key, even if a restored client presents a different key under the same id.
+        if (existingRows.any { it[SignalKeys.keyType] == CONSUMED_PRE_KEY_TYPE }) return
+
+        val liveRows = existingRows.filter { it[SignalKeys.keyType] == PRE_KEY_TYPE }
+        if (liveRows.isNotEmpty()) {
+            // There should be one live row per id.  Updating all historical duplicate rows
+            // keeps the key material coherent without deleting an already-consumed row.
+            liveRows.forEach { row ->
+                if (row[SignalKeys.keyData] != preKey.publicKeyBase64) {
+                    SignalKeys.update({ SignalKeys.id eq row[SignalKeys.id] }) {
+                        it[keyData] = preKey.publicKeyBase64
+                    }
+                }
+            }
+            return
+        }
 
         SignalKeys.insert {
             it[SignalKeys.id] = "sk_${UUID.randomUUID()}"
@@ -576,6 +625,20 @@ class SignalKeyRepository {
             it[createdAt] = System.currentTimeMillis()
         }
     }
+
+    /** Validate the actual Curve point, not merely that the field looks like Base64. */
+    private fun isValidPreKeyUpload(preKey: PreKeyUpload): Boolean =
+        preKey.keyId in 1..16_777_215 &&
+            runCatching {
+                val encoded = Base64.getDecoder().decode(preKey.publicKeyBase64)
+                Curve.decodePoint(encoded, 0)
+            }.isSuccess
+
+    /** A request containing one id with two different public keys is nondeterministic. */
+    private fun hasConflictingPreKeyIds(preKeys: List<PreKeyUpload>): Boolean =
+        preKeys.groupBy { it.keyId }.values.any { entries ->
+            entries.map { it.publicKeyBase64 }.distinct().size > 1
+        }
 
     /** Must run inside an open transaction that already holds a user-scoped lock. */
     private fun touchDeviceInTx(userId: String, deviceId: Int, deviceName: String? = null) {

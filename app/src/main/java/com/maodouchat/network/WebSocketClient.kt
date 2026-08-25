@@ -70,7 +70,8 @@ sealed class WebSocketEvent {
     data class ServerError(
         val code: String? = null,
         val retryAfterSeconds: Long? = null,
-        val message: String = ""
+        val message: String = "",
+        val messageId: String? = null
     ) : WebSocketEvent()
     data class UserTyping(val userId: String, val chatId: String, val isTyping: Boolean) : WebSocketEvent()
     data class GroupRevisionChanged(
@@ -233,10 +234,11 @@ private data class IncomingSignaling(
 )
 
 @Serializable
-private data class IncomingServerError(
+internal data class IncomingServerError(
     val error: String = "",
     val code: String? = null,
-    val retryAfterSeconds: Long? = null
+    val retryAfterSeconds: Long? = null,
+    val messageId: String? = null
 )
 
 @Serializable
@@ -1046,7 +1048,14 @@ object WebSocketClient {
             "ERROR" -> {
                 runCatching { json.decodeFromString<IncomingServerError>(wsMsg.payload) }
                     .onSuccess { error ->
-                        eventBus.post(WebSocketEvent.ServerError(error.code, error.retryAfterSeconds, error.error))
+                        eventBus.post(
+                            WebSocketEvent.ServerError(
+                                code = error.code,
+                                retryAfterSeconds = error.retryAfterSeconds,
+                                message = error.error,
+                                messageId = error.messageId
+                            )
+                        )
                     }
                     .onFailure { error -> emitError(WebSocketErrorKind.ENVELOPE_PARSE, error) }
             }

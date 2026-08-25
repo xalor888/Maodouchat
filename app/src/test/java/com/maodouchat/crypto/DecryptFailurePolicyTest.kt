@@ -22,6 +22,30 @@ class DecryptFailurePolicyTest {
     }
 
     @Test
+    fun duplicateIsRememberedAsTerminalRatherThanCleared() {
+        assertEquals(
+            DecryptFailurePolicy.TrackingAction.MARK_TERMINAL,
+            DecryptFailurePolicy.trackingAction(SignalProtocol.DecryptResult.Duplicate)
+        )
+        assertEquals(
+            DecryptFailurePolicy.TrackingAction.CLEAR,
+            DecryptFailurePolicy.trackingAction(SignalProtocol.DecryptResult.Success("ok"))
+        )
+    }
+
+    @Test
+    fun malformedSenderKeyDistributionIsTerminalButUnknownFailureCanRetry() {
+        assertEquals(
+            SenderKeyDistOutcome.Skipped,
+            SenderKeyDistributionFailurePolicy.outcomeFor(IllegalArgumentException("bad base64"))
+        )
+        assertEquals(
+            SenderKeyDistOutcome.Failed,
+            SenderKeyDistributionFailurePolicy.outcomeFor(IllegalStateException("store unavailable"))
+        )
+    }
+
+    @Test
     fun retryableResultsStopOnlyAfterCap() {
         val retry = listOf(
             SignalProtocol.DecryptResult.NoSession,
@@ -62,6 +86,36 @@ class DecryptFailurePolicyTest {
         assertTrue(DecryptFailurePolicy.shouldSkipCryptoAttempt(tracker.failureCount(fp)))
         tracker.clear(fp)
         assertFalse(DecryptFailurePolicy.shouldSkipCryptoAttempt(tracker.failureCount(fp)))
+    }
+
+    @Test
+    fun successfulPeerRepairClearsOnlyThatSendersCappedFailures() {
+        val tracker = DecryptRetryTracker()
+        val repaired = DecryptFailurePolicy.envelopeFingerprint("u1", "cipher-a")
+        val unrelated = DecryptFailurePolicy.envelopeFingerprint("u2", "cipher-b")
+        repeat(5) { tracker.recordCryptoFailure("u1", repaired) }
+        repeat(5) { tracker.recordCryptoFailure("u2", unrelated) }
+
+        assertTrue(DecryptFailurePolicy.shouldSkipCryptoAttempt(tracker.failureCount(repaired)))
+        assertTrue(DecryptFailurePolicy.shouldSkipCryptoAttempt(tracker.failureCount(unrelated)))
+
+        tracker.clearForSender("u1")
+
+        assertFalse(DecryptFailurePolicy.shouldSkipCryptoAttempt(tracker.failureCount(repaired)))
+        assertTrue(DecryptFailurePolicy.shouldSkipCryptoAttempt(tracker.failureCount(unrelated)))
+    }
+
+    @Test
+    fun terminalEnvelopeIsRememberedAndDoesNotRemainARecoverablePlaceholder() {
+        val tracker = DecryptRetryTracker()
+        val fingerprint = DecryptFailurePolicy.envelopeFingerprint("u1", "malformed")
+
+        tracker.markTerminal(fingerprint)
+
+        assertTrue(tracker.isTerminal(fingerprint))
+        assertEquals(0, tracker.failureCount(fingerprint))
+        tracker.clear(fingerprint)
+        assertFalse(tracker.isTerminal(fingerprint))
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.crypto.DecryptPlaceholderPolicy
 import com.maodouchat.data.repository.resolveDirectOutboxPeerId
 import com.maodouchat.data.repository.shouldMarkOutboxFailed
 
@@ -206,16 +207,7 @@ private fun looksLikeEncryptedEnvelope(content: String): Boolean {
 }
 
 private fun looksLikeDecryptFailurePlaceholder(content: String): Boolean {
-    if (content.isBlank()) return false
-    // Localized failure strings often share these substrings across languages; keep broad
-    val lower = content.lowercase()
-    return lower.contains("decrypt") ||
-        lower.contains("解密") ||
-        lower.contains("无法解密") ||
-        lower.contains("[encrypted message]") ||
-        lower.contains("[加密消息]") ||
-        lower.contains("密钥") && (lower.contains("缺失") || lower.contains("失败")) ||
-        lower.contains("session") && lower.contains("missing")
+    return DecryptPlaceholderPolicy.isPlaceholder(content)
 }
 
 private fun higherDeliveryStatus(a: MessageStatus, b: MessageStatus): MessageStatus {

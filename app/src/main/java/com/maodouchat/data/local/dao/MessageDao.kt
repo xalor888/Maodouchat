@@ -226,6 +226,10 @@ interface MessageDao {
     @Query("UPDATE messages SET status = :status WHERE id = :messageId")
     suspend fun updateMessageStatus(messageId: String, status: String)
 
+    /** Persist the immutable delivery privacy mode before the transport can accept the row. */
+    @Query("UPDATE messages SET sealedSender = :sealedSender WHERE id = :messageId")
+    suspend fun updateMessageSealedSender(messageId: String, sealedSender: Boolean): Int
+
     @Query("UPDATE messages SET content = :content WHERE id = :messageId AND content = :expectedContent")
     suspend fun updateMessageContentIfUnchanged(
         messageId: String,

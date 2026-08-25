@@ -55,14 +55,14 @@ class ChatListPreviewPolicyTest {
     }
 
     @Test
-    fun wireEnvelopeTextUsesEncryptedPlaceholder() {
+    fun ordinaryJsonTextWithCiphertextWordStaysReadable() {
         val msg = sample(
             type = MessageType.TEXT,
             content = """{"type":"ciphertext","body":"..."}""",
             ts = 9L
         )
         val preview = ChatListPreviewPolicy.fromLatestMessage(msg, mediaLabel, "[enc]", "[revoked]")
-        assertEquals("[enc]", preview.text)
+        assertEquals("{\"type\":\"ciphertext\",\"body\":\"...\"}", preview.text)
     }
 
     @Test
@@ -242,6 +242,33 @@ class ChatListPreviewPolicyTest {
         )
         val preview = ChatListPreviewPolicy.fromLatestMessage(msg, mediaLabel, "[enc]", "[revoked]")
         assertEquals("hello", preview.text)
+    }
+
+    @Test
+    fun decryptRelatedUserPlaintextRemainsVisibleAndCanBeListHead() {
+        val placeholder = "[enc]"
+        listOf(
+            "这个怎么解密？",
+            "decrypt this message",
+            "How do I decrypt this?",
+            "session missing 是什么意思？",
+        ).forEachIndexed { index, content ->
+            assertFalse(ChatListPreviewPolicy.looksLikeDecryptFailurePlaceholder(content))
+            assertEquals(content, ChatListPreviewPolicy.listVisibleText(content, placeholder))
+
+            val readable = sample(type = MessageType.TEXT, content = content, ts = 100L + index)
+                .copy(id = "readable-$index")
+            val older = sample(type = MessageType.TEXT, content = "older", ts = 1L)
+                .copy(id = "older-$index")
+            val preview = ChatListPreviewPolicy.fromLatestMessages(
+                candidatesNewestFirst = listOf(readable, older),
+                mediaLabel = mediaLabel,
+                encryptedPlaceholder = placeholder,
+                revokedPlaceholder = "[revoked]",
+            )
+            assertEquals(content, preview.text)
+            assertEquals(readable.timestamp, preview.timestamp)
+        }
     }
 
     @Test

@@ -24,15 +24,43 @@ class AttachmentSendAfterUploadPolicyTest {
     }
 
     @Test
-    fun duplicateMessageId409IsAcceptedNotRetryable() {
+    fun stableAlreadyAcceptedCodeIsAcceptedNotRetryable() {
         val err = ApiException(
             ApiFailureKind.HTTP,
             statusCode = 409,
-            serverMessage = "消息 ID 已存在",
+            serverMessage = "already accepted",
+            serverCode = "  message_already_accepted  ",
         )
         assertFalse(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err))
         assertTrue(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(err))
         assertFalse(AttachmentSendAfterUploadPolicy.isRetryable(err))
+    }
+
+    @Test
+    fun messageIdConflictIsDefinitiveFailure() {
+        val err = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 409,
+            serverMessage = "message id belongs to different content",
+            serverCode = "MESSAGE_ID_CONFLICT",
+        )
+        assertFalse(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(err))
+        assertFalse(AttachmentSendAfterUploadPolicy.isRetryable(err))
+    }
+
+    @Test
+    fun generic409AndLocalizedMessageIdTextAreNotAccepted() {
+        val generic = ApiException(ApiFailureKind.HTTP, statusCode = 409, serverMessage = "conflict")
+        val localized = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 409,
+            serverMessage = "消息 ID 已存在",
+        )
+
+        assertFalse(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(generic))
+        assertFalse(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(localized))
+        assertFalse(AttachmentSendAfterUploadPolicy.isRetryable(generic))
+        assertFalse(AttachmentSendAfterUploadPolicy.isRetryable(localized))
     }
 
     @Test

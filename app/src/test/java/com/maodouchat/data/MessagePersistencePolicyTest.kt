@@ -82,7 +82,7 @@ class MessagePersistencePolicyTest {
         val reactions = listOf(MessageReaction("u1", "❤", reactedAt = 1L))
         val existing = base("m1").copy(content = "hello readable")
         val incoming = base("m1").copy(
-            content = """{"ciphertext":"abc","devices":[]}""",
+            content = """{"algorithm":"signal-v2","senderDeviceId":1,"payloadType":"TEXT","ciphertextType":"signal","ciphertext":"Y2lwaGVy"}""",
             starred = true,
             reactions = reactions
         )
@@ -92,6 +92,16 @@ class MessagePersistencePolicyTest {
         assertEquals("hello readable", merged.content)
         assertTrue(merged.starred)
         assertEquals(reactions, merged.reactions)
+    }
+
+    @Test
+    fun `sealed sender cannot be downgraded by stale snapshot`() {
+        val sealed = base("m1").copy(sealedSender = true)
+        val stale = base("m1").copy(sealedSender = false, status = MessageStatus.SENT)
+
+        val merged = mergeMessageForPersistence(sealed, stale)
+
+        assertTrue(merged.sealedSender)
     }
 
     @Test

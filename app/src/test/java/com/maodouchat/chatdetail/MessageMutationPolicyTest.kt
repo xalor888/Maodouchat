@@ -1,5 +1,9 @@
 package com.maodouchat.chatdetail
 
+import com.maodouchat.crypto.SignalExchangeException
+import com.maodouchat.crypto.SignalExchangeFailure
+import com.maodouchat.crypto.LocalCryptoNotReadyException
+import com.maodouchat.crypto.SignalStorePersistenceException
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageReaction
 import com.maodouchat.data.model.MessageStatus
@@ -198,7 +202,7 @@ class MessageMutationPolicyTest {
         assertFalse(shouldMarkOutboxFailed(ApiException(ApiFailureKind.NETWORK)))
         assertFalse(shouldMarkOutboxFailed(ApiException(ApiFailureKind.TIMEOUT)))
         assertFalse(shouldMarkOutboxFailed(ApiException(ApiFailureKind.HTTP, statusCode = 503)))
-        assertFalse(shouldMarkOutboxFailed(ApiException(ApiFailureKind.HTTP, statusCode = 409)))
+        assertTrue(shouldMarkOutboxFailed(ApiException(ApiFailureKind.HTTP, statusCode = 409)))
         assertFalse(shouldMarkOutboxFailed(null))
     }
 
@@ -216,6 +220,34 @@ class MessageMutationPolicyTest {
                 IllegalStateException("sender_key_epoch_changed")
             )
         )
+    }
+
+    @Test
+    fun `signal exchange transport failures keep outbox pending`() {
+        assertFalse(shouldMarkOutboxFailed(SignalExchangeException(SignalExchangeFailure.NETWORK)))
+        assertFalse(shouldMarkOutboxFailed(SignalExchangeException(SignalExchangeFailure.TIMEOUT)))
+        assertFalse(
+            shouldMarkOutboxFailed(
+                SignalExchangeException(SignalExchangeFailure.HTTP, statusCode = 408)
+            )
+        )
+        assertFalse(
+            shouldMarkOutboxFailed(
+                SignalExchangeException(SignalExchangeFailure.HTTP, statusCode = 429)
+            )
+        )
+        assertFalse(
+            shouldMarkOutboxFailed(
+                SignalExchangeException(SignalExchangeFailure.HTTP, statusCode = 503)
+            )
+        )
+        assertTrue(
+            shouldMarkOutboxFailed(
+                SignalExchangeException(SignalExchangeFailure.HTTP, statusCode = 403)
+            )
+        )
+        assertFalse(shouldMarkOutboxFailed(LocalCryptoNotReadyException()))
+        assertFalse(shouldMarkOutboxFailed(SignalStorePersistenceException(IllegalStateException("disk"))))
     }
 
     @Test

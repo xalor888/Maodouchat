@@ -387,9 +387,15 @@ private suspend fun WebSocketSession.sendError(
     message: String,
     json: Json,
     code: String? = null,
-    retryAfterSeconds: Long? = null
+    retryAfterSeconds: Long? = null,
+    messageId: String? = null
 ) {
-    sendSafe(this, json.encodeToString(WsMessage("ERROR", json.encodeToString(ErrorResponse(message, code, retryAfterSeconds)))))
+    sendSafe(
+        this,
+        json.encodeToString(
+            WsMessage("ERROR", json.encodeToString(ErrorResponse(message, code, retryAfterSeconds, messageId)))
+        )
+    )
 }
 
 private fun wsRestrictionMessage(until: Long, action: String): String {
@@ -430,103 +436,116 @@ private suspend fun WebSocketSession.handleWsMessage(
             broadcastUserStatus(senderId, foreground, json, userRepo)
         }
         "SEND_MESSAGE" -> {
+            val payload = json.decodeFromString<SendMessagePayload>(wsMsg.payload)
+            val requestedSealed = payload.sealedSender || !payload.sealedSenderCertificate.isNullOrBlank()
+            // Authenticate the chat operation before looking up a requested message id.
+            // Exact retries still need the same live send permissions as a new send; otherwise
+            // a kicked/muted user could replay an old id and fan out to current members.
             if (RuntimeConfigService.isMaintenanceMode()) {
                 sendError(
                     RuntimeConfigService.get(RuntimeConfigService.KEY_MAINTENANCE_MESSAGE)
                         .ifBlank { "System under maintenance" },
-                    json
+                    json,
+                    code = "MAINTENANCE",
+                    messageId = payload.id
                 )
                 return
             }
-
-            // 频率限制：每用户每分钟最多 N 条消息，防止 DoS 和推送风暴。
-            // 9.3xx：幂等重发（断线重连/outbox flush 以相同 messageId 重发）不得消耗配额——
-            // 此前 limiter 在去重之前，一次重连把积压消息整批重发会瞬间烧光 60/分/用户桶，
-            // 用户一条消息没发也报“消息发送过于频繁”。
-            val payload = json.decodeFromString<SendMessagePayload>(wsMsg.payload)
-            val isIdempotentRetry = payload.id != null && messageRepo.getMessageById(payload.id) != null
-            if (!isIdempotentRetry && !wsMessageRateLimiter.acquire(senderId, maxPerMinute = RuntimeConfigService.maxMessagePerMinute())) {
-                sendError("消息发送过于频繁，请稍后再试", json)
-                return
-            }
-            val restriction = userRepo.getMessageRestrictionUntil(senderId).takeIf { it > 0L }
+            val preflightRestriction = userRepo.getMessageRestrictionUntil(senderId).takeIf { it > 0L }
                 ?: userRepo.getSuspendedUntil(senderId).takeIf { it > 0L }
-            if (restriction != null) {
-                sendError(wsRestrictionMessage(restriction, "你已被限制发消息"), json)
+            if (preflightRestriction != null) {
+                sendError(wsRestrictionMessage(preflightRestriction, "你已被限制发消息"), json, messageId = payload.id)
                 return
             }
-            val requireGroupSenderKey = chatRepo.getChatById(payload.chatId)?.isGroup == true
-            if (!isValidMessagePayload(payload.content, payload.type, payload.id, requireGroupSenderKey = requireGroupSenderKey)) {
-                sendError("消息内容无效", json)
+            val preflightChat = chatRepo.getChatById(payload.chatId)
+            if (preflightChat == null || !chatRepo.isParticipant(payload.chatId, senderId)) {
+                sendError("无权向该聊天发送消息", json, messageId = payload.id)
                 return
             }
-            if (!chatRepo.isParticipant(payload.chatId, senderId)) {
-                sendError("无权向该聊天发送消息", json)
+            if (!isValidMessagePayload(
+                    payload.content,
+                    payload.type,
+                    payload.id,
+                    requireGroupSenderKey = preflightChat.isGroup,
+                )
+            ) {
+                sendError("消息内容无效", json, messageId = payload.id)
                 return
             }
-            val isGroup = chatRepo.getChatById(payload.chatId)?.isGroup == true
-            // 广播频道：仅创建者（OWNER）可发；订阅者只读（与 REST 发消息一致）
             if (chatRepo.getChatType(payload.chatId) == com.maodouchat.server.model.ChatType.CHANNEL &&
                 !chatRepo.isChannelOwner(payload.chatId, senderId)
             ) {
-                sendError("频道为单向广播，仅创建者可发送消息", json)
+                sendError("频道为单向广播，仅创建者可发送消息", json, messageId = payload.id)
                 return
             }
-            if (isGroup && chatRepo.isMuted(payload.chatId, senderId)) {
-                sendError("你已被禁言，暂时无法发送消息", json)
+            if (preflightChat.isGroup && chatRepo.isMuted(payload.chatId, senderId)) {
+                sendError("你已被禁言，暂时无法发送消息", json, messageId = payload.id)
                 return
             }
-            if (!isGroup) {
+            if (!preflightChat.isGroup) {
                 val peers = chatRepo.getParticipantIds(payload.chatId).filter { it != senderId }
-                // 与 REST/insert 一致：双向拉黑均拒绝
                 if (userRepo.blockedEitherWayIdsInTx(senderId, peers).isNotEmpty()) {
-                    sendError("无法与已屏蔽的用户发送消息", json)
+                    sendError("无法与已屏蔽的用户发送消息", json, messageId = payload.id)
                     return
                 }
             }
-            val sealedOk = SealedSenderDelivery.authorize(
-                requested = payload.sealedSender || !payload.sealedSenderCertificate.isNullOrBlank(),
-                certificateHeader = null,
-                certificateBody = payload.sealedSenderCertificate,
-                userId = senderId
-            )
-            if ((payload.sealedSender || !payload.sealedSenderCertificate.isNullOrBlank()) && !sealedOk) {
-                sendError("invalid sealed sender certificate", json)
+            val existingById = payload.id?.takeIf { it.isNotBlank() }?.let(messageRepo::getMessageById)
+            val isExactRetry = isMatchingIdempotentMessageRetry(
+                    existing = existingById,
+                    senderId = senderId,
+                    chatId = payload.chatId,
+                    content = payload.content,
+                    type = payload.type,
+                    sealedSender = requestedSealed,
+                )
+            val sealedOk = if (isExactRetry) {
+                existingById!!.sealedSender
+            } else {
+                SealedSenderDelivery.authorize(
+                    requested = requestedSealed,
+                    certificateHeader = null,
+                    certificateBody = payload.sealedSenderCertificate,
+                    userId = senderId
+                )
+            }
+            if (!isExactRetry && requestedSealed && !sealedOk) {
+                sendError("invalid sealed sender certificate", json, messageId = payload.id)
+                return
+            }
+            // 频率限制：每用户每分钟最多 N 条消息，防止 DoS 和推送风暴。
+            if (!isExactRetry &&
+                !wsMessageRateLimiter.acquire(senderId, maxPerMinute = RuntimeConfigService.maxMessagePerMinute())
+            ) {
+                sendError("消息发送过于频繁，请稍后再试", json, messageId = payload.id)
                 return
             }
             val sent = try {
                 messageRepo.sendMessage(payload.chatId, senderId, payload.content, payload.type, payload.id, sealedSender = sealedOk)
             } catch (_: DuplicateMessageIdException) {
-                sendError("消息 ID 已存在", json)
+                sendError("消息 ID 已存在", json, code = "MESSAGE_ID_CONFLICT", messageId = payload.id)
                 return
             } catch (_: AttachmentNotReadyException) {
-                sendError("附件尚未上传完成，请稍后重试", json)
+                sendError("附件尚未上传完成，请稍后重试", json, messageId = payload.id)
                 return
             } catch (_: NotParticipantException) {
-                sendError("无权向该聊天发送消息", json)
+                sendError("无权向该聊天发送消息", json, messageId = payload.id)
                 return
             } catch (_: MutedException) {
-                sendError("你已被禁言，暂时无法发送消息", json)
+                sendError("你已被禁言，暂时无法发送消息", json, messageId = payload.id)
                 return
             } catch (_: BlockedException) {
-                sendError("对方已屏蔽你，无法发送消息", json)
+                sendError("对方已屏蔽你，无法发送消息", json, messageId = payload.id)
                 return
             } catch (_: InvalidMessageTypeException) {
-                sendError("消息类型无效", json)
+                sendError("消息类型无效", json, messageId = payload.id)
                 return
             }
             val message = sent.message
             val participants = sent.participantIds
 
-            // 总是给发送方回 SENT ack，使其停止重发（断线重连后客户端以相同 messageId 重发时尤其关键）
-            val ack = StatusUpdatePayload(message.id, "SENT")
-            sendSafe(this, json.encodeToString(WsMessage("MESSAGE_STATUS", json.encodeToString(ack))))
-
-            // 断线重连后客户端以相同 messageId 重发（首次投递的 ACK 丢失）：仓库层返回已存的既有消息。
-            // 收件人首次投递时已收到 NEW_MESSAGE，这里不再二次 fan-out / 推送，避免重复消息与重复通知。
-            if (sent.wasExisting) return
-
             // 推送给同事务权威成员列表（避免 leave/kick 后仍用过期快照 fanout）。
+            // Exact retry uses at-least-once WS delivery: the database commit may have won while
+            // the first process died before fan-out. Clients de-duplicate NEW_MESSAGE by id.
             // 8.30 性能优化 A1：双向拉黑批量一次 SQL 取回，替代逐成员 hasBlocked 事务。
             // 发送者自身保留在收件集合（自己其他设备经 WS 同步自己的消息）。
             val blockedIds = userRepo.blockedEitherWayIdsInTx(senderId, participants)
@@ -546,7 +565,7 @@ private suspend fun WebSocketSession.handleWsMessage(
             }
             // SK_DIST is crypto control — never wake devices with a message notification.
             // Silent messages and SK_DIST never wake devices.
-            if (message.type != "SK_DIST" && !payload.silent) {
+            if (!sent.wasExisting && message.type != "SK_DIST" && !payload.silent) {
                 // 静音过滤同样批量一次 SQL（替代逐成员 areNotificationsMuted 事务）
                 val mutedIds = chatRepo.mutedUserIdsInTx(payload.chatId, recipients)
                 pushService.enqueueEncryptedMessage(
@@ -558,6 +577,11 @@ private suspend fun WebSocketSession.handleWsMessage(
                     sealedSender = message.sealedSender
                 )
             }
+
+            // ACK only after recipient fan-out (and first-send push scheduling). A broken sender
+            // socket must never prevent delivery to the other participants.
+            val ack = StatusUpdatePayload(message.id, "SENT")
+            sendSafe(this, json.encodeToString(WsMessage("MESSAGE_STATUS", json.encodeToString(ack))))
         }
 
         "STATUS_UPDATE" -> {
@@ -888,6 +912,23 @@ internal suspend fun broadcastUserVisibilityRevoked(
  * 并发安全地向单个 session 发送文本帧。Ktor 的 [WebSocketSession.send] 不保证并发安全，
  * 用 [sessionSendLocks] 中按 session 的互斥锁串行化，避免同收件人的多路 fanout 帧交错。
  */
+internal suspend fun runWithWsSendTimeout(
+    timeoutMs: Long = WS_SEND_TIMEOUT_MS,
+    send: suspend () -> Unit,
+) {
+    try {
+        kotlinx.coroutines.withTimeout(timeoutMs) {
+            send()
+        }
+    } catch (error: kotlinx.coroutines.TimeoutCancellationException) {
+        // A timeout owned by this helper leaves the parent active; cancellation from the
+        // WebSocket/application parent must retain CancellationException semantics so its Job
+        // is not accidentally converted into a dead-session IOException.
+        if (!kotlinx.coroutines.currentCoroutineContext().isActive) throw error
+        throw java.io.IOException("ws send timeout after ${timeoutMs}ms", error)
+    }
+}
+
 private suspend fun sendSafe(session: WebSocketSession, text: String) {
     val lock = sessionSendLocks.compute(session) { _, existing ->
         val current = existing ?: SessionSendLock()
@@ -899,12 +940,8 @@ private suspend fun sendSafe(session: WebSocketSession, text: String) {
             // 9.226：发送限时——卡住的会话（TCP 写缓冲满/弱网）不得拖住整条群扇出链；
             // 超时异常转换为 IOException，让调用方按死连接清理（它不是 CancellationException
             // 子类，本可直穿 catch，但显式转换表明超时语义，且避免将来实现变更时误判）。
-            try {
-                kotlinx.coroutines.withTimeout(WS_SEND_TIMEOUT_MS) {
-                    session.send(Frame.Text(text))
-                }
-            } catch (e: java.util.concurrent.TimeoutException) {
-                throw java.io.IOException("ws send timeout after ${WS_SEND_TIMEOUT_MS}ms", e)
+            runWithWsSendTimeout {
+                session.send(Frame.Text(text))
             }
         }
     } finally {

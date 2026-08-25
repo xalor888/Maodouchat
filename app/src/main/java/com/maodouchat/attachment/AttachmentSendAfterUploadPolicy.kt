@@ -7,8 +7,8 @@ import java.io.IOException
 
 /**
  * Upload can succeed while the following POST/encrypt still fails.
- * Keep READY + SENDING for recoverable cases; only treat a 409 as delivered
- * when the server already stored this client message id.
+ * Keep READY + SENDING for recoverable cases. A failed response is accepted as delivered
+ * only when the server explicitly confirms that this exact message was already accepted.
  */
 object AttachmentSendAfterUploadPolicy {
 
@@ -29,10 +29,8 @@ object AttachmentSendAfterUploadPolicy {
 
     fun isAlreadyAcceptedDuplicate(error: Throwable?): Boolean {
         val err = error as? ApiException ?: return false
-        if (err.kind != ApiFailureKind.HTTP) return false
-        if (isAttachmentNotReadyConflict(err)) return false
-        val msg = err.serverMessage.orEmpty()
-        return err.statusCode == 409 || msg.contains("消息 ID")
+        return err.kind == ApiFailureKind.HTTP &&
+            err.serverCode?.trim()?.equals(MESSAGE_ALREADY_ACCEPTED, ignoreCase = true) == true
     }
 
     fun isRetryable(error: Throwable): Boolean = when (error) {
@@ -72,4 +70,6 @@ object AttachmentSendAfterUploadPolicy {
         }
         return false
     }
+
+    private const val MESSAGE_ALREADY_ACCEPTED = "MESSAGE_ALREADY_ACCEPTED"
 }

@@ -31,6 +31,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -1840,6 +1841,39 @@ class ChatLookupPrivacyRouteTest {
 
 class SenderKeyDistributionRouteTest {
     @Test
+    fun `rest accepts per-device encrypted sender key distribution`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+
+        suspend fun login(email: String): String {
+            val response = client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"$email","password":"password123"}""")
+            }
+            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+            return extractToken(response.bodyAsText())
+        }
+
+        val alexToken = login("alex@example.com")
+        val aliceToken = login("alice@example.com")
+        val created = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":["u2"],"isGroup":true,"groupName":"SK envelope route test"}""")
+        }
+        assertEquals(HttpStatusCode.Created, created.status, created.bodyAsText())
+        val chatId = (Json.parseToJsonElement(created.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        acceptAllGroupInvites(aliceToken)
+
+        val encryptedDistribution = """{"version":3,"algorithm":"signal-multi-device-v1","senderDeviceId":1,"payloadType":"SK_DIST","entries":[{"recipientUserId":"u2","recipientDeviceId":1,"ciphertextType":"prekey","ciphertext":"abc"}]}"""
+        val response = client.post("/api/chats/$chatId/messages") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"chatId":"$chatId","content":${Json.encodeToString(JsonPrimitive(encryptedDistribution))},"type":"SK_DIST","id":"sk_route_1"}""")
+        }
+        assertEquals(HttpStatusCode.Created, response.status, response.bodyAsText())
+    }
+
+    @Test
     fun `sender key coverage is isolated per sender and exposes newly confirmed devices`() = testApplication {
         application { moduleUnderTest(seedDemoUsers = true) }
 
@@ -2812,7 +2846,7 @@ class MessageIdempotencyRouteTest {
 
 class WsMessageIdempotencyRouteTest {
     @Test
-    fun `websocket retry with same id acks sent without a second new message`() = testApplication {
+    fun `websocket retry with same id replays new message and stores one row`() = testApplication {
         application { moduleUnderTest(seedDemoUsers = true) }
 
         suspend fun login(email: String): String {
@@ -2904,8 +2938,83 @@ class WsMessageIdempotencyRouteTest {
                 }
             }
             assertEquals(1, newMessageCount)
-            assertTrue(duplicate.isFailure, "idempotent WS retry must not fan-out a second NEW_MESSAGE")
+            assertEquals(true, duplicate.getOrNull(), "idempotent WS retry must replay NEW_MESSAGE")
         }
+
+        val history = client.get("/api/chats/$chatId/messages") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+        }
+        assertEquals(HttpStatusCode.OK, history.status, history.bodyAsText())
+        val stored = Json.parseToJsonElement(history.bodyAsText()).jsonArray
+            .count { it.jsonObject["id"]?.jsonPrimitive?.content == messageId }
+        assertEquals(1, stored)
+    }
+}
+
+class RestMessageIdempotencyFanoutRouteTest {
+    @Test
+    fun `rest retry with same id replays new message and stores one row`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+
+        suspend fun login(email: String): String {
+            val response = client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"$email","password":"password123"}""")
+            }
+            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+            return extractToken(response.bodyAsText())
+        }
+
+        val alexToken = login("alex@example.com")
+        val aliceToken = login("alice@example.com")
+        val chatResp = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":["u2"],"isGroup":false}""")
+        }
+        assertEquals(HttpStatusCode.Created, chatResp.status, chatResp.bodyAsText())
+        val chatId = Json.parseToJsonElement(chatResp.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        val messageId = "m_rest_idempotent_fanout"
+        val websocketClient = createClient { install(WebSockets) }
+
+        suspend fun send() = client.post("/api/chats/$chatId/messages") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"chatId":"$chatId","content":"cipher-rest","type":"TEXT","id":"$messageId"}""")
+        }
+
+        websocketClient.webSocket(
+            request = {
+                url("/ws")
+                header(HttpHeaders.Authorization, "Bearer $aliceToken")
+            }
+        ) {
+            repeat(2) {
+                val response = send()
+                assertEquals(HttpStatusCode.Created, response.status, response.bodyAsText())
+                val receivedId = withTimeout(5_000L) {
+                    while (true) {
+                        val text = (incoming.receive() as? Frame.Text)?.readText() ?: continue
+                        val outer = Json.parseToJsonElement(text).jsonObject
+                        if (outer["type"]?.jsonPrimitive?.content != "NEW_MESSAGE") continue
+                        val payload = Json.parseToJsonElement(outer["payload"]!!.jsonPrimitive.content).jsonObject
+                        if (payload["id"]?.jsonPrimitive?.content == messageId) {
+                            return@withTimeout messageId
+                        }
+                    }
+                    error("unreachable")
+                }
+                assertEquals(messageId, receivedId)
+            }
+        }
+
+        val history = client.get("/api/chats/$chatId/messages") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+        }
+        assertEquals(HttpStatusCode.OK, history.status, history.bodyAsText())
+        val stored = Json.parseToJsonElement(history.bodyAsText()).jsonArray
+            .count { it.jsonObject["id"]?.jsonPrimitive?.content == messageId }
+        assertEquals(1, stored)
     }
 }
 

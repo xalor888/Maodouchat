@@ -1,5 +1,9 @@
 package com.maodouchat.data.repository
 
+import com.maodouchat.crypto.SignalExchangeException
+import com.maodouchat.crypto.SignalExchangeFailure
+import com.maodouchat.crypto.LocalCryptoNotReadyException
+import com.maodouchat.crypto.SignalStorePersistenceException
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 
@@ -20,22 +24,39 @@ fun shouldMarkOutboxFailed(error: Throwable?): Boolean {
     // 8.41：SenderKey 覆盖的瞬态网络失败（超时/断网）保持 SENDING 待 flusher 重试，
     // 不得标 FAILED——否则群消息在 SK 分发阶段的弱网失败永不自动恢复
     if (error is com.maodouchat.crypto.TransientCoverageException) return false
+    if (error is LocalCryptoNotReadyException) return false
+    // The in-memory ratchet is deliberately quarantined after a Room write failure.
+    // Reinitialization reloads the last durable state, so keep the plaintext outbox pending.
+    if (error is SignalStorePersistenceException) return false
+    if (error is SignalExchangeException) {
+        return when (error.failure) {
+            SignalExchangeFailure.NETWORK,
+            SignalExchangeFailure.TIMEOUT -> false
+            SignalExchangeFailure.HTTP -> isDefinitiveHttpReject(error.statusCode)
+            SignalExchangeFailure.SIGNED_PREKEY_MISSING,
+            SignalExchangeFailure.EMPTY_RESPONSE,
+            SignalExchangeFailure.INVALID_RESPONSE,
+            SignalExchangeFailure.UNEXPECTED -> true
+        }
+    }
     if (error !is ApiException) return true
     return when (error.kind) {
-        ApiFailureKind.HTTP -> {
-            val code = error.statusCode ?: return true
-            // 409 duplicate id is treated as success by flush; remaining 4xx are business rejects.
-            // 408/5xx stay SENDING for a later flush.
-            // 8.45：429 限流保持 SENDING 交给 flusher 退避重试——与 delete/revoke 的
-            // isAmbiguousTransportFailure（429 视为请求未应用的模糊失败）口径一致；
-            // 否则用户在 60/min 限流下频繁看到发送失败并手动重试（重试又 429）。
-            code in 400..499 && code != 408 && code != 409 && code != 429
-        }
+        ApiFailureKind.HTTP -> isDefinitiveHttpReject(error.statusCode)
         ApiFailureKind.INVALID_RESPONSE,
         ApiFailureKind.UNEXPECTED -> true
         ApiFailureKind.NETWORK,
         ApiFailureKind.TIMEOUT -> false
     }
+}
+
+private fun isDefinitiveHttpReject(statusCode: Int?): Boolean {
+    val code = statusCode ?: return true
+    // A 409 is a definitive business conflict unless the caller has an explicit, stable
+    // idempotency-accepted code. The text flusher handles that narrow exception before this
+    // policy is reached; never infer delivery from the HTTP status or localized message alone.
+    // Timeout, throttling and 5xx remain pending because transport/key-exchange failures can
+    // recover without user intervention.
+    return code in 400..499 && code != 408 && code != 429
 }
 
 /**

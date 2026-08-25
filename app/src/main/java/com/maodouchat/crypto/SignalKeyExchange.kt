@@ -25,6 +25,8 @@ class SignalExchangeException(
     val failure: SignalExchangeFailure,
     val statusCode: Int? = null,
     val serverMessage: String? = null,
+    /** Stable machine-readable code from the API (for example DEVICE_ID_CONFLICT). */
+    val serverCode: String? = null,
     cause: Throwable? = null
 ) : Exception(serverMessage, cause)
 
@@ -105,7 +107,7 @@ object SignalKeyExchange {
         )
     }
 
-    private fun Throwable.toExchangeException(): SignalExchangeException = when (this) {
+    internal fun Throwable.toExchangeException(): SignalExchangeException = when (this) {
         is SignalExchangeException -> this
         is ApiException -> SignalExchangeException(
             failure = when (kind) {
@@ -117,6 +119,7 @@ object SignalKeyExchange {
             },
             statusCode = statusCode,
             serverMessage = serverMessage,
+            serverCode = serverCode,
             cause = this
         )
         is java.net.SocketTimeoutException -> SignalExchangeException(SignalExchangeFailure.TIMEOUT, cause = this)
@@ -125,6 +128,9 @@ object SignalKeyExchange {
         is IllegalArgumentException -> SignalExchangeException(SignalExchangeFailure.INVALID_RESPONSE, cause = this)
         else -> SignalExchangeException(SignalExchangeFailure.UNEXPECTED, cause = this)
     }
+
+    /** Exposed to crypto policy tests without making the transport mapper public API. */
+    internal fun mapFailure(error: Throwable): SignalExchangeException = error.toExchangeException()
 
     private fun <T> Result<T>.mapApiFailure(): Result<T> =
         fold(
@@ -244,6 +250,47 @@ object SignalKeyExchange {
                 }
             }
             .mapApiFailure()
+
+    /** Only an absent multi-device endpoint may fall back to the legacy single-bundle API. */
+    internal fun shouldUseLegacyBundleEndpoint(error: Throwable): Boolean {
+        val exchange = error.toExchangeException()
+        return exchange.failure == SignalExchangeFailure.HTTP && exchange.statusCode == 404
+    }
+
+    /**
+     * Discover confirmed devices on current servers while retaining interoperability with a
+     * pre-multi-device server. Transport/auth failures remain fatal; treating them as an empty
+     * device set would incorrectly turn a retryable outage into a permanent no-device failure.
+     */
+    suspend fun fetchCompatibleDevicePreKeyBundles(
+        token: String,
+        targetUserId: String,
+    ): Result<List<DevicePreKeyBundleResponse>> {
+        val current = fetchDevicePreKeyBundles(token, targetUserId)
+        val currentBundles = current.getOrNull()
+        // A successful empty response is authoritative: the peer currently has no confirmed
+        // devices. Only an explicit endpoint-not-found response identifies a legacy server.
+        if (currentBundles != null) return Result.success(currentBundles)
+        val currentError = current.exceptionOrNull()
+        if (currentError != null && !shouldUseLegacyBundleEndpoint(currentError)) {
+            return Result.failure(currentError)
+        }
+        return fetchPreKeyBundle(token, targetUserId).map { legacy ->
+            listOf(
+                DevicePreKeyBundleResponse(
+                    userId = targetUserId,
+                    deviceId = legacy.deviceId,
+                    registrationId = legacy.registrationId,
+                    identityKey = legacy.identityKey,
+                    signedPreKeyId = legacy.signedPreKeyId,
+                    signedPreKey = legacy.signedPreKey,
+                    signedPreKeySignature = legacy.signedPreKeySignature,
+                    preKeyId = legacy.preKeyId,
+                    preKey = legacy.preKey,
+                )
+            )
+        }
+    }
 
     private fun defaultDeviceName(): String {
         val manufacturer = Build.MANUFACTURER.orEmpty().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }

@@ -95,15 +95,26 @@ object AttachmentTransferFinalizer {
         var sendAttempted = false  // BUG 1.2: 跟踪 sendMessage 是否已成功
         var acceptedMessage: Message? = null
         return try {
-            if (!app.signalProtocol.isInitializedFor(expectedOwnerUserId)) {
-                check(app.signalProtocol.initialize(sessionToken, expectedOwnerUserId)) { "signal_initialization_failed" }
-            }
-            ensureSessionActive(tokenManager, expectedOwnerUserId)
             // Prefer local chat (offline + cheap peer resolve); network list only if cache miss.
             val chat = resolveChatForFinalize(app, sessionToken, transfer.chatId)
                 ?: throw IllegalStateException("attachment_chat_missing")
             ensureSessionActive(tokenManager, expectedOwnerUserId)
             check(chat.participants.any { it.id == expectedOwnerUserId }) { "attachment_chat_owner_mismatch" }
+            val directRecipientId = if (chat.isGroup) {
+                null
+            } else {
+                chat.participants.firstOrNull { it.id != expectedOwnerUserId }?.id
+                    ?: throw IllegalStateException("attachment_recipient_missing")
+            }
+            val isBotDirect = directRecipientId?.let {
+                com.maodouchat.bot.BotCommandPolicy.isBotUserId(it)
+            } == true
+            if (!isBotDirect) {
+                check(app.signalProtocol.ensureLocalCryptoReady(sessionToken, expectedOwnerUserId)) {
+                    "signal_local_crypto_not_ready"
+                }
+                ensureSessionActive(tokenManager, expectedOwnerUserId)
+            }
             ApiService.verifyEncryptedAttachmentReady(
                 token = sessionToken,
                 chatId = transfer.chatId,
@@ -132,6 +143,7 @@ object AttachmentTransferFinalizer {
             val liveEpoch = chat.memberRevision.takeIf { it > 0L }
             // 复用 wire 仅当群 epoch 仍匹配且本地仍持有该 epoch 的 distribution
             val reusableWire = transfer.wireContent?.takeIf { wire ->
+                if (isBotDirect) return@takeIf wire == referencePayload
                 if (!chat.isGroup) return@takeIf true
                 val wireEpoch = app.signalProtocol.parseSenderKeyEnvelopeEpoch(wire)
                 wireEpoch != null &&
@@ -151,12 +163,12 @@ object AttachmentTransferFinalizer {
                 ensureSessionActive(tokenManager, expectedOwnerUserId)
                 groupEpochUsed = epoch
                 app.signalProtocol.encryptGroupContentEnvelope(chat.id, referencePayload, messageType.name, epoch).getOrThrow()
+            } else if (isBotDirect) {
+                referencePayload
             } else {
-                val recipientId = chat.participants.firstOrNull { it.id != expectedOwnerUserId }?.id
-                    ?: throw IllegalStateException("attachment_recipient_missing")
                 app.signalProtocol.encryptSyncedContentEnvelope(
                     sessionToken,
-                    recipientId,
+                    requireNotNull(directRecipientId),
                     referencePayload,
                     messageType.name,
                 ).getOrThrow()
@@ -243,7 +255,7 @@ object AttachmentTransferFinalizer {
                 if (AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err)) {
                     throw err ?: IllegalStateException("attachment_not_ready")
                 }
-                // 409 / 消息 ID 已存在：与文本 outbox 一致，按已投递收敛，避免重加密后永久 FAILED。
+                // Only the stable server code proves this idempotent retry was already accepted.
                 val alreadyAccepted = AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(err)
                 if (!alreadyAccepted) throw err ?: IllegalStateException("attachment_send_failed")
             }

@@ -7,6 +7,32 @@ import org.junit.Test
 class SignalSessionPolicyTest {
 
     @Test
+    fun migrationMarkerForcesReestablishmentEvenWhenSessionExists() {
+        assertTrue(
+            SignalSessionPolicy.shouldEnsureSession(
+                hasSession = true,
+                requiresReestablishment = true,
+            )
+        )
+    }
+
+    @Test
+    fun missingSessionRequiresSetupWithoutMigrationMarker() {
+        assertTrue(
+            SignalSessionPolicy.shouldEnsureSession(
+                hasSession = false,
+                requiresReestablishment = false,
+            )
+        )
+        assertFalse(
+            SignalSessionPolicy.shouldEnsureSession(
+                hasSession = true,
+                requiresReestablishment = false,
+            )
+        )
+    }
+
+    @Test
     fun skipsCurrentDeviceSelfFetch() {
         assertFalse(
             SignalSessionPolicy.shouldEstablishSession(
