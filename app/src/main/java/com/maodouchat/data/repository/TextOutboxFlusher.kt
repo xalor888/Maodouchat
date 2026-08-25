@@ -53,15 +53,37 @@ object TextOutboxFlusher {
         val token = tokenManager.getToken().orEmpty()
         val userId = tokenManager.getUserId().orEmpty()
         if (token.isBlank() || userId.isBlank()) return@withLock
+        // The snapshot above can become stale while initialization uploads the key bundle.
+        // Never touch the Signal store with a token/user that has already been replaced.
+        if (!TextOutboxSessionPolicy.mayContinueFlush(
+                userId,
+                tokenManager.getToken().orEmpty(),
+                tokenManager.getUserId().orEmpty()
+            )
+        ) {
+            Log.i(TAG, "outbox flush aborted: session changed before crypto initialization")
+            return@withLock
+        }
 
         val messageRepo = MessageRepository(app.database.messageDao(), app.database)
         val chatRepo = ChatRepository(app.database.chatDao(), app.database.userDao())
         val pending = messageRepo.getSendingOutbox(userId)
-        if (pending.isEmpty()) return@withLock
 
+        // Reconnect calls this even with an empty outbox. Use that network-ready signal to
+        // republish a locally restored/generated key package that previously failed to upload.
         if (!app.signalProtocol.isInitializedFor(userId)) {
-            check(app.signalProtocol.initialize(token, userId)) { "signal_initialization_failed" }
+            app.signalProtocol.initialize(token, userId)
+            if (!TextOutboxSessionPolicy.mayContinueFlush(
+                    userId,
+                    tokenManager.getToken().orEmpty(),
+                    tokenManager.getUserId().orEmpty()
+                )
+            ) {
+                Log.i(TAG, "outbox flush aborted: session changed during crypto initialization")
+                return@withLock
+            }
         }
+        if (pending.isEmpty()) return@withLock
 
         pending.forEach { msg ->
             if (msg.type in attachmentTypes || msg.type !in flusableTypes) return@forEach
@@ -78,6 +100,9 @@ object TextOutboxFlusher {
                 val chatEntity = chatRepo.getChatById(chatId)
                 val isGroup = chatEntity?.isGroup == true
                 val groupEpoch = if (isGroup) {
+                    if (!app.signalProtocol.isLocalCryptoReadyFor(userId)) {
+                        throw com.maodouchat.crypto.LocalCryptoNotReadyException()
+                    }
                     requireGroupEpoch(liveToken, chatRepo, chatId, chatEntity).also { epoch ->
                         app.senderKeyRetryManager.ensureCoverageNow(chatId, epoch).getOrThrow()
                     }
@@ -104,6 +129,9 @@ object TextOutboxFlusher {
                     if (com.maodouchat.bot.BotCommandPolicy.isBotUserId(peerId)) {
                         msg.content
                     } else {
+                        if (!app.signalProtocol.isLocalCryptoReadyFor(userId)) {
+                            throw com.maodouchat.crypto.LocalCryptoNotReadyException()
+                        }
                         when (msg.type) {
                             MessageType.TEXT, MessageType.MARKDOWN ->
                                 app.signalProtocol.encryptSyncedContentEnvelope(liveToken, peerId, msg.content, msg.type.name).getOrThrow()
@@ -122,7 +150,31 @@ object TextOutboxFlusher {
                     return@withLock
                 }
                 val sendToken = postEncryptToken.ifBlank { liveToken }
-                val sendResult = ApiService.sendMessage(sendToken, chatId, wireContent, msg.type.name, msg.id)
+                val sealedCertificate = if (msg.sealedSender) {
+                    com.maodouchat.crypto.SealedSenderSupport
+                        .fetchCertificate(sendToken, userId, app.signalProtocol.getDeviceId())
+                        .getOrElse {
+                            throw com.maodouchat.crypto.LocalCryptoNotReadyException(
+                                "sealed_sender_certificate_unavailable"
+                            )
+                        }
+                        .certificate
+                        .takeIf(String::isNotBlank)
+                        ?: throw com.maodouchat.crypto.LocalCryptoNotReadyException(
+                            "sealed_sender_certificate_unavailable"
+                        )
+                } else {
+                    null
+                }
+                val sendResult = ApiService.sendMessage(
+                    token = sendToken,
+                    chatId = chatId,
+                    content = wireContent,
+                    type = msg.type.name,
+                    id = msg.id,
+                    sealedSender = msg.sealedSender,
+                    sealedSenderCertificate = sealedCertificate,
+                )
                 if (sendResult.isFailure) {
                     val err = sendResult.exceptionOrNull()
                     // 8.45：本地 sessionChangedResult() 的 409（serverCode=SESSION_CHANGED，
@@ -133,9 +185,14 @@ object TextOutboxFlusher {
                         Log.i(TAG, "outbox flush aborted: session changed during send for ${msg.id}")
                         return@withLock
                     }
+                    // Only a dedicated protocol code may acknowledge an already-applied send.
+                    // In particular, MESSAGE_ID_CONFLICT (and a localized "消息 ID 已存在") is a
+                    // real conflict and must flow through shouldMarkOutboxFailed -> FAILED.
+                    // Current servers return exact idempotent retries as 2xx, so this is only a
+                    // compatibility escape hatch for an older explicit acknowledgement code.
                     val alreadyAccepted = err is ApiException &&
                         err.kind == ApiFailureKind.HTTP &&
-                        (err.statusCode == 409 || err.serverMessage?.contains("消息 ID") == true)
+                        err.serverCode?.trim()?.equals("MESSAGE_ALREADY_ACCEPTED", ignoreCase = true) == true
                     if (!alreadyAccepted) throw err ?: IllegalStateException("outbox_send_failed")
                 }
                 if (!TextOutboxSessionPolicy.mayContinueFlush(

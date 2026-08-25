@@ -17,9 +17,10 @@ object InactiveChatSenderKeyIngest {
         chatRepo: ChatRepository,
         messageRepo: MessageRepository,
         message: Message,
+        token: String,
     ) {
         val content = message.content
-        if (content.isBlank()) return
+        if (content.isBlank() || token.isBlank()) return
         if (SessionCipherOccupancy.shouldSkipSessionCipher(message.chatId, message.senderId)) return
         val epoch = chatRepo.getChatById(message.chatId)
             ?.takeIf { it.isGroup && it.memberRevision > 0L }
@@ -30,18 +31,32 @@ object InactiveChatSenderKeyIngest {
                 if (SessionCipherOccupancy.shouldSkipSessionCipher(message.chatId, message.senderId)) return
                 when (val distResult = signal.decryptContentEnvelope(message.senderId, content)) {
                     is SignalProtocol.DecryptResult.Success -> distResult.plaintext
+                    SignalProtocol.DecryptResult.NoSession -> {
+                        val repaired = signal.ensureSessions(token, message.senderId).isSuccess
+                        if (!repaired) {
+                            null
+                        } else {
+                            signal.clearDecryptRetryStateForSender(message.senderId)
+                            when (val retry = signal.decryptContentEnvelope(message.senderId, content)) {
+                                is SignalProtocol.DecryptResult.Success -> retry.plaintext
+                                else -> null
+                            }
+                        }
+                    }
                     else -> null
                 }
             }
             else -> null
         } ?: return
-        signal.processSenderKeyDistributionEnvelope(
+        val outcome = signal.processSenderKeyDistributionEnvelope(
             message.senderId,
             distPlaintext,
             expectedGroupId = message.chatId,
             currentEpoch = epoch
         )
-        messageRepo.insertMessage(message.copy(content = distPlaintext, type = MessageType.SK_DIST))
+        if (outcome != SenderKeyDistOutcome.Failed) {
+            messageRepo.insertMessage(message.copy(content = distPlaintext, type = MessageType.SK_DIST))
+        }
     }
 
     suspend fun retryDecryptTail(

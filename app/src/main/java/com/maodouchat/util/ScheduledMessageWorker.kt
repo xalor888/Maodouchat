@@ -138,12 +138,19 @@ class ScheduledMessageWorker(
             }
             val peerId = item.peerUserId
             if (peerId.isBlank()) return@runCatching false
-            if (!app.signalProtocol.isInitializedFor(ownerUserId)) {
-                check(app.signalProtocol.initialize(liveToken, ownerUserId)) {
-                    "signal_initialization_failed"
+            val wire = if (com.maodouchat.bot.BotCommandPolicy.isBotUserId(peerId)) {
+                item.text
+            } else {
+                check(app.signalProtocol.ensureLocalCryptoReady(liveToken, ownerUserId)) {
+                    "signal_local_crypto_not_ready"
                 }
+                app.signalProtocol.encryptSyncedContentEnvelope(
+                    liveToken,
+                    peerId,
+                    item.text,
+                    optimistic.type.name
+                ).getOrThrow()
             }
-            val wire = app.signalProtocol.encryptSyncedContentEnvelope(liveToken, peerId, item.text, optimistic.type.name).getOrThrow()
             val wireMsg = optimistic.copy(content = wire)
             if (WebSocketClient.sendMessage(wireMsg)) {
                 // WebSocket 直发成功也要本地落库为 SENT，否则消息会一直停在 SENDING。

@@ -80,14 +80,23 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     // 瞬时网络失败：isLoggedIn 仍 true，允许本地恢复，后续 401 再走 tokenExpired
                 }
-                if (!app.signalProtocol.isInitializedFor(userId)) {
-                    try {
+                val localCryptoReady = try {
+                    // Always give a locally-ready but unpublished store one upload-only retry.
+                    if (!app.signalProtocol.isInitializedFor(userId)) {
                         app.signalProtocol.initialize(token, userId)
-                    } catch (error: kotlinx.coroutines.CancellationException) {
-                        throw error
-                    } catch (error: Exception) {
-                        android.util.Log.w("LoginViewModel", "Signal restore for restored session failed", error)
                     }
+                    app.signalProtocol.isLocalStoreReadyFor(userId)
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    android.util.Log.w("LoginViewModel", "Signal restore for restored session failed", error)
+                    false
+                }
+                if (!localCryptoReady) {
+                    _uiState.update {
+                        it.copy(isLoggedIn = false, errorMessage = text(R.string.security_e2ee_not_ready))
+                    }
+                    return@launch
                 }
                 _uiState.update { it.copy(isLoggedIn = true, requiresTotp = false, totpCode = "") }
             }
@@ -339,24 +348,36 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                             return@launch
                         }
                         app.notificationCenter.refreshAccount()
-                        // 密钥初始化失败不阻断登录（Signal 后台密钥上传可以稍后重试），但必须显式记录并提示
-                        withContext(Dispatchers.IO) {
-                            var ready = false
-                            repeat(3) { attempt ->
-                                ready = try {
+                        // Server upload may retry later, but the account-scoped local store must
+                        // be ready before navigation can expose any cipher entry point.
+                        val localCryptoReady = withContext(Dispatchers.IO) {
+                            var localReady = false
+                            for (attempt in 0 until 3) {
+                                try {
                                     app.signalProtocol.initialize(auth.token, auth.userId)
                                 } catch (error: kotlinx.coroutines.CancellationException) {
                                     throw error
                                 } catch (error: Exception) {
                                     android.util.Log.w("LoginViewModel", "Signal initialize attempt ${attempt + 1} failed", error)
-                                    false
                                 }
-                                if (ready || attempt == 2) return@repeat
-                                kotlinx.coroutines.delay(500L * (attempt + 1))
+                                localReady = app.signalProtocol.isLocalStoreReadyFor(auth.userId)
+                                if (app.signalProtocol.isInitializedFor(auth.userId)) break
+                                if (attempt < 2) kotlinx.coroutines.delay(500L * (attempt + 1))
                             }
-                            if (!ready) {
-                                android.util.Log.w("LoginViewModel", "Signal keys initialization/upload failed after retries — continuing login with degraded E2EE")
+                            if (!localReady) {
+                                android.util.Log.w("LoginViewModel", "Signal local key restore failed after retries")
                             }
+                            localReady
+                        }
+                        if (!localCryptoReady) {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isLoggedIn = false,
+                                    errorMessage = text(R.string.security_e2ee_not_ready),
+                                )
+                            }
+                            return@launch
                         }
                         // 8.49 修复：Signal 就绪后置位登录成功——后置步骤（推送注册/提醒调度/
                         // 附件对账）失败不再吞掉 isLoggedIn，把已生效的会话留在登录页

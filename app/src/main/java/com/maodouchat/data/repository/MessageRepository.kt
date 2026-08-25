@@ -167,6 +167,9 @@ class MessageRepository(
         messageDao.updateMessageStatusIfAdvanced(messageId, status.name)
     }
 
+    suspend fun updateMessageSealedSender(messageId: String, sealedSender: Boolean): Boolean =
+        messageDao.updateMessageSealedSender(messageId, sealedSender) > 0
+
     suspend fun persistLocalMediaMeta(localSnapshot: Message): Boolean {
         repeat(3) {
             val currentEntity = messageDao.getMessageById(localSnapshot.id)

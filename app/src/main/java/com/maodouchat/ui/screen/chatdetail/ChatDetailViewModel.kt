@@ -18,6 +18,7 @@ import com.maodouchat.ai.AiRetryPolicy
 import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.attachment.AttachmentTransferSummaryRepository
 import com.maodouchat.crypto.DecryptHistoryPolicy
+import com.maodouchat.crypto.DecryptPlaceholderPolicy
 import com.maodouchat.crypto.GroupSenderKeyRequestPolicy
 import com.maodouchat.crypto.GroupSenderKeyReloginPolicy
 import com.maodouchat.crypto.OwnSentMediaRestorePolicy
@@ -163,8 +164,8 @@ class ChatDetailViewModel(
     private var recordingMeterJob: Job? = null
     internal val signalProtocol: SignalProtocol = app.signalProtocol
     /** Senders that already got one ensureSessions this chat open (history must not storm). */
-    private val attemptedSessionRepairIds = mutableSetOf<String>()
-    private val pendingSessionRepairIds = linkedSetOf<String>()
+    private val attemptedSessionRepairIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val pendingSessionRepairIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     internal val aiMessageResultStore = AiMessageResultStore(app.database)
     internal fun text(id: Int, vararg args: Any): String = getApplication<Application>().getString(id, *args)
 
@@ -597,12 +598,18 @@ class ChatDetailViewModel(
                                         ) {
                                             false
                                         } else if (isSyncDecryptFailurePlaceholder(decrypted)) {
-                                            // 不卡整页：记录第一个未决 EDIT 游标，继续处理后续终态 mutation
-                                            if (pendingEditBlock == null) {
-                                                pendingEditBlock = TokenManager.SyncCursor(mut.createdAt, mut.id)
+                                            if (canAdvancePastSyncDecryptFailure(decrypted)) {
+                                                // Permanently unusable edit content cannot be applied, but
+                                                // must not hold every later delete/revoke mutation forever.
+                                                true
+                                            } else {
+                                                // 不卡整页：记录第一个未决 EDIT 游标，继续处理后续终态 mutation
+                                                if (pendingEditBlock == null) {
+                                                    pendingEditBlock = TokenManager.SyncCursor(mut.createdAt, mut.id)
+                                                }
+                                                // 仍算「本条未应用」：advanced 不越过它，但 forEach 继续
+                                                false
                                             }
-                                            // 仍算「本条未应用」：advanced 不越过它，但 forEach 继续
-                                            false
                                         } else {
                                             _uiState.update { state ->
                                                 state.copy(
@@ -651,6 +658,7 @@ class ChatDetailViewModel(
                 }
                 if (mutations.size < pageLimit || pendingEditBlock != null) break
             }
+            flushDeferredSessionRepairs()
             if (previewDirty &&
                 com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = syncOwnerUserId,
@@ -755,6 +763,13 @@ class ChatDetailViewModel(
                         if (decryptedMessage != null) {
                             // Decrypt-failure placeholders must not advance cursor past recoverable ciphertext
                             if (isSyncDecryptFailurePlaceholder(decryptedMessage)) {
+                                if (canAdvancePastSyncDecryptFailure(decryptedMessage)) {
+                                    // Keep the original wire in Room for diagnostics/recovery, but do
+                                    // not let a terminal/capped envelope block every later message.
+                                    decrypted += decryptedMessage
+                                    advanced = TokenManager.SyncCursor(dto.timestamp, dto.id)
+                                    continue
+                                }
                                 // FutureEpoch 是“本地 epoch 落后”的特殊情况：卡住游标会让后面的
                                 // SKDM 永远处理不到，形成死锁。群 Sender Key 缺失同理：必须推进
                                 // 才能继续安装后续 SKDM，同时向发送方请求重分发。密文原样落库，
@@ -788,7 +803,10 @@ class ChatDetailViewModel(
                 }
                 if (decrypted.isNotEmpty()) {
                     allDecrypted += decrypted
-                    latestPreviewCandidate = decrypted.maxByOrNull { it.timestamp } ?: latestPreviewCandidate
+                    latestPreviewCandidate = decrypted
+                        .filterNot { isSyncDecryptFailurePlaceholder(it) }
+                        .maxByOrNull { it.timestamp }
+                        ?: latestPreviewCandidate
                 }
                 val advancedPast = advanced.timestampMs > cursor.timestampMs ||
                     (advanced.timestampMs == cursor.timestampMs && advanced.messageId > cursor.messageId)
@@ -800,6 +818,7 @@ class ChatDetailViewModel(
                 }
                 if (messages.size < pageLimit || blocked) break
             }
+            flushDeferredSessionRepairs()
             if (allDecrypted.isNotEmpty()) {
                 // 并发 mutation 已删的行不得被本页快照复活
                 val keep = allDecrypted.filterNot { messageMutationTracker.shouldDrop(it.id) }
@@ -1290,6 +1309,23 @@ class ChatDetailViewModel(
                             it.copy(messages = mergeMessages(it.messages, localRecent))
                         }
                     }
+                    val localCryptoReady = try {
+                        signalProtocol.ensureLocalCryptoReady(msgToken, loadOwnerUserId)
+                    } catch (error: kotlinx.coroutines.CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        Log.w("ChatDetailViewModel", "Signal restore before history sync failed", error)
+                        false
+                    }
+                    if (!localCryptoReady) {
+                        _uiState.update {
+                            it.copy(
+                                initialTimelineReady = true,
+                                groupEncryptionWarning = text(R.string.security_e2ee_not_ready)
+                            )
+                        }
+                        return@withContext
+                    }
                     unreadSummaryWindow = ApiService.getUnreadWindow(msgToken, chatId, limit = 36).getOrNull()
                     ApiService.getMessages(msgToken, chatId, limit = HISTORY_PAGE_SIZE)
                         .onSuccess { dtos ->
@@ -1454,7 +1490,7 @@ class ChatDetailViewModel(
                 // 先拉消息再回放 mutation：EDIT 依赖本地原文；并行会因缺消息永久跳过编辑
                 syncMessagesSinceAndThenMutations()
                 // 进会话即冲 SENDING 文本发件箱（不依赖 WS Connected 事件，避免已连接时无重放）
-                withContext(Dispatchers.IO) { flushSendingOutbox() }
+                flushSendingOutboxSafely()
                 refreshPinnedMessages(loadOwnerUserId)
                 if (_uiState.value.chatIsGroup) {
                     refreshMyMemberRole(loadOwnerUserId)
@@ -2253,6 +2289,13 @@ class ChatDetailViewModel(
                             return@collect
                         }
                         val msg = withContext(Dispatchers.IO) { decryptIncomingMessage(event.message.senderId, event.message) } ?: return@collect
+                        // A libsignal callback may have advanced the in-memory ratchet before a
+                        // Room write failed. Do not persist a placeholder or acknowledge delivery
+                        // from that tainted state; backlog sync can retry after reinitialization.
+                        if (!signalProtocol.isLocalCryptoReadyFor(receiveOwnerUserId)) {
+                            Log.w("ChatDetailViewModel", "incoming decrypt deferred: local Signal store unavailable")
+                            return@collect
+                        }
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = receiveOwnerUserId,
                                 liveToken = tokenManager.getToken(),
@@ -2315,7 +2358,8 @@ class ChatDetailViewModel(
                         // 9.146：REVOKED 占位也不回报（回执只对可投递内容有意义）
                         if (withPendingReactions.senderId != currentUserId &&
                             withPendingReactions.type != MessageType.SK_DIST &&
-                            withPendingReactions.type != MessageType.REVOKED
+                            withPendingReactions.type != MessageType.REVOKED &&
+                            !isSyncDecryptFailurePlaceholder(withPendingReactions)
                         ) {
                             WebSocketClient.sendStatusUpdate(withPendingReactions.id, MessageStatus.DELIVERED)
                         }
@@ -2771,7 +2815,7 @@ class ChatDetailViewModel(
                                 } else state
                             }
                             syncMessagesSinceAndThenMutations()
-                            withContext(Dispatchers.IO) { flushSendingOutbox() }
+                            flushSendingOutboxSafely()
                             // 8.45：重连成功时重试此前 markAllAsRead 失败积压的已读回执，
                             // 避免服务端未读长期保留、本地 UI 与服务端不一致
                             retryPendingServerReads()
@@ -2796,23 +2840,47 @@ class ChatDetailViewModel(
                     }
                     is WebSocketEvent.ServerError -> {
                         // 8.63：服务端 WS 明确拒绝（禁言/拉黑/无权限/内容无效/附件未完成/单向广播）。
-                        // 错误帧不含 messageId 无法精确对位——把被拒消息标 FAILED 并提示，
+                        // 新服务端回传 messageId 时精确对位；旧服务端仍回退最新一条在途消息。
                         // 避免被拒消息永久转圈（此前仅靠 REST outbox flush 触发 403 才有反馈）。
                         // 8.45 修复：限流类（频繁/限制/稍后再试）不是永久拒绝——保留 SENDING
                         // 交给 flusher 退避重试，不再误标失败；且只标最新一条在途消息，避免
                         // 一条附件错误把同时发出的其他消息全部误伤为失败。
                         val errText = event.message
                         val lower = errText.lowercase()
-                        val isThrottled = lower.contains("频繁") || lower.contains("限制") ||
-                            lower.contains("稍后再试") || lower.contains("too many")
-                        val isRejection = event.code?.let { it != "MSG_ALREADY_EXISTS" } == true || (
+                        val code = event.code.orEmpty().lowercase()
+                        val normalizedCode = event.code?.trim()?.uppercase(java.util.Locale.ROOT).orEmpty()
+                        val isMessageIdConflict = normalizedCode == "MESSAGE_ID_CONFLICT"
+                        // Do not treat every "限制" as rate limiting: permanent account/chat
+                        // restrictions use wording such as "你已被限制发消息" and must become
+                        // FAILED.  Only explicit retry/rate-limit signals stay SENDING.
+                        val isThrottled = event.retryAfterSeconds != null ||
+                            lower.contains("过于频繁") || lower.contains("稍后再试") ||
+                            lower.contains("too many") || lower.contains("rate limit") ||
+                            lower.contains("rate_limited") || code.contains("rate_limit") ||
+                            code.contains("throttl")
+                        // New servers attach messageId to SEND_MESSAGE errors.  A code without
+                        // that id may belong to signaling/call traffic observed by the same
+                        // collector and must never fail an unrelated outbox row.  Keep the text
+                        // fallback only for legacy, code-less servers.
+                        val hasExplicitMessageId = !event.messageId.isNullOrBlank()
+                        val isLegacyTextRejection = event.code.isNullOrBlank() && (
                             lower.contains("禁言") || lower.contains("屏蔽") || lower.contains("无权") ||
                                 lower.contains("无效") || lower.contains("尚未上传完成") || lower.contains("单向广播")
                             )
-                        if (isRejection && !lower.contains("id 已存在") && !isThrottled) {
-                            markWsRejectedSending(errText)
-                        } else {
-                            Log.w("ChatDetailViewModel", "WS server error: ${event.code.orEmpty()} $errText")
+                        // A code-less legacy duplicate cannot be mapped safely and is therefore
+                        // ignored. Once the server supplies the stable conflict code, however,
+                        // the explicit messageId is authoritative and must become FAILED.
+                        val isLegacyDuplicateText = event.code.isNullOrBlank() && lower.contains("id 已存在")
+                        val isRejection = hasExplicitMessageId || isLegacyTextRejection
+                        when {
+                            isMessageIdConflict && hasExplicitMessageId ->
+                                markWsRejectedSending(errText, event.messageId)
+                            isMessageIdConflict ->
+                                Log.w("ChatDetailViewModel", "WS message-id conflict missing messageId: $errText")
+                            isRejection && !isLegacyDuplicateText && !isThrottled ->
+                                markWsRejectedSending(errText, event.messageId)
+                            else ->
+                                Log.w("ChatDetailViewModel", "WS server error: ${event.code.orEmpty()} $errText")
                         }
                     }
                     else -> Unit
@@ -2822,14 +2890,19 @@ class ChatDetailViewModel(
     }
 
     /**
-     * 8.63：服务端 WS 拒绝（禁言/拉黑/无权限/内容无效/附件未完成）——错误帧无 messageId，
-     * 只把「最新一条」在途 SENDING 消息标 FAILED 并提示（8.45：不一次误伤全部在途消息，
-     * 避免一条附件错误把同时发出的其他消息全部标失败）。
+     * Server-provided message ids are authoritative. Only legacy errors without an id use the
+     * latest-SENDING fallback; an unknown explicit id must never fail an unrelated message.
      */
-    private suspend fun markWsRejectedSending(message: String) {
+    private suspend fun markWsRejectedSending(message: String, rejectedMessageId: String?) {
         val allSending = _uiState.value.messages.filter { it.status == MessageStatus.SENDING }.map { it.id }
         if (allSending.isEmpty()) return
-        val ids = allSending.takeLast(1)
+        val preciseId = rejectedMessageId?.takeIf { it.isNotBlank() }
+        val ids = if (preciseId != null) {
+            allSending.filter { it == preciseId }
+        } else {
+            allSending.takeLast(1)
+        }
+        if (ids.isEmpty()) return
         val banner = message.take(120).ifBlank { text(R.string.chat_send_failed) }
         withContext(Dispatchers.IO) {
             ids.forEach { id -> messageRepo.updateMessageStatus(id, MessageStatus.FAILED) }
@@ -4124,17 +4197,28 @@ class ChatDetailViewModel(
                         throw kotlinx.coroutines.CancellationException("retry_session_changed")
                     }
                     val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                    val effectiveChatId = resolveOutgoingChatId().getOrThrow()
+                    val outgoingChat = resolveOutgoingChat().getOrThrow()
+                    val effectiveChatId = outgoingChat.chatId
+                    val peerId = outgoingChat.peerId.orEmpty()
+                    val isBotDirect = !outgoingChat.chat.isGroup &&
+                        com.maodouchat.bot.BotCommandPolicy.isBotUserId(peerId)
                     when (failedMsg.type) {
                         MessageType.TEXT, MessageType.MARKDOWN -> {
                             val text = failedMsg.content
-                            val groupEpoch = if (_uiState.value.chat?.isGroup == true) {
+                            val groupEpoch = if (outgoingChat.chat.isGroup) {
                                 requireGroupEpoch(effectiveChatId).also { ensureGroupSenderKeyDistributed(effectiveChatId, it) }
                             } else null
-                            val wireContent = if (groupEpoch != null) {
-                                signalProtocol.encryptGroupTextEnvelope(effectiveChatId, text, failedMsg.type.name, groupEpoch).getOrThrow()
-                            } else {
-                                signalProtocol.encryptSyncedContentEnvelope(liveToken, _uiState.value.contact.id, text, failedMsg.type.name).getOrThrow()
+                            val wireContent = when {
+                                groupEpoch != null -> signalProtocol.encryptGroupTextEnvelope(
+                                    effectiveChatId, text, failedMsg.type.name, groupEpoch
+                                ).getOrThrow()
+                                isBotDirect -> text
+                                else -> signalProtocol.encryptSyncedContentEnvelope(
+                                    liveToken,
+                                    requireNotNull(outgoingChat.peerId),
+                                    text,
+                                    failedMsg.type.name
+                                ).getOrThrow()
                             }
                             val textViaRest = deliverOutgoing(
                                 message = failedMsg.copy(content = wireContent, chatId = effectiveChatId),
@@ -4147,13 +4231,20 @@ class ChatDetailViewModel(
                             effectiveChatId to textViaRest
                         }
                         MessageType.STICKER, MessageType.LOCATION -> {
-                            val groupEpoch = if (_uiState.value.chat?.isGroup == true) {
+                            val groupEpoch = if (outgoingChat.chat.isGroup) {
                                 requireGroupEpoch(effectiveChatId).also { ensureGroupSenderKeyDistributed(effectiveChatId, it) }
                             } else null
-                            val wireContent = if (groupEpoch != null) {
-                                signalProtocol.encryptGroupContentEnvelope(effectiveChatId, failedMsg.content, failedMsg.type.name, groupEpoch).getOrThrow()
-                            } else {
-                                signalProtocol.encryptSyncedContentEnvelope(liveToken, _uiState.value.contact.id, failedMsg.content, failedMsg.type.name).getOrThrow()
+                            val wireContent = when {
+                                groupEpoch != null -> signalProtocol.encryptGroupContentEnvelope(
+                                    effectiveChatId, failedMsg.content, failedMsg.type.name, groupEpoch
+                                ).getOrThrow()
+                                isBotDirect -> failedMsg.content
+                                else -> signalProtocol.encryptSyncedContentEnvelope(
+                                    liveToken,
+                                    requireNotNull(outgoingChat.peerId),
+                                    failedMsg.content,
+                                    failedMsg.type.name
+                                ).getOrThrow()
                             }
                             val inlineViaRest = deliverOutgoing(
                                 message = failedMsg.copy(content = wireContent, chatId = effectiveChatId),
@@ -4603,8 +4694,17 @@ class ChatDetailViewModel(
                             ensureGroupSenderKeyDistributed(original.chatId, epoch)
                             signalProtocol.encryptGroupTextEnvelope(original.chatId, optimistic.content, original.type.name, epoch).getOrThrow()
                         } else {
-                            signalProtocol.encryptSyncedContentEnvelope(liveToken, _uiState.value.contact.id, optimistic.content, original.type.name).getOrNull()
-                                ?: throw IllegalStateException(text(R.string.chat_encryption_failed))
+                            val recipientId = _uiState.value.contact.id
+                            if (com.maodouchat.bot.BotCommandPolicy.isBotUserId(recipientId)) {
+                                optimistic.content
+                            } else {
+                                signalProtocol.encryptSyncedContentEnvelope(
+                                    liveToken,
+                                    recipientId,
+                                    optimistic.content,
+                                    original.type.name
+                                ).getOrNull() ?: throw IllegalStateException(text(R.string.chat_encryption_failed))
+                            }
                         }
                         ApiService.editMessage(liveToken, original.chatId, messageId, wireContent).getOrThrow()
                         Result.success(Unit)
@@ -5981,7 +6081,16 @@ class ChatDetailViewModel(
         } else {
             val recipient = targetChat.participants.firstOrNull { it.id != currentUserId }
                 ?: throw IllegalStateException(text(R.string.chat_forward_recipient_missing))
-            val wire = signalProtocol.encryptSyncedContentEnvelope(token, recipient.id, wireContent, message.type.name).getOrThrow()
+            val wire = if (com.maodouchat.bot.BotCommandPolicy.isBotUserId(recipient.id)) {
+                wireContent
+            } else {
+                signalProtocol.encryptSyncedContentEnvelope(
+                    token,
+                    recipient.id,
+                    wireContent,
+                    message.type.name
+                ).getOrThrow()
+            }
             wire to null
         }
     }
@@ -6995,12 +7104,17 @@ fun sendImage(uri: Uri) {
                         epoch
                     ).getOrThrow()
                 } else {
-                    signalProtocol.encryptSyncedContentEnvelope(
-                        liveToken,
-                        _uiState.value.contact.id,
-                        content,
-                        original.type.name
-                    ).getOrThrow()
+                    val recipientId = _uiState.value.contact.id
+                    if (com.maodouchat.bot.BotCommandPolicy.isBotUserId(recipientId)) {
+                        content
+                    } else {
+                        signalProtocol.encryptSyncedContentEnvelope(
+                            liveToken,
+                            recipientId,
+                            content,
+                            original.type.name
+                        ).getOrThrow()
+                    }
                 }
                 var attempt = 0
                 var editResult: Result<Unit>
@@ -7121,11 +7235,19 @@ fun sendCurrentLocation() {
         _uiState.update { it.copy(messages = mergeMessages(it.messages, listOf(optimistic)), isSending = true) }
         viewModelScope.launch {
             var initialSendSucceeded = false
+            // A new direct chat has no id until resolveOutgoingChat() completes. Keep the
+            // resolved id in the durable copy used by every failure/retry path.
+            var durableOptimistic = optimistic
+            var durableOptimisticPersisted = false
             try {
-                // 与文本一致：网络前落库，避免杀进程丢 sticker/location
-                withContext(Dispatchers.IO) {
-                    messageRepo.insertMessage(optimistic)
-                    indexSearchableMessage(optimistic)
+                // Existing chats remain crash-durable before network/session work. New
+                // direct chats wait for the authoritative id before touching the outbox.
+                if (durableOptimistic.chatId.isNotBlank()) {
+                    withContext(Dispatchers.IO) {
+                        messageRepo.insertMessage(durableOptimistic)
+                        indexSearchableMessage(durableOptimistic)
+                    }
+                    durableOptimisticPersisted = true
                 }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = sendOwnerUserId,
@@ -7145,17 +7267,37 @@ fun sendCurrentLocation() {
                         throw kotlinx.coroutines.CancellationException("inline_send_session_changed")
                     }
                     val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                    val effectiveChatId = resolveOutgoingChatId().getOrThrow()
-                    val groupEpoch = if (_uiState.value.chat?.isGroup == true) {
+                    val outgoingChat = resolveOutgoingChat().getOrThrow()
+                    val effectiveChatId = outgoingChat.chatId
+                    val resolvedOptimistic = optimistic.copy(chatId = effectiveChatId)
+                    val mustPersistResolved = !durableOptimisticPersisted ||
+                        durableOptimistic.chatId != resolvedOptimistic.chatId
+                    durableOptimistic = resolvedOptimistic
+                    if (mustPersistResolved) {
+                        messageRepo.insertMessage(durableOptimistic)
+                        indexSearchableMessage(durableOptimistic)
+                        durableOptimisticPersisted = true
+                    }
+                    val peerId = outgoingChat.peerId.orEmpty()
+                    val isBotDirect = !outgoingChat.chat.isGroup &&
+                        com.maodouchat.bot.BotCommandPolicy.isBotUserId(peerId)
+                    val groupEpoch = if (outgoingChat.chat.isGroup) {
                         requireGroupEpoch(effectiveChatId).also { ensureGroupSenderKeyDistributed(effectiveChatId, it) }
                     } else null
-                    val wireContent = if (groupEpoch != null) {
-                        signalProtocol.encryptGroupContentEnvelope(effectiveChatId, content, type.name, groupEpoch).getOrThrow()
-                    } else {
-                        signalProtocol.encryptSyncedContentEnvelope(liveToken, _uiState.value.contact.id, content, type.name).getOrThrow()
+                    val wireContent = when {
+                        groupEpoch != null -> signalProtocol.encryptGroupContentEnvelope(
+                            effectiveChatId, content, type.name, groupEpoch
+                        ).getOrThrow()
+                        isBotDirect -> content
+                        else -> signalProtocol.encryptSyncedContentEnvelope(
+                            liveToken,
+                            requireNotNull(outgoingChat.peerId),
+                            content,
+                            type.name
+                        ).getOrThrow()
                     }
                     val delivered = deliverOutgoing(
-                        message = optimistic.copy(chatId = effectiveChatId, content = wireContent),
+                        message = durableOptimistic.copy(content = wireContent),
                         wireContent = wireContent,
                         typeName = type.name,
                         messageId = msgId,
@@ -7174,8 +7316,8 @@ fun sendCurrentLocation() {
                 }
                 val finalStatus = if (viaRest) MessageStatus.SENT else MessageStatus.SENDING
                 val latest = _uiState.value.messages.firstOrNull { it.id == msgId }
-                    ?.takeIf { it.senderId == optimistic.senderId && it.type == optimistic.type }
-                    ?: optimistic
+                    ?.takeIf { it.senderId == durableOptimistic.senderId && it.type == durableOptimistic.type }
+                    ?: durableOptimistic
                 val finalMessage = latest.copy(chatId = resolvedChatId, status = finalStatus)
                 _uiState.update { state ->
                     state.copy(
@@ -7216,10 +7358,14 @@ fun sendCurrentLocation() {
                     _uiState.update { it.copy(isSending = false) }
                     return@launch
                 }
-                val terminalFailed = shouldMarkOutboxFailed(error)
+                // Without a resolved chat id there is no durable retry target. Keep the
+                // failed bubble in this UI for manual retry, but never create an orphan
+                // SENDING row that TextOutboxFlusher cannot route.
+                val hasDurableChat = durableOptimistic.chatId.isNotBlank()
+                val terminalFailed = !hasDurableChat || shouldMarkOutboxFailed(error)
                 val latest = _uiState.value.messages.firstOrNull { it.id == msgId }
-                    ?.takeIf { it.senderId == optimistic.senderId && it.type == optimistic.type }
-                    ?: optimistic
+                    ?.takeIf { it.senderId == durableOptimistic.senderId && it.type == durableOptimistic.type }
+                    ?: durableOptimistic
                 val next = latest.copy(
                     status = if (terminalFailed) MessageStatus.FAILED else MessageStatus.SENDING
                 )
@@ -7231,7 +7377,8 @@ fun sendCurrentLocation() {
                 }
                 withContext(Dispatchers.IO) {
                     try {
-                        if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        if (next.chatId.isNotBlank() &&
+                            com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = sendOwnerUserId,
                                 liveToken = tokenManager.getToken(),
                                 liveUserId = tokenManager.getUserId(),
@@ -7790,50 +7937,148 @@ fun sendCurrentLocation() {
 
     private val recipientId: String get() = _uiState.value.contact.id
 
-    private suspend fun resolveOutgoingChatId(): Result<String> {
-        if (_uiState.value.chat?.isGroup == true) return Result.success(activeChatId)
-        val ownerUserId = currentUserId
-        if (token.isBlank() || ownerUserId.isBlank()) return Result.failure(IllegalStateException(text(R.string.chat_not_logged_in)))
-        if (recipientId.isBlank()) return Result.failure(IllegalStateException(text(R.string.chat_recipient_not_ready)))
-        if (recipientId == ownerUserId) return Result.failure(IllegalStateException(text(R.string.chat_cannot_send_self)))
-        if (activeChatId.isNotBlank() && _uiState.value.chat != null) return Result.success(activeChatId)
-        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
-        ) {
-            return Result.failure(IllegalStateException(text(R.string.error_session_expired)))
-        }
-        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-        val createType = if (_uiState.value.chat?.isSecret == true || _uiState.value.isSecretChat == true) {
-            com.maodouchat.security.SecretChatPolicy.CHAT_TYPE
-        } else {
-            null
-        }
-        return ApiService.createChat(
-            liveToken,
-            listOf(recipientId),
-            isGroup = false,
-            groupName = null,
-            chatType = createType
-        ).map { chatDto ->
+    private data class ResolvedOutgoingChat(
+        val chatId: String,
+        val chat: Chat,
+        val peerId: String?
+    )
+
+    /**
+     * Resolve both the server chat id and its encryption mode. A known id is authoritative:
+     * hydrate its metadata from Room/API instead of creating a direct chat from a temporarily
+     * blank contact or treating an as-yet-unpainted group as 1:1.
+     */
+    private suspend fun resolveOutgoingChatId(): Result<String> =
+        resolveOutgoingChat().map { it.chatId }
+
+    private suspend fun resolveOutgoingChat(): Result<ResolvedOutgoingChat> {
+        try {
+            val ownerUserId = currentUserId
+            if (token.isBlank() || ownerUserId.isBlank()) {
+                return Result.failure(IllegalStateException(text(R.string.chat_not_logged_in)))
+            }
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
                     liveToken = tokenManager.getToken(),
                     liveUserId = tokenManager.getUserId(),
                 )
             ) {
-                throw IllegalStateException(text(R.string.error_session_expired))
+                throw kotlinx.coroutines.CancellationException("resolve_outgoing_session_changed")
             }
-            activeChatId = chatDto.id
-            com.maodouchat.crypto.SessionCipherOccupancy.occupy(
-                chatDto.id,
-                _uiState.value.contact.id.takeIf { it.isNotBlank() && it != "me" },
-                updatePeer = true
+
+            val state = _uiState.value
+            val knownChatId = OutgoingChatResolutionPolicy.knownChatId(
+                activeChatId = activeChatId,
+                constructorChatId = chatId,
+                loadedChatId = state.chat?.id
             )
-            chatDto.id
+            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+
+            if (knownChatId.isNotBlank()) {
+                val painted = state.chat?.takeIf { it.id == knownChatId }
+                if (painted != null && outgoingMetadataReady(painted, ownerUserId, state.contact.id)) {
+                    return Result.success(hydrateOutgoingChat(painted, ownerUserId, liveToken))
+                }
+
+                val cached = chatRepo.getChatById(knownChatId)
+                if (cached != null && outgoingMetadataReady(cached, ownerUserId, state.contact.id)) {
+                    return Result.success(hydrateOutgoingChat(cached, ownerUserId, liveToken))
+                }
+
+                val liveChats = ApiService.getChats(liveToken).getOrThrow()
+                val resolved = liveChats.firstOrNull { it.id == knownChatId }
+                    ?.toDomainChat()
+                    ?: throw IllegalStateException(text(R.string.chat_recipient_not_ready))
+                chatRepo.cacheChats(listOf(resolved))
+                return Result.success(hydrateOutgoingChat(resolved, ownerUserId, liveToken))
+            }
+
+            val directRecipientId = state.contact.id
+            if (directRecipientId.isBlank()) {
+                return Result.failure(IllegalStateException(text(R.string.chat_recipient_not_ready)))
+            }
+            if (directRecipientId == ownerUserId || directRecipientId == "me") {
+                return Result.failure(IllegalStateException(text(R.string.chat_cannot_send_self)))
+            }
+            if (!com.maodouchat.bot.BotCommandPolicy.isBotUserId(directRecipientId) &&
+                !signalProtocol.ensureLocalCryptoReady(liveToken, ownerUserId)
+            ) {
+                throw com.maodouchat.crypto.LocalCryptoNotReadyException()
+            }
+            val createType = if (state.chat?.isSecret == true || state.isSecretChat == true) {
+                com.maodouchat.security.SecretChatPolicy.CHAT_TYPE
+            } else {
+                null
+            }
+            val created = ApiService.createChat(
+                liveToken,
+                listOf(directRecipientId),
+                isGroup = false,
+                groupName = null,
+                chatType = createType
+            ).getOrThrow().toDomainChat()
+            chatRepo.cacheChats(listOf(created))
+            return Result.success(hydrateOutgoingChat(created, ownerUserId, liveToken))
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            return Result.failure(error)
         }
+    }
+
+    private fun outgoingMetadataReady(chat: Chat, ownerUserId: String, activeContactId: String?): Boolean =
+        chat.isGroup || OutgoingChatResolutionPolicy.directPeerId(chat, ownerUserId, activeContactId) != null
+
+    private suspend fun hydrateOutgoingChat(
+        chat: Chat,
+        ownerUserId: String,
+        liveToken: String
+    ): ResolvedOutgoingChat {
+        val localized = chat.copy(participants = chat.participants.map { withLocalNickname(it) })
+        val previousContact = _uiState.value.contact
+        val peerId = OutgoingChatResolutionPolicy.directPeerId(localized, ownerUserId, previousContact.id)
+        if (!localized.isGroup && peerId == null) {
+            throw IllegalStateException(text(R.string.chat_recipient_not_ready))
+        }
+        val requiresCrypto = localized.isGroup ||
+            !com.maodouchat.bot.BotCommandPolicy.isBotUserId(peerId.orEmpty())
+        if (requiresCrypto && !signalProtocol.ensureLocalCryptoReady(liveToken, ownerUserId)) {
+            throw com.maodouchat.crypto.LocalCryptoNotReadyException()
+        }
+        val contact = if (localized.isGroup) {
+            User(
+                id = localized.id,
+                name = localized.groupName ?: text(R.string.chat_group),
+                avatar = localized.groupAvatar,
+                status = quantityText(
+                    R.plurals.chat_members_count,
+                    localized.participants.size,
+                    localized.participants.size
+                )
+            )
+        } else {
+            localized.participants.firstOrNull { it.id == peerId }
+                ?.takeUnless { it.name.isBlank() && previousContact.id == peerId }
+                ?: previousContact.takeIf { it.id == peerId }
+                ?: User(id = peerId.orEmpty(), name = "")
+        }
+
+        activeChatId = localized.id
+        _uiState.update {
+            it.copy(
+                chat = localized,
+                chatIsGroup = localized.isGroup,
+                isSecretChat = localized.isSecret,
+                contact = contact,
+                disappearingMessageSeconds = if (localized.isGroup) 0 else localized.disappearingMessageSeconds
+            )
+        }
+        com.maodouchat.crypto.SessionCipherOccupancy.occupy(
+            localized.id,
+            peerUserId = peerId,
+            updatePeer = true
+        )
+        return ResolvedOutgoingChat(localized.id, localized, peerId)
     }
 
     /**
@@ -7868,7 +8113,12 @@ fun sendCurrentLocation() {
         } catch (_: Exception) {
             false
         }
-        val wantSealed = _uiState.value.isSecretChat == true || secretChat
+        // The first accepted request fixes sealedSender for this client message id. Read the
+        // durable row as well as the current UI snapshot so a lost WS ACK/manual retry cannot
+        // silently flip true -> false when the certificate cache is temporarily unavailable.
+        val mustRemainSealed = message.sealedSender ||
+            messageRepo.getMessageById(messageId)?.sealedSender == true
+        val wantSealed = mustRemainSealed || _uiState.value.isSecretChat == true || secretChat
         val sealedOwnerDeviceId = signalProtocol.getDeviceId()
         val sealedCert = if (wantSealed && liveToken.isNotBlank()) {
             withContext(Dispatchers.IO) {
@@ -7879,6 +8129,11 @@ fun sendCurrentLocation() {
             }
         } else null
         val sealed = wantSealed && !sealedCert.isNullOrBlank()
+        if (mustRemainSealed && !sealed) {
+            throw com.maodouchat.crypto.LocalCryptoNotReadyException(
+                "sealed_sender_certificate_unavailable"
+            )
+        }
         if (wantSealed && !sealed) {
             // Secret chat preferred sealed metadata for push/webhook redaction; continue send with E2EE body.
             _uiState.update {
@@ -7900,12 +8155,24 @@ fun sendCurrentLocation() {
                 )
             }
         }
+        // Commit the privacy bit before the transport can commit the server row. The message
+        // body stays plaintext in Room; only the immutable delivery flag is updated here.
+        if (sealed && !messageRepo.updateMessageSealedSender(messageId, true)) {
+            throw com.maodouchat.crypto.LocalCryptoNotReadyException(
+                "sealed_sender_outbox_not_persisted"
+            )
+        }
         val outgoing = message.copy(content = wireContent, chatId = chatId, sealedSender = sealed)
         if (WebSocketClient.isConnected()) {
-            if (!WebSocketClient.sendMessage(outgoing, sealedSenderCertificate = sealedCert, silent = silent)) {
-                throw IllegalStateException(text(R.string.chat_ws_send_failed))
+            val wsAccepted = try {
+                WebSocketClient.sendMessage(outgoing, sealedSenderCertificate = sealedCert, silent = silent)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w("ChatDetailViewModel", "WebSocket send raced with disconnect; falling back to REST", error)
+                false
             }
-            return false
+            if (wsAccepted) return false
         }
         ApiService.sendMessage(
             token = liveToken,
@@ -7938,25 +8205,46 @@ fun sendCurrentLocation() {
         ) {
             return
         }
-        com.maodouchat.data.repository.TextOutboxFlusher.flush(
-            app = app,
-            activeChatId = activeChatId,
-            activeContactId = _uiState.value.contact.id
-        ) { updated ->
-            // Outbox can finish after logout/switch — do not paint status onto next owner UI.
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = flushOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) {
-                return@flush
-            }
-            if (updated.chatId == activeChatId || activeChatId.isBlank()) {
-                _uiState.update { st ->
-                    st.copy(messages = st.messages.map { m -> if (m.id == updated.id) updated else m })
+        try {
+            com.maodouchat.data.repository.TextOutboxFlusher.flush(
+                app = app,
+                activeChatId = activeChatId,
+                activeContactId = _uiState.value.contact.id
+            ) { updated ->
+                // Outbox can finish after logout/switch — do not paint status onto next owner UI.
+                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = flushOwnerUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = tokenManager.getUserId(),
+                    )
+                ) {
+                    return@flush
+                }
+                if (updated.chatId == activeChatId || activeChatId.isBlank()) {
+                    _uiState.update { st ->
+                        st.copy(messages = st.messages.map { m -> if (m.id == updated.id) updated else m })
+                    }
                 }
             }
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            // Local crypto restore and transport failures are retried on the next reconnect
+            // or background flush; they must not cancel loadChat/WS event collection.
+            Log.w("ChatDetailViewModel", "text outbox flush deferred: ${error.message}", error)
+        }
+    }
+
+    /** Outbox readiness failures (for example a pending Signal device) must not cancel the
+     * chat loader or the long-lived WebSocket event collector. The shared ChatList/worker paths
+     * will retry when the device/network becomes usable again. */
+    private suspend fun flushSendingOutboxSafely() {
+        try {
+            withContext(Dispatchers.IO) { flushSendingOutbox() }
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Log.w("ChatDetailViewModel", "outbox flush deferred", error)
         }
     }
 
@@ -8048,11 +8336,22 @@ fun sendCurrentLocation() {
             )
         }
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                messageRepo.insertMessage(optimistic)
-                indexSearchableMessage(optimistic)
-            }
+            // The constructor chat id can be blank for a new direct conversation. Keep a
+            // durable copy whose id is replaced as soon as resolveOutgoingChat() creates/
+            // resolves the real server chat; every failure path must retain that id so the
+            // background outbox can retry after this ViewModel is gone.
+            var durableOptimistic = optimistic
+            var durableOptimisticPersisted = false
             try {
+                // Existing chats stay crash-durable before any network/session work. A new
+                // direct chat must wait until the server assigns its authoritative id.
+                if (durableOptimistic.chatId.isNotBlank()) {
+                    withContext(Dispatchers.IO) {
+                        messageRepo.insertMessage(durableOptimistic)
+                        indexSearchableMessage(durableOptimistic)
+                    }
+                    durableOptimisticPersisted = true
+                }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = sendOwnerUserId,
                         liveToken = tokenManager.getToken(),
@@ -8071,11 +8370,21 @@ fun sendCurrentLocation() {
                         throw kotlinx.coroutines.CancellationException("send_session_changed")
                     }
                     val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                    val effectiveChatId = resolveOutgoingChatId().getOrThrow()
-                    val peerId = _uiState.value.contact.id
-                    val isBotDirect = !_uiState.value.chatIsGroup &&
+                    val outgoingChat = resolveOutgoingChat().getOrThrow()
+                    val effectiveChatId = outgoingChat.chatId
+                    val resolvedOptimistic = optimistic.copy(chatId = effectiveChatId)
+                    val mustPersistResolved = !durableOptimisticPersisted ||
+                        durableOptimistic.chatId != resolvedOptimistic.chatId
+                    durableOptimistic = resolvedOptimistic
+                    if (mustPersistResolved) {
+                        messageRepo.insertMessage(durableOptimistic)
+                        indexSearchableMessage(durableOptimistic)
+                        durableOptimisticPersisted = true
+                    }
+                    val peerId = outgoingChat.peerId.orEmpty()
+                    val isBotDirect = !outgoingChat.chat.isGroup &&
                         com.maodouchat.bot.BotCommandPolicy.isBotUserId(peerId)
-                    val groupEpoch = if (_uiState.value.chat?.isGroup == true) {
+                    val groupEpoch = if (outgoingChat.chat.isGroup) {
                         requireGroupEpoch(effectiveChatId).also { ensureGroupSenderKeyDistributed(effectiveChatId, it) }
                     } else null
                     val wireContent = when {
@@ -8088,13 +8397,13 @@ fun sendCurrentLocation() {
                         isBotDirect -> contentWithMeta
                         else -> signalProtocol.encryptSyncedContentEnvelope(
                             liveToken,
-                            peerId,
+                            requireNotNull(outgoingChat.peerId),
                             contentWithMeta,
                             messageType.name
                         ).getOrThrow()
                     }
                     val delivered = deliverOutgoing(
-                        message = optimistic.copy(chatId = effectiveChatId, content = wireContent),
+                        message = durableOptimistic.copy(content = wireContent),
                         wireContent = wireContent,
                         typeName = messageType.name,
                         messageId = msgId,
@@ -8120,7 +8429,7 @@ fun sendCurrentLocation() {
                     throw kotlinx.coroutines.CancellationException("send_session_changed")
                 }
                 val finalStatus = if (viaRest) MessageStatus.SENT else MessageStatus.SENDING
-                val finalMessage = optimistic.copy(chatId = resolvedChatId, status = finalStatus)
+                val finalMessage = durableOptimistic.copy(chatId = resolvedChatId, status = finalStatus)
                 _uiState.update { state ->
                     state.copy(
                         messages = state.messages.map { if (it.id == msgId) finalMessage else it },
@@ -8141,13 +8450,16 @@ fun sendCurrentLocation() {
                 _uiState.update { it.copy(isSending = false) }
                 throw error
             } catch (error: Exception) {
-                val terminalFailed = shouldMarkOutboxFailed(error)
+                // A new direct chat that could not be resolved has no durable outbox
+                // destination. Leave it as a UI-only FAILED bubble for manual retry.
+                val hasDurableChat = durableOptimistic.chatId.isNotBlank()
+                val terminalFailed = !hasDurableChat || shouldMarkOutboxFailed(error)
                 // 9.310：终态失败此前无日志，实测群发静默标 FAILED 无法定位——全量记录
                 Log.w("ChatDetailViewModel", "sendMessage failed terminal=$terminalFailed: ${error.message}", error)
                 val next = if (terminalFailed) {
-                    optimistic.copy(status = MessageStatus.FAILED)
+                    durableOptimistic.copy(status = MessageStatus.FAILED)
                 } else {
-                    optimistic.copy(status = MessageStatus.SENDING)
+                    durableOptimistic.copy(status = MessageStatus.SENDING)
                 }
                 _uiState.update { state ->
                     state.copy(
@@ -8164,7 +8476,9 @@ fun sendCurrentLocation() {
                 }
                 try {
                     withContext(Dispatchers.IO) {
-                        messageRepo.insertMessage(next)
+                        if (next.chatId.isNotBlank()) {
+                            messageRepo.insertMessage(next)
+                        }
                     }
                 } catch (cancel: kotlinx.coroutines.CancellationException) {
                     throw cancel
@@ -8203,12 +8517,14 @@ fun sendCurrentLocation() {
         clearDraft()
         _uiState.update { it.copy(messages = mergeMessages(it.messages, listOf(newMessage)), inputText = "", groupEncryptionWarning = null) }
         viewModelScope.launch {
-            // 与 1:1 一致：网络前先落库 SENDING，避免杀进程丢失可重试消息
-            withContext(Dispatchers.IO) {
-                messageRepo.insertMessage(newMessage)
-                indexSearchableMessage(newMessage)
-            }
             try {
+                // 与 1:1 一致：网络前先落库 SENDING，避免杀进程丢失可重试消息。
+                // Keep this inside the guarded send block so a Room/index failure cannot
+                // leave isSending stuck forever.
+                withContext(Dispatchers.IO) {
+                    messageRepo.insertMessage(newMessage)
+                    indexSearchableMessage(newMessage)
+                }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = sendOwnerUserId,
                         liveToken = tokenManager.getToken(),
@@ -8395,13 +8711,35 @@ fun sendCurrentLocation() {
     private fun flushDeferredSessionRepairs() {
         if (pendingSessionRepairIds.isEmpty()) return
         val ids = pendingSessionRepairIds.toList()
-        pendingSessionRepairIds.clear()
-        attemptedSessionRepairIds += ids
+        ids.forEach(pendingSessionRepairIds::remove)
+        val repairIds = ids.filter(attemptedSessionRepairIds::add)
+        if (repairIds.isEmpty()) return
         val repairToken = token
-        if (repairToken.isBlank()) return
+        if (repairToken.isBlank()) {
+            repairIds.forEach(attemptedSessionRepairIds::remove)
+            return
+        }
         viewModelScope.launch(Dispatchers.IO) {
-            ids.forEach { senderId ->
-                runCatching { signalProtocol.ensureSessions(repairToken, senderId) }
+            var repairedAny = false
+            repairIds.forEach { senderId ->
+                try {
+                    signalProtocol.ensureSessions(repairToken, senderId).fold(
+                        onSuccess = {
+                            signalProtocol.clearDecryptRetryStateForSender(senderId)
+                            repairedAny = true
+                        },
+                        onFailure = { attemptedSessionRepairIds.remove(senderId) }
+                    )
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    repairIds.forEach(attemptedSessionRepairIds::remove)
+                    throw error
+                } catch (error: Exception) {
+                    attemptedSessionRepairIds.remove(senderId)
+                    Log.w("ChatDetailViewModel", "Deferred Signal session repair failed for $senderId", error)
+                }
+            }
+            if (repairedAny) {
+                syncMessagesSinceAndThenMutations()
             }
         }
     }
@@ -8571,8 +8909,10 @@ fun sendCurrentLocation() {
                     }
                 }
                 SignalProtocol.DecryptResult.NotForThisDevice -> true
+                SignalProtocol.DecryptResult.UnsupportedEnvelope -> true
                 SignalProtocol.DecryptResult.NoSession -> {
                     signalProtocol.ensureSessions(token, senderId)
+                        .onSuccess { signalProtocol.clearDecryptRetryStateForSender(senderId) }
                     requestMissingGroupSenderKey(message.chatId, senderId)
                     _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_group_key_session_missing)) }
                     false
@@ -8582,6 +8922,16 @@ fun sendCurrentLocation() {
                     false
                 }
                 SignalProtocol.DecryptResult.Duplicate -> true
+                SignalProtocol.DecryptResult.Failed -> {
+                    if (signalProtocol.isDecryptTerminalFailure(senderId, message.content) ||
+                        signalProtocol.isDecryptRetryExhausted(senderId, message.content)
+                    ) {
+                        true
+                    } else {
+                        _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_group_key_decrypt_failed)) }
+                        false
+                    }
+                }
                 else -> {
                     _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_group_key_decrypt_failed)) }
                     false
@@ -8644,7 +8994,11 @@ fun sendCurrentLocation() {
                 message.type == MessageType.SYSTEM ||
                 message.type == MessageType.NUDGE
             ) {
-                return message
+                return if (message.type in RELIABLE_ATTACHMENT_TYPES) {
+                    restoreDecryptedMediaMessage(message, message.content)
+                } else {
+                    message
+                }
             }
             return localReadableMessage(message)
         }
@@ -8667,7 +9021,11 @@ fun sendCurrentLocation() {
                 else -> localReadableMessage(message) ?: message
             }
         }
-        return message
+        return if (message.type in RELIABLE_ATTACHMENT_TYPES) {
+            restoreDecryptedMediaMessage(message, message.content)
+        } else {
+            message
+        }
     }
 
     /**
@@ -8678,13 +9036,7 @@ fun sendCurrentLocation() {
         fun Message.isUsablePlaintext(): Boolean {
             if (content.isBlank()) return false
             if (signalProtocol.isEncryptedEnvelope(content) || content.isSenderKeyMessage()) return false
-            val lower = content.lowercase()
-            if (lower.contains("解密") || lower.contains("decrypt") ||
-                (lower.contains("密钥") && (lower.contains("缺失") || lower.contains("失败")))
-            ) {
-                return false
-            }
-            return true
+            return !isKnownDecryptPlaceholder(this)
         }
         fun Message.sameRevisionAs(wire: Message): Boolean {
             val localEdit = editedAt ?: Long.MIN_VALUE
@@ -9847,22 +10199,32 @@ fun sendCurrentLocation() {
     internal fun isSyncDecryptFailurePlaceholder(message: Message): Boolean {
         val c = message.content
         if (c.isBlank()) return false
-        if (signalProtocol.isEncryptedEnvelope(c) || c.isSenderKeyMessage()) return true
-        val lower = c.lowercase()
-        return lower.contains("解密") ||
-            lower.contains("decrypt") ||
-            (lower.contains("密钥") && (lower.contains("缺失") || lower.contains("失败"))) ||
-            (lower.contains("session") && lower.contains("missing")) ||
-            lower.contains("identity") && lower.contains("changed") ||
-            c == text(R.string.chat_decrypt_failed) ||
-            c == text(R.string.chat_decrypt_pending) ||
-            c == text(R.string.chat_decrypt_session_missing) ||
-            c == text(R.string.chat_decrypt_identity_changed) ||
-            c == text(R.string.chat_decrypt_group_failed) ||
-            c == text(R.string.chat_decrypt_group_key_missing) ||
-            c == text(R.string.chat_decrypt_group_identity_changed) ||
-            c == text(R.string.chat_decrypt_group_newer) ||
-            c == mediaDecryptFailedTextForType(message.type)
+        if (signalProtocol.isEncryptedEnvelope(c) || c.isSenderKeyMessage()) {
+            return true
+        }
+        return isKnownDecryptPlaceholder(message)
+    }
+
+    private fun isKnownDecryptPlaceholder(message: Message): Boolean =
+        DecryptPlaceholderPolicy.isPlaceholder(
+            message.content,
+            text(R.string.chat_decrypt_failed),
+            text(R.string.chat_decrypt_pending),
+            text(R.string.chat_decrypt_session_missing),
+            text(R.string.chat_decrypt_identity_changed),
+            text(R.string.chat_decrypt_group_failed),
+            text(R.string.chat_decrypt_group_key_missing),
+            text(R.string.chat_decrypt_group_identity_changed),
+            text(R.string.chat_decrypt_group_newer),
+            mediaDecryptFailedTextForType(message.type),
+        )
+
+    /** Terminal/capped wires remain placeholders but no longer head-of-line block backlog sync. */
+    internal fun canAdvancePastSyncDecryptFailure(message: Message): Boolean {
+        val content = message.content
+        if (!signalProtocol.isEncryptedEnvelope(content) && !content.isSenderKeyMessage()) return false
+        return signalProtocol.isDecryptTerminalFailure(message.senderId, content) ||
+            signalProtocol.isDecryptRetryExhausted(message.senderId, content)
     }
 
     internal fun mediaDecryptFailedTextForType(type: MessageType): String = when (type) {

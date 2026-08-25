@@ -287,7 +287,8 @@ data class AdminChannelHealthResponse(
 data class ErrorResponse(
     val error: String,
     val code: String? = null,
-    val retryAfterSeconds: Long? = null
+    val retryAfterSeconds: Long? = null,
+    val messageId: String? = null
 )
 
 @Serializable

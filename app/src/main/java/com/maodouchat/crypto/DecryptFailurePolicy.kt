@@ -19,6 +19,12 @@ object DecryptFailurePolicy {
         RETRY,
     }
 
+    enum class TrackingAction {
+        CLEAR,
+        RECORD_FAILURE,
+        MARK_TERMINAL,
+    }
+
     fun disposition(result: SignalProtocol.DecryptResult): Disposition = when (result) {
         is SignalProtocol.DecryptResult.Success,
         SignalProtocol.DecryptResult.Duplicate,
@@ -28,6 +34,12 @@ object DecryptFailurePolicy {
         SignalProtocol.DecryptResult.UntrustedIdentity,
         SignalProtocol.DecryptResult.FutureEpoch,
         SignalProtocol.DecryptResult.Failed -> Disposition.RETRY
+    }
+
+    fun trackingAction(result: SignalProtocol.DecryptResult): TrackingAction = when {
+        result is SignalProtocol.DecryptResult.Success -> TrackingAction.CLEAR
+        disposition(result) == Disposition.RETRY -> TrackingAction.RECORD_FAILURE
+        else -> TrackingAction.MARK_TERMINAL
     }
 
     /** 达到上限后，即使 [Disposition.RETRY] 也必须停，防止死循环重试同一条。 */
@@ -76,6 +88,10 @@ class DecryptRetryTracker(
     private val maxTracked: Int = DecryptFailurePolicy.MAX_TRACKED_ENVELOPES,
 ) {
     private val attempts = ConcurrentHashMap<String, Int>()
+    /** Fingerprints grouped by sender so a successful session repair can clear only that peer. */
+    private val fingerprintsBySender = ConcurrentHashMap<String, MutableSet<String>>()
+    /** Deterministic terminal outcomes must not be sent through the crypto ratchet again. */
+    private val terminalFingerprints = ConcurrentHashMap.newKeySet<String>()
 
     /**
      * @return true 时调用方应 ACK / 停止再拉这一条。
@@ -103,21 +119,77 @@ class DecryptRetryTracker(
 
     fun recordCryptoFailure(fingerprint: String) {
         if (fingerprint.isBlank()) return
+        terminalFingerprints.remove(fingerprint)
         attempts[fingerprint] = (attempts[fingerprint] ?: 0) + 1
         evictIfNeeded()
     }
 
+    fun recordCryptoFailure(senderId: String, fingerprint: String) {
+        if (fingerprint.isBlank()) return
+        recordCryptoFailure(fingerprint)
+        if (senderId.isNotBlank()) {
+            fingerprintsBySender.computeIfAbsent(senderId) { ConcurrentHashMap.newKeySet() }
+                .add(fingerprint)
+        }
+    }
+
     fun clear(fingerprint: String) {
+        if (fingerprint.isBlank()) return
         attempts.remove(fingerprint)
+        terminalFingerprints.remove(fingerprint)
+        removeFingerprintOwnership(fingerprint)
+    }
+
+    fun markTerminal(fingerprint: String) {
+        if (fingerprint.isBlank()) return
+        attempts.remove(fingerprint)
+        removeFingerprintOwnership(fingerprint)
+        terminalFingerprints.add(fingerprint)
+        evictIfNeeded()
+    }
+
+    fun isTerminal(fingerprint: String): Boolean =
+        fingerprint.isNotBlank() && fingerprint in terminalFingerprints
+
+    /** Clear only failures associated with one sender after its session has been repaired. */
+    fun clearForSender(senderId: String) {
+        if (senderId.isBlank()) return
+        val fingerprints = fingerprintsBySender.remove(senderId).orEmpty().toList()
+        fingerprints.forEach {
+            attempts.remove(it)
+            terminalFingerprints.remove(it)
+        }
     }
 
     fun clearAll() {
         attempts.clear()
+        fingerprintsBySender.clear()
+        terminalFingerprints.clear()
     }
 
     private fun evictIfNeeded() {
-        if (attempts.size <= maxTracked) return
-        val extra = attempts.size - maxTracked
-        attempts.keys.take(extra).forEach { attempts.remove(it) }
+        val total = attempts.size + terminalFingerprints.size
+        if (total <= maxTracked) return
+        var extra = total - maxTracked
+        attempts.keys.take(extra).forEach {
+            attempts.remove(it)
+            removeFingerprintOwnership(it)
+            extra--
+        }
+        if (extra > 0) {
+            terminalFingerprints.take(extra).forEach {
+                terminalFingerprints.remove(it)
+                removeFingerprintOwnership(it)
+            }
+        }
+    }
+
+    private fun removeFingerprintOwnership(fingerprint: String) {
+        fingerprintsBySender.forEach { (senderId, fingerprints) ->
+            fingerprints.remove(fingerprint)
+            if (fingerprints.isEmpty()) {
+                fingerprintsBySender.remove(senderId, fingerprints)
+            }
+        }
     }
 }

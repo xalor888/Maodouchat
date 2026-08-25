@@ -190,10 +190,10 @@ class MaodouchatApp : Application() {
                     signalProtocol.initialize(token, userId)
                     if (!stillCurrent()) return@launch
                     // 运行时补充 PreKey：冷启动后检查池是否低于阈值，低于则生成+上传
-                    signalProtocol.replenishPreKeysIfNeeded(token)
+                    signalProtocol.replenishPreKeysIfNeeded(token, userId)
                     if (!stillCurrent()) return@launch
                     // Signed PreKey 轮换：超过 7 天则自动轮换
-                    signalProtocol.rotateSignedPreKeyIfNeeded(token)
+                    signalProtocol.rotateSignedPreKeyIfNeeded(token, userId)
                 } catch (error: kotlinx.coroutines.CancellationException) {
                     throw error
                 } catch (error: Exception) {
@@ -241,10 +241,18 @@ class MaodouchatApp : Application() {
                 val tm = TokenManager.getInstanceOrNull() ?: continue
                 if (!tm.isLoggedIn()) continue
                 val t = tm.getToken()?.takeIf(String::isNotBlank) ?: continue
-                try { signalProtocol.replenishPreKeysIfNeeded(t) }
+                val ownerId = tm.getUserId()?.takeIf(String::isNotBlank) ?: continue
+                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(ownerId, t, ownerId)) continue
+                try { signalProtocol.replenishPreKeysIfNeeded(t, ownerId) }
                 catch (e: kotlinx.coroutines.CancellationException) { throw e }
                 catch (e: Exception) { android.util.Log.w("MaodouchatApp", "PreKey replenish failed", e) }
-                try { signalProtocol.rotateSignedPreKeyIfNeeded(t) }
+                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        ownerId,
+                        tm.getToken(),
+                        tm.getUserId(),
+                    )
+                ) continue
+                try { signalProtocol.rotateSignedPreKeyIfNeeded(t, ownerId) }
                 catch (e: kotlinx.coroutines.CancellationException) { throw e }
                 catch (e: Exception) { android.util.Log.w("MaodouchatApp", "SignedPreKey rotation failed", e) }
             }

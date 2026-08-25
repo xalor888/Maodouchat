@@ -1,6 +1,7 @@
 package com.maodouchat.crypto
 
 import android.util.Base64
+import android.util.Log
 import com.maodouchat.data.local.dao.IdentityTrustDao
 import com.maodouchat.data.local.dao.SignalKeyDao
 import com.maodouchat.data.local.entity.IdentityTrustEntity
@@ -19,6 +20,7 @@ import org.signal.libsignal.protocol.state.SessionRecord
 import org.signal.libsignal.protocol.state.SignalProtocolStore
 import org.signal.libsignal.protocol.state.SignedPreKeyRecord
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * SQLCipher-backed Signal store.
@@ -41,13 +43,34 @@ class PersistentSignalProtocolStore(
     private val senderKeys = mutableMapOf<String, SenderKeyRecord>()
     private val kyberPreKeys = mutableMapOf<Int, KyberPreKeyRecord>()
     private val usedKyberPreKeys = mutableSetOf<Int>()
+    /** A crypto callback mutates memory before the synchronous Room write. Never hide a write failure. */
+    private val lastPersistenceFailure = AtomicReference<Throwable?>(null)
+
+    fun persistenceFailure(): Throwable? = lastPersistenceFailure.get()
+
+    private fun recordPersistenceFailure(operation: String, error: Throwable) {
+        lastPersistenceFailure.compareAndSet(null, error)
+        Log.e(TAG, "Signal store $operation failed", error)
+    }
+
+    private inline fun <T> daoWrite(operation: String, block: () -> T): T = try {
+        block()
+    } catch (error: Exception) {
+        recordPersistenceFailure(operation, error)
+        throw SignalStorePersistenceException(error)
+    }
 
     suspend fun loadPersistedState(): Int {
         var droppedCorruptKeys = 0
         signalKeyDao.getKeysWithPrefix(prefix()).forEach { entity ->
             if (!SignalStoreLoadPolicy.shouldLoadRow(entity.keyType, entity.keyData)) {
                 droppedCorruptKeys++
-                runCatching { signalKeyDao.deleteKey(entity.keyType) }
+                try {
+                    signalKeyDao.deleteKey(entity.keyType)
+                } catch (error: Exception) {
+                    recordPersistenceFailure("corrupt-row delete", error)
+                    throw SignalStorePersistenceException(error)
+                }
                 return@forEach
             }
             val loaded = runCatching {
@@ -82,7 +105,12 @@ class PersistentSignalProtocolStore(
             }
             if (loaded.isFailure) {
                 droppedCorruptKeys++
-                runCatching { signalKeyDao.deleteKey(entity.keyType) }
+                try {
+                    signalKeyDao.deleteKey(entity.keyType)
+                } catch (error: Exception) {
+                    recordPersistenceFailure("unreadable-row delete", error)
+                    throw SignalStorePersistenceException(error)
+                }
             }
         }
         return droppedCorruptKeys
@@ -116,7 +144,9 @@ class PersistentSignalProtocolStore(
         direction: IdentityKeyStore.Direction
     ): Boolean {
         val keyBase64 = encodeIdentity(identityKey)
-        val trust = identityTrustDao.getTrustBlocking(accountId, address.name, address.deviceId)
+        val trust = daoWrite("identity-trust read") {
+            identityTrustDao.getTrustBlocking(accountId, address.name, address.deviceId)
+        }
         if (trust == null) {
             val trusted = identities[addressKey(address)]
             return trusted == null || trusted == identityKey
@@ -125,14 +155,16 @@ class PersistentSignalProtocolStore(
             val now = System.currentTimeMillis()
             identities[addressKey(address)] = identityKey
             persist(KEY_IDENTITY_PREFIX + addressKey(address), identityKey.serialize())
-            identityTrustDao.upsertTrustBlocking(
-                trust.copy(
-                    identityKeyBase64 = keyBase64,
-                    trustState = TRUST_CHANGED,
-                    lastSeenAt = now,
-                    verifiedAt = null
+            daoWrite("identity-trust update") {
+                identityTrustDao.upsertTrustBlocking(
+                    trust.copy(
+                        identityKeyBase64 = keyBase64,
+                        trustState = TRUST_CHANGED,
+                        lastSeenAt = now,
+                        verifiedAt = null
+                    )
                 )
-            )
+            }
             // 身份密钥变更时删除旧 session：旧 ratchet 状态属于上一个身份，
             // 保留会导致后续解密持续失败；删除后对端需重新建立 session。
             deleteSession(address)
@@ -144,44 +176,55 @@ class PersistentSignalProtocolStore(
     override fun getIdentity(address: SignalProtocolAddress): IdentityKey? = identities[addressKey(address)]
 
     fun getIdentityTrust(remoteUserId: String, deviceId: Int): IdentityTrustEntity? {
-        return identityTrustDao.getTrustBlocking(accountId, remoteUserId, deviceId)
+        return daoWrite("identity-trust read") {
+            identityTrustDao.getTrustBlocking(accountId, remoteUserId, deviceId)
+        }
     }
 
     fun markIdentityVerified(remoteUserId: String, deviceId: Int): Boolean {
-        val trust = identityTrustDao.getTrustBlocking(accountId, remoteUserId, deviceId) ?: return false
-        val now = System.currentTimeMillis()
-        identityTrustDao.upsertTrustBlocking(
-            trust.copy(
-                trustState = TRUST_VERIFIED,
-                lastSeenAt = now,
-                verifiedAt = now
+        return try {
+            val trust = identityTrustDao.getTrustBlocking(accountId, remoteUserId, deviceId) ?: return false
+            val now = System.currentTimeMillis()
+            identityTrustDao.upsertTrustBlocking(
+                trust.copy(
+                    trustState = TRUST_VERIFIED,
+                    lastSeenAt = now,
+                    verifiedAt = now
+                )
             )
-        )
-        return true
+            true
+        } catch (error: Exception) {
+            recordPersistenceFailure("identity verification", error)
+            false
+        }
     }
 
     private fun upsertIdentityTrust(address: SignalProtocolAddress, identityKey: IdentityKey, previous: IdentityKey?) {
         val now = System.currentTimeMillis()
         val keyBase64 = encodeIdentity(identityKey)
-        val existing = identityTrustDao.getTrustBlocking(accountId, address.name, address.deviceId)
+        val existing = daoWrite("identity-trust read") {
+            identityTrustDao.getTrustBlocking(accountId, address.name, address.deviceId)
+        }
         val trustState = when {
             existing == null -> TRUST_TRUSTED
             existing.identityKeyBase64 == keyBase64 -> existing.trustState
             previous == null || previous == identityKey -> TRUST_CHANGED
             else -> TRUST_CHANGED
         }
-        identityTrustDao.upsertTrustBlocking(
-            IdentityTrustEntity(
-                accountId = accountId,
-                remoteUserId = address.name,
-                deviceId = address.deviceId,
-                identityKeyBase64 = keyBase64,
-                trustState = trustState,
-                firstSeenAt = existing?.firstSeenAt ?: now,
-                lastSeenAt = now,
-                verifiedAt = if (trustState == TRUST_VERIFIED) existing?.verifiedAt else null
+        daoWrite("identity-trust upsert") {
+            identityTrustDao.upsertTrustBlocking(
+                IdentityTrustEntity(
+                    accountId = accountId,
+                    remoteUserId = address.name,
+                    deviceId = address.deviceId,
+                    identityKeyBase64 = keyBase64,
+                    trustState = trustState,
+                    firstSeenAt = existing?.firstSeenAt ?: now,
+                    lastSeenAt = now,
+                    verifiedAt = if (trustState == TRUST_VERIFIED) existing?.verifiedAt else null
+                )
             )
-        )
+        }
     }
 
     private fun encodeIdentity(identityKey: IdentityKey): String = Base64.encodeToString(identityKey.serialize(), Base64.NO_WRAP)
@@ -303,20 +346,24 @@ class PersistentSignalProtocolStore(
 
     private fun persist(keyType: String, data: ByteArray) {
         if (!SignalStoreLoadPolicy.isPersistable(keyType, data)) return
-        runCatching {
+        try {
             signalKeyDao.insertKeyBlocking(
                 SignalKeyEntity(
                     keyType = prefix() + keyType,
                     keyData = Base64.encodeToString(data, Base64.NO_WRAP)
                 )
             )
+        } catch (error: Exception) {
+            recordPersistenceFailure("write for $keyType", error)
         }
     }
 
     private fun delete(keyType: String) {
         if (keyType.isBlank()) return
-        runCatching {
+        try {
             signalKeyDao.deleteKeyBlocking(prefix() + keyType)
+        } catch (error: Exception) {
+            recordPersistenceFailure("delete for $keyType", error)
         }
     }
 
@@ -327,6 +374,7 @@ class PersistentSignalProtocolStore(
     private fun addressKey(address: SignalProtocolAddress): String = "${address.name}$ADDRESS_SEPARATOR${address.deviceId}"
 
     companion object {
+        private const val TAG = "PersistentSignalStore"
         const val ADDRESS_SEPARATOR = "|"
         const val KEY_IDENTITY_PREFIX = "identity:"
         const val KEY_PRE_KEY_PREFIX = "pre_key:"

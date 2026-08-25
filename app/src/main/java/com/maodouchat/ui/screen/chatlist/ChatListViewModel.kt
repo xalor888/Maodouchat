@@ -1235,12 +1235,29 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
      * unless we install SK_DIST here first. ChatDetail still owns the active-chat path.
      */
     private suspend fun ingestInactiveChatSenderKey(message: Message) {
+        val liveToken = tokenManager.getToken()?.takeIf(String::isNotBlank) ?: return
+        if (!ensureLocalSignalReady()) return
         com.maodouchat.crypto.InactiveChatSenderKeyIngest.ingest(
             signal = app.signalProtocol,
             chatRepo = chatRepo,
             messageRepo = messageRepo,
             message = message,
+            token = liveToken,
         )
+    }
+
+    /** Cipher entry points must wait for the account-scoped store restored at cold start. */
+    private suspend fun ensureLocalSignalReady(ownerUserId: String = currentUserIdStr): Boolean {
+        val liveToken = tokenManager.getToken()?.takeIf(String::isNotBlank) ?: return false
+        if (ownerUserId.isBlank()) return false
+        return try {
+            app.signalProtocol.ensureLocalCryptoReady(liveToken, ownerUserId)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            android.util.Log.w("ChatListViewModel", "Signal local restore failed", error)
+            false
+        }
     }
 
     private suspend fun retryDecryptInactiveGroupTail(
@@ -1287,7 +1304,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
      * plaintext so ChatDetail [localReadableMessage] skips re-decrypt (ratchet-safe).
      * Returns null on failure / non-inline types / already-plaintext.
      */
-    private fun tryDecryptInlinePreview(message: Message): String? {
+    private suspend fun tryDecryptInlinePreview(message: Message): String? {
         if (message.type !in setOf(MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER, MessageType.LOCATION)) {
             return null
         }
@@ -1306,6 +1323,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         ) {
             return content
         }
+        if (!ensureLocalSignalReady()) return null
         return try {
             val isGroup = _uiState.value.chats.find { it.id == message.chatId }?.isGroup == true
             val result = if (isGroup || signal.isSenderKeyEnvelope(content)) {
@@ -3029,6 +3047,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                     // 必须切 IO 线程，避免主线程磁盘 I/O + 掉帧。
                                     val plaintext = withContext(kotlinx.coroutines.Dispatchers.IO) {
                                         val signal = app.signalProtocol
+                                        if (!ensureLocalSignalReady(editOwnerUserId)) return@withContext null
                                         val isGroup = _uiState.value.chats.find { it.id == event.chatId }?.isGroup == true
                                         val skipSession = com.maodouchat.crypto.SessionCipherOccupancy.shouldSkipSessionCipher(
                                             event.chatId,

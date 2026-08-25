@@ -57,6 +57,14 @@ class SignalProtocol(
     /** Per peer-device: serialize "check session → fetch OTPK → establish" to avoid double-consume. */
     private class SessionSetupLock(val mutex: Mutex = Mutex(), var users: Int = 0)
     private val sessionSetupLocks = java.util.concurrent.ConcurrentHashMap<String, SessionSetupLock>()
+    /** Discovery candidates plus independent per-device session setup results. */
+    private data class SessionCoverage(
+        val candidateDeviceIds: List<Int>,
+        val establishedDeviceIds: List<Int>,
+        val failuresByDevice: Map<Int, Throwable>,
+    )
+    /** Outbound sessions established under the previous local device id. */
+    private val sessionsRequiringReestablishment = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     private lateinit var protocolStore: SignalProtocolStore
     private val decryptRetryTracker = DecryptRetryTracker()
@@ -64,13 +72,40 @@ class SignalProtocol(
     @Volatile private var currentUserId: String? = null
     /** True only after a successful initialize() for [currentUserId]; never after failed upload/restore. */
     @Volatile private var initializationSucceeded: Boolean = false
+    /** True after the local Signal store has been restored/generated and persisted. */
+    @Volatile private var localCryptoReady: Boolean = false
     /** True when identity/registration were loaded from SQLCipher (same-device re-login), not minted. */
     @Volatile private var identityRestoredFromStore: Boolean = false
+    @Volatile private var deviceIdMigrationOccurred: Boolean = false
+    /** A published key package can remain PENDING until another confirmed device approves it. */
+    @Volatile private var devicePendingApproval: Boolean = false
     private var registrationId: Int = 0
     private lateinit var identityKeyPair: IdentityKeyPair
     private var signedPreKey: SignedPreKeyRecord? = null
     private var preKeys: List<PreKeyRecord> = emptyList()
+    /** Runtime-generated batch whose upload has not received an unambiguous success response. */
+    @Volatile private var preKeyPublicationPending: Boolean = false
+    /** Runtime-rotated SPK that must be re-published after an ambiguous/failed upload. */
+    @Volatile private var signedPreKeyPublicationPending: Boolean = false
     private var localDeviceId: Int = DEFAULT_DEVICE_ID
+
+    private fun isSignalStoreHealthy(): Boolean =
+        (protocolStore as? PersistentSignalProtocolStore)?.persistenceFailure() == null
+
+    private fun initializationState(): SignalInitializationState {
+        val storeHealthy = isSignalStoreHealthy()
+        return SignalInitializationState(
+            accountId = currentUserId,
+            localCryptoReady = localCryptoReady && storeHealthy,
+            publicationReady = initializationSucceeded && storeHealthy,
+        )
+    }
+
+    private fun applyInitializationState(state: SignalInitializationState) {
+        currentUserId = state.accountId
+        localCryptoReady = state.localCryptoReady
+        initializationSucceeded = state.publicationReady
+    }
 
     init {
         // Room DAO 是 suspend API，不能在构造阶段读取数据库。
@@ -101,16 +136,28 @@ class SignalProtocol(
             // Login and Application cold-start restoration can race to initialize the same
             // account. Once the first call completes, the queued call must not replace the live
             // protocolStore and reload it while encrypt/decrypt are already using that store.
-            if (SignalInitializationPolicy.canReuse(currentUserId, initializationSucceeded, accountId)) {
-                return@withLock true
+            when (SignalInitializationPolicy.action(initializationState(), accountId)) {
+                SignalInitializationAction.REUSE -> return@withLock true
+                // This branch returns before account selection, key generation or persisted-store
+                // loading, so a publication retry cannot replace the live ratchet store.
+                SignalInitializationAction.UPLOAD_ONLY ->
+                    return@withLock finishInitializationUpload(token, accountId)
+                SignalInitializationAction.FULL_INITIALIZATION -> Unit
             }
-            if (currentUserId != accountId) {
-                currentUserId = accountId
-                initializationSucceeded = false
+            val accountChanged = currentUserId != accountId
+            applyInitializationState(
+                SignalInitializationPolicy.selectAccount(initializationState(), accountId)
+            )
+            if (accountChanged) {
+                devicePendingApproval = false
+                deviceIdMigrationOccurred = false
+                sessionsRequiringReestablishment.clear()
                 identityRestoredFromStore = false
                 generateIdentityKeys()
                 signedPreKey = null
                 preKeys = emptyList()
+                preKeyPublicationPending = false
+                signedPreKeyPublicationPending = false
             }
             identityRestoredFromStore = restoreRegistrationAndIdentity()
             restoreDeviceId()
@@ -119,10 +166,19 @@ class SignalProtocol(
             // 需要 Mutex（非 ReentrantLock）才能安全跨越 suspend 调用，但 Mutex.withLock 是
             // suspend-only，而 encrypt/decrypt 路径的 cryptoLock 是 ReentrantLock.withLock（非 suspend）。
             // 折中：init 期间不持 cryptoLock，依赖 initializationMutex 序列化 + decrypt 路径的
-            // isInitializedFor 门闩（未完成 init 时不解密）来降低竞态窗口。
+            // isLocalCryptoReadyFor 门闩（本地密钥未就绪时不解密）来降低竞态窗口。
             val droppedCorruptKeys = (protocolStore as? PersistentSignalProtocolStore)?.loadPersistedState() ?: 0
+            throwIfSignalStorePersistenceFailed()
             if (droppedCorruptKeys > 0) {
                 Log.w(TAG, "Signal init: $droppedCorruptKeys corrupt key rows dropped during loadPersistedState")
+            }
+            restoreDeviceIdMigrationMarker()
+            if (deviceIdMigrationOccurred) {
+                // A process may have died after the replacement device id was persisted but
+                // before publication succeeded. Keep every existing outbound ratchet marked
+                // for re-establishment; do not delete sessions, since they may still decrypt
+                // messages already in flight.
+                markSessionsForDeviceIdMigration()
             }
             restoreSignedPreKey()
             // 9.298：SPK 签名必须与当前 identity 匹配——identity 因腐败/缺失被重新生成而旧 SPK
@@ -165,43 +221,101 @@ class SignalProtocol(
             ensurePreKeysAvailable()
             persistCoreKeys()
             persistPreKeys()
-
-            if (token != null) {
-                // Abort key upload if account switched during long init (disk restore + mint).
-                if (accountId != null && currentUserId != accountId) {
-                    throw kotlinx.coroutines.CancellationException("signal_init_account_changed")
-                }
-                uploadKeysWithDeviceIdRecovery(token).getOrThrow()
-
-                if (accountId != null && currentUserId != accountId) {
-                    throw kotlinx.coroutines.CancellationException("signal_init_account_changed")
-                }
-
-                // Prefetch sealed-sender certificate (best-effort; non-fatal).
-                if (accountId != null) {
-                    SealedSenderSupport.fetchCertificate(token, accountId, localDeviceId)
-                        .onFailure { e ->
-                            Log.d(TAG, "Sealed sender certificate prefetch skipped: ${e.message}")
-                        }
-                }
-            }
-            if (currentUserId != accountId) {
-                accountId?.let { SealedSenderSupport.clearCache(it, localDeviceId) }
-                throw kotlinx.coroutines.CancellationException("signal_init_account_changed")
-            }
-            initializationSucceeded = accountId != null
+            applyInitializationState(
+                SignalInitializationPolicy.localStoreReady(initializationState())
+            )
             decryptRetryTracker.clearAll()
-            true
+
+            finishInitializationUpload(token, accountId)
         } catch (error: kotlinx.coroutines.CancellationException) {
             // Upload/DB suspend cancel must not be logged as init failure or freeze half-init.
-            initializationSucceeded = false
+            val invalidateLocalCrypto = SignalDeviceIdRecoveryPolicy.invalidatesLocalCrypto(error)
+            if (invalidateLocalCrypto) {
+                devicePendingApproval = false
+                deviceIdMigrationOccurred = false
+                sessionsRequiringReestablishment.clear()
+            }
+            applyInitializationState(
+                SignalInitializationPolicy.publicationFailed(
+                    initializationState(),
+                    invalidateLocalCrypto = invalidateLocalCrypto,
+                )
+            )
             throw error
-        } catch (e: Exception) {
-            Log.w(TAG, "Signal protocol initialization failed", e)
-            // Half-init must not satisfy isInitializedFor — callers would skip re-init forever
-            initializationSucceeded = false
-            false
+        } catch (error: Exception) {
+            Log.w(TAG, "Signal protocol initialization failed", error)
+            // A transient failed upload leaves a usable local store. Explicit identity/session
+            // conflicts are different: the server cannot prove that this local identity is bound
+            // to the active device slot, so crypto stays disabled until a clean initialization.
+            val invalidateLocalCrypto = SignalDeviceIdRecoveryPolicy.invalidatesLocalCrypto(error)
+            if (invalidateLocalCrypto) {
+                devicePendingApproval = false
+                deviceIdMigrationOccurred = false
+                sessionsRequiringReestablishment.clear()
+            }
+            applyInitializationState(
+                SignalInitializationPolicy.publicationFailed(
+                    initializationState(),
+                    invalidateLocalCrypto = invalidateLocalCrypto,
+                )
+            )
+            localCryptoReady
         }
+    }
+
+    /**
+     * Restore and persist the account's local Signal store before a caller touches a cipher.
+     * Server publication is deliberately not part of this contract: [initialize] leaves the
+     * local store usable when upload fails and retries publication separately on a later call.
+     */
+    suspend fun ensureLocalCryptoReady(token: String?, userId: String): Boolean {
+        if (userId.isBlank()) return false
+        if (isLocalCryptoReadyFor(userId)) return true
+        initialize(token?.takeIf(String::isNotBlank), userId)
+        return isLocalCryptoReadyFor(userId)
+    }
+
+    /** Publish an already-ready local store without reloading or replacing its ratchet state. */
+    private suspend fun finishInitializationUpload(token: String?, accountId: String?): Boolean {
+        var uploadSucceeded = token == null && !devicePendingApproval
+        if (token != null) {
+            // Abort key upload if account switched during long init or a retry.
+            if (accountId != null && currentUserId != accountId) {
+                throw kotlinx.coroutines.CancellationException("signal_init_account_changed")
+            }
+            uploadKeysWithDeviceIdRecovery(token).getOrThrow()
+            preKeyPublicationPending = false
+            signedPreKeyPublicationPending = false
+            uploadSucceeded = true
+
+            if (accountId != null && currentUserId != accountId) {
+                throw kotlinx.coroutines.CancellationException("signal_init_account_changed")
+            }
+
+            // Prefetch sealed-sender certificate (best-effort; non-fatal).
+            if (accountId != null) {
+                SealedSenderSupport.fetchCertificate(token, accountId, localDeviceId)
+                    .onFailure { e ->
+                        Log.d(TAG, "Sealed sender certificate prefetch skipped: ${e.message}")
+                    }
+            }
+        }
+        if (currentUserId != accountId) {
+            accountId?.let { SealedSenderSupport.clearCache(it, localDeviceId) }
+            throw kotlinx.coroutines.CancellationException("signal_init_account_changed")
+        }
+        // Full readiness means local state is ready and (when a token was supplied) the
+        // current key package was accepted by the server. A failed publication deliberately
+        // leaves this false so the next initialize() retries upload-only.
+        val state = initializationState()
+        applyInitializationState(
+            if (uploadSucceeded && !devicePendingApproval) {
+                SignalInitializationPolicy.publicationSucceeded(state)
+            } else {
+                SignalInitializationPolicy.publicationFailed(state)
+            }
+        )
+        return localCryptoReady
     }
 
     private suspend fun restoreRegistrationAndIdentity(): Boolean {
@@ -224,12 +338,22 @@ class SignalProtocol(
         localDeviceId = savedDeviceId?.takeIf { it in MIN_DEVICE_ID..MAX_DEVICE_ID } ?: generateLocalDeviceId()
     }
 
+    private suspend fun restoreDeviceIdMigrationMarker() {
+        // Presence is intentionally treated as pending, even if the value was damaged. A
+        // false negative would reuse a ratchet bound to the previous local device id; a false
+        // positive only causes a safe session re-establishment on the next successful upload.
+        deviceIdMigrationOccurred = SignalDeviceIdRecoveryPolicy.isMigrationPendingMarkerPresent(
+            signalKeyDao.getKey(scopedKey(KEY_DEVICE_ID_MIGRATION_PENDING))?.keyData
+        )
+    }
+
     private suspend fun restoreSignedPreKey() {
         val entity = signalKeyDao.getKey(scopedKey(KEY_SIGNED_PRE_KEY)) ?: return
         // 腐败数据兜底：构造 SignedPreKeyRecord 可能抛 InvalidMessageException
         val key = runCatching { SignedPreKeyRecord(Base64.decode(entity.keyData, Base64.NO_WRAP)) }.getOrNull() ?: return
         signedPreKey = key
         (protocolStore as? PersistentSignalProtocolStore)?.putSignedPreKey(key) ?: protocolStore.storeSignedPreKey(key.id, key)
+        throwIfSignalStorePersistenceFailed()
     }
 
     private fun signedPreKeySignatureMatchesIdentity(spk: SignedPreKeyRecord): Boolean {
@@ -249,6 +373,7 @@ class SignalProtocol(
         val spk = SignedPreKeyRecord(signedPreKeyId, System.currentTimeMillis(), spkKeyPair, spkSignature)
         signedPreKey = spk
         (protocolStore as? PersistentSignalProtocolStore)?.putSignedPreKey(spk) ?: protocolStore.storeSignedPreKey(signedPreKeyId, spk)
+        throwIfSignalStorePersistenceFailed()
     }
 
     private fun ensurePreKeysAvailable() {
@@ -279,28 +404,43 @@ class SignalProtocol(
         generated.forEach { key ->
             (protocolStore as? PersistentSignalProtocolStore)?.putPreKey(key) ?: protocolStore.storePreKey(key.id, key)
         }
+        throwIfSignalStorePersistenceFailed()
         preKeys = preKeys + generated
     }
 
     /**
      * 运行时 PreKey 补充：当本地未消费的 PreKey 低于 [PRE_KEY_REPLENISH_THRESHOLD] 时，
      * 生成新批次并上传到服务端。应在登录后和定期调用。
-     * 返回 true 表示生成了新 PreKey 并上传成功。
+     * 返回 true 表示新批次或此前待确认的批次已收到上传成功响应。
      */
-    suspend fun replenishPreKeysIfNeeded(token: String?): Boolean {
-        if (token.isNullOrBlank()) return false
-        val storeCount = cryptoLock.withLock {
-            (protocolStore as? PersistentSignalProtocolStore)?.preKeyCount() ?: return false
-        }
-        if (storeCount >= PRE_KEY_REPLENISH_THRESHOLD) return false
+    suspend fun replenishPreKeysIfNeeded(token: String?, expectedUserId: String): Boolean {
+        if (token.isNullOrBlank() || expectedUserId.isBlank()) return false
         return initializationMutex.withLock {
-            // 双检：锁内再次确认数量（持 cryptoLock 防止与 decrypt 路径的 removePreKey 竞态）
+            if (currentUserId != expectedUserId || !localCryptoReady) return@withLock false
+            // A timeout/cancellation can happen after the server committed the batch. Keep the
+            // exact private keys and resend their stable ids until success; deleting them would
+            // make any already-issued PreKeySignalMessage permanently undecryptable.
+            if (preKeyPublicationPending && preKeys.isNotEmpty()) {
+                persistPreKeys()
+                val uploaded = publishRuntimeKeyPackage(token, expectedUserId)
+                if (uploaded) {
+                    preKeyPublicationPending = false
+                } else {
+                    Log.w(TAG, "Pending PreKey publication retry failed; retaining private keys")
+                }
+                return@withLock uploaded
+            }
+            if (preKeyPublicationPending) {
+                preKeyPublicationPending = false
+            }
+
+            // 持 cryptoLock 防止与 decrypt 路径的 removePreKey 竞态
             val currentCount = cryptoLock.withLock {
                 (protocolStore as? PersistentSignalProtocolStore)?.preKeyCount() ?: 0
             }
             if (currentCount >= PRE_KEY_REPLENISH_THRESHOLD) return@withLock false
             // BUG 3 fix: 持 cryptoLock 保护 preKeys map 的读写，防止与 decrypt 路径的 removePreKey 竞态
-            val (newPreKeys, maxExistingId) = cryptoLock.withLock {
+            val newPreKeys = cryptoLock.withLock {
                 // 9.301：同样先剔除超范围残留（见 init 路径同名注释），否则 maxId 被脏值抬高且整批上传被拒
                 val outOfRange = (protocolStore as? PersistentSignalProtocolStore)?.remainingPreKeys().orEmpty().filter { it.id !in 1..SignalPreKeyIdPolicy.MAX_ID }
                 outOfRange.forEach { protocolStore.removePreKey(it.id) }
@@ -312,26 +452,17 @@ class SignalProtocol(
                 generated.forEach { key ->
                     (protocolStore as? PersistentSignalProtocolStore)?.putPreKey(key) ?: protocolStore.storePreKey(key.id, key)
                 }
-                generated to maxId
+                throwIfSignalStorePersistenceFailed()
+                generated
             }
             preKeys = newPreKeys
+            preKeyPublicationPending = true
             persistPreKeys()
-            // BUG 2 fix: 上传失败时回滚 preKeys 列表，允许下次重试
-            val uploaded = uploadKeysToServer(token).isSuccess
-            if (!uploaded) {
-                Log.w(TAG, "PreKey upload failed; removing unuploaded preKeys from store")
-                // BUG 5 fix: 从 store 中删除已生成但未上传的 PreKey，使 preKeyCount() 下次能触发重试
-                // 持 cryptoLock 防止与 decrypt 路径的 removePreKey 竞态
-                cryptoLock.withLock {
-                    preKeys.forEach { protocolStore.removePreKey(it.id) }
-                }
-                // 9.141：回滚后从 store 重建存活旧密钥列表并重写 blob——此前直接置空，
-                // getPreKeys() 与 preKeyCount() 长期不一致，且 blob 残留已删除的新密钥；
-                // 后续 SPK 轮换的 uploadKeysToServer 会拿着空列表上传被服务端拒收
-                preKeys = cryptoLock.withLock {
-                    (protocolStore as? PersistentSignalProtocolStore)?.remainingPreKeys()?.sortedBy { it.id }.orEmpty()
-                }
-                persistPreKeys()
+            val uploaded = publishRuntimeKeyPackage(token, expectedUserId)
+            if (uploaded) {
+                preKeyPublicationPending = false
+            } else {
+                Log.w(TAG, "PreKey upload failed; retaining batch for idempotent retry")
             }
             uploaded
         }
@@ -342,21 +473,62 @@ class SignalProtocol(
      * 生成新 SPK 并上传。旧 SPK 保留在 store 中以解密在途消息（libsignal 自动处理）。
      * 返回 true 表示轮换了 SPK。
      */
-    suspend fun rotateSignedPreKeyIfNeeded(token: String?): Boolean {
-        if (token.isNullOrBlank()) return false
-        val spk = signedPreKey ?: return false
-        val ageMs = System.currentTimeMillis() - spk.timestamp
-        if (ageMs < SIGNED_PRE_KEY_ROTATION_MS) return false
+    suspend fun rotateSignedPreKeyIfNeeded(token: String?, expectedUserId: String): Boolean {
+        if (token.isNullOrBlank() || expectedUserId.isBlank()) return false
         return initializationMutex.withLock {
+            if (currentUserId != expectedUserId || !localCryptoReady) return@withLock false
+            if (signedPreKeyPublicationPending) {
+                // Re-persist before every retry: publishing a key that was never durable would
+                // make a process restart restore an older SPK than the server advertises.
+                persistCoreKeys()
+                val uploaded = publishRuntimeKeyPackage(token, expectedUserId)
+                if (uploaded) signedPreKeyPublicationPending = false
+                return@withLock uploaded
+            }
             // 双检：锁内再次确认
             val current = signedPreKey ?: return@withLock false
             if (System.currentTimeMillis() - current.timestamp < SIGNED_PRE_KEY_ROTATION_MS) return@withLock false
             cryptoLock.withLock {
                 generateAndStoreSignedPreKey()
             }
+            signedPreKeyPublicationPending = true
             persistCoreKeys()
-            uploadKeysToServer(token).isSuccess
+            val uploaded = publishRuntimeKeyPackage(token, expectedUserId)
+            if (uploaded) signedPreKeyPublicationPending = false
+            uploaded
         }
+    }
+
+    /** Runtime key maintenance uses the same device collision/status checks as initialization. */
+    private suspend fun publishRuntimeKeyPackage(token: String, expectedUserId: String): Boolean {
+        if (currentUserId != expectedUserId || !localCryptoReady) return false
+        val result = try {
+            uploadKeysWithDeviceIdRecovery(token)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+        val error = result.exceptionOrNull()
+        val invalidateLocalCrypto = SignalDeviceIdRecoveryPolicy.invalidatesLocalCrypto(error)
+        if (invalidateLocalCrypto) {
+            preKeyPublicationPending = false
+            signedPreKeyPublicationPending = false
+            devicePendingApproval = false
+            deviceIdMigrationOccurred = false
+            sessionsRequiringReestablishment.clear()
+        }
+        applyInitializationState(
+            if (result.isSuccess) {
+                SignalInitializationPolicy.publicationSucceeded(initializationState())
+            } else {
+                SignalInitializationPolicy.publicationFailed(
+                    initializationState(),
+                    invalidateLocalCrypto = invalidateLocalCrypto,
+                )
+            }
+        )
+        return result.isSuccess
     }
 
     /**
@@ -371,22 +543,38 @@ class SignalProtocol(
             toDelete.forEach { addr ->
                 store.deleteSession(addr)
             }
+            throwIfSignalStorePersistenceFailed()
             if (toDelete.isNotEmpty()) {
                 Log.i(TAG, "Cleaned up ${toDelete.size} stale Signal sessions")
             }
         }
     }
 
-    private suspend fun persistCoreKeys() {
+    private suspend fun persistCoreKeys(deviceIdMigrationPending: Boolean? = null) {
         val spk = signedPreKey ?: return
-        signalKeyDao.insertKeys(
-            listOf(
-                SignalKeyEntity(scopedKey(KEY_REGISTRATION_ID), registrationId.toString()),
-                SignalKeyEntity(scopedKey(KEY_DEVICE_ID), localDeviceId.toString()),
-                SignalKeyEntity(scopedKey(KEY_IDENTITY_KEY_PAIR), Base64.encodeToString(identityKeyPair.serialize(), Base64.NO_WRAP)),
-                SignalKeyEntity(scopedKey(KEY_SIGNED_PRE_KEY), Base64.encodeToString(spk.serialize(), Base64.NO_WRAP))
-            )
-        )
+        val keys = buildList {
+            add(SignalKeyEntity(scopedKey(KEY_REGISTRATION_ID), registrationId.toString()))
+            add(SignalKeyEntity(scopedKey(KEY_DEVICE_ID), localDeviceId.toString()))
+            add(SignalKeyEntity(scopedKey(KEY_IDENTITY_KEY_PAIR), Base64.encodeToString(identityKeyPair.serialize(), Base64.NO_WRAP)))
+            add(SignalKeyEntity(scopedKey(KEY_SIGNED_PRE_KEY), Base64.encodeToString(spk.serialize(), Base64.NO_WRAP)))
+            if (deviceIdMigrationPending == true) {
+                // Insert the marker in the same Room batch as the replacement device id. If
+                // the process dies immediately after this call, initialization can still force
+                // all old sessions through ensureSession before any outbound encryption.
+                add(
+                    SignalKeyEntity(
+                        scopedKey(KEY_DEVICE_ID_MIGRATION_PENDING),
+                        SignalDeviceIdRecoveryPolicy.DEVICE_ID_MIGRATION_PENDING_MARKER,
+                    )
+                )
+            }
+        }
+        signalKeyDao.insertKeys(keys)
+        if (deviceIdMigrationPending == false) {
+            // Clearing is deliberately separate and fail-closed: if it fails, the marker stays
+            // set and the next startup performs a harmless extra session re-establishment.
+            signalKeyDao.deleteKey(scopedKey(KEY_DEVICE_ID_MIGRATION_PENDING))
+        }
     }
 
     private suspend fun persistPreKeys() {
@@ -399,12 +587,13 @@ class SignalProtocol(
     }
 
     suspend fun ensureSession(token: String, recipientId: String, deviceId: Int = DEFAULT_DEVICE_ID): Result<Unit> {
-        val resolvedDeviceId = resolveSessionDeviceId(token, recipientId, deviceId)
+            val resolvedDeviceId = resolveSessionDeviceId(token, recipientId, deviceId)
             ?: return Result.failure(NoRecipientDevicesException())
         if (!SignalSessionPolicy.shouldEstablishSession(recipientId, resolvedDeviceId, currentUserId, getDeviceId())) {
             return Result.success(Unit)
         }
-        if (hasSession(recipientId, resolvedDeviceId)) return Result.success(Unit)
+        val sessionKey = sessionSetupKey(recipientId, resolvedDeviceId)
+        if (!sessionNeedsSetup(recipientId, resolvedDeviceId)) return Result.success(Unit)
         val lockKey = "$recipientId:$resolvedDeviceId"
         val setupLock = sessionSetupLocks.compute(lockKey) { _, existing ->
             val lock = existing ?: SessionSetupLock()
@@ -413,21 +602,16 @@ class SignalProtocol(
         }!!
         try {
             return setupLock.mutex.withLock {
-                if (hasSession(recipientId, resolvedDeviceId)) return@withLock Result.success(Unit)
+                if (!sessionNeedsSetup(recipientId, resolvedDeviceId)) return@withLock Result.success(Unit)
                 try {
                     val response = SignalKeyExchange.fetchDevicePreKeyBundle(token, recipientId, resolvedDeviceId)
                         .getOrElse { primaryError ->
-                            // Fallback only for definitive fetch failures — never swallow cancellation.
-                            // 8.46 修复：回退仅允许目标设备 = 默认设备（单设备用户）——否则会把
-                            // 「另一台设备」的默认 bundle 会话建到 recipientId 上，调用方随后仍按
-                            // 入参 deviceId 加密抛 NoSessionException，且留下永不会用到的半建会话。
-                            if (resolvedDeviceId == DEFAULT_DEVICE_ID) {
+                            // Old servers do not expose the per-device endpoint. Only a 404 may
+                            // use the legacy bundle, and its concrete device id must still match.
+                            if (SignalKeyExchange.shouldUseLegacyBundleEndpoint(primaryError)) {
                                 val fallback = SignalKeyExchange.fetchPreKeyBundle(token, recipientId)
                                     .getOrElse { throw primaryError }
                                     .toDeviceBundle(recipientId)
-                                // 9.141：单设备回退端点解析到「编号最小的已确认设备」，未必是 1 号
-                                // （如 1 号 PENDING、2 号 CONFIRMED）——设备不符按失败处理，否则
-                                // 会话建到错误设备、调用方按入参 deviceId 加密仍 NoSessionException
                                 if (fallback.deviceId != resolvedDeviceId) throw primaryError
                                 fallback
                             } else {
@@ -435,13 +619,17 @@ class SignalProtocol(
                             }
                         }
                     // Re-check under setup lock: concurrent waiter may have established already.
-                    if (!hasSession(recipientId, response.deviceId)) {
+                    if (sessionsRequiringReestablishment.contains(sessionSetupKey(recipientId, response.deviceId)) ||
+                        !hasSession(recipientId, response.deviceId)
+                    ) {
                         establishSession(
                             recipientId,
                             response.deviceId,
                             SignalKeyExchange.run { response.toSignalPreKeyBundle() }
                         )
                     }
+                    sessionsRequiringReestablishment.remove(sessionSetupKey(recipientId, response.deviceId))
+                    maybeClearDeviceIdMigrationMarker()
                     Result.success(Unit)
                 } catch (error: kotlinx.coroutines.CancellationException) {
                     throw error
@@ -469,9 +657,9 @@ class SignalProtocol(
 
     suspend fun ensureSessions(token: String, recipientId: String): Result<List<Int>> {
         return try {
-            val bundles = SignalKeyExchange.fetchDevicePreKeyBundles(token, recipientId).getOrThrow()
+            val bundles = SignalKeyExchange.fetchCompatibleDevicePreKeyBundles(token, recipientId).getOrThrow()
             val deviceIds = if (bundles.isEmpty()) {
-                val fallback = SignalKeyExchange.fetchPreKeyBundle(token, recipientId).getOrNull()
+                val fallback = SignalKeyExchange.fetchPreKeyBundle(token, recipientId).getOrElse { throw it }
                 val fallbackId = fallback?.deviceId
                 if (fallbackId == null) {
                     throw NoRecipientDevicesException()
@@ -488,7 +676,12 @@ class SignalProtocol(
                         !SignalSessionPolicy.shouldEstablishSession(
                             recipientId, bundle.deviceId, currentUserId, getDeviceId()
                         ) -> Unit
-                        !hasSession(recipientId, bundle.deviceId) -> {
+                        SignalSessionPolicy.shouldEnsureSession(
+                            hasSession = hasSession(recipientId, bundle.deviceId),
+                            requiresReestablishment = sessionsRequiringReestablishment.contains(
+                                sessionSetupKey(recipientId, bundle.deviceId)
+                            ),
+                        ) -> {
                             // Prefer consuming single-device endpoint for real session setup.
                             ensureSession(token, recipientId, bundle.deviceId).getOrThrow()
                         }
@@ -497,7 +690,104 @@ class SignalProtocol(
                     bundle.deviceId
                 }
             }
-            Result.success(deviceIds.distinct().sorted())
+            val eligibleDeviceIds = deviceIds
+                .filter {
+                    SignalSessionPolicy.shouldEstablishSession(
+                        recipientId,
+                        it,
+                        currentUserId,
+                        getDeviceId(),
+                    )
+                }
+                .distinct()
+                .sorted()
+            if (eligibleDeviceIds.isEmpty()) throw NoRecipientDevicesException()
+            Result.success(eligibleDeviceIds)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+    }
+
+    /**
+     * Discover every confirmed device, then establish each session independently.
+     * Discovery failure is fatal because no authoritative candidate set exists;
+     * after discovery, a broken device does not hide its healthy siblings.
+     */
+    private suspend fun ensureSessionsDetailed(
+        token: String,
+        recipientId: String,
+    ): Result<SessionCoverage> {
+        return try {
+            val bundles = SignalKeyExchange.fetchCompatibleDevicePreKeyBundles(token, recipientId).getOrThrow()
+            val failuresByDevice = linkedMapOf<Int, Throwable>()
+            val establishedDeviceIds = linkedSetOf<Int>()
+
+            suspend fun attempt(deviceId: Int) {
+                ensureSession(token, recipientId, deviceId).fold(
+                    onSuccess = {
+                        if (hasSession(recipientId, deviceId)) {
+                            establishedDeviceIds += deviceId
+                        } else {
+                            failuresByDevice[deviceId] = IllegalStateException(
+                                "Signal session was not available after setup"
+                            )
+                        }
+                    },
+                    onFailure = { error -> failuresByDevice[deviceId] = error },
+                )
+            }
+
+            val candidateDeviceIds = if (bundles.isEmpty()) {
+                // Preserve a concrete fallback error (for example timeout) instead of
+                // collapsing it into an indistinguishable "no devices" result.
+                val fallback = SignalKeyExchange.fetchPreKeyBundle(token, recipientId).getOrElse { throw it }
+                val fallbackId = fallback.deviceId.takeIf { it > 0 }
+                    ?: throw NoRecipientDevicesException()
+                listOf(fallbackId)
+                    .filter {
+                        SignalSessionPolicy.shouldEstablishSession(
+                            recipientId,
+                            it,
+                            currentUserId,
+                            getDeviceId(),
+                        )
+                    }
+            } else {
+                bundles
+                    .map { it.deviceId }
+                    .filter {
+                        SignalSessionPolicy.shouldEstablishSession(
+                            recipientId,
+                            it,
+                            currentUserId,
+                            getDeviceId(),
+                        )
+                    }
+                    .distinct()
+                    .sorted()
+            }
+            if (candidateDeviceIds.isEmpty()) throw NoRecipientDevicesException()
+
+            candidateDeviceIds.forEach { deviceId ->
+                // Device discovery may peek OTPKs. Consume a concrete bundle only when
+                // the session is absent or a device-id migration invalidated its ratchet.
+                val shouldEnsure = sessionNeedsSetup(recipientId, deviceId)
+                if (shouldEnsure) {
+                    attempt(deviceId)
+                } else {
+                    establishedDeviceIds += deviceId
+                }
+            }
+
+            Result.success(
+                SessionCoverage(
+                    candidateDeviceIds = candidateDeviceIds,
+                    establishedDeviceIds = establishedDeviceIds.toList().sorted(),
+                    failuresByDevice = failuresByDevice.toMap(),
+                )
+            )
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -527,8 +817,10 @@ class SignalProtocol(
         plaintext: String,
         payloadType: String
     ): Result<String> {
+        val peerId = MultiRecipientCoveragePolicy.normalizeRequiredRecipientId(recipientId)
+            ?: return Result.failure(NoRecipientDevicesException())
         val recipients = listOfNotNull(
-            recipientId.takeIf { it.isNotBlank() },
+            peerId,
             currentUserId?.takeIf { it.isNotBlank() }
         ).distinct()
         return encryptMultiRecipientContentEnvelope(
@@ -536,8 +828,35 @@ class SignalProtocol(
             recipientIds = recipients,
             plaintext = plaintext,
             payloadType = payloadType,
-            includeCurrentUserDevices = true
+            includeCurrentUserDevices = true,
+            // A direct message must never be accepted when only the sender's own
+            // device(s) were encrypted successfully.
+            requiredRecipientIds = setOf(peerId)
         )
+    }
+
+    private fun sessionSetupKey(recipientId: String, deviceId: Int): String = "$recipientId|$deviceId"
+
+    /** Check the migration gate and in-memory store atomically with its writer. */
+    private fun sessionNeedsSetup(recipientId: String, deviceId: Int): Boolean = cryptoLock.withLock {
+        val address = SignalProtocolAddress(recipientId, deviceId)
+        (protocolStore as? PersistentSignalProtocolStore)?.persistenceFailure() != null ||
+            sessionsRequiringReestablishment.contains(sessionSetupKey(recipientId, deviceId)) ||
+            !protocolStore.containsSession(address)
+    }
+
+    /** Mark sessions created before a local device-id migration for outbound re-establishment. */
+    private fun markSessionsForDeviceIdMigration() {
+        cryptoLock.withLock {
+            markSessionsForDeviceIdMigrationLocked()
+        }
+    }
+
+    private fun markSessionsForDeviceIdMigrationLocked() {
+        val store = protocolStore as? PersistentSignalProtocolStore ?: return
+        store.getSessionAddresses().forEach { address ->
+            sessionsRequiringReestablishment += sessionSetupKey(address.name, address.deviceId)
+        }
     }
 
     suspend fun encryptMultiDeviceContentEnvelope(
@@ -579,14 +898,16 @@ class SignalProtocol(
         recipientIds: List<String>,
         plaintext: String,
         payloadType: String,
-        includeCurrentUserDevices: Boolean = false
+        includeCurrentUserDevices: Boolean = false,
+        requiredRecipientIds: Set<String> = emptySet()
     ): Result<String> {
         return encryptMultiRecipientContentEnvelopeWithTargets(
             token = token,
             recipientIds = recipientIds,
             plaintext = plaintext,
             payloadType = payloadType,
-            includeCurrentUserDevices = includeCurrentUserDevices
+            includeCurrentUserDevices = includeCurrentUserDevices,
+            requiredRecipientIds = requiredRecipientIds
         ).map { it.envelope }
     }
 
@@ -595,10 +916,21 @@ class SignalProtocol(
         recipientIds: List<String>,
         plaintext: String,
         payloadType: String,
-        includeCurrentUserDevices: Boolean = false
+        includeCurrentUserDevices: Boolean = false,
+        requiredRecipientIds: Set<String> = emptySet()
     ): Result<MultiRecipientEnvelopePayload> {
         return try {
             val targets = mutableListOf<MultiRecipientDeviceTarget>()
+            val sessionFailures = mutableMapOf<String, Throwable>()
+            val failuresByTarget = mutableMapOf<MultiRecipientCoveragePolicy.Target, Throwable>()
+            val requiredRecipientSet = requiredRecipientIds
+                .map(String::trim)
+                .filter(String::isNotBlank)
+                .toSet()
+            // Direct messages require every discovered peer device, not merely one device
+            // for the user. Group sender-key fan-out passes an empty required set and stays
+            // best-effort.
+            val requiredTargets = mutableSetOf<MultiRecipientCoveragePolicy.Target>()
             // 单成员 session 失败不得整批 abort（SK fan-out 应尽量覆盖可用设备）
             val entries = recipientIds
                 .filter {
@@ -608,10 +940,31 @@ class SignalProtocol(
                 }
                 .distinct()
                 .flatMap { recipientId ->
-                    val deviceIds = ensureSessions(token, recipientId).getOrElse { emptyList() }
-                    deviceIds
-                        .filter { deviceId -> recipientId != currentUserId || deviceId != getDeviceId() }
+                    val coverage = ensureSessionsDetailed(token, recipientId).getOrElse { error ->
+                        sessionFailures.putIfAbsent(recipientId, error)
+                        null
+                    }
+                    if (coverage == null) return@flatMap emptyList()
+
+                    val candidateDeviceIds = coverage.candidateDeviceIds
+                    val establishedDeviceIds = coverage.establishedDeviceIds
+                    if (recipientId in requiredRecipientSet) {
+                        // Direct messages must cover every confirmed peer device. A
+                        // successful sibling cannot hide a failed candidate.
+                        requiredTargets += candidateDeviceIds.map {
+                            MultiRecipientCoveragePolicy.Target(recipientId, it)
+                        }
+                    }
+                    coverage.failuresByDevice.forEach { (deviceId, error) ->
+                        val target = MultiRecipientCoveragePolicy.Target(recipientId, deviceId)
+                        failuresByTarget[target] = error
+                        sessionFailures.putIfAbsent(recipientId, error)
+                    }
+                    // Group sender-key fan-out is best-effort: use established devices
+                    // while direct-message required targets remain strict below.
+                    establishedDeviceIds
                         .mapNotNull { deviceId ->
+                            val target = MultiRecipientCoveragePolicy.Target(recipientId, deviceId)
                             try {
                                 val cipherResult = encryptMessage(recipientId, plaintext, deviceId)
                                 targets += MultiRecipientDeviceTarget(recipientId, deviceId)
@@ -623,12 +976,44 @@ class SignalProtocol(
                                 )
                             } catch (error: kotlinx.coroutines.CancellationException) {
                                 throw error
-                            } catch (_: Exception) {
+                            } catch (error: Exception) {
+                                // Keep the concrete target failure. A successful sibling device
+                                // must not make a failed peer device look covered.
+                                failuresByTarget[target] = error
+                                sessionFailures.putIfAbsent(recipientId, error)
                                 null
                             }
                         }
                 }
-            if (entries.isEmpty()) throw NoRecipientDevicesException()
+            val coveredTargets = targets.map { MultiRecipientCoveragePolicy.Target(it.userId, it.deviceId) }
+            if (!MultiRecipientCoveragePolicy.requiredTargetsCovered(requiredTargets, coveredTargets) ||
+                !MultiRecipientCoveragePolicy.requiredRecipientsCovered(requiredRecipientIds, coveredTargets)
+            ) {
+                MultiRecipientCoveragePolicy.transientFailureForMissingTargets(
+                    requiredTargets = requiredTargets,
+                    targets = coveredTargets,
+                    failuresByTarget = failuresByTarget,
+                )?.let { throw it }
+                MultiRecipientCoveragePolicy.transientFailureForMissingRecipients(
+                    requiredRecipientIds = requiredRecipientIds,
+                    targets = coveredTargets,
+                    failuresByRecipient = sessionFailures,
+                )?.let { throw it }
+                throw NoRecipientDevicesException()
+            }
+            if (entries.isEmpty()) {
+                val transientFailure = sequenceOf(
+                    failuresByTarget.values.asSequence(),
+                    sessionFailures.values.asSequence(),
+                ).flatten().firstOrNull(MultiRecipientCoveragePolicy::isTransient)
+                if (transientFailure != null) {
+                    throw TransientCoverageException(
+                        message = "all recipient session targets are temporarily unavailable",
+                        cause = transientFailure,
+                    )
+                }
+                throw NoRecipientDevicesException()
+            }
             val envelope = json.encodeToString(MultiDeviceMessageEnvelope(
                 version = MULTI_DEVICE_ENVELOPE_VERSION,
                 algorithm = ALGORITHM_SIGNAL_MULTI_DEVICE,
@@ -703,14 +1088,48 @@ class SignalProtocol(
     fun shouldAcknowledgeDecrypt(envelopeId: String, result: DecryptResult): Boolean =
         decryptRetryTracker.shouldAcknowledge(envelopeId, result)
 
+    /** Clear one envelope's retry circuit after its session/SenderKey state is repaired. */
+    fun clearDecryptRetryState(senderId: String, content: String) {
+        decryptRetryTracker.clear(DecryptFailurePolicy.envelopeFingerprint(senderId, content))
+    }
+
+    /** Compatibility alias for callers that use the older failure terminology. */
+    fun clearDecryptFailure(senderId: String, content: String) {
+        clearDecryptRetryState(senderId, content)
+    }
+
+    /** Clear all capped failures for one peer after a successful session repair. */
+    fun clearDecryptRetryStateForSender(senderId: String) {
+        decryptRetryTracker.clearForSender(senderId)
+    }
+
+    /**
+     * A terminal wire (malformed, unsupported, or addressed to another device) must not
+     * hold the sync cursor forever. The original wire is retained so a later session repair
+     * can still inspect it, but the current sync pass may advance past this deterministic result.
+     */
+    fun isDecryptTerminalFailure(senderId: String, content: String): Boolean {
+        val fingerprint = DecryptFailurePolicy.envelopeFingerprint(senderId, content)
+        return decryptRetryTracker.isTerminal(fingerprint)
+    }
+
+    /** True when a recoverable wire has exhausted the bounded retry budget. */
+    fun isDecryptRetryExhausted(senderId: String, content: String): Boolean {
+        val fingerprint = DecryptFailurePolicy.envelopeFingerprint(senderId, content)
+        return DecryptFailurePolicy.shouldSkipCryptoAttempt(decryptRetryTracker.failureCount(fingerprint))
+    }
+
     fun decryptTextEnvelope(senderId: String, content: String): DecryptResult {
         return decryptContentEnvelope(senderId, content)
     }
 
     fun decryptContentEnvelope(senderId: String, content: String): DecryptResult {
         val owner = currentUserId
-        if (owner.isNullOrBlank() || !isInitializedFor(owner)) return DecryptResult.Failed
+        if (owner.isNullOrBlank() || !isLocalCryptoReadyFor(owner)) return DecryptResult.Failed
         val fingerprint = DecryptFailurePolicy.envelopeFingerprint(senderId, content)
+        if (decryptRetryTracker.isTerminal(fingerprint)) {
+            return DecryptResult.UnsupportedEnvelope
+        }
         if (DecryptFailurePolicy.shouldSkipCryptoAttempt(decryptRetryTracker.failureCount(fingerprint))) {
             return DecryptResult.Failed
         }
@@ -750,12 +1169,25 @@ class SignalProtocol(
             // 良性去重异常（重复/乱序投递，libsignal 继承 InvalidMessageException）。
             // 归为 Duplicate，调用方按“已处理”忽略，避免误报为解密失败。
             DecryptResult.Duplicate
+        } catch (e: InvalidMessageException) {
+            // libsignal uses InvalidMessageException for both malformed wire and a
+            // recoverable bad-MAC/ratchet mismatch. Keep the original wire and use the
+            // bounded retry circuit; a later session repair must get a chance to retry it.
+            Log.w(TAG, "decryptContentEnvelope invalid message", e)
+            DecryptResult.Failed
+        } catch (e: kotlinx.serialization.SerializationException) {
+            Log.w(TAG, "decryptContentEnvelope malformed envelope", e)
+            DecryptResult.UnsupportedEnvelope
+        } catch (e: IllegalArgumentException) {
+            // Base64 and envelope field decoding errors are deterministic malformed input.
+            Log.w(TAG, "decryptContentEnvelope malformed encoding", e)
+            DecryptResult.UnsupportedEnvelope
         } catch (e: Exception) {
             // 非预期异常（state 损坏、编解码失败等）— 必须 Log 以定位根因，不能静默转 Failed
             Log.w(TAG, "decryptContentEnvelope unexpected failure", e)
             DecryptResult.Failed
         }
-        rememberDecryptOutcome(fingerprint, result)
+        rememberDecryptOutcome(senderId, fingerprint, result)
         return result
     }
 
@@ -823,7 +1255,17 @@ class SignalProtocol(
         expectedGroupId: String? = null,
         currentEpoch: Long? = null
     ): SenderKeyDistOutcome {
-        return cryptoLock.withLock {
+        val fingerprint = DecryptFailurePolicy.envelopeFingerprint(senderId, content)
+        if (decryptRetryTracker.isTerminal(fingerprint) ||
+            DecryptFailurePolicy.shouldSkipCryptoAttempt(decryptRetryTracker.failureCount(fingerprint))
+        ) {
+            return SenderKeyDistOutcome.Skipped
+        }
+        val owner = currentUserId
+        if (owner.isNullOrBlank() || !isLocalCryptoReadyFor(owner)) {
+            return SenderKeyDistOutcome.Failed
+        }
+        val outcome = cryptoLock.withLock {
             runCatching {
                 val envelope = runCatching {
                     json.decodeFromString(SenderKeyDistributionEnvelope.serializer(), content)
@@ -843,16 +1285,40 @@ class SignalProtocol(
                 val senderAddress = SignalProtocolAddress(senderId, envelope.senderDeviceId)
                 val distributionMessage = SenderKeyDistributionMessage(Base64.decode(envelope.distributionMessage, Base64.NO_WRAP))
                 GroupSessionBuilder(protocolStore).process(senderAddress, distributionMessage)
+                throwIfSignalStorePersistenceFailed()
                 SenderKeyDistOutcome.Installed
-            }.getOrDefault(SenderKeyDistOutcome.Failed)
+            }.getOrElse(SenderKeyDistributionFailurePolicy::outcomeFor)
+        }
+        return when (outcome) {
+            SenderKeyDistOutcome.Installed -> {
+                // Distribution installation is the repair event for this sender's capped
+                // SenderKey envelopes; allow the pending ciphertexts to be tried again.
+                clearDecryptRetryStateForSender(senderId)
+                outcome
+            }
+            SenderKeyDistOutcome.Skipped -> {
+                decryptRetryTracker.markTerminal(fingerprint)
+                outcome
+            }
+            SenderKeyDistOutcome.Failed -> {
+                decryptRetryTracker.recordCryptoFailure(senderId, fingerprint)
+                if (DecryptFailurePolicy.shouldSkipCryptoAttempt(decryptRetryTracker.failureCount(fingerprint))) {
+                    SenderKeyDistOutcome.Skipped
+                } else {
+                    outcome
+                }
+            }
         }
     }
 
     fun createGroupSenderKeyDistribution(groupId: String, epoch: Long = 0): SenderKeyDistributionPayload {
+        val owner = currentUserId
+        check(!owner.isNullOrBlank() && isLocalCryptoReadyFor(owner)) { "signal_not_initialized" }
         return cryptoLock.withLock {
             val distributionId = getOrCreateGroupDistributionId(groupId, epoch)
             val senderAddress = SignalProtocolAddress(currentUserId ?: ANONYMOUS_ACCOUNT_ID, getDeviceId())
             val message = GroupSessionBuilder(protocolStore).create(senderAddress, UUID.fromString(distributionId))
+            throwIfSignalStorePersistenceFailed()
             SenderKeyDistributionPayload(distributionId, message, epoch)
         }
     }
@@ -942,7 +1408,7 @@ class SignalProtocol(
 
     fun encryptGroupContentEnvelope(groupId: String, plaintext: String, payloadType: String, epoch: Long = 0): Result<String> {
         val owner = currentUserId
-        if (owner.isNullOrBlank() || !isInitializedFor(owner)) {
+        if (owner.isNullOrBlank() || !isLocalCryptoReadyFor(owner)) {
             return Result.failure(IllegalStateException("signal_not_initialized"))
         }
         return cryptoLock.withLock {
@@ -953,6 +1419,7 @@ class SignalProtocol(
                 val senderAddress = SignalProtocolAddress(currentUserId ?: ANONYMOUS_ACCOUNT_ID, getDeviceId())
                 val cipher = GroupCipher(protocolStore, senderAddress)
                 val ciphertext = cipher.encrypt(UUID.fromString(distributionId), plaintext.toByteArray(Charsets.UTF_8))
+                throwIfSignalStorePersistenceFailed()
                 json.encodeToString(SenderKeyMessageEnvelope(
                     groupId = groupId,
                     epoch = epoch,
@@ -975,8 +1442,11 @@ class SignalProtocol(
 
     fun decryptGroupContentEnvelope(senderId: String, content: String, expectedGroupId: String? = null, currentEpoch: Long? = null): DecryptResult {
         val owner = currentUserId
-        if (owner.isNullOrBlank() || !isInitializedFor(owner)) return DecryptResult.Failed
+        if (owner.isNullOrBlank() || !isLocalCryptoReadyFor(owner)) return DecryptResult.Failed
         val fingerprint = DecryptFailurePolicy.envelopeFingerprint(senderId, content)
+        if (decryptRetryTracker.isTerminal(fingerprint)) {
+            return DecryptResult.UnsupportedEnvelope
+        }
         if (DecryptFailurePolicy.shouldSkipCryptoAttempt(decryptRetryTracker.failureCount(fingerprint))) {
             return DecryptResult.Failed
         }
@@ -996,6 +1466,7 @@ class SignalProtocol(
                 val senderAddress = SignalProtocolAddress(senderId, envelope.senderDeviceId)
                 val plaintext = GroupCipher(protocolStore, senderAddress)
                     .decrypt(Base64.decode(envelope.ciphertext, Base64.NO_WRAP))
+                throwIfSignalStorePersistenceFailed()
                 DecryptResult.Success(String(plaintext, Charsets.UTF_8))
             } catch (e: NoSessionException) {
                 DecryptResult.NoSession
@@ -1004,22 +1475,31 @@ class SignalProtocol(
             } catch (e: org.signal.libsignal.protocol.DuplicateMessageException) {
                 // 良性去重异常（重复/乱序投递）。归为 Duplicate，调用方按“已处理”忽略。
                 DecryptResult.Duplicate
+            } catch (e: InvalidMessageException) {
+                Log.w(TAG, "decryptGroupContentEnvelope invalid message", e)
+                DecryptResult.Failed
+            } catch (e: kotlinx.serialization.SerializationException) {
+                Log.w(TAG, "decryptGroupContentEnvelope malformed envelope", e)
+                DecryptResult.UnsupportedEnvelope
+            } catch (e: IllegalArgumentException) {
+                Log.w(TAG, "decryptGroupContentEnvelope malformed encoding", e)
+                DecryptResult.UnsupportedEnvelope
             } catch (e: Exception) {
                 // 同上 — 非预期的群解密异常，记录以便排查
                 Log.w(TAG, "decryptGroupContentEnvelope unexpected failure", e)
                 DecryptResult.Failed
             }
         }
-        rememberDecryptOutcome(fingerprint, result)
+        rememberDecryptOutcome(senderId, fingerprint, result)
         return result
     }
 
-    private fun rememberDecryptOutcome(fingerprint: String, result: DecryptResult) {
-        when {
-            result is DecryptResult.Success || result == DecryptResult.Duplicate -> decryptRetryTracker.clear(fingerprint)
-            DecryptFailurePolicy.disposition(result) == DecryptFailurePolicy.Disposition.RETRY ->
-                decryptRetryTracker.recordCryptoFailure(fingerprint)
-            else -> decryptRetryTracker.clear(fingerprint)
+    private fun rememberDecryptOutcome(senderId: String, fingerprint: String, result: DecryptResult) {
+        when (DecryptFailurePolicy.trackingAction(result)) {
+            DecryptFailurePolicy.TrackingAction.CLEAR -> decryptRetryTracker.clear(fingerprint)
+            DecryptFailurePolicy.TrackingAction.RECORD_FAILURE ->
+                decryptRetryTracker.recordCryptoFailure(senderId, fingerprint)
+            DecryptFailurePolicy.TrackingAction.MARK_TERMINAL -> decryptRetryTracker.markTerminal(fingerprint)
         }
     }
 
@@ -1046,18 +1526,25 @@ class SignalProtocol(
             val address = SignalProtocolAddress(recipientId, deviceId)
             val builder = SessionBuilder(protocolStore, address)
             builder.process(preKeyBundle)
+            throwIfSignalStorePersistenceFailed()
         }
+    }
+
+    private fun throwIfSignalStorePersistenceFailed() {
+        val failure = (protocolStore as? PersistentSignalProtocolStore)?.persistenceFailure() ?: return
+        throw SignalStorePersistenceException(failure)
     }
 
     fun encryptMessage(recipientId: String, plaintext: String, deviceId: Int = DEFAULT_DEVICE_ID): EncryptedPayload {
         val owner = currentUserId
-        if (owner.isNullOrBlank() || !isInitializedFor(owner)) {
+        if (owner.isNullOrBlank() || !isLocalCryptoReadyFor(owner)) {
             throw IllegalStateException("signal_not_initialized")
         }
         cryptoLock.withLock {
             val address = SignalProtocolAddress(recipientId, deviceId)
             val cipher = SessionCipher(protocolStore, address)
             val ciphertext = cipher.encrypt(plaintext.toByteArray(Charsets.UTF_8))
+            throwIfSignalStorePersistenceFailed()
             val type = when (ciphertext.type) {
                 CiphertextMessage.PREKEY_TYPE -> CIPHERTEXT_TYPE_PREKEY
                 CiphertextMessage.WHISPER_TYPE -> CIPHERTEXT_TYPE_SIGNAL
@@ -1074,14 +1561,14 @@ class SignalProtocol(
         ciphertextType: String? = null
     ): String {
         val owner = currentUserId
-        if (owner.isNullOrBlank() || !isInitializedFor(owner)) {
+        if (owner.isNullOrBlank() || !isLocalCryptoReadyFor(owner)) {
             throw IllegalStateException("signal_not_initialized")
         }
         cryptoLock.withLock {
             val address = SignalProtocolAddress(senderId, deviceId)
             val cipher = SessionCipher(protocolStore, address)
 
-            return when (ciphertextType) {
+            val plaintext = when (ciphertextType) {
                 CIPHERTEXT_TYPE_PREKEY -> String(cipher.decrypt(PreKeySignalMessage(ciphertext)), Charsets.UTF_8)
                 CIPHERTEXT_TYPE_SIGNAL -> String(cipher.decrypt(SignalMessage(ciphertext)), Charsets.UTF_8)
                 else -> try {
@@ -1096,6 +1583,8 @@ class SignalProtocol(
                     }
                 }
             }
+            throwIfSignalStorePersistenceFailed()
+            return plaintext
         }
     }
 
@@ -1120,7 +1609,18 @@ class SignalProtocol(
         Base64.encodeToString(signature, Base64.NO_WRAP)
     }
     fun isInitializedFor(userId: String): Boolean =
-        userId.isNotBlank() && initializationSucceeded && currentUserId == userId
+        userId.isNotBlank() && initializationSucceeded && currentUserId == userId && isSignalStoreHealthy()
+
+    /** True when the account-scoped local Signal store is restored, regardless of publication. */
+    fun isLocalStoreReadyFor(userId: String): Boolean =
+        isSignalStoreHealthy() &&
+            SignalInitializationPolicy.canUseLocalCrypto(currentUserId, localCryptoReady, userId)
+
+    /** Local crypto is blocked while the server requires approval for this device. */
+    fun isLocalCryptoReadyFor(userId: String): Boolean =
+        !devicePendingApproval && isLocalStoreReadyFor(userId)
+
+    fun isDevicePendingApproval(): Boolean = devicePendingApproval
 
     /** Same-device restore vs a newly minted identity after a true wipe. */
     fun wasIdentityRestoredFromStore(): Boolean = identityRestoredFromStore
@@ -1224,28 +1724,36 @@ class SignalProtocol(
         }
     }
 
-    fun invalidateInMemoryAccountState() {
+    suspend fun invalidateInMemoryAccountState() = initializationMutex.withLock {
+        invalidateInMemoryAccountStateLocked()
+    }
+
+    private fun invalidateInMemoryAccountStateLocked() {
         cryptoLock.withLock {
-            currentUserId = null
-            initializationSucceeded = false
+            applyInitializationState(SignalInitializationPolicy.cleared())
             identityRestoredFromStore = false
             registrationId = KeyHelper.generateRegistrationId(false)
             identityKeyPair = IdentityKeyPair.generate()
             signedPreKey = null
             preKeys = emptyList()
+            preKeyPublicationPending = false
+            signedPreKeyPublicationPending = false
             localDeviceId = DEFAULT_DEVICE_ID
+            devicePendingApproval = false
+            deviceIdMigrationOccurred = false
+            sessionsRequiringReestablishment.clear()
             sessionSetupLocks.clear()
             // BUG 6 fix: 重建 protocolStore 以使用新的 identityKeyPair，避免持有旧密钥对
             generateIdentityKeys()
         }
     }
 
-    suspend fun clearLocalState() {
+    suspend fun clearLocalState() = initializationMutex.withLock {
         // 8.49 修复：只清当前账号作用域——库内键均按 user:<accountId>: 前缀、
         // identity_trust 按 accountId 隔离，全表删除会把同库其他账号的 Signal
         // 身份/会话/信任一并销毁。accountId 必须在内存态失效前捕获。
         val accountId = currentUserId
-        invalidateInMemoryAccountState()
+        invalidateInMemoryAccountStateLocked()
         if (accountId != null) {
             // 9.236：与 scopedKey/PersistentSignalProtocolStore.prefix() 同一转义，
             // 保证 LIKE ESCAPE 能精确命中本账号作用域的键
@@ -1256,7 +1764,6 @@ class SignalProtocol(
             signalKeyDao.deleteKeysWithPrefix("anonymous:")
             identityTrustDao.deleteAllTrust()
         }
-        generateIdentityKeys()
     }
 
     private fun scopedKey(keyType: String): String {
@@ -1310,32 +1817,247 @@ class SignalProtocol(
      */
     private suspend fun resolveSessionDeviceId(token: String, recipientId: String, deviceId: Int): Int? {
         if (deviceId != DEFAULT_DEVICE_ID) return deviceId
-        val discovered = SignalKeyExchange.fetchDevicePreKeyBundles(token, recipientId)
-            .getOrNull()
-            ?.map { it.deviceId }
-            .orEmpty()
+        val discovered = SignalKeyExchange.fetchCompatibleDevicePreKeyBundles(token, recipientId)
+            .getOrElse { throw it }
+            .map { it.deviceId }
         ConfirmedDevicePolicy.resolve(deviceId, discovered)?.let { return it }
-        val fallback = SignalKeyExchange.fetchPreKeyBundle(token, recipientId).getOrNull()?.deviceId
+        val fallback = SignalKeyExchange.fetchPreKeyBundle(token, recipientId).getOrElse { throw it }.deviceId
         return ConfirmedDevicePolicy.resolve(deviceId, listOfNotNull(fallback))
     }
 
     private suspend fun uploadKeysWithDeviceIdRecovery(token: String): Result<Unit> {
         var lastResult: Result<Unit> = Result.failure(IllegalStateException("device registration not attempted"))
-        repeat(MAX_DEVICE_ID_ALLOCATION_ATTEMPTS) { attempt ->
+        var migrationStarted = false
+        val attemptedDeviceIds = linkedSetOf(localDeviceId)
+        var occupiedDeviceIds: Set<Int> = emptySet()
+
+        for (attempt in 0 until MAX_DEVICE_ID_ALLOCATION_ATTEMPTS) {
             lastResult = uploadKeysToServer(token)
-            if (lastResult.isSuccess) return lastResult
-            val error = lastResult.exceptionOrNull() as? com.maodouchat.network.ApiException
-            if (error?.serverCode != "DEVICE_ID_CONFLICT" || attempt == MAX_DEVICE_ID_ALLOCATION_ATTEMPTS - 1) {
+            if (lastResult.isSuccess) {
+                // The upload endpoint intentionally returns no trust status. Read the
+                // authenticated account's device list before advertising this slot as ready;
+                // PENDING devices are excluded from every peer fan-out path.
+                verifyCurrentDevicePublication(token).getOrThrow()
+                if (deviceIdMigrationOccurred) {
+                    markSessionsForDeviceIdMigration()
+                    // Keep the durable marker until every session that existed before the
+                    // device-id migration has been rebuilt. A process death during this lazy
+                    // repair must not silently restore and reuse the old ratchets.
+                    maybeClearDeviceIdMigrationMarker()
+                }
                 return lastResult
             }
+
+            val error = lastResult.exceptionOrNull()
+            if (!migrationStarted) {
+                // A normal device collision keeps the historical policy: a restored ratchet
+                // remains pinned, while a freshly generated identity may use the old recovery.
+                if (SignalDeviceIdRecoveryPolicy.shouldRetry(error, attempt, MAX_DEVICE_ID_ALLOCATION_ATTEMPTS) &&
+                    SignalDeviceIdRecoveryPolicy.mayReallocateDeviceId(identityRestoredFromStore, error)
+                ) {
+                    val previousDeviceId = localDeviceId
+                    val replacement = allocateRecoveryDeviceId(previousDeviceId, attemptedDeviceIds, occupiedDeviceIds)
+                    if (replacement == null) return lastResult
+                    switchLocalDeviceIdForRecovery(previousDeviceId, replacement)
+                    attemptedDeviceIds += replacement
+                    Log.w(TAG, "Signal device id collision for $previousDeviceId; retrying as $replacement")
+                    continue
+                }
+
+                // Unlike a plain occupancy collision, this proves that the local identity cannot
+                // be published at its persisted slot. Keep the identity/ratchet and try a fresh
+                // server slot instead of overwriting the server's existing key material.
+                if (!SignalDeviceIdRecoveryPolicy.shouldReallocateForIdentityMismatch(
+                        error,
+                        identityRestoredFromStore,
+                        attempt,
+                        MAX_DEVICE_ID_ALLOCATION_ATTEMPTS,
+                    )
+                ) {
+                    return lastResult
+                }
+                migrationStarted = true
+                occupiedDeviceIds = fetchOccupiedDeviceIds(token).getOrElse { error ->
+                    return Result.failure(
+                        SignalDeviceIdRecoveryPolicy.IdentityRecoveryFailedException(error)
+                    )
+                }
+            } else if (!SignalDeviceIdRecoveryPolicy.shouldRetryMigrationCandidate(
+                    error,
+                    attempt,
+                    MAX_DEVICE_ID_ALLOCATION_ATTEMPTS,
+                )
+            ) {
+                // In particular, a bound auth session returns SESSION_CONFLICT here. Do not
+                // pretend that the local identity is usable when its new slot was not accepted.
+                return Result.failure(
+                    SignalDeviceIdRecoveryPolicy.IdentityRecoveryFailedException(error)
+                )
+            }
+
             val previousDeviceId = localDeviceId
-            var replacement = generateLocalDeviceId()
-            while (replacement == previousDeviceId) replacement = generateLocalDeviceId()
-            localDeviceId = replacement
-            persistCoreKeys()
-            Log.w(TAG, "Signal device id collision for $previousDeviceId; retrying as $replacement")
+            val replacement = allocateRecoveryDeviceId(previousDeviceId, attemptedDeviceIds, occupiedDeviceIds)
+                ?: return Result.failure(
+                    SignalDeviceIdRecoveryPolicy.IdentityRecoveryFailedException(error)
+                )
+            switchLocalDeviceIdForRecovery(previousDeviceId, replacement)
+            attemptedDeviceIds += replacement
+            Log.w(TAG, "Signal identity mismatch at $previousDeviceId; retrying unchanged identity as $replacement")
         }
-        return lastResult
+
+        return if (migrationStarted) {
+            Result.failure(
+                SignalDeviceIdRecoveryPolicy.IdentityRecoveryFailedException(lastResult.exceptionOrNull())
+            )
+        } else {
+            lastResult
+        }
+    }
+
+    /**
+     * Verify the server-side trust state for the just-published device. A PENDING state is
+     * security-sensitive (other users must not receive to an unapproved device), so it is
+     * retained separately from local-store readiness and surfaced as a dedicated failure.
+     * Transport/shape failures remain transient and do not fabricate a PENDING state.
+     */
+    private suspend fun verifyCurrentDevicePublication(token: String): Result<Unit> {
+        val accountId = currentUserId
+            ?: return Result.failure(
+                SignalDeviceIdRecoveryPolicy.DeviceStatusUnavailableException(
+                    IllegalStateException("signal_account_missing"),
+                )
+            )
+        return SignalKeyExchange.fetchDevices(token, accountId, localDeviceId).fold(
+            onSuccess = { devices ->
+                val current = devices.firstOrNull { it.deviceId == localDeviceId }
+                    ?: return@fold Result.failure(
+                        SignalDeviceIdRecoveryPolicy.DeviceStatusUnavailableException(
+                            IllegalStateException("signal_device_missing"),
+                        )
+                    )
+                val expectedIdentity = Base64.encodeToString(
+                    identityKeyPair.publicKey.serialize(),
+                    Base64.NO_WRAP,
+                )
+                if (current.identityKey.trim() != expectedIdentity) {
+                    return@fold Result.failure(
+                        SignalDeviceIdRecoveryPolicy.DeviceStatusUnavailableException(
+                            IllegalStateException("signal_device_identity_changed"),
+                        )
+                    )
+                }
+                when {
+                    SignalDeviceIdRecoveryPolicy.isConfirmedDeviceStatus(current.status) -> {
+                        devicePendingApproval = false
+                        Result.success(Unit)
+                    }
+                    SignalDeviceIdRecoveryPolicy.isPendingDeviceStatus(current.status) -> {
+                        devicePendingApproval = true
+                        Result.failure(
+                            SignalDeviceIdRecoveryPolicy.DevicePendingApprovalException(localDeviceId)
+                        )
+                    }
+                    else -> Result.failure(
+                        SignalDeviceIdRecoveryPolicy.DeviceStatusUnavailableException(
+                            IllegalStateException("signal_device_status_unknown:${current.status}"),
+                        )
+                    )
+                }
+            },
+            onFailure = { error ->
+                Result.failure(SignalDeviceIdRecoveryPolicy.DeviceStatusUnavailableException(error))
+            },
+        )
+    }
+
+    private suspend fun fetchOccupiedDeviceIds(token: String): Result<Set<Int>> {
+        val accountId = currentUserId
+            ?: return Result.failure(IllegalStateException("signal_account_missing"))
+        return SignalKeyExchange.fetchDevices(token, accountId).map { devices ->
+            devices.map { it.deviceId }
+                .filter { it in MIN_DEVICE_ID..MAX_DEVICE_ID }
+                .toSet()
+        }
+    }
+
+    private fun allocateRecoveryDeviceId(
+        previousDeviceId: Int,
+        attemptedDeviceIds: Set<Int>,
+        occupiedDeviceIds: Set<Int>,
+    ): Int? {
+        var candidate: Int?
+        repeat(MAX_DEVICE_ID_ALLOCATION_ATTEMPTS * 8) {
+            candidate = SignalDeviceIdRecoveryPolicy.availableCandidate(
+                candidate = generateLocalDeviceId(),
+                previousDeviceId = previousDeviceId,
+                occupiedDeviceIds = occupiedDeviceIds,
+                attemptedDeviceIds = attemptedDeviceIds,
+                minDeviceId = MIN_GENERATED_DEVICE_ID,
+                maxDeviceId = MAX_DEVICE_ID,
+            )
+            if (candidate != null) return candidate
+        }
+        // Random selection can repeatedly hit a crowded account. A bounded deterministic scan
+        // guarantees that a known-free slot is used when one exists, without ever overwriting
+        // an occupied server device.
+        return (MIN_GENERATED_DEVICE_ID..MAX_DEVICE_ID).firstNotNullOfOrNull { id ->
+            SignalDeviceIdRecoveryPolicy.availableCandidate(
+                candidate = id,
+                previousDeviceId = previousDeviceId,
+                occupiedDeviceIds = occupiedDeviceIds,
+                attemptedDeviceIds = attemptedDeviceIds,
+                minDeviceId = MIN_GENERATED_DEVICE_ID,
+                maxDeviceId = MAX_DEVICE_ID,
+            )
+        }
+    }
+
+    private suspend fun switchLocalDeviceIdForRecovery(
+        previousDeviceId: Int,
+        replacement: Int,
+    ) {
+        // Publish the in-memory migration gate and mark old sessions atomically with
+        // the local slot switch. A concurrent sender must never observe a new sender
+        // device id while still being allowed to reuse a pre-migration ratchet.
+        cryptoLock.withLock {
+            deviceIdMigrationOccurred = true
+            markSessionsForDeviceIdMigrationLocked()
+            localDeviceId = replacement
+        }
+        try {
+            // Persist the new slot before publishing it. If persistence itself fails, restore
+            // the previous value; a failed HTTP publication deliberately keeps the new value so
+            // a retry can safely reuse a request that may have committed server-side.
+            persistCoreKeys(deviceIdMigrationPending = true)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            cryptoLock.withLock { localDeviceId = previousDeviceId }
+            throw error
+        } catch (error: Exception) {
+            cryptoLock.withLock { localDeviceId = previousDeviceId }
+            // The Room write may have committed only part of the batch. Keep a pending marker
+            // during rollback so a restart never assumes the old ratchet is safe; an extra
+            // re-establishment is preferable to silently sending under the wrong device id.
+            runCatching { persistCoreKeys(deviceIdMigrationPending = true) }
+            throw SignalDeviceIdRecoveryPolicy.IdentityRecoveryFailedException(error)
+        }
+        currentUserId?.let { SealedSenderSupport.clearCache(it, previousDeviceId) }
+    }
+
+    private suspend fun clearDeviceIdMigrationMarker() {
+        signalKeyDao.deleteKey(scopedKey(KEY_DEVICE_ID_MIGRATION_PENDING))
+    }
+
+    /** Clear the migration marker only after all known pre-migration sessions are repaired. */
+    private suspend fun maybeClearDeviceIdMigrationMarker() {
+        if (!deviceIdMigrationOccurred || sessionsRequiringReestablishment.isNotEmpty()) return
+        runCatching {
+            clearDeviceIdMigrationMarker()
+            deviceIdMigrationOccurred = false
+        }.onFailure { error ->
+            // Marker persistence is fail-closed; a later startup will repeat the harmless
+            // re-establishment instead of risking reuse of a ratchet bound to the old slot.
+            Log.w(TAG, "Signal device-id migration marker cleanup deferred", error)
+        }
     }
 
     /**
@@ -1490,6 +2212,7 @@ class SignalProtocol(
         const val CIPHERTEXT_TYPE_UNKNOWN = "unknown"
         const val KEY_REGISTRATION_ID = "registration_id"
         const val KEY_DEVICE_ID = "device_id"
+        const val KEY_DEVICE_ID_MIGRATION_PENDING = "device_id_migration_pending"
         const val KEY_IDENTITY_KEY_PAIR = "identity_key_pair"
         const val KEY_SIGNED_PRE_KEY = "signed_pre_key"
         const val KEY_PRE_KEYS = "pre_keys"
@@ -1510,4 +2233,16 @@ enum class SenderKeyDistOutcome {
     Failed
 }
 
+internal object SenderKeyDistributionFailurePolicy {
+    fun outcomeFor(error: Throwable): SenderKeyDistOutcome = when (error) {
+        is InvalidMessageException,
+        is IllegalArgumentException -> SenderKeyDistOutcome.Skipped
+        else -> SenderKeyDistOutcome.Failed
+    }
+}
+
 class NoRecipientDevicesException : IllegalStateException()
+
+/** Local ratchet state is unsafe to use after its Room write failed. */
+class SignalStorePersistenceException(cause: Throwable) :
+    java.io.IOException("signal_store_persistence_failed", cause)

@@ -70,6 +70,24 @@ class DecryptFailureDisplayPolicyTest {
         assertEquals(200L, merged.editedAt)
     }
 
+    @Test
+    fun `decrypt related user plaintext is kept when merged with wire`() {
+        val wire = message(
+            "m1",
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"ciphertext":"NAgB"}]}""",
+        )
+        listOf(
+            "这个怎么解密？",
+            "decrypt this message",
+            "How do I decrypt this?",
+            "session missing 是什么意思？",
+        ).forEach { content ->
+            val readable = message("m1", content)
+            assertEquals(content, mergeMessageVersions(listOf(readable), listOf(wire)).single().content)
+            assertEquals(content, mergeMessageVersions(listOf(wire), listOf(readable)).single().content)
+        }
+    }
+
     private fun message(id: String, content: String) = Message(
         id = id,
         chatId = "chat-1",

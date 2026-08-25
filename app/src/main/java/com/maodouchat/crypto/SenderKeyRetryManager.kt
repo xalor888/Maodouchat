@@ -489,8 +489,8 @@ class SenderKeyRetryManager(
     }
 
     private suspend fun ensureSignalReady(token: String, userId: String) {
-        if (initializedUserId == userId && signalProtocol.isInitializedFor(userId)) return
-        if (!signalProtocol.initialize(token, userId)) {
+        if (initializedUserId == userId && signalProtocol.isLocalCryptoReadyFor(userId)) return
+        if (!signalProtocol.ensureLocalCryptoReady(token, userId)) {
             initializedUserId = null
             error("Signal protocol not ready for sender-key retry")
         }
