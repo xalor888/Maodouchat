@@ -1747,13 +1747,14 @@ fun GroupDetailScreen(
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
-            when (selectedTab) {
-                    GroupDetailTab.MEMBERS -> LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(padding),
-                        verticalArrangement = Arrangement.spacedBy(0.dp),
-                    ) {
-                        item(key = "group_overview", contentType = "group_overview") { groupOverview() }
-                        item(key = "group_tabs", contentType = "group_tabs") { groupTabs() }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                item(key = "group_overview", contentType = "group_overview") { groupOverview() }
+                item(key = "group_tabs", contentType = "group_tabs") { groupTabs() }
+                when (selectedTab) {
+                    GroupDetailTab.MEMBERS -> {
                         item(key = "sender_key_status", contentType = "sender_key_status") {
                             GroupSenderKeyStatusSection(
                                 status = state.senderKeyStatus,
@@ -1885,12 +1886,7 @@ fun GroupDetailScreen(
                         item(key = "members_footer", contentType = "footer") { Spacer(modifier = Modifier.height(24.dp)) }
                     }
 
-                    GroupDetailTab.AUDIT -> LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(padding),
-                        verticalArrangement = Arrangement.spacedBy(0.dp),
-                    ) {
-                        item(key = "group_overview", contentType = "group_overview") { groupOverview() }
-                        item(key = "group_tabs", contentType = "group_tabs") { groupTabs() }
+                    GroupDetailTab.AUDIT -> {
                         item(key = "audit_header", contentType = "section_header") {
                             SearchableSectionHeader(
                                 text = stringResource(R.string.group_detail_audit_title),
@@ -1951,18 +1947,23 @@ fun GroupDetailScreen(
                         item(key = "audit_footer", contentType = "footer") { Spacer(modifier = Modifier.height(24.dp)) }
                     }
 
-                    else -> Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                        groupOverview()
-                        groupTabs()
-                        MediaCenterCategoryContent(
-                            category = requireNotNull(selectedTab.mediaCategory),
-                            state = mediaCenterState,
-                            viewModel = mediaCenterViewModel,
-                            onOpenMessage = onOpenMessage,
-                            modifier = Modifier.fillMaxSize().weight(1f),
-                        )
+                    else -> {
+                        item(key = "media_content", contentType = "media_content") {
+                            MediaCenterCategoryContent(
+                                category = requireNotNull(selectedTab.mediaCategory),
+                                state = mediaCenterState,
+                                viewModel = mediaCenterViewModel,
+                                onOpenMessage = onOpenMessage,
+                                // MediaCenterCategoryContent owns the category list, so give it
+                                // a bounded viewport while the outer page remains scrollable.
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 240.dp, max = 560.dp),
+                            )
+                        }
                     }
                 }
+            }
         }
     }
     } // secret watermark Box
