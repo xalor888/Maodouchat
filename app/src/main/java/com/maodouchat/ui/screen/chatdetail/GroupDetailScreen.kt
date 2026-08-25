@@ -1427,6 +1427,75 @@ fun GroupDetailScreen(
             android.provider.Settings.Secure.ANDROID_ID
         )
     )
+    val groupOverview: @Composable () -> Unit = {
+        GroupHeader(
+            groupName = state.groupName,
+            groupAvatar = state.groupAvatar,
+            memberCount = state.members.size,
+            myRole = state.myRole,
+            onShowAvatarFull = { showAvatarFull = true }
+        )
+        GroupAnnouncementCard(state.groupAnnouncement)
+        if (state.isChannel) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Icon(
+                    Icons.Outlined.Campaign,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    if (state.canManageGroup) {
+                        pluralStringResource(
+                            R.plurals.chat_channel_member_count,
+                            state.members.size,
+                            state.members.size
+                        )
+                    } else {
+                        stringResource(R.string.chat_channel_subscriber_hint)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalChatPalette.current.textSecondary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+        SectionTitle(stringResource(R.string.group_detail_play))
+        GroupFeaturesCard(
+            actions = buildList {
+                add(GroupFeatureAction(stringResource(R.string.group_play_poll), Icons.Outlined.Checklist) { onOpenGroupPoll(chatId) })
+                add(GroupFeatureAction(stringResource(R.string.group_play_checkin), Icons.Outlined.History) { onOpenGroupCheckin(chatId) })
+                add(GroupFeatureAction(stringResource(R.string.group_play_chain_title), Icons.Outlined.Link) { onOpenGroupChain(chatId) })
+                add(GroupFeatureAction(stringResource(R.string.group_play_pk_title), Icons.Outlined.SwapHoriz) { onOpenGroupPk(chatId) })
+                if (state.canManageGroup && !state.isChannel) {
+                    add(GroupFeatureAction(stringResource(R.string.group_play_invite_bot), Icons.Outlined.PersonAdd) { showBotPicker = true })
+                }
+            }
+        )
+    }
+    val groupTabs: @Composable () -> Unit = {
+        ScrollableTabRow(
+            selectedTabIndex = selectedTab.ordinal,
+            edgePadding = 8.dp,
+            containerColor = MaterialTheme.colorScheme.surface,
+            divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)) },
+        ) {
+            GroupDetailTab.entries.forEach { tab ->
+                Tab(
+                    selected = selectedTab == tab,
+                    onClick = { selectedTab = tab },
+                    text = { Text(stringResource(tab.labelResource()), maxLines = 1) },
+                )
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -1678,75 +1747,13 @@ fun GroupDetailScreen(
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
-            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 280.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    GroupHeader(
-                        groupName = state.groupName,
-                        groupAvatar = state.groupAvatar,
-                        memberCount = state.members.size,
-                        myRole = state.myRole,
-                        onShowAvatarFull = { showAvatarFull = true }
-                    )
-                    GroupAnnouncementCard(state.groupAnnouncement)
-                if (state.isChannel) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.surface)
-                                .padding(horizontal = 16.dp, vertical = 10.dp)
-                        ) {
-                            Icon(Icons.Outlined.Campaign, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                if (state.canManageGroup) {
-                                    pluralStringResource(R.plurals.chat_channel_member_count, state.members.size, state.members.size)
-                                } else {
-                                    stringResource(R.string.chat_channel_subscriber_hint)
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = LocalChatPalette.current.textSecondary,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-                SectionTitle(stringResource(R.string.group_detail_play))
-                GroupFeaturesCard(
-                    actions = buildList {
-                        add(GroupFeatureAction(stringResource(R.string.group_play_poll), Icons.Outlined.Checklist) { onOpenGroupPoll(chatId) })
-                        add(GroupFeatureAction(stringResource(R.string.group_play_checkin), Icons.Outlined.History) { onOpenGroupCheckin(chatId) })
-                        add(GroupFeatureAction(stringResource(R.string.group_play_chain_title), Icons.Outlined.Link) { onOpenGroupChain(chatId) })
-                        add(GroupFeatureAction(stringResource(R.string.group_play_pk_title), Icons.Outlined.SwapHoriz) { onOpenGroupPk(chatId) })
-                        if (state.canManageGroup && !state.isChannel) {
-                            add(GroupFeatureAction(stringResource(R.string.group_play_invite_bot), Icons.Outlined.PersonAdd) { showBotPicker = true })
-                        }
-                    }
-                )
-                ScrollableTabRow(
-                    selectedTabIndex = selectedTab.ordinal,
-                    edgePadding = 8.dp,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)) },
-                ) {
-                    GroupDetailTab.entries.forEach { tab ->
-                        Tab(
-                            selected = selectedTab == tab,
-                            onClick = { selectedTab = tab },
-                            text = { Text(stringResource(tab.labelResource()), maxLines = 1) },
-                        )
-                    }
-                }
-
-                when (selectedTab) {
+            when (selectedTab) {
                     GroupDetailTab.MEMBERS -> LazyColumn(
-                        modifier = Modifier.fillMaxSize().weight(1f),
+                        modifier = Modifier.fillMaxSize().padding(padding),
                         verticalArrangement = Arrangement.spacedBy(0.dp),
                     ) {
+                        item(key = "group_overview", contentType = "group_overview") { groupOverview() }
+                        item(key = "group_tabs", contentType = "group_tabs") { groupTabs() }
                         item(key = "sender_key_status", contentType = "sender_key_status") {
                             GroupSenderKeyStatusSection(
                                 status = state.senderKeyStatus,
@@ -1879,9 +1886,11 @@ fun GroupDetailScreen(
                     }
 
                     GroupDetailTab.AUDIT -> LazyColumn(
-                        modifier = Modifier.fillMaxSize().weight(1f),
+                        modifier = Modifier.fillMaxSize().padding(padding),
                         verticalArrangement = Arrangement.spacedBy(0.dp),
                     ) {
+                        item(key = "group_overview", contentType = "group_overview") { groupOverview() }
+                        item(key = "group_tabs", contentType = "group_tabs") { groupTabs() }
                         item(key = "audit_header", contentType = "section_header") {
                             SearchableSectionHeader(
                                 text = stringResource(R.string.group_detail_audit_title),
@@ -1942,15 +1951,18 @@ fun GroupDetailScreen(
                         item(key = "audit_footer", contentType = "footer") { Spacer(modifier = Modifier.height(24.dp)) }
                     }
 
-                    else -> MediaCenterCategoryContent(
-                        category = requireNotNull(selectedTab.mediaCategory),
-                        state = mediaCenterState,
-                        viewModel = mediaCenterViewModel,
-                        onOpenMessage = onOpenMessage,
-                        modifier = Modifier.fillMaxSize().weight(1f),
-                    )
+                    else -> Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                        groupOverview()
+                        groupTabs()
+                        MediaCenterCategoryContent(
+                            category = requireNotNull(selectedTab.mediaCategory),
+                            state = mediaCenterState,
+                            viewModel = mediaCenterViewModel,
+                            onOpenMessage = onOpenMessage,
+                            modifier = Modifier.fillMaxSize().weight(1f),
+                        )
+                    }
                 }
-            }
         }
     }
     } // secret watermark Box
