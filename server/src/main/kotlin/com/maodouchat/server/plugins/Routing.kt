@@ -697,7 +697,6 @@ put("aiEnabled", RuntimeConfigService.isAiEnabled())
 put("publicAnnouncement", RuntimeConfigService.get(RuntimeConfigService.KEY_PUBLIC_ANNOUNCEMENT))
 put("pqxdhPreview", RuntimeConfigService.isPqxdhPreviewEnabled())
 put("minAppVersion", RuntimeConfigService.minAppVersion())
-put("secretChatRequired", RuntimeConfigService.isSecretChatRequired())
 put("captureAlertEnabled", RuntimeConfigService.isCaptureAlertEnabled())
 put("maxBotsPerUser", RuntimeConfigService.maxBotsPerUser())
 put("mediaUploadEnabled", RuntimeConfigService.isMediaUploadEnabled())
@@ -10391,44 +10390,7 @@ put("type", "SYSTEM")
             }
 
             post("/api/bot/sendSecretHint") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                if (!com.maodouchat.server.service.RuntimeConfigService.isSecretChatEnabled()) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("secret_chat_disabled"))
-                }
-                val body = call.receiveBoundedTextOrEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Secret chat: FLAG_SECURE + blind watermark").take(120)
-                if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-                if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-                val content = "🔒 $hint"
-                val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
-                val now = System.currentTimeMillis()
-                val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretHint")
-                val botMessage = com.maodouchat.server.model.MessageResponse(
-                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
-                    type = "SYSTEM", timestamp = now, status = "SENT"
-                )
-                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("messageId", msgId)
-put("type", "SYSTEM")
-                }
-            )
+                call.respond(HttpStatusCode.Gone, ErrorResponse("sendSecretHint_removed"))
             }
 
             post("/api/bot/sendSecureHint") {
@@ -13174,7 +13136,7 @@ put("ok", true)
 put("botId", bot.id)
 put("capabilities", Json.parseToJsonElement(Json.encodeToString(listOf(
                             "sendMessage", "sendMarkdown", "sendCode", "sendQuote", "sendChecklist", "sendTable",
-                            "sendBadge", "sendProgress", "sendCountdown", "sendAlert", "sendRemind", "sendDivider", "sendToast", "sendKeyValue", "sendNotice", "sendQuoteCard", "sendBanner", "sendJsonCard", "sendTimeline", "sendMetric", "sendSteps", "sendCompare", "sendMentionCard", "sendInviteHint", "sendNudgeCard", "sendSafetyHint", "sendQrHint", "sendContactCard", "sendSpoilerHint", "sendDownloadHint", "sendLocationHint", "sendFileHint", "sendSecretHint", "sendSecureHint", "sendPhotoHint", "sendVideoHint", "sendGifHint", "sendWatermarkHint", "sendVoiceCallHint", "sendVideoCallHint", "sendWallpaperHint", "sendFontScaleHint", "sendUnreadHint", "sendRingtoneHint", "sendSoundHint", "sendPreviewHint", "sendPushHint", "sendTaskReminderHint", "sendDndHint", "sendSoundscapeHint", "sendHapticsHint", "sendMotionHint", "sendNavHint", "sendCaptureDetectHint", "sendRecentsHint", "sendSecretCopyHint", "sendSecretExportHint", "sendSecretForwardHint", "sendSecretChatExportHint", "sendSealedSenderHint", "sendPqxdhHint", "sendSecretAutoDisappearHint", "sendSecretLinkPreviewHint", "sendSecretExternalLinkHint", "sendSecretNotifPreviewHint", "sendSecretListPreviewHint",
+                            "sendBadge", "sendProgress", "sendCountdown", "sendAlert", "sendRemind", "sendDivider", "sendToast", "sendKeyValue", "sendNotice", "sendQuoteCard", "sendBanner", "sendJsonCard", "sendTimeline", "sendMetric", "sendSteps", "sendCompare", "sendMentionCard", "sendInviteHint", "sendNudgeCard", "sendSafetyHint", "sendQrHint", "sendContactCard", "sendSpoilerHint", "sendDownloadHint", "sendLocationHint", "sendFileHint", "sendSecureHint", "sendPhotoHint", "sendVideoHint", "sendGifHint", "sendWatermarkHint", "sendVoiceCallHint", "sendVideoCallHint", "sendWallpaperHint", "sendFontScaleHint", "sendUnreadHint", "sendRingtoneHint", "sendSoundHint", "sendPreviewHint", "sendPushHint", "sendTaskReminderHint", "sendDndHint", "sendSoundscapeHint", "sendHapticsHint", "sendMotionHint", "sendNavHint", "sendCaptureDetectHint", "sendRecentsHint", "sendSecretCopyHint", "sendSecretExportHint", "sendSecretForwardHint", "sendSecretChatExportHint", "sendSealedSenderHint", "sendPqxdhHint", "sendSecretAutoDisappearHint", "sendSecretLinkPreviewHint", "sendSecretExternalLinkHint", "sendSecretNotifPreviewHint", "sendSecretListPreviewHint",
                             "sendPhoto", "sendDocument", "sendPoll", "sendDice", "setMessageReaction",
                             "pinChatMessage", "getUpdates", "webhook", "getRuntimeFlags", "whoami", "getServerTime", "getFeatureMatrix", "echo", "getMuteArchiveFlags", "getVersion", "getPrivacyFlags", "healthz", "getMessagePolicyFlags", "uptime", "getEngagementFlags", "ping", "getComposerFlags", "echoTime", "getSocialFlags", "versionz", "getTrustFlags", "readyz", "getIdentityFlags", "alivez", "getMediaFlags", "statusz", "getLocationFlags", "getPrivacySecureFlags", "heartbeatz", "getMediaSendFlags", "pulsez", "tickz", "tockz", "clangz", "getMediaPrivacyFlags", "dingz", "getCallMediaFlags", "buzzz", "getAppearanceFlags", "chimez", "getNotifyFlags", "ringz", "getAlertMediaFlags", "beepz", "getPushFlags", "pushz", "getQuietFlags", "quietz", "getFeelFlags", "fealz", "getMotionFlags", "slidez", "getCaptureShieldFlags", "shieldz", "getSecretLeakFlags", "leakz", "getSecretVaultFlags", "vaultz", "getSealedCryptoFlags", "sealz", "getMarkPrivacyFlags", "markz", "getLinkPrivacyFlags", "linkz", "getNotifyPrivacyFlags", "privz", "sendSecretReactionHint", "sendSecretStarHint", "getSecretMetaFlags", "metaz", "sendSecretTypingHint", "sendSecretReadReceiptHint", "getSecretTypingFlags", "getSecretReadReceiptFlags", "typtz", "redz", "sendSecretPresenceHint", "sendSecretLastSeenHint", "getSecretPresenceFlags", "getSecretLastSeenFlags", "presz", "lastsz",
                             "burnz", "ttlz", "fwlz", "simz", "2faz", "ndz", "dvz", "sntz", "getSecretSurfaceFlags",
@@ -13352,7 +13314,8 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 不一致"))
                     return@post
                 }
-                if (!isValidMessagePayload(req.content, req.type, req.id)) {
+                val requireGroupSenderKey = chatRepo.getChatById(chatId)?.isGroup == true
+                if (!isValidMessagePayload(req.content, req.type, req.id, requireGroupSenderKey = requireGroupSenderKey)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("消息内容无效"))
                     return@post
                 }
@@ -13629,7 +13592,8 @@ put("status", "ok")
                     return@put
                 }
                 // 编辑后的内容必须与原消息类型一致，且通过长度/格式校验
-                if (!isValidMessagePayload(req.content, msg.type, null)) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("消息内容无效")); return@put }
+                val requireGroupSenderKey = chatRepo.getChatById(msg.chatId)?.isGroup == true
+                if (!isValidMessagePayload(req.content, msg.type, null, requireGroupSenderKey = requireGroupSenderKey)) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("消息内容无效")); return@put }
                 if (!messageRepo.editMessage(mid, uid, req.content)) { call.respond(HttpStatusCode.Forbidden, ErrorResponse("无法编辑该消息，请确认消息由你发送且仍在允许编辑的时间内")); return@put }
                 val editedMsg = messageRepo.getMessageById(mid)
                 val editedAt = editedMsg?.editedAt ?: System.currentTimeMillis()

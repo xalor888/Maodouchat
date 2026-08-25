@@ -1501,7 +1501,6 @@ put("aiEnabled", aiOn)
 put("maintenanceMode", maint)
 put("registrationOpen", regOpen)
 put("pqxdhPreview", RuntimeConfigService.isPqxdhPreviewEnabled())
-put("secretChatRequired", RuntimeConfigService.isSecretChatRequired())
 put("captureAlertEnabled", RuntimeConfigService.isCaptureAlertEnabled())
 put("mediaUploadEnabled", RuntimeConfigService.isMediaUploadEnabled())
 put("groupPlayEnabled", RuntimeConfigService.isGroupPlayEnabled())
@@ -3034,9 +3033,14 @@ put("count", updated.size)
                 if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
                 val adminId = call.principal<JWTPrincipal>()!!.payload.subject
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
-                // Per-user chat settings metadata only — no message bodies
+                // Per-user chat settings metadata only — no message bodies / SECRET ids
                 val rows = transaction {
                     ChatUserSettings.selectAll()
+                        .andWhere {
+                            ChatUserSettings.chatId notInSubQuery (
+                                Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
+                            )
+                        }
                         .orderBy(ChatUserSettings.updatedAt to org.jetbrains.exposed.sql.SortOrder.DESC)
                         .limit(limit)
                         .map { row ->
@@ -3071,6 +3075,7 @@ put("count", updated.size)
                 // Chat disappearing timer metadata only — no message bodies
                 val rows = transaction {
                     Chats.selectAll()
+                        .andWhere { Chats.chatType neq ChatType.SECRET }
                         .orderBy(Chats.memberRevision to org.jetbrains.exposed.sql.SortOrder.DESC)
                         .limit(limit)
                         .mapNotNull { row ->
@@ -3104,6 +3109,11 @@ put("count", updated.size)
                 // Muted chat settings metadata only — no message bodies
                 val rows = transaction {
                     ChatUserSettings.selectAll()
+                        .andWhere {
+                            ChatUserSettings.chatId notInSubQuery (
+                                Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
+                            )
+                        }
                         .orderBy(ChatUserSettings.updatedAt to org.jetbrains.exposed.sql.SortOrder.DESC)
                         .limit(limit * 2)
                         .mapNotNull { row ->
@@ -3399,6 +3409,11 @@ get("/pinned-messages-export") {
                 // Pinned message metadata only — no message bodies / E2EE plaintext
                 val rows = transaction {
                     PinnedMessages.selectAll()
+                        .andWhere {
+                            PinnedMessages.chatId notInSubQuery (
+                                Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
+                            )
+                        }
                         .orderBy(PinnedMessages.pinnedAt to org.jetbrains.exposed.sql.SortOrder.DESC)
                         .limit(limit)
                         .map { row ->
@@ -4219,7 +4234,6 @@ put("security", buildJsonObject {
 put("sealedSenderEnabled", RuntimeConfigService.isSealedSenderEnabled())
 put("aiEnabled", RuntimeConfigService.isAiEnabled())
 put("botsAllowed", RuntimeConfigService.isBotsAllowed())
-put("secretChatRequired", RuntimeConfigService.isSecretChatRequired())
 put("captureAlertEnabled", RuntimeConfigService.isCaptureAlertEnabled())
 put("pqxdhPreview", RuntimeConfigService.isPqxdhPreviewEnabled())
 put("minAppVersion", RuntimeConfigService.minAppVersion())

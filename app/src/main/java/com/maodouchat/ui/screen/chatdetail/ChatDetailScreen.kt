@@ -399,11 +399,29 @@ fun ChatDetailScreen(
         mutableStateOf(com.maodouchat.util.ChatAppearancePreferences.getFontScale(context))
     }
     LaunchedEffect(viewModel.activeChatId, state.contact.id, state.chatIsGroup) {
-        com.maodouchat.crypto.SessionCipherOccupancy.occupy(
-            viewModel.activeChatId,
-            state.contact.id.takeIf { it.isNotBlank() && it != "me" && !state.chatIsGroup },
-            updatePeer = true
-        )
+        val peer = state.contact.id.takeIf { it.isNotBlank() && it != "me" && !state.chatIsGroup }
+        when {
+            state.chatIsGroup -> {
+                com.maodouchat.crypto.SessionCipherOccupancy.occupy(
+                    viewModel.activeChatId,
+                    peerUserId = null,
+                    updatePeer = true
+                )
+            }
+            peer != null -> {
+                com.maodouchat.crypto.SessionCipherOccupancy.occupy(
+                    viewModel.activeChatId,
+                    peer,
+                    updatePeer = true
+                )
+            }
+            else -> {
+                // Contact not loaded yet — pin chatId only. Never pass updatePeer=true
+                // with a blank peer: that clears openPeerUserId and lets list/backlog
+                // decrypt the sibling DIRECT/SECRET ratchet.
+                com.maodouchat.crypto.SessionCipherOccupancy.occupy(viewModel.activeChatId)
+            }
+        }
     }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, viewModel.activeChatId, state.contact.id, state.chatIsGroup) {
@@ -416,11 +434,20 @@ fun ChatDetailScreen(
                 chatFontScale = com.maodouchat.util.ChatAppearancePreferences.getFontScale(context)
                 // 8.32 修复 F2：回到前台恢复 activeChatId（MainActivity.onPause 已清空），
                 // 使「打开中的聊天」重新享有消息不弹通知/不计未读的语义。
-                com.maodouchat.crypto.SessionCipherOccupancy.occupy(
-                    viewModel.activeChatId,
-                    state.contact.id.takeIf { it.isNotBlank() && it != "me" && !state.chatIsGroup },
-                    updatePeer = true
-                )
+                val resumePeer = state.contact.id.takeIf { it.isNotBlank() && it != "me" && !state.chatIsGroup }
+                when {
+                    state.chatIsGroup -> com.maodouchat.crypto.SessionCipherOccupancy.occupy(
+                        viewModel.activeChatId,
+                        peerUserId = null,
+                        updatePeer = true
+                    )
+                    resumePeer != null -> com.maodouchat.crypto.SessionCipherOccupancy.occupy(
+                        viewModel.activeChatId,
+                        resumePeer,
+                        updatePeer = true
+                    )
+                    else -> com.maodouchat.crypto.SessionCipherOccupancy.occupy(viewModel.activeChatId)
+                }
                 if (com.maodouchat.MaodouchatApp.activeChatOpenedAtMs == 0L) {
                     com.maodouchat.MaodouchatApp.activeChatOpenedAtMs = System.currentTimeMillis()
                 }
@@ -2822,19 +2849,26 @@ if (showGroupCallTypeDialog) {
                         selectedMessageIds = emptySet()
                     },
                     onDelete = { showBatchDeleteConfirm = true },
-                    // 1.09：批量复制选中消息文本
-                    onCopy = {
-                        val copyable = selectedMessages
-                            .filter { it.type == MessageType.TEXT || it.type == MessageType.MARKDOWN }
-                            .map { it.parsedContent() }
-                            .filter { it.isNotBlank() }
-                        if (copyable.isNotEmpty()) {
-                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, copyable.joinToString("\n")))
-                            Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
-                            selectedMessageIds = emptySet()
-                        } else {
-                            Toast.makeText(context, context.getString(R.string.chat_copy_no_text), Toast.LENGTH_SHORT).show()
+                    onCopy = if (state.isSecretChat == true) null else {
+                        {
+                            val copyable = selectedMessages
+                                .filter {
+                                    isMessageCopyable(
+                                        it.type,
+                                        isSecretChat = state.isSecretChat == true,
+                                        copyBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_COPY_BLOCK)
+                                    )
+                                }
+                                .map { it.parsedContent() }
+                                .filter { it.isNotBlank() }
+                            if (copyable.isNotEmpty()) {
+                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, copyable.joinToString("\n")))
+                                Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
+                                selectedMessageIds = emptySet()
+                            } else {
+                                Toast.makeText(context, context.getString(R.string.chat_copy_no_text), Toast.LENGTH_SHORT).show()
+                            }
                         }
                     },
                     // 1.10：批量置顶/取消置顶选中消息（1.20：无权限时不显示入口）

@@ -42,7 +42,6 @@ object RuntimeConfigService {
     const val KEY_UPDATE_APK_URL = "update_apk_url"
     const val KEY_UPDATE_SERVER_URL = "update_server_url"
     const val KEY_UPDATE_NOTES = "update_notes"
-    const val KEY_SECRET_CHAT_REQUIRED = "secret_chat_required"
     const val KEY_MAX_BOTS_PER_USER = "max_bots_per_user"
     const val KEY_CAPTURE_ALERT_ENABLED = "capture_alert_enabled"
     const val KEY_MEDIA_UPLOAD_ENABLED = "media_upload_enabled"
@@ -165,7 +164,6 @@ object RuntimeConfigService {
         KEY_UPDATE_APK_URL,
         KEY_UPDATE_SERVER_URL,
         KEY_UPDATE_NOTES,
-        KEY_SECRET_CHAT_REQUIRED,
         KEY_MAX_BOTS_PER_USER,
         KEY_CAPTURE_ALERT_ENABLED,
         KEY_MEDIA_UPLOAD_ENABLED,
@@ -288,7 +286,6 @@ object RuntimeConfigService {
         KEY_UPDATE_APK_URL to "",
         KEY_UPDATE_SERVER_URL to "",
         KEY_UPDATE_NOTES to "",
-        KEY_SECRET_CHAT_REQUIRED to "false",
         KEY_MAX_BOTS_PER_USER to "20",
         KEY_CAPTURE_ALERT_ENABLED to "true",
         KEY_MEDIA_UPLOAD_ENABLED to "true",
@@ -449,9 +446,6 @@ object RuntimeConfigService {
         getBoolean(KEY_PQXDH_PREVIEW, false)
 
     fun minAppVersion(): String = get(KEY_MIN_APP_VERSION).ifBlank { "0" }
-
-    fun isSecretChatRequired(): Boolean =
-        getBoolean(KEY_SECRET_CHAT_REQUIRED, false)
 
     fun maxBotsPerUser(): Int =
         getInt(KEY_MAX_BOTS_PER_USER, 20).coerceIn(1, 200)

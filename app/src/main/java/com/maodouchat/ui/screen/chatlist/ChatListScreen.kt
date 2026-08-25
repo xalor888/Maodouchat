@@ -271,7 +271,6 @@ fun ChatListScreen(
             val publicMaintenance = if (o.has("maintenance")) o.optBoolean("maintenance", false) else o.optBoolean("maintenanceMode", false)
             val minApp = safeOpt("minAppVersion")
             val pqxdh = o.optBoolean("pqxdhPreview", false)
-            val secretRequired = o.optBoolean("secretChatRequired", false)
 
             val appLockEnabledOn = if (o.has("appLockEnabled")) o.optBoolean("appLockEnabled", true) else true
             val autoDownloadEnabledOn = if (o.has("autoDownloadEnabled")) o.optBoolean("autoDownloadEnabled", true) else true
@@ -467,14 +466,12 @@ fun ChatListScreen(
             }
             val upgradeHint = if (minApp.isNotBlank() && minApp != "0") "Min version: $minApp" else null
             val pqxdhHint = if (pqxdh) "PQXDH preview on" else null
-            val secretHint = if (secretRequired) context.getString(R.string.secret_chat_required_banner) else null
             val parts = listOfNotNull(
                 banner.takeIf { it.isNotBlank() },
                 e2eeBanner.takeIf { it.isNotBlank() },
                 announcement.takeIf { it.isNotBlank() },
                 upgradeHint,
-                pqxdhHint,
-                secretHint
+                pqxdhHint
             )
             publicBanner = when {
                 publicMaintenance && maintMsg.isNotBlank() -> maintMsg

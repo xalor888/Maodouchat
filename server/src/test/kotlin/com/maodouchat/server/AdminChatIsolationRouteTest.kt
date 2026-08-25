@@ -1,7 +1,10 @@
 package com.maodouchat.server
 
 import com.maodouchat.server.config.ServerConfig
+import com.maodouchat.server.db.ChatUserSettings
+import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.Messages
+import com.maodouchat.server.db.PinnedMessages
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.plugins.configureAdminEnhanceRouting
 import com.maodouchat.server.plugins.configureAuthentication
@@ -41,8 +44,10 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -133,6 +138,24 @@ class AdminChatIsolationRouteTest {
                 it[timestamp] = System.currentTimeMillis()
                 it[status] = "SENT"
             }
+            Chats.update({ Chats.id eq secret.id }) {
+                it[disappearingMessageSeconds] = 30
+            }
+            ChatUserSettings.insert {
+                it[chatId] = secret.id
+                it[userId] = "u1"
+                it[pinnedAt] = 1L
+                it[notificationsMuted] = true
+                it[archived] = false
+                it[markedUnread] = false
+                it[updatedAt] = System.currentTimeMillis()
+            }
+            PinnedMessages.insert {
+                it[chatId] = secret.id
+                it[messageId] = "m_secret_admin_search"
+                it[pinnedBy] = "u1"
+                it[pinnedAt] = System.currentTimeMillis()
+            }
         }
 
         val listed = client.get("/api/admin/chats?groupOnly=true") {
@@ -149,6 +172,19 @@ class AdminChatIsolationRouteTest {
         }
         assertEquals(HttpStatusCode.OK, csv.status, csv.bodyAsText())
         assertFalse(csv.bodyAsText().contains(secret.id), csv.bodyAsText())
+
+        for (path in listOf(
+            "/api/admin/chat-settings-export",
+            "/api/admin/disappearing-chats-export",
+            "/api/admin/muted-chats-export",
+            "/api/admin/pinned-messages-export",
+        )) {
+            val extra = client.get(path) {
+                header(HttpHeaders.Authorization, "Bearer $adminToken")
+            }
+            assertEquals(HttpStatusCode.OK, extra.status, "$path ${extra.bodyAsText()}")
+            assertFalse(extra.bodyAsText().contains(secret.id), "$path leaked SECRET id: ${extra.bodyAsText()}")
+        }
 
         val searchBySecretId = client.get("/api/admin/messages/search?chatId=${secret.id}") {
             header(HttpHeaders.Authorization, "Bearer $adminToken")

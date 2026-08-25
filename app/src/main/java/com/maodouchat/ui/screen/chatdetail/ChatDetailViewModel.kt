@@ -348,6 +348,9 @@ class ChatDetailViewModel(
             }
         } else {
             com.maodouchat.crypto.SessionCipherOccupancy.occupy(chatId)
+            viewModelScope.launch(Dispatchers.IO) {
+                pinSessionCipherPeerFromCache(chatId)
+            }
             com.maodouchat.MaodouchatApp.activeChatOpenedAtMs = System.currentTimeMillis()
             // Open chat: drop tray notification + mark in-app center rows for this chat.
             runCatching {
@@ -1112,6 +1115,19 @@ class ChatDetailViewModel(
                 if (visible.isEmpty()) return@collect
                 _uiState.update { it.copy(messages = mergeMessages(it.messages, visible)) }
             }
+        }
+    }
+
+    /** Room already knows participants; pin 1:1 peer before getChats returns. */
+    private suspend fun pinSessionCipherPeerFromCache(targetChatId: String) {
+        val cached = chatRepo.getChatById(targetChatId) ?: return
+        if (cached.isGroup) {
+            com.maodouchat.crypto.SessionCipherOccupancy.occupy(cached.id, peerUserId = null, updatePeer = true)
+            return
+        }
+        val peer = cached.participants.firstOrNull { it.id.isNotBlank() && it.id != currentUserId }?.id
+        if (peer != null) {
+            com.maodouchat.crypto.SessionCipherOccupancy.occupy(cached.id, peer, updatePeer = true)
         }
     }
 
@@ -8623,7 +8639,14 @@ fun sendCurrentLocation() {
                     else -> localReadableMessage(message) ?: message
                 }
             }
-            return message
+            // Group human traffic is Sender Key only. Bot/system cards stay plaintext.
+            if (com.maodouchat.bot.BotCommandPolicy.isBotUserId(senderId) ||
+                message.type == MessageType.SYSTEM ||
+                message.type == MessageType.NUDGE
+            ) {
+                return message
+            }
+            return localReadableMessage(message)
         }
         if (message.type.isDecryptable() &&
             (signalProtocol.isEncryptedEnvelope(message.content) ||

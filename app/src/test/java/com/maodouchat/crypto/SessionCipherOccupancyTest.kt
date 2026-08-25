@@ -38,4 +38,17 @@ class SessionCipherOccupancyTest {
             SessionCipherOccupancy.occupyPeer(null)
         }
     }
+
+    @Test
+    fun blankPeerWithUpdatePeerDoesNotClearExisting() {
+        SessionCipherOccupancy.occupyPeer("alice")
+        try {
+            SessionCipherOccupancy.occupy("direct-1", peerUserId = "", updatePeer = true)
+            assertTrue(SessionCipherOccupancy.isPeerOccupied("alice"))
+            SessionCipherOccupancy.occupy("direct-1", peerUserId = "   ", updatePeer = true)
+            assertTrue(SessionCipherOccupancy.isPeerOccupied("alice"))
+        } finally {
+            SessionCipherOccupancy.occupyPeer(null)
+        }
+    }
 }

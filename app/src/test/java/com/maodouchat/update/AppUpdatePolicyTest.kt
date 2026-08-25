@@ -47,4 +47,11 @@ class AppUpdatePolicyTest {
             )
         )
     }
+
+    @Test
+    fun redirectHostMustStayOfficial() {
+        assertFalse(AppUpdatePolicy.isOfficialApkUrl("https://github.com/xalor888/maodouchat/releases/download/v1/a.apk"))
+        assertFalse(AppUpdatePolicy.isOfficialApkUrl("https://cdn.example.com/maodou.apk"))
+        assertTrue(AppUpdatePolicy.isOfficialApkUrl("https://files.mdou.me/maodou.apk"))
+    }
 }

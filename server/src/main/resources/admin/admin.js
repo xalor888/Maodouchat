@@ -2357,8 +2357,7 @@ async function loadChats(seq) {
         row('ai_retry_enabled', '审帖上游重试', 'bool') +
         row('ai_daily_token_budget_per_user', '审帖每日 token 预算', 'number')) +
       group('密聊与安全',
-        row('secret_chat_enabled', '密聊', 'bool') +
-        row('secret_chat_required', '单聊强制密聊（客户端横幅）', 'bool') +
+        row('secret_chat_enabled', '密聊（关：不能新建密聊会话）', 'bool') +
         row('capture_alert_enabled', '对端截屏提醒', 'bool') +
         row('screen_secure_runtime_enabled', '运行时防截屏', 'bool') +
         row('screenshot_detect_enabled', '截屏检测', 'bool') +

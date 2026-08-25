@@ -20,7 +20,12 @@ object SessionCipherOccupancy {
         MaodouchatApp.openChatDetailId = id
         MaodouchatApp.activeChatId = id
         if (updatePeer) {
-            openPeerUserId = peerUserId?.trim()?.takeIf { it.isNotBlank() }
+            val trimmed = peerUserId?.trim()
+            when {
+                trimmed == null -> openPeerUserId = null
+                trimmed.isBlank() -> { /* keep existing peer; blank is not a group clear */ }
+                else -> openPeerUserId = trimmed
+            }
         }
     }
 

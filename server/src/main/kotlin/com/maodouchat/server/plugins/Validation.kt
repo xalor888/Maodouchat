@@ -34,7 +34,36 @@ internal val ALLOWED_SIGNALING_TYPES = setOf("offer", "answer", "ice-candidate",
 internal val CLIENT_MESSAGE_ID_REGEX = Regex("^[A-Za-z0-9_-]{1,100}$")
 internal val CALL_ID_REGEX = Regex("^[A-Za-z0-9_-]{1,100}$")
 
-internal fun isValidMessagePayload(content: String, type: String, id: String?): Boolean {
+internal const val SENDER_KEY_ALGORITHM = "signal-sender-key-v1"
+internal const val SENDER_KEY_DISTRIBUTION_ALGORITHM = "signal-sender-key-distribution-v1"
+
+internal fun looksLikeSenderKeyEnvelope(content: String): Boolean {
+    val t = content.trim()
+    if (!t.startsWith("{")) return false
+    return t.contains("\"$SENDER_KEY_ALGORITHM\"") || t.contains("\"algorithm\":\"$SENDER_KEY_ALGORITHM\"")
+}
+
+internal fun looksLikeSenderKeyDistributionEnvelope(content: String): Boolean {
+    val t = content.trim()
+    if (!t.startsWith("{")) return false
+    return t.contains("\"$SENDER_KEY_DISTRIBUTION_ALGORITHM\"")
+}
+
+/**
+ * Human traffic in GROUP/CHANNEL must be Sender Key (or SK distribution).
+ * Bot/system cards stay plaintext on a separate insert path.
+ */
+internal fun isValidGroupHumanPayload(content: String, type: String): Boolean {
+    if (type == "SK_DIST") return looksLikeSenderKeyDistributionEnvelope(content)
+    return looksLikeSenderKeyEnvelope(content) || looksLikeSenderKeyDistributionEnvelope(content)
+}
+
+internal fun isValidMessagePayload(
+    content: String,
+    type: String,
+    id: String?,
+    requireGroupSenderKey: Boolean = false
+): Boolean {
     val maxLength = when (type) {
         "IMAGE", "GIF", "VOICE", "VIDEO", "FILE" -> MAX_MEDIA_CONTENT_LENGTH
         "STICKER" -> MAX_STICKER_WIRE_CONTENT_LENGTH
@@ -42,10 +71,11 @@ internal fun isValidMessagePayload(content: String, type: String, id: String?): 
         "SK_DIST" -> MAX_HIDDEN_MESSAGE_CONTENT_LENGTH
         else -> MAX_TEXT_CONTENT_LENGTH
     }
-    return type in ALLOWED_MESSAGE_TYPES &&
-        content.isNotBlank() &&
-        content.length <= maxLength &&
-        (id == null || CLIENT_MESSAGE_ID_REGEX.matches(id))
+    if (type !in ALLOWED_MESSAGE_TYPES) return false
+    if (content.isBlank() || content.length > maxLength) return false
+    if (id != null && !CLIENT_MESSAGE_ID_REGEX.matches(id)) return false
+    if (requireGroupSenderKey && !isValidGroupHumanPayload(content, type)) return false
+    return true
 }
 
 internal fun isValidSignalPayload(type: String, payload: String): Boolean {

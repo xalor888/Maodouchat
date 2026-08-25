@@ -719,10 +719,18 @@ class PerUserUnreadRouteTest {
         acceptAllGroupInvites(aliceToken)
         acceptAllGroupInvites(bobToken)
 
-        val sent = client.post("/api/chats/$chatId/messages") {
+        val plaintext = client.post("/api/chats/$chatId/messages") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
             contentType(ContentType.Application.Json)
             setBody("""{"chatId":"$chatId","content":"ciphertext","type":"TEXT"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, plaintext.status, plaintext.bodyAsText())
+
+        val sk = """{"version":1,"algorithm":"signal-sender-key-v1","groupId":"$chatId","epoch":0,"senderDeviceId":1,"distributionId":"d","payloadType":"TEXT","ciphertext":"abc"}"""
+        val sent = client.post("/api/chats/$chatId/messages") {
+            header(HttpHeaders.Authorization, "Bearer $ownerToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"chatId":"$chatId","content":${kotlinx.serialization.json.JsonPrimitive(sk)},"type":"TEXT"}""")
         }
         assertEquals(HttpStatusCode.Created, sent.status, sent.bodyAsText())
 
