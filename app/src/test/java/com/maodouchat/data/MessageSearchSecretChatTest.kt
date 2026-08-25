@@ -1,9 +1,9 @@
 package com.maodouchat.data
 
 import com.maodouchat.data.local.AppDatabase
+import com.maodouchat.data.local.dao.ChatDao
 import com.maodouchat.data.local.dao.MessageDao
 import com.maodouchat.data.local.dao.MessageSearchDao
-import com.maodouchat.data.local.dao.SecretChatDao
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.MessageSearchRepository
@@ -23,11 +23,11 @@ class MessageSearchSecretChatTest {
         val database = mockk<AppDatabase>()
         val messageDao = mockk<MessageDao>()
         val searchDao = mockk<MessageSearchDao>()
-        val secretChatDao = mockk<SecretChatDao>()
+        val chatDao = mockk<ChatDao>()
         every { database.messageDao() } returns messageDao
         every { database.messageSearchDao() } returns searchDao
-        every { database.secretChatDao() } returns secretChatDao
-        coEvery { secretChatDao.isSecret("secret-chat") } returns true
+        every { database.chatDao() } returns chatDao
+        coEvery { chatDao.isSecretChat("secret-chat") } returns true
         coEvery { searchDao.deleteDocument("m1") } returns Unit
 
         val repo = MessageSearchRepository(database)
@@ -46,10 +46,10 @@ class MessageSearchSecretChatTest {
         val database = mockk<AppDatabase>()
         val messageDao = mockk<MessageDao>()
         val searchDao = mockk<MessageSearchDao>()
-        val secretChatDao = mockk<SecretChatDao>()
+        val chatDao = mockk<ChatDao>()
         every { database.messageDao() } returns messageDao
         every { database.messageSearchDao() } returns searchDao
-        every { database.secretChatDao() } returns secretChatDao
+        every { database.chatDao() } returns chatDao
         coEvery { searchDao.deleteDocument("m1") } returns Unit
 
         val repo = MessageSearchRepository(database)
@@ -58,7 +58,7 @@ class MessageSearchSecretChatTest {
             secretChatIds = setOf("secret-chat")
         )
 
-        coVerify(exactly = 0) { secretChatDao.isSecret(any()) }
+        coVerify(exactly = 0) { chatDao.isSecretChat(any()) }
         coVerify(exactly = 1) { searchDao.deleteDocument("m1") }
     }
 
@@ -67,11 +67,11 @@ class MessageSearchSecretChatTest {
         val database = mockk<AppDatabase>()
         val messageDao = mockk<MessageDao>()
         val searchDao = mockk<MessageSearchDao>()
-        val secretChatDao = mockk<SecretChatDao>()
+        val chatDao = mockk<ChatDao>()
         every { database.messageDao() } returns messageDao
         every { database.messageSearchDao() } returns searchDao
-        every { database.secretChatDao() } returns secretChatDao
-        coEvery { secretChatDao.isSecret("normal-chat") } returns false
+        every { database.chatDao() } returns chatDao
+        coEvery { chatDao.isSecretChat("normal-chat") } returns false
         coEvery { searchDao.getFingerprint("m2") } returns null
         coEvery { searchDao.replaceDocument(any(), any()) } returns Unit
 

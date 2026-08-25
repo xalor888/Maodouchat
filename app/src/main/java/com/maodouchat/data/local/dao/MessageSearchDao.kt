@@ -84,7 +84,7 @@ interface MessageSearchDao {
         """
         DELETE FROM message_search_documents
         WHERE messageId NOT IN (SELECT id FROM messages WHERE type IN (:types))
-           OR chatId IN (SELECT chatId FROM secret_chats)
+           OR chatId IN (SELECT id FROM chats WHERE chatType = 'SECRET')
         """
     )
     suspend fun deleteDocumentsNotInSearchableTypes(types: List<String>)
@@ -117,7 +117,7 @@ interface MessageSearchDao {
         FROM message_search_documents d
         INNER JOIN message_search_tokens t ON t.messageId = d.messageId
         WHERE t.token IN (:tokens)
-          AND d.chatId NOT IN (SELECT chatId FROM secret_chats)
+          AND d.chatId NOT IN (SELECT id FROM chats WHERE chatType = 'SECRET')
           AND d.chatId NOT IN (SELECT chatId FROM chat_locks)
         GROUP BY d.messageId
         ORDER BY matchCount DESC, d.timestamp DESC
@@ -138,7 +138,7 @@ interface MessageSearchDao {
         FROM message_search_documents d
         INNER JOIN message_search_tokens t ON t.messageId = d.messageId
         WHERE t.token IN (:tokens) AND d.messageType IN (:types)
-          AND d.chatId NOT IN (SELECT chatId FROM secret_chats)
+          AND d.chatId NOT IN (SELECT id FROM chats WHERE chatType = 'SECRET')
           AND d.chatId NOT IN (SELECT chatId FROM chat_locks)
         GROUP BY d.messageId
         ORDER BY matchCount DESC, d.timestamp DESC

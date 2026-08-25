@@ -27,9 +27,9 @@ class MessageStatusMachineTest {
     }
 
     @Test
-    fun `fromWire defaults unknown to DELIVERED to avoid clobbering READ after merge`() {
-        assertEquals(MessageStatus.DELIVERED, MessageStatus.fromWire(null))
-        assertEquals(MessageStatus.DELIVERED, MessageStatus.fromWire("not-a-status"))
+    fun `fromWire defaults unknown to SENT so groups do not paint a false double-check`() {
+        assertEquals(MessageStatus.SENT, MessageStatus.fromWire(null))
+        assertEquals(MessageStatus.SENT, MessageStatus.fromWire("not-a-status"))
         assertEquals(MessageStatus.READ, MessageStatus.fromWire("read"))
     }
 

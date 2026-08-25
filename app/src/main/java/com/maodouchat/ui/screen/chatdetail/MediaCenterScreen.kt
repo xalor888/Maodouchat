@@ -122,7 +122,7 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
     private val app = application as MaodouchatApp
     private val repository = MessageRepository(app.database.messageDao(), app.database)
     private val chatLockRepo = com.maodouchat.data.repository.ChatLockRepository(app.database.chatLockDao())
-    private val secretChatRepo = com.maodouchat.data.repository.SecretChatRepository(app.database.secretChatDao())
+
     private val tokenManager = com.maodouchat.network.TokenManager.getInstance(application)
     /** Capture at open so logout/account switch cannot paint the next owner's media grid. */
     private val ownerUserId: String = tokenManager.getUserId().orEmpty()
@@ -150,7 +150,7 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
                 false
             }
             val secret = try {
-                secretChatRepo.isSecret(chatId)
+                app.database.chatDao().isSecretChat(chatId)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (_: Exception) {
@@ -464,7 +464,7 @@ fun MediaCenterScreen(
                 Column {
                     TextButton(
                         onClick = {
-                            if (state.isSecretChat && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)) {
+                            if (state.isSecretChat) {
                                 Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
                                 exportTarget = null
                                 return@TextButton
@@ -499,7 +499,7 @@ fun MediaCenterScreen(
                     }
                     TextButton(
                         onClick = {
-                            if (state.isSecretChat && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)) {
+                            if (state.isSecretChat) {
                                 Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
                                 exportTarget = null
                                 return@TextButton
@@ -694,7 +694,7 @@ private fun MediaCenterImageViewer(
                 ) {
                     TextButton(
                         onClick = {
-                            if (!secretChatId.isNullOrBlank() && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)) {
+                            if (!secretChatId.isNullOrBlank()) {
                                 Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
                                 return@TextButton
                             }
@@ -712,7 +712,7 @@ private fun MediaCenterImageViewer(
                     ) { Text(stringResource(R.string.common_save), color = Color.White) }
                     TextButton(
                         onClick = {
-                            if (!secretChatId.isNullOrBlank() && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)) {
+                            if (!secretChatId.isNullOrBlank()) {
                                 Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
                                 return@TextButton
                             }

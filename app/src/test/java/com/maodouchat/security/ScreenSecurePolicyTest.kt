@@ -19,7 +19,7 @@ class ScreenSecurePolicyTest {
     }
 
     @Test
-    fun `global on only on chat surface`() {
+    fun `global on secures the whole window not only chat surface`() {
         assertTrue(
             ScreenSecurePolicy.shouldSecureWindow(
                 appLockShowing = false,
@@ -27,7 +27,7 @@ class ScreenSecurePolicyTest {
                 onChatSurface = true
             )
         )
-        assertFalse(
+        assertTrue(
             ScreenSecurePolicy.shouldSecureWindow(
                 appLockShowing = false,
                 globalEnabled = true,

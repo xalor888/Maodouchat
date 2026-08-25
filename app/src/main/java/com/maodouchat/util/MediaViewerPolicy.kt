@@ -61,12 +61,12 @@ object MediaViewerPolicy {
     fun canExportLocal(
         localReadable: Boolean,
         secretChat: Boolean = false,
-        exportBlockEnabled: Boolean = true
-    ): Boolean = localReadable && !(secretChat && exportBlockEnabled)
+        @Suppress("UNUSED_PARAMETER") exportBlockEnabled: Boolean = true
+    ): Boolean = localReadable && !secretChat
 
     fun canShareLocal(
         localReadable: Boolean,
         secretChat: Boolean = false,
-        exportBlockEnabled: Boolean = true
-    ): Boolean = localReadable && !(secretChat && exportBlockEnabled)
+        @Suppress("UNUSED_PARAMETER") exportBlockEnabled: Boolean = true
+    ): Boolean = localReadable && !secretChat
 }

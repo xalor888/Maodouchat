@@ -36,5 +36,7 @@ class MediaViewerPolicyTest {
     fun `export requires local readable`() {
         assertTrue(MediaViewerPolicy.canExportLocal(true))
         assertFalse(MediaViewerPolicy.canExportLocal(false))
+        assertFalse(MediaViewerPolicy.canExportLocal(true, secretChat = true, exportBlockEnabled = false))
+        assertFalse(MediaViewerPolicy.canShareLocal(true, secretChat = true, exportBlockEnabled = false))
     }
 }

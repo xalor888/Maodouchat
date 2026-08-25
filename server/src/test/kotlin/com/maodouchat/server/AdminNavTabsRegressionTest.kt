@@ -58,6 +58,9 @@ class AdminNavTabsRegressionTest {
             "id=\"filter-risk-events\"",
             "id=\"ai-usage-search\"",
             "id=\"audit-export\"",
+            "/api/admin/chats?groupOnly=true",
+            "requiresTotp",
+            "settings-advanced",
         )
     }
 }

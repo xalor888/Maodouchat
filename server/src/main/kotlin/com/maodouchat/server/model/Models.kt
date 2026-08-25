@@ -52,7 +52,7 @@ data class ChatResponse(
     val memberRevision: Long = 0, val pinnedAt: Long = 0, val notificationsMuted: Boolean = false,
     val archived: Boolean = false, val markedUnread: Boolean = false, val settingsUpdatedAt: Long = 0,
     val disappearingMessageSeconds: Int = 0,
-    /** 会话类型：DIRECT / GROUP / CHANNEL（广播频道，单向一对多） */
+    /** 会话类型：DIRECT / GROUP / CHANNEL / SECRET（密聊：独立 1:1，与普通私聊分开） */
     val chatType: String = "DIRECT"
 )
 
@@ -60,6 +60,8 @@ object ChatType {
     const val DIRECT = "DIRECT"
     const val GROUP = "GROUP"
     const val CHANNEL = "CHANNEL"
+    /** 钉钉式密聊：仅 1:1，独立会话，双方同步；不得用于群。 */
+    const val SECRET = "SECRET"
 }
 
 @Serializable
@@ -209,7 +211,7 @@ data class CreateChatRequest(
     val participantIds: List<String>,
     val isGroup: Boolean = false,
     val groupName: String? = null,
-    /** DIRECT / GROUP / CHANNEL；null 时由 isGroup 推导。 */
+    /** DIRECT / GROUP / CHANNEL / SECRET；null 时由 isGroup 推导。 */
     val chatType: String? = null
 )
 
@@ -923,6 +925,7 @@ data class SystemStatsResponse(
 data class ChatAdminResponse(
     val id: String,
     val isGroup: Boolean,
+    val chatType: String = "DIRECT",
     val groupName: String?,
     val groupAnnouncement: String?,
     val memberCount: Int,

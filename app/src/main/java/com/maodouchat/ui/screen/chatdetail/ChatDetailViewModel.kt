@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.util.DisappearingMessagePolicy
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import android.net.ConnectivityManager
@@ -113,7 +114,7 @@ class ChatDetailViewModel(
     internal val app = application as MaodouchatApp
     internal val messageRepo = MessageRepository(app.database.messageDao(), app.database)
     private val chatLockRepo = com.maodouchat.data.repository.ChatLockRepository(app.database.chatLockDao())
-    private val secretChatRepo = com.maodouchat.data.repository.SecretChatRepository(app.database.secretChatDao())
+    private val secretTtlRepo = com.maodouchat.data.repository.SecretChatRepository(app.database.secretChatDao())
     /** Reaction WS can race ahead of MessageReceived while chat is open. */
     @Volatile
     private var pendingReactions: Map<String, com.maodouchat.ui.screen.chatlist.PendingReactionPolicy.Entry> =
@@ -235,7 +236,8 @@ class ChatDetailViewModel(
         com.maodouchat.MaodouchatApp.emitMessageSent(
             chatId,
             listPreviewTextForMessage(message),
-            message.type.name
+            message.type.name,
+            playSendSound = false,
         )
     }
 
@@ -244,7 +246,9 @@ class ChatDetailViewModel(
         // 密聊消息不落搜索索引（与 ImageOcrAutoIndexer 一致）：即使本地 SQLCipher 已加密，
         // 密聊明文不应进入可搜索缓存，避免密聊内容在全局搜索中可被检索。
         val isSecretChat = try {
-            secretChatRepo.isSecret(message.chatId)
+            _uiState.value.isSecretChat == true ||
+                _uiState.value.chat?.isSecret == true ||
+                app.database.chatDao().isSecretChat(message.chatId)
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (_: Exception) {
@@ -343,7 +347,11 @@ class ChatDetailViewModel(
                 it.copy(isLoading = false, groupEncryptionWarning = text(R.string.chat_invalid_conversation))
             }
         } else {
-            com.maodouchat.MaodouchatApp.activeChatId = chatId
+            com.maodouchat.crypto.SessionCipherOccupancy.occupy(chatId)
+            viewModelScope.launch(Dispatchers.IO) {
+                pinSessionCipherPeerFromCache(chatId)
+            }
+            com.maodouchat.MaodouchatApp.activeChatOpenedAtMs = System.currentTimeMillis()
             // Open chat: drop tray notification + mark in-app center rows for this chat.
             runCatching {
                 com.maodouchat.util.AppNotifier.cancelMessage(getApplication(), chatId)
@@ -882,8 +890,13 @@ class ChatDetailViewModel(
                 // markAllAsRead 是会话级：失败后退避重试，不依赖本地 status 回退 / tracker 重入
                 markReadJob?.cancel()
                 markReadJob = viewModelScope.launch {
-                    // Surface #68: 密聊 read-receipt 门控 — 不向服务端回报已读
-                    if (_uiState.value.isSecretChat == true && RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_READ_RECEIPT_BLOCK)) {
+                    // 密聊：不报已读，但仍武装 expiresAt（可见即销毁）
+                    if (DisappearingMessagePolicy.shouldSkipReadReceipts(
+                            isSecretChat = _uiState.value.isSecretChat == true
+                        )
+                    ) {
+                        val effectiveChatId = activeChatId.ifBlank { chatId }
+                        armSecretDisappearing(effectiveChatId, pendingServerReadWatermark?.second)
                         return@launch
                     }
                     val markReadUserId = markReadOwnerUserId
@@ -1105,6 +1118,19 @@ class ChatDetailViewModel(
         }
     }
 
+    /** Room already knows participants; pin 1:1 peer before getChats returns. */
+    private suspend fun pinSessionCipherPeerFromCache(targetChatId: String) {
+        val cached = chatRepo.getChatById(targetChatId) ?: return
+        if (cached.isGroup) {
+            com.maodouchat.crypto.SessionCipherOccupancy.occupy(cached.id, peerUserId = null, updatePeer = true)
+            return
+        }
+        val peer = cached.participants.firstOrNull { it.id.isNotBlank() && it.id != currentUserId }?.id
+        if (peer != null) {
+            com.maodouchat.crypto.SessionCipherOccupancy.occupy(cached.id, peer, updatePeer = true)
+        }
+    }
+
     private fun loadChat() {
         _uiState.update { it.copy(isLoading = true, initialTimelineReady = false) }
         viewModelScope.launch {
@@ -1162,11 +1188,13 @@ class ChatDetailViewModel(
                             it.copy(
                                 chat = chat,
                                 chatIsGroup = true,
+                                isSecretChat = false,
                                 contact = groupContact,
                                 groupEncryptionWarning = revisionWarning ?: it.groupEncryptionWarning,
                                 disappearingMessageSeconds = 0
                             )
                         }
+                        com.maodouchat.crypto.SessionCipherOccupancy.occupy(chat.id, peerUserId = null, updatePeer = true)
                         loadGroupCandidates()
                         refreshBotCommands(chat.id)
                     } else {
@@ -1176,10 +1204,12 @@ class ChatDetailViewModel(
                                 it.copy(
                                     chat = chat,
                                     chatIsGroup = false,
+                                    isSecretChat = chat.isSecret,
                                     contact = contactUser,
                                     disappearingMessageSeconds = chat.disappearingMessageSeconds
                                 )
                             }
+                            com.maodouchat.crypto.SessionCipherOccupancy.occupy(chat.id, contactUser.id, updatePeer = true)
                             refreshBlockState(contactUser.id)
                             refreshScheduledMessages()
                             if (com.maodouchat.bot.BotCommandPolicy.isBotUserId(contactUser.id)) {
@@ -1208,6 +1238,7 @@ class ChatDetailViewModel(
                                     disappearingMessageSeconds = 0
                                 )
                             }
+                            com.maodouchat.crypto.SessionCipherOccupancy.occupy(cachedChat.id, peerUserId = null, updatePeer = true)
                             loadGroupCandidates()
                         } else {
                             val contactUser = cachedChat.participants.firstOrNull { it.id != currentUserId }
@@ -1219,10 +1250,12 @@ class ChatDetailViewModel(
                                             participants = cachedChat.participants.map { p -> withLocalNickname(p) }
                                         ),
                                         chatIsGroup = false,
+                                        isSecretChat = cachedChat.isSecret,
                                         contact = contactUser,
                                         disappearingMessageSeconds = cachedChat.disappearingMessageSeconds
                                     )
                                 }
+                                com.maodouchat.crypto.SessionCipherOccupancy.occupy(cachedChat.id, contactUser.id, updatePeer = true)
                                 refreshBlockState(contactUser.id)
                                 refreshScheduledMessages()
                             }
@@ -1347,14 +1380,17 @@ class ChatDetailViewModel(
                                 .sortedByDescending { it.timestamp }
                                 .firstOrNull { !isSyncDecryptFailurePlaceholder(it) }
                                 ?.let { emitListPreviewForDecrypted(it) }
+                            val loadedWatermarkId = messages
+                                .maxWithOrNull(compareBy<Message> { it.timestamp }.thenBy { it.id })
+                                ?.id
+                            if (DisappearingMessagePolicy.shouldSkipReadReceipts(
+                                    isSecretChat = _uiState.value.isSecretChat == true
+                                )
+                            ) {
+                                armSecretDisappearing(effectiveChatId, loadedWatermarkId)
+                                return@onSuccess
+                            }
                             if ((unreadSummaryWindow?.totalCount ?: 0) > 0) {
-                                // Surface #68: 密聊 read-receipt 门控
-                                if (_uiState.value.isSecretChat == true && RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_READ_RECEIPT_BLOCK)) {
-                                    return@onSuccess
-                                }
-                                val loadedWatermarkId = messages
-                                    .maxWithOrNull(compareBy<Message> { it.timestamp }.thenBy { it.id })
-                                    ?.id
                                 // 会话级 mark-read：带退避重试，不 fire-and-forget
                                 var attempt = 0
                                 while (attempt < 3) {
@@ -1965,6 +2001,10 @@ class ChatDetailViewModel(
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.disappear_group_unsupported)) }
             return
         }
+        if (chat.isSecret) {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_timer_locked)) }
+            return
+        }
         val normalized = com.maodouchat.util.DisappearingMessagePolicy.normalizeSeconds(seconds)
         if (!com.maodouchat.util.DisappearingMessagePolicy.isAllowedSeconds(normalized)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.disappear_invalid_timer)) }
@@ -2061,6 +2101,26 @@ class ChatDetailViewModel(
                 }
             }
         }
+    }
+
+    private suspend fun armSecretDisappearing(targetChatId: String, throughId: String?) {
+        if (targetChatId.isBlank()) return
+        if (_uiState.value.isSecretChat != true) return
+        val timer = DisappearingMessagePolicy.SECRET_DEFAULT_SECONDS
+        if (!DisappearingMessagePolicy.shouldArmOnVisible(true, timer)) return
+        val token = tokenManager.getToken().orEmpty()
+        if (token.isBlank()) return
+        val now = System.currentTimeMillis()
+        val localMessages = _uiState.value.messages.filter {
+            it.type != MessageType.SK_DIST &&
+                it.type != MessageType.REVOKED &&
+                (it.expiresAt == null || it.expiresAt <= 0L)
+        }
+        localMessages.forEach { msg ->
+            val armed = DisappearingMessagePolicy.resolveExpiresAt(null, timer, now) ?: return@forEach
+            applyMessageExpires(msg.id, armed)
+        }
+        runCatching { ApiService.armSecretChatExpiry(token, targetChatId, throughId) }
     }
 
     private suspend fun applyMessageExpires(messageId: String, expiresAt: Long) {
@@ -2908,7 +2968,7 @@ class ChatDetailViewModel(
                 app.database.chatDraftDao().deleteForChat(revisionOwnerUserId, event.chatId)
                 app.database.chatLockDao().remove(event.chatId)
                 com.maodouchat.security.ChatLockSession.clear(event.chatId)
-                app.database.secretChatDao().remove(event.chatId)
+                secretTtlRepo.remove(event.chatId)
                 com.maodouchat.security.SecretChatSession.markSurfaceInactive(event.chatId, getApplication())
                 app.database.senderKeyRetryDao().delete(revisionOwnerUserId, event.chatId)
                 try {
@@ -3356,6 +3416,10 @@ class ChatDetailViewModel(
     }
 
     fun requestVoiceTranscription(messageId: String) {
+        if (_uiState.value.isSecretChat == true) {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
+            return
+        }
         val message = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
         val isTranscribing = messageId in _uiState.value.transcribingVoiceMessageIds
         if (!com.maodouchat.util.VoiceTranscriptPolicy.canRequest(
@@ -3396,6 +3460,10 @@ class ChatDetailViewModel(
     }
 
     fun requestMessageTranslation(messageId: String, targetLanguage: String = DEFAULT_TRANSLATION_LANGUAGE) {
+        if (_uiState.value.isSecretChat == true) {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
+            return
+        }
         val message = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
         if (message.type != MessageType.TEXT && message.type != MessageType.MARKDOWN) return
         if (messageId in _uiState.value.translatingMessageIds) return
@@ -3427,6 +3495,10 @@ class ChatDetailViewModel(
     }
 
     fun requestAiImageAnalysis(messageId: String, mode: AiImageAnalysisMode) {
+        if (_uiState.value.isSecretChat == true) {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
+            return
+        }
         val message = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
         if (message.type != MessageType.IMAGE || _uiState.value.isAiWorking) return
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) {
@@ -3464,6 +3536,10 @@ class ChatDetailViewModel(
     }
 
     fun requestAiFileAnalysis(messageId: String, mode: AiFileAnalysisMode, question: String? = null) {
+        if (_uiState.value.isSecretChat == true) {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
+            return
+        }
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.ai_analyze_file_disabled)) }
             return
@@ -3967,6 +4043,10 @@ class ChatDetailViewModel(
      * - 服务端会向聊天中的其他参与者推送
      */
     fun sendNudge() {
+        if (_uiState.value.isSecretChat == true) {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_forward_blocked)) }
+            return
+        }
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.NUDGE)) {
             _uiState.update { it.copy(errorMessage = text(R.string.nudge_disabled)) }
             return
@@ -5566,15 +5646,8 @@ class ChatDetailViewModel(
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.message_forwarding_disabled)) }
             return
         }
-        if (_uiState.value.isSecretChat == true && RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_FORWARD_BLOCK)) {
+        if (_uiState.value.isSecretChat == true) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_forward_blocked)) }
-            return
-        }
-        // B2 转发白名单（fwlz）：密聊消息只允许转发到白名单会话；空白名单 = 完全禁止
-        if (_uiState.value.isSecretChat == true &&
-            !com.maodouchat.util.SecretForwardWhitelistPrefs.isForwardAllowed(getApplication(), targetChatId)
-        ) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_forward_whitelist_blocked)) }
             return
         }
         val targetChat = _uiState.value.forwardTargets.firstOrNull { it.id == targetChatId } ?: return
@@ -5822,7 +5895,7 @@ class ChatDetailViewModel(
         val usable = messages.filter { it.type !in setOf(MessageType.NUDGE, MessageType.SK_DIST, MessageType.SYSTEM, MessageType.REVOKED) }
         if (usable.isEmpty() || targetChatIds.isEmpty()) return
         val isSecret = _uiState.value.isSecretChat == true
-        if (isSecret && RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_FORWARD_BLOCK)) {
+        if (isSecret) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_forward_blocked)) }
             return
         }
@@ -5839,11 +5912,6 @@ class ChatDetailViewModel(
             try {
                 withContext(Dispatchers.IO) {
                     for (chatId in targetChatIds) {
-                        // B2 转发白名单（fwlz）：密聊消息只允许转发到白名单会话
-                        if (isSecret && !com.maodouchat.util.SecretForwardWhitelistPrefs.isForwardAllowed(getApplication(), chatId)) {
-                            if (firstError == null) firstError = IllegalStateException(text(R.string.secret_forward_whitelist_blocked))
-                            continue
-                        }
                         val targetChat = _uiState.value.forwardTargets.firstOrNull { it.id == chatId } ?: continue
                         var chatHadError = false
                         for (msg in usable) {
@@ -6205,6 +6273,10 @@ class ChatDetailViewModel(
                 return@launch
             }
             val chat = _uiState.value.chat ?: return@launch
+            if (chat.isSecret || _uiState.value.isSecretChat == true) {
+                _uiState.update { it.copy(infoMessage = text(R.string.secret_chat_export_blocked)) }
+                return@launch
+            }
             if (tokenManager.getToken().isNullOrBlank()) {
                 _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
                 return@launch
@@ -7734,7 +7806,18 @@ fun sendCurrentLocation() {
             return Result.failure(IllegalStateException(text(R.string.error_session_expired)))
         }
         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-        return ApiService.createChat(liveToken, listOf(recipientId), isGroup = false, groupName = null).map { chatDto ->
+        val createType = if (_uiState.value.chat?.isSecret == true || _uiState.value.isSecretChat == true) {
+            com.maodouchat.security.SecretChatPolicy.CHAT_TYPE
+        } else {
+            null
+        }
+        return ApiService.createChat(
+            liveToken,
+            listOf(recipientId),
+            isGroup = false,
+            groupName = null,
+            chatType = createType
+        ).map { chatDto ->
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
                     liveToken = tokenManager.getToken(),
@@ -7744,6 +7827,11 @@ fun sendCurrentLocation() {
                 throw IllegalStateException(text(R.string.error_session_expired))
             }
             activeChatId = chatDto.id
+            com.maodouchat.crypto.SessionCipherOccupancy.occupy(
+                chatDto.id,
+                _uiState.value.contact.id.takeIf { it.isNotBlank() && it != "me" },
+                updatePeer = true
+            )
             chatDto.id
         }
     }
@@ -7772,7 +7860,9 @@ fun sendCurrentLocation() {
         }
         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
         val secretChat = try {
-            secretChatRepo.isSecret(chatId)
+            _uiState.value.isSecretChat == true ||
+                _uiState.value.chat?.isSecret == true ||
+                app.database.chatDao().isSecretChat(chatId)
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (_: Exception) {
@@ -8549,7 +8639,14 @@ fun sendCurrentLocation() {
                     else -> localReadableMessage(message) ?: message
                 }
             }
-            return message
+            // Group human traffic is Sender Key only. Bot/system cards stay plaintext.
+            if (com.maodouchat.bot.BotCommandPolicy.isBotUserId(senderId) ||
+                message.type == MessageType.SYSTEM ||
+                message.type == MessageType.NUDGE
+            ) {
+                return message
+            }
+            return localReadableMessage(message)
         }
         if (message.type.isDecryptable() &&
             (signalProtocol.isEncryptedEnvelope(message.content) ||
@@ -8641,7 +8738,7 @@ fun sendCurrentLocation() {
             message.type,
             secretChatId = if (_uiState.value.isSecretChat == true) message.chatId else null
         )
-            ?: return message.copy(content = message.mediaDecryptFailedText())
+            ?: return message
         val metadata = restored.fileMetadata ?: return message.copy(content = restored.uri)
         val reference = restored.attachmentReference
         val meta = message.parsedMeta().copy(
@@ -8956,121 +9053,99 @@ fun sendCurrentLocation() {
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
-            val secret = try {
-                secretChatRepo.isSecret(targetChatId)
+            val loaded = _uiState.value.chat ?: try {
+                chatRepo.getChatById(targetChatId)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (_: Exception) {
-                // 查库异常失败闭合：保持密聊表面（FLAG_SECURE / 水印），不要误降成 false 并焚缓存。
+                null
+            }
+            val secret = try {
+                loaded?.isSecret ?: app.database.chatDao().isSecretChat(targetChatId)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
                 true
             }
             if (secret) {
+                try { secretTtlRepo.touch(targetChatId) } catch (_: Exception) {}
                 com.maodouchat.security.SecretChatSession.markSurfaceActive(targetChatId)
             } else {
+                try { secretTtlRepo.remove(targetChatId) } catch (_: Exception) {}
                 com.maodouchat.security.SecretChatSession.clearSurfaceMarker(targetChatId)
             }
             _uiState.update { it.copy(isSecretChat = secret) }
         }
     }
 
-    fun setSecretChatEnabled(enabled: Boolean) {
-        if (enabled && !RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_CHAT)) {
+    fun clearOpenedSecretChat() {
+        _uiState.update { it.copy(openedSecretChatId = null) }
+    }
+
+    /** 从当前普通单聊发起一场独立密聊（双方同步，不改写本会话）。 */
+    fun startSecretChat() {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_CHAT)) {
             _uiState.update { it.copy(errorMessage = text(R.string.secret_chat_feature_disabled)) }
             return
         }
-        val targetChatId = activeChatId.ifBlank { chatId }
-        if (targetChatId.isBlank()) return
+        val snapshot = _uiState.value
+        if (snapshot.chatIsGroup || snapshot.chat?.isChannel == true) {
+            _uiState.update { it.copy(errorMessage = text(R.string.secret_chat_direct_only)) }
+            return
+        }
+        if (snapshot.isSecretChat == true || snapshot.chat?.isSecret == true) {
+            _uiState.update { it.copy(errorMessage = text(R.string.secret_chat_already)) }
+            return
+        }
+        if (!com.maodouchat.security.SecretChatPolicy.canStartFromDirect(
+                isGroup = snapshot.chatIsGroup,
+                chatType = snapshot.chat?.chatType
+            )
+        ) {
+            _uiState.update { it.copy(errorMessage = text(R.string.secret_chat_direct_only)) }
+            return
+        }
+        val peerId = snapshot.contact.id
+        val ownerUserId = currentUserId
+        if (peerId.isBlank() || ownerUserId.isBlank() || token.isBlank()) {
+            _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
+            return
+        }
         viewModelScope.launch(Dispatchers.IO) {
-            if (enabled) {
-                secretChatRepo.enable(targetChatId)
-                try {
-                    app.database.messageSearchDao().deleteChatIndex(targetChatId)
-                } catch (error: kotlinx.coroutines.CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    // 索引清理失败不阻塞密聊开启；SQL 过滤仍会隐藏该会话搜索结果。
-                }
-                com.maodouchat.security.SecretChatSession.markSurfaceActive(targetChatId)
-                // Privacy default: if disappearing is off, turn on 24h timer for secret 1:1.
-                val chat = _uiState.value.chat
-                val currentTimer = chat?.disappearingMessageSeconds
-                    ?: com.maodouchat.util.DisappearingMessagePolicy.OFF_SECONDS
-                if (
-                    RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_AUTO_DISAPPEAR) &&
-                    chat != null && !chat.isGroup && currentTimer <= 0
-                ) {
-                    withContext(Dispatchers.Main) {
-                        setDisappearingMessages(24 * 60 * 60)
-                    }
-                }
-                // Prefetch sealed-sender cert for upcoming outbound messages.
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                var sealedReady = false
-                var sealedTtl = 0L
-                val ownerUserId = tokenManager.getUserId().orEmpty()
-                val ownerDeviceId = signalProtocol.getDeviceId()
-                if (
-                    liveToken.isNotBlank() && ownerUserId.isNotBlank() &&
-                    RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SEALED_SENDER)
-                ) {
-                    sealedReady = try {
-                        com.maodouchat.crypto.SealedSenderSupport.fetchCertificate(
-                            liveToken,
-                            ownerUserId,
-                            ownerDeviceId
-                        ).getOrNull()?.certificate?.isNotBlank() == true
-                    } catch (error: kotlinx.coroutines.CancellationException) {
-                        throw error
-                    } catch (_: Exception) {
-                        false
-                    }
-                    if (sealedReady) {
-                        sealedTtl = com.maodouchat.crypto.SealedSenderSupport.secondsUntilExpiry(
-                            ownerUserId,
-                            ownerDeviceId
-                        )
-                    }
-                }
-                _uiState.update {
-                    it.copy(
-                        isSecretChat = true,
-                        sealedSenderReady = sealedReady,
-                        sealedSenderExpiresInSec = sealedTtl,
-                        secretChatInfoMessage = text(
-                            if (sealedReady) R.string.secret_chat_enabled_sealed
-                            else R.string.secret_chat_enabled
-                        )
-                    )
-                }
-                return@launch
-            } else {
-                secretChatRepo.disable(targetChatId)
-                try {
-                    app.database.messageSearchDao().deleteChatIndex(targetChatId)
-                } catch (error: kotlinx.coroutines.CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    // 索引清理失败不阻塞密聊关闭；下次重建/维护会按新状态处理。
-                }
-                com.maodouchat.security.SecretChatSession.markSurfaceInactive(targetChatId, getApplication())
-                val ownerUserId = tokenManager.getUserId().orEmpty()
-                if (ownerUserId.isNotBlank()) {
-                    com.maodouchat.crypto.SealedSenderSupport.clearCache(
-                        ownerUserId,
-                        signalProtocol.getDeviceId()
-                    )
-                }
-            }
-            _uiState.update {
-                it.copy(
-                    isSecretChat = enabled,
-                    sealedSenderReady = if (enabled) it.sealedSenderReady else false,
-                    sealedSenderExpiresInSec = if (enabled) it.sealedSenderExpiresInSec else 0L,
-                    secretChatInfoMessage = text(
-                        if (enabled) R.string.secret_chat_enabled else R.string.secret_chat_disabled
-                    )
+            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                    expectedUserId = ownerUserId,
+                    liveToken = tokenManager.getToken(),
+                    liveUserId = tokenManager.getUserId(),
                 )
+            ) {
+                _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
+                return@launch
             }
+            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+            val result = ApiService.createChat(
+                liveToken,
+                listOf(peerId),
+                isGroup = false,
+                groupName = null,
+                chatType = com.maodouchat.security.SecretChatPolicy.CHAT_TYPE
+            )
+            result.fold(
+                onSuccess = { chatDto ->
+                    try { secretTtlRepo.touch(chatDto.id) } catch (_: Exception) {}
+                    try { chatRepo.cacheChats(listOf(chatDto.toDomainChat())) } catch (_: Exception) {}
+                    _uiState.update {
+                        it.copy(
+                            openedSecretChatId = chatDto.id,
+                            secretChatInfoMessage = text(R.string.secret_chat_started)
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(errorMessage = error.message ?: text(R.string.secret_chat_start_failed))
+                    }
+                }
+            )
         }
     }
 
@@ -9359,7 +9434,7 @@ fun sendCurrentLocation() {
             _uiState.update { it.copy(exportInfoMessage = text(R.string.chat_lock_list_preview)) }
             return
         }
-        if (state.isSecretChat == true && RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_CHAT_EXPORT_BLOCK)) {
+        if (state.isSecretChat == true) {
             _uiState.update { it.copy(exportInfoMessage = text(R.string.secret_chat_export_blocked)) }
             return
         }
@@ -9718,16 +9793,13 @@ fun sendCurrentLocation() {
         // before A.onCleared runs; unconditional null would suppress B's unread skip.
         val currentToken = token
         val currentChatId = activeChatId
-        if (com.maodouchat.MaodouchatApp.activeChatId == currentChatId) {
-            com.maodouchat.MaodouchatApp.activeChatId = null
-        }
+        com.maodouchat.crypto.SessionCipherOccupancy.release(currentChatId)
         // 不在 onCleared 里 releaseSending：WorkManager 可能仍在 finalize，
         // 释放会让第二 worker 重 claim 并用新密文同 messageId 再发。
         val markReadOwnerUserId = tokenManager.getUserId().orEmpty()
         // 提取局部变量，避免 lambda 闭包捕获 this（ViewModel），防止 GC 被阻止。
         val markReadTokenMgr = tokenManager
         val markReadIsSecret = _uiState.value.isSecretChat == true
-        val markReadSecretBlockEnabled = RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_READ_RECEIPT_BLOCK)
         if (currentToken.isNotBlank() && currentChatId.isNotBlank() && markReadOwnerUserId.isNotBlank()) {
             com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
                 try {
@@ -9738,8 +9810,8 @@ fun sendCurrentLocation() {
                         val liveTok = markReadTokenMgr.getToken()
                         if (liveTok.isNullOrBlank() || liveUid.isNullOrBlank()) return@withContext
                         if (liveUid != markReadOwnerUserId) return@withContext
-                        // Surface #68: 密聊 read-receipt 门控
-                        if (markReadIsSecret && markReadSecretBlockEnabled) {
+                        if (DisappearingMessagePolicy.shouldSkipReadReceipts(markReadIsSecret)) {
+                            ApiService.armSecretChatExpiry(liveTok, currentChatId)
                             return@withContext
                         }
                         ApiService.markAllAsRead(liveTok, currentChatId)
@@ -9783,6 +9855,7 @@ fun sendCurrentLocation() {
             (lower.contains("session") && lower.contains("missing")) ||
             lower.contains("identity") && lower.contains("changed") ||
             c == text(R.string.chat_decrypt_failed) ||
+            c == text(R.string.chat_decrypt_pending) ||
             c == text(R.string.chat_decrypt_session_missing) ||
             c == text(R.string.chat_decrypt_identity_changed) ||
             c == text(R.string.chat_decrypt_group_failed) ||

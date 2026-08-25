@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
  * 周期任务（15 分钟，与 SenderKeyRetryWorker 同模式，进程重启自动恢复）：
  * - SIM 变更防护：首次运行登记 SIM 基线，之后比对；变更时回调触发
  *   [SecretChatSession.clearAllSurfaces] 清除全部密聊本地数据（防换卡盗用）。
- * - 密聊 TTL 清扫：按 secret_chats.lastActivityAt 清扫无活动超时会话的本地解密缓存。
+ * - 密聊 TTL 清扫：按 chats.chatType=SECRET 的会话，用 secret_chats.lastActivityAt 清本地解密缓存。
  *
  * 接线：MainActivity.onCreate 调用 [schedule]（幂等）。
  */
@@ -37,12 +37,18 @@ class SecretSurfaceWatchdogWorker(
             SecretChatSession.clearAllSurfaces(app)
         }
 
-        // 密聊无活动 TTL 清扫（ttlz）：活动时间数据源来自 secret_chats.lastActivityAt（迁移 29）
+        // 密聊无活动 TTL：只扫 chatType=SECRET。secret_chats 只是心跳，不是开关。
         try {
-            val activity = app.database.secretChatDao().listActivity()
-            if (activity.isNotEmpty()) {
-                val byChat = activity.associate { it.chatId to it.lastActivityAt }
-                val swept = SecretSessionTtl.sweepExpired(app, byChat)
+            val secretIds = app.database.chatDao().listSecretChatIds().toSet()
+            if (secretIds.isNotEmpty()) {
+                val activity = app.database.secretChatDao().listActivity()
+                    .filter { it.chatId in secretIds }
+                    .associate { it.chatId to it.lastActivityAt }
+                    .toMutableMap()
+                for (id in secretIds) {
+                    if (id !in activity) activity[id] = 0L
+                }
+                val swept = SecretSessionTtl.sweepExpired(app, activity)
                 if (swept.isNotEmpty()) {
                     Log.i(TAG, "Secret session TTL sweep: destroyed ${swept.size} chats")
                 }

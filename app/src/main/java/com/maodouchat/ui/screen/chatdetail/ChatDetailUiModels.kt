@@ -212,9 +212,11 @@ data class ChatDetailUiState(
     /** 本次进入会话是否已通过 PIN（进程内有效） */
     val isChatUnlocked: Boolean = false,
     val chatLockInfoMessage: String? = null,
-    /** 本机会话密聊：强制防截屏 + 盲水印；null=尚未查询 */
+    /** 当前打开的是密聊会话（chatType=SECRET）；null=尚未判定 */
     val isSecretChat: Boolean? = null,
     val secretChatInfoMessage: String? = null,
+    /** 从普通单聊「发起密聊」成功后，导航到新的密聊会话。 */
+    val openedSecretChatId: String? = null,
     /** 通用错误提示（功能禁用 / 操作失败），消费后清空 */
     val errorMessage: String? = null,
     /** 通用信息提示（操作成功），消费后清空 */

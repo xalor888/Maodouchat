@@ -29,8 +29,9 @@ object InAppSoundPlayer {
         playSample(volume = 0.55f)
     }
 
-    /** 收到新消息提示音（前台会话场景）。进出会话不得重放。 */
+    /** 收到新消息提示音。应用在前台时一律不播。 */
     fun playReceiveTone() {
+        if (MaodouchatApp.appInForeground) return
         if (!RuntimeFlags.isEnabled(MaodouchatApp.instance, RuntimeFlags.IN_APP_SOUNDS)) return
         val now = SystemClock.elapsedRealtime()
         val previous = lastReceiveAt.get()

@@ -137,17 +137,45 @@ class BacklogSyncWorker(
                     // 9.136：activeChatId 是进程级全局值（无账号归属），按迭代快照一次，
                     // 供未读抑制与通知抑制两处共用，避免跨账号会话状态污染本批决策
                     val activeChatId = MaodouchatApp.activeChatId
+                    val openChatId = MaodouchatApp.openChatDetailId
                     // 9.213：批量查重替代逐条 SELECT（每页可达 100 条）
                     val existingIds = messageRepo.getExistingMessageIds(messages.map { it.id })
                     val newMessageIds = messages.mapNotNull { msg ->
                         if (msg.id !in existingIds) msg.id else null
                     }.toSet()
                     messageRepo.insertMessages(messages)
+                    if (chat.isGroup &&
+                        !com.maodouchat.crypto.SessionCipherOccupancy.isChatOccupied(chat.id)
+                    ) {
+                        val chatRepo = com.maodouchat.data.repository.ChatRepository(
+                            app.database.chatDao(),
+                            app.database.userDao()
+                        )
+                        messages.filter { it.type == MessageType.SK_DIST }.forEach { dist ->
+                            runCatching {
+                                com.maodouchat.crypto.InactiveChatSenderKeyIngest.ingest(
+                                    signal = app.signalProtocol,
+                                    chatRepo = chatRepo,
+                                    messageRepo = messageRepo,
+                                    message = dist,
+                                )
+                            }
+                        }
+                        runCatching {
+                            com.maodouchat.crypto.InactiveChatSenderKeyIngest.retryDecryptTail(
+                                signal = app.signalProtocol,
+                                messageRepo = messageRepo,
+                                chatId = chat.id,
+                                isGroup = true,
+                                onRecovered = { }
+                            )
+                        }
+                    }
                     val incomingUnread = messages.count { msg ->
                         msg.id in newMessageIds &&
                             msg.senderId != ownerId &&
                             msg.type !in setOf(MessageType.SK_DIST, MessageType.REVOKED) &&
-                            activeChatId != chat.id
+                            activeChatId != chat.id && openChatId != chat.id
                     }
                     if (incomingUnread > 0) {
                         app.database.chatDao().incrementUnread(chat.id, incomingUnread)
@@ -179,7 +207,9 @@ class BacklogSyncWorker(
                 // 补发通知：非活跃会话 + 未静音 + DND 不抑制（跳过 SK_DIST/REVOKED 控制消息）
                 if (
                     shouldNotify &&
+                        !MaodouchatApp.appInForeground &&
                         MaodouchatApp.activeChatId != chat.id &&
+                        MaodouchatApp.openChatDetailId != chat.id &&
                         !muted && !suppress && !quietHoursSuppress && !silentUntilSuppress
                 ) {
                     val senderName = app.database.userDao().getUserById(notifySenderId)?.name

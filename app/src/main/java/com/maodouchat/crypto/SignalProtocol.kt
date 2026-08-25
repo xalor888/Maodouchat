@@ -601,7 +601,11 @@ class SignalProtocol(
             val targets = mutableListOf<MultiRecipientDeviceTarget>()
             // 单成员 session 失败不得整批 abort（SK fan-out 应尽量覆盖可用设备）
             val entries = recipientIds
-                .filter { it.isNotBlank() && (includeCurrentUserDevices || it != currentUserId) }
+                .filter {
+                    it.isNotBlank() &&
+                        (includeCurrentUserDevices || it != currentUserId) &&
+                        !com.maodouchat.bot.BotCommandPolicy.isBotUserId(it)
+                }
                 .distinct()
                 .flatMap { recipientId ->
                     val deviceIds = ensureSessions(token, recipientId).getOrElse { emptyList() }
@@ -704,6 +708,8 @@ class SignalProtocol(
     }
 
     fun decryptContentEnvelope(senderId: String, content: String): DecryptResult {
+        val owner = currentUserId
+        if (owner.isNullOrBlank() || !isInitializedFor(owner)) return DecryptResult.Failed
         val fingerprint = DecryptFailurePolicy.envelopeFingerprint(senderId, content)
         if (DecryptFailurePolicy.shouldSkipCryptoAttempt(decryptRetryTracker.failureCount(fingerprint))) {
             return DecryptResult.Failed
@@ -935,6 +941,10 @@ class SignalProtocol(
     }
 
     fun encryptGroupContentEnvelope(groupId: String, plaintext: String, payloadType: String, epoch: Long = 0): Result<String> {
+        val owner = currentUserId
+        if (owner.isNullOrBlank() || !isInitializedFor(owner)) {
+            return Result.failure(IllegalStateException("signal_not_initialized"))
+        }
         return cryptoLock.withLock {
             runCatching {
                 // 禁止在 encrypt 路径 mint 新 distribution：必须先 create+fan-out，否则对端无 SKDM
@@ -964,6 +974,8 @@ class SignalProtocol(
     }
 
     fun decryptGroupContentEnvelope(senderId: String, content: String, expectedGroupId: String? = null, currentEpoch: Long? = null): DecryptResult {
+        val owner = currentUserId
+        if (owner.isNullOrBlank() || !isInitializedFor(owner)) return DecryptResult.Failed
         val fingerprint = DecryptFailurePolicy.envelopeFingerprint(senderId, content)
         if (DecryptFailurePolicy.shouldSkipCryptoAttempt(decryptRetryTracker.failureCount(fingerprint))) {
             return DecryptResult.Failed
@@ -1038,6 +1050,10 @@ class SignalProtocol(
     }
 
     fun encryptMessage(recipientId: String, plaintext: String, deviceId: Int = DEFAULT_DEVICE_ID): EncryptedPayload {
+        val owner = currentUserId
+        if (owner.isNullOrBlank() || !isInitializedFor(owner)) {
+            throw IllegalStateException("signal_not_initialized")
+        }
         cryptoLock.withLock {
             val address = SignalProtocolAddress(recipientId, deviceId)
             val cipher = SessionCipher(protocolStore, address)
@@ -1057,6 +1073,10 @@ class SignalProtocol(
         deviceId: Int = DEFAULT_DEVICE_ID,
         ciphertextType: String? = null
     ): String {
+        val owner = currentUserId
+        if (owner.isNullOrBlank() || !isInitializedFor(owner)) {
+            throw IllegalStateException("signal_not_initialized")
+        }
         cryptoLock.withLock {
             val address = SignalProtocolAddress(senderId, deviceId)
             val cipher = SessionCipher(protocolStore, address)
@@ -1150,7 +1170,7 @@ class SignalProtocol(
             ?: return null
         // 使用 libsignal 标准 NumericFingerprintGenerator 生成迭代式安全码，
         // 替代自研 SHA-256 截断 15 字节的弱化实现；二维码与屏幕显示使用同一标准指纹。
-        val localStableId = "$localUserId:$DEFAULT_DEVICE_ID".toByteArray(Charsets.UTF_8)
+        val localStableId = "$localUserId:$localDeviceId".toByteArray(Charsets.UTF_8)
         val remoteStableId = "$remoteUserId:$deviceId".toByteArray(Charsets.UTF_8)
         return runCatching {
             numericFingerprintGenerator.createFor(

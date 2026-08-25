@@ -401,7 +401,7 @@ class GroupDetailViewModel(
                         }.getOrDefault(emptyList())
                         val self = members.firstOrNull { it.userId == loadOwnerUserId }
                         val secret = try {
-                            app.database.secretChatDao().isSecret(chatId)
+                            chat?.isSecret == true || app.database.chatDao().isSecretChat(chatId)
                         } catch (e: kotlinx.coroutines.CancellationException) {
                             throw e
                         } catch (_: Exception) {
@@ -1016,7 +1016,9 @@ class GroupDetailViewModel(
                 return Result.failure(IllegalStateException(text(R.string.error_session_expired)))
             }
             val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            val recipientIds = state.members.map { it.userId }.filter { it.isNotBlank() }.distinct()
+            val recipientIds = state.members.map { it.userId }
+                .filter { it.isNotBlank() && !com.maodouchat.bot.BotCommandPolicy.isBotUserId(it) }
+                .distinct()
             val epoch = state.memberRevision
             if (epoch <= 0L) error("group_epoch_unknown")
             // 始终先 mint 本地 distribution（含单成员群）

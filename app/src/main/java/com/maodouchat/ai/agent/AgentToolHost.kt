@@ -150,20 +150,31 @@ object AgentToolHost {
 
     private suspend fun requireReadableChat(app: MaodouchatApp, chatId: String): String? {
         if (chatId.isBlank()) return "Error: chatId required"
-        if (app.database.chatLockDao().get(chatId) != null && !ChatLockSession.isUnlocked(chatId)) {
-            return "Error: chat is PIN-locked"
-        }
-        return null
+        val locked = app.database.chatLockDao().get(chatId) != null
+        val secret = app.database.chatDao().isSecretChat(chatId)
+        return AgentSecretGatePolicy.denyIfSecretOrLocked(
+            isSecret = secret,
+            isLocked = locked,
+            unlocked = ChatLockSession.isUnlocked(chatId)
+        )
     }
+
+    private suspend fun denySecretOrLockedChat(app: MaodouchatApp, chatId: String): String? =
+        requireReadableChat(app, chatId)
 
     private suspend fun listChats(app: MaodouchatApp, query: String?): String {
         val all = app.database.chatDao().getAllChatsDirect()
         val q = query?.trim()?.lowercase().orEmpty()
         val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
-        val secret = app.database.secretChatDao().listSecretChatIds().toHashSet()
+        val secret = app.database.chatDao().listSecretChatIds().toHashSet()
         val lines = all.asSequence()
             .filter { chat ->
-                if (chat.id in locked && !ChatLockSession.isUnlocked(chat.id)) return@filter false
+                if (!AgentSecretGatePolicy.includeInChatList(
+                        isSecret = chat.id in secret,
+                        isLocked = chat.id in locked,
+                        unlocked = ChatLockSession.isUnlocked(chat.id)
+                    )
+                ) return@filter false
                 if (q.isBlank()) true
                 else (chat.groupName.orEmpty() + " " + chat.lastMessage).lowercase().contains(q)
             }
@@ -208,11 +219,6 @@ object AgentToolHost {
 
     private suspend fun getChatHistory(app: MaodouchatApp, chatId: String, limit: Int): String {
         requireReadableChat(app, chatId)?.let { return it }
-        if (app.database.secretChatDao().isSecret(chatId) &&
-            chatId !in com.maodouchat.security.SecretChatSession.activeSecretSurfaceChatIds()
-        ) {
-            return "Error: secret chat is not in the foreground"
-        }
         val messages = MessageRepository(app.database.messageDao(), app.database)
             .getRecentMessages(chatId, limit.coerceIn(1, AgentToolPolicy.MAX_CHAT_HISTORY))
         if (messages.isEmpty()) return "No messages."
@@ -226,8 +232,15 @@ object AgentToolHost {
             .search(q, limit.coerceIn(1, AgentToolPolicy.MAX_SEARCH_HITS))
         if (hits.isEmpty()) return "No matches."
         val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
+        val secret = app.database.chatDao().listSecretChatIds().toHashSet()
         return hits
-            .filter { it.chatId !in locked || ChatLockSession.isUnlocked(it.chatId) }
+            .filter { hit ->
+                AgentSecretGatePolicy.includeInChatList(
+                    isSecret = hit.chatId in secret,
+                    isLocked = hit.chatId in locked,
+                    unlocked = ChatLockSession.isUnlocked(hit.chatId)
+                )
+            }
             .joinToString("\n") { hit ->
                 "${hit.chatId}\t${hit.messageId}\t${hit.searchableText.take(160)}"
             }
@@ -265,8 +278,15 @@ object AgentToolHost {
         val rows = app.database.messageDao().getStarredMessages(limit.coerceIn(1, 40))
         if (rows.isEmpty()) return "No starred messages."
         val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
+        val secret = app.database.chatDao().listSecretChatIds().toHashSet()
         return rows
-            .filter { it.chatId !in locked || ChatLockSession.isUnlocked(it.chatId) }
+            .filter { msg ->
+                AgentSecretGatePolicy.includeInChatList(
+                    isSecret = msg.chatId in secret,
+                    isLocked = msg.chatId in locked,
+                    unlocked = ChatLockSession.isUnlocked(msg.chatId)
+                )
+            }
             .joinToString("\n") { msg ->
                 val text = AiPromptSafetyPolicy.sanitizeContextText(msg.content, 160)
                 "${msg.chatId}\t${msg.id}\t$text"
@@ -277,17 +297,48 @@ object AgentToolHost {
     private suspend fun listDrafts(app: MaodouchatApp, userId: String): String {
         val drafts = app.database.chatDraftDao().observeForOwner(userId).first()
         if (drafts.isEmpty()) return "No drafts."
-        return drafts.take(40).joinToString("\n") { "${it.chatId}\t${it.text.take(160)}" }
+        val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
+        val secret = app.database.chatDao().listSecretChatIds().toHashSet()
+        val visible = drafts.filter { draft ->
+            AgentSecretGatePolicy.includeInChatList(
+                isSecret = draft.chatId in secret,
+                isLocked = draft.chatId in locked,
+                unlocked = ChatLockSession.isUnlocked(draft.chatId)
+            )
+        }
+        if (visible.isEmpty()) return "No drafts."
+        return visible.take(40).joinToString("\n") { "${it.chatId}\t${it.text.take(160)}" }
     }
 
     private suspend fun getDraft(app: MaodouchatApp, userId: String, chatId: String): String {
+        denySecretOrLockedChat(app, chatId)?.let { return it }
         if (chatId.isBlank()) return "Error: chatId required"
         val draft = app.database.chatDraftDao().get(userId, chatId)
         return if (draft == null || draft.text.isBlank()) "No draft." else draft.text.take(AgentToolPolicy.MAX_DRAFT_CHARS)
     }
 
+    private suspend fun blockedChatIds(app: MaodouchatApp): Set<String> {
+        val secret = app.database.chatDao().listSecretChatIds().toHashSet()
+        val locked = app.database.chatLockDao().listLockedChatIds()
+            .filterNot { ChatLockSession.isUnlocked(it) }
+            .toHashSet()
+        return secret + locked
+    }
+
+    private suspend fun secretPeerIds(app: MaodouchatApp): Set<String> =
+        app.database.chatDao().getAllChatsDirect()
+            .asSequence()
+            .filter { it.chatType == "SECRET" }
+            .flatMap { it.participantIds.split(",") }
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .toSet()
+
     private suspend fun listTasks(app: MaodouchatApp, limit: Int): String {
-        val tasks = app.database.aiTaskDao().listRecent(limit.coerceIn(1, 40))
+        val blocked = blockedChatIds(app)
+        val tasks = app.database.aiTaskDao().listRecent(limit.coerceIn(1, 80))
+            .filter { it.chatId.isBlank() || it.chatId !in blocked }
+            .take(limit.coerceIn(1, 40))
         if (tasks.isEmpty()) return "No tasks."
         return tasks.joinToString("\n") { task ->
             "${task.id}\t${task.chatId}\t${task.title}\tcompleted=${task.isCompleted}\tdue=${task.dueText.orEmpty()}"
@@ -295,15 +346,28 @@ object AgentToolHost {
     }
 
     private suspend fun listMissedCalls(app: MaodouchatApp, limit: Int): String {
-        val calls = app.database.missedCallDao().observeRecent().first().take(limit.coerceIn(1, 30))
+        val secretPeers = secretPeerIds(app)
+        val calls = app.database.missedCallDao().observeRecent().first()
+            .filter { it.callerId !in secretPeers }
+            .take(limit.coerceIn(1, 30))
         if (calls.isEmpty()) return "No missed calls."
         return calls.joinToString("\n") { call ->
             "${call.id}\t${call.callerId}\t${call.callerName}\t${call.callType}\t${call.receivedAt}\tread=${call.isRead}"
         }
     }
 
-    private fun listNotifications(app: MaodouchatApp, limit: Int): String {
-        val items = app.notificationCenter.items.value.take(limit.coerceIn(1, 40))
+    private suspend fun listNotifications(app: MaodouchatApp, limit: Int): String {
+        val blocked = blockedChatIds(app)
+        val secretPeers = secretPeerIds(app)
+        val items = app.notificationCenter.items.value
+            .filter { item ->
+                val chatId = item.extra["chatId"].orEmpty()
+                val callerId = item.extra["callerId"].orEmpty()
+                (chatId.isBlank() || chatId !in blocked) &&
+                    (callerId.isBlank() || callerId !in secretPeers) &&
+                    blocked.none { id -> item.mergeKey.contains(id) || item.deeplink.orEmpty().contains(id) }
+            }
+            .take(limit.coerceIn(1, 40))
         if (items.isEmpty()) return "No notifications."
         return items.joinToString("\n") { item ->
             "${item.id}\t${item.type}\t${item.title}\t${item.preview.orEmpty().take(80)}\tread=${item.read}"
@@ -314,6 +378,7 @@ object AgentToolHost {
         val cleanTitle = title.trim().take(300)
         if (chatId.isBlank() || cleanTitle.isBlank()) return "Error: chatId and title required"
         if (app.database.chatDao().getChatById(chatId) == null) return "Error: chat not found"
+        denySecretOrLockedChat(app, chatId)?.let { return it }
         val now = System.currentTimeMillis()
         val entity = AiTaskEntity(
             id = "task_${UUID.randomUUID()}",
@@ -332,9 +397,7 @@ object AgentToolHost {
         val body = text.trim().take(AgentToolPolicy.MAX_TEXT_SEND_CHARS)
         if (chatId.isBlank() || body.isBlank()) return "Error: chatId and text required"
         val chat = app.database.chatDao().getChatById(chatId) ?: return "Error: chat not found"
-        if (app.database.chatLockDao().get(chatId) != null && !ChatLockSession.isUnlocked(chatId)) {
-            return "Error: chat is PIN-locked"
-        }
+        denySecretOrLockedChat(app, chatId)?.let { return it }
         val meta = MessageMeta(aiAssisted = true, aiAssistantMode = "agent")
         val content = JsonFormat.composeContentWithMeta(body, meta)
         val message = Message(
@@ -356,6 +419,7 @@ object AgentToolHost {
         val chatId = args["chatId"].orEmpty()
         if (chatId.isBlank()) return "Error: chatId required"
         if (app.database.chatDao().getChatById(chatId) == null) return "Error: chat not found"
+        denySecretOrLockedChat(app, chatId)?.let { return it }
         val repo = ChatRepository(app.database.chatDao(), app.database.userDao())
         val changed = mutableListOf<String>()
         parseBool(args["pinned"])?.let {
@@ -381,6 +445,7 @@ object AgentToolHost {
     private suspend fun setDraft(app: MaodouchatApp, userId: String, chatId: String, text: String): String {
         if (chatId.isBlank()) return "Error: chatId required"
         if (app.database.chatDao().getChatById(chatId) == null) return "Error: chat not found"
+        denySecretOrLockedChat(app, chatId)?.let { return it }
         val body = text.trim().take(AgentToolPolicy.MAX_DRAFT_CHARS)
         if (body.isBlank()) {
             app.database.chatDraftDao().delete(userId, chatId)
@@ -395,7 +460,7 @@ object AgentToolHost {
     private suspend fun starMessage(app: MaodouchatApp, messageId: String, starred: Boolean?): String {
         if (messageId.isBlank() || starred == null) return "Error: messageId and starred required"
         val message = app.database.messageDao().getMessageById(messageId) ?: return "Error: message not found"
-        if (app.database.secretChatDao().isSecret(message.chatId)) return "Error: cannot star secret-chat messages"
+        denySecretOrLockedChat(app, message.chatId)?.let { return it }
         if (message.starred == starred) return "Already starred=$starred"
         val token = TokenManager.getInstance(app).getToken().orEmpty()
         if (token.isNotBlank()) {
@@ -443,11 +508,7 @@ object AgentToolHost {
     private suspend fun deleteLocalMessage(app: MaodouchatApp, messageId: String): String {
         if (messageId.isBlank()) return "Error: messageId required"
         val message = app.database.messageDao().getMessageById(messageId) ?: return "Error: message not found"
-        if (app.database.secretChatDao().isSecret(message.chatId) &&
-            message.chatId !in com.maodouchat.security.SecretChatSession.activeSecretSurfaceChatIds()
-        ) {
-            return "Error: secret chat is not in the foreground"
-        }
+        denySecretOrLockedChat(app, message.chatId)?.let { return it }
         MessageRepository(app.database.messageDao(), app.database).deleteMessage(messageId)
         return "Deleted local message $messageId"
     }
@@ -474,6 +535,7 @@ object AgentToolHost {
     private fun fail(error: Throwable): String = "Error: ${error.message ?: error.javaClass.simpleName}"
 
     private suspend fun listPinned(app: MaodouchatApp, chatId: String): String {
+        denySecretOrLockedChat(app, chatId)?.let { return it }
         if (chatId.isBlank()) return "Error: chatId required"
         val token = token(app) ?: return "Error: not signed in"
         val result = ApiService.getPinnedMessages(token, chatId).getOrElse { return fail(it) }
@@ -546,6 +608,7 @@ object AgentToolHost {
         if (messageId.isBlank()) return "Error: messageId required"
         val token = token(app) ?: return "Error: not signed in"
         val local = app.database.messageDao().getMessageById(messageId)
+        local?.let { denySecretOrLockedChat(app, it.chatId)?.let { err -> return err } }
         ApiService.revokeMessage(token, messageId).getOrElse { return fail(it) }
         if (local != null) {
             val placeholder = app.getString(com.maodouchat.R.string.chat_message_revoked_placeholder)
@@ -561,12 +624,15 @@ object AgentToolHost {
 
     private suspend fun react(app: MaodouchatApp, messageId: String, emoji: String): String {
         if (messageId.isBlank() || emoji.isBlank()) return "Error: messageId and emoji required"
+        val local = app.database.messageDao().getMessageById(messageId)
+        local?.let { denySecretOrLockedChat(app, it.chatId)?.let { err -> return err } }
         val token = token(app) ?: return "Error: not signed in"
         val result = ApiService.setMessageReaction(token, messageId, emoji.take(16)).getOrElse { return fail(it) }
         return "Reaction updated on $messageId count=${result.reactions.size}"
     }
 
     private suspend fun pinMessage(app: MaodouchatApp, chatId: String, messageId: String): String {
+        denySecretOrLockedChat(app, chatId)?.let { return it }
         if (chatId.isBlank() || messageId.isBlank()) return "Error: chatId and messageId required"
         val token = token(app) ?: return "Error: not signed in"
         val result = ApiService.togglePinnedMessage(token, chatId, messageId).getOrElse { return fail(it) }
@@ -711,6 +777,7 @@ object AgentToolHost {
     }
 
     private suspend fun deleteChat(app: MaodouchatApp, chatId: String): String {
+        denySecretOrLockedChat(app, chatId)?.let { return it }
         if (chatId.isBlank()) return "Error: chatId required"
         val token = token(app) ?: return "Error: not signed in"
         ApiService.deleteChat(token, chatId).getOrElse { return fail(it) }

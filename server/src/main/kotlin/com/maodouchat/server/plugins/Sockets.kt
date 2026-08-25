@@ -455,7 +455,8 @@ private suspend fun WebSocketSession.handleWsMessage(
                 sendError(wsRestrictionMessage(restriction, "你已被限制发消息"), json)
                 return
             }
-            if (!isValidMessagePayload(payload.content, payload.type, payload.id)) {
+            val requireGroupSenderKey = chatRepo.getChatById(payload.chatId)?.isGroup == true
+            if (!isValidMessagePayload(payload.content, payload.type, payload.id, requireGroupSenderKey = requireGroupSenderKey)) {
                 sendError("消息内容无效", json)
                 return
             }

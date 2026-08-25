@@ -14,11 +14,23 @@ object ChatListReceiptPolicy {
         val status: MessageStatus,
     )
 
-    fun fromLatest(latest: Message?, currentUserId: String): Receipt? {
+    fun fromLatest(latest: Message?, currentUserId: String, isGroup: Boolean = false): Receipt? {
         if (latest == null || currentUserId.isBlank()) return null
         if (latest.senderId != currentUserId) return null
         if (latest.type.isHidden) return null
-        return Receipt(fromMe = true, status = latest.status)
+        return Receipt(fromMe = true, status = displayStatus(latest.status, isGroup))
+    }
+
+    /**
+     * Groups do not push per-member DELIVERED. A lone SENT is one check; READ stays
+     * double-check only after actual receipts. Never paint DoneAll for "nobody read".
+     */
+    fun displayStatus(status: MessageStatus, isGroup: Boolean): MessageStatus {
+        if (!isGroup) return status
+        return when (status) {
+            MessageStatus.DELIVERED -> MessageStatus.SENT
+            else -> status
+        }
     }
 
     /** Marked-unread with zero count still needs a visible pill (Telegram grey/green dot). */

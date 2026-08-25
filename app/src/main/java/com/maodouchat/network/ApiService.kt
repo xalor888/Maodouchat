@@ -768,6 +768,22 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
             DisappearingMessagesResponse.serializer()
         )
 
+    suspend fun armSecretChatExpiry(token: String, chatId: String, throughId: String? = null): Result<MarkReadResponse> {
+        val body = if (throughId.isNullOrBlank()) {
+            ByteArray(0).toRequestBody(null)
+        } else {
+            jsonBody(json.encodeToString(MarkReadRequest.serializer(), MarkReadRequest(throughId)))
+        }
+        return send(
+            Request.Builder()
+                .url("${ApiConfig.BASE_URL}/api/chats/$chatId/arm-disappearing")
+                .addHeader("Authorization", "Bearer $token")
+                .post(body)
+                .build(),
+            MarkReadResponse.serializer()
+        )
+    }
+
     suspend fun markAllAsRead(token: String, chatId: String, throughId: String? = null): Result<MarkReadResponse> {
         val body = if (throughId.isNullOrBlank()) {
             ByteArray(0).toRequestBody(null)

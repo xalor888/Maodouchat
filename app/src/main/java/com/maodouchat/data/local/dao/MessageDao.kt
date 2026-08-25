@@ -29,8 +29,14 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp DESC LIMIT :limit")
     suspend fun getRecentMessages(chatId: String, limit: Int): List<MessageEntity>
 
-    /** 最新 N 条图片消息，供自动 OCR 识别图内文字并写入搜索索引（最新优先）。 */
-    @Query("SELECT * FROM messages WHERE type = 'IMAGE' ORDER BY timestamp DESC LIMIT :limit")
+    /** 最新 N 条图片消息，供自动 OCR 识别图内文字并写入搜索索引（最新优先）。密聊图片永远排除。 */
+    @Query("""
+        SELECT m.* FROM messages m
+        WHERE m.type = 'IMAGE'
+          AND m.chatId NOT IN (SELECT id FROM chats WHERE chatType = 'SECRET')
+        ORDER BY m.timestamp DESC
+        LIMIT :limit
+    """)
     suspend fun getImageMessages(limit: Int): List<MessageEntity>
 
     @Query("SELECT id FROM messages WHERE chatId = :chatId")
@@ -43,7 +49,7 @@ interface MessageDao {
         """
         SELECT * FROM messages
         WHERE starred = 1
-          AND chatId NOT IN (SELECT chatId FROM secret_chats)
+          AND chatId NOT IN (SELECT id FROM chats WHERE chatType = 'SECRET')
         ORDER BY timestamp DESC
         LIMIT :limit
         """
@@ -130,7 +136,7 @@ interface MessageDao {
         """
         SELECT * FROM messages
         WHERE type IN ('TEXT', 'MARKDOWN', 'VOICE', 'LOCATION', 'NUDGE', 'IMAGE', 'GIF', 'STICKER', 'VIDEO', 'FILE')
-          AND chatId NOT IN (SELECT chatId FROM secret_chats)
+          AND chatId NOT IN (SELECT id FROM chats WHERE chatType = 'SECRET')
         ORDER BY timestamp DESC LIMIT :limit
         """
     )
@@ -143,7 +149,7 @@ interface MessageDao {
         SELECT * FROM messages
         WHERE chatId = :chatId
           AND type IN ('TEXT', 'MARKDOWN', 'VOICE', 'LOCATION', 'NUDGE', 'IMAGE', 'GIF', 'STICKER', 'VIDEO', 'FILE')
-          AND chatId NOT IN (SELECT chatId FROM secret_chats)
+          AND chatId NOT IN (SELECT id FROM chats WHERE chatType = 'SECRET')
         ORDER BY timestamp DESC LIMIT :limit
         """
     )
@@ -168,7 +174,7 @@ interface MessageDao {
           AND LTRIM(content) NOT LIKE '{%'
           AND LTRIM(content) NOT LIKE '[{%'
           AND LTRIM(content) NOT LIKE '["%'
-          AND chatId NOT IN (SELECT chatId FROM secret_chats)
+          AND chatId NOT IN (SELECT id FROM chats WHERE chatType = 'SECRET')
         """
     )
     suspend fun countSearchableWithContent(): Int
@@ -178,7 +184,7 @@ interface MessageDao {
     @Query("""
         SELECT * FROM messages
         WHERE type IN ('TEXT', 'MARKDOWN', 'VOICE', 'LOCATION', 'NUDGE', 'IMAGE', 'GIF', 'STICKER', 'VIDEO', 'FILE')
-          AND chatId NOT IN (SELECT chatId FROM secret_chats)
+          AND chatId NOT IN (SELECT id FROM chats WHERE chatType = 'SECRET')
           AND (timestamp > :lastTimestamp OR (timestamp = :lastTimestamp AND id > :lastId))
         ORDER BY timestamp ASC, id ASC
         LIMIT :limit
@@ -195,7 +201,7 @@ interface MessageDao {
         """
         SELECT chatId FROM messages
         WHERE type IN ('TEXT', 'NUDGE', 'LOCATION')
-          AND chatId NOT IN (SELECT chatId FROM secret_chats)
+          AND chatId NOT IN (SELECT id FROM chats WHERE chatType = 'SECRET')
           AND chatId NOT IN (SELECT chatId FROM chat_locks)
           AND content LIKE '%' || :keyword || '%' ESCAPE '\'
         GROUP BY chatId

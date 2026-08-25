@@ -38,6 +38,12 @@ interface ChatDao {
     @Query("SELECT * FROM chats WHERE id = :chatId")
     suspend fun getChatById(chatId: String): ChatEntity?
 
+    @Query("SELECT EXISTS(SELECT 1 FROM chats WHERE id = :chatId AND chatType = 'SECRET')")
+    suspend fun isSecretChat(chatId: String): Boolean
+
+    @Query("SELECT id FROM chats WHERE chatType = 'SECRET'")
+    suspend fun listSecretChatIds(): List<String>
+
     // SQLite REPLACE deletes the existing parent row before inserting it again. Because
     // messages.chatId has ON DELETE CASCADE, REPLACE here used to erase the complete local
     // message history (and its search index) whenever a cached chat was refreshed.

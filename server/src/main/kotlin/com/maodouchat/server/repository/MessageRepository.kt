@@ -11,6 +11,7 @@ import com.maodouchat.server.db.MessageReactions
 import com.maodouchat.server.db.PinnedMessages
 import com.maodouchat.server.db.ReadReceipts
 import com.maodouchat.server.db.StarMessages
+import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.model.MessageMutationResponse
 import com.maodouchat.server.model.MessageReactionResponse
 import com.maodouchat.server.model.MessageResponse
@@ -469,6 +470,7 @@ class MessageRepository {
                 (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq readerId)
             }.firstOrNull() != null
             if (!isParticipant) return@transaction emptyList()
+            if (chatRow[Chats.chatType] == ChatType.SECRET) return@transaction emptyList()
             val readByUser = ReadReceipts
                 .select(ReadReceipts.messageId)
                 .where { ReadReceipts.userId eq readerId }
@@ -478,7 +480,8 @@ class MessageRepository {
             val timerSeconds = if (!isGroup) {
                 com.maodouchat.server.service.DisappearingMessagePolicy.effectiveSeconds(
                     isGroup = false,
-                    requestedSeconds = chatRow[Chats.disappearingMessageSeconds]
+                    requestedSeconds = chatRow[Chats.disappearingMessageSeconds],
+                    isSecret = chatRow[Chats.chatType] == ChatType.SECRET
                 )
             } else {
                 0
@@ -586,6 +589,71 @@ class MessageRepository {
                 }
             }
             results
+        }
+    }
+
+    /**
+     * 密聊打开会话时武装销毁：写 expiresAt，不写已读回执、不改 status。
+     * SECRET_READ_RECEIPT_BLOCK 下 markAllAsRead 不会被客户端调用，必须走这条。
+     */
+    fun armSecretChatExpiry(
+        chatId: String,
+        viewerId: String,
+        throughId: String? = null,
+        nowMs: Long = System.currentTimeMillis()
+    ): List<Pair<String, Long>> {
+        return transaction {
+            val chatRow = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
+                ?: return@transaction emptyList()
+            if (chatRow[Chats.chatType] != ChatType.SECRET) return@transaction emptyList()
+            val isParticipant = ChatParticipants.selectAll().where {
+                (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq viewerId)
+            }.firstOrNull() != null
+            if (!isParticipant) return@transaction emptyList()
+            val timerSeconds = com.maodouchat.server.service.DisappearingMessagePolicy.effectiveSeconds(
+                isGroup = false,
+                requestedSeconds = chatRow[Chats.disappearingMessageSeconds],
+                isSecret = true
+            )
+            if (!com.maodouchat.server.service.DisappearingMessagePolicy.shouldArmOnVisible(true, timerSeconds)) {
+                return@transaction emptyList()
+            }
+            val boundaryId = throughId?.takeIf { it.isNotBlank() }
+            val throughTimestamp = boundaryId?.let { id ->
+                Messages.select(Messages.timestamp)
+                    .where { Messages.id eq id }
+                    .limit(1)
+                    .firstOrNull()
+                    ?.get(Messages.timestamp)
+            }
+            val throughCondition = if (throughTimestamp == null) {
+                org.jetbrains.exposed.sql.Op.TRUE
+            } else {
+                (Messages.timestamp less throughTimestamp) or
+                    ((Messages.timestamp eq throughTimestamp) and (Messages.id lessEq boundaryId))
+            }
+            val needExpiry = Messages.selectAll()
+                .where {
+                    (Messages.chatId eq chatId) and
+                        (Messages.type neq "SK_DIST") and (Messages.type neq "REVOKED") and
+                        (Messages.expiresAt.isNull() or (Messages.expiresAt lessEq 0L)) and
+                        throughCondition
+                }
+                .toList()
+            if (needExpiry.isEmpty()) return@transaction emptyList()
+            val resolved = com.maodouchat.server.service.DisappearingMessagePolicy.resolveExpiresAt(
+                existingExpiresAt = null,
+                timerSeconds = timerSeconds,
+                readAtMs = nowMs
+            ) ?: return@transaction emptyList()
+            val ids = needExpiry.map { it[Messages.id] }
+            Messages.update({
+                (Messages.id inList ids) and
+                    (Messages.expiresAt.isNull() or (Messages.expiresAt lessEq 0L))
+            }) {
+                it[Messages.expiresAt] = resolved
+            }
+            ids.map { it to resolved }
         }
     }
 
@@ -1239,8 +1307,9 @@ class MessageRepository {
         if (!BotRepository.isOwnerDeliverable(botRow[BotApps.ownerUserId], System.currentTimeMillis())) {
             return@transaction false
         }
-        Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
+        val chatRow = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
             ?: return@transaction false
+        if (chatRow[Chats.chatType] == ChatType.SECRET) return@transaction false
         ChatParticipants.selectAll().where {
             (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq botUserId)
         }.forUpdate().firstOrNull() ?: return@transaction false
@@ -1288,10 +1357,17 @@ class MessageRepository {
                 .where { ChatParticipants.userId eq userId }
                 .map { it[ChatParticipants.chatId] }
                 .toSet()
-            if (userChatIds.isEmpty()) return@transaction emptyList()
+            val secretChatIds = if (userChatIds.isEmpty()) emptySet() else {
+                Chats.select(Chats.id)
+                    .where { (Chats.id inList userChatIds) and (Chats.chatType eq ChatType.SECRET) }
+                    .map { it[Chats.id] }
+                    .toSet()
+            }
+            val searchableChatIds = userChatIds - secretChatIds
+            if (searchableChatIds.isEmpty()) return@transaction emptyList()
 
             var baseQuery = Messages.selectAll().where {
-                (Messages.chatId inList userChatIds) and
+                (Messages.chatId inList searchableChatIds) and
                 (Messages.content.lowerCase() like pattern) and
                 // 8.48 修复 M2：撤回墓碑按 type=REVOKED 过滤（撤回改 type 而非 status，
                 // 此前过滤 status neq "REVOKED" 用错列 → 已撤回消息仍可被搜到）
@@ -1335,6 +1411,7 @@ class MessageRepository {
 
             // 按聊天过滤
             if (chatId.isNotBlank()) {
+                if (chatId in secretChatIds) return@transaction emptyList()
                 baseQuery = baseQuery.andWhere { Messages.chatId eq chatId }
             }
 

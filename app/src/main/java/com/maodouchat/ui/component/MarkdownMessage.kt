@@ -174,7 +174,8 @@ fun MarkdownMessageContent(
     isOwnMessage: Boolean,
     modifier: Modifier = Modifier,
     /** 点击消息内 URL 时回调（scheme 白名单与密聊外链拦截由调用方负责）。 */
-    onLinkClick: (String) -> Unit = {}
+    onLinkClick: (String) -> Unit = {},
+    allowSelection: Boolean = true
 ) {
     val bodyColor = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
     val codeBg = if (isOwnMessage) LocalSentBubbleContent.current.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.08f)
@@ -213,8 +214,12 @@ fun MarkdownMessageContent(
                     }
                 }
                 is MdBlock.Code -> {
-
-                    SelectionContainer {
+                    val codeModifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .background(codeBg, RoundedCornerShape(8.dp))
+                        .padding(10.dp)
+                    val codeBlock: @Composable () -> Unit = {
                         Text(
                             text = block.code,
                             style = MaterialTheme.typography.bodyMedium.copy(
@@ -222,12 +227,13 @@ fun MarkdownMessageContent(
                                 lineHeight = 20.sp
                             ),
                             color = bodyColor,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .background(codeBg, RoundedCornerShape(8.dp))
-                                .padding(10.dp)
+                            modifier = codeModifier
                         )
+                    }
+                    if (allowSelection) {
+                        SelectionContainer { codeBlock() }
+                    } else {
+                        codeBlock()
                     }
                 }
                 is MdBlock.Quote -> {

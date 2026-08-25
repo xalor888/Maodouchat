@@ -60,6 +60,10 @@ class SecureSessionManager(
             runCatching { com.maodouchat.util.TypingPresenceStore.clear() }
             // Process-global open-chat marker must not suppress notifications for the next account.
             MaodouchatApp.activeChatId = null
+            MaodouchatApp.openChatDetailId = null
+            com.maodouchat.crypto.SessionCipherOccupancy.occupyPeer(null)
+            MaodouchatApp.activeChatOpenedAtMs = 0L
+            MaodouchatApp.appInForeground = false
             // Stop any in-flight voice bubble so the next account never hears prior media.
             runCatching { com.maodouchat.util.VoicePlayer.stop() }
             // AI per-chat / global rate windows are process-local; clear so switch doesn't throttle.

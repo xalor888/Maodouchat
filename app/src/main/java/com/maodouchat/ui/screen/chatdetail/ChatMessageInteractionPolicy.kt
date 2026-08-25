@@ -15,7 +15,7 @@ internal fun isMessageForwardable(
     isSecretChat: Boolean = false,
     forwardBlockEnabled: Boolean = true
 ): Boolean {
-    val secretBlocksForward = isSecretChat && forwardBlockEnabled
+    val secretBlocksForward = isSecretChat
     return !secretBlocksForward && isMessageGestureEligible(type)
 }
 
@@ -25,7 +25,7 @@ internal fun isMessageCopyable(
     isSecretChat: Boolean = false,
     copyBlockEnabled: Boolean = true
 ): Boolean {
-    val secretBlocksCopy = isSecretChat && copyBlockEnabled
+    val secretBlocksCopy = isSecretChat
     return !secretBlocksCopy && type in setOf(MessageType.TEXT, MessageType.MARKDOWN)
 }
 

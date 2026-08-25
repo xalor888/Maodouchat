@@ -84,8 +84,10 @@ data class ChatListUiState(
     val unreadPriorityEnabled: Boolean = true,
     /** 本地 PIN 锁定的会话 id */
     val lockedChatIds: Set<String> = emptySet(),
-    /** 本机密聊会话 id（防截屏 + 盲水印） */
+    /** 密聊会话 id（chatType=SECRET，双方同步的独立 1:1） */
     val secretChatIds: Set<String> = emptySet(),
+    /** 从列表发起密聊成功后打开新会话 */
+    val createdSecretChatId: String? = null,
     /** 正在删除中的会话 id，防止双击删除并发重复清理本地数据 */
     val deletingChatIds: Set<String> = emptySet(),
     /** 服务端活跃公告（未读 + 生效窗口内，已按优先级排序） */
@@ -107,25 +109,27 @@ data class ChatListUiState(
         get() {
             val visible = chats.filter { it.archived == showArchived }
             val folderFiltered = when {
-                selectedFolderId.isNullOrBlank() -> visible
+                selectedFolderId.isNullOrBlank() ->
+                    visible.filter { !com.maodouchat.security.SecretChatPolicy.excludeFromAllChats(it.isSecret) }
                 selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_GROUPS_ID ->
                     visible.filter { it.isGroup }
                 selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_DIRECT_ID ->
-                    visible.filter { !it.isGroup }
+                    visible.filter { !it.isGroup && !it.isSecret }
                 selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID ->
                     visible.filter {
-                        com.maodouchat.util.ChatFolderPolicy.isUnreadChat(it.unreadCount, it.markedUnread)
+                        !it.isSecret &&
+                            com.maodouchat.util.ChatFolderPolicy.isUnreadChat(it.unreadCount, it.markedUnread)
                     }
                 selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_SECRET_ID ->
-                    visible.filter { it.id in secretChatIds }
+                    visible.filter { it.isSecret || it.id in secretChatIds }
                 selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_LOCKED_ID ->
-                    visible.filter { it.id in lockedChatIds }
+                    visible.filter { it.id in lockedChatIds && !it.isSecret }
                 else -> {
                     val folder = folders.firstOrNull { it.id == selectedFolderId }
-                    if (folder == null) visible
+                    if (folder == null) visible.filter { !it.isSecret }
                     else {
                         val ids = folder.chatIds.toSet()
-                        visible.filter { it.id in ids }
+                        visible.filter { it.id in ids && !it.isSecret }
                     }
                 }
             }
@@ -171,8 +175,8 @@ data class ChatListUiState(
 
     val unreadChatCount: Int
         get() = com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
-            unreadCounts = chats.filter { !it.archived }.map { it.unreadCount },
-            markedUnreadFlags = chats.filter { !it.archived }.map { it.markedUnread }
+            unreadCounts = chats.filter { !it.archived && !it.isSecret }.map { it.unreadCount },
+            markedUnreadFlags = chats.filter { !it.archived && !it.isSecret }.map { it.markedUnread }
         )
 
     val showUnreadPriorityHint: Boolean
@@ -191,29 +195,29 @@ data class ChatListUiState(
         }
         if (folderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_DIRECT_ID) {
             return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
-                unreadCounts = chats.filter { !it.archived && !it.isGroup }.map { it.unreadCount },
-                markedUnreadFlags = chats.filter { !it.archived && !it.isGroup }.map { it.markedUnread }
+                unreadCounts = chats.filter { !it.archived && !it.isGroup && !it.isSecret }.map { it.unreadCount },
+                markedUnreadFlags = chats.filter { !it.archived && !it.isGroup && !it.isSecret }.map { it.markedUnread }
             )
         }
         if (folderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID) {
             return unreadChatCount
         }
         if (folderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_SECRET_ID) {
-            val secretVisible = chats.filter { !it.archived && it.id in secretChatIds }
+            val secretVisible = chats.filter { !it.archived && (it.isSecret || it.id in secretChatIds) }
             return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
                 unreadCounts = secretVisible.map { it.unreadCount },
                 markedUnreadFlags = secretVisible.map { it.markedUnread }
             )
         }
         if (folderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_LOCKED_ID) {
-            val lockedVisible = chats.filter { !it.archived && it.id in lockedChatIds }
+            val lockedVisible = chats.filter { !it.archived && it.id in lockedChatIds && !it.isSecret }
             return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
                 unreadCounts = lockedVisible.map { it.unreadCount },
                 markedUnreadFlags = lockedVisible.map { it.markedUnread }
             )
         }
         val folder = folders.firstOrNull { it.id == folderId } ?: return 0
-        val unreadMap = chats.associate { it.id to it.unreadCount }
+        val unreadMap = chats.filter { !it.isSecret }.associate { it.id to it.unreadCount }
         return com.maodouchat.util.ChatFolderPolicy.unreadInFolder(folder, unreadMap)
     }
 }
@@ -522,15 +526,83 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         val ownerUserId = currentUserIdStr
         if (ownerUserId.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {
-            val ids = try {
-                app.database.secretChatDao().listSecretChatIds().toSet()
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            } catch (_: Exception) {
-                emptySet()
-            }
+            val ids = _uiState.value.chats.filter { it.isSecret }.map { it.id }.toSet()
             if (tokenManager.getUserId().orEmpty() != ownerUserId) return@launch
             _uiState.update { it.copy(secretChatIds = ids) }
+        }
+    }
+
+    fun clearCreatedSecretChat() {
+        _uiState.update { it.copy(createdSecretChatId = null) }
+    }
+
+    fun startSecretChatWithPeer(peerId: String) {
+        if (peerId.isBlank()) return
+        if (!RuntimeFlags.isEnabled(app, RuntimeFlags.SECRET_CHAT)) {
+            _uiState.update { it.copy(errorMessage = app.getString(R.string.secret_chat_feature_disabled)) }
+            return
+        }
+        val token = tokenManager.getToken().orEmpty()
+        val ownerUserId = tokenManager.getUserId().orEmpty()
+        if (token.isBlank() || ownerUserId.isBlank()) {
+            _uiState.update { it.copy(errorMessage = app.getString(R.string.error_session_expired)) }
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                    expectedUserId = ownerUserId,
+                    liveToken = tokenManager.getToken(),
+                    liveUserId = tokenManager.getUserId(),
+                )
+            ) {
+                _uiState.update { it.copy(errorMessage = app.getString(R.string.error_session_expired)) }
+                return@launch
+            }
+            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+            val result = ApiService.createChat(
+                liveToken,
+                listOf(peerId),
+                isGroup = false,
+                groupName = null,
+                chatType = com.maodouchat.security.SecretChatPolicy.CHAT_TYPE
+            )
+            result.fold(
+                onSuccess = { chat ->
+                    try {
+                        com.maodouchat.data.repository.SecretChatRepository(app.database.secretChatDao())
+                            .touch(chat.id)
+                    } catch (_: Exception) {}
+                    try {
+                        chatRepo.cacheChats(
+                            listOf(
+                                Chat(
+                                    id = chat.id,
+                                    participants = chat.participants.map { p ->
+                                        User(p.id, p.name, p.avatar, p.email, p.isOnline, p.status, lastSeen = p.lastSeen)
+                                    },
+                                    lastMessage = chat.lastMessage,
+                                    lastMessageType = MessageType.fromWire(chat.lastMessageType),
+                                    lastMessageTime = chat.lastMessageTime,
+                                    unreadCount = chat.unreadCount,
+                                    isGroup = chat.isGroup,
+                                    chatType = chat.chatType,
+                                    groupName = chat.groupName,
+                                    groupAnnouncement = chat.groupAnnouncement,
+                                    groupAvatar = chat.groupAvatar,
+                                    memberRevision = chat.memberRevision,
+                                    disappearingMessageSeconds = chat.disappearingMessageSeconds
+                                )
+                            )
+                        )
+                    } catch (_: Exception) {}
+                    _uiState.update { it.copy(createdSecretChatId = chat.id) }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(errorMessage = error.message ?: app.getString(R.string.secret_chat_start_failed))
+                    }
+                }
+            )
         }
     }
 
@@ -700,17 +772,22 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun persistFolders(folders: List<com.maodouchat.util.ChatFolder>) {
-        com.maodouchat.util.ChatFolderPreferences.setFolders(getApplication(), folders)
+        val secretIds = _uiState.value.secretChatIds +
+            _uiState.value.chats.filter { it.isSecret }.map { it.id }.toSet()
+        val sanitized = folders.map { folder ->
+            folder.copy(chatIds = folder.chatIds.filterNot { it in secretIds })
+        }
+        com.maodouchat.util.ChatFolderPreferences.setFolders(getApplication(), sanitized)
         _uiState.update {
             val selectedStillExists = it.selectedFolderId == null ||
                 com.maodouchat.util.ChatFolderPolicy.isSystemFilter(it.selectedFolderId) ||
-                folders.any { folder -> folder.id == it.selectedFolderId }
+                sanitized.any { folder -> folder.id == it.selectedFolderId }
             it.copy(
-                folders = folders,
+                folders = sanitized,
                 selectedFolderId = if (selectedStillExists) it.selectedFolderId else null
             )
         }
-        pushFoldersToCloud(folders)
+        pushFoldersToCloud(sanitized)
     }
 
     fun selectFolder(folderId: String?) {
@@ -760,6 +837,8 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
 
     fun moveChatToFolder(chatId: String, folderId: String?) {
         if (chatId.isBlank()) return
+        val moving = _uiState.value.chats.firstOrNull { it.id == chatId }
+        if (moving?.isSecret == true || chatId in _uiState.value.secretChatIds) return
         persistFolders(
             com.maodouchat.util.ChatFolderPolicy.moveChatToFolder(
                 existing = _uiState.value.folders,
@@ -938,11 +1017,16 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 .distinctUntilChanged()
                 .collect { (chatIds, _) ->
                     if (tokenManager.getUserId().orEmpty() != ownerUserId) return@collect
+                    val chatsById = _uiState.value.chats.associateBy { it.id }
                     val receipts = chatIds.associateWith { chatId ->
                         val latest = runCatching {
                             messageRepo.getRecentMessages(chatId, limit = 1).firstOrNull()
                         }.getOrNull()
-                        ChatListReceiptPolicy.fromLatest(latest, ownerUserId)
+                        ChatListReceiptPolicy.fromLatest(
+                            latest = latest,
+                            currentUserId = ownerUserId,
+                            isGroup = chatsById[chatId]?.isGroup == true,
+                        )
                     }.filterValues { it != null }.mapValues { it.value!! }
                     if (tokenManager.getUserId().orEmpty() != ownerUserId) return@collect
                     _uiState.update { it.copy(receiptsByChat = receipts) }
@@ -995,7 +1079,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             try {
                 val matchedIds = withContext(Dispatchers.IO) {
                     val locked = app.database.chatLockDao().listLockedChatIds().toSet()
-                    val secret = app.database.secretChatDao().listSecretChatIds().toSet()
+                    val secret = app.database.chatDao().listSecretChatIds().toSet()
                     app.database.messageDao().searchChatIdsByMessageContent(escaped)
                         .filterNot { it in locked || it in secret }
                 }
@@ -1151,30 +1235,12 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
      * unless we install SK_DIST here first. ChatDetail still owns the active-chat path.
      */
     private suspend fun ingestInactiveChatSenderKey(message: Message) {
-        val content = message.content
-        if (content.isBlank()) return
-        val epoch = chatRepo.getChatById(message.chatId)
-            ?.takeIf { it.isGroup && it.memberRevision > 0L }
-            ?.memberRevision
-        val signal = app.signalProtocol
-        val distPlaintext = when {
-            signal.isSenderKeyDistributionEnvelope(content) -> content
-            signal.isEncryptedEnvelope(content) -> {
-                when (val distResult = signal.decryptContentEnvelope(message.senderId, content)) {
-                    is com.maodouchat.crypto.SignalProtocol.DecryptResult.Success -> distResult.plaintext
-                    else -> null
-                }
-            }
-            else -> null
-        } ?: return
-        signal.processSenderKeyDistributionEnvelope(
-            message.senderId,
-            distPlaintext,
-            expectedGroupId = message.chatId,
-            currentEpoch = epoch
+        com.maodouchat.crypto.InactiveChatSenderKeyIngest.ingest(
+            signal = app.signalProtocol,
+            chatRepo = chatRepo,
+            messageRepo = messageRepo,
+            message = message,
         )
-        // Persist plaintext SK dist so open-chat does not re-decrypt the 1:1 wrapper (Duplicate).
-        messageRepo.insertMessage(message.copy(content = distPlaintext, type = MessageType.SK_DIST))
     }
 
     private suspend fun retryDecryptInactiveGroupTail(
@@ -1183,6 +1249,9 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         session: OwnerSessionSnapshot,
     ) {
         if (chatId.isBlank() || !isOwnerSessionCurrent(session)) return
+        if (com.maodouchat.crypto.SessionCipherOccupancy.isChatOccupied(chatId)) {
+            return
+        }
         val recent = messageRepo.getRecentMessages(chatId, limit = 24)
         var recoveredAny = false
         for (msg in recent) {
@@ -1224,6 +1293,11 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         }
         val content = message.content
         if (content.isBlank()) return null
+        // IO 里再拦一次：进会话竞态下列表不得再走 SessionCipher / GroupCipher。
+        // 1:1 ratchet 按 peer 寻址，SECRET 与同人 DIRECT 共用，不能只比 chatId。
+        if (com.maodouchat.crypto.SessionCipherOccupancy.shouldSkipSessionCipher(message.chatId, message.senderId)) {
+            return null
+        }
         val signal = app.signalProtocol
         // Already readable local body (own multi-device echo, etc.)
         if (!signal.isEncryptedEnvelope(content) &&
@@ -1541,9 +1615,12 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         val ownerUserId = currentUserIdStr
         if (ownerUserId.isBlank()) return
         val unreadChats = _uiState.value.chats.filter {
-            !it.archived && com.maodouchat.util.ChatFolderPolicy.isUnreadChat(it.unreadCount, it.markedUnread)
+            !it.archived &&
+                com.maodouchat.util.ChatFolderPolicy.isUnreadChat(it.unreadCount, it.markedUnread)
         }
         if (unreadChats.isEmpty()) return
+        val ordinaryUnread = unreadChats.filter { !it.isSecret }
+        val secretUnread = unreadChats.filter { it.isSecret }
         val session = ownerSession(ownerUserId)
         _uiState.update { state ->
             state.copy(chats = state.chats.map { chat ->
@@ -1551,7 +1628,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             })
         }
         viewModelScope.launch {
-            val chatIds = unreadChats.map { it.id }
+            val chatIds = ordinaryUnread.map { it.id }
             unreadChats.forEach { chat ->
                 if (!isOwnerSessionCurrent(session)) return@launch
                 val liveToken = tokenManager.getToken().orEmpty()
@@ -1586,6 +1663,12 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                         // 静默：下次同步会收敛角标
                     }
                 }
+            }
+            secretUnread.forEach { chat ->
+                if (!isOwnerSessionCurrent(session)) return@launch
+                val liveToken = tokenManager.getToken().orEmpty()
+                if (liveToken.isBlank()) return@launch
+                runCatching { ApiService.armSecretChatExpiry(liveToken, chat.id) }
             }
         }
     }
@@ -1630,11 +1713,14 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         val toRead = selected.mapNotNull { chatsById[it] }
             .filter { com.maodouchat.util.ChatFolderPolicy.isUnreadChat(it.unreadCount, it.markedUnread) }
         if (toRead.isEmpty()) return
+        val ordinary = toRead.filter { !it.isSecret }
+        val secret = toRead.filter { it.isSecret }
         val session = ownerSession(ownerUserId)
-        val targetIds = toRead.map { it.id }
+        val targetIds = ordinary.map { it.id }
+        val allReadIds = toRead.map { it.id }.toSet()
         _uiState.update { state ->
             state.copy(chats = state.chats.map { chat ->
-                if (chat.id in targetIds) chat.copy(unreadCount = 0, markedUnread = false) else chat
+                if (chat.id in allReadIds) chat.copy(unreadCount = 0, markedUnread = false) else chat
             })
         }
         viewModelScope.launch {
@@ -1658,6 +1744,12 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     // 本地已读缓存失败不阻塞后续清理
                 }
                 runCatching { com.maodouchat.util.AppNotifier.cancelMessage(getApplication(), chat.id) }
+            }
+            secret.forEach { chat ->
+                if (!isOwnerSessionCurrent(session)) return@launch
+                val liveToken = tokenManager.getToken().orEmpty()
+                if (liveToken.isBlank()) return@launch
+                runCatching { ApiService.armSecretChatExpiry(liveToken, chat.id) }
             }
             if (targetIds.isNotEmpty() && isOwnerSessionCurrent(session)) {
                 val liveToken = tokenManager.getToken().orEmpty()
@@ -2064,7 +2156,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         app.database.chatDraftDao().deleteForChat(ownerUserId, chatId)
         app.database.chatLockDao().remove(chatId)
         com.maodouchat.security.ChatLockSession.clear(chatId)
-        app.database.secretChatDao().remove(chatId)
+        app.database.secretChatDao().remove(chatId) // TTL 心跳行，不是密聊开关
         com.maodouchat.security.SecretChatSession.markSurfaceInactive(chatId, getApplication())
         app.database.senderKeyRetryDao().delete(ownerUserId, chatId)
         app.signalProtocol.invalidateGroupSenderKey(chatId)
@@ -2176,7 +2268,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         return try {
             val locked = RuntimeFlags.isEnabled(app, RuntimeFlags.CHAT_LOCK) &&
                 app.database.chatLockDao().get(chatId) != null
-            val secret = app.database.secretChatDao().isSecret(chatId) &&
+            val secret = app.database.chatDao().isSecretChat(chatId) &&
                 RuntimeFlags.isEnabled(app, RuntimeFlags.SECRET_NOTIF_PREVIEW_BLOCK)
             when {
                 locked -> app.getString(R.string.chat_lock_list_preview)
@@ -2337,7 +2429,10 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                             val distOwner = liveUserId
                             if (distChatId.isNotBlank() &&
                                 distOwner.isNotBlank() &&
-                                com.maodouchat.MaodouchatApp.activeChatId != distChatId
+                                !com.maodouchat.crypto.SessionCipherOccupancy.shouldSkipSessionCipher(
+                                    distChatId,
+                                    event.message.senderId
+                                )
                             ) {
                                 withContext(Dispatchers.IO) {
                                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -2367,7 +2462,10 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                 // briefly show ciphertext placeholder until detail emits plaintext.
                                 // Inactive chat: best-effort decrypt TEXT/STICKER/LOCATION so list/notify
                                 // show readable tail and Room holds plaintext for open-chat skip path.
-                                val isActiveChat = com.maodouchat.MaodouchatApp.activeChatId == targetId
+                                val isActiveChat = com.maodouchat.crypto.SessionCipherOccupancy.shouldSkipSessionCipher(
+                                    targetId,
+                                    event.message.senderId
+                                )
                                 val encryptedPlaceholder = text(R.string.message_preview_encrypted)
                                 // Same-message local echo only: Room already has plaintext for this id
                                 // (emitMessageSent path). Do not key on chat-list lastMessage — that is
@@ -2588,22 +2686,9 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                 if (_uiState.value.chats.none { it.id == targetId } && !deletedChatIds.contains(targetId)) {
                                     requestLoadChats(ChatListReloadPolicy.Trigger.UNKNOWN_CHAT_MESSAGE)
                                 }
-                                // 系统通知：仅当不是当前活跃聊天且不是自己发时
-                                // 注意：静音分支必须用局部 continue，不能 return@collect（否则整个 events collector 永久退出）
-                                // 去重：同一条消息因重连重发时（existingSameMessage != null）不再重复弹通知
-                                if (!isOwnMessage && isActiveChat && existingSameMessage == null) {
-                                    val ctx = getApplication<Application>()
-                                    if (com.maodouchat.notification.NotificationSoundPolicy.inAppReceiveToneEnabled(
-                                            inAppSoundsFlag = RuntimeFlags.isEnabled(ctx, RuntimeFlags.IN_APP_SOUNDS),
-                                            notificationsEnabled = com.maodouchat.notification.NotificationPreferences.notificationsEnabled(ctx),
-                                            notificationSoundFlag = RuntimeFlags.isEnabled(ctx, RuntimeFlags.NOTIFICATION_SOUND),
-                                            soundPreference = com.maodouchat.notification.NotificationPreferences.soundEnabled(ctx),
-                                        )
-                                    ) {
-                                        com.maodouchat.util.InAppSoundPlayer.playReceiveTone()
-                                    }
-                                }
-                                if (!isOwnMessage && !isActiveChat && existingSameMessage == null) {
+                                // 应用内（前台或当前打开的会话）一律不响接收提示音、不弹有声托盘。
+                                val appInForeground = com.maodouchat.MaodouchatApp.appInForeground
+                                if (!isOwnMessage && !isActiveChat && existingSameMessage == null && !appInForeground) {
                                     val target = _uiState.value.chats.find { it.id == targetId }
                                     val ctx = getApplication<Application>()
                                     val suppressLocal =
@@ -2638,7 +2723,11 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                     // 1.28：临时静音至（silentUntil）窗口内不弹通知（与 FCM/BacklogSync 路径一致）
                                     val silentUntilSuppress =
                                         com.maodouchat.notification.ChatQuietHoursStore.silentUntil(ctx, targetId) > System.currentTimeMillis()
-                                    if (target?.notificationsMuted != true && !suppressLocal && !quietHoursSuppress && !silentUntilSuppress) {
+                                    val silentSend = runCatching {
+                                        val contentForMeta = decryptedPlain ?: event.message.content
+                                        event.message.copy(content = contentForMeta).parsedMeta().silent
+                                    }.getOrDefault(false)
+                                    if (target?.notificationsMuted != true && !suppressLocal && !quietHoursSuppress && !silentUntilSuppress && !silentSend) {
                                         val senderName = listSenderLabel(target, event.message.senderId)
                                         // 解密后的 meta.mentions：@我 / @所有人 时标题强调（E2EE 服务端不可见）
                                         val mentionIds = runCatching {
@@ -2916,9 +3005,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     is WebSocketEvent.MessageEdited -> {
                         // 详情未打开时也落库 editedAt/content：仅当本地已有行（可解密）才更新，避免写入密文污染正文
                         val editedId = event.messageId
-                        if (editedId.isNotBlank() && event.chatId.isNotBlank() &&
-                            com.maodouchat.MaodouchatApp.activeChatId != event.chatId
-                        ) {
+                        if (editedId.isNotBlank() && event.chatId.isNotBlank()) {
                             val editOwnerUserId = liveUserId
                             viewModelScope.launch {
                                 try {
@@ -2943,6 +3030,10 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                     val plaintext = withContext(kotlinx.coroutines.Dispatchers.IO) {
                                         val signal = app.signalProtocol
                                         val isGroup = _uiState.value.chats.find { it.id == event.chatId }?.isGroup == true
+                                        val skipSession = com.maodouchat.crypto.SessionCipherOccupancy.shouldSkipSessionCipher(
+                                            event.chatId,
+                                            existing.senderId
+                                        )
                                         // Align wire heuristic with list preview policy (not bare startsWith("{")).
                                         when {
                                             !signal.isEncryptedEnvelope(event.content) &&
@@ -2956,6 +3047,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                                 is com.maodouchat.crypto.SignalProtocol.DecryptResult.Success -> r.plaintext
                                                 else -> null
                                             }
+                                            skipSession -> null
                                             else -> when (val r = signal.decryptTextEnvelope(existing.senderId, event.content)) {
                                                 is com.maodouchat.crypto.SignalProtocol.DecryptResult.Success -> r.plaintext
                                                 else -> null
@@ -3231,6 +3323,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                         val localById = chatRepo.getAllChats().firstOrNull().orEmpty().associateBy { it.id }
                         val uiById = _uiState.value.chats.associateBy { it.id }
                         val activeId = com.maodouchat.MaodouchatApp.activeChatId
+                            ?: com.maodouchat.MaodouchatApp.openChatDetailId
                         val chats = chatDtos.map { dto ->
                             val participants = dto.participants.map { User(it.id, it.name, it.avatar, it.email, it.isOnline, it.status) }
                             // Prefer in-memory UI (optimistic read/unread) over Room: a lagged
@@ -3282,6 +3375,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                 lastMessageTime = dto.lastMessageTime,
                                 unreadCount = mergedUnread,
                                 isGroup = dto.isGroup,
+                                chatType = dto.chatType,
                                 groupName = dto.groupName,
                                 groupAnnouncement = dto.groupAnnouncement,
                                 groupAvatar = dto.groupAvatar,
@@ -3348,7 +3442,14 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                 finishIfCurrent(errorMessage = text(R.string.error_session_expired))
                                 return@withContext
                             }
-                            _uiState.update { it.copy(chats = nickMerged, isLoading = false, errorMessage = null) }
+                            _uiState.update {
+                                it.copy(
+                                    chats = nickMerged,
+                                    isLoading = false,
+                                    errorMessage = null,
+                                    secretChatIds = nickMerged.filter { chat -> chat.isSecret }.map { chat -> chat.id }.toSet()
+                                )
+                            }
                             refreshIdentityWarnings()
                         }
                         // 离线/漏 WS 时：列表侧回放 mutation 日志（不依赖打开详情）；可取消
@@ -3414,9 +3515,8 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
      */
     private suspend fun syncClosedChatMutations(token: String, chatIds: List<String>) {
         if (token.isBlank() || chatIds.isEmpty()) return
-        val activeId = MaodouchatApp.activeChatId
         val targets = chatIds.asSequence()
-            .filter { it.isNotBlank() && it != activeId }
+            .filter { it.isNotBlank() && !com.maodouchat.crypto.SessionCipherOccupancy.isChatOccupied(it) }
             .distinct()
             .take(40)
             .toList()

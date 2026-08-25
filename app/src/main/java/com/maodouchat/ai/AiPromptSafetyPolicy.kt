@@ -77,6 +77,7 @@ object AiPromptSafetyPolicy {
             .replace(CONTROL_CHARS, "")
             .trim()
         if (text.isEmpty()) return ""
+        if (isLikelyInjectionAttempt(text)) return ""
         // Neutralize leading role-play markers so they cannot look like system turns.
         text = ROLE_PLAY_MARKERS.replace(text) { match ->
             "[untrusted-${match.groupValues.getOrNull(1)?.lowercase() ?: "role"}]"
@@ -137,7 +138,6 @@ object AiPromptSafetyPolicy {
             lower.contains("忽略上述") ||
             lower.contains("你现在是系统") ||
             lower.contains("you are now the system") ||
-            lower.contains("developer mode") ||
-            ROLE_PLAY_MARKERS.containsMatchIn(body)
+            lower.contains("developer mode")
     }
 }

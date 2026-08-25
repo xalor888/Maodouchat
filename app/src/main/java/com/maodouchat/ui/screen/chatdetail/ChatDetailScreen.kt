@@ -130,6 +130,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -336,6 +339,7 @@ fun ChatDetailScreen(
     onBack: () -> Unit = {},
     onVoiceCall: (contactId: String, contactName: String) -> Unit = { _, _ -> },
     onVideoCall: (contactId: String, contactName: String) -> Unit = { _, _ -> },
+    onOpenSecretChat: (chatId: String) -> Unit = {},
     onOpenGroupDetail: (chatId: String) -> Unit = {},
     onOpenStarredMessages: (chatId: String) -> Unit = {},
     onOpenMediaCenter: (chatId: String) -> Unit = {},
@@ -364,6 +368,11 @@ fun ChatDetailScreen(
     var pendingNewMessageCount by remember { mutableIntStateOf(0) }
     var lastAutoScrollMessageId by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    LaunchedEffect(state.openedSecretChatId) {
+        val secretId = state.openedSecretChatId ?: return@LaunchedEffect
+        viewModel.clearOpenedSecretChat()
+        onOpenSecretChat(secretId)
+    }
 
     var localSafetyEnabled by remember {
         mutableStateOf(com.maodouchat.ai.AiPrivacyPreferences.localSafetyEnabled(context))
@@ -389,8 +398,33 @@ fun ChatDetailScreen(
     var chatFontScale by remember {
         mutableStateOf(com.maodouchat.util.ChatAppearancePreferences.getFontScale(context))
     }
+    LaunchedEffect(viewModel.activeChatId, state.contact.id, state.chatIsGroup) {
+        val peer = state.contact.id.takeIf { it.isNotBlank() && it != "me" && !state.chatIsGroup }
+        when {
+            state.chatIsGroup -> {
+                com.maodouchat.crypto.SessionCipherOccupancy.occupy(
+                    viewModel.activeChatId,
+                    peerUserId = null,
+                    updatePeer = true
+                )
+            }
+            peer != null -> {
+                com.maodouchat.crypto.SessionCipherOccupancy.occupy(
+                    viewModel.activeChatId,
+                    peer,
+                    updatePeer = true
+                )
+            }
+            else -> {
+                // Contact not loaded yet — pin chatId only. Never pass updatePeer=true
+                // with a blank peer: that clears openPeerUserId and lets list/backlog
+                // decrypt the sibling DIRECT/SECRET ratchet.
+                com.maodouchat.crypto.SessionCipherOccupancy.occupy(viewModel.activeChatId)
+            }
+        }
+    }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, viewModel.activeChatId, state.contact.id, state.chatIsGroup) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 localSafetyEnabled = com.maodouchat.ai.AiPrivacyPreferences.localSafetyEnabled(context)
@@ -400,7 +434,23 @@ fun ChatDetailScreen(
                 chatFontScale = com.maodouchat.util.ChatAppearancePreferences.getFontScale(context)
                 // 8.32 修复 F2：回到前台恢复 activeChatId（MainActivity.onPause 已清空），
                 // 使「打开中的聊天」重新享有消息不弹通知/不计未读的语义。
-                com.maodouchat.MaodouchatApp.activeChatId = viewModel.activeChatId
+                val resumePeer = state.contact.id.takeIf { it.isNotBlank() && it != "me" && !state.chatIsGroup }
+                when {
+                    state.chatIsGroup -> com.maodouchat.crypto.SessionCipherOccupancy.occupy(
+                        viewModel.activeChatId,
+                        peerUserId = null,
+                        updatePeer = true
+                    )
+                    resumePeer != null -> com.maodouchat.crypto.SessionCipherOccupancy.occupy(
+                        viewModel.activeChatId,
+                        resumePeer,
+                        updatePeer = true
+                    )
+                    else -> com.maodouchat.crypto.SessionCipherOccupancy.occupy(viewModel.activeChatId)
+                }
+                if (com.maodouchat.MaodouchatApp.activeChatOpenedAtMs == 0L) {
+                    com.maodouchat.MaodouchatApp.activeChatOpenedAtMs = System.currentTimeMillis()
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -448,6 +498,7 @@ fun ChatDetailScreen(
     var fullScreenVideo by remember { mutableStateOf<Message?>(null) }
     // 0.83：清空本机聊天记录确认
     var showClearHistoryConfirm by remember { mutableStateOf(false) }
+    val chatSnackbarHostState = remember { SnackbarHostState() }
     var replyTarget by remember { mutableStateOf<Message?>(null) }
     var selectedMessageIds by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
     var showBatchDeleteConfirm by remember { mutableStateOf(false) }
@@ -480,7 +531,7 @@ fun ChatDetailScreen(
     var showSecretChatConfirm by rememberSaveable { mutableStateOf(false) }
     var showLiveLocationDuration by rememberSaveable { mutableStateOf(false) }
     var pendingLiveLocationPermission by rememberSaveable { mutableStateOf(false) }
-    var pendingSecretChatEnable by rememberSaveable { mutableStateOf(false) }
+
     var setLockPinDraft by rememberSaveable { mutableStateOf("") }
     var setLockPinConfirm by rememberSaveable { mutableStateOf("") }
     var disableLockPinDraft by rememberSaveable { mutableStateOf("") }
@@ -799,19 +850,19 @@ fun ChatDetailScreen(
 
     LaunchedEffect(state.scheduledInfoMessage) {
         val msg = state.scheduledInfoMessage ?: return@LaunchedEffect
-        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        chatSnackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
         viewModel.clearScheduledInfo()
     }
 
     LaunchedEffect(state.exportInfoMessage) {
         val msg = state.exportInfoMessage ?: return@LaunchedEffect
-        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        chatSnackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
         viewModel.clearExportInfo()
     }
 
     LaunchedEffect(state.chatLockInfoMessage) {
         val msg = state.chatLockInfoMessage ?: return@LaunchedEffect
-        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        chatSnackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
         viewModel.clearChatLockInfo()
     }
 
@@ -1071,19 +1122,19 @@ fun ChatDetailScreen(
 
     LaunchedEffect(state.secretChatInfoMessage) {
         val msg = state.secretChatInfoMessage ?: return@LaunchedEffect
-        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        chatSnackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
         viewModel.clearSecretChatInfo()
     }
 
     LaunchedEffect(state.errorMessage) {
         val msg = state.errorMessage ?: return@LaunchedEffect
-        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        chatSnackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
         viewModel.clearErrorMessage()
     }
 
     LaunchedEffect(state.infoMessage) {
         val msg = state.infoMessage ?: return@LaunchedEffect
-        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        chatSnackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
         viewModel.clearInfoMessage()
     }
 
@@ -1534,7 +1585,7 @@ fun ChatDetailScreen(
         }
     }
 
-    if (showDisappearDialog && !state.chatIsGroup) {
+    if (showDisappearDialog && !state.chatIsGroup && state.isSecretChat != true) {
         DisappearingMessagesDialog(
             selectedSeconds = state.disappearingMessageSeconds,
             isUpdating = state.isUpdatingDisappearing,
@@ -1928,6 +1979,7 @@ fun ChatDetailScreen(
             contact = state.contact,
             isBlocked = state.isContactBlocked,
             isBlocking = state.isBlockingContact,
+            hideCalls = state.isSecretChat == true,
             onDismiss = { showContactProfile = false },
             onMessage = { showContactProfile = false },
             onVoiceCall = {
@@ -2278,25 +2330,15 @@ if (showGroupCallTypeDialog) {
         AlertDialog(
             onDismissRequest = { showSecretChatConfirm = false },
             title = {
-                Text(
-                    stringResource(
-                        if (pendingSecretChatEnable) R.string.secret_chat_confirm_enable_title
-                        else R.string.secret_chat_confirm_disable_title
-                    )
-                )
+                Text(stringResource(R.string.secret_chat_confirm_enable_title))
             },
             text = {
-                Text(
-                    stringResource(
-                        if (pendingSecretChatEnable) R.string.secret_chat_confirm_enable_body
-                        else R.string.secret_chat_confirm_disable_body
-                    )
-                )
+                Text(stringResource(R.string.secret_chat_confirm_enable_body))
             },
             confirmButton = {
                 TextButton(onClick = {
                     showSecretChatConfirm = false
-                    viewModel.setSecretChatEnabled(pendingSecretChatEnable)
+                    viewModel.startSecretChat()
                 }) {
                     Text(stringResource(R.string.common_done))
                 }
@@ -2312,6 +2354,14 @@ if (showGroupCallTypeDialog) {
     CompositionLocalProvider(LocalLiquidGlassBackdrop provides chatLiquidBackdrop) {
     Scaffold(
         containerColor = Color.Transparent,
+        snackbarHost = {
+            SnackbarHost(
+                hostState = chatSnackbarHostState,
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .padding(bottom = 80.dp)
+            )
+        },
         topBar = {
             FloatingGlassTopBar(
                 consumeStatusBars = true,
@@ -2331,13 +2381,22 @@ if (showGroupCallTypeDialog) {
                                 }
                             }
                     ) {
-                        Avatar(name = state.contact.displayName, avatarUrl = state.contact.avatar, size = AvatarSize.SM, isOnline = state.contact.isOnline)
+                        Avatar(
+                            name = state.contact.displayName,
+                            avatarUrl = if (state.isSecretChat == true) null else state.contact.avatar,
+                            size = AvatarSize.SM,
+                            isOnline = state.isSecretChat != true && state.contact.isOnline
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             // maxLines + overflow 防止长昵称/状态把 action 按钮挤出屏幕
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    state.contact.displayName,
+                                    if (state.isSecretChat == true) {
+                                        stringResource(R.string.secret_chat_indicator)
+                                    } else {
+                                        state.contact.displayName
+                                    },
                                     style = MaterialTheme.typography.headlineSmall.copy(fontSize = 17.sp),
                                     color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
@@ -2419,8 +2478,10 @@ if (showGroupCallTypeDialog) {
                         if (RuntimeFlags.isEnabled(context, RuntimeFlags.SAFETY_CODE)) {
                             IconButton(onClick = { viewModel.showSafetyCodeDialog() }) { Icon(Icons.Outlined.Security, contentDescription = stringResource(R.string.chat_safety_code), tint = if (state.identityWarning == null) Primary else UnreadRed, modifier = Modifier.size(26.dp)) }
                         }
-                        IconButton(onClick = { requestVoiceCallPermission(context, voiceCallPermissionLauncher::launch, state.contact.id, state.contact.name, onVoiceCall) }) { Icon(Icons.Outlined.Call, contentDescription = stringResource(R.string.chat_voice_call), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp)) }
-                        IconButton(onClick = { requestVideoCallPermissions(context, videoCallPermissionLauncher::launch, state.contact.id, state.contact.name, onVideoCall) }) { Icon(Icons.Outlined.Videocam, contentDescription = stringResource(R.string.chat_video_call), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp)) }
+                        if (state.isSecretChat != true) {
+                            IconButton(onClick = { requestVoiceCallPermission(context, voiceCallPermissionLauncher::launch, state.contact.id, state.contact.name, onVoiceCall) }) { Icon(Icons.Outlined.Call, contentDescription = stringResource(R.string.chat_voice_call), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp)) }
+                            IconButton(onClick = { requestVideoCallPermissions(context, videoCallPermissionLauncher::launch, state.contact.id, state.contact.name, onVideoCall) }) { Icon(Icons.Outlined.Videocam, contentDescription = stringResource(R.string.chat_video_call), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp)) }
+                        }
                     }
                     Box {
                         IconButton(onClick = { showChatOverflow = true }) {
@@ -2442,10 +2503,12 @@ if (showGroupCallTypeDialog) {
                                     text = { Text(stringResource(R.string.chat_contact_actions)) },
                                     onClick = { showChatOverflow = false; showContactActions = true }
                                 )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.disappear_menu)) },
-                                    onClick = { showChatOverflow = false; showDisappearDialog = true }
-                                )
+                                if (state.isSecretChat != true) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.disappear_menu)) },
+                                        onClick = { showChatOverflow = false; showDisappearDialog = true }
+                                    )
+                                }
                             }
                             // 8.46：会话免打扰时段（本地 per-chat 静音窗，单聊/群聊均可用）
                             DropdownMenuItem(
@@ -2470,7 +2533,7 @@ if (showGroupCallTypeDialog) {
                                     onOpenCallHistory?.invoke()
                                 }
                             )
-                            if (RuntimeFlags.isEnabled(context, RuntimeFlags.NUDGE) && !state.chatIsGroup && state.chat?.isChannel != true) {
+                            if (RuntimeFlags.isEnabled(context, RuntimeFlags.NUDGE) && !state.chatIsGroup && state.chat?.isChannel != true && state.isSecretChat != true) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.chat_nudge)) },
                                     onClick = { showChatOverflow = false; viewModel.sendNudge() }
@@ -2509,22 +2572,22 @@ if (showGroupCallTypeDialog) {
                                     }
                                 }
                             )
-                            // Local secret chat: force anti-screenshot + blind watermark on this device.
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        stringResource(
-                                            if (state.isSecretChat == true) R.string.secret_chat_menu_disable
-                                            else R.string.secret_chat_menu_enable
-                                        )
-                                    )
-                                },
-                                onClick = {
-                                    showChatOverflow = false
-                                    pendingSecretChatEnable = state.isSecretChat != true
-                                    showSecretChatConfirm = true
-                                }
-                            )
+                            // 钉钉式：从普通单聊发起一场独立密聊；群没有密聊。
+                            if (
+                                state.isSecretChat != true &&
+                                com.maodouchat.security.SecretChatPolicy.canStartFromDirect(
+                                    isGroup = state.chatIsGroup,
+                                    chatType = state.chat?.chatType
+                                )
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.secret_chat_menu_start)) },
+                                    onClick = {
+                                        showChatOverflow = false
+                                        showSecretChatConfirm = true
+                                    }
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_starred_messages)) },
                                 onClick = { showChatOverflow = false; state.chat?.id?.let(onOpenStarredMessages) }
@@ -2633,23 +2696,20 @@ if (showGroupCallTypeDialog) {
             if (!state.chatIsGroup && state.disappearingMessageSeconds > 0) {
                 DisappearingMessagesBanner(
                     seconds = state.disappearingMessageSeconds,
-                    onChange = { showDisappearDialog = true }
+                    onChange = {
+                        if (state.isSecretChat != true) showDisappearDialog = true
+                    }
                 )
             }
             AnimatedVisibility(
-                // B2 双向提示（sntz）：开关关闭时隐藏密聊横幅
                 visible = state.isSecretChat == true && com.maodouchat.util.SecretSessionNoticePrefs.isEnabled(context),
                 enter = LocalMotionSettings.current.bannerEnter(),
                 exit = fadeOut()
             ) {
                 SecretChatBanner(
-                onManage = {
-                        pendingSecretChatEnable = false
-                        showSecretChatConfirm = true
-                    },
-                sealedSenderReady = state.sealedSenderReady,
-                sealedSenderExpiresInSec = state.sealedSenderExpiresInSec,
-            )
+                    sealedSenderReady = state.sealedSenderReady,
+                    sealedSenderExpiresInSec = state.sealedSenderExpiresInSec,
+                )
             }
             if (state.activeLiveLocationSessionId != null) {
                 LiveLocationSharingBanner(
@@ -2789,19 +2849,26 @@ if (showGroupCallTypeDialog) {
                         selectedMessageIds = emptySet()
                     },
                     onDelete = { showBatchDeleteConfirm = true },
-                    // 1.09：批量复制选中消息文本
-                    onCopy = {
-                        val copyable = selectedMessages
-                            .filter { it.type == MessageType.TEXT || it.type == MessageType.MARKDOWN }
-                            .map { it.parsedContent() }
-                            .filter { it.isNotBlank() }
-                        if (copyable.isNotEmpty()) {
-                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, copyable.joinToString("\n")))
-                            Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
-                            selectedMessageIds = emptySet()
-                        } else {
-                            Toast.makeText(context, context.getString(R.string.chat_copy_no_text), Toast.LENGTH_SHORT).show()
+                    onCopy = if (state.isSecretChat == true) null else {
+                        {
+                            val copyable = selectedMessages
+                                .filter {
+                                    isMessageCopyable(
+                                        it.type,
+                                        isSecretChat = state.isSecretChat == true,
+                                        copyBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_COPY_BLOCK)
+                                    )
+                                }
+                                .map { it.parsedContent() }
+                                .filter { it.isNotBlank() }
+                            if (copyable.isNotEmpty()) {
+                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, copyable.joinToString("\n")))
+                                Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
+                                selectedMessageIds = emptySet()
+                            } else {
+                                Toast.makeText(context, context.getString(R.string.chat_copy_no_text), Toast.LENGTH_SHORT).show()
+                            }
                         }
                     },
                     // 1.10：批量置顶/取消置顶选中消息（1.20：无权限时不显示入口）
@@ -2927,13 +2994,24 @@ if (showGroupCallTypeDialog) {
                                     isGroupEdge = item.isGroupEdge,
                                     senderName = resolveSenderName(message, isOwn),
                                     replyToPreview = meta.replyToId?.let(messagesById::get)?.let {
-                                        val replyBody = com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
-                                            it.parsedContent(),
-                                            ""
-                                        )
                                         ReplyPreview(
                                             senderName = resolveSenderName(it, isOwn = false) ?: "",
-                                            preview = replyBody.take(60)
+                                            preview = MessagePreviewText.replyOrQuote(
+                                                message = it,
+                                                mediaLabel = { type ->
+                                                    when (type) {
+                                                        MessageType.IMAGE -> context.getString(R.string.message_preview_image)
+                                                        MessageType.GIF -> context.getString(R.string.message_preview_gif)
+                                                        MessageType.STICKER -> context.getString(R.string.message_preview_sticker)
+                                                        MessageType.VOICE -> context.getString(R.string.message_preview_voice)
+                                                        MessageType.VIDEO -> context.getString(R.string.message_preview_video)
+                                                        MessageType.FILE -> context.getString(R.string.message_preview_file)
+                                                        MessageType.LOCATION -> context.getString(R.string.message_preview_location)
+                                                        else -> context.getString(R.string.message_preview_encrypted)
+                                                    }
+                                                },
+                                                encryptedPlaceholder = context.getString(R.string.message_preview_encrypted),
+                                            ).take(60)
                                         )
                                     },
                                     isSearchHit = isSearchHit,
@@ -3159,17 +3237,22 @@ if (showGroupCallTypeDialog) {
             replyTarget?.let { target ->
                 ReplyTargetBar(
                     senderName = resolveSenderName(target) ?: "",
-                    // 1.71：媒体消息引用预览显示可读占位（避免裸密文/编码串）
-                    preview = when (target.type) {
-                        MessageType.IMAGE -> stringResource(R.string.message_preview_image)
-                        MessageType.GIF -> stringResource(R.string.message_preview_gif)
-                        MessageType.STICKER -> stringResource(R.string.message_preview_sticker)
-                        MessageType.VOICE -> stringResource(R.string.message_preview_voice)
-                        MessageType.VIDEO -> stringResource(R.string.message_preview_video)
-                        MessageType.FILE -> stringResource(R.string.message_preview_file)
-                        MessageType.LOCATION -> stringResource(R.string.message_preview_location)
-                        else -> target.parsedContent().take(60)
-                    },
+                    preview = MessagePreviewText.replyOrQuote(
+                        message = target,
+                        mediaLabel = { type ->
+                            when (type) {
+                                MessageType.IMAGE -> context.getString(R.string.message_preview_image)
+                                MessageType.GIF -> context.getString(R.string.message_preview_gif)
+                                MessageType.STICKER -> context.getString(R.string.message_preview_sticker)
+                                MessageType.VOICE -> context.getString(R.string.message_preview_voice)
+                                MessageType.VIDEO -> context.getString(R.string.message_preview_video)
+                                MessageType.FILE -> context.getString(R.string.message_preview_file)
+                                MessageType.LOCATION -> context.getString(R.string.message_preview_location)
+                                else -> context.getString(R.string.message_preview_encrypted)
+                            }
+                        },
+                        encryptedPlaceholder = context.getString(R.string.message_preview_encrypted),
+                    ).take(60),
                     onCancel = { replyTarget = null }
                 )
             }
@@ -4815,7 +4898,7 @@ if (showGroupCallTypeDialog) {
                     ) {
                         TextButton(
                             onClick = {
-                                if (state.isSecretChat == true && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)) {
+                                if (state.isSecretChat == true) {
                                     Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
                                     return@TextButton
                                 }
@@ -4848,7 +4931,7 @@ if (showGroupCallTypeDialog) {
                         }
                         TextButton(
                             onClick = {
-                                if (state.isSecretChat == true && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)) {
+                                if (state.isSecretChat == true) {
                                     Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
                                     return@TextButton
                                 }
@@ -4939,7 +5022,7 @@ if (showGroupCallTypeDialog) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     TextButton(onClick = {
-                        if (state.isSecretChat == true && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)) {
+                        if (state.isSecretChat == true) {
                             Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
                             return@TextButton
                         }
@@ -5270,6 +5353,7 @@ private fun ContactProfileSheet(
     contact: com.maodouchat.data.model.User,
     isBlocked: Boolean,
     isBlocking: Boolean,
+    hideCalls: Boolean = false,
     onDismiss: () -> Unit,
     onMessage: () -> Unit,
     onVoiceCall: () -> Unit,
@@ -5357,8 +5441,10 @@ private fun ContactProfileSheet(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 ProfileAction(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.chat_send), onClick = onMessage)
-                ProfileAction(Icons.Outlined.Call, stringResource(R.string.chat_voice_call), onClick = onVoiceCall)
-                ProfileAction(Icons.Outlined.Videocam, stringResource(R.string.chat_video_call), onClick = onVideoCall)
+                if (!hideCalls) {
+                    ProfileAction(Icons.Outlined.Call, stringResource(R.string.chat_voice_call), onClick = onVoiceCall)
+                    ProfileAction(Icons.Outlined.Videocam, stringResource(R.string.chat_video_call), onClick = onVideoCall)
+                }
                 ProfileAction(
                     if (isBlocked) Icons.Outlined.NotificationsOff else Icons.Outlined.Notifications,
                     stringResource(if (isBlocked) R.string.chat_unblock_user else R.string.chat_block_user),
@@ -6064,7 +6150,7 @@ private fun formatMuteRemaining(context: android.content.Context, remainingMs: L
 
 @Composable
 private fun SecretChatBanner(
-    onManage: () -> Unit,
+    onManage: () -> Unit = {},
     sealedSenderReady: Boolean = false,
     sealedSenderExpiresInSec: Long = 0L,
 ) {
@@ -6073,7 +6159,6 @@ private fun SecretChatBanner(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-            .clickable(onClick = onManage)
             .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
         Icon(
@@ -6132,11 +6217,6 @@ private fun SecretChatBanner(
                 )
             }
         }
-        Text(
-            text = stringResource(R.string.secret_chat_menu_disable),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
     }
 }
 

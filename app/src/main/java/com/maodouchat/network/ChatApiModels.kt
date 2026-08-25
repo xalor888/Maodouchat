@@ -11,7 +11,7 @@ data class ChatDto(
     val lastMessageTime: Long = 0,
     val unreadCount: Int = 0,
     val isGroup: Boolean = false,
-    /** 会话类型：DIRECT / GROUP / CHANNEL（广播频道，单向一对多）。 */
+    /** 会话类型：DIRECT / GROUP / CHANNEL / SECRET（密聊独立 1:1）。 */
     val chatType: String = if (isGroup) "GROUP" else "DIRECT",
     val groupName: String? = null,
     val groupAnnouncement: String? = null,
@@ -25,6 +25,7 @@ data class ChatDto(
     val disappearingMessageSeconds: Int = 0
 ) {
     val isChannel: Boolean get() = chatType == "CHANNEL"
+    val isSecret: Boolean get() = chatType == "SECRET"
 }
 
 @Serializable
@@ -38,7 +39,7 @@ data class CreateChatRequest(
     val participantIds: List<String>,
     val isGroup: Boolean = false,
     val groupName: String? = null,
-    /** DIRECT / GROUP / CHANNEL；null 时由 isGroup 推导。 */
+    /** DIRECT / GROUP / CHANNEL / SECRET；null 时由 isGroup 推导。 */
     val chatType: String? = null
 )
 

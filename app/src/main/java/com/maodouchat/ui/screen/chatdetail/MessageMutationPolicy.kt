@@ -198,6 +198,7 @@ private fun preferReadableContent(current: Message, candidate: Message): Message
 
 private fun looksLikeEncryptedEnvelope(content: String): Boolean {
     if (content.isBlank() || content.length < 16) return false
+    if (com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(content)) return true
     // Server/client envelopes are base64-ish JSON or multi-device markers; cheap heuristic
     return content.startsWith("eyJ") || // base64 "{"
         content.startsWith("{") && (content.contains("\"devices\"") || content.contains("\"ciphertext\"") || content.contains("\"type\"")) ||
@@ -211,6 +212,8 @@ private fun looksLikeDecryptFailurePlaceholder(content: String): Boolean {
     return lower.contains("decrypt") ||
         lower.contains("解密") ||
         lower.contains("无法解密") ||
+        lower.contains("[encrypted message]") ||
+        lower.contains("[加密消息]") ||
         lower.contains("密钥") && (lower.contains("缺失") || lower.contains("失败")) ||
         lower.contains("session") && lower.contains("missing")
 }

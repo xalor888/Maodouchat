@@ -116,7 +116,7 @@ class AiTasksViewModel(
     private val app = application as MaodouchatApp
     private val repository = AiTaskRepository(app.database.aiTaskDao(), application)
     private val chatLockRepo = com.maodouchat.data.repository.ChatLockRepository(app.database.chatLockDao())
-    private val secretChatRepo = com.maodouchat.data.repository.SecretChatRepository(app.database.secretChatDao())
+
     private val tokenManager = com.maodouchat.network.TokenManager.getInstance(application)
     /** Capture at open so logout/account switch cannot mutate the next owner's tasks. */
     private val ownerUserId: String = tokenManager.getUserId().orEmpty()
@@ -187,7 +187,7 @@ class AiTasksViewModel(
         val locked = try { chatLockRepo.get(chatId) != null }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (_: Exception) { false }
-        val secret = try { secretChatRepo.isSecret(chatId) }
+        val secret = try { app.database.chatDao().isSecretChat(chatId) }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (_: Exception) { true }
         if (secret) {

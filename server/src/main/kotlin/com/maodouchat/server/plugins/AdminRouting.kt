@@ -46,6 +46,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
 import org.jetbrains.exposed.sql.lowerCase
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.insert
@@ -979,10 +980,11 @@ put("status", "deleted")
                 if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 200)
                 val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
-                val groupOnly = call.request.queryParameters["groupOnly"] == "true"
+                val groupOnly = call.request.queryParameters["groupOnly"] != "false"
                 val search = call.request.queryParameters["q"]?.trim()?.takeIf { it.isNotBlank() }
                 val chats = transaction {
                     val query = Chats.selectAll()
+                    query.andWhere { Chats.chatType neq ChatType.SECRET }
                     if (groupOnly) query.andWhere { Chats.isGroup eq true }
                     val escapedSearch = search?.let { escapeLikePattern(it) }
                     if (escapedSearch != null) query.andWhere { Chats.groupName like "%$escapedSearch%" }
@@ -1009,6 +1011,7 @@ put("status", "deleted")
                         ChatAdminResponse(
                             id = chatId,
                             isGroup = row[Chats.isGroup],
+                            chatType = row[Chats.chatType],
                             groupName = row[Chats.groupName],
                             groupAnnouncement = row[Chats.groupAnnouncement],
                             memberCount = memberCounts[chatId] ?: 0,
@@ -1024,9 +1027,12 @@ put("status", "deleted")
                 if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                 val actorId = call.principal<JWTPrincipal>()!!.payload.subject
                 val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少聊天 ID"))
-                val (dissolved, attachmentIds, groupAvatarUrl) = transaction {
+                val (status, attachmentIds, groupAvatarUrl) = transaction {
                     val chat = Chats.selectAll().where { Chats.id eq id }.forUpdate().firstOrNull()
-                        ?: return@transaction Triple(false, emptyList<String>(), null)
+                        ?: return@transaction Triple("missing", emptyList<String>(), null as String?)
+                    if (!chat[Chats.isGroup] || chat[Chats.chatType] == ChatType.SECRET) {
+                        return@transaction Triple("forbidden", emptyList<String>(), null)
+                    }
                     // 清理关联表（外键约束要求先删除引用表）
                     val messageIds = Messages.select(Messages.id).where { Messages.chatId eq id }.map { it[Messages.id] }
                     if (messageIds.isNotEmpty()) {
@@ -1042,8 +1048,9 @@ put("status", "deleted")
                     if (attachmentIds.isNotEmpty()) {
                         EncryptedAttachments.deleteWhere { EncryptedAttachments.id inList attachmentIds }
                     }
-                    // FK: direct_chat_pairs / message_mutations → chats
+                    // FK: direct_chat_pairs / secret_chat_pairs / message_mutations → chats
                     DirectChatPairs.deleteWhere { DirectChatPairs.chatId eq id }
+                    SecretChatPairs.deleteWhere { SecretChatPairs.chatId eq id }
                     MessageMutations.deleteWhere { MessageMutations.chatId eq id }
                     SenderKeyDistributions.deleteWhere { SenderKeyDistributions.chatId eq id }
                     ChatUserSettings.deleteWhere { ChatUserSettings.chatId eq id }
@@ -1067,9 +1074,10 @@ put("status", "deleted")
                     Messages.deleteWhere { Messages.chatId eq id }
                     ChatParticipants.deleteWhere { ChatParticipants.chatId eq id }
                     Chats.deleteWhere { Chats.id eq id }
-                    Triple(true, attachmentIds, chat[Chats.groupAvatar])
+                    Triple("ok", attachmentIds, chat[Chats.groupAvatar])
                 }
-                if (!dissolved) return@delete call.respond(HttpStatusCode.NotFound, ErrorResponse("聊天不存在"))
+                if (status == "missing") return@delete call.respond(HttpStatusCode.NotFound, ErrorResponse("聊天不存在"))
+                if (status != "ok") return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("只能解散群聊或频道"))
                 // 事务外清磁盘，避免 orphan .bin
                 attachmentIds.forEach { runCatching { com.maodouchat.server.service.EncryptedAttachmentStorage.delete(it) } }
                 com.maodouchat.server.service.FileStorageService.deleteGroupAvatarUrl(groupAvatarUrl, id)
@@ -1493,7 +1501,6 @@ put("aiEnabled", aiOn)
 put("maintenanceMode", maint)
 put("registrationOpen", regOpen)
 put("pqxdhPreview", RuntimeConfigService.isPqxdhPreviewEnabled())
-put("secretChatRequired", RuntimeConfigService.isSecretChatRequired())
 put("captureAlertEnabled", RuntimeConfigService.isCaptureAlertEnabled())
 put("mediaUploadEnabled", RuntimeConfigService.isMediaUploadEnabled())
 put("groupPlayEnabled", RuntimeConfigService.isGroupPlayEnabled())
@@ -1746,6 +1753,11 @@ put("userId", id)
                     var query = Messages.selectAll()
                     if (chatId.isNotBlank()) query = query.andWhere { Messages.chatId eq chatId }
                     if (userId.isNotBlank()) query = query.andWhere { Messages.senderId eq userId }
+                    query = query.andWhere {
+                        Messages.chatId notInSubQuery (
+                            Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
+                        )
+                    }
                     if (q.isNotBlank()) {
                         val like = "%" + escapeLikePattern(q.take(80)) + "%"
                         query = query.andWhere {
@@ -3021,9 +3033,14 @@ put("count", updated.size)
                 if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
                 val adminId = call.principal<JWTPrincipal>()!!.payload.subject
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
-                // Per-user chat settings metadata only — no message bodies
+                // Per-user chat settings metadata only — no message bodies / SECRET ids
                 val rows = transaction {
                     ChatUserSettings.selectAll()
+                        .andWhere {
+                            ChatUserSettings.chatId notInSubQuery (
+                                Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
+                            )
+                        }
                         .orderBy(ChatUserSettings.updatedAt to org.jetbrains.exposed.sql.SortOrder.DESC)
                         .limit(limit)
                         .map { row ->
@@ -3058,6 +3075,7 @@ put("count", updated.size)
                 // Chat disappearing timer metadata only — no message bodies
                 val rows = transaction {
                     Chats.selectAll()
+                        .andWhere { Chats.chatType neq ChatType.SECRET }
                         .orderBy(Chats.memberRevision to org.jetbrains.exposed.sql.SortOrder.DESC)
                         .limit(limit)
                         .mapNotNull { row ->
@@ -3091,6 +3109,11 @@ put("count", updated.size)
                 // Muted chat settings metadata only — no message bodies
                 val rows = transaction {
                     ChatUserSettings.selectAll()
+                        .andWhere {
+                            ChatUserSettings.chatId notInSubQuery (
+                                Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
+                            )
+                        }
                         .orderBy(ChatUserSettings.updatedAt to org.jetbrains.exposed.sql.SortOrder.DESC)
                         .limit(limit * 2)
                         .mapNotNull { row ->
@@ -3386,6 +3409,11 @@ get("/pinned-messages-export") {
                 // Pinned message metadata only — no message bodies / E2EE plaintext
                 val rows = transaction {
                     PinnedMessages.selectAll()
+                        .andWhere {
+                            PinnedMessages.chatId notInSubQuery (
+                                Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
+                            )
+                        }
                         .orderBy(PinnedMessages.pinnedAt to org.jetbrains.exposed.sql.SortOrder.DESC)
                         .limit(limit)
                         .map { row ->
@@ -4154,6 +4182,7 @@ put("count", updated.size)
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
                 val rows = transaction {
                     val chats = Chats.selectAll()
+                        .where { Chats.chatType neq ChatType.SECRET }
                         .orderBy(Chats.memberRevision to org.jetbrains.exposed.sql.SortOrder.DESC)
                         .limit(limit)
                         .toList()
@@ -4168,12 +4197,12 @@ put("count", updated.size)
                             .associate { it[ChatParticipants.chatId] to it[ChatParticipants.userId.count()].toLong() }
                     chats.map { row ->
                             val id = row[Chats.id]
-                            val isGroup = row[Chats.isGroup]
+                            val type = row[Chats.chatType].ifBlank { if (row[Chats.isGroup]) "GROUP" else "DIRECT" }
                             val name = (row[Chats.groupName] ?: "").take(80)
                             val members = membersByChat[id] ?: 0L
                             listOf(
                                 csvCell(id),
-                                csvCell(if (isGroup) "group" else "direct"),
+                                csvCell(type.lowercase()),
                                 csvCell(name),
                                 csvCell(members.toString()),
                                 csvCell(row[Chats.memberRevision].toString()),
@@ -4205,7 +4234,6 @@ put("security", buildJsonObject {
 put("sealedSenderEnabled", RuntimeConfigService.isSealedSenderEnabled())
 put("aiEnabled", RuntimeConfigService.isAiEnabled())
 put("botsAllowed", RuntimeConfigService.isBotsAllowed())
-put("secretChatRequired", RuntimeConfigService.isSecretChatRequired())
 put("captureAlertEnabled", RuntimeConfigService.isCaptureAlertEnabled())
 put("pqxdhPreview", RuntimeConfigService.isPqxdhPreviewEnabled())
 put("minAppVersion", RuntimeConfigService.minAppVersion())

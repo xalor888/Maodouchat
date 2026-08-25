@@ -51,20 +51,23 @@ data class MessageEntity(
     val sealedSender: Boolean = false
 )
 
-fun MessageEntity.toDomain(): Message = Message(
-    id = id,
-    chatId = chatId,
-    senderId = senderId,
-    content = content,
-    type = MessageType.fromWire(type),
-    timestamp = timestamp,
-    status = MessageStatus.fromWire(status),
-    editedAt = editedAt,
-    starred = starred,
-    reactions = decodeReactions(reactionsJson),
-    expiresAt = expiresAt?.takeIf { it > 0L },
-    sealedSender = sealedSender
-)
+fun MessageEntity.toDomain(): Message {
+    val domain = Message(
+        id = id,
+        chatId = chatId,
+        senderId = senderId,
+        content = content,
+        type = MessageType.fromWire(type),
+        timestamp = timestamp,
+        status = MessageStatus.fromWire(status),
+        editedAt = editedAt,
+        starred = starred,
+        reactions = decodeReactions(reactionsJson),
+        expiresAt = expiresAt?.takeIf { it > 0L },
+        sealedSender = sealedSender
+    )
+    return domain.copy(meta = domain.parsedMeta())
+}
 
 fun Message.toEntity(): MessageEntity = MessageEntity(
     id = id,

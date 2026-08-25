@@ -76,7 +76,16 @@ class ImageOcrAutoIndexer(
         val candidates = withContext(Dispatchers.IO) {
             database.messageDao().getImageMessages(OCR_SCAN_WINDOW).map { it.toDomain() }
         }
-        val secretChatIds = secretChatIds()
+        val secretChatIds = secretChatIds() ?: return 0
+        val lockedChatIds = withContext(Dispatchers.IO) {
+            try {
+                database.chatLockDao().listLockedChatIds().toSet()
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                emptySet()
+            }
+        }
         var processed = 0
         var succeeded = 0
         for (message in candidates) {
@@ -85,8 +94,11 @@ class ImageOcrAutoIndexer(
             // 防止旧账号图片密文继续上传、OCR 结果写进新账号/清库中的共享 DB
             if (!sessionGate(ownerUserId, tokenManager)) return succeeded
             if (processed >= OCR_IMAGES_PER_RUN) break
-            // 秘聊会话的图片不自动 OCR：识别文本不应进入可搜索索引
+            // 秘聊 / 未解锁 PIN 会话的图片不自动 OCR：识别文本不应进入可搜索索引
             if (message.chatId in secretChatIds) continue
+            if (message.chatId in lockedChatIds &&
+                !com.maodouchat.security.ChatLockSession.isUnlocked(message.chatId)
+            ) continue
             if (alreadyOcrIndexed(message)) continue
             processed++
             if (ocrAndPersist(message, token, ownerUserId)) succeeded++
@@ -94,14 +106,14 @@ class ImageOcrAutoIndexer(
         return succeeded
     }
 
-    private suspend fun secretChatIds(): Set<String> = withContext(Dispatchers.IO) {
+    private suspend fun secretChatIds(): Set<String>? = withContext(Dispatchers.IO) {
         try {
-            database.secretChatDao().listSecretChatIds()
+            database.chatDao().listSecretChatIds().toSet()
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (_: Exception) {
-            emptyList()
-        }.toSet()
+            null
+        }
     }
 
     private fun alreadyOcrIndexed(message: Message): Boolean =

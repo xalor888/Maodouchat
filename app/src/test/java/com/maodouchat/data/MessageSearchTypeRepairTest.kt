@@ -3,7 +3,7 @@ package com.maodouchat.data
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.dao.MessageDao
 import com.maodouchat.data.local.dao.MessageSearchDao
-import com.maodouchat.data.local.dao.SecretChatDao
+import com.maodouchat.data.local.dao.ChatDao
 import com.maodouchat.data.local.entity.MessageEntity
 import com.maodouchat.data.local.entity.MessageSearchDocumentEntity
 import com.maodouchat.data.local.entity.MessageSearchFingerprint
@@ -24,10 +24,10 @@ class MessageSearchTypeRepairTest {
         val database = mockk<AppDatabase>()
         val messageDao = mockk<MessageDao>()
         val searchDao = mockk<MessageSearchDao>()
-        val secretChatDao = mockk<SecretChatDao>()
+        val chatDao = mockk<ChatDao>()
         every { database.messageDao() } returns messageDao
         every { database.messageSearchDao() } returns searchDao
-        every { database.secretChatDao() } returns secretChatDao
+        every { database.chatDao() } returns chatDao
 
         val message = MessageEntity(
             id = "markdown-1",
@@ -41,7 +41,7 @@ class MessageSearchTypeRepairTest {
         coEvery { messageDao.countSearchableWithContent() } returns 1
         coEvery { searchDao.hasMessageTypeMismatch() } returns true
         coEvery { searchDao.deleteDocumentsNotInSearchableTypes(any()) } returns Unit
-        coEvery { secretChatDao.listSecretChatIds() } returns emptyList()
+        coEvery { chatDao.listSecretChatIds() } returns emptyList()
         coEvery {
             messageDao.getSearchableMessagesAfterCursor(-1L, "", any())
         } returns listOf(message)

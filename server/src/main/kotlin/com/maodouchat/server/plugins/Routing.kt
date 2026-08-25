@@ -352,6 +352,22 @@ fun Application.configureRouting(
             runCatching {
                 val purged = messageRepo.purgeExpiredMessages()
                 purged.attachmentIds.forEach(EncryptedAttachmentStorage::delete)
+                purged.messages.groupBy({ it.second }, { it.first }).forEach { (chatId, messageIds) ->
+                    val participantIds = runCatching { chatRepo.getParticipantIds(chatId) }.getOrDefault(emptyList())
+                    messageIds.forEach { messageId ->
+                        val deleteNotification = routingJson.encodeToString(
+                            WsMessage.serializer(),
+                            WsMessage(
+                                "MESSAGE_DELETED",
+                                routingJson.encodeToString(
+                                    DeleteMessagePayload.serializer(),
+                                    DeleteMessagePayload(messageId, chatId)
+                                )
+                            )
+                        )
+                        participantIds.forEach { participantId -> sendToUser(participantId, deleteNotification) }
+                    }
+                }
             }.onFailure { error ->
                 if (error is CancellationException) throw error
                 log.warn("Expired message purge failed", error)
@@ -681,7 +697,6 @@ put("aiEnabled", RuntimeConfigService.isAiEnabled())
 put("publicAnnouncement", RuntimeConfigService.get(RuntimeConfigService.KEY_PUBLIC_ANNOUNCEMENT))
 put("pqxdhPreview", RuntimeConfigService.isPqxdhPreviewEnabled())
 put("minAppVersion", RuntimeConfigService.minAppVersion())
-put("secretChatRequired", RuntimeConfigService.isSecretChatRequired())
 put("captureAlertEnabled", RuntimeConfigService.isCaptureAlertEnabled())
 put("maxBotsPerUser", RuntimeConfigService.maxBotsPerUser())
 put("mediaUploadEnabled", RuntimeConfigService.isMediaUploadEnabled())
@@ -2693,8 +2708,17 @@ put("status", "ok")
                 val chatType = req.chatType?.takeIf { it.isNotBlank() }
                     ?: if (req.isGroup) ChatType.GROUP else ChatType.DIRECT
                 val isChannel = chatType == ChatType.CHANNEL
-                if (chatType !in setOf(ChatType.DIRECT, ChatType.GROUP, ChatType.CHANNEL)) {
+                val isSecret = chatType == ChatType.SECRET
+                if (chatType !in setOf(ChatType.DIRECT, ChatType.GROUP, ChatType.CHANNEL, ChatType.SECRET)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("会话类型无效"))
+                    return@post
+                }
+                if (isSecret && (req.isGroup || isChannel)) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("密聊只能是两人单聊"))
+                    return@post
+                }
+                if (isSecret && !RuntimeConfigService.isSecretChatEnabled()) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("secret_chat_disabled"))
                     return@post
                 }
                 if (isChannel && !RuntimeConfigService.isChannelsEnabled()) {
@@ -2721,7 +2745,10 @@ put("status", "ok")
                 }
                 val allParticipants = (requestedParticipants + userId).distinct()
                 if (!isChannel && !req.isGroup && allParticipants.size != 2) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("私聊必须且只能包含 2 名用户"))
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(if (isSecret) "密聊必须且只能包含 2 名用户" else "私聊必须且只能包含 2 名用户")
+                    )
                     return@post
                 }
                 val memberLimit = if (isChannel) MAX_CHANNEL_SUBSCRIBERS else maxGroupMembers()
@@ -2738,21 +2765,26 @@ put("status", "ok")
                 }
                 if (!isChannel && !req.isGroup) {
                     val peerId = allParticipants.firstOrNull { it != userId }
+                    val blockedMsg = if (isSecret) "无法与已屏蔽的用户创建密聊" else "无法与已屏蔽的用户创建私聊"
                     if (peerId != null && userRepo.isBlockedEitherWay(userId, peerId)) {
-                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("无法与已屏蔽的用户创建私聊"))
+                        call.respond(HttpStatusCode.Forbidden, ErrorResponse(blockedMsg))
                         return@post
                     }
-                    // DB 唯一约束 (direct_chat_pairs) 跨实例防重；进程内锁仅作同 JVM 快路径
-                    val lockKey = allParticipants.sorted().joinToString(":")
+                    // DB 唯一约束 (direct_chat_pairs / secret_chat_pairs) 跨实例防重
+                    val lockKey = (if (isSecret) "secret:" else "direct:") + allParticipants.sorted().joinToString(":")
                     val lock = chatCreationLocks[Math.floorMod(lockKey.hashCode(), chatCreationLocks.size)]
                     val chatResponse: ChatResponse? = synchronized(lock) {
                         if (peerId != null && userRepo.isBlockedEitherWay(userId, peerId)) {
                             return@synchronized null
                         }
-                        chatRepo.getOrCreateDirectChat(allParticipants[0], allParticipants[1])
+                        if (isSecret) {
+                            chatRepo.getOrCreateSecretChat(allParticipants[0], allParticipants[1])
+                        } else {
+                            chatRepo.getOrCreateDirectChat(allParticipants[0], allParticipants[1])
+                        }
                     }
                     if (chatResponse == null) {
-                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("无法与已屏蔽的用户创建私聊"))
+                        call.respond(HttpStatusCode.Forbidden, ErrorResponse(blockedMsg))
                         return@post
                     }
                     call.respond(HttpStatusCode.Created, chatResponse)
@@ -3004,6 +3036,35 @@ put("status", "ok")
                     }
                 }
                 call.respond(buildJsonObject { put("status", "ok"); put("updated", updated.size) })
+            }
+
+            // 密聊可见即武装销毁：不写已读回执，只推 MESSAGE_EXPIRES
+            post("/api/chats/{chatId}/arm-disappearing") {
+                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val chatId = call.parameters["chatId"]!!
+                if (!chatRepo.isParticipant(chatId, userId)) {
+                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
+                    return@post
+                }
+                val throughId = call.receiveBoundedTextOrEmpty()
+                    .takeIf { it.isNotBlank() }
+                    ?.let { parseJson<MarkReadRequest>(it)?.throughId }
+                val armed = messageRepo.armSecretChatExpiry(chatId, userId, throughId)
+                if (armed.isNotEmpty()) {
+                    val participantIds = chatRepo.getParticipantIds(chatId)
+                    armed.forEach { (messageId, expiresAt) ->
+                        val payload = MessageExpiresPayload(messageId, chatId, expiresAt)
+                        val expiresJson = json.encodeToString(
+                            WsMessage.serializer(),
+                            WsMessage(
+                                "MESSAGE_EXPIRES",
+                                json.encodeToString(MessageExpiresPayload.serializer(), payload)
+                            )
+                        )
+                        participantIds.forEach { pid -> sendToUser(pid, expiresJson) }
+                    }
+                }
+                call.respond(buildJsonObject { put("status", "ok"); put("updated", armed.size) })
             }
 
             // 1:1 阅后即焚会话设置（双方共享）
@@ -4905,31 +4966,50 @@ put("count", count)
                 val maxMembers = try {
                     com.maodouchat.server.service.RuntimeConfigService.maxGroupSize()
                 } catch (_: Exception) { 200 }
-                val result = chatRepo.addGroupMembersAs(
-                    chatId = chatId,
-                    actorId = bot.id,
-                    requestedUserIds = listOf(userId),
-                    maxMembers = maxMembers,
-                    requireBotDeliverable = true
-                )
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, userId, "unbanChatMember")
-                if (result.result != com.maodouchat.server.repository.ChatRepository.GroupMemberMutationResult.UPDATED) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("unban failed: ${result.result}"))
+                val chatType = chatRepo.getChatType(chatId)
+                val addedUserIds: List<String>
+                val mutation: ChatRepository.GroupMemberMutationResult
+                if (chatType == ChatType.CHANNEL) {
+                    val addResult = chatRepo.addGroupMembersAs(
+                        chatId = chatId,
+                        actorId = bot.id,
+                        requestedUserIds = listOf(userId),
+                        maxMembers = maxMembers,
+                        requireBotDeliverable = true
+                    )
+                    mutation = addResult.result
+                    addedUserIds = addResult.addedUserIds
+                } else {
+                    val inviteResult = chatRepo.inviteGroupMembers(
+                        chatId = chatId,
+                        actorId = bot.id,
+                        requestedUserIds = listOf(userId),
+                        maxMembers = maxMembers
+                    )
+                    mutation = inviteResult.result
+                    addedUserIds = inviteResult.invitedUserIds
                 }
-                notifyGroupRevisionChanged(
-                    chatRepo = chatRepo,
-                    json = json,
-                    chatId = chatId,
-                    reason = "MEMBER_ADDED",
-                    actorId = bot.id,
-                    targetUserId = userId
-                )
+                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, userId, "unbanChatMember")
+                if (mutation != com.maodouchat.server.repository.ChatRepository.GroupMemberMutationResult.UPDATED) {
+                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("unban failed: $mutation"))
+                }
+                if (chatType == ChatType.CHANNEL) {
+                    notifyGroupRevisionChanged(
+                        chatRepo = chatRepo,
+                        json = json,
+                        chatId = chatId,
+                        reason = "MEMBER_ADDED",
+                        actorId = bot.id,
+                        targetUserId = userId
+                    )
+                }
                 call.respond(
                 buildJsonObject {
 put("ok", true)
 put("userId", userId)
-put("readded", true)
-put("added", Json.parseToJsonElement(Json.encodeToString(result.addedUserIds)))
+put("readded", chatType == ChatType.CHANNEL)
+put("invited", chatType != ChatType.CHANNEL)
+put("added", Json.parseToJsonElement(Json.encodeToString(addedUserIds)))
                 }
             )
             }
@@ -10310,44 +10390,7 @@ put("type", "SYSTEM")
             }
 
             post("/api/bot/sendSecretHint") {
-                val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
-                val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
-                val token = headerToken.ifBlank { bearer }
-                val bot = com.maodouchat.server.repository.BotRepository.authenticate(token)
-                    ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid bot token"))
-                // 每 bot 限流：防单 bot 高频 fanout（WS + FCM 风暴）
-                if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 60)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                if (!com.maodouchat.server.service.RuntimeConfigService.isSecretChatEnabled()) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("secret_chat_disabled"))
-                }
-                val body = call.receiveBoundedTextOrEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-                val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Secret chat: FLAG_SECURE + blind watermark").take(120)
-                if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-                if (!chatRepo.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-                val content = "🔒 $hint"
-                val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
-                val now = System.currentTimeMillis()
-                val ok = runCatching { messageRepo.insertBotMessage(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-                if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
-                com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecretHint")
-                val botMessage = com.maodouchat.server.model.MessageResponse(
-                    id = msgId, chatId = chatId, senderId = bot.id, content = content,
-                    type = "SYSTEM", timestamp = now, status = "SENT"
-                )
-                // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-                fanoutBotMessage(userRepo, chatRepo, json, bot.id, chatId, botMessage)
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-put("messageId", msgId)
-put("type", "SYSTEM")
-                }
-            )
+                call.respond(HttpStatusCode.Gone, ErrorResponse("sendSecretHint_removed"))
             }
 
             post("/api/bot/sendSecureHint") {
@@ -13093,7 +13136,7 @@ put("ok", true)
 put("botId", bot.id)
 put("capabilities", Json.parseToJsonElement(Json.encodeToString(listOf(
                             "sendMessage", "sendMarkdown", "sendCode", "sendQuote", "sendChecklist", "sendTable",
-                            "sendBadge", "sendProgress", "sendCountdown", "sendAlert", "sendRemind", "sendDivider", "sendToast", "sendKeyValue", "sendNotice", "sendQuoteCard", "sendBanner", "sendJsonCard", "sendTimeline", "sendMetric", "sendSteps", "sendCompare", "sendMentionCard", "sendInviteHint", "sendNudgeCard", "sendSafetyHint", "sendQrHint", "sendContactCard", "sendSpoilerHint", "sendDownloadHint", "sendLocationHint", "sendFileHint", "sendSecretHint", "sendSecureHint", "sendPhotoHint", "sendVideoHint", "sendGifHint", "sendWatermarkHint", "sendVoiceCallHint", "sendVideoCallHint", "sendWallpaperHint", "sendFontScaleHint", "sendUnreadHint", "sendRingtoneHint", "sendSoundHint", "sendPreviewHint", "sendPushHint", "sendTaskReminderHint", "sendDndHint", "sendSoundscapeHint", "sendHapticsHint", "sendMotionHint", "sendNavHint", "sendCaptureDetectHint", "sendRecentsHint", "sendSecretCopyHint", "sendSecretExportHint", "sendSecretForwardHint", "sendSecretChatExportHint", "sendSealedSenderHint", "sendPqxdhHint", "sendSecretAutoDisappearHint", "sendSecretLinkPreviewHint", "sendSecretExternalLinkHint", "sendSecretNotifPreviewHint", "sendSecretListPreviewHint",
+                            "sendBadge", "sendProgress", "sendCountdown", "sendAlert", "sendRemind", "sendDivider", "sendToast", "sendKeyValue", "sendNotice", "sendQuoteCard", "sendBanner", "sendJsonCard", "sendTimeline", "sendMetric", "sendSteps", "sendCompare", "sendMentionCard", "sendInviteHint", "sendNudgeCard", "sendSafetyHint", "sendQrHint", "sendContactCard", "sendSpoilerHint", "sendDownloadHint", "sendLocationHint", "sendFileHint", "sendSecureHint", "sendPhotoHint", "sendVideoHint", "sendGifHint", "sendWatermarkHint", "sendVoiceCallHint", "sendVideoCallHint", "sendWallpaperHint", "sendFontScaleHint", "sendUnreadHint", "sendRingtoneHint", "sendSoundHint", "sendPreviewHint", "sendPushHint", "sendTaskReminderHint", "sendDndHint", "sendSoundscapeHint", "sendHapticsHint", "sendMotionHint", "sendNavHint", "sendCaptureDetectHint", "sendRecentsHint", "sendSecretCopyHint", "sendSecretExportHint", "sendSecretForwardHint", "sendSecretChatExportHint", "sendSealedSenderHint", "sendPqxdhHint", "sendSecretAutoDisappearHint", "sendSecretLinkPreviewHint", "sendSecretExternalLinkHint", "sendSecretNotifPreviewHint", "sendSecretListPreviewHint",
                             "sendPhoto", "sendDocument", "sendPoll", "sendDice", "setMessageReaction",
                             "pinChatMessage", "getUpdates", "webhook", "getRuntimeFlags", "whoami", "getServerTime", "getFeatureMatrix", "echo", "getMuteArchiveFlags", "getVersion", "getPrivacyFlags", "healthz", "getMessagePolicyFlags", "uptime", "getEngagementFlags", "ping", "getComposerFlags", "echoTime", "getSocialFlags", "versionz", "getTrustFlags", "readyz", "getIdentityFlags", "alivez", "getMediaFlags", "statusz", "getLocationFlags", "getPrivacySecureFlags", "heartbeatz", "getMediaSendFlags", "pulsez", "tickz", "tockz", "clangz", "getMediaPrivacyFlags", "dingz", "getCallMediaFlags", "buzzz", "getAppearanceFlags", "chimez", "getNotifyFlags", "ringz", "getAlertMediaFlags", "beepz", "getPushFlags", "pushz", "getQuietFlags", "quietz", "getFeelFlags", "fealz", "getMotionFlags", "slidez", "getCaptureShieldFlags", "shieldz", "getSecretLeakFlags", "leakz", "getSecretVaultFlags", "vaultz", "getSealedCryptoFlags", "sealz", "getMarkPrivacyFlags", "markz", "getLinkPrivacyFlags", "linkz", "getNotifyPrivacyFlags", "privz", "sendSecretReactionHint", "sendSecretStarHint", "getSecretMetaFlags", "metaz", "sendSecretTypingHint", "sendSecretReadReceiptHint", "getSecretTypingFlags", "getSecretReadReceiptFlags", "typtz", "redz", "sendSecretPresenceHint", "sendSecretLastSeenHint", "getSecretPresenceFlags", "getSecretLastSeenFlags", "presz", "lastsz",
                             "burnz", "ttlz", "fwlz", "simz", "2faz", "ndz", "dvz", "sntz", "getSecretSurfaceFlags",
@@ -13201,6 +13244,10 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
                             call.respond(HttpStatusCode.BadRequest, ErrorResponse("群聊暂不支持阅后即焚"))
                             return@put
                         }
+                        "secret_timer_required" -> {
+                            call.respond(HttpStatusCode.BadRequest, ErrorResponse("密聊必须开启阅后即焚"))
+                            return@put
+                        }
                         "invalid_timer" -> {
                             call.respond(HttpStatusCode.BadRequest, ErrorResponse("不支持的销毁时长"))
                             return@put
@@ -13267,7 +13314,8 @@ put("secretLastSeenBlockEnabled", com.maodouchat.server.service.RuntimeConfigSer
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 不一致"))
                     return@post
                 }
-                if (!isValidMessagePayload(req.content, req.type, req.id)) {
+                val requireGroupSenderKey = chatRepo.getChatById(chatId)?.isGroup == true
+                if (!isValidMessagePayload(req.content, req.type, req.id, requireGroupSenderKey = requireGroupSenderKey)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("消息内容无效"))
                     return@post
                 }
@@ -13544,7 +13592,8 @@ put("status", "ok")
                     return@put
                 }
                 // 编辑后的内容必须与原消息类型一致，且通过长度/格式校验
-                if (!isValidMessagePayload(req.content, msg.type, null)) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("消息内容无效")); return@put }
+                val requireGroupSenderKey = chatRepo.getChatById(msg.chatId)?.isGroup == true
+                if (!isValidMessagePayload(req.content, msg.type, null, requireGroupSenderKey = requireGroupSenderKey)) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("消息内容无效")); return@put }
                 if (!messageRepo.editMessage(mid, uid, req.content)) { call.respond(HttpStatusCode.Forbidden, ErrorResponse("无法编辑该消息，请确认消息由你发送且仍在允许编辑的时间内")); return@put }
                 val editedMsg = messageRepo.getMessageById(mid)
                 val editedAt = editedMsg?.editedAt ?: System.currentTimeMillis()

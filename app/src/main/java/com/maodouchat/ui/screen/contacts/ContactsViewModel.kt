@@ -323,6 +323,20 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(createdChatId = null) }
     }
 
+    fun startSecretChat(peer: User) {
+        if (_uiState.value.isCreatingChat) return
+        if (!RuntimeFlags.isEnabled(app, RuntimeFlags.SECRET_CHAT)) {
+            _uiState.update { it.copy(errorMessage = text(R.string.secret_chat_feature_disabled)) }
+            return
+        }
+        createChat(
+            participantIds = listOf(peer.id),
+            isGroup = false,
+            groupName = null,
+            chatType = com.maodouchat.security.SecretChatPolicy.CHAT_TYPE
+        )
+    }
+
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null, infoMessage = null) }
     }

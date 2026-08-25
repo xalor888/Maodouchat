@@ -491,7 +491,7 @@ fun ContactsScreen(
                 onDismiss = { showGroupDialog = false },
                 onConfirm = { groupName, members ->
                     viewModel.createGroupChat(groupName, members)
-                    if (groupName.isNotBlank() && members.isNotEmpty()) showGroupDialog = false
+                    if (groupName.isNotBlank()) showGroupDialog = false
                 }
             )
         }
@@ -515,6 +515,10 @@ fun ContactsScreen(
                     Column {
                         Text(stringResource(R.string.contacts_long_press_actions))
                         Spacer(modifier = Modifier.height(12.dp))
+                        TextButton(
+                            onClick = { contactActionTarget = null; viewModel.startSecretChat(user) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(stringResource(R.string.secret_chat_menu_start), modifier = Modifier.fillMaxWidth()) }
                         TextButton(
                             onClick = { contactActionTarget = null; nicknameTarget = user },
                             modifier = Modifier.fillMaxWidth()

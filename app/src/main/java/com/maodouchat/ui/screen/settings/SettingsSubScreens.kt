@@ -2,6 +2,7 @@
 
 package com.maodouchat.ui.screen.settings
 
+import com.maodouchat.security.findActivity
 import com.maodouchat.util.RuntimeFlags
 import android.app.Activity
 import android.annotation.SuppressLint
@@ -136,6 +137,7 @@ import java.util.Locale
 fun AccountSecurityScreen(
     onBack: () -> Unit = {},
     onOpenMyQrCode: () -> Unit = {},
+    onLogout: () -> Unit = {},
     viewModel: SettingsViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -238,6 +240,10 @@ fun AccountSecurityScreen(
                 totpBusy = false
             }
         }
+    }
+
+    LaunchedEffect(state.isLoggedOut) {
+        if (state.isLoggedOut) onLogout()
     }
 
     LaunchedEffect(state.userId) {
@@ -620,6 +626,8 @@ fun AccountSecurityScreen(
                             ScreenSecureManager.setEnabled(context, enabled)
                             screenSecureEnabled = enabled
                             viewModel.pushSecurityClientPrefs(screenSecureEnabled = enabled)
+                            (context.findActivity() as? com.maodouchat.MainActivity)
+                                ?.notifyScreenSecurePreferenceChanged()
                         }
                     )
                 }
@@ -1187,64 +1195,70 @@ private fun DeviceRow(
 ) {
     val isCurrent = device.isCurrent || device.deviceId == currentDeviceId
     val isPending = device.status == "PENDING"
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Icon(Icons.Outlined.Smartphone, contentDescription = null, tint = if (isCurrent) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary, modifier = Modifier.size(22.dp))
-        Spacer(modifier = Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    if (device.deviceName.isBlank()) stringResource(R.string.account_device_fallback, device.deviceId) else device.deviceName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                if (isCurrent) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.account_current_device), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Smartphone, contentDescription = null, tint = if (isCurrent) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary, modifier = Modifier.size(22.dp))
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (device.deviceName.isBlank()) stringResource(R.string.account_device_fallback, device.deviceId) else device.deviceName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (isCurrent) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.account_current_device), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                    if (isPending) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.account_pending_device), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                    }
                 }
-                if (isPending) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.account_pending_device), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
-                }
-            }
-            Text(
-                stringResource(R.string.account_device_fingerprint, device.deviceId, device.identityKey.take(8), device.identityKey.takeLast(6)),
-                style = MaterialTheme.typography.bodySmall,
-                color = LocalChatPalette.current.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (isPending) {
                 Text(
-                    if (isCurrent) stringResource(R.string.account_pending_current_hint) else stringResource(R.string.account_pending_other_hint),
+                    stringResource(R.string.account_device_fingerprint, device.deviceId, device.identityKey.take(8), device.identityKey.takeLast(6)),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
+                    color = LocalChatPalette.current.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
+                if (isPending) {
+                    Text(
+                        if (isCurrent) stringResource(R.string.account_pending_current_hint) else stringResource(R.string.account_pending_other_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
-        TextButton(onClick = onRename, enabled = !isMutationInProgress) {
-            if (isRenaming) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
-            else Text(stringResource(R.string.account_rename_device), color = MaterialTheme.colorScheme.primary)
-        }
-        if (isPending && !isCurrent) {
-            TextButton(onClick = onConfirm, enabled = canConfirm && !isMutationInProgress) {
-                if (isConfirming) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
-                else Text(stringResource(R.string.account_approve_device), color = MaterialTheme.colorScheme.primary)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onRename, enabled = !isMutationInProgress) {
+                if (isRenaming) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+                else Text(stringResource(R.string.account_rename_device), color = MaterialTheme.colorScheme.primary)
             }
-        }
-        if (!isCurrent) {
-            TextButton(onClick = onRemove, enabled = !isMutationInProgress) {
-                if (isRemoving) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.error)
-                } else {
-                    Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(if (isPending) stringResource(R.string.account_reject) else stringResource(R.string.chat_remove), color = MaterialTheme.colorScheme.error)
+            if (isPending && !isCurrent) {
+                TextButton(onClick = onConfirm, enabled = canConfirm && !isMutationInProgress) {
+                    if (isConfirming) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+                    else Text(stringResource(R.string.account_approve_device), color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            if (!isCurrent) {
+                TextButton(onClick = onRemove, enabled = !isMutationInProgress) {
+                    if (isRemoving) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.error)
+                    } else {
+                        Text(if (isPending) stringResource(R.string.account_reject) else stringResource(R.string.chat_remove), color = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
         }

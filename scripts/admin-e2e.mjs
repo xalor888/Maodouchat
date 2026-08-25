@@ -142,7 +142,8 @@ try {
 
   await page.locator('nav button[data-tab="system"]').click();
   await page.locator("#ops-copy-save").waitFor();
-  await page.locator("details.settings-advanced summary").click();
+  // 外层 details 里还有分组 <details>，不能用后代 summary（会命中 8 个）。
+  await page.locator("details.settings-advanced > summary").click();
   await page.locator("#settings-save").waitFor({ state: "visible" });
 
   await page.locator('nav button[data-tab="diagnostics"]').click();

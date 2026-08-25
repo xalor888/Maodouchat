@@ -38,8 +38,8 @@ object OfficialApkInstaller {
         onProgress: (percent: Int) -> Unit = {},
     ): Result<Unit> = withContext(Dispatchers.IO) {
         val url = apkUrl.trim()
-        if (!url.lowercase().startsWith("https://")) {
-            return@withContext Result.failure(IllegalArgumentException("apk_not_https"))
+        if (!AppUpdatePolicy.isOfficialApkUrl(url)) {
+            return@withContext Result.failure(IllegalArgumentException("apk_not_official"))
         }
         val dir = File(context.cacheDir, DIR).apply { mkdirs() }
         val target = File(dir, FILE)
@@ -50,8 +50,8 @@ object OfficialApkInstaller {
                 return@withContext Result.failure(IllegalStateException("http_${response.code}"))
             }
             val finalUrl = response.request.url.toString()
-            if (!finalUrl.lowercase().startsWith("https://")) {
-                return@withContext Result.failure(IllegalStateException("redirect_not_https"))
+            if (!AppUpdatePolicy.isOfficialApkUrl(finalUrl)) {
+                return@withContext Result.failure(IllegalStateException("redirect_host_not_official"))
             }
             val body = response.body ?: return@withContext Result.failure(IllegalStateException("empty_body"))
             val total = body.contentLength()

@@ -37,11 +37,12 @@ enum class MessageStatus {
 
     companion object {
         /**
-         * Unknown/missing wire values default conservatively to DELIVERED for inbound payloads
-         * rather than inventing SENT, which can clobber local READ state after merge.
+         * Unknown/missing wire values default conservatively to SENT.
+         * Groups never fan out DELIVERED/READ as "everyone got it"; defaulting to DELIVERED
+         * painted a double-check on messages nobody had received.
          */
         fun fromWire(value: String?): MessageStatus =
-            entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: DELIVERED
+            entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: SENT
     }
 }
 

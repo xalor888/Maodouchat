@@ -19,7 +19,10 @@ object ScreenSecurePolicy {
         if (secretChatSurfaceActive) return true
         // 会话 PIN 锁（ChatLockGate）表面：PIN 属敏感信息，即便全局开关关闭也强制保护。
         if (chatLockSurfaceActive) return true
-        return globalEnabled && onChatSurface
+        // 全局防截屏：整窗 FLAG_SECURE。只绑聊天页时，设置里打开开关当时看不到效果，
+        // 且从聊天返回列表的瞬间窗口旗标会被清掉。
+        if (globalEnabled) return true
+        return false
     }
 
     /** 会话详情 / 群详情 / 媒体中心 / 星标 / AI 任务 / 水印取证 / 来电 / 群玩法等含消息内容的界面 */
