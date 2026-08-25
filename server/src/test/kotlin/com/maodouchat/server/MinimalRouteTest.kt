@@ -31,6 +31,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -1839,6 +1840,39 @@ class ChatLookupPrivacyRouteTest {
 }
 
 class SenderKeyDistributionRouteTest {
+    @Test
+    fun `rest accepts per-device encrypted sender key distribution`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+
+        suspend fun login(email: String): String {
+            val response = client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"$email","password":"password123"}""")
+            }
+            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+            return extractToken(response.bodyAsText())
+        }
+
+        val alexToken = login("alex@example.com")
+        val aliceToken = login("alice@example.com")
+        val created = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":["u2"],"isGroup":true,"groupName":"SK envelope route test"}""")
+        }
+        assertEquals(HttpStatusCode.Created, created.status, created.bodyAsText())
+        val chatId = (Json.parseToJsonElement(created.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        acceptAllGroupInvites(aliceToken)
+
+        val encryptedDistribution = """{"version":3,"algorithm":"signal-multi-device-v1","senderDeviceId":1,"payloadType":"SK_DIST","entries":[{"recipientUserId":"u2","recipientDeviceId":1,"ciphertextType":"prekey","ciphertext":"abc"}]}"""
+        val response = client.post("/api/chats/$chatId/messages") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"chatId":"$chatId","content":${Json.encodeToString(JsonPrimitive(encryptedDistribution))},"type":"SK_DIST","id":"sk_route_1"}""")
+        }
+        assertEquals(HttpStatusCode.Created, response.status, response.bodyAsText())
+    }
+
     @Test
     fun `sender key coverage is isolated per sender and exposes newly confirmed devices`() = testApplication {
         application { moduleUnderTest(seedDemoUsers = true) }

@@ -1,5 +1,10 @@
 package com.maodouchat.server.plugins
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+
 /**
  * 共享的消息/信令验证常量与函数。
  *
@@ -36,17 +41,55 @@ internal val CALL_ID_REGEX = Regex("^[A-Za-z0-9_-]{1,100}$")
 
 internal const val SENDER_KEY_ALGORITHM = "signal-sender-key-v1"
 internal const val SENDER_KEY_DISTRIBUTION_ALGORITHM = "signal-sender-key-distribution-v1"
+internal const val SIGNAL_MULTI_DEVICE_ALGORITHM = "signal-multi-device-v1"
+
+private val SENDER_KEY_ALGORITHM_FIELD = Regex(
+    "\"algorithm\"\\s*:\\s*\"${Regex.escape(SENDER_KEY_ALGORITHM)}\""
+)
+private val SENDER_KEY_DISTRIBUTION_ALGORITHM_FIELD = Regex(
+    "\"algorithm\"\\s*:\\s*\"${Regex.escape(SENDER_KEY_DISTRIBUTION_ALGORITHM)}\""
+)
+private val MULTI_DEVICE_ALGORITHM_FIELD = Regex(
+    "\"algorithm\"\\s*:\\s*\"${Regex.escape(SIGNAL_MULTI_DEVICE_ALGORITHM)}\""
+)
+private val SK_DIST_PAYLOAD_TYPE_FIELD = Regex("\"payloadType\"\\s*:\\s*\"SK_DIST\"")
+
+private fun isObjectLike(content: String): Boolean =
+    content.firstOrNull { !it.isWhitespace() } == '{'
+
+private fun parseMessageEnvelope(content: String): JsonObject? {
+    val trimmed = content.trim()
+    if (!trimmed.startsWith("{")) return null
+    return runCatching { Json.parseToJsonElement(trimmed) as? JsonObject }.getOrNull()
+}
+
+private fun JsonObject.stringValue(key: String): String? =
+    (this[key] as? JsonPrimitive)?.content
 
 internal fun looksLikeSenderKeyEnvelope(content: String): Boolean {
-    val t = content.trim()
-    if (!t.startsWith("{")) return false
-    return t.contains("\"$SENDER_KEY_ALGORITHM\"") || t.contains("\"algorithm\":\"$SENDER_KEY_ALGORITHM\"")
+    return isObjectLike(content) && SENDER_KEY_ALGORITHM_FIELD.containsMatchIn(content)
 }
 
 internal fun looksLikeSenderKeyDistributionEnvelope(content: String): Boolean {
-    val t = content.trim()
-    if (!t.startsWith("{")) return false
-    return t.contains("\"$SENDER_KEY_DISTRIBUTION_ALGORITHM\"")
+    return isObjectLike(content) && SENDER_KEY_DISTRIBUTION_ALGORITHM_FIELD.containsMatchIn(content)
+}
+
+/**
+ * SK_DIST is sent as a per-device Signal envelope. The plaintext distribution
+ * envelope is only present after the recipient decrypts the outer envelope.
+ */
+internal fun looksLikeEncryptedSenderKeyDistributionEnvelope(content: String): Boolean {
+    if (!isObjectLike(content) ||
+        !MULTI_DEVICE_ALGORITHM_FIELD.containsMatchIn(content) ||
+        !SK_DIST_PAYLOAD_TYPE_FIELD.containsMatchIn(content)
+    ) {
+        return false
+    }
+    val envelope = parseMessageEnvelope(content) ?: return false
+    val entries = envelope["entries"] as? JsonArray ?: return false
+    return envelope.stringValue("algorithm") == SIGNAL_MULTI_DEVICE_ALGORITHM &&
+        envelope.stringValue("payloadType") == "SK_DIST" &&
+        entries.isNotEmpty()
 }
 
 /**
@@ -54,7 +97,10 @@ internal fun looksLikeSenderKeyDistributionEnvelope(content: String): Boolean {
  * Bot/system cards stay plaintext on a separate insert path.
  */
 internal fun isValidGroupHumanPayload(content: String, type: String): Boolean {
-    if (type == "SK_DIST") return looksLikeSenderKeyDistributionEnvelope(content)
+    if (type == "SK_DIST") {
+        return looksLikeSenderKeyDistributionEnvelope(content) ||
+            looksLikeEncryptedSenderKeyDistributionEnvelope(content)
+    }
     return looksLikeSenderKeyEnvelope(content) || looksLikeSenderKeyDistributionEnvelope(content)
 }
 
