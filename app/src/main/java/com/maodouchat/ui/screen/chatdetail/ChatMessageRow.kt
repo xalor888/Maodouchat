@@ -10,18 +10,27 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Reply
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -40,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
@@ -48,8 +58,10 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
+import com.maodouchat.ui.component.MessageStatusIcon
 import com.maodouchat.ui.component.MessageBubble
 import com.maodouchat.ui.component.ReplyPreview
+import com.maodouchat.ui.screen.chatlist.ChatListReceiptPolicy
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MotionTokens
 import com.maodouchat.ui.theme.listItemEnter
@@ -79,6 +91,8 @@ internal data class ChatMessageRowState(
     val mediaDownloadFailed: Boolean,
     val safetyWarning: String?,
     val isGroupChat: Boolean = false,
+    /** 群聊发送消息下方的已读进度环数据。 */
+    val groupReadCount: ReadCountUi? = null,
     /** 0.65 新功能：发送者群内角色（OWNER/ADMIN），渲染名字旁徽章。 */
     val memberRole: String? = null,
     val secretChatId: String? = null
@@ -203,6 +217,10 @@ internal fun ChatMessageRow(
                 }
             }
 
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = if (state.isOwn) Alignment.End else Alignment.Start
+            ) {
             MessageBubble(
                 message = message,
                 isOwnMessage = state.isOwn,
@@ -211,11 +229,12 @@ internal fun ChatMessageRow(
                 isGroupEdge = state.isGroupEdge,
                 senderName = state.senderName,
                 memberRole = state.memberRole,
+                isGroupChat = state.isGroupChat,
                 mentionedUserIds = message.meta.mentions,
                 replyToPreview = state.replyToPreview,
                 onImageClick = onImageClick,
                 onVideoClick = onVideoClick,
-                onReply = onReply,
+                onReply = null,
                 onReplyPreviewClick = onReplyPreviewClick,
                 onBoundsMeasured = onBoundsMeasured,
                 onFileClick = onFileClick,
@@ -246,6 +265,7 @@ internal fun ChatMessageRow(
                 },
                 onContactCardClick = onContactCardClick,
                 onSenderClick = onSenderClick,
+                showStatusIcon = false,
                 onStatusClick = onStatusClick,
                 secretChatId = state.secretChatId,
                 modifier = Modifier
@@ -306,6 +326,103 @@ internal fun ChatMessageRow(
                         }
                     )
             )
+                MessageActionRow(
+                    message = message,
+                    isOwnMessage = state.isOwn,
+                    isGroupChat = state.isGroupChat,
+                    groupReadCount = state.groupReadCount,
+                    onReply = onReply,
+                    onStatusClick = onStatusClick
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MessageActionRow(
+    message: Message,
+    isOwnMessage: Boolean,
+    isGroupChat: Boolean,
+    groupReadCount: ReadCountUi?,
+    onReply: (Message) -> Unit,
+    onStatusClick: ((Message) -> Unit)?
+) {
+    val showReply = message.type in setOf(MessageType.TEXT, MessageType.MARKDOWN)
+    if (!isOwnMessage && !showReply && groupReadCount == null) return
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.padding(
+            top = 2.dp,
+            start = if (isOwnMessage) 0.dp else 44.dp,
+            end = if (isOwnMessage) 14.dp else 0.dp
+        )
+    ) {
+        if (isOwnMessage) {
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .clickable(enabled = onStatusClick != null) {
+                        onStatusClick?.invoke(message)
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                MessageStatusIcon(
+                    status = ChatListReceiptPolicy.displayStatus(
+                        message.status,
+                        isGroup = isGroupChat
+                    )
+                )
+            }
+        }
+
+        if (showReply) {
+            TextButton(
+                onClick = { onReply(message) },
+                contentPadding = PaddingValues(horizontal = 4.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.message_reply),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isOwnMessage) {
+                        com.maodouchat.ui.theme.LocalSentBubbleContentSecondary.current
+                    } else {
+                        com.maodouchat.ui.theme.TextHint
+                    }
+                )
+            }
+        }
+
+        groupReadCount?.let { count ->
+            val readProgress = if (count.total > 0) {
+                (count.read.toFloat() / count.total.toFloat()).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+            val readDescription = stringResource(
+                R.string.chat_group_read_status,
+                count.read,
+                count.total
+            )
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .semantics { contentDescription = readDescription }
+                    .clickable(enabled = onStatusClick != null) {
+                        onStatusClick?.invoke(message)
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    progress = { readProgress },
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            }
         }
     }
 }

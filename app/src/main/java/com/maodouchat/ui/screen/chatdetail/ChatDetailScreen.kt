@@ -3043,6 +3043,7 @@ if (showGroupCallTypeDialog) {
                                     mediaDownloadFailed = message.id in state.mediaDownloadErrorMessageIds,
                                     safetyWarning = if (canShowSafety) messageSafetyWarning(displayContent, localSafetyEnabled) else null,
                                     isGroupChat = state.chat?.isGroup == true,
+                                    groupReadCount = groupReadCount,
                                     // 0.65 新功能：发送者群内角色（群主/管理员徽章）
                                     memberRole = if (state.chat?.isGroup == true) state.memberRoleByUser[message.senderId] else null,
                                     secretChatId = if (state.isSecretChat == true) state.chat?.id else null,
@@ -3136,46 +3137,6 @@ if (showGroupCallTypeDialog) {
                                 },
                                 modifier = if (itemPlacementSpec != null) Modifier.animateItem(placementSpec = itemPlacementSpec) else Modifier
                             )
-                            groupReadCount?.let { count ->
-                                val readProgress = if (count.total > 0) {
-                                    (count.read.toFloat() / count.total.toFloat()).coerceIn(0f, 1f)
-                                } else {
-                                    0f
-                                }
-                                val readDescription = stringResource(
-                                    R.string.chat_group_read_status,
-                                    count.read,
-                                    count.total,
-                                )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .align(Alignment.End)
-                                        .padding(top = 2.dp, end = 14.dp)
-                                        .semantics { contentDescription = readDescription }
-                                        // 1.180：点击群消息已读状态打开该消息阅读详情
-                                        .clickable {
-                                            if (ReadReceiptPolicy.canViewReceipts(
-                                                    viewerId = state.currentUserId,
-                                                    senderId = message.senderId,
-                                                    isGroup = state.chatIsGroup,
-                                                    viewerRole = state.myMemberRole,
-                                                )
-                                            ) {
-                                                messageForReadReceipts = message
-                                                viewModel.loadReadReceipts(message.id)
-                                            }
-                                        }
-                                ) {
-                                    CircularProgressIndicator(
-                                        progress = { readProgress },
-                                        modifier = Modifier.size(18.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    )
-                                }
-                            }
                             }
                         }
                     }
