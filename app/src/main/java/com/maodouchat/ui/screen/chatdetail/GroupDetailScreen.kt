@@ -8,6 +8,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,32 +21,37 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.NotificationsOff
-import androidx.compose.material.icons.outlined.Group
-import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Campaign
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.QrCode
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -73,8 +79,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -83,6 +89,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
@@ -1280,9 +1287,12 @@ class GroupDetailViewModel(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@SuppressLint("HardwareIds")
 fun GroupDetailScreen(
     onBack: () -> Unit,
     viewModel: GroupDetailViewModel = viewModel(),
+    onEditGroup: (String) -> Unit = {},
+    onOpenGroupInvite: (String) -> Unit = {},
     // 1.08：点击群成员查看资料（userId）
     onOpenProfile: (String) -> Unit = {},
     onOpenGroupPoll: (String) -> Unit = {},
@@ -1292,32 +1302,6 @@ fun GroupDetailScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val chatId = viewModel.chatId
-    // 以稳定 per-chat 的 chatId 作为 rememberSaveable 的 key：后台刷新改变
-    // state.groupName/groupAnnouncement/myNickname 时不再把用户未保存的草稿重置掉。
-    var groupNameDraft by rememberSaveable(chatId) { mutableStateOf(state.groupName) }
-    var announcementDraft by rememberSaveable(chatId) { mutableStateOf(state.groupAnnouncement) }
-    var nicknameDraft by rememberSaveable(chatId) { mutableStateOf(state.myNickname) }
-    // 8.39：数据加载完成后再同步草稿，且只在草稿仍等于上次同步值（用户未编辑）时覆盖——
-    // 此前 LaunchedEffect(chatId) 在 load() 完成前用空值初始化草稿且永不重跑，
-    // 导致群名/公告/昵称输入框恒空，且保存会把已设置内容误清空。
-    var lastSyncedGroupName by remember(chatId) { mutableStateOf(state.groupName) }
-    var lastSyncedAnnouncement by remember(chatId) { mutableStateOf(state.groupAnnouncement) }
-    var lastSyncedNickname by remember(chatId) { mutableStateOf(state.myNickname) }
-    LaunchedEffect(chatId, state.groupName, state.groupAnnouncement, state.myNickname, state.isLoading) {
-        if (state.isLoading) return@LaunchedEffect
-        if (groupNameDraft == lastSyncedGroupName || groupNameDraft.isBlank()) {
-            groupNameDraft = state.groupName
-        }
-        lastSyncedGroupName = state.groupName
-        if (announcementDraft == lastSyncedAnnouncement || announcementDraft.isBlank()) {
-            announcementDraft = state.groupAnnouncement
-        }
-        lastSyncedAnnouncement = state.groupAnnouncement
-        if (nicknameDraft == lastSyncedNickname || nicknameDraft.isBlank()) {
-            nicknameDraft = state.myNickname
-        }
-        lastSyncedNickname = state.myNickname
-    }
     var titleTarget by remember { mutableStateOf<GroupMemberUi?>(null) }
     var titleDraft by rememberSaveable { mutableStateOf("") }
     var removeTarget by remember { mutableStateOf<GroupMemberUi?>(null) }
@@ -1335,7 +1319,6 @@ fun GroupDetailScreen(
         if (ownershipTarget?.let { it.userId !in ids } == true) ownershipTarget = null
     }
     var showAvatarFull by remember { mutableStateOf(false) }
-    var showInviteDialog by rememberSaveable { mutableStateOf(false) }
     var showBotPicker by rememberSaveable { mutableStateOf(false) }
     var memberSearch by rememberSaveable { mutableStateOf("") }
     var membersExpanded by rememberSaveable { mutableStateOf(false) }
@@ -1343,13 +1326,7 @@ fun GroupDetailScreen(
     var auditExpanded by rememberSaveable { mutableStateOf(false) }
     var candidateSearch by rememberSaveable { mutableStateOf("") }
     var candidatesExpanded by rememberSaveable { mutableStateOf(false) }
-    var inviteExpirySeconds by rememberSaveable { mutableLongStateOf(7L * 24L * 60L * 60L) }
-    var inviteMaxUses by rememberSaveable { mutableIntStateOf(100) }
     val context = LocalContext.current
-    val shareInviteChooserTitle = stringResource(R.string.group_detail_share_invite)
-    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let(viewModel::uploadGroupAvatar)
-    }
     val filteredMembers = remember(state.members, memberSearch) {
         val query = memberSearch.trim()
         val base = if (query.isBlank()) state.members else state.members.filter {
@@ -1628,33 +1605,6 @@ fun GroupDetailScreen(
         )
     }
 
-    if (showInviteDialog) {
-        GroupInviteDialog(
-            payload = state.groupInvitePayload,
-            isLoading = state.isLoadingInvite,
-            expiresAt = state.inviteExpiresAt,
-            maxUses = state.inviteMaxUses,
-            usedCount = state.inviteUsedCount,
-            remainingUses = state.inviteRemainingUses,
-            expiresInSeconds = inviteExpirySeconds,
-            selectedMaxUses = inviteMaxUses,
-            onExpiryChange = { inviteExpirySeconds = it },
-            onMaxUsesChange = { inviteMaxUses = it },
-            onDismiss = { showInviteDialog = false },
-            onRefresh = { viewModel.loadGroupInvite(rotate = true, expiresInSeconds = inviteExpirySeconds, maxUses = inviteMaxUses) },
-            onShare = {
-                val payload = state.groupInvitePayload
-                if (payload.isNotBlank()) {
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, payload)
-                    }
-                    runCatching { context.startActivity(Intent.createChooser(intent, shareInviteChooserTitle)) }
-                }
-            }
-        )
-    }
-
     Scaffold(
         containerColor = LocalChatPalette.current.chatBackground,
         topBar = {
@@ -1668,6 +1618,28 @@ fun GroupDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary)
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = { onEditGroup(chatId) },
+                        enabled = !state.isLoading
+                    ) {
+                        Icon(
+                            Icons.Outlined.Edit,
+                            contentDescription = stringResource(R.string.group_detail_edit),
+                            tint = if (state.isLoading) LocalChatPalette.current.textHint else MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(
+                        onClick = { onOpenGroupInvite(chatId) },
+                        enabled = state.canManageGroup && !state.isLoadingInvite
+                    ) {
+                        Icon(
+                            Icons.Outlined.QrCode,
+                            contentDescription = stringResource(R.string.group_detail_invite_qr),
+                            tint = if (state.canManageGroup) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -1690,11 +1662,11 @@ fun GroupDetailScreen(
                         groupAvatar = state.groupAvatar,
                         memberCount = state.members.size,
                         myRole = state.myRole,
-                        canChangeAvatar = state.canManageGroup,
-                        isUploadingAvatar = state.isUploadingAvatar,
-                        onChangeAvatar = { avatarPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         onShowAvatarFull = { showAvatarFull = true }
                     )
+                }
+                item(key = "group_announcement", contentType = "group_announcement") {
+                    GroupAnnouncementCard(state.groupAnnouncement)
                 }
                 if (state.isChannel) {
                     item(key = "channel_banner", contentType = "channel_banner") {
@@ -1719,6 +1691,20 @@ fun GroupDetailScreen(
                         }
                     }
                 }
+                item(key = "group_play", contentType = "group_play") {
+                    SectionTitle(stringResource(R.string.group_detail_play))
+                    GroupFeaturesCard(
+                        actions = buildList {
+                            add(GroupFeatureAction(stringResource(R.string.group_play_poll), Icons.Outlined.Checklist) { onOpenGroupPoll(chatId) })
+                            add(GroupFeatureAction(stringResource(R.string.group_play_checkin), Icons.Outlined.History) { onOpenGroupCheckin(chatId) })
+                            add(GroupFeatureAction(stringResource(R.string.group_play_chain_title), Icons.Outlined.Link) { onOpenGroupChain(chatId) })
+                            add(GroupFeatureAction(stringResource(R.string.group_play_pk_title), Icons.Outlined.SwapHoriz) { onOpenGroupPk(chatId) })
+                            if (state.canManageGroup && !state.isChannel) {
+                                add(GroupFeatureAction(stringResource(R.string.group_play_invite_bot), Icons.Outlined.PersonAdd) { showBotPicker = true })
+                            }
+                        }
+                    )
+                }
                 item(key = "sender_key_status", contentType = "sender_key_status") {
                     GroupSenderKeyStatusSection(
                         status = state.senderKeyStatus,
@@ -1728,55 +1714,6 @@ fun GroupDetailScreen(
                         hasLocalDistribution = state.localHasSenderKey,
                         onRedistribute = viewModel::redistributeSenderKey
                     )
-                }
-                item(key = "group_settings", contentType = "group_settings") {
-                    SectionTitle(stringResource(R.string.group_detail_settings))
-                    if (!state.canManageGroup) EmptyRow(stringResource(R.string.group_detail_read_only_hint))
-                    SettingTextFieldRow(
-                        label = stringResource(R.string.chat_group_name),
-                        value = groupNameDraft,
-                        onValueChange = { groupNameDraft = it.take(50) },
-                        enabled = state.canManageGroup && !state.isUpdating,
-                        onSave = { viewModel.renameGroup(groupNameDraft) },
-                        saveEnabled = state.canManageGroup && groupNameDraft.trim().isNotBlank() && groupNameDraft.trim() != state.groupName
-                    )
-                    AnnouncementRow(
-                        value = announcementDraft,
-                        onValueChange = { announcementDraft = it.take(1200) },
-                        enabled = state.canManageGroup && !state.isUpdating,
-                        onSave = { viewModel.updateAnnouncement(announcementDraft) },
-                        saveEnabled = state.canManageGroup && announcementDraft.trim() != state.groupAnnouncement,
-                        canManage = state.canManageGroup
-                    )
-                    if (state.canManageGroup) {
-                        GroupInviteRow(
-                            isLoading = state.isLoadingInvite,
-                            onOpen = {
-                                showInviteDialog = true
-                                if (state.groupInvitePayload.isBlank()) viewModel.loadGroupInvite(expiresInSeconds = inviteExpirySeconds, maxUses = inviteMaxUses)
-                            }
-                        )
-                    }
-                    SettingTextFieldRow(
-                        label = stringResource(R.string.group_detail_my_nickname),
-                        value = nicknameDraft,
-                        onValueChange = { nicknameDraft = it.take(100) },
-                        enabled = !state.isUpdating,
-                        onSave = { viewModel.setMyNickname(nicknameDraft) },
-                        saveEnabled = nicknameDraft.trim() != state.myNickname
-                    )
-                }
-                item(key = "group_play", contentType = "group_play") {
-                    SectionTitle(stringResource(R.string.group_detail_play))
-                    GroupPlayRow(stringResource(R.string.group_play_poll)) { onOpenGroupPoll(chatId) }
-                    GroupPlayRow(stringResource(R.string.group_play_checkin)) { onOpenGroupCheckin(chatId) }
-                    GroupPlayRow(stringResource(R.string.group_play_chain_title)) { onOpenGroupChain(chatId) }
-                    GroupPlayRow(stringResource(R.string.group_play_pk_title)) { onOpenGroupPk(chatId) }
-                    if (state.canManageGroup && !state.isChannel) {
-                        GroupPlayRow(stringResource(R.string.group_play_invite_bot)) {
-                            showBotPicker = true
-                        }
-                    }
                 }
                 item(key = "members_header", contentType = "section_header") {
                     SectionTitle(stringResource(R.string.group_detail_members_section, state.members.size))
@@ -1962,10 +1899,271 @@ fun GroupDetailScreen(
     } // secret watermark Box
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-// 资源字符串均在回调/协程内读取，非组合作用域
-@SuppressLint("LocalContextGetResourceValueCall")
-private fun GroupInviteDialog(
+@SuppressLint("HardwareIds")
+fun GroupEditScreen(
+    onBack: () -> Unit,
+    viewModel: GroupDetailViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val chatId = viewModel.chatId
+    var groupNameDraft by rememberSaveable(chatId) { mutableStateOf(state.groupName) }
+    var announcementDraft by rememberSaveable(chatId) { mutableStateOf(state.groupAnnouncement) }
+    var nicknameDraft by rememberSaveable(chatId) { mutableStateOf(state.myNickname) }
+    var lastSyncedGroupName by remember(chatId) { mutableStateOf(state.groupName) }
+    var lastSyncedAnnouncement by remember(chatId) { mutableStateOf(state.groupAnnouncement) }
+    var lastSyncedNickname by remember(chatId) { mutableStateOf(state.myNickname) }
+    var showAvatarFull by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(viewModel::uploadGroupAvatar)
+    }
+
+    LaunchedEffect(chatId, state.groupName, state.groupAnnouncement, state.myNickname, state.isLoading) {
+        if (state.isLoading) return@LaunchedEffect
+        if (groupNameDraft == lastSyncedGroupName || groupNameDraft.isBlank()) groupNameDraft = state.groupName
+        lastSyncedGroupName = state.groupName
+        if (announcementDraft == lastSyncedAnnouncement || announcementDraft.isBlank()) {
+            announcementDraft = state.groupAnnouncement
+        }
+        lastSyncedAnnouncement = state.groupAnnouncement
+        if (nicknameDraft == lastSyncedNickname || nicknameDraft.isBlank()) nicknameDraft = state.myNickname
+        lastSyncedNickname = state.myNickname
+    }
+
+    val secretPagePayload = rememberSecretPageWatermarkPayload(
+        isSecretChat = state.isSecretChat,
+        userId = state.currentUserId,
+        chatId = chatId,
+        deviceHint = android.provider.Settings.Secure.getString(
+            context.contentResolver,
+            android.provider.Settings.Secure.ANDROID_ID
+        )
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .secretPageBlindWatermark(secretPagePayload)
+    ) {
+        GroupDetailFeedbackDialog(state, viewModel)
+        if (showAvatarFull && !state.groupAvatar.isNullOrBlank()) {
+            GroupAvatarPreview(
+                avatarUrl = state.groupAvatar.orEmpty(),
+                groupName = state.groupName,
+                onDismiss = { showAvatarFull = false }
+            )
+        }
+        Scaffold(
+            containerColor = LocalChatPalette.current.chatBackground,
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.group_detail_edit), color = MaterialTheme.colorScheme.onSurface) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                Icons.AutoMirrored.Outlined.ArrowBack,
+                                contentDescription = stringResource(R.string.common_back),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+                    modifier = Modifier.shadow(1.dp)
+                )
+            }
+        ) { padding ->
+            if (state.isLoading) {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    item(key = "edit_avatar", contentType = "edit_avatar") {
+                        GroupEditAvatar(
+                            groupName = state.groupName,
+                            groupAvatar = state.groupAvatar,
+                            canChangeAvatar = state.canManageGroup,
+                            isUploadingAvatar = state.isUploadingAvatar,
+                            onChangeAvatar = {
+                                avatarPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            },
+                            onShowAvatarFull = { showAvatarFull = true }
+                        )
+                    }
+                    item(key = "edit_settings_title", contentType = "section_header") {
+                        SectionTitle(stringResource(R.string.group_detail_settings))
+                    }
+                    if (state.canManageGroup) {
+                        item(key = "edit_group_name", contentType = "setting") {
+                            SettingTextFieldRow(
+                                label = stringResource(R.string.chat_group_name),
+                                value = groupNameDraft,
+                                onValueChange = { groupNameDraft = it.take(50) },
+                                enabled = !state.isUpdating,
+                                onSave = { viewModel.renameGroup(groupNameDraft) },
+                                saveEnabled = groupNameDraft.trim().isNotBlank() && groupNameDraft.trim() != state.groupName
+                            )
+                        }
+                        item(key = "edit_announcement", contentType = "setting") {
+                            AnnouncementRow(
+                                value = announcementDraft,
+                                onValueChange = { announcementDraft = it.take(1200) },
+                                enabled = !state.isUpdating,
+                                onSave = { viewModel.updateAnnouncement(announcementDraft) },
+                                saveEnabled = announcementDraft.trim() != state.groupAnnouncement,
+                                canManage = true
+                            )
+                        }
+                    } else {
+                        item(key = "edit_read_only", contentType = "empty") {
+                            EmptyRow(stringResource(R.string.group_detail_read_only_hint))
+                        }
+                    }
+                    item(key = "edit_nickname", contentType = "setting") {
+                        SettingTextFieldRow(
+                            label = stringResource(R.string.group_detail_my_nickname),
+                            value = nicknameDraft,
+                            onValueChange = { nicknameDraft = it.take(100) },
+                            enabled = !state.isUpdating,
+                            onSave = { viewModel.setMyNickname(nicknameDraft) },
+                            saveEnabled = nicknameDraft.trim() != state.myNickname
+                        )
+                    }
+                    item(key = "edit_footer", contentType = "footer") { Spacer(modifier = Modifier.height(24.dp)) }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+@SuppressLint("HardwareIds")
+fun GroupInviteQrScreen(
+    onBack: () -> Unit,
+    viewModel: GroupDetailViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var inviteExpirySeconds by rememberSaveable { mutableLongStateOf(7L * 24L * 60L * 60L) }
+    var inviteMaxUses by rememberSaveable { mutableIntStateOf(100) }
+    val context = LocalContext.current
+    val chooserTitle = stringResource(R.string.group_detail_share_invite)
+
+    LaunchedEffect(state.isLoading, state.canManageGroup, state.groupInvitePayload) {
+        if (!state.isLoading && state.canManageGroup && state.groupInvitePayload.isBlank() && !state.isLoadingInvite) {
+            viewModel.loadGroupInvite(expiresInSeconds = inviteExpirySeconds, maxUses = inviteMaxUses)
+        }
+    }
+
+    val shareInvite: () -> Unit = {
+        val payload = state.groupInvitePayload
+        if (payload.isNotBlank()) {
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, payload)
+            }
+            runCatching { context.startActivity(Intent.createChooser(intent, chooserTitle)) }
+        }
+    }
+    val secretPagePayload = rememberSecretPageWatermarkPayload(
+        isSecretChat = state.isSecretChat,
+        userId = state.currentUserId,
+        chatId = viewModel.chatId,
+        deviceHint = android.provider.Settings.Secure.getString(
+            context.contentResolver,
+            android.provider.Settings.Secure.ANDROID_ID
+        )
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .secretPageBlindWatermark(secretPagePayload)
+    ) {
+        GroupDetailFeedbackDialog(state, viewModel)
+        Scaffold(
+            containerColor = LocalChatPalette.current.chatBackground,
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.group_detail_invite_qr), color = MaterialTheme.colorScheme.onSurface) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                Icons.AutoMirrored.Outlined.ArrowBack,
+                                contentDescription = stringResource(R.string.common_back),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = {
+                                viewModel.loadGroupInvite(
+                                    rotate = true,
+                                    expiresInSeconds = inviteExpirySeconds,
+                                    maxUses = inviteMaxUses
+                                )
+                            },
+                            enabled = state.canManageGroup && !state.isLoadingInvite
+                        ) {
+                            Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.common_refresh))
+                        }
+                        IconButton(
+                            onClick = shareInvite,
+                            enabled = state.groupInvitePayload.isNotBlank() && !state.isLoadingInvite
+                        ) {
+                            Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.group_detail_share))
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+                    modifier = Modifier.shadow(1.dp)
+                )
+            }
+        ) { padding ->
+            when {
+                state.isLoading -> {
+                    Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                !state.canManageGroup -> {
+                    Box(Modifier.fillMaxSize().padding(padding).padding(24.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            stringResource(R.string.group_detail_invite_admin_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = LocalChatPalette.current.textSecondary,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+                else -> {
+                    GroupInviteContent(
+                        modifier = Modifier.fillMaxSize().padding(padding),
+                        payload = state.groupInvitePayload,
+                        isLoading = state.isLoadingInvite,
+                        expiresAt = state.inviteExpiresAt,
+                        maxUses = state.inviteMaxUses,
+                        usedCount = state.inviteUsedCount,
+                        remainingUses = state.inviteRemainingUses,
+                        expiresInSeconds = inviteExpirySeconds,
+                        selectedMaxUses = inviteMaxUses,
+                        onExpiryChange = { inviteExpirySeconds = it },
+                        onMaxUsesChange = { inviteMaxUses = it }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupInviteContent(
+    modifier: Modifier,
     payload: String,
     isLoading: Boolean,
     expiresAt: Long,
@@ -1975,122 +2173,232 @@ private fun GroupInviteDialog(
     expiresInSeconds: Long,
     selectedMaxUses: Int,
     onExpiryChange: (Long) -> Unit,
-    onMaxUsesChange: (Int) -> Unit,
-    onDismiss: () -> Unit,
-    onRefresh: () -> Unit,
-    onShare: () -> Unit
+    onMaxUsesChange: (Int) -> Unit
 ) {
     val context = LocalContext.current
+    val inviteCopiedMessage = stringResource(R.string.group_detail_invite_copied)
     val bitmap = remember(payload) {
         payload.takeIf { it.isNotBlank() }?.let { QrCodeGenerator.generateBitmap(it, 720) }
     }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.group_detail_invite_qr)) },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp).verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(Color.White, MaterialTheme.shapes.medium)
-                        .padding(14.dp)
-                        .size(240.dp),
-                    contentAlignment = Alignment.Center
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .background(Color.White, RoundedCornerShape(8.dp))
+                .padding(14.dp)
+                .size(248.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                isLoading -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                bitmap != null -> Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = stringResource(R.string.group_detail_invite_qr),
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize()
+                )
+                else -> Text(stringResource(R.string.group_detail_qr_failed), color = LocalChatPalette.current.textHint)
+            }
+        }
+        Text(
+            stringResource(R.string.group_detail_invite_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = LocalChatPalette.current.textSecondary,
+            textAlign = TextAlign.Center
+        )
+        if (payload.isNotBlank()) {
+            TextButton(onClick = {
+                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("group_invite", payload))
+                android.widget.Toast.makeText(
+                    context,
+                    inviteCopiedMessage,
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }) {
+                Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(stringResource(R.string.group_detail_invite_copy))
+            }
+        }
+        if (expiresAt > 0) {
+            Text(
+                stringResource(
+                    R.string.group_detail_invite_status,
+                    java.text.SimpleDateFormat(
+                        "yyyy-MM-dd HH:mm",
+                        LocalConfiguration.current.locales[0]
+                    ).format(java.util.Date(expiresAt)),
+                    usedCount,
+                    maxUses,
+                    remainingUses
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary,
+                textAlign = TextAlign.Center
+            )
+        }
+        Text(
+            stringResource(R.string.group_detail_invite_expiry),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            listOf(
+                24L * 60L * 60L to stringResource(R.string.group_detail_invite_one_day),
+                3L * 24L * 60L * 60L to stringResource(R.string.group_detail_invite_three_days),
+                7L * 24L * 60L * 60L to stringResource(R.string.group_detail_invite_seven_days),
+                30L * 24L * 60L * 60L to stringResource(R.string.group_detail_invite_thirty_days)
+            ).forEach { (seconds, label) ->
+                InviteChoice(selected = expiresInSeconds == seconds, label = label) { onExpiryChange(seconds) }
+            }
+        }
+        Text(
+            stringResource(R.string.group_detail_invite_max_uses),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            listOf(1, 5, 10, 50, 100, 200, 500, 1000).forEach { uses ->
+                InviteChoice(selected = selectedMaxUses == uses, label = uses.toString()) { onMaxUsesChange(uses) }
+            }
+        }
+        Text(
+            stringResource(R.string.group_detail_invite_limit_note),
+            style = MaterialTheme.typography.labelSmall,
+            color = LocalChatPalette.current.textHint,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun InviteChoice(selected: Boolean, label: String, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.background(
+            if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
+            RoundedCornerShape(8.dp)
+        )
+    ) {
+        Text(label, color = if (selected) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary)
+    }
+}
+
+@Composable
+private fun GroupEditAvatar(
+    groupName: String,
+    groupAvatar: String?,
+    canChangeAvatar: Boolean,
+    isUploadingAvatar: Boolean,
+    onChangeAvatar: () -> Unit,
+    onShowAvatarFull: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(88.dp)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f), CircleShape)
+                .clickable(
+                    enabled = (canChangeAvatar && !isUploadingAvatar) || (!canChangeAvatar && !groupAvatar.isNullOrBlank())
                 ) {
-                    when {
-                        isLoading -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                        bitmap != null -> Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = stringResource(R.string.group_detail_invite_qr),
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        else -> Text(stringResource(R.string.group_detail_qr_failed), color = LocalChatPalette.current.textHint)
-                    }
-                }
-                Text(stringResource(R.string.group_detail_invite_hint), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                // 1.120：复制邀请链接（粘贴到聊天/群发）
-                if (payload.isNotBlank()) {
-                    TextButton(onClick = {
-                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("group_invite", payload))
-                        android.widget.Toast.makeText(context, context.getString(R.string.group_detail_invite_copied), android.widget.Toast.LENGTH_SHORT).show()
-                    }) {
-                        Text(stringResource(R.string.group_detail_invite_copy), color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-                if (expiresAt > 0) {
-                    Text(
-                        stringResource(
-                            R.string.group_detail_invite_status,
-                            java.text.SimpleDateFormat(
-                                "yyyy-MM-dd HH:mm",
-                                LocalConfiguration.current.locales[0]
-                            ).format(java.util.Date(expiresAt)),
-                            usedCount,
-                            maxUses,
-                            remainingUses
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                }
-                Text(stringResource(R.string.group_detail_invite_expiry), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
-                Row(
+                    if (canChangeAvatar) onChangeAvatar() else onShowAvatarFull()
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Avatar(name = groupName, avatarUrl = groupAvatar, size = AvatarSize.LG)
+            when {
+                isUploadingAvatar -> CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(30.dp)
+                )
+                canChangeAvatar -> Icon(
+                    Icons.Outlined.CameraAlt,
+                    contentDescription = stringResource(R.string.group_detail_change_avatar),
+                    tint = Color.White,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    listOf(
-                        24L * 60L * 60L to stringResource(R.string.group_detail_invite_one_day),
-                        3L * 24L * 60L * 60L to stringResource(R.string.group_detail_invite_three_days),
-                        7L * 24L * 60L * 60L to stringResource(R.string.group_detail_invite_seven_days),
-                        30L * 24L * 60L * 60L to stringResource(R.string.group_detail_invite_thirty_days)
-                    ).forEach { (seconds, label) ->
-                        TextButton(onClick = { onExpiryChange(seconds) }) {
-                            Text(label, color = if (expiresInSeconds == seconds) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary)
-                        }
-                    }
-                }
-                Text(stringResource(R.string.group_detail_invite_max_uses), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    listOf(1, 5, 10, 50, 100, 200, 500, 1000).forEach { uses ->
-                        val selected = selectedMaxUses == uses
-                        TextButton(
-                            onClick = { onMaxUsesChange(uses) },
-                            modifier = Modifier.background(
-                                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
-                                RoundedCornerShape(8.dp)
-                            )
-                        ) {
-                            Text(uses.toString(), color = if (selected) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary)
-                        }
-                    }
-                }
-                Text(
-                    stringResource(R.string.group_detail_invite_limit_note),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = LocalChatPalette.current.textHint
+                        .align(Alignment.BottomEnd)
+                        .size(26.dp)
+                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                        .padding(5.dp)
                 )
             }
+        }
+        if (canChangeAvatar) {
+            Text(
+                stringResource(R.string.group_detail_change_avatar),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun GroupAvatarPreview(avatarUrl: String, groupName: String, onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.92f)).clickable(onClick = onDismiss)
+        ) {
+            com.maodouchat.ui.component.ZoomableAsyncImage(
+                model = avatarUrl,
+                contentDescription = groupName,
+                modifier = Modifier.fillMaxSize(),
+                onSingleTap = onDismiss
+            )
+        }
+    }
+}
+
+@Composable
+private fun GroupDetailFeedbackDialog(state: GroupDetailUiState, viewModel: GroupDetailViewModel) {
+    val body = state.message ?: return
+    val feedback = state.feedback
+    val isError = feedback != null && feedback.kind != GroupMutationFeedbackKind.SUCCESS
+    val showSecondaryDismiss = isError && (feedback.canRetry || feedback.shouldReload)
+    AlertDialog(
+        onDismissRequest = viewModel::consumeMessage,
+        title = {
+            Text(stringResource(if (isError) R.string.group_detail_error_title else R.string.group_detail_notice))
         },
+        text = { Text(body) },
         confirmButton = {
-            TextButton(onClick = onShare, enabled = payload.isNotBlank() && !isLoading) { Text(stringResource(R.string.group_detail_share)) }
-        },
-        dismissButton = {
-            Row {
-                TextButton(onClick = onRefresh, enabled = !isLoading) { Text(stringResource(R.string.common_refresh)) }
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_close)) }
+            when {
+                feedback?.canRetry == true -> TextButton(
+                    onClick = viewModel::retryLastMutation,
+                    enabled = !state.isUpdating && !state.isLoading && !state.isUploadingAvatar && !state.isLoadingInvite
+                ) { Text(stringResource(R.string.group_detail_retry_action)) }
+                feedback?.shouldReload == true -> TextButton(
+                    onClick = viewModel::dismissFeedbackAndReload,
+                    enabled = !state.isLoading
+                ) { Text(stringResource(R.string.group_detail_reload_action)) }
+                else -> TextButton(onClick = viewModel::consumeMessage) {
+                    Text(stringResource(R.string.chat_acknowledge))
+                }
             }
+        },
+        dismissButton = if (showSecondaryDismiss) {
+            { TextButton(onClick = viewModel::consumeMessage) { Text(stringResource(R.string.common_cancel)) } }
+        } else {
+            null
         }
     )
 }
@@ -2166,61 +2474,180 @@ private fun GroupHeader(
     groupAvatar: String?,
     memberCount: Int,
     myRole: String,
-    canChangeAvatar: Boolean,
-    isUploadingAvatar: Boolean,
-    onChangeAvatar: () -> Unit,
     onShowAvatarFull: () -> Unit = {}
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 24.dp, vertical = 22.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
-            modifier = Modifier.clickable(enabled = canChangeAvatar && !isUploadingAvatar, onClick = onChangeAvatar),
+            modifier = Modifier
+                .size(80.dp)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Avatar(
                 name = groupName,
                 avatarUrl = groupAvatar,
                 size = AvatarSize.LG,
-                // 8.42：群头像大图预览（非上传态、非管理态可点击全屏查看）
-                modifier = if (canChangeAvatar || isUploadingAvatar || groupAvatar.isNullOrBlank()) Modifier
-                else Modifier.clickable { onShowAvatarFull() }
+                modifier = Modifier.clickable(enabled = !groupAvatar.isNullOrBlank(), onClick = onShowAvatarFull)
             )
-            if (isUploadingAvatar) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 2.dp, modifier = Modifier.size(28.dp))
-            } else if (canChangeAvatar) {
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = groupName,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = pluralStringResource(R.plurals.group_detail_header_summary, memberCount, memberCount, roleLabel(myRole)),
+            style = MaterialTheme.typography.bodySmall,
+            color = LocalChatPalette.current.textSecondary,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun GroupAnnouncementCard(announcement: String) {
+    var expanded by rememberSaveable(announcement) { mutableStateOf(false) }
+    var overflowsFourLines by remember(announcement) { mutableStateOf(false) }
+    val canToggle = expanded || overflowsFourLines
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable(enabled = canToggle) { expanded = !expanded },
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    Icons.Outlined.CameraAlt,
-                    contentDescription = stringResource(R.string.group_detail_change_avatar),
-                    tint = Color.White,
-                    modifier = Modifier.align(Alignment.BottomEnd).size(24.dp).background(MaterialTheme.colorScheme.primary, MaterialTheme.shapes.small).padding(4.dp)
+                    Icons.Outlined.Campaign,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.group_detail_announcement),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Text(
+                text = announcement.ifBlank { stringResource(R.string.group_detail_no_announcement) },
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (announcement.isBlank()) LocalChatPalette.current.textHint else MaterialTheme.colorScheme.onSurface,
+                maxLines = if (expanded) Int.MAX_VALUE else 4,
+                overflow = TextOverflow.Ellipsis,
+                onTextLayout = { result ->
+                    if (!expanded) overflowsFourLines = result.hasVisualOverflow
+                }
+            )
+            if (canToggle) {
+                Text(
+                    text = stringResource(if (expanded) R.string.chat_transcript_collapse else R.string.chat_transcript_expand),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.End
                 )
             }
         }
-        Spacer(modifier = Modifier.width(14.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(groupName, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(pluralStringResource(R.plurals.group_detail_header_summary, memberCount, memberCount, roleLabel(myRole)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+    }
+}
+
+private data class GroupFeatureAction(
+    val label: String,
+    val icon: ImageVector,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun GroupFeaturesCard(actions: List<GroupFeatureAction>) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        actions.chunked(2).forEachIndexed { rowIndex, rowActions ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                GroupFeatureButton(rowActions[0], Modifier.weight(1f))
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(64.dp)
+                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.22f))
+                )
+                if (rowActions.size == 2) {
+                    GroupFeatureButton(rowActions[1], Modifier.weight(1f))
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+            if (rowIndex < actions.chunked(2).lastIndex) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f))
+            }
         }
     }
 }
 
 @Composable
-private fun GroupInviteRow(isLoading: Boolean, onOpen: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(16.dp, 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+private fun GroupFeatureButton(action: GroupFeatureAction, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .height(104.dp)
+            .clickable(onClick = action.onClick)
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Outlined.QrCode, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.group_detail_invite_qr), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-            Text(stringResource(R.string.group_detail_invite_admin_hint), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textSecondary)
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f), RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = action.icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
         }
-        Button(onClick = onOpen, enabled = !isLoading) {
-            Text(if (isLoading) stringResource(R.string.group_detail_generating) else stringResource(R.string.group_detail_open))
-        }
+        Spacer(modifier = Modifier.height(7.dp))
+        Text(
+            text = action.label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -2535,7 +2962,7 @@ private fun AnnouncementRow(
             colors = groupTextFieldColors()
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${value.length}/1000", style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint, modifier = Modifier.weight(1f))
+            Text("${value.length}/1200", style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint, modifier = Modifier.weight(1f))
             if (canManage) {
                 TextButton(onClick = { onValueChange("") }, enabled = enabled && value.isNotBlank()) { Text(stringResource(R.string.common_clear)) }
                 Spacer(modifier = Modifier.width(6.dp))
@@ -2682,26 +3109,6 @@ private fun CandidateRow(user: User, enabled: Boolean, onAdd: () -> Unit) {
             Spacer(modifier = Modifier.width(4.dp))
             Text(stringResource(R.string.chat_add))
         }
-    }
-}
-
-@Composable
-private fun GroupPlayRow(label: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-        Icon(
-            Icons.AutoMirrored.Outlined.ArrowForwardIos,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.outline,
-            modifier = Modifier.size(16.dp)
-        )
     }
 }
 

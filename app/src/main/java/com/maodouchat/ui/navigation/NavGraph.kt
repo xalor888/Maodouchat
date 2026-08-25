@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -64,6 +65,9 @@ import kotlinx.coroutines.launch
 import com.maodouchat.ui.screen.chatdetail.ChatDetailScreen
 import com.maodouchat.ui.screen.chatdetail.AiTasksScreen
 import com.maodouchat.ui.screen.chatdetail.GroupDetailScreen
+import com.maodouchat.ui.screen.chatdetail.GroupDetailViewModel
+import com.maodouchat.ui.screen.chatdetail.GroupEditScreen
+import com.maodouchat.ui.screen.chatdetail.GroupInviteQrScreen
 import com.maodouchat.ui.screen.chatdetail.StarredMessagesScreen
 import com.maodouchat.ui.screen.chatdetail.MediaCenterScreen
 import com.maodouchat.ui.screen.chatlist.BottomNavBar
@@ -101,6 +105,8 @@ object Routes {
     const val MAIN = "main"
     const val CHAT_DETAIL = "chat_detail/{chatId}?messageId={messageId}"
     const val GROUP_DETAIL = "group_detail/{chatId}"
+    const val GROUP_EDIT = "group_detail/{chatId}/edit"
+    const val GROUP_INVITE = "group_detail/{chatId}/invite"
     const val STARRED_MESSAGES = "starred_messages?chatId={chatId}"
     const val AI_TASKS = "ai_tasks/{chatId}"
     const val MEDIA_CENTER = "media_center/{chatId}"
@@ -156,6 +162,8 @@ object Routes {
         return messageId?.takeIf(String::isNotBlank)?.let { "$base?messageId=${Uri.encode(it)}" } ?: base
     }
     fun groupDetail(chatId: String) = "group_detail/${Uri.encode(chatId)}"
+    fun groupEdit(chatId: String) = "group_detail/${Uri.encode(chatId)}/edit"
+    fun groupInvite(chatId: String) = "group_detail/${Uri.encode(chatId)}/invite"
     fun starredMessages(chatId: String? = null): String {
         val id = chatId?.takeIf { it.isNotBlank() }?.let { Uri.encode(it) }.orEmpty()
         return if (id.isEmpty()) "starred_messages" else "starred_messages?chatId=$id"
@@ -521,15 +529,43 @@ fun MaodouchatNavGraph(
         composable(
             route = Routes.GROUP_DETAIL,
             arguments = listOf(navArgument("chatId") { type = NavType.StringType })
-        ) {
+        ) { entry ->
+            val groupViewModel: GroupDetailViewModel = viewModel(entry)
             GroupDetailScreen(
                 onBack = { navController.popBackStack() },
+                viewModel = groupViewModel,
+                onEditGroup = { id -> navController.navigate(Routes.groupEdit(id)) },
+                onOpenGroupInvite = { id -> navController.navigate(Routes.groupInvite(id)) },
                 // 1.08：点击群成员查看资料
                 onOpenProfile = { userId -> navController.navigate(Routes.authorProfile(userId)) },
                 onOpenGroupPoll = { id -> navController.navigate(Routes.groupPoll(id)) },
                 onOpenGroupCheckin = { id -> navController.navigate(Routes.groupCheckin(id)) },
                 onOpenGroupChain = { id -> navController.navigate(Routes.groupChain(id)) },
                 onOpenGroupPk = { id -> navController.navigate(Routes.groupPk(id)) },
+            )
+        }
+
+        composable(
+            route = Routes.GROUP_EDIT,
+            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+        ) { entry ->
+            val detailEntry = remember(entry) { navController.getBackStackEntry(Routes.GROUP_DETAIL) }
+            val groupViewModel: GroupDetailViewModel = viewModel(detailEntry)
+            GroupEditScreen(
+                onBack = { navController.popBackStack() },
+                viewModel = groupViewModel
+            )
+        }
+
+        composable(
+            route = Routes.GROUP_INVITE,
+            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+        ) { entry ->
+            val detailEntry = remember(entry) { navController.getBackStackEntry(Routes.GROUP_DETAIL) }
+            val groupViewModel: GroupDetailViewModel = viewModel(detailEntry)
+            GroupInviteQrScreen(
+                onBack = { navController.popBackStack() },
+                viewModel = groupViewModel
             )
         }
 

@@ -58,6 +58,7 @@ __pycache__/
 .zcode/
 .codeartsdoer/
 .merkle-snapshot.json
+AGENTS.md
 
 # Reverse-engineering tooling (jadx/cfr), not part of the app
 _tools/

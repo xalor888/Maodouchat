@@ -1236,6 +1236,7 @@
     </string-array>
 
     <string name="group_detail_title">Group details</string>
+    <string name="group_detail_edit">Edit group profile</string>
     <string name="group_detail_load_failed">Could not load group details</string>
     <string name="group_detail_announcement_cleared">Group announcement cleared</string>
     <string name="group_detail_invite_refreshed">Group invite QR code refreshed</string>
