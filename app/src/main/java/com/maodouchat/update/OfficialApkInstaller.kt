@@ -2,6 +2,8 @@ package com.maodouchat.update
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -11,6 +13,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
 /**
@@ -35,11 +38,15 @@ object OfficialApkInstaller {
     suspend fun downloadAndPromptInstall(
         context: Context,
         apkUrl: String,
+        expectedSha256: String = "",
         onProgress: (percent: Int) -> Unit = {},
     ): Result<Unit> = withContext(Dispatchers.IO) {
         val url = apkUrl.trim()
         if (!AppUpdatePolicy.isOfficialApkUrl(url)) {
             return@withContext Result.failure(IllegalArgumentException("apk_not_official"))
+        }
+        if (!AppUpdatePolicy.hasExpectedApkSha256(expectedSha256)) {
+            return@withContext Result.failure(IllegalArgumentException("apk_sha256_missing_or_invalid"))
         }
         val dir = File(context.cacheDir, DIR).apply { mkdirs() }
         val target = File(dir, FILE)
@@ -76,10 +83,67 @@ object OfficialApkInstaller {
         if (!target.isFile || target.length() < 64L) {
             return@withContext Result.failure(IllegalStateException("apk_too_small"))
         }
+        val actualSha256 = sha256(target)
+        if (!AppUpdatePolicy.matchesExpectedApkSha256(actualSha256, expectedSha256)) {
+            target.delete()
+            return@withContext Result.failure(IllegalStateException("apk_sha256_mismatch"))
+        }
+        if (!isPackageAndSignerTrusted(context, target)) {
+            target.delete()
+            return@withContext Result.failure(IllegalStateException("apk_package_or_signer_mismatch"))
+        }
         withContext(Dispatchers.Main) {
             promptInstall(context, target)
         }
         Result.success(Unit)
+    }
+
+    private fun isPackageAndSignerTrusted(context: Context, apk: File): Boolean = runCatching {
+        val packageManager = context.packageManager
+        val archiveInfo = packageManager.getPackageArchiveInfo(apk.absolutePath, signingInfoFlags())
+            ?: return false
+        if (archiveInfo.packageName != context.packageName) return false
+        val installedInfo = packageManager.getPackageInfo(context.packageName, signingInfoFlags())
+        signerDigests(archiveInfo).isNotEmpty() && signerDigests(archiveInfo) == signerDigests(installedInfo)
+    }.getOrDefault(false)
+
+    @Suppress("DEPRECATION")
+    private fun signingInfoFlags(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        PackageManager.GET_SIGNING_CERTIFICATES
+    } else {
+        PackageManager.GET_SIGNATURES
+    }
+
+    @Suppress("DEPRECATION")
+    private fun signerDigests(packageInfo: PackageInfo): Set<String> {
+        val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            packageInfo.signingInfo?.let { signingInfo ->
+                if (signingInfo.hasMultipleSigners()) {
+                    signingInfo.apkContentsSigners
+                } else {
+                    signingInfo.signingCertificateHistory
+                }
+            }.orEmpty()
+        } else {
+            packageInfo.signatures.orEmpty()
+        }
+        return signatures.map { signature ->
+            MessageDigest.getInstance("SHA-256")
+                .digest(signature.toByteArray())
+                .joinToString("") { byte -> "%02x".format(byte) }
+        }.toSet()
+    }
+
+    private fun sha256(file: File): String = MessageDigest.getInstance("SHA-256").let { digest ->
+        file.inputStream().use { input ->
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        digest.digest().joinToString("") { byte -> "%02x".format(byte) }
     }
 
     fun promptInstall(context: Context, apk: File) {

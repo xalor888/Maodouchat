@@ -92,4 +92,48 @@ class SenderKeyDistributionRepositoryTest {
         assertEquals(0, status.pending)
         assertEquals(0, status.failed)
     }
+
+    @Test
+    fun `coverage unions all committed sender key envelopes for the epoch`() {
+        setupDb()
+        val now = System.currentTimeMillis()
+        transaction {
+            listOf(
+                "sk_v2_epoch_1" to 1,
+                "sk_v2_epoch_2" to 2,
+            ).forEach { (messageId, deviceId) ->
+                MessagingV2Messages.insert {
+                    it[MessagingV2Messages.id] = messageId
+                    it[MessagingV2Messages.conversationId] = "g1"
+                    it[MessagingV2Messages.senderUserId] = "u1"
+                    it[MessagingV2Messages.senderDeviceId] = 1
+                    it[MessagingV2Messages.kind] = "SENDER_KEY"
+                    it[MessagingV2Messages.recordClass] = "INTERNAL"
+                    it[MessagingV2Messages.groupRevision] = 12L
+                    it[MessagingV2Messages.clientTimestamp] = now
+                    it[MessagingV2Messages.serverTimestamp] = now + deviceId
+                    it[MessagingV2Messages.requestDigest] = "digest-$messageId"
+                }
+                MessagingV2Envelopes.insert {
+                    it[MessagingV2Envelopes.id] = "env-$messageId"
+                    it[MessagingV2Envelopes.messageId] = messageId
+                    it[MessagingV2Envelopes.recipientUserId] = "u2"
+                    it[MessagingV2Envelopes.recipientDeviceId] = deviceId
+                    it[MessagingV2Envelopes.ciphertextType] = "DIRECT"
+                    it[MessagingV2Envelopes.ciphertext] = "ciphertext-$deviceId"
+                    it[MessagingV2Envelopes.serverTimestamp] = now
+                }
+            }
+        }
+
+        val status = SenderKeyDistributionRepository().getStatus(
+            chatId = "g1",
+            senderId = "u1",
+            epoch = 12L,
+            expectedTargets = setOf("u2" to 1, "u2" to 2),
+        )
+
+        assertEquals(2, status.sent)
+        assertEquals(0, status.pending)
+    }
 }

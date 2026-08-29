@@ -8,11 +8,13 @@ import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketClient
 import com.maodouchat.network.WebSocketEvent
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -96,28 +98,58 @@ class MessagingV2Runtime(
         )
     }
     private var started = false
+    private var lifecycleGeneration = 0L
     private var eventJob: Job? = null
     private var pollJob: Job? = null
+    private val wakeJobs = mutableSetOf<Job>()
     private val syncMutex = Mutex()
 
     @Synchronized
     internal fun start() {
         if (started) return
         started = true
+        val generation = ++lifecycleGeneration
         eventJob = scope.launch {
             WebSocketClient.events.collect { event ->
-                if (event is WebSocketEvent.InboxAvailableV2) syncOnce()
+                if (event is WebSocketEvent.InboxAvailableV2) syncOnce(generation)
             }
         }
         pollJob = scope.launch {
             while (isActive) {
-                syncOnce()
+                syncOnce(generation)
                 delay(POLL_INTERVAL_MS)
             }
         }
     }
 
-    internal suspend fun syncNow() = syncOnce()
+    /**
+     * Cancels every job that captured the current database-backed collaborators and waits for any
+     * in-flight convergence to leave [syncMutex]. A subsequent [start] binds fresh jobs only.
+     */
+    internal suspend fun stop() {
+        val jobs = synchronized(this) {
+            if (!started && eventJob == null && pollJob == null && wakeJobs.isEmpty()) return
+            started = false
+            lifecycleGeneration++
+            buildList {
+                eventJob?.let(::add)
+                pollJob?.let(::add)
+                addAll(wakeJobs)
+            }.also {
+                eventJob = null
+                pollJob = null
+                wakeJobs.clear()
+            }
+        }
+        jobs.forEach(Job::cancel)
+        jobs.joinAll()
+        syncMutex.withLock { /* wait for a cancelled transport call that was already claimed */ }
+    }
+
+    internal suspend fun syncNow() {
+        val generation = synchronized(this) { lifecycleGeneration.takeIf { started } } ?: return
+        syncOnce(generation)
+    }
 
     /**
      * Pauses both receive and send convergence while destructive conversation state is removed.
@@ -145,7 +177,8 @@ class MessagingV2Runtime(
         if (!serverParticipantStateDeleted) wakeTransport()
     }
 
-    private suspend fun syncOnce() = syncMutex.withLock {
+    private suspend fun syncOnce(generation: Long) = syncMutex.withLock {
+        if (!isActiveGeneration(generation)) return@withLock
         val token = tokenManager.getToken()?.takeIf(String::isNotBlank) ?: return@withLock
         val owner = tokenManager.getUserId()?.takeIf(String::isNotBlank) ?: return@withLock
         if (!app.signalProtocol.isLocalCryptoReadyFor(owner)) return@withLock
@@ -159,8 +192,23 @@ class MessagingV2Runtime(
     }
 
     private fun wakeTransport() {
-        scope.launch { syncOnce() }
+        synchronized(this) {
+            val generation = lifecycleGeneration.takeIf { started } ?: return
+            lateinit var job: Job
+            job = scope.launch(start = CoroutineStart.LAZY) {
+                try {
+                    syncOnce(generation)
+                } finally {
+                    synchronized(this@MessagingV2Runtime) { wakeJobs.remove(job) }
+                }
+            }
+            wakeJobs += job
+            job.start()
+        }
     }
+
+    @Synchronized
+    private fun isActiveGeneration(generation: Long): Boolean = started && lifecycleGeneration == generation
 
     private companion object {
         const val TAG = "MessagingV2Runtime"

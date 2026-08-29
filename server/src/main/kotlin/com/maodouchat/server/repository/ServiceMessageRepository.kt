@@ -10,6 +10,8 @@ import com.maodouchat.server.db.ServiceMessageReactions
 import com.maodouchat.server.db.ServiceMessages
 import com.maodouchat.server.db.StarMessages
 import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
+import com.maodouchat.server.messaging.v2.MessagingV2Repository
+import com.maodouchat.server.messaging.v2.SendMessageV2Result
 import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.model.MessageReactionResponse
 import com.maodouchat.server.model.MessageResponse
@@ -28,6 +30,11 @@ import org.jetbrains.exposed.sql.update
 /** Dedicated plaintext store for server-authored bot messages. */
 class ServiceMessageRepository {
 
+    /**
+     * Legacy content-only adapter for routes that have not yet switched to
+     * [publish]. New server-authored messages must use [publish] so plaintext
+     * storage and V2 mailbox rows commit together.
+     */
     fun insert(
         id: String,
         chatId: String,
@@ -70,6 +77,73 @@ class ServiceMessageRepository {
             it[lastMessageTime] = timestamp
         }
         true
+    }
+
+    /**
+     * Atomically writes the server-visible service message and its V2 mailbox
+     * rows. The recipient set is intentionally supplied by the caller because
+     * block policy remains route-specific.
+     */
+    fun publish(
+        id: String,
+        chatId: String,
+        botUserId: String,
+        content: String,
+        timestamp: Long,
+        type: String = "TEXT",
+        recipientUserIds: Set<String>,
+    ): PublishResult = transaction {
+        val message = insertServiceMessageInTransaction(id, chatId, botUserId, content, timestamp, type)
+            ?: return@transaction PublishResult.Rejected
+        val mailbox = MessagingV2Repository().enqueueServiceMessageInTransaction(message, recipientUserIds)
+        PublishResult.Published(message, mailbox)
+    }
+
+    private fun insertServiceMessageInTransaction(
+        id: String,
+        chatId: String,
+        botUserId: String,
+        content: String,
+        timestamp: Long,
+        type: String,
+    ): MessageResponse? {
+        val bot = BotApps.selectAll().where {
+            (BotApps.id eq botUserId) and (BotApps.enabled eq true)
+        }.forUpdate().firstOrNull() ?: return null
+        if (!BotRepository.isOwnerDeliverable(bot[BotApps.ownerUserId], System.currentTimeMillis())) return null
+        val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull() ?: return null
+        if (chat[Chats.chatType] == ChatType.SECRET) return null
+        ChatParticipants.selectAll().where {
+            (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq botUserId)
+        }.forUpdate().firstOrNull() ?: return null
+        val normalizedType = type.take(20).ifBlank { "TEXT" }
+        if (normalizedType in NON_STORABLE_TYPES) return null
+        if (ServiceMessages.selectAll().where { ServiceMessages.id eq id }.firstOrNull() != null) return null
+        val cleanContent = stripInlineMetaPreservingTrailing(content).take(MAX_CONTENT_LENGTH)
+        ServiceMessages.insert {
+            it[ServiceMessages.id] = id
+            it[ServiceMessages.chatId] = chatId
+            it[ServiceMessages.senderId] = botUserId
+            it[ServiceMessages.content] = cleanContent
+            it[ServiceMessages.type] = normalizedType
+            it[ServiceMessages.timestamp] = timestamp
+            it[ServiceMessages.editedAt] = null
+            it[ServiceMessages.deletedAt] = null
+        }
+        Chats.update({ Chats.id eq chatId }) {
+            it[lastMessage] = cleanContent.take(200)
+            it[lastMessageType] = normalizedType
+            it[lastMessageTime] = timestamp
+        }
+        return MessageResponse(
+            id = id,
+            chatId = chatId,
+            senderId = botUserId,
+            content = cleanContent,
+            type = normalizedType,
+            timestamp = timestamp,
+            status = "SENT",
+        )
     }
 
     fun getById(messageId: String): MessageResponse? = transaction {
@@ -231,6 +305,15 @@ class ServiceMessageRepository {
         val senderId: String,
         val serviceMessage: MessageResponse?,
     )
+
+    sealed class PublishResult {
+        data class Published(
+            val message: MessageResponse,
+            val mailbox: SendMessageV2Result,
+        ) : PublishResult()
+
+        data object Rejected : PublishResult()
+    }
 
     companion object {
         private const val MAX_CONTENT_LENGTH = 8_000

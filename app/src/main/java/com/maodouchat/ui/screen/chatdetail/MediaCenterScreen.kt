@@ -1,7 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.util.RuntimeFlags
-import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
 import android.content.Intent
@@ -293,7 +292,6 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 fun MediaCenterScreen(
     onBack: () -> Unit,
     onOpenMessage: (String) -> Unit,
@@ -392,6 +390,13 @@ internal fun MediaCenterCategoryContent(
     var exportTarget by remember { mutableStateOf<Message?>(null) }
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val secretExportBlocked = stringResource(R.string.secret_chat_media_export_blocked)
+    val exportSaved = stringResource(R.string.media_export_saved)
+    val exportSavedFile = stringResource(R.string.media_export_saved_file)
+    val exportSaveFailed = stringResource(R.string.media_export_save_failed)
+    val shareFile = stringResource(R.string.media_center_share_file)
+    val shareMedia = stringResource(R.string.common_share)
+    val exportShareFailed = stringResource(R.string.media_export_share_failed)
     val hasCategoryItems = remember(state.items, category) { state.items.any { it.category == category } }
 
     Column(modifier = modifier) {
@@ -496,7 +501,7 @@ internal fun MediaCenterCategoryContent(
                     TextButton(
                         onClick = {
                             if (state.isSecretChat) {
-                                Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, secretExportBlocked, Toast.LENGTH_SHORT).show()
                                 exportTarget = null
                                 return@TextButton
                             }
@@ -509,13 +514,9 @@ internal fun MediaCenterCategoryContent(
                                 }
                                 Toast.makeText(
                                     context,
-                                    context.getString(
-                                        if (ok) {
-                                            if (isFile) R.string.media_export_saved_file else R.string.media_export_saved
-                                        } else {
-                                            R.string.media_export_save_failed
-                                        }
-                                    ),
+                                    if (ok) {
+                                        if (isFile) exportSavedFile else exportSaved
+                                    } else exportSaveFailed,
                                     Toast.LENGTH_SHORT
                                 ).show()
                                 exportTarget = null
@@ -531,7 +532,7 @@ internal fun MediaCenterCategoryContent(
                     TextButton(
                         onClick = {
                             if (state.isSecretChat) {
-                                Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, secretExportBlocked, Toast.LENGTH_SHORT).show()
                                 exportTarget = null
                                 return@TextButton
                             }
@@ -541,10 +542,10 @@ internal fun MediaCenterCategoryContent(
                                 context,
                                 msg.parsedContent(),
                                 mime,
-                                context.getString(if (isFile) R.string.media_center_share_file else R.string.common_share)
+                                if (isFile) shareFile else shareMedia
                             )
                             if (!ok) {
-                                Toast.makeText(context, context.getString(R.string.media_export_share_failed), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, exportShareFailed, Toast.LENGTH_SHORT).show()
                             }
                             exportTarget = null
                         },
@@ -575,7 +576,6 @@ internal fun MediaCenterCategoryContent(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 private fun MediaGrid(
     items: List<MediaCenterItem>,
     onOpenMessage: (String) -> Unit,
@@ -585,6 +585,7 @@ private fun MediaGrid(
     currentUserId: String? = null
 ) {
     val context = LocalContext.current
+    val exportNeedsCache = stringResource(R.string.media_export_need_cache)
     val gridSecretPayload = remember(secretChatId, currentUserId) {
         if (secretChatId.isNullOrBlank() || !RuntimeFlags.isEnabled(context, RuntimeFlags.BLIND_WATERMARK)) null
         else {
@@ -625,7 +626,7 @@ private fun MediaGrid(
                         },
                         onLongClick = {
                             if (localAvailable) onExportActions(message)
-                            else Toast.makeText(context, context.getString(R.string.media_export_need_cache), Toast.LENGTH_SHORT).show()
+                            else Toast.makeText(context, exportNeedsCache, Toast.LENGTH_SHORT).show()
                         }
                     )
             ) {
@@ -655,7 +656,6 @@ private fun MediaGrid(
 }
 
 @Composable
-@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 private fun MediaCenterImageViewer(
     message: Message,
     onDismiss: () -> Unit,
@@ -664,6 +664,11 @@ private fun MediaCenterImageViewer(
 ) {
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val secretExportBlocked = stringResource(R.string.secret_chat_media_export_blocked)
+    val exportSaved = stringResource(R.string.media_export_saved)
+    val exportSaveFailed = stringResource(R.string.media_export_save_failed)
+    val shareMedia = stringResource(R.string.common_share)
+    val exportShareFailed = stringResource(R.string.media_export_share_failed)
     val meta = remember(message.id, message.content) { message.parsedMeta() }
     val mime = MediaViewerPolicy.defaultMime(message.type.name, meta.fileMimeType)
     val displayName = MediaViewerPolicy.defaultFileName(message.type.name, meta.fileName, mime)
@@ -724,7 +729,7 @@ private fun MediaCenterImageViewer(
                     TextButton(
                         onClick = {
                             if (!secretChatId.isNullOrBlank()) {
-                                Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, secretExportBlocked, Toast.LENGTH_SHORT).show()
                                 return@TextButton
                             }
                             scope.launch {
@@ -733,7 +738,7 @@ private fun MediaCenterImageViewer(
                                 }
                                 Toast.makeText(
                                     context,
-                                    context.getString(if (ok) R.string.media_export_saved else R.string.media_export_save_failed),
+                                    if (ok) exportSaved else exportSaveFailed,
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
@@ -742,17 +747,17 @@ private fun MediaCenterImageViewer(
                     TextButton(
                         onClick = {
                             if (!secretChatId.isNullOrBlank()) {
-                                Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, secretExportBlocked, Toast.LENGTH_SHORT).show()
                                 return@TextButton
                             }
                             val ok = MediaExport.share(
                                 context,
                                 message.parsedContent(),
                                 mime,
-                                context.getString(R.string.common_share)
+                                shareMedia
                             )
                             if (!ok) {
-                                Toast.makeText(context, context.getString(R.string.media_export_share_failed), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, exportShareFailed, Toast.LENGTH_SHORT).show()
                             }
                         }
                     ) { Text(stringResource(R.string.common_share), color = Color.White) }
@@ -764,7 +769,6 @@ private fun MediaCenterImageViewer(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
  private fun FileList(
     items: List<MediaCenterItem>,
     onOpenMessage: (String) -> Unit,
@@ -773,6 +777,7 @@ private fun MediaCenterImageViewer(
     highlightQuery: String = ""
 ) {
     val context = LocalContext.current
+    val exportNeedsCache = stringResource(R.string.media_export_need_cache)
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(items, key = { it.message.id }, contentType = { "file" }) { item ->
             val message = item.message
@@ -788,7 +793,7 @@ private fun MediaCenterImageViewer(
                         },
                         onLongClick = {
                             if (localAvailable) onExportActions(message)
-                            else Toast.makeText(context, context.getString(R.string.media_export_need_cache), Toast.LENGTH_SHORT).show()
+                            else Toast.makeText(context, exportNeedsCache, Toast.LENGTH_SHORT).show()
                         }
                     )
                     .padding(horizontal = 16.dp, vertical = 13.dp),

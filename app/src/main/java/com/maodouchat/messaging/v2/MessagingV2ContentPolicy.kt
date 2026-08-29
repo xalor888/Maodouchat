@@ -3,13 +3,16 @@ package com.maodouchat.messaging.v2
 /** Binds untrusted transport metadata to the authenticated encrypted application payload. */
 internal object MessagingV2ContentPolicy {
     fun accepts(kind: String, content: MessagingV2Content): Boolean {
-        if (content.version != 1) return false
         return when (kind) {
-            KIND_DATA -> content.event == null && content.type !in RESERVED_CONTROL_TYPES
-            KIND_EVENT -> content.type == TYPE_EVENT && content.event?.action in DOMAIN_EVENT_ACTIONS
-            KIND_RECEIPT -> content.type == TYPE_EVENT && content.event?.action in RECEIPT_ACTIONS
-            KIND_KEY_REQUEST -> acceptsSenderKeyRequest(content)
-            KIND_SERVICE -> acceptsService(content)
+            KIND_DATA -> content.version in SUPPORTED_DATA_VERSIONS &&
+                content.event == null &&
+                content.type !in RESERVED_CONTROL_TYPES
+            KIND_EVENT -> content.version == 1 &&
+                content.type == TYPE_EVENT && content.event?.action in DOMAIN_EVENT_ACTIONS
+            KIND_RECEIPT -> content.version == 1 &&
+                content.type == TYPE_EVENT && content.event?.action in RECEIPT_ACTIONS
+            KIND_KEY_REQUEST -> content.version == 1 && acceptsSenderKeyRequest(content)
+            KIND_SERVICE -> content.version == 1 && acceptsService(content)
             else -> false
         }
     }
@@ -60,6 +63,7 @@ internal object MessagingV2ContentPolicy {
     private const val TYPE_SENDER_KEY_REQUEST = "SENDER_KEY_REQUEST"
     private const val ATTRIBUTE_REQUESTED_SENDER = "requestedSenderUserId"
     private const val ATTRIBUTE_FAILED_MESSAGE_ID = "failedMessageId"
+    private val SUPPORTED_DATA_VERSIONS = setOf(1, 2)
     private val RESERVED_CONTROL_TYPES = setOf(TYPE_EVENT, TYPE_SENDER_KEY_REQUEST, "SK_DIST")
 }
 

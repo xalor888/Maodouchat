@@ -1,5 +1,9 @@
 package com.maodouchat.forwarding
 
+import com.maodouchat.conversation.ConversationCommandFacade
+import com.maodouchat.messaging.v2.ContentPayload
+import com.maodouchat.messaging.v2.ConversationMessageStagingGateway
+import com.maodouchat.messaging.v2.MessagingV2MessageGatewayOutcome
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
@@ -92,6 +96,25 @@ class ConversationForwardCoordinatorTest {
     }
 
     @Test
+    fun `facade forward stages typed content without legacy marker`() = runTest {
+        val gateway = RecordingGateway()
+        val coordinator = ConversationForwardCoordinator(
+            ownerUserId = { "owner-1" },
+            token = { "token-1" },
+            sessionActive = { true },
+            fetchTargets = { Result.success(emptyList()) },
+            commandFacade = ConversationCommandFacade(gateway, messageId = { "forward-1" }, now = { 10L }),
+            forwardAttachment = { _, _, _, _, _ -> },
+        )
+
+        val result = coordinator.forward(chat(), message(), sourceName = "Alice")
+
+        assertEquals("hello", result?.content)
+        assertEquals("Alice", gateway.payloads.single().metadata.forwardedFrom)
+        assertTrue(!gateway.messages.single().content.contains(Message.META_TAG_PREFIX))
+    }
+
+    @Test
     fun `target load filters active and archived chats and sorts pinned first`() = runTest {
         val coordinator = coordinator(
             fetchTargets = {
@@ -143,6 +166,27 @@ class ConversationForwardCoordinatorTest {
         coordinator.forward(cached, message(), sourceName = "Alice")
 
         assertEquals(7L, stagedRevision)
+    }
+
+    private class RecordingGateway : ConversationMessageStagingGateway {
+        val messages = mutableListOf<Message>()
+        val payloads = mutableListOf<ContentPayload>()
+
+        override suspend fun stage(
+            message: Message,
+            payload: ContentPayload,
+            groupRevision: Long?,
+        ): MessagingV2MessageGatewayOutcome {
+            messages += message
+            payloads += payload
+            return MessagingV2MessageGatewayOutcome.Staged(message)
+        }
+
+        override suspend fun retry(
+            message: Message,
+            payload: ContentPayload,
+            groupRevision: Long?,
+        ): MessagingV2MessageGatewayOutcome = MessagingV2MessageGatewayOutcome.Staged(message)
     }
 
     private fun coordinator(

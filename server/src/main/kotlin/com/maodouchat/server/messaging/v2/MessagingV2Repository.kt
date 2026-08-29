@@ -295,6 +295,18 @@ class MessagingV2Repository(
         message: MessageResponse,
         recipientUserIds: Set<String>,
     ): SendMessageV2Result = transaction {
+        enqueueServiceMessageInTransaction(message, recipientUserIds)
+    }
+
+    /**
+     * Inserts the V2 transport record and device mailbox rows in the caller's
+     * existing database transaction. Service content publishers use this to
+     * make content visibility and mailbox delivery one atomic commitment.
+     */
+    internal fun enqueueServiceMessageInTransaction(
+        message: MessageResponse,
+        recipientUserIds: Set<String>,
+    ): SendMessageV2Result {
         require(message.senderId.startsWith("bot_")) { "service_sender_not_bot" }
         val now = clock()
         val chat = Chats.selectAll()
@@ -331,7 +343,7 @@ class MessagingV2Repository(
             val envelopeRows = MessagingV2Envelopes.selectAll()
                 .where { MessagingV2Envelopes.messageId eq message.id }
                 .toList()
-            return@transaction SendMessageV2Result(
+            return SendMessageV2Result(
                 messageId = message.id,
                 serverTimestamp = existing[MessagingV2Messages.serverTimestamp],
                 envelopeCount = envelopeRows.size,
@@ -378,7 +390,7 @@ class MessagingV2Repository(
                 it[acknowledgedAt] = null
             }
         }
-        SendMessageV2Result(
+        return SendMessageV2Result(
             messageId = message.id,
             serverTimestamp = now,
             envelopeCount = targets.size,

@@ -112,8 +112,10 @@ internal class AttachmentSendWorkflow(
             status = MessageStatus.SENDING,
             meta = initialMeta,
         )
+        // This is deliberately UI-only until AttachmentTransferCoordinator commits the transfer
+        // and final message in one transaction. Persisting it here would leave a permanent
+        // SENDING row if the process died while preparing the transfer.
         onOptimisticMessage(optimistic)
-        withContext(Dispatchers.IO) { messageStore.insertMessage(optimistic) }
 
         val coordinator = AttachmentSendCoordinator(
             context = appContext,

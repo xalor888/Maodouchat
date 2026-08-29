@@ -1,5 +1,7 @@
 package com.maodouchat.forwarding
 
+import com.maodouchat.conversation.ConversationCommandFacade
+import com.maodouchat.conversation.ConversationCommandOutcome
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
@@ -23,9 +25,9 @@ class ConversationForwardUnsupportedException(val messageType: MessageType) :
 /**
  * Owns forwarding order and the durable commit boundary.
  *
- * Text-like messages are complete once [stageMessage] returns. UI projection,
- * list preview, sounds, and other post-commit work may fail but cannot turn the
- * durable message into FAILED or cause a retry of the same forward.
+ * Text-like messages are complete once the injected [commandFacade] or compatibility
+ * [stageMessage] returns. UI projection, list preview, sounds, and other post-commit work may
+ * fail but cannot turn the durable message into FAILED or cause a retry of the same forward.
  */
 class ConversationForwardCoordinator(
     private val ownerUserId: () -> String,
@@ -33,7 +35,8 @@ class ConversationForwardCoordinator(
     private val sessionActive: (ownerUserId: String) -> Boolean,
     private val fetchTargets: suspend (token: String) -> Result<List<Chat>>,
     private val resolveTargets: suspend (token: String, targets: List<Chat>) -> List<Chat> = { _, targets -> targets },
-    private val stageMessage: suspend (message: Message, groupRevision: Long?) -> Unit,
+    private val stageMessage: suspend (message: Message, groupRevision: Long?) -> Unit = { _, _ -> },
+    private val commandFacade: ConversationCommandFacade? = null,
     private val forwardAttachment: suspend (
         target: Chat,
         message: Message,
@@ -71,6 +74,15 @@ class ConversationForwardCoordinator(
         ensureSession(owner)
         val normalized = text.trim()
         require(normalized.isNotBlank()) { "forward_note_empty" }
+        commandFacade?.let { facade ->
+            return when (val staged = facade.sendText(target, owner, normalized)) {
+                is ConversationCommandOutcome.Staged -> {
+                    stageAndPublish(target, staged.message, normalized.take(40), alreadyStaged = true)
+                    staged.message
+                }
+                is ConversationCommandOutcome.Rejected -> error("forward_note_rejected:${staged.reason}")
+            }
+        }
         val markdown = com.maodouchat.ui.component.ChatMarkdown.looksLikeMarkdown(normalized)
         val type = if (markdown) MessageType.MARKDOWN else MessageType.TEXT
         val message = Message(
@@ -111,6 +123,22 @@ class ConversationForwardCoordinator(
             return null
         }
 
+        val facade = commandFacade
+        if (facade != null) {
+            val staged = facade.forwardText(
+                target = target,
+                ownerUserId = owner,
+                source = message,
+                sourceName = sourceName,
+            )
+            return when (staged) {
+                is ConversationCommandOutcome.Staged -> {
+                    stageAndPublish(target, staged.message, preview(message.type, message.parsedContent()), alreadyStaged = true)
+                    staged.message
+                }
+                is ConversationCommandOutcome.Rejected -> throw IllegalStateException("forward_rejected:${staged.reason}")
+            }
+        }
         val plainContent = message.parsedContent()
         val existingMeta = message.parsedMeta()
         val forwardMeta = existingMeta.copy(
@@ -180,13 +208,20 @@ class ConversationForwardCoordinator(
         )
     }
 
-    private suspend fun stageAndPublish(target: Chat, message: Message, preview: String) {
+    private suspend fun stageAndPublish(
+        target: Chat,
+        message: Message,
+        preview: String,
+        alreadyStaged: Boolean = false,
+    ) {
         val owner = message.senderId
         ensureSession(owner)
-        stageMessage(
-            message,
-            target.memberRevision.takeIf { target.isGroup && it > 0L },
-        )
+        if (!alreadyStaged) {
+            stageMessage(
+                message,
+                target.memberRevision.takeIf { target.isGroup && it > 0L },
+            )
+        }
         onDurableMessage(message)
         runCatching { onMessageSent(target.id, preview, message.type) }
     }

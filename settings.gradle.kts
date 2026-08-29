@@ -16,3 +16,14 @@ dependencyResolutionManagement {
 
 rootProject.name = "Maodouchat"
 include(":app")
+include(
+    ":core:model",
+    ":core:util",
+    ":core:serialization",
+    ":core:database",
+    ":core:network",
+    ":core:crypto",
+    ":core:session",
+    ":domain:messaging",
+    ":feature:chat",
+)

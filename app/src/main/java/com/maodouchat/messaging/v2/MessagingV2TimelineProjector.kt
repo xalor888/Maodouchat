@@ -13,7 +13,6 @@ import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
-import com.maodouchat.util.JsonFormat
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.AppNotifier
 import com.maodouchat.attachment.AttachmentTransferCoordinator
@@ -50,14 +49,16 @@ internal class MessagingV2TimelineProjector(
         }
 
         val owner = ownerUserId()
+        val payload = ContentPayloadCodec.decode(content)
         val projected = Message(
             id = envelope.messageId,
             chatId = envelope.conversationId,
             senderId = envelope.senderUserId,
-            content = projectContent(content),
-            type = MessageType.fromWire(content.type),
+            content = projectContent(payload),
+            type = payload.type,
             timestamp = envelope.clientTimestamp,
             status = if (envelope.senderUserId == owner) MessageStatus.SENT else MessageStatus.DELIVERED,
+            meta = projectMetadata(payload),
         )
         val arrival = MessagingV2ArrivalPolicy.evaluate(
             isNew = true,
@@ -96,11 +97,16 @@ internal class MessagingV2TimelineProjector(
         if (arrival.shouldSendDeliveryReceipt) sendDeliveryReceipt(envelope)
     }
 
-    private fun projectContent(content: MessagingV2Content): String {
-        val type = MessageType.fromWire(content.type)
-        if (type !in ATTACHMENT_TYPES) return content.body
-        val reference = MediaCache.decodeEncryptedAttachmentReference(content.body) ?: return content.body
-        val meta = MessageMeta(
+    private fun projectContent(payload: ContentPayload): String {
+        if (payload.type !in ATTACHMENT_TYPES) return payload.body
+        val reference = MediaCache.decodeEncryptedAttachmentReference(payload.body) ?: return payload.body
+        return MediaCache.attachmentUri(reference.attachmentId)
+    }
+
+    private fun projectMetadata(payload: ContentPayload): MessageMeta {
+        if (payload.type !in ATTACHMENT_TYPES) return payload.metadata
+        val reference = MediaCache.decodeEncryptedAttachmentReference(payload.body) ?: return payload.metadata
+        return payload.metadata.copy(
             fileName = reference.fileName,
             fileMimeType = reference.mimeType,
             fileSizeBytes = reference.plainSize,
@@ -112,7 +118,6 @@ internal class MessagingV2TimelineProjector(
             attachmentCipherSize = reference.cipherSize,
             voiceDurationMs = reference.durationMs,
         )
-        return JsonFormat.composeContentWithMeta(MediaCache.attachmentUri(reference.attachmentId), meta)
     }
 
     private suspend fun projectEvent(envelope: MessagingV2InboxEntity, event: MessagingV2Event) {

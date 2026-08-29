@@ -235,7 +235,7 @@ fun MaodouchatNavGraph(
             if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode.toInt() else @Suppress("DEPRECATION") info.versionCode
         }.getOrDefault(0)
         val remote = ApiService.getPublicUpdates().getOrNull() ?: return@LaunchedEffect
-        if (!AppUpdatePolicy.shouldOfferUpdate(currentCode, remote.versionCode, remote.apkUrl)) return@LaunchedEffect
+        if (!AppUpdatePolicy.shouldOfferUpdate(currentCode, remote.versionCode, remote.apkUrl, remote.apkSha256)) return@LaunchedEffect
         if (AppUpdatePromptStore.lastOfferedVersionCode(context) >= remote.versionCode) return@LaunchedEffect
         AppUpdatePromptStore.markOffered(context, remote.versionCode)
         appUpdateOffer = remote
@@ -263,6 +263,7 @@ fun MaodouchatNavGraph(
                             val result = OfficialApkInstaller.downloadAndPromptInstall(
                                 context = context,
                                 apkUrl = offer.apkUrl,
+                                expectedSha256 = offer.apkSha256,
                                 onProgress = { percent -> appUpdateProgress = percent },
                             )
                             appUpdateDownloading = false

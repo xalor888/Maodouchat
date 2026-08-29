@@ -63,6 +63,13 @@ interface MessagingV2Dao {
           AND deviceId = :deviceId
           AND state IN ('RECEIVED', 'FAILED')
           AND nextAttemptAt <= :now
+          AND NOT EXISTS (
+            SELECT 1 FROM messaging_v2_inbox AS earlier
+            WHERE earlier.ownerUserId = messaging_v2_inbox.ownerUserId
+              AND earlier.deviceId = messaging_v2_inbox.deviceId
+              AND earlier.sequence < messaging_v2_inbox.sequence
+              AND earlier.state IN ('RECEIVED', 'FAILED', 'PROCESSING')
+          )
         ORDER BY sequence ASC
         LIMIT 1
         """,
@@ -275,7 +282,10 @@ interface MessagingV2Dao {
                 AND older.rowid < candidate.rowid
             )
           )
-        ORDER BY candidate.rowid ASC
+        ORDER BY CASE
+            WHEN candidate.kind IN ('SENDER_KEY', 'KEY_REQUEST', 'RECEIPT') THEN 0
+            ELSE 1
+        END ASC, candidate.rowid ASC
         LIMIT 1
         """,
     )

@@ -262,6 +262,23 @@ class MessagingV2Outbox(
         return result
     }
 
+    internal suspend fun retryContentPayloadInCurrentTransaction(
+        conversationId: String,
+        payload: ContentPayload,
+        groupRevision: Long?,
+        messageId: String,
+    ) {
+        val owner = requireOwner()
+        val existing = dao.getOutbox(messageId, owner)
+        if (existing == null) {
+            enqueueContentPayloadInCurrentTransaction(conversationId, payload, groupRevision, messageId)
+            return
+        }
+        require(existing.conversationId == conversationId) { "messaging_v2_retry_conversation_mismatch" }
+        require(existing.kind == "DATA") { "messaging_v2_retry_kind_mismatch" }
+        dao.retryOutbox(messageId, owner, clock())
+    }
+
     internal suspend fun enqueueContentInCurrentTransaction(
         conversationId: String,
         body: String,
@@ -274,6 +291,24 @@ class MessagingV2Outbox(
         payload = json.encodeToString(
             MessagingV2Content.serializer(),
             MessagingV2Content(type = type.name, body = body),
+        ),
+        clientTimestamp = clock(),
+        groupRevision = groupRevision,
+        kind = "DATA",
+        messageId = messageId,
+    )
+
+    internal suspend fun enqueueContentPayloadInCurrentTransaction(
+        conversationId: String,
+        payload: ContentPayload,
+        groupRevision: Long?,
+        messageId: String,
+    ): String = enqueuePayloadInCurrentTransaction(
+        owner = requireOwner(),
+        conversationId = conversationId,
+        payload = json.encodeToString(
+            MessagingV2Content.serializer(),
+            ContentPayloadCodec.encode(payload),
         ),
         clientTimestamp = clock(),
         groupRevision = groupRevision,

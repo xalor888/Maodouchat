@@ -6,6 +6,7 @@ import com.maodouchat.server.model.SenderKeyDistributionStatusResponse
 import com.maodouchat.server.model.SenderKeyDistributionTargetResponse
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.innerJoin
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -82,8 +83,8 @@ class SenderKeyDistributionRepository {
         chatId: String,
         senderId: String,
         epoch: Long,
-    ): Set<Pair<String, Int>> {
-        val messageId = MessagingV2Messages
+    ): Set<Pair<String, Int>> =
+        (MessagingV2Envelopes innerJoin MessagingV2Messages)
             .selectAll()
             .where {
                 (MessagingV2Messages.conversationId eq chatId) and
@@ -91,18 +92,9 @@ class SenderKeyDistributionRepository {
                     (MessagingV2Messages.kind eq KIND_SENDER_KEY) and
                     (MessagingV2Messages.groupRevision eq epoch)
             }
-            .orderBy(MessagingV2Messages.serverTimestamp to SortOrder.DESC)
-            .limit(1)
-            .firstOrNull()
-            ?.get(MessagingV2Messages.id)
-            ?: return emptySet()
-        return MessagingV2Envelopes
-            .selectAll()
-            .where { MessagingV2Envelopes.messageId eq messageId }
             .mapTo(linkedSetOf()) {
                 it[MessagingV2Envelopes.recipientUserId] to it[MessagingV2Envelopes.recipientDeviceId]
             }
-    }
 
     private companion object {
         const val KIND_SENDER_KEY = "SENDER_KEY"

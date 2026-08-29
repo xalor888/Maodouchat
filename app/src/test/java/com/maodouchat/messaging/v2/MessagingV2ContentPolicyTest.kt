@@ -30,9 +30,16 @@ class MessagingV2ContentPolicyTest {
     }
 
     @Test
-    fun `unknown kinds and versions are rejected`() {
+    fun `unknown kinds and unsupported versions are rejected`() {
         assertFalse(MessagingV2ContentPolicy.accepts("SYNC", MessagingV2Content(type = "TEXT")))
-        assertFalse(MessagingV2ContentPolicy.accepts("DATA", MessagingV2Content(version = 2, type = "TEXT")))
+        assertTrue(MessagingV2ContentPolicy.accepts("DATA", MessagingV2Content(version = 2, type = "TEXT")))
+        assertFalse(MessagingV2ContentPolicy.accepts("DATA", MessagingV2Content(version = 3, type = "TEXT")))
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "EVENT",
+                MessagingV2Content(version = 2, type = "EVENT", event = MessagingV2Event("DELETE", "m1")),
+            ),
+        )
     }
 
     @Test

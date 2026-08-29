@@ -67,6 +67,8 @@ data class PublicUpdatesDto(
     val versionCode: Int = 0,
     val versionName: String = "0",
     val apkUrl: String = "",
+    /** SHA-256 of the exact APK bytes advertised by the official update endpoint. */
+    val apkSha256: String = "",
     val serverUrl: String = "",
     val notes: String = ""
 )

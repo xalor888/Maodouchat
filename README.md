@@ -18,7 +18,7 @@ Maodouchat（毛豆聊天）是端到端加密的 Android 即时通讯应用：J
 ## 环境要求
 
 - **JDK 21**：本仓库 Gradle 构建强制要求；不要用 JDK 25 跑 Gradle。
-- Android Studio / Android SDK，`compileSdk = 36`。
+- Android Studio / Android SDK，`compileSdk = 37`。
 
 常用命令：
 

@@ -397,6 +397,8 @@ class MaodouchatApp : Application() {
 
     @Synchronized
     fun rebuildLocalStorage() {
+        runCatching { kotlinx.coroutines.runBlocking { _messagingV2Runtime?.stop() } }
+        _messagingV2Runtime = null
         runCatching { _senderKeyRetryManager?.stop() }
         runCatching { SenderKeyRetryWorkScheduler.cancelAll(this) }
         runCatching { AiTaskReminderScheduler.cancelAll(this) }

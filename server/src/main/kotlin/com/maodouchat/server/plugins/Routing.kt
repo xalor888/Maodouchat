@@ -620,6 +620,7 @@ fun Application.configureRouting(
                 val versionCode = RuntimeConfigService.getInt(RuntimeConfigService.KEY_UPDATE_VERSION_CODE, 0)
                 val versionName = RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_VERSION_NAME).ifBlank { "0" }
                 val apkUrl = RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_APK_URL)
+                val apkSha256 = RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_APK_SHA256)
                 val serverUrl = RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_SERVER_URL).ifBlank { ServerConfig.baseUrl }
                 val notes = RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_NOTES)
                 call.respond(
@@ -627,6 +628,7 @@ fun Application.configureRouting(
                         put("versionCode", versionCode)
                         put("versionName", versionName)
                         put("apkUrl", apkUrl)
+                        put("apkSha256", apkSha256)
                         put("serverUrl", serverUrl)
                         put("notes", notes)
                     }
@@ -690,13 +692,16 @@ fun Application.configureRouting(
                     return@put
                 }
                 val apkUrl = com.maodouchat.server.update.AppUpdatePublishPolicy.publicApkUrl(ServerConfig.baseUrl)
-                RuntimeConfigService.applyPublishedUpdate(versionCode, versionName, apkUrl, notes)
+                val apkSha256 = com.maodouchat.server.update.AppUpdateStorage.latestSha256()
+                    ?: error("update APK checksum unavailable")
+                RuntimeConfigService.applyPublishedUpdate(versionCode, versionName, apkUrl, apkSha256, notes)
                 call.respond(
                     buildJsonObject {
                         put("ok", true)
                         put("versionCode", versionCode)
                         put("versionName", versionName)
                         put("apkUrl", apkUrl)
+                        put("apkSha256", apkSha256)
                         put("bytes", saved.length())
                     }
                 )

@@ -17,6 +17,7 @@ import com.maodouchat.server.model.CreateReportRequest
 import com.maodouchat.server.model.MessageResponse
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.ReportRepository
+import com.maodouchat.server.repository.ServiceMessageRepository
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
@@ -415,6 +416,47 @@ class MessagingV2RepositoryTest {
         assertTrue(reported is ReportRepository.CreateResult.Success)
         assertEquals("group-1", (reported as ReportRepository.CreateResult.Success).report.chatId)
         assertTrue(internal is ReportRepository.CreateResult.Failure)
+    }
+
+    @Test
+    fun `service publisher commits plaintext and V2 mailbox together`() {
+        seedGroup()
+        seedBotParticipant()
+        transaction {
+            com.maodouchat.server.db.BotApps.insert {
+                it[id] = "bot_helper"
+                it[ownerUserId] = "alice"
+                it[name] = "helper"
+                it[username] = "helper_bot"
+                it[tokenHash] = "x"
+                it[tokenPrefix] = "x"
+                it[enabled] = true
+                it[createdAt] = 1L
+                it[updatedAt] = 1L
+            }
+        }
+
+        val result = ServiceMessageRepository().publish(
+            id = "published-service-message",
+            chatId = "group-1",
+            botUserId = "bot_helper",
+            content = "published content",
+            timestamp = 9_000L,
+            recipientUserIds = setOf("alice", "bob", "carol"),
+        )
+
+        assertTrue(result is ServiceMessageRepository.PublishResult.Published)
+        val published = result as ServiceMessageRepository.PublishResult.Published
+        assertEquals(3, published.mailbox.envelopeCount)
+        transaction {
+            assertEquals(1, ServiceMessages.selectAll().count())
+            assertEquals(1, MessagingV2Messages.selectAll().where {
+                MessagingV2Messages.id eq "published-service-message"
+            }.count())
+            assertEquals(3, MessagingV2Envelopes.selectAll().where {
+                MessagingV2Envelopes.messageId eq "published-service-message"
+            }.count())
+        }
     }
 
     @Test
