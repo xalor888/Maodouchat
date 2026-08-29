@@ -175,11 +175,11 @@ Gate：ACK 前后杀进程、重复 pull、poison、顺序阻塞、修复绕行�
 
 ### M03 Signal 直接会话与设备密码学
 
-当前状态：`[ ]`。`SignalProtocol.kt` 2,342 行，仍集中初始化、设备、session、cipher、Sender Key 和信任。
+当前状态：`[~]`。`:core:crypto` 已建立身份信任纯逻辑（IdentityTrustState/StateMachine）与 `IdentityTrustService` 契约；DirectSessionManager/DirectMessageCipher/EnvelopeCodec 等端口与 SignalProtocol 拆分尚未开始。
 
 - [ ] 建立 `CryptoAccountBootstrapper`、`PreKeyInventory`、`PreKeyPublisher`。
 - [ ] 建立 `DirectSessionManager`、`DirectMessageCipher`、`EnvelopeCodec`。
-- [ ] 建立 `IdentityTrustService`、`DeviceIdMigrationCoordinator`。
+- [~] 建立 `IdentityTrustService`、`DeviceIdMigrationCoordinator`（`IdentityTrustService` 契约 + `IdentityTrustStateMachine` 纯逻辑已建并测试；`DeviceIdMigrationCoordinator` 待做）。
 - [ ] `SignalProtocolStore` 只负责 libsignal 持久化适配。
 - [ ] 迁移期保留薄 `SignalProtocol` facade；调用者迁完后删除宽接口。
 - [ ] 页面、Widget、Worker、AI、附件不得调用 Signal 原语。
