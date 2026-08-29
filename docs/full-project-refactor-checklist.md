@@ -506,15 +506,15 @@ Gate：性能预算、Macrobenchmark、无障碍扫描和截图回归进入 CI�
 
 ### B01 配置、数据库迁移、任务与部署基础
 
-当前状态：`[ ]`。`Database.kt` 同时建表、改列、回填和删除；生产仍依赖启动期 schema 修补。
+当前状态：`[~]`。版本化 migration runner（PostgreSQL advisory lock + H2 行锁 + schema_migrations 历史表）已存在；表已按领域拆分；Database.kt 已拆出 SchemaMigration（47 行只剩 datasource/schema 引导）；ServerConfig/RuntimeConfigService 分离、Docker/Hikari/优雅关闭齐备。剩余：schema 创建完全并入 migration、后台任务 database lease、expand→contract 流程文档化。
 
-- [ ] 引入 Flyway/Liquibase 或等价版本化 migration runner。
-- [ ] 每领域独立 schema/table 文件，Database 只管理 datasource。
-- [ ] 采用 expand -> compatibility -> backfill -> contract 发布流程。
-- [ ] 破坏性 drop 只在明确 contract 版本执行。
+- [x] 引入 Flyway/Liquibase 或等价版本化 migration runner（`db/migration/MigrationRunner`，PostgreSQL advisory lock + H2 行锁 + schema_migrations 版本表）。
+- [~] 每领域独立 schema/table 文件，Database 只管理 datasource（表已拆 CoreTables/AdminTables/MessagingV2Tables/SignalTables/PollTables/ServiceMessageTables；Database.kt 556→47 行，migration/backfill 已迁 SchemaMigration.kt；createSchemaTables 仍待并入 migration v1 以彻底移除启动期建表）。
+- [~] 采用 expand -> compatibility -> backfill -> contract 发布流程（migration v1=baseline、v2=retire legacy，流程文档化待补）。
+- [x] 破坏性 drop 只在明确 contract 版本执行（`retireLegacyMessagingTables` 在 migration v2）。
 - [ ] 后台清理任务使用数据库 lease，不依赖 route 内进程协程。
-- [ ] typed immutable startup config 与 runtime settings 分离。
-- [ ] 统一 Docker/self-host 配置，支持两副本、优雅关闭和 readiness。
+- [x] typed immutable startup config 与 runtime settings 分离（`ServerConfig` + `RuntimeConfigService`）。
+- [x] 统一 Docker/self-host 配置，支持两副本、优雅关闭和 readiness（`docker-compose.yml` + `server/Dockerfile` + HikariCP 优雅关闭）。
 
 Gate：空库、旧库升级、重复/中断 migration、备份恢复、滚动发布和 PostgreSQL 测试通过。
 
