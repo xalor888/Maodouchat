@@ -654,6 +654,11 @@ import com.maodouchat.data.local.entity.UserEntity
                     "CREATE INDEX IF NOT EXISTS index_messaging_v2_outbox_ownerUserId_conversationId_createdAt " +
                         "ON messaging_v2_outbox(ownerUserId, conversationId, createdAt)",
                 )
+                // The legacy scanner cannot safely replay rows here: owner account, typed payload,
+                // device coverage, and attachment transfer state were not persisted together. Mark
+                // them failed so they remain visible and can be retried through the V2 command path
+                // instead of spinning forever after the old flusher is removed.
+                db.execSQL("UPDATE messages SET status = 'FAILED' WHERE status = 'SENDING'")
             }
         }
 

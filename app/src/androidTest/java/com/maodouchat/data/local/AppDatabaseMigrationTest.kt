@@ -394,6 +394,50 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate31To32MarksLegacySendingMessagesFailed() {
+        helper.createDatabase(LEGACY_SENDING_TEST_DB, 31).apply {
+            execSQL(
+                """
+                INSERT INTO chats (
+                    id, lastMessage, lastMessageType, lastMessageTime, unreadCount,
+                    isGroup, chatType, groupName, groupAnnouncement, groupAvatar,
+                    memberRevision, pinnedAt, notificationsMuted, archived, markedUnread,
+                    settingsUpdatedAt, disappearingMessageSeconds, participantIds
+                ) VALUES ('c_sending', '', 'TEXT', 0, 0, 0, 'DIRECT', NULL, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, 'u1,u2')
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO messages (
+                    id, chatId, senderId, content, type, timestamp, status,
+                    editedAt, starred, reactionsJson, expiresAt, sealedSender
+                ) VALUES ('m_sending', 'c_sending', 'u1', 'legacy plaintext', 'TEXT', 55, 'SENDING', NULL, 0, '[]', NULL, 0)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val database = helper.runMigrationsAndValidate(
+            LEGACY_SENDING_TEST_DB,
+            32,
+            true,
+            AppDatabase.MIGRATION_31_32,
+        )
+        try {
+            database.query("SELECT status FROM messages WHERE id = 'm_sending'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("FAILED", cursor.getString(0))
+            }
+            database.query("SELECT COUNT(*) FROM messaging_v2_outbox").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
+            }
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun migrate33To34CreatesTerminalTombstonesWithConversationCascade() {
         helper.createDatabase(TOMBSTONE_TEST_DB, 33).apply {
             execSQL(
@@ -449,6 +493,7 @@ class AppDatabaseMigrationTest {
         const val SEARCH_TYPE_TEST_DB = "migration-25-26-search-type"
         const val FULL_CHAIN_TEST_DB = "migration-16-20-full-chain"
         const val FULL_CHAIN_25_TO_30_TEST_DB = "migration-25-30-full-chain"
+        const val LEGACY_SENDING_TEST_DB = "migration-31-32-legacy-sending"
         const val TOMBSTONE_TEST_DB = "migration-33-34-tombstone"
     }
 }
