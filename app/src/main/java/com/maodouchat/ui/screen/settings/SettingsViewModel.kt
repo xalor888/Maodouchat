@@ -74,7 +74,11 @@ private data class LoadedPrivacy(
     val onlineVisibility: String
 )
 
-class SettingsViewModel(application: Application) : AndroidViewModel(application) {
+class SettingsViewModel @JvmOverloads constructor(
+    application: Application,
+    private val settingsRepository: SettingsRepository = AndroidSettingsRepository(application),
+    private val securityCoordinator: SecurityCoordinator = SecurityCoordinator(settingsRepository),
+) : AndroidViewModel(application) {
 
     internal val tokenManager = TokenManager.getInstance(application)
     private val app = application as MaodouchatApp
@@ -121,105 +125,74 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private fun loadUserInfo() {
         viewModelScope.launch {
-            val token = tokenManager.getToken()
-            val ownerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+            val session = settingsRepository.currentSession()
+            if (session == null) {
                 val defaultUser = text(R.string.settings_default_user)
                 _uiState.update {
                     it.copy(
                         userName = defaultUser,
-                        userId = ownerUserId,
                         editName = defaultUser,
-                        errorMessage = text(R.string.error_session_expired)
+                        errorMessage = text(R.string.error_session_expired),
                     )
                 }
                 return@launch
             }
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) {
-                return@launch
-            }
-            val liveToken = tokenManager.getToken() ?: token
-            val result = ApiService.getCurrentUser(liveToken)
-            result.onSuccess { me ->
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) {
-                    return@onSuccess
-                }
-                _uiState.update {
-                    it.copy(
-                        userName = me.name,
-                        userId = me.id,
-                        userAvatar = me.avatar,
-                        userStatus = me.status,
-                        editStatus = me.status,
-                        isModerator = me.isModerator,
-                        editName = me.name,
-                        userUsername = me.username
-                    )
-                }
-                // 加载用户名和公开主页 URL
-                if (me.username != null) {
-                    loadPublicProfileUrl()
-                }
-            }
-            result.onFailure { error ->
-                if (!isCurrentOwner(ownerUserId)) return@onFailure
-                _uiState.update { it.copy(errorMessage = error.message ?: text(R.string.settings_user_info_failed)) }
-            }
-            if (isCurrentOwner(ownerUserId) && _uiState.value.userName.isBlank()) {
-                val defaultUser = text(R.string.settings_default_user)
-                _uiState.update { it.copy(userName = defaultUser, userId = ownerUserId, editName = defaultUser) }
-            }
+            settingsRepository.loadProfile(session).fold(
+                onSuccess = { profile ->
+                    if (!settingsRepository.isCurrent(session)) return@fold
+                    _uiState.update {
+                        it.copy(
+                            userName = profile.name,
+                            userId = profile.id,
+                            userAvatar = profile.avatar,
+                            userStatus = profile.status,
+                            editStatus = profile.status,
+                            isModerator = profile.isModerator,
+                            editName = profile.name,
+                            userUsername = profile.username,
+                        )
+                    }
+                    if (profile.username != null) loadPublicProfileUrl()
+                },
+                onFailure = { error ->
+                    if (!settingsRepository.isCurrent(session)) return@fold
+                    val defaultUser = text(R.string.settings_default_user)
+                    _uiState.update {
+                        it.copy(
+                            userName = it.userName.ifBlank { defaultUser },
+                            userId = session.ownerUserId,
+                            editName = it.editName.ifBlank { defaultUser },
+                            errorMessage = error.message ?: text(R.string.settings_user_info_failed),
+                        )
+                    }
+                },
+            )
         }
     }
 
     private fun loadPrivacy() {
         viewModelScope.launch {
-            val token = tokenManager.getToken()
-            val privacyOwnerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isNullOrBlank() || privacyOwnerUserId.isBlank()) {
+            val session = settingsRepository.currentSession()
+            if (session == null) {
                 _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
                 return@launch
             }
-            if (loadedPrivacy?.ownerUserId != privacyOwnerUserId) {
+            if (loadedPrivacy?.ownerUserId != session.ownerUserId) {
                 loadedPrivacy = null
                 dirtyPrivacyFields.clear()
             }
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = privacyOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) {
-                return@launch
-            }
-            val liveToken = tokenManager.getToken() ?: token
-            ApiService.getPrivacy(liveToken).fold(
+            settingsRepository.loadPrivacy(session).fold(
                 onSuccess = { privacy ->
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = privacyOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
-                    ) {
-                        return@fold
-                    }
+                    if (!settingsRepository.isCurrent(session)) return@fold
                     val loaded = LoadedPrivacy(
-                        ownerUserId = privacyOwnerUserId,
+                        ownerUserId = session.ownerUserId,
                         showOnline = privacy.showOnline,
                         showStatus = privacy.showStatus,
                         searchable = privacy.searchable,
                         defaultPostVisibility = normalizeVisibility(privacy.defaultPostVisibility),
-                        onlineVisibility = privacy.onlineVisibility.ifBlank { if (privacy.showOnline) "everyone" else "nobody" }
+                        onlineVisibility = privacy.onlineVisibility.ifBlank {
+                            if (privacy.showOnline) "everyone" else "nobody"
+                        },
                     )
                     loadedPrivacy = loaded
                     _uiState.update { current ->
@@ -232,17 +205,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                                 current.defaultPostVisibility
                             } else {
                                 loaded.defaultPostVisibility
-                            }
+                            },
                         )
                     }
                 },
                 onFailure = { error ->
-                    if (!isCurrentOwner(privacyOwnerUserId)) return@fold
-                    // Keep local defaults; surface soft error so user can retry save/reload path.
+                    if (!settingsRepository.isCurrent(session)) return@fold
                     _uiState.update {
                         it.copy(errorMessage = error.message ?: text(R.string.settings_privacy_load_failed))
                     }
-                }
+                },
             )
         }
     }
@@ -940,9 +912,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun savePrivacy() {
         if (privacySaveJob?.isActive == true) return
         privacySaveJob = viewModelScope.launch {
-            val token = tokenManager.getToken()
-            val privacyOwnerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isNullOrBlank() || privacyOwnerUserId.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }; return@launch }
+            val session = settingsRepository.currentSession()
+            val privacyOwnerUserId = session?.ownerUserId.orEmpty()
+            if (session == null) {
+                _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
+                return@launch
+            }
             _uiState.update { it.copy(isSavingPrivacy = true, errorMessage = null) }
             // 在 isSavingPrivacy=true 之后才快照，避免并发 toggle 导致保存旧状态
             val snapshot = _uiState.value
@@ -960,16 +935,19 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 ) {
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                ApiService.updatePrivacy(
-                    liveToken,
-                    showOnline = snapshot.showOnline.takeIf { PrivacyField.SHOW_ONLINE in changedFields },
-                    showStatus = snapshot.showStatus.takeIf { PrivacyField.SHOW_STATUS in changedFields },
-                    searchable = snapshot.searchable.takeIf { PrivacyField.SEARCHABLE in changedFields },
-                    defaultPostVisibility = snapshot.defaultPostVisibility.takeIf {
-                        PrivacyField.DEFAULT_POST_VISIBILITY in changedFields
-                    },
-                    onlineVisibility = snapshot.onlineVisibility.takeIf { PrivacyField.ONLINE_VISIBILITY in changedFields }
+                settingsRepository.savePrivacy(
+                    session,
+                    SettingsPrivacyPatch(
+                        showOnline = snapshot.showOnline.takeIf { PrivacyField.SHOW_ONLINE in changedFields },
+                        showStatus = snapshot.showStatus.takeIf { PrivacyField.SHOW_STATUS in changedFields },
+                        searchable = snapshot.searchable.takeIf { PrivacyField.SEARCHABLE in changedFields },
+                        defaultPostVisibility = snapshot.defaultPostVisibility.takeIf {
+                            PrivacyField.DEFAULT_POST_VISIBILITY in changedFields
+                        },
+                        onlineVisibility = snapshot.onlineVisibility.takeIf {
+                            PrivacyField.ONLINE_VISIBILITY in changedFields
+                        },
+                    ),
                 ).fold(
                     onSuccess = { privacy ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -1028,19 +1006,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     ) {
         if (appLockTimeoutMinutes == null && screenSecureEnabled == null && sensitiveGateEnabled == null) return
         viewModelScope.launch {
-            val token = tokenManager.getToken().orEmpty()
-            val ownerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isBlank() || ownerUserId.isBlank()) return@launch
+            val session = securityCoordinator.currentSession() ?: return@launch
             clientPrefsPushMutex.withLock {
-                if (!isCurrentOwner(ownerUserId)) return@withLock
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                ApiService.putClientPrefs(
-                    liveToken,
-                    com.maodouchat.network.ClientPrefsUpdateRequest(
+                securityCoordinator.push(
+                    session,
+                    SecurityPreferencesPatch(
                         appLockTimeoutMinutes = appLockTimeoutMinutes,
                         screenSecureEnabled = screenSecureEnabled,
-                        sensitiveGateEnabled = sensitiveGateEnabled
-                    )
+                        sensitiveGateEnabled = sensitiveGateEnabled,
+                    ),
                 )
             }
         }
@@ -1052,25 +1026,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     ) {
         clientPrefsPullJob?.cancel()
         clientPrefsPullJob = viewModelScope.launch {
-            val token = tokenManager.getToken().orEmpty()
-            val ownerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isBlank() || ownerUserId.isBlank()) return@launch
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) return@launch
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            val context = getApplication<Application>()
-            ApiService.getClientPrefs(liveToken).onSuccess { remote ->
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) return@onSuccess
-                com.maodouchat.util.ClientPrefsSync.apply(context, remote)
+            val session = securityCoordinator.currentSession() ?: return@launch
+            securityCoordinator.pull(session).onSuccess { remote ->
+                if (!settingsRepository.isCurrent(session)) return@onSuccess
                 val lockTimeout = when (remote.appLockTimeoutMinutes) {
                     1L, 2L, 5L, 10L, 15L, 30L, 60L, 120L, 240L, 360L -> remote.appLockTimeoutMinutes
                     else -> 5L

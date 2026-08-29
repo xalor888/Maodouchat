@@ -16,7 +16,6 @@ import com.maodouchat.network.WebSocketEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -79,7 +78,10 @@ data class ContactsUiState(
             .toSortedMap()
 }
 
-class ContactsViewModel(application: Application) : AndroidViewModel(application) {
+class ContactsViewModel @JvmOverloads constructor(
+    application: Application,
+    private val contactsController: ContactsController = ContactsController(AndroidContactsRepository(application)),
+) : AndroidViewModel(application) {
 
     private val app = application as MaodouchatApp
     private val userRepo = UserRepository(app.database.userDao())
@@ -1016,99 +1018,45 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun loadContacts() {
-        val loadOwnerUserId = tokenManager.getUserId().orEmpty()
+        val session = contactsController.currentSession()
+        if (session == null) {
+            _uiState.update {
+                it.copy(
+                    contacts = emptyList(),
+                    isLoading = false,
+                    errorMessage = text(R.string.error_session_expired),
+                )
+            }
+            return
+        }
         viewModelScope.launch {
-            if (tokenManager.getUserId().orEmpty() != loadOwnerUserId) return@launch
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                val token = tokenManager.getToken() ?: ""
-                val currentUserId = loadOwnerUserId.ifBlank { "me" }
-                var networkError: String? = null
-
-                // 9.3xx：仅展示本地缓存的好友（服务端确认过的关系），绝不把全部本地用户
-                // （群成员/仅聊过天的陌生人）当好友展示——此前"没同意就出现在好友列表"的根因。
-                suspend fun showLocalFriendsOnly(fallbackError: String?) {
-                    val friendIds = com.maodouchat.data.repository.FriendCacheStore.getFriendIds(getApplication())
-                    val users = userRepo.getAllUsers().firstOrNull() ?: emptyList()
-                    if (tokenManager.getUserId().orEmpty() != loadOwnerUserId) return
-                    val friends = users
-                        .filter { it.id != currentUserId && it.id in friendIds }
-                        .sortedBy { it.displayName.lowercase() }
-                    _uiState.update {
-                        it.copy(
-                            contacts = friends,
-                            isLoading = false,
-                            errorMessage = if (friends.isEmpty()) fallbackError else null
-                        )
-                    }
-                }
-
-                if (token.isBlank()) {
-                    // Offline/session-less: show cache if any; empty cache needs explicit session feedback.
-                    showLocalFriendsOnly(text(R.string.error_session_expired))
-                    return@launch
-                }
-
-                // 从 API 获取
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = loadOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
+                val result = contactsController.loadFriends(session)
+                if (!contactsController.isCurrent(session) && !result.sessionMissing) return@launch
+                _uiState.update {
+                    it.copy(
+                        contacts = result.users,
+                        isLoading = false,
+                        errorMessage = when {
+                            result.users.isNotEmpty() -> null
+                            result.sessionMissing -> text(R.string.error_session_expired)
+                            result.failure != null -> result.failure.message ?: text(R.string.contacts_load_failed)
+                            else -> null
+                        },
                     )
-                ) {
-                    showLocalFriendsOnly(text(R.string.error_session_expired))
-                    return@launch
                 }
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                // 通讯录主列表 = 好友关系；搜索栏仍可搜全站用户并加好友
-                val friendsResult = ApiService.getFriends(liveToken)
-                friendsResult.fold(
-                    onSuccess = { friendDtos ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = loadOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            return@fold
-                        }
-                        val users = friendDtos
-                            .filter { it.id != loadOwnerUserId }
-                            .distinctBy { it.id }
-                            .map { User(it.id, it.name, it.avatar, it.email, it.isOnline, it.status, lastSeen = it.lastSeen) }
-                        userRepo.insertUsers(users)
-                        // 9.3xx：同步好友 ID 缓存（后续断网/限流时只显示这些确认好友）
-                        com.maodouchat.data.repository.FriendCacheStore.replaceAll(
-                            getApplication(),
-                            friendDtos.map { it.id }.toSet()
-                        )
-                        // 再读本地以合并备注名
-                        val merged = users.map { u ->
-                            val nick = userRepo.getUserById(u.id)?.nickname
-                            if (nick.isNullOrBlank()) u else u.copy(nickname = nick)
-                        }.sortedBy { it.displayName.lowercase() }
-                        if (!isCurrentOwner(loadOwnerUserId)) return@fold
-                        _uiState.update { it.copy(contacts = merged, isLoading = false, errorMessage = null) }
-                        return@launch
-                    },
-                    onFailure = { error ->
-                        networkError = error.message ?: text(R.string.contacts_load_failed)
-                    }
-                )
-
-                // 回退到本地好友缓存；若本地也为空且网络失败则展示错误
-                showLocalFriendsOnly(networkError)
             } catch (error: kotlinx.coroutines.CancellationException) {
-                if (tokenManager.getUserId().orEmpty() == loadOwnerUserId) {
+                if (contactsController.isCurrent(session)) {
                     _uiState.update { it.copy(isLoading = false) }
                 }
                 throw error
             } catch (error: Exception) {
-                if (tokenManager.getUserId().orEmpty() == loadOwnerUserId) {
+                if (contactsController.isCurrent(session)) {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = error.message ?: text(R.string.contacts_load_failed)
+                            errorMessage = error.message ?: text(R.string.contacts_load_failed),
                         )
                     }
                 }

@@ -42,7 +42,6 @@ object PushKeepAlive {
         context.applicationContext.stopService(
             Intent(context.applicationContext, PushKeepAliveService::class.java)
         )
-        FakeCallKeepAlive.removeFakeCall()
     }
 
     /** 模式切换：重启服务以应用新策略（媒体/假来电/仅前台）。 */
@@ -54,13 +53,10 @@ object PushKeepAlive {
         ensureForUser(context)
     }
 
-    /** 真实通话开始：挂断假来电让位，媒体模式暂停静音播放（避免音频焦点冲突）。 */
-    fun onRealCallStarted(context: Context) {
-        FakeCallKeepAlive.suspendForRealCall()
-        MediaKeepAlive.stopActive()
-    }
+    /** Real calls and push transport may coexist; WebSocket foreground ownership remains unchanged. */
+    fun onRealCallStarted(context: Context) = Unit
 
-    /** 真实通话结束：重启服务按模式恢复保活策略（onStartCommand 内 applyStrategy）。 */
+    /** Re-check transport eligibility after the call lifecycle changes. */
     fun onRealCallEnded(context: Context) {
         val mode = PushKeepAliveModeStore.mode(context)
         val hasToken = !TokenManager.getInstance(context).getToken().isNullOrBlank()

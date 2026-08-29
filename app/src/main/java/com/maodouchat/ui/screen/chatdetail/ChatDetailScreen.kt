@@ -3344,33 +3344,20 @@ if (showGroupCallTypeDialog) {
                 )
             }
 
-            // 1.162：已恢复本地草稿 → 输入框上方提示（含一键清空）
-            if (state.hasSavedDraft && state.inputText.isNotBlank()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().background(Secondary.copy(alpha = 0.12f)).padding(horizontal = 12.dp, vertical = 4.dp)
-                ) {
-                    Icon(Icons.Outlined.EditNote, contentDescription = null, tint = Secondary, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        stringResource(R.string.chat_draft_restored),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    TextButton(onClick = {
-                        viewModel.onInputChange("")
-                        viewModel.clearDraftPersistence()
-                    }) { Text(stringResource(R.string.chat_clear_draft), color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.labelMedium) }
-                }
-            }
+            RestoredDraftPanel(
+                visible = state.hasSavedDraft && state.inputText.isNotBlank(),
+                onClear = {
+                    viewModel.onInputChange("")
+                    viewModel.clearDraftPersistence()
+                },
+            )
 
             // 输入区
-            ChatInputBar(
+            ComposerPane(
                 value = state.inputText,
                 onValueChange = { viewModel.onInputChange(it) },
                 onSend = {
-                    if (state.isSending) return@ChatInputBar
+                    if (state.isSending) return@ComposerPane
                     viewModel.sendMessage(replyTarget = replyTarget)
                     replyTarget = null
                 },
@@ -8172,7 +8159,7 @@ private fun VoicePreviewBar(
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
-private fun ChatInputBar(
+internal fun ComposerPane(
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
@@ -8233,16 +8220,16 @@ private fun ChatInputBar(
     contactCardTargets: List<com.maodouchat.data.model.Chat> = emptyList(),
     onLoadForwardTargets: () -> Unit = {},
     onSendContactCard: (userId: String, displayName: String) -> Unit = { _, _ -> },
-    botCommands: List<com.maodouchat.bot.BotCommandPolicy.BotCommandItem> = emptyList()
+    botCommands: List<com.maodouchat.bot.BotCommandPolicy.BotCommandItem> = emptyList(),
+    composerState: ComposerState = rememberComposerState(),
 ) {
-    // 设备旋转时保留附件菜单展开状态
-    var showAttachMenu by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
-    var showExpressionPanel by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
-    var expressionMode by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("EMOJI") }
-    var showAiMenu by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
-    var showDraftTranslationLanguages by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
-    var showQuickPhrases by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
-    var showContactCardPicker by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    var showAttachMenu by composerState.attachMenu
+    var showExpressionPanel by composerState.expressionPanel
+    var expressionMode by composerState.expressionMode
+    var showAiMenu by composerState.aiMenu
+    var showDraftTranslationLanguages by composerState.translationLanguages
+    var showQuickPhrases by composerState.quickPhrases
+    var showContactCardPicker by composerState.contactCardPicker
     val context = LocalContext.current
     val attachmentDisabledText = disabledAttachmentMessage ?: stringResource(R.string.chat_attachment_unsupported)
     val mentionQuery = remember(value, isGroupChat) {
@@ -8263,12 +8250,7 @@ private fun ChatInputBar(
     }
     val everyoneLabel = stringResource(R.string.chat_mention_everyone)
     BackHandler(enabled = showAttachMenu || showExpressionPanel || showAiMenu || showQuickPhrases) {
-        when {
-            showAiMenu -> showAiMenu = false
-            showQuickPhrases -> showQuickPhrases = false
-            showAttachMenu -> showAttachMenu = false
-            showExpressionPanel -> showExpressionPanel = false
-        }
+        composerState.dismissTopPanel()
     }
 
     if (showDraftTranslationLanguages) {
@@ -8528,23 +8510,22 @@ private fun ChatInputBar(
                             icon = Icons.Outlined.SentimentSatisfied,
                             label = stringResource(R.string.chat_quick_phrases),
                             enabled = true,
-                            onClick = { showAttachMenu = false; showQuickPhrases = true }
+                            onClick = composerState::openQuickPhrases
                         )
                         AttachMenuKind.CONTACT_CARD -> AttachMenuItem(
                             icon = Icons.Outlined.ContactPage,
                             label = stringResource(R.string.chat_send_contact_card),
                             enabled = true,
                             onClick = {
-                                showAttachMenu = false
                                 onLoadForwardTargets()
-                                showContactCardPicker = true
+                                composerState.openContactCardPicker()
                             }
                         )
                         AttachMenuKind.AI -> AttachMenuItem(
                             icon = Icons.Outlined.AutoAwesome,
                             label = stringResource(R.string.chat_ai_assistant),
                             enabled = !isAiWorking && !isUpdatingAiSetting,
-                            onClick = { showAttachMenu = false; showAiMenu = true }
+                            onClick = composerState::showAiMenu
                         )
                         AttachMenuKind.SILENT -> AttachMenuItem(
                             icon = if (silentSend) Icons.Outlined.NotificationsOff else Icons.Outlined.Notifications,
@@ -8818,7 +8799,7 @@ private fun ChatInputBar(
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
         ) {
             IconButton(
-                onClick = { showAttachMenu = !showAttachMenu; if (showAttachMenu) showExpressionPanel = false },
+                onClick = composerState::toggleAttachMenu,
                 modifier = Modifier.size(40.dp)
             ) {
                 Icon(
@@ -8865,7 +8846,7 @@ private fun ChatInputBar(
                 )
             }
             IconButton(
-                onClick = { showExpressionPanel = !showExpressionPanel; if (showExpressionPanel) showAttachMenu = false },
+                onClick = composerState::toggleExpressionPanel,
                 modifier = Modifier.size(40.dp)
             ) {
                 Icon(

@@ -11,7 +11,6 @@ import android.widget.Toast
 import androidx.core.app.RemoteInput
 import com.maodouchat.MainActivity
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.quickreply.ChatGateVerdict
 import com.maodouchat.quickreply.QuickReplyPolicy
 import com.maodouchat.quickreply.SyncVerdict
 import com.maodouchat.util.AppNotifier
@@ -222,27 +221,20 @@ class ConversationWidgetProvider : AppWidgetProvider() {
         val text = verdict.text
         app.applicationScope.launch {
             try {
-                val gate = QuickReplyPolicy.gateForChat(app, chatId, ownerUserId)
-                if (gate != ChatGateVerdict.Allowed) {
-                    toast(app, com.maodouchat.R.string.quick_reply_rejected)
-                    return@launch
-                }
-                if (QuickReplyPolicy.shouldSuppressDuplicate(app, ownerUserId, chatId, text)) {
-                    // 系统重复投递：静默丢弃
-                    return@launch
-                }
-                // 8.49 修复：去重键改为发送成功后记录（此前发送前记账，真实失败后的
-                // 5 秒重试被误判为重复而静默丢弃）；失败时给出提示而非无声无息
-                if (ConversationQuickReplySender.sendQuickReply(
-                        app = app,
+                val result = com.maodouchat.quickreply.androidQuickReplyCommandHandler(app).execute(
+                    com.maodouchat.quickreply.QuickReplyCommand(
+                        ownerUserId = ownerUserId,
                         chatId = chatId,
                         text = text,
-                        ownerUserId = ownerUserId,
                     )
-                ) {
-                    QuickReplyPolicy.rememberSent(app, ownerUserId, chatId, text)
-                } else {
-                    toast(app, com.maodouchat.R.string.quick_reply_rejected)
+                )
+                when (result) {
+                    com.maodouchat.quickreply.QuickReplyCommandResult.Sent,
+                    com.maodouchat.quickreply.QuickReplyCommandResult.Duplicate -> Unit
+                    is com.maodouchat.quickreply.QuickReplyCommandResult.Rejected,
+                    com.maodouchat.quickreply.QuickReplyCommandResult.Failed -> {
+                        toast(app, com.maodouchat.R.string.quick_reply_rejected)
+                    }
                 }
                 ConversationWidgetData.refreshAll(app)
             } catch (e: kotlinx.coroutines.CancellationException) {

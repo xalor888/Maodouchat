@@ -111,7 +111,9 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private var pendingOfferSdp: String? = null
     private var activeCallId: String = ""
     private val callSessionGate = CallSessionGate()
+    private val callSessionMachine = com.maodouchat.call.CallSessionMachine()
     private var activeCallSession: Long = 0L
+    private var activeDomainSession: Long = 0L
     private var activeGroupId: String = ""
     private var meshGroupMemberIds: List<String> = emptyList()
     // 8.56：volatile——onIceConnectionChange 等在 WebRTC signaling 线程回调，与主线程 endCall 并发
@@ -222,9 +224,15 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun beginCallSession(): Long {
+    private fun beginCallSession(peerId: String, incoming: Boolean = false): Long {
         handledSignalingMessages.clear()
         iceRestartAttempts = 0
+        val snapshot = if (incoming) {
+            callSessionMachine.beginIncoming(peerId)
+        } else {
+            callSessionMachine.beginOutgoing(peerId)
+        }
+        activeDomainSession = snapshot.epoch
         return callSessionGate.begin().also { activeCallSession = it }
     }
 
@@ -279,6 +287,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             updateGroupParticipant(userId) { it.copy(connectionState = state) }
             when (state) {
                 GroupPeerConnectionState.CONNECTED -> {
+                    callSessionMachine.markConnected(activeDomainSession)
                     groupInviteTimeoutJobs.remove(userId)?.cancel()
                     groupReconnectJobs.remove(userId)?.cancel()
                     ringingTimeoutJob?.cancel()
@@ -431,7 +440,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         endingCall = false
-        val session = beginCallSession()
+        val session = beginCallSession(contactId)
         activeCallId = newCallId()
         activeGroupId = ""
         meshGroupMemberIds = emptyList()
@@ -525,6 +534,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private fun onIceConnectionChange(recovered: Boolean) {
         if (endingCall) return
         if (recovered) {
+            callSessionMachine.markConnected(activeDomainSession)
             iceReconnectJob?.cancel()
             iceReconnectJob = null
             iceRestartAttempts = 0
@@ -619,7 +629,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         }
         pendingOfferSdp = offerSdp
         endingCall = false
-        beginCallSession()
+        beginCallSession(contactId, incoming = true)
         activeCallId = callId
         // In-app ring UI owns the call — drop FCM/full-screen incoming tray so shade
         // does not keep a second "encrypted call" while CallScreen is already open.
@@ -712,6 +722,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         // 8.39：用户已接听即取消 30s 振铃超时——否则 WebRTC 原生库首次联网下载（慢网可超 30s）
         // 期间超时触发「无应答」挂断，用户明明已接听却被直接挂断
         ringingTimeoutJob?.cancel()
+        callSessionMachine.markConnecting(activeDomainSession)
         // Accepting from in-app UI must clear any leftover FCM incoming tray.
         if (activeCallId.isNotBlank()) {
             com.maodouchat.util.AppNotifier.cancelIncomingCall(app, activeCallId)
@@ -1021,7 +1032,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         endingCall = false
-        val session = beginCallSession()
+        val session = beginCallSession(chatId)
         activeCallId = newCallId()
         activeGroupId = chatId
         meshGroupMemberIds = (remoteMembers + selfUserId).sorted()
@@ -1348,6 +1359,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private fun endCall(notifyPeer: Boolean, errorMessage: String? = null, logMissed: Boolean = true) {
         if (endingCall) return
         endingCall = true
+        callSessionMachine.beginEnding(activeDomainSession)
         callSessionGate.invalidate(activeCallSession)
         val contactId = _uiState.value.contactId
         durationJob?.cancel()
@@ -1418,6 +1430,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         meshGroupMemberIds = emptyList()
         activeCallId = ""
         activeCallSession = 0L
+        callSessionMachine.finish(activeDomainSession)
+        activeDomainSession = 0L
         handledSignalingMessages.clear()
 
         _uiState.update {

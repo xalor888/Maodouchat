@@ -90,7 +90,10 @@ data class ExploreUiState(
             (composerText.isNotBlank() || readyImageUrls.isNotEmpty())
 }
 
-class ExploreViewModel(application: Application) : AndroidViewModel(application) {
+class ExploreViewModel @JvmOverloads constructor(
+    application: Application,
+    private val feedController: FeedController = FeedController(AndroidFeedRepository(application)),
+) : AndroidViewModel(application) {
     private val loadMoreMutex = Mutex()
     private val commentsLoadMutex = Mutex()
     private var feedGeneration = 0L
@@ -326,9 +329,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
 
     fun refresh() {
         loadPrivacyDefaults()
-        val token = tokenManager.getToken()
-        val refreshOwnerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isNullOrBlank() || refreshOwnerUserId.isBlank()) {
+        val session = feedController.currentSession()
+        val refreshOwnerUserId = session?.ownerUserId.orEmpty()
+        if (session == null) {
             val loginRequired = text(R.string.explore_login_required_page)
             _uiState.update {
                 it.copy(
@@ -357,8 +360,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                ApiService.getPosts(liveToken).fold(
+                feedController.load(session).fold(
                     onSuccess = { posts ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = refreshOwnerUserId,
@@ -441,10 +443,10 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 }
                 val generation = feedGeneration
                 val cursor = ExploreFeedPolicy.oldestCursor(guardState.posts) ?: return@withLock
-                val token = tokenManager.getToken()
-                val loadMoreOwnerUserId = tokenManager.getUserId().orEmpty()
-                if (ExploreFeedPolicy.missingSessionForLoadMore(token) || token == null || loadMoreOwnerUserId.isBlank()) {
-                    // Never leave isLoadingMore stuck: null token used to early-return after setting true.
+                val session = feedController.currentSession()
+                val loadMoreOwnerUserId = session?.ownerUserId.orEmpty()
+                if (session == null) {
+                    // Never leave isLoadingMore stuck when the account session is unavailable.
                     _uiState.update {
                         it.copy(isLoadingMore = false, errorMessage = text(R.string.explore_login_required_page))
                     }
@@ -463,12 +465,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         }
                         return@withLock
                     }
-                    val liveToken = tokenManager.getToken() ?: token
-                    ApiService.getPosts(
-                        liveToken,
-                        before = cursor.createdAt,
-                        beforeId = cursor.postId
-                    ).fold(
+                    feedController.load(session, cursor).fold(
                         onSuccess = { posts ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                     expectedUserId = loadMoreOwnerUserId,
@@ -1182,10 +1179,10 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun publishPost() {
-        val token = tokenManager.getToken()
-        val publishOwnerUserId = tokenManager.getUserId().orEmpty()
+        val session = feedController.currentSession()
+        val publishOwnerUserId = session?.ownerUserId.orEmpty()
         val state = _uiState.value
-        if (token.isNullOrBlank() || publishOwnerUserId.isBlank()) {
+        if (session == null) {
             _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
             return
         }
@@ -1215,9 +1212,13 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
                 val visibilityOverride = state.selectedVisibility.takeUnless { state.useDefaultPostVisibility }
-                ApiService.createPost(liveToken, state.composerText.trim(), state.readyImageUrls, visibilityOverride).fold(
+                feedController.publish(
+                    session = session,
+                    content = state.composerText,
+                    imageUrls = state.readyImageUrls,
+                    visibility = visibilityOverride,
+                ).fold(
                     onSuccess = { post ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = publishOwnerUserId,
