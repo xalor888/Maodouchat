@@ -10,6 +10,7 @@ kotlin {
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:serialization"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.4.0")
