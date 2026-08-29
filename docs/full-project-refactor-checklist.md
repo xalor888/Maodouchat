@@ -166,7 +166,7 @@ Gate：新旧客户端兼容矩阵确定；历史数据迁移可逆演练通过�
 
 - [ ] 拆分 outbox 事务写入、claim、加密、发送和状态迁移。
 - [ ] 拆分 DATA、EVENT、RECEIPT、GROUP_CONTROL projector。
-- [ ] Runtime 通过接口注入，不由页面或功能模块自行构造。
+- [~] Runtime 通过接口注入，不由页面或功能模块自行构造（`MessagingV2Runtime` 端口 + `OutboxState` 已冻结，实现接线待做）。
 - [ ] 所有发送来源统一经过 tombstone、owner-session、outbox 事务。
 - [ ] 完成 poison envelope、dead letter、stale claim 和 repair bypass 的观测与操作入口。
 - [ ] 删除旧消息 pull、屏幕解密、扫描 `SENDING` 行和 WS message 命令。
@@ -215,7 +215,7 @@ Gate：离线新建直聊、重复点击、取消、重试、账号切换和首�
 
 当前状态：`[~]`。Coordinator 和 tombstone 已有，UI 与本地投影仍需收敛。
 
-- [ ] 编辑、撤回、删除、回应全部经 `MessagingV2MutationFacade`。
+- [~] 编辑、撤回、删除、回应全部经 `MessagingV2MutationFacade`（契约已冻结：`MessageMutationCommand`/`MessageMutationResult`/`MutationKind`，实现接线待做）。
 - [ ] terminal mutation 与 tombstone 在同一 Room 事务提交。
 - [ ] 已读、送达、播放回执走独立 typed event 和聚合投影。
 - [ ] optimistic rollback 只允许发生在 durable staging 失败之前。
