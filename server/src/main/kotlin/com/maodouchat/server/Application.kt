@@ -34,6 +34,10 @@ import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.compression.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.jetbrains.exposed.sql.Database
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -71,6 +75,21 @@ fun main() {
     // Bootstrap table definitions once, then apply ordered, locked migrations.
     initDatabase()
     runDatabaseMigrations()
+
+    // B06：mailbox retention——进程内定时批处理（单实例部署；多实例 lease 属迁移框架后续）。
+    // 每小时触发一次，单轮最多 20 批 × 500 行，失败只记日志不影响服务。
+    kotlinx.coroutines.CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+        val retentionService = com.maodouchat.server.messaging.retention.MailboxRetentionService()
+        val retentionLogger = org.slf4j.LoggerFactory.getLogger("MailboxRetention")
+        while (true) {
+            kotlinx.coroutines.delay(3_600_000L)
+            runCatching {
+                repeat(20) {
+                    if (!retentionService.purgeBatch().hasMore) return@repeat
+                }
+            }.onFailure { e -> retentionLogger.warn("mailbox retention purge failed: {}", e.message) }
+        }
+    }
 
     // 创建仓库
     val userRepo = UserRepository()

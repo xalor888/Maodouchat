@@ -744,43 +744,56 @@ put("status", "dissolved")
                     }
                     else -> return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("处置动作无效"))
                 }
-                // 原子标记：仅 Applied 时执行副作用
-                when (val mark = reportRepo.markActionTaken(reportId, actorId, action, req.resolutionNote)) {
-                    is ReportRepository.ActionMarkResult.Failure -> {
+                // 处置副作用先于 actionTaken 提交：回调失败时举报保持可重试
+                when (
+                    val mark = reportRepo.executeActionAfterBusinessSuccess(
+                        reportId = reportId,
+                        reviewerId = actorId,
+                        action = action,
+                        resolutionNote = req.resolutionNote,
+                        businessAction = { pending ->
+                            when (action) {
+                                "NO_ACTION" -> true
+                                "DELETE_CONTENT" -> when (pending.targetType) {
+                                    "POST" -> postRepo.deletePostForModeration(pending.targetId)
+                                    "COMMENT" -> postRepo.deleteCommentForModeration(pending.targetId)
+                                    else -> true
+                                }
+                                "RESTRICT_MESSAGES_24H", "RESTRICT_POSTS_7D", "SUSPEND_24H" -> {
+                                    val targetUserId = frozenRestrictionTargetUserId
+                                    if (targetUserId.isNullOrBlank() || targetUserId == actorId ||
+                                        AdminAccess.isAdmin(targetUserId)
+                                    ) {
+                                        false
+                                    } else {
+                                        userRepo.applyModerationRestriction(targetUserId, action)
+                                        true
+                                    }
+                                }
+                                else -> false
+                            }
+                        },
+                    )
+                ) {
+                    is ReportRepository.ExecuteActionResult.Failure -> {
                         val status = if (mark.message == "举报不存在") HttpStatusCode.NotFound else HttpStatusCode.BadRequest
                         return@post call.respond(status, ErrorResponse(mark.message))
                     }
-                    is ReportRepository.ActionMarkResult.AlreadyDone ->
+                    is ReportRepository.ExecuteActionResult.AlreadyDone ->
                         return@post call.respond(
                 buildJsonObject {
 put("status", "resolved")
 put("action", (mark.report.actionTaken ?: "NO_ACTION"))
                 }
             )
-                    is ReportRepository.ActionMarkResult.Applied -> {
-                        val report = mark.report
-                        when (action) {
-                            "NO_ACTION" -> Unit
-                            "DELETE_CONTENT" -> {
-                                when (report.targetType) {
-                                    "POST" -> postRepo.deletePostForModeration(report.targetId)
-                                    "COMMENT" -> postRepo.deleteCommentForModeration(report.targetId)
-                                    else -> Unit
-                                }
-                            }
-                            "RESTRICT_MESSAGES_24H", "RESTRICT_POSTS_7D", "SUSPEND_24H" -> {
-                                val targetUserId = frozenRestrictionTargetUserId
-                                if (!targetUserId.isNullOrBlank() &&
-                                    targetUserId != actorId &&
-                                    !AdminAccess.isAdmin(targetUserId)
-                                ) {
-                                    userRepo.applyModerationRestriction(targetUserId, action)
-                                    if (action == "SUSPEND_24H") {
-                                        authTokenRepo.rotateAccessTokenVersion(targetUserId)
-                                        PushTokenRepository().removeAllForUser(targetUserId)
-                                        disconnectUserSessions(targetUserId, "账号已被临时封禁")
-                                    }
-                                }
+                    is ReportRepository.ExecuteActionResult.BusinessActionFailed ->
+                        return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("处置执行失败，请稍后重试"))
+                    is ReportRepository.ExecuteActionResult.Completed -> {
+                        if (action == "SUSPEND_24H") {
+                            frozenRestrictionTargetUserId?.let { targetUserId ->
+                                authTokenRepo.rotateAccessTokenVersion(targetUserId)
+                                PushTokenRepository().removeAllForUser(targetUserId)
+                                disconnectUserSessions(targetUserId, "账号已被临时封禁")
                             }
                         }
                         recordAdminAudit(actorId, "REPORT_ACTION_APPLIED", "reportId=$reportId; action=$action")

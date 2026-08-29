@@ -65,6 +65,7 @@ class MessagingV2Runtime(
             dao = app.database.messagingV2Dao(),
             processor = SignalMessagingV2EnvelopeProcessor(
                 signalProtocol = app.signalProtocol,
+                inboxDao = app.database.messagingV2Dao(),
                 domainSink = timelineProjector::project,
                 groupRevisionProvider = { chatId ->
                     app.database.chatDao().getChatById(chatId)?.memberRevision

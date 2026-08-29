@@ -98,6 +98,34 @@ interface MessagingV2Dao {
         now: Long,
     ): Int
 
+    /**
+     * Captures decrypted plaintext while the envelope is still PROCESSING. Written before the
+     * timeline commit so a crash between the persisted ratchet step and the projection can be
+     * recovered on replay instead of being acknowledged as a libsignal Duplicate.
+     */
+    @Query(
+        """
+        UPDATE messaging_v2_inbox
+        SET plaintextJournal = :plaintext, updatedAt = :now
+        WHERE envelopeId = :envelopeId AND state = 'PROCESSING'
+        """,
+    )
+    suspend fun writePlaintextJournal(envelopeId: String, plaintext: String, now: Long): Int
+
+    @Query("SELECT plaintextJournal FROM messaging_v2_inbox WHERE envelopeId = :envelopeId")
+    suspend fun plaintextJournal(envelopeId: String): String?
+
+    /** True when the envelope's message already reached the timeline or a terminal tombstone. */
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM message_mutation_tombstones
+            WHERE ownerUserId = :ownerUserId AND messageId = :messageId
+        ) OR EXISTS(SELECT 1 FROM messages WHERE id = :messageId)
+        """,
+    )
+    suspend fun isMessageProjected(ownerUserId: String, messageId: String): Boolean
+
     @Query("SELECT * FROM messaging_v2_inbox WHERE envelopeId = :envelopeId")
     suspend fun getInbox(envelopeId: String): MessagingV2InboxEntity?
 
@@ -191,7 +219,7 @@ interface MessagingV2Dao {
     @Query(
         """
         UPDATE messaging_v2_inbox
-        SET state = 'DEAD_LETTER', ciphertext = '', updatedAt = :now
+        SET state = 'DEAD_LETTER', ciphertext = '', plaintextJournal = '', updatedAt = :now
         WHERE ownerUserId = :ownerUserId AND deviceId = :deviceId
           AND state = 'DEAD_LETTER_ACK_PENDING' AND envelopeId IN (:envelopeIds)
         """,
@@ -466,7 +494,7 @@ interface MessagingV2Dao {
     @Query(
         """
         UPDATE messaging_v2_inbox
-        SET state = 'ACK_PENDING', ciphertext = '', attempts = 0,
+        SET state = 'ACK_PENDING', ciphertext = '', plaintextJournal = '', attempts = 0,
             nextAttemptAt = 0, lastErrorCode = NULL, updatedAt = :now
         WHERE ownerUserId = :ownerUserId AND conversationId = :conversationId
           AND state != 'DEAD_LETTER'

@@ -48,7 +48,7 @@ import com.maodouchat.data.local.entity.UserEntity
 
 @Database(
     entities = [UserEntity::class, ChatEntity::class, ChatDraftEntity::class, MessageEntity::class, SignalKeyEntity::class, IdentityTrustEntity::class, MissedCallEntity::class, ChatLockEntity::class, SecretChatEntity::class, AiSummaryCacheEntity::class, SenderKeyRetryEntity::class, AiTaskEntity::class, MessageSearchDocumentEntity::class, MessageSearchTokenEntity::class, AttachmentTransferEntity::class, AiOperationEntity::class, MessagingV2InboxEntity::class, MessagingV2OutboxEntity::class, MessagingV2ReceiptEntity::class, MessageMutationTombstoneEntity::class],
-    version = 34,
+    version = 35,
     exportSchema = true
 )abstract class AppDatabase : RoomDatabase() {
 
@@ -126,7 +126,7 @@ import com.maodouchat.data.local.entity.UserEntity
                     AppDatabase::class.java,
                     DATABASE_NAME
                 ).openHelperFactory(SupportFactory(passphrase))
-                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34)
+                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35)
                 if (allowDestructiveMigration) {
                     builder.fallbackToDestructiveMigration(dropAllTables = true)
                 }
@@ -686,6 +686,15 @@ import com.maodouchat.data.local.entity.UserEntity
                     "CREATE INDEX IF NOT EXISTS index_messaging_v2_receipts_ownerUserId_recipientUserId_readAt " +
                         "ON messaging_v2_receipts(ownerUserId, recipientUserId, readAt)",
                 )
+            }
+        }
+
+        val MIGRATION_34_35 = object : Migration(34, 35) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Crash journal: plaintext captured after a successful ratchet step survives
+                // process death so a replayed envelope is projected from the journal instead of
+                // being acknowledged as a libsignal Duplicate without ever reaching the timeline.
+                db.execSQL("ALTER TABLE messaging_v2_inbox ADD COLUMN plaintextJournal TEXT NOT NULL DEFAULT ''")
             }
         }
 

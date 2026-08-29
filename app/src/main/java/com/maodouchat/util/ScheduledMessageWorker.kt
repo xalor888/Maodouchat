@@ -10,6 +10,8 @@ import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.messaging.v2.MessagingV2MessageGateway
 import com.maodouchat.network.TokenManager
+import com.maodouchat.quickreply.ChatGateVerdict
+import com.maodouchat.quickreply.QuickReplyPolicy
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -60,6 +62,15 @@ class ScheduledMessageWorker(
         }
         val app = applicationContext as? MaodouchatApp
             ?: return@withContext Result.retry()
+        // 到点发送必须与手动发送同门禁：密聊/会话锁定的会话不得经定时路径绕过隐私边界。
+        // 被拒时按 abandon 处理（重复项按既有策略重排下一次），不静默丢弃用户意图。
+        when (val gate = QuickReplyPolicy.gateForChat(app, item.chatId, ownerUserId)) {
+            is ChatGateVerdict.Allowed -> Unit
+            is ChatGateVerdict.Rejected -> {
+                android.util.Log.i(TAG, "scheduled send rejected by privacy gate (${gate.reason}) chat=${item.chatId}")
+                return@withContext abandonScheduledMessage(item, scheduleId, expectedOwnerUserId)
+            }
+        }
         val msgId = "sm_${scheduleId.removePrefix("sch_")}"
         val now = System.currentTimeMillis()
         val optimistic = Message(

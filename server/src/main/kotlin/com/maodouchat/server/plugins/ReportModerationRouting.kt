@@ -170,59 +170,93 @@ put("status", "ok")
                         return@post
                     }
                 }
-                // 原子标记：仅 Applied 时执行副作用，避免双点重复封禁/删内容
-                when (val mark = reportRepo.markActionTaken(reportId, uid, action, req.resolutionNote)) {
-                    is ReportRepository.ActionMarkResult.Failure -> {
+                // 处置副作用先于 actionTaken 提交：回调失败时举报保持可重试，
+                // 不再出现「已标记已处置但内容仍在」的不可恢复状态。
+                var deletedModeration: com.maodouchat.server.messaging.v2.MessagingV2ModerationDeleteResult? = null
+                var broadcastPostDeletionFor: String? = null
+                when (
+                    val mark = reportRepo.executeActionAfterBusinessSuccess(
+                        reportId = reportId,
+                        reviewerId = uid,
+                        action = action,
+                        resolutionNote = req.resolutionNote,
+                        businessAction = { pending ->
+                            when (action) {
+                                "NO_ACTION" -> true
+                                "DELETE_CONTENT" -> when (pending.targetType) {
+                                    "MESSAGE" -> {
+                                        val messageId = pending.messageId ?: pending.targetId
+                                        val repository = com.maodouchat.server.messaging.v2.MessagingV2Repository()
+                                        val deleted = repository.deleteMessageForModeration(messageId)
+                                        if (deleted != null) {
+                                            deletedModeration = deleted
+                                            true
+                                        } else {
+                                            // 目标已不存在（重复处置）视作成功，避免审核入口卡死。
+                                            repository.messageMetadata(messageId) == null
+                                        }
+                                    }
+                                    "POST" -> {
+                                        val deleted = postRepo.deletePostForModeration(pending.targetId)
+                                        if (deleted) broadcastPostDeletionFor = pending.targetId
+                                        deleted
+                                    }
+                                    "COMMENT" -> postRepo.deleteCommentForModeration(pending.targetId)
+                                    else -> true
+                                }
+                                "RESTRICT_MESSAGES_24H", "RESTRICT_POSTS_7D", "SUSPEND_24H" -> {
+                                    val targetUserId = frozenRestrictionTargetUserId
+                                    if (targetUserId.isNullOrBlank() || targetUserId == uid ||
+                                        hasContentModerationAccess(userRepo, targetUserId)
+                                    ) {
+                                        false
+                                    } else {
+                                        userRepo.applyModerationRestriction(targetUserId, action)
+                                        true
+                                    }
+                                }
+                                else -> false
+                            }
+                        },
+                    )
+                ) {
+                    is ReportRepository.ExecuteActionResult.Failure -> {
                         val status = if (mark.message == "举报不存在") HttpStatusCode.NotFound else HttpStatusCode.BadRequest
                         call.respond(status, ErrorResponse(mark.message))
                         return@post
                     }
-                    is ReportRepository.ActionMarkResult.AlreadyDone -> {
+                    is ReportRepository.ExecuteActionResult.AlreadyDone -> {
                         call.respond(mark.report)
                         return@post
                     }
-                    is ReportRepository.ActionMarkResult.Applied -> {
+                    is ReportRepository.ExecuteActionResult.BusinessActionFailed -> {
+                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("处置执行失败，请稍后重试"))
+                        return@post
+                    }
+                    is ReportRepository.ExecuteActionResult.Completed -> {
                         val report = mark.report
                         when (action) {
-                            "NO_ACTION" -> Unit
                             "DELETE_CONTENT" -> {
-                                when (report.targetType) {
-                                    "MESSAGE" -> {
-                                        val messageId = report.messageId ?: report.targetId
-                                        val deleted = com.maodouchat.server.messaging.v2.MessagingV2Repository()
-                                            .deleteMessageForModeration(messageId)
-                                        if (deleted != null) {
-                                            deleted.deletedAttachmentIds.forEach(EncryptedAttachmentStorage::delete)
-                                            fanoutSystemDelete(
-                                                conversationParticipantRepo,
-                                                json,
-                                                deleted.metadata.conversationId,
-                                                messageId,
-                                            )
-                                        }
-                                    }
-                                    "POST" -> {
-                                        postRepo.deletePostForModeration(report.targetId)
-                                        broadcastPostDeleted(report.targetId)
-                                    }
-                                    "COMMENT" -> postRepo.deleteCommentForModeration(report.targetId)
-                                    else -> Unit
+                                broadcastPostDeletionFor?.let { broadcastPostDeleted(it) }
+                                deletedModeration?.let { deleted ->
+                                    deleted.deletedAttachmentIds.forEach(EncryptedAttachmentStorage::delete)
+                                    fanoutSystemDelete(
+                                        conversationParticipantRepo,
+                                        json,
+                                        deleted.metadata.conversationId,
+                                        report.messageId ?: report.targetId,
+                                    )
                                 }
                             }
                             "RESTRICT_MESSAGES_24H", "RESTRICT_POSTS_7D", "SUSPEND_24H" -> {
                                 val targetUserId = frozenRestrictionTargetUserId
-                                if (!targetUserId.isNullOrBlank() &&
-                                    targetUserId != uid &&
-                                    !hasContentModerationAccess(userRepo, targetUserId)
-                                ) {
-                                    userRepo.applyModerationRestriction(targetUserId, action)
-                                    if (action == "SUSPEND_24H") {
-                                        authTokenRepo.rotateAccessTokenVersion(targetUserId)
-                                        pushTokenRepo.removeAllForUser(targetUserId)
-                                        disconnectUserSessions(targetUserId, "账号已被临时封禁")
-                                    }
+                                if (action == "SUSPEND_24H" && !targetUserId.isNullOrBlank()) {
+                                    authTokenRepo.rotateAccessTokenVersion(targetUserId)
+                                    pushTokenRepo.removeAllForUser(targetUserId)
+                                    disconnectUserSessions(targetUserId, "账号已被临时封禁")
                                 }
                             }
+                            else -> Unit
                         }
                         call.respond(report)
                     }

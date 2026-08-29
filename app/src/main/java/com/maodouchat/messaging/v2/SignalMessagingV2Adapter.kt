@@ -169,6 +169,7 @@ class SignalMessagingV2EnvelopeProcessor(
     private val domainSink: MessagingV2DomainSink,
     private val groupRevisionProvider: suspend (String) -> Long?,
     private val onSenderKeyMissing: suspend (MessagingV2InboxEntity, Long) -> Unit = { _, _ -> },
+    private val inboxDao: com.maodouchat.data.local.dao.MessagingV2Dao? = null,
 ) : MessagingV2EnvelopeProcessor {
     private val json = Json { ignoreUnknownKeys = false }
 
@@ -218,6 +219,14 @@ class SignalMessagingV2EnvelopeProcessor(
                         SenderKeyDistOutcome.Failed -> error("messaging_v2_sender_key_install_failed")
                     }
                 } else {
+                    // Journal before parsing/commit: the ratchet step is already persisted at
+                    // this point, so the journal is the only recovery path when the process
+                    // dies before the projection commits.
+                    inboxDao?.writePlaintextJournal(
+                        envelopeId = envelope.envelopeId,
+                        plaintext = decrypted.plaintext,
+                        now = System.currentTimeMillis(),
+                    )
                     val content = runCatching {
                         json.decodeFromString<MessagingV2Content>(decrypted.plaintext)
                     }.getOrNull() ?: return
@@ -228,7 +237,28 @@ class SignalMessagingV2EnvelopeProcessor(
                     domainSink.commit(envelope, content)
                 }
             }
-            SignalProtocol.DecryptResult.Duplicate -> Unit
+            SignalProtocol.DecryptResult.Duplicate -> {
+                // The ratchet step survived a previous attempt. Recover the projection from the
+                // journal written before the original commit; otherwise acknowledge only when
+                // the message verifiably reached the timeline. Anything else is retried into
+                // the dead-letter path instead of silently losing the body.
+                val journaled = inboxDao?.plaintextJournal(envelope.envelopeId)?.takeIf(String::isNotBlank)
+                if (journaled == null) {
+                    if (inboxDao?.isMessageProjected(envelope.ownerUserId, envelope.messageId) != true) {
+                        error("messaging_v2_duplicate_uncommitted")
+                    }
+                } else {
+                    val content = runCatching {
+                        json.decodeFromString<MessagingV2Content>(journaled)
+                    }.getOrNull()
+                    if (content != null && MessagingV2ContentPolicy.accepts(envelope.kind, content)) {
+                        domainSink.commit(envelope, content)
+                    }
+                    // Intentional skips (policy-rejected) and unrecoverable payloads are
+                    // acknowledged with the journal cleared so they cannot replay forever.
+                    inboxDao.writePlaintextJournal(envelope.envelopeId, "", System.currentTimeMillis())
+                }
+            }
             SignalProtocol.DecryptResult.NoSession -> {
                 if (envelope.ciphertextType == CIPHERTEXT_SENDER_KEY) {
                     val epoch = envelope.groupRevision

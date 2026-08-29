@@ -53,16 +53,21 @@ put("ts", System.currentTimeMillis())
         val content = if (note.isNotBlank()) "---\n$note\n---" else "---"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendHr")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -90,16 +95,21 @@ put("type", "MARKDOWN")
         val content = "STATUS: $text"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendStatus")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -166,16 +176,21 @@ put("webhookConfigured", !bot.webhookUrl.isNullOrBlank())
         val content = headLine + "\n" + sepLine + "\n" + bodyLines
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content.take(4000), now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content.take(4000),
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendTable")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content.take(4000),
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -206,17 +221,21 @@ put("rows", rows.size)
         val content = "**$label**: `$value`"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendBadge")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -319,17 +338,21 @@ put("serverTime", System.currentTimeMillis())
         val content = "**$title**\n`[$bar]` $percent%"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendProgress")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -369,17 +392,21 @@ put("serverTime", System.currentTimeMillis())
         val content = "**$title**\n`T-${seconds}s`"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendCountdown")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -406,17 +433,21 @@ put("seconds", seconds)
         val content = "ALERT[$level]: $text"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendAlert")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -459,17 +490,21 @@ put("enabled", bot.enabled)
         val content = "REMIND: $text"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendRemind")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -496,17 +531,21 @@ put("type", "SYSTEM")
         val content = "---\n**$label**\n---"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDivider")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -622,17 +661,21 @@ put("serverTime", System.currentTimeMillis())
         val content = "TOAST: $text"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendToast")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -660,17 +703,21 @@ put("type", "SYSTEM")
         val content = "`$key` = **$value**"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendKeyValue")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -712,17 +759,21 @@ put("serverTime", System.currentTimeMillis())
         val content = "NOTICE: $text"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendNotice")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -753,17 +804,21 @@ put("type", "SYSTEM")
         val content = "> $quote$attribution"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendQuoteCard")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -808,17 +863,21 @@ put("serverTime", System.currentTimeMillis())
         val content = "## $title\n$text"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendBanner")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -847,17 +906,21 @@ put("type", "MARKDOWN")
         val content = "```json\n$payload\n```"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendJsonCard")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -905,17 +968,21 @@ put("surface", 39)
         val content = "### $title\n$lines"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendTimeline")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -946,17 +1013,21 @@ put("type", "MARKDOWN")
         val content = "**$label**  \n`$value${if (unit.isNotBlank()) " $unit" else ""}`"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMetric")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -990,17 +1061,21 @@ put("type", "MARKDOWN")
         val content = "### $title\n$lines"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSteps")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1030,17 +1105,21 @@ put("type", "MARKDOWN")
         val content = "| Left | Right |\n| --- | --- |\n| $left | $right |"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendCompare")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1087,17 +1166,21 @@ put("surface", 39)
         val content = "> @$label"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMentionCard")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1126,17 +1209,21 @@ put("type", "MARKDOWN")
         val content = "INVITEHINT:$hint"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendInviteHint")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1183,17 +1270,21 @@ put("serverTime", System.currentTimeMillis())
         val content = "> ~nudge:$label~"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendNudgeCard")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1222,17 +1313,21 @@ put("type", "MARKDOWN")
         val content = "🔐 $hint"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSafetyHint")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1319,17 +1414,21 @@ put("serverTime", System.currentTimeMillis())
         val content = "📷 $hint"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendQrHint")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1361,17 +1460,21 @@ put("type", "SYSTEM")
         val content = "> ~card:$name~"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "MARKDOWN")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "MARKDOWN",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendContactCard")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "MARKDOWN", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1403,17 +1506,21 @@ put("type", "MARKDOWN")
         val content = "🌫️ $hint"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSpoilerHint")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1442,17 +1549,21 @@ put("type", "SYSTEM")
         val content = "⬇️ $hint"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching {
-            serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM")
-        }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendDownloadHint")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1493,15 +1604,21 @@ put("serverTime", System.currentTimeMillis())
         val content = "📍 $hint"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching { serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendLocationHint")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1526,15 +1643,21 @@ put("type", "SYSTEM")
         val content = "📎 $hint"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching { serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendFileHint")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1563,15 +1686,21 @@ put("type", "SYSTEM")
         val content = "🛡️ $hint"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching { serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendSecureHint")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1600,15 +1729,21 @@ put("type", "SYSTEM")
         val content = "🖼️ $hint"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching { serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendPhotoHint")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1633,15 +1768,21 @@ put("type", "SYSTEM")
         val content = "🎬 $hint"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching { serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendVideoHint")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1675,15 +1816,21 @@ put("type", "SYSTEM")
         val content = "🎞️ $hint"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching { serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendGifHint")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1708,15 +1855,21 @@ put("type", "SYSTEM")
         val content = "🔏 $hint"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val ok = runCatching { serviceMessageRepository.insert(msgId, chatId, bot.id, content, now, "SYSTEM") }.getOrDefault(false)
-        if (!ok) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
+        val botMessage = runCatching {
+            publishBotServiceMessage(
+                userRepository = userRepository,
+                participantRepository = participantRepository,
+                serviceMessageRepository = serviceMessageRepository,
+                json = json,
+                botId = bot.id,
+                chatId = chatId,
+                messageId = msgId,
+                content = content,
+                timestamp = now,
+                type = "SYSTEM",
+            )
+        }.getOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendWatermarkHint")
-        val botMessage = com.maodouchat.server.model.MessageResponse(
-            id = msgId, chatId = chatId, senderId = bot.id, content = content,
-            type = "SYSTEM", timestamp = now, status = "SENT"
-        )
-        // 9.131：与 sendMessage/sendTable 等经典端点一致——实时 WS fanout（拉黑 bot 的接收方跳过）
-        fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, botMessage)
         call.respond(
         buildJsonObject {
 put("ok", true)

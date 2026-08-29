@@ -27,6 +27,13 @@ data class MessagingV2InboxEntity(
     val serverTimestamp: Long,
     val ciphertextType: String,
     val ciphertext: String,
+    /**
+     * Decrypted plaintext captured right after a successful ratchet step and cleared on
+     * acknowledgement. Survives process death between decrypt and timeline commit so a
+     * replayed envelope is projected from the journal instead of being acknowledged as a
+     * libsignal Duplicate without ever reaching the timeline.
+     */
+    val plaintextJournal: String = "",
     val state: String = MessagingV2InboxState.RECEIVED,
     val attempts: Int = 0,
     val nextAttemptAt: Long = 0L,

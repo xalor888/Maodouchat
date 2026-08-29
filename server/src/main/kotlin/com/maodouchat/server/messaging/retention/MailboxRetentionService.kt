@@ -71,11 +71,15 @@ class MailboxRetentionService(
         return transaction {
             val candidates = MessagingV2Envelopes.selectAll()
                 .where {
+                    // Retired-device candidates must be unacknowledged: acknowledged rows are
+                    // governed by clause 1 alone. Without this guard, rows acknowledged recently
+                    // but received long ago flood the bounded scan window and starve the purge.
                     ((MessagingV2Envelopes.acknowledgedAt.isNotNull()) and
                         (MessagingV2Envelopes.acknowledgedAt lessEq acknowledgedCutoff)) or
                         ((MessagingV2Envelopes.acknowledgedAt.isNull()) and
                             (MessagingV2Envelopes.serverTimestamp lessEq unacknowledgedCutoff)) or
-                        (MessagingV2Envelopes.serverTimestamp lessEq retiredDeviceCutoff)
+                        ((MessagingV2Envelopes.acknowledgedAt.isNull()) and
+                            (MessagingV2Envelopes.serverTimestamp lessEq retiredDeviceCutoff))
                 }
                 .orderBy(MessagingV2Envelopes.sequence to SortOrder.ASC)
                 .limit(maxRows + 1)

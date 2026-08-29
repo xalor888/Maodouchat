@@ -58,24 +58,25 @@ internal fun Route.configureBotHintRoutes(
             val content = spec.contentPrefix + hint
             val messageId = "bot_" + UUID.randomUUID().toString().replace("-", "").take(16)
             val now = System.currentTimeMillis()
-            val inserted = runCatching {
-                serviceMessageRepository.insert(messageId, chatId, bot.id, content, now, "SYSTEM")
-            }.getOrDefault(false)
-            if (!inserted) {
+            val message = runCatching {
+                publishBotServiceMessage(
+                    userRepository = userRepository,
+                    participantRepository = participantRepository,
+                    serviceMessageRepository = serviceMessageRepository,
+                    json = json,
+                    botId = bot.id,
+                    chatId = chatId,
+                    messageId = messageId,
+                    content = content,
+                    timestamp = now,
+                    type = "SYSTEM",
+                )
+            }.getOrNull()
+            if (message == null) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
                 return@post
             }
             BotRepository.logCommand(bot.id, chatId, null, spec.path)
-            val message = MessageResponse(
-                id = messageId,
-                chatId = chatId,
-                senderId = bot.id,
-                content = content,
-                type = "SYSTEM",
-                timestamp = now,
-                status = "SENT",
-            )
-            fanoutBotMessage(userRepository, participantRepository, json, bot.id, chatId, message)
             call.respond(buildJsonObject {
                 put("ok", true)
                 put("messageId", messageId)
