@@ -64,6 +64,29 @@ class RouteRegistrySplitTest {
         assertFalse("fanoutBotMessage(" in sender)
     }
 
+    @Test
+    fun `primary registry delegates public update and profile routes`() {
+        val registry = source("Routing.kt")
+        val update = source("PublicUpdateRouting.kt")
+        val profile = source("PublicProfileRouting.kt")
+
+        assertTrue("configurePublicUpdateRoutes(cacheService)" in registry)
+        assertTrue("configurePublicProfileRoutes(" in registry)
+        listOf(
+            "/api/public/updates",
+            "/api/public/app-update/latest.apk",
+            "/api/internal/app-update",
+            "/api/public/status",
+            "/api/webrtc/lib/{abi}",
+            "/api/public/profile/{username}",
+            "/u/{username}",
+        ).forEach { path ->
+            val declaration = Regex("(?m)^\\s*(get|post|put|delete|patch)\\(\\\"${Regex.escape(path)}\\\"")
+            assertFalse(declaration.containsMatchIn(registry), path)
+            assertTrue(declaration.containsMatchIn(update) || declaration.containsMatchIn(profile), path)
+        }
+    }
+
     private companion object {
         val ENDPOINT_DECLARATION = Regex("(?m)^\\s*(get|post|put|delete|patch)\\(\\\"")
     }
