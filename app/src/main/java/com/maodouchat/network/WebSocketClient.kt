@@ -1,9 +1,5 @@
 package com.maodouchat.network
 
-import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageReaction
-import com.maodouchat.data.model.MessageStatus
-import com.maodouchat.data.model.MessageType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,15 +22,7 @@ import okhttp3.WebSocketListener
 import java.util.concurrent.TimeUnit
 
 sealed class WebSocketEvent {
-    data class MessageReceived(val message: Message) : WebSocketEvent()
-    data class StatusChanged(val messageId: String, val status: MessageStatus) : WebSocketEvent()
-    /** 跨设备已读同步：同账号其他设备标记了该会话已读。 */
-    data class ChatMarkedRead(val chatId: String) : WebSocketEvent()
-    data class MessageDeleted(val messageId: String, val chatId: String) : WebSocketEvent()
     data class PostDeleted(val postId: String) : WebSocketEvent()
-    data class MessageRevoked(val messageId: String, val chatId: String) : WebSocketEvent()
-    data class MessageEdited(val messageId: String, val chatId: String, val content: String, val editedAt: Long? = null) : WebSocketEvent()
-    data class MessageReactionUpdated(val chatId: String, val messageId: String, val userId: String, val reactions: List<MessageReaction>) : WebSocketEvent()
     data class PinnedMessagesUpdated(
         val chatId: String,
         val actorId: String,
@@ -44,11 +32,6 @@ sealed class WebSocketEvent {
         val chatId: String,
         val seconds: Int,
         val updatedAt: Long = 0L
-    ) : WebSocketEvent()
-    data class MessageExpires(
-        val messageId: String,
-        val chatId: String,
-        val expiresAt: Long
     ) : WebSocketEvent()
     data class UserOnline(
         val userId: String,
@@ -71,7 +54,6 @@ sealed class WebSocketEvent {
         val code: String? = null,
         val retryAfterSeconds: Long? = null,
         val message: String = "",
-        val messageId: String? = null
     ) : WebSocketEvent()
     data class UserTyping(val userId: String, val chatId: String, val isTyping: Boolean) : WebSocketEvent()
     data class GroupRevisionChanged(
@@ -96,12 +78,8 @@ sealed class WebSocketEvent {
         val action: String,
         val invite: GroupInvitationDto
     ) : WebSocketEvent()
-    data class SenderKeyRequested(
-        val chatId: String,
-        val requesterId: String,
-        val epoch: Long = 0L
-    ) : WebSocketEvent()
     data class Connected(val success: Boolean) : WebSocketEvent()
+    data object InboxAvailableV2 : WebSocketEvent()
     data class Error(
         val kind: WebSocketErrorKind,
         val debugDetail: String? = null
@@ -144,43 +122,21 @@ enum class WebSocketErrorKind {
     CONNECTION,
     ENVELOPE_PARSE,
     MESSAGE_PARSE,
-    STATUS_PARSE,
-    DELETE_PARSE,
     POST_DELETE_PARSE,
-    EDIT_PARSE,
-    REACTION_PARSE,
     PIN_PARSE,
     DISAPPEARING_PARSE,
-    EXPIRES_PARSE,
     USER_STATUS_PARSE,
     TYPING_PARSE,
     GROUP_REVISION_PARSE,
     SIGNALING_PARSE,
-    FRIEND_REQUEST_PARSE,
-    SENDER_KEY_REQUEST_PARSE
+    FRIEND_REQUEST_PARSE
 }
 
 @Serializable
 internal data class WsMessage(val type: String, val payload: String)
 
 @Serializable
-private data class SendPayload(val id: String, val chatId: String, val content: String, val type: String, val sealedSender: Boolean = false, val silent: Boolean = false,  val sealedSenderCertificate: String? = null)
-
-@Serializable
-private data class StatusPayload(val messageId: String, val status: String)
-
-@Serializable
 private data class TypingPayload(val userId: String, val chatId: String, val isTyping: Boolean)
-
-@Serializable
-private data class NudgePayload(val chatId: String, val targetName: String)
-
-@Serializable
-private data class SenderKeyRequestPayload(
-    val chatId: String,
-    val requesterId: String = "",
-    val epoch: Long = 0L
-)
 
 @Serializable
 private data class AdminBroadcastPayload(
@@ -189,29 +145,6 @@ private data class AdminBroadcastPayload(
     val actorId: String = "",
     val ts: Long = 0L
 )
-
-@Serializable
-private data class IncomingMessage(
-    val id: String,
-    val chatId: String,
-    val senderId: String,
-    val content: String,
-    // 8.52 契约修复 CRITICAL：Server 端 Json encodeDefaults=false，type=="TEXT"（默认值）时
-    // 键被省略；此前无默认值 → 每条 TEXT 消息 WS 解码抛 MissingFieldException 被丢弃。
-    val type: String = "TEXT",
-    val timestamp: Long,
-    val editedAt: Long? = null,
-    val starred: Boolean = false,
-    val reactions: List<MessageReaction> = emptyList(),
-    val expiresAt: Long? = null,
-    val sealedSender: Boolean = false
-)
-
-@Serializable
-private data class IncomingStatus(val messageId: String, val status: String)
-
-@Serializable
-private data class IncomingChatMarkedRead(val chatId: String)
 
 @Serializable
 private data class IncomingUserStatus(
@@ -238,30 +171,10 @@ internal data class IncomingServerError(
     val error: String = "",
     val code: String? = null,
     val retryAfterSeconds: Long? = null,
-    val messageId: String? = null
 )
-
-@Serializable
-private data class IncomingMessageDeleted(val messageId: String, val chatId: String)
 
 @Serializable
 private data class IncomingPostDeleted(val postId: String)
-
-@Serializable
-private data class IncomingMessageEdited(
-    val messageId: String,
-    val chatId: String = "",
-    val content: String,
-    val editedAt: Long? = null
-)
-
-@Serializable
-private data class IncomingMessageReactionUpdated(
-    val chatId: String,
-    val messageId: String,
-    val userId: String,
-    val reactions: List<MessageReaction> = emptyList()
-)
 
 @Serializable
     private data class IncomingPinnedMessagesUpdated(
@@ -275,13 +188,6 @@ private data class IncomingMessageReactionUpdated(
         val chatId: String,
         val seconds: Int = 0,
         val updatedAt: Long = 0
-    )
-
-    @Serializable
-    private data class IncomingMessageExpires(
-        val messageId: String,
-        val chatId: String,
-        val expiresAt: Long
     )
 
 @Serializable
@@ -722,27 +628,6 @@ object WebSocketClient {
             r.contains("token")
     }
 
-    fun sendMessage(message: Message, sealedSenderCertificate: String? = null, silent: Boolean = message.parsedMeta().silent): Boolean {
-        val sealed = message.sealedSender || !sealedSenderCertificate.isNullOrBlank()
-        val payload = json.encodeToString(SendPayload.serializer(), SendPayload(
-            id = message.id,
-            chatId = message.chatId,
-            content = message.content,
-            type = message.type.name,
-            sealedSender = sealed,
-            silent = silent,
-            sealedSenderCertificate = sealedSenderCertificate
-        ))
-        return send(WsMessage(type = "SEND_MESSAGE", payload = payload))
-    }
-
-    fun sendStatusUpdate(messageId: String, status: MessageStatus): Boolean {
-        val payload = json.encodeToString(StatusPayload.serializer(), StatusPayload(
-            messageId = messageId, status = status.name
-        ))
-        return send(WsMessage(type = "STATUS_UPDATE", payload = payload))
-    }
-
     fun sendTyping(chatId: String, isTyping: Boolean): Boolean {
         val payload = json.encodeToString(TypingPayload.serializer(), TypingPayload("", chatId, isTyping))
         return send(WsMessage("TYPING", payload))
@@ -751,22 +636,6 @@ object WebSocketClient {
     /** 前台才算在线：Activity onStart/onStop 上报，不把后台保活 WS 当成在线。 */
     fun sendPresence(foreground: Boolean): Boolean =
         send(WsMessage(type = "PRESENCE", payload = if (foreground) "true" else "false"))
-
-    fun sendNudge(chatId: String, targetName: String): Boolean {
-        val payload = json.encodeToString(NudgePayload.serializer(), NudgePayload(
-            chatId = chatId, targetName = targetName
-        ))
-        return send(WsMessage(type = "NUDGE", payload = payload))
-    }
-
-    fun requestSenderKey(chatId: String, epoch: Long = 0L): Boolean {
-        if (chatId.isBlank()) return false
-        val payload = json.encodeToString(
-            SenderKeyRequestPayload.serializer(),
-            SenderKeyRequestPayload(chatId = chatId, epoch = epoch)
-        )
-        return send(WsMessage(type = "REQUEST_SENDER_KEY", payload = payload))
-    }
 
     @Synchronized
     fun disconnect() {
@@ -805,6 +674,7 @@ object WebSocketClient {
 
     private fun handleWsMessage(wsMsg: WsMessage) {
         when (wsMsg.type) {
+            "INBOX_AVAILABLE_V2" -> eventBus.post(WebSocketEvent.InboxAvailableV2)
             "ADMIN_BROADCAST" -> {
                 try {
                     val data = json.decodeFromString<AdminBroadcastPayload>(wsMsg.payload)
@@ -823,75 +693,12 @@ object WebSocketClient {
                         }.onFailure { emitError(WebSocketErrorKind.MESSAGE_PARSE, e) }
                 }
             }
-            "NEW_MESSAGE" -> {
-                try {
-                    val data = json.decodeFromString<IncomingMessage>(wsMsg.payload)
-                    val message = Message(
-                        id = data.id, chatId = data.chatId, senderId = data.senderId,
-                        content = data.content, type = MessageType.fromWire(data.type),
-                        timestamp = data.timestamp, status = MessageStatus.DELIVERED,
-                        editedAt = data.editedAt, starred = data.starred, reactions = data.reactions,
-                        expiresAt = data.expiresAt, sealedSender = data.sealedSender
-                    )
-                    eventBus.post(WebSocketEvent.MessageReceived(message))
-                } catch (e: Exception) {
-                    emitError(WebSocketErrorKind.MESSAGE_PARSE, e)
-                }
-            }
-            "MESSAGE_STATUS" -> {
-                try {
-                    val data = json.decodeFromString<IncomingStatus>(wsMsg.payload)
-                    eventBus.post(WebSocketEvent.StatusChanged(data.messageId, MessageStatus.fromWire(data.status)))
-                } catch (e: Exception) {
-                    emitError(WebSocketErrorKind.STATUS_PARSE, e)
-                }
-            }
-            "CHAT_MARKED_READ" -> {
-                try {
-                    val data = json.decodeFromString<IncomingChatMarkedRead>(wsMsg.payload)
-                    eventBus.post(WebSocketEvent.ChatMarkedRead(data.chatId))
-                } catch (e: Exception) {
-                    emitError(WebSocketErrorKind.MESSAGE_PARSE, e)
-                }
-            }
-            "MESSAGE_DELETED" -> {
-                try {
-                    val data = json.decodeFromString<IncomingMessageDeleted>(wsMsg.payload)
-                    eventBus.post(WebSocketEvent.MessageDeleted(data.messageId, data.chatId))
-                } catch (e: Exception) {
-                    emitError(WebSocketErrorKind.DELETE_PARSE, e)
-                }
-            }
-            "MESSAGE_REVOKED" -> {
-                try {
-                    val data = json.decodeFromString<IncomingMessageDeleted>(wsMsg.payload)
-                    eventBus.post(WebSocketEvent.MessageRevoked(data.messageId, data.chatId))
-                } catch (e: Exception) {
-                    emitError(WebSocketErrorKind.DELETE_PARSE, e)
-                }
-            }
             "POST_DELETED" -> {
                 try {
                     val data = json.decodeFromString<IncomingPostDeleted>(wsMsg.payload)
                     eventBus.post(WebSocketEvent.PostDeleted(data.postId))
                 } catch (e: Exception) {
                     emitError(WebSocketErrorKind.POST_DELETE_PARSE, e)
-                }
-            }
-            "MESSAGE_EDITED" -> {
-                try {
-                    val data = json.decodeFromString<IncomingMessageEdited>(wsMsg.payload)
-                    eventBus.post(WebSocketEvent.MessageEdited(data.messageId, data.chatId, data.content, data.editedAt))
-                } catch (e: Exception) {
-                    emitError(WebSocketErrorKind.EDIT_PARSE, e)
-                }
-            }
-            "MESSAGE_REACTION_UPDATED" -> {
-                try {
-                    val data = json.decodeFromString<IncomingMessageReactionUpdated>(wsMsg.payload)
-                    eventBus.post(WebSocketEvent.MessageReactionUpdated(data.chatId, data.messageId, data.userId, data.reactions))
-                } catch (e: Exception) {
-                    emitError(WebSocketErrorKind.REACTION_PARSE, e)
                 }
             }
             "PINNED_MESSAGES_UPDATED" -> {
@@ -922,20 +729,6 @@ object WebSocketClient {
                     emitError(WebSocketErrorKind.DISAPPEARING_PARSE, e)
                 }
             }
-            "MESSAGE_EXPIRES" -> {
-                try {
-                    val data = json.decodeFromString<IncomingMessageExpires>(wsMsg.payload)
-                    eventBus.post(
-                        WebSocketEvent.MessageExpires(
-                            messageId = data.messageId,
-                            chatId = data.chatId,
-                            expiresAt = data.expiresAt
-                        )
-                    )
-                } catch (e: Exception) {
-                    emitError(WebSocketErrorKind.EXPIRES_PARSE, e)
-                }
-            }
             "USER_STATUS" -> {
                 try {
                     val data = json.decodeFromString<IncomingUserStatus>(wsMsg.payload)
@@ -958,23 +751,6 @@ object WebSocketClient {
                     eventBus.post(WebSocketEvent.UserTyping(data.userId, data.chatId, data.isTyping))
                 } catch (e: Exception) {
                     emitError(WebSocketErrorKind.TYPING_PARSE, e)
-                }
-            }
-
-            "REQUEST_SENDER_KEY" -> {
-                try {
-                    val data = json.decodeFromString<SenderKeyRequestPayload>(wsMsg.payload)
-                    if (data.chatId.isNotBlank() && data.requesterId.isNotBlank()) {
-                        eventBus.post(
-                            WebSocketEvent.SenderKeyRequested(
-                                chatId = data.chatId,
-                                requesterId = data.requesterId,
-                                epoch = data.epoch
-                            )
-                        )
-                    }
-                } catch (e: Exception) {
-                    emitError(WebSocketErrorKind.SENDER_KEY_REQUEST_PARSE, e)
                 }
             }
 
@@ -1053,7 +829,6 @@ object WebSocketClient {
                                 code = error.code,
                                 retryAfterSeconds = error.retryAfterSeconds,
                                 message = error.error,
-                                messageId = error.messageId
                             )
                         )
                     }

@@ -183,7 +183,7 @@
 
 | 功能 | 完整度 | 说明 | 关键路径 |
 |------|--------|------|----------|
-| 本机助手 | 可用 | 客户端进程；用户自配 OpenAI 兼容模型（Key 加密存本机）；工具读 SQLCipher 已解密行；发消息需审批后走 `TextOutboxFlusher` E2EE；密聊/未解锁 PIN 不可读。聊天明文不经毛豆 `/api/ai`。`OnDeviceEmbeddingGate` 仍 false | `ai/agent/*` + 设置「AI 与隐私」+ `Routes.AGENT` |
+| 本机助手 | 可用 | 客户端进程；用户自配 OpenAI 兼容模型（Key 加密存本机）；工具读 SQLCipher 已解密行；发消息需审批后写入 durable v2 outbox；密聊/未解锁 PIN 不可读。聊天明文不经毛豆 `/api/ai`。`OnDeviceEmbeddingGate` 仍 false | `ai/agent/*` + 设置「AI 与隐私」+ `Routes.AGENT` |
 | 改写（含流式） | 完整 | 草稿流式改写；模式 polish/shorten/formal/gentle/casual/professional/expand/bullet/clarify/translate；可取消；走本机模型 | `LocalAiGateway` + ChatDetail |
 | 回复建议 | 完整 | 候选条最多 4 条；上下文最多 20 条；语气 友好/自然/正式/简洁/温和/幽默/直接/共情/鼓励；可点入草稿 | ChatDetail AI 建议条 |
 | 翻译 | 完整 | 24 种目标语言；语言列表可搜索；已译语言打勾；本机模型 | ChatDetail `TranslationLanguageDialog` |
@@ -204,12 +204,12 @@
 | 功能 | 完整度 | 说明 | 关键路径 |
 |------|--------|------|----------|
 | 加密上传分片/续传 | 完整 | AES-GCM 分片；断点续传 | `attachment/*` |
-| Commit 绑定消息 | 完整 | 上传完成 commit 后绑定 client msg | attachment pipeline |
+| 附件引用原子投递 | 完整 | 加密上传完成后，附件引用随 v2 消息事务原子写入各设备 inbox；无独立消息 commit 接口 | attachment pipeline + `MessagingV2Outbox` |
 | 下载 Range + 哈希校验 | 完整 | API 完备 | `ApiService` |
 | 暂停/恢复/取消 | 完整 | Coordinator + 气泡/会话级批量 | `AttachmentTransferCoordinator` |
 | Worker 进程恢复 | 完整 | 进程死后 reconcile 可恢复态 | `AttachmentTransferWorker` + Scheduler |
 | Sender Key 后台重试 | 完整 | 群分发失败 WorkManager 重试 | `SenderKeyRetryWorker` |
-| 定时消息 Worker | 完整 | 群走 TextOutboxFlusher Sender Key | `ScheduledMessageWorker` |
+| 定时消息 Worker | 完整 | 到期后写入 durable v2 outbox；群聊由 v2 加密适配器准备 Sender Key 消息 | `ScheduledMessageWorker` + `MessagingV2Outbox` |
 
 ### 3.11 推送与系统集成
 

@@ -9,7 +9,7 @@ package com.maodouchat.notification
 object NotificationCenterReadPolicy {
 
     /**
-     * Rows that represent NEW_MESSAGE style notifications for [chatId].
+     * Rows that represent incoming-message notifications for [chatId].
      * Used when the user opens a conversation: mark message rows read only.
      */
     fun isChatMessageItem(

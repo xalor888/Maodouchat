@@ -10,13 +10,13 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Business events are live-only. A newly opened screen must reconcile from REST/Room instead of
- * receiving the last event again, which could repeat a delete, reaction, or group revision.
+ * Only ephemeral/control events use this bus. Durable chat data converges through v2 Inbox and
+ * Room, while INBOX_AVAILABLE_V2 is merely a wake-up hint that periodic polling can recover.
  *
  * 有界队列 + 单消费者桥接：生产者（WebSocket 回调线程）经 [post] 永不阻塞；消费者协程把
  * 事件顺序 emit 到底层 SharedFlow（SUSPEND 背压）——collector 慢时消费协程挂起。
  * 队列有界（DROP_OLDEST）：极端积压时丢弃最旧事件而非无限堆积直至 OOM——
- * NEW_MESSAGE 靠游标补回，REACTION/STATUS/TYPING 为纯实时事件，短暂丢失可接受。
+ * Durable inbox wake-ups can be dropped safely; typing/presence are intentionally best effort.
  */
 internal class NonReplayingEventBus<T>(capacity: Int, scope: CoroutineScope) {
     private val events = MutableSharedFlow<T>(

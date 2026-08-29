@@ -768,130 +768,60 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
             DisappearingMessagesResponse.serializer()
         )
 
-    suspend fun armSecretChatExpiry(token: String, chatId: String, throughId: String? = null): Result<MarkReadResponse> {
-        val body = if (throughId.isNullOrBlank()) {
-            ByteArray(0).toRequestBody(null)
-        } else {
-            jsonBody(json.encodeToString(MarkReadRequest.serializer(), MarkReadRequest(throughId)))
-        }
-        return send(
-            Request.Builder()
-                .url("${ApiConfig.BASE_URL}/api/chats/$chatId/arm-disappearing")
-                .addHeader("Authorization", "Bearer $token")
-                .post(body)
-                .build(),
-            MarkReadResponse.serializer()
-        )
-    }
-
-    suspend fun markAllAsRead(token: String, chatId: String, throughId: String? = null): Result<MarkReadResponse> {
-        val body = if (throughId.isNullOrBlank()) {
-            ByteArray(0).toRequestBody(null)
-        } else {
-            jsonBody(json.encodeToString(MarkReadRequest.serializer(), MarkReadRequest(throughId)))
-        }
-        return send(
-            Request.Builder()
-                .url("${ApiConfig.BASE_URL}/api/chats/$chatId/mark-read")
-                .addHeader("Authorization", "Bearer $token")
-                .post(body)
-                .build(),
-            MarkReadResponse.serializer()
-        )
-    }
-
-    suspend fun getUnreadWindow(token: String, chatId: String, limit: Int = 36): Result<UnreadWindowDto> =
-        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/chats/$chatId/unread-window?limit=${limit.coerceIn(1, 50)}").addHeader("Authorization", "Bearer $token").get().build(), UnreadWindowDto.serializer())
-
-    suspend fun getMessages(token: String, chatId: String, limit: Int = 50): Result<List<MessageDto>> =
-        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/chats/$chatId/messages?limit=$limit").addHeader("Authorization", "Bearer $token").get().build(), ListSerializer(MessageDto.serializer()))
-
-    suspend fun getMessagesBefore(
+    suspend fun sendMessageV2(
         token: String,
-        chatId: String,
-        beforeMs: Long,
-        beforeId: String,
-        limit: Int = 100,
-    ): Result<List<MessageDto>> {
-        val encodedId = java.net.URLEncoder.encode(beforeId, Charsets.UTF_8.name())
-        return send(
-            Request.Builder()
-                .url("${ApiConfig.BASE_URL}/api/chats/$chatId/messages?before=$beforeMs&beforeId=$encodedId&limit=${limit.coerceIn(1, 100)}")
-                .addHeader("Authorization", "Bearer $token")
-                .get()
-                .build(),
-            ListSerializer(MessageDto.serializer())
-        )
-    }
-
-    /** 增量同步：since 时间点之后的新消息；sinceId 与 since 组成 (ts,id) 游标 */
-    suspend fun getMessagesSince(
-        token: String,
-        chatId: String,
-        sinceMs: Long,
-        limit: Int = 200,
-        sinceId: String? = null,
-    ): Result<List<MessageDto>> {
-        val idQuery = sinceId?.takeIf { it.isNotBlank() }?.let { "&sinceId=${java.net.URLEncoder.encode(it, Charsets.UTF_8.name())}" }.orEmpty()
-        return send(
-            Request.Builder()
-                .url("${ApiConfig.BASE_URL}/api/chats/$chatId/messages?since=$sinceMs&limit=$limit$idQuery")
-                .addHeader("Authorization", "Bearer $token")
-                .get()
-                .build(),
-            ListSerializer(MessageDto.serializer())
-        )
-    }
-
-    /** 多设备变更回放：DELETE/REVOKE/EDIT（离线设备收敛） */
-    suspend fun getMessageMutationsSince(
-        token: String,
-        chatId: String,
-        sinceMs: Long,
-        limit: Int = 200,
-        sinceId: String? = null,
-    ): Result<List<MessageMutationDto>> {
-        val idQuery = sinceId?.takeIf { it.isNotBlank() }?.let { "&sinceId=${java.net.URLEncoder.encode(it, Charsets.UTF_8.name())}" }.orEmpty()
-        return send(
-            Request.Builder()
-                .url("${ApiConfig.BASE_URL}/api/chats/$chatId/message-mutations?since=$sinceMs&limit=$limit$idQuery")
-                .addHeader("Authorization", "Bearer $token")
-                .get()
-                .build(),
-            ListSerializer(MessageMutationDto.serializer())
-        )
-    }
-
-    suspend fun sendMessage(
-        token: String,
-        chatId: String,
-        content: String,
-        type: String = "TEXT",
-        id: String? = null,
-        sealedSender: Boolean = false,
-        sealedSenderCertificate: String? = null,
-        silent: Boolean = false
-    ): Result<MessageDto> {
-        val builder = Request.Builder()
-            .url("${ApiConfig.BASE_URL}/api/chats/$chatId/messages")
+        request: SendMessageRequestV2,
+    ): Result<SendMessageResponseV2> = send(
+        Request.Builder()
+            .url("${ApiConfig.BASE_URL}/api/v2/messages")
             .addHeader("Authorization", "Bearer $token")
-        if (sealedSender && !sealedSenderCertificate.isNullOrBlank()) {
-            builder.addHeader(com.maodouchat.crypto.SealedSenderSupport.HEADER, sealedSenderCertificate)
-        }
-        val body = SendMessageRequest(
-            chatId = chatId,
-            content = content,
-            type = type,
-            id = id,
-            sealedSender = sealedSender,
-            sealedSenderCertificate = sealedSenderCertificate,
-            silent = silent
-        )
-        return send(
-            builder.post(jsonBody(json.encodeToString(SendMessageRequest.serializer(), body))).build(),
-            MessageDto.serializer()
-        )
-    }
+            .post(jsonBody(json.encodeToString(SendMessageRequestV2.serializer(), request)))
+            .build(),
+        SendMessageResponseV2.serializer(),
+    )
+
+    suspend fun getConversationSnapshotV2(
+        token: String,
+        conversationId: String,
+    ): Result<ConversationSnapshotV2Dto> = send(
+        Request.Builder()
+            .url("${ApiConfig.BASE_URL}/api/v2/conversations/${java.net.URLEncoder.encode(conversationId, Charsets.UTF_8.name())}/snapshot")
+            .addHeader("Authorization", "Bearer $token")
+            .get()
+            .build(),
+        ConversationSnapshotV2Dto.serializer(),
+    )
+
+    suspend fun getPendingInboxV2(
+        token: String,
+        limit: Int = 100,
+    ): Result<PendingInboxResponseV2> = send(
+        Request.Builder()
+            .url("${ApiConfig.BASE_URL}/api/v2/inbox?limit=${limit.coerceIn(1, 500)}")
+            .addHeader("Authorization", "Bearer $token")
+            .get()
+            .build(),
+        PendingInboxResponseV2.serializer(),
+    )
+
+    suspend fun acknowledgeInboxV2(
+        token: String,
+        envelopeIds: List<String>,
+    ): Result<AcknowledgeEnvelopesResponseV2> = send(
+        Request.Builder()
+            .url("${ApiConfig.BASE_URL}/api/v2/inbox/ack")
+            .addHeader("Authorization", "Bearer $token")
+            .post(
+                jsonBody(
+                    json.encodeToString(
+                        AcknowledgeEnvelopesRequestV2.serializer(),
+                        AcknowledgeEnvelopesRequestV2(envelopeIds),
+                    ),
+                ),
+            )
+            .build(),
+        AcknowledgeEnvelopesResponseV2.serializer(),
+    )
 
     suspend fun uploadEncryptedAttachment(
         token: String,
@@ -1115,15 +1045,6 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
         require(!status.complete || status.uploadedBytes == expectedSize) { "attachment_completion_invalid" }
     }
 
-    suspend fun commitEncryptedAttachment(token: String, attachmentId: String, messageId: String): Result<Unit> =
-        sendUnit(
-            Request.Builder()
-                .url("${ApiConfig.BASE_URL}/api/attachments/$attachmentId/commit")
-                .addHeader("Authorization", "Bearer $token")
-                .post(jsonBody(json.encodeToString(AttachmentCommitRequest.serializer(), AttachmentCommitRequest(messageId))))
-                .build()
-        )
-
     suspend fun deleteUncommittedAttachment(token: String, attachmentId: String): Result<Unit> =
         sendUnit(
             Request.Builder()
@@ -1336,22 +1257,6 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
     suspend fun getGroupMembers(token: String, chatId: String): Result<List<GroupMemberDto>> =
         send(Request.Builder().url("${ApiConfig.BASE_URL}/api/chats/$chatId/members").addHeader("Authorization", "Bearer $token").get().build(), ListSerializer(GroupMemberDto.serializer()))
 
-    suspend fun reportSenderKeyDistribution(
-        token: String,
-        chatId: String,
-        epoch: Long,
-        messageId: String?,
-        targets: List<SenderKeyDistributionTargetRequest>
-    ): Result<SenderKeyDistributionStatusDto> =
-        send(
-            Request.Builder()
-                .url("${ApiConfig.BASE_URL}/api/chats/$chatId/sender-key-distributions")
-                .addHeader("Authorization", "Bearer $token")
-                .post(jsonBody(json.encodeToString(SenderKeyDistributionReportRequest.serializer(), SenderKeyDistributionReportRequest(epoch, messageId, targets))))
-                .build(),
-            SenderKeyDistributionStatusDto.serializer()
-        )
-
     suspend fun getSenderKeyDistributionStatus(
         token: String,
         chatId: String,
@@ -1460,18 +1365,6 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
     suspend fun deleteChat(token: String, chatId: String): Result<Unit> =
         sendUnit(Request.Builder().url("${ApiConfig.BASE_URL}/api/chats/$chatId").addHeader("Authorization", "Bearer $token").delete().build())
 
-    suspend fun deleteMessage(token: String, messageId: String): Result<Unit> =
-        sendUnit(Request.Builder().url("${ApiConfig.BASE_URL}/api/messages/$messageId").addHeader("Authorization", "Bearer $token").delete().build())
-
-    suspend fun revokeMessage(token: String, messageId: String): Result<Unit> =
-        sendUnit(Request.Builder().url("${ApiConfig.BASE_URL}/api/messages/$messageId/revoke").addHeader("Authorization", "Bearer $token").post(ByteArray(0).toRequestBody(null)).build())
-
-    suspend fun editMessage(token: String, chatId: String, messageId: String, content: String): Result<Unit> =
-        sendUnit(Request.Builder().url("${ApiConfig.BASE_URL}/api/messages/$messageId").addHeader("Authorization", "Bearer $token").put(jsonBody(json.encodeToString(SendMessageRequest.serializer(), SendMessageRequest(chatId, content, MessageType.TEXT.name)))).build())
-
-    suspend fun updateMessageStatus(token: String, messageId: String, status: String): Result<Unit> =
-        sendUnit(Request.Builder().url("${ApiConfig.BASE_URL}/api/messages/$messageId/status").addHeader("Authorization", "Bearer $token").put(jsonBody(json.encodeToString(UpdateStatusRequest.serializer(), UpdateStatusRequest(messageId, status)))).build())
-
     suspend fun toggleStarMessage(token: String, messageId: String): Result<StarMessageResponse> =
         send(Request.Builder().url("${ApiConfig.BASE_URL}/api/messages/$messageId/star").addHeader("Authorization", "Bearer $token").post(ByteArray(0).toRequestBody(null)).build(), StarMessageResponse.serializer())
 
@@ -1495,21 +1388,10 @@ suspend fun login(email: String, password: String, totpCode: String = ""): Resul
             TogglePinResponse.serializer()
         )
 
-    suspend fun setMessageReaction(token: String, messageId: String, emoji: String): Result<MessageReactionUpdatedResponse> =
-        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/messages/$messageId/reaction").addHeader("Authorization", "Bearer $token").put(jsonBody(json.encodeToString(UpdateMessageReactionRequest.serializer(), UpdateMessageReactionRequest(emoji)))).build(), MessageReactionUpdatedResponse.serializer())
-
-    suspend fun getStarredMessages(token: String, chatId: String? = null): Result<List<MessageDto>> {
+    suspend fun getStarredMessages(token: String, chatId: String? = null): Result<List<StarredMessageRefDto>> {
         val suffix = chatId?.takeIf { it.isNotBlank() }?.let { "?chatId=${java.net.URLEncoder.encode(it, "UTF-8")}" }.orEmpty()
-        return send(Request.Builder().url("${ApiConfig.BASE_URL}/api/messages/starred$suffix").addHeader("Authorization", "Bearer $token").get().build(), ListSerializer(MessageDto.serializer()))
+        return send(Request.Builder().url("${ApiConfig.BASE_URL}/api/messages/starred$suffix").addHeader("Authorization", "Bearer $token").get().build(), ListSerializer(StarredMessageRefDto.serializer()))
     }
-
-    suspend fun getMessageReadReceipts(token: String, messageId: String): Result<List<ReadReceiptDto>> =
-        send(Request.Builder().url("${ApiConfig.BASE_URL}/api/messages/$messageId/read-receipts").addHeader("Authorization", "Bearer $token").get().build(), ListSerializer(ReadReceiptDto.serializer()))
-
-    suspend fun batchMarkRead(token: String, chatIds: List<String>): Result<Unit> =
-        sendUnit(Request.Builder().url("${ApiConfig.BASE_URL}/api/messages/batch-read").addHeader("Authorization", "Bearer $token").post(jsonBody(json.encodeToString(BatchReadRequest.serializer(), BatchReadRequest(chatIds)))).build())
-
-
 
     suspend fun getUsers(token: String, limit: Int = 30, offset: Int = 0): Result<List<UserDto>> =
         send(

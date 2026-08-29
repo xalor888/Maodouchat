@@ -712,15 +712,31 @@ class SignalProtocol(
 
     /**
      * Discover every confirmed device, then establish each session independently.
-     * Discovery failure is fatal because no authoritative candidate set exists;
-     * after discovery, a broken device does not hide its healthy siblings.
+     * Existing durable sessions remain usable when discovery is temporarily
+     * unavailable; after discovery, a broken device does not hide its healthy siblings.
      */
     private suspend fun ensureSessionsDetailed(
         token: String,
         recipientId: String,
     ): Result<SessionCoverage> {
         return try {
-            val bundles = SignalKeyExchange.fetchCompatibleDevicePreKeyBundles(token, recipientId).getOrThrow()
+            // A persisted ratchet is sufficient for sending while the peer is
+            // offline. Pre-key discovery is only needed for devices we do not
+            // already have a session with; making discovery mandatory turned a
+            // temporary 404/timeout into "no recipient devices" and blocked
+            // otherwise healthy group sends.
+            val knownSessionDeviceIds = getKnownSessionDeviceIds(recipientId)
+                .filter {
+                    SignalSessionPolicy.shouldEstablishSession(
+                        recipientId,
+                        it,
+                        currentUserId,
+                        getDeviceId(),
+                    )
+                }
+            val bundlesResult = SignalKeyExchange.fetchCompatibleDevicePreKeyBundles(token, recipientId)
+            val bundles = bundlesResult.getOrNull()
+            val authoritativeBundles = bundles ?: emptyList()
             val failuresByDevice = linkedMapOf<Int, Throwable>()
             val establishedDeviceIds = linkedSetOf<Int>()
 
@@ -739,7 +755,27 @@ class SignalProtocol(
                 )
             }
 
-            val candidateDeviceIds = if (bundles.isEmpty()) {
+            val discoveredDeviceIds = authoritativeBundles
+                .map { it.deviceId }
+                .filter {
+                    SignalSessionPolicy.shouldEstablishSession(
+                        recipientId,
+                        it,
+                        currentUserId,
+                        getDeviceId(),
+                    )
+                }
+            val persistedCandidates = SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = if (bundles == null) null else discoveredDeviceIds,
+                persistedSessionDeviceIds = knownSessionDeviceIds,
+            )
+            val candidateDeviceIds = if (persistedCandidates.isNotEmpty()) {
+                persistedCandidates
+            } else if (bundles == null) {
+                // Preserve the original transport error when there is no
+                // durable session to fall back to.
+                throw (bundlesResult.exceptionOrNull() ?: NoRecipientDevicesException())
+            } else if (authoritativeBundles.isEmpty()) {
                 // Preserve a concrete fallback error (for example timeout) instead of
                 // collapsing it into an indistinguishable "no devices" result.
                 val fallback = SignalKeyExchange.fetchPreKeyBundle(token, recipientId).getOrElse { throw it }
@@ -755,18 +791,7 @@ class SignalProtocol(
                         )
                     }
             } else {
-                bundles
-                    .map { it.deviceId }
-                    .filter {
-                        SignalSessionPolicy.shouldEstablishSession(
-                            recipientId,
-                            it,
-                            currentUserId,
-                            getDeviceId(),
-                        )
-                    }
-                    .distinct()
-                    .sorted()
+                discoveredDeviceIds.distinct().sorted()
             }
             if (candidateDeviceIds.isEmpty()) throw NoRecipientDevicesException()
 
@@ -1021,7 +1046,20 @@ class SignalProtocol(
                 payloadType = payloadType,
                 entries = entries
             ))
-            Result.success(MultiRecipientEnvelopePayload(envelope, targets))
+            Result.success(
+                MultiRecipientEnvelopePayload(
+                    envelope = envelope,
+                    targets = targets,
+                    ciphertexts = entries.map { entry ->
+                        DeviceCiphertext(
+                            userId = requireNotNull(entry.recipientUserId),
+                            deviceId = entry.recipientDeviceId,
+                            ciphertextType = requireNotNull(entry.ciphertextType),
+                            ciphertext = entry.ciphertext,
+                        )
+                    },
+                ),
+            )
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -1588,11 +1626,59 @@ class SignalProtocol(
         }
     }
 
+    fun decryptDeviceCiphertext(
+        senderId: String,
+        senderDeviceId: Int,
+        ciphertextType: String,
+        ciphertext: String,
+    ): DecryptResult = try {
+        DecryptResult.Success(
+            decryptMessage(
+                senderId = senderId,
+                ciphertext = Base64.decode(ciphertext, Base64.NO_WRAP),
+                deviceId = senderDeviceId,
+                ciphertextType = ciphertextType,
+            ),
+        )
+    } catch (error: NoSessionException) {
+        DecryptResult.NoSession
+    } catch (error: org.signal.libsignal.protocol.UntrustedIdentityException) {
+        DecryptResult.UntrustedIdentity
+    } catch (error: org.signal.libsignal.protocol.DuplicateMessageException) {
+        DecryptResult.Duplicate
+    } catch (error: InvalidMessageException) {
+        DecryptResult.Failed
+    } catch (error: IllegalArgumentException) {
+        DecryptResult.UnsupportedEnvelope
+    } catch (error: Exception) {
+        Log.w(TAG, "decryptDeviceCiphertext unexpected failure", error)
+        DecryptResult.Failed
+    }
+
     fun hasSession(recipientId: String, deviceId: Int = DEFAULT_DEVICE_ID): Boolean {
         cryptoLock.withLock {
             val address = SignalProtocolAddress(recipientId, deviceId)
             return protocolStore.containsSession(address)
         }
+    }
+
+    /**
+     * Returns device ids for which a durable local ratchet already exists.
+     * Existing sessions are valid while the peer is offline; callers must not
+     * force a pre-key discovery round before reusing them.
+     */
+    fun getKnownSessionDeviceIds(recipientId: String): List<Int> = cryptoLock.withLock {
+        if (recipientId.isBlank()) return@withLock emptyList()
+        (protocolStore as? PersistentSignalProtocolStore)
+            ?.getSessionAddresses()
+            .orEmpty()
+            .asSequence()
+            .filter { it.name == recipientId }
+            .map { it.deviceId }
+            .filter { it in 1..255 }
+            .distinct()
+            .sorted()
+            .toList()
     }
 
     fun getIdentityPublicKey(): IdentityKey = identityKeyPair.publicKey
@@ -2100,7 +2186,15 @@ class SignalProtocol(
 
     data class MultiRecipientEnvelopePayload(
         val envelope: String,
-        val targets: List<MultiRecipientDeviceTarget>
+        val targets: List<MultiRecipientDeviceTarget>,
+        val ciphertexts: List<DeviceCiphertext> = emptyList(),
+    )
+
+    data class DeviceCiphertext(
+        val userId: String,
+        val deviceId: Int,
+        val ciphertextType: String,
+        val ciphertext: String,
     )
 
     data class DeviceSafetyState(

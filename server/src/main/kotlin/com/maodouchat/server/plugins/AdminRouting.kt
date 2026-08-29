@@ -61,11 +61,11 @@ import java.util.UUID
 fun Application.configureAdminRouting(
     userRepo: UserRepository,
     postRepo: PostRepository,
-    chatRepo: ChatRepository,
     moderationRuleRepo: ModerationRuleRepository,
     reportRepo: ReportRepository = ReportRepository()
 ) {
     val authTokenRepo = AuthTokenRepository()
+    val groupMediaReferenceRepo = GroupMediaReferenceRepository()
     routing {
         // Public shell only; no management data is embedded. Credentials are exchanged for a
         // dedicated short-lived admin token and the token stays in page memory (never localStorage).
@@ -175,7 +175,9 @@ fun Application.configureAdminRouting(
                 val mem = Runtime.getRuntime()
                 val stats = transaction {
                     SystemStatsResponse(
-                        totalMessages = Messages.selectAll().count(),
+                        totalMessages = MessagingV2Messages.selectAll().where {
+                            MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE
+                        }.count(),
                         totalChats = Chats.selectAll().count(),
                         totalGroups = Chats.selectAll().where { Chats.isGroup eq true }.count(),
                         totalAttachments = EncryptedAttachments.selectAll().count(),
@@ -225,14 +227,17 @@ fun Application.configureAdminRouting(
                         .groupBy(userBucket)
                         .toList()
                         .associate { it[userBucket] to it[Users.id.count()].toLong() }
-                    val msgBucket = dayBucketExpression(Messages.timestamp)
-                    val messageCounts = Messages
-                        .slice(msgBucket, Messages.id.count())
+                    val msgBucket = dayBucketExpression(MessagingV2Messages.serverTimestamp)
+                    val messageCounts = MessagingV2Messages
+                        .slice(msgBucket, MessagingV2Messages.id.count())
                         .selectAll()
-                        .where { Messages.timestamp greaterEq dayStartMs }
+                        .where {
+                            (MessagingV2Messages.serverTimestamp greaterEq dayStartMs) and
+                                (MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE)
+                        }
                         .groupBy(msgBucket)
                         .toList()
-                        .associate { it[msgBucket] to it[Messages.id.count()].toLong() }
+                        .associate { it[msgBucket] to it[MessagingV2Messages.id.count()].toLong() }
                     val postBucket = dayBucketExpression(Posts.createdAt)
                     val postCounts = Posts
                         .slice(postBucket, Posts.id.count())
@@ -283,17 +288,20 @@ fun Application.configureAdminRouting(
                 if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                 val topN = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 20).coerceIn(1, 100)
                 val ranking = transaction {
-                    val msgCount = Messages.senderId.count()
-                    val topMessagers = (Messages innerJoin Users)
-                        .slice(Messages.senderId, Users.name, Users.avatar, msgCount)
+                    val msgCount = MessagingV2Messages.senderUserId.count()
+                    val topMessagers = (MessagingV2Messages innerJoin Users)
+                        .slice(MessagingV2Messages.senderUserId, Users.name, Users.avatar, msgCount)
                         .selectAll()
-                        .where { Users.deletedAt.isNull() }
-                        .groupBy(Messages.senderId, Users.name, Users.avatar)
+                        .where {
+                            Users.deletedAt.isNull() and
+                                (MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE)
+                        }
+                        .groupBy(MessagingV2Messages.senderUserId, Users.name, Users.avatar)
                         .orderBy(msgCount to SortOrder.DESC)
                         .limit(topN)
                         .map {
                             RankingEntryResponse(
-                                userId = it[Messages.senderId],
+                                userId = it[MessagingV2Messages.senderUserId],
                                 userName = it[Users.name],
                                 avatar = it[Users.avatar],
                                 value = it[msgCount]
@@ -332,18 +340,21 @@ fun Application.configureAdminRouting(
                                 detail = "bytes"
                             )
                         }
-                    val grpMsgCount = Messages.chatId.count()
-                    val mostActiveGroups = (Messages innerJoin Chats)
-                        .slice(Messages.chatId, Chats.groupName, grpMsgCount)
+                    val grpMsgCount = MessagingV2Messages.conversationId.count()
+                    val mostActiveGroups = (MessagingV2Messages innerJoin Chats)
+                        .slice(MessagingV2Messages.conversationId, Chats.groupName, grpMsgCount)
                         .selectAll()
-                        .where { Chats.isGroup eq true }
-                        .groupBy(Messages.chatId, Chats.groupName)
+                        .where {
+                            (Chats.isGroup eq true) and
+                                (MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE)
+                        }
+                        .groupBy(MessagingV2Messages.conversationId, Chats.groupName)
                         .orderBy(grpMsgCount to SortOrder.DESC)
                         .limit(topN)
                         .map {
                             RankingEntryResponse(
-                                userId = it[Messages.chatId],
-                                userName = it[Chats.groupName] ?: it[Messages.chatId],
+                                userId = it[MessagingV2Messages.conversationId],
+                                userName = it[Chats.groupName] ?: it[MessagingV2Messages.conversationId],
                                 avatar = null,
                                 value = it[grpMsgCount]
                             )
@@ -362,22 +373,8 @@ fun Application.configureAdminRouting(
                         .toList()
                     val totalBytes = allAttachments.sumOf { it[EncryptedAttachments.cipherSize] }
                     val totalFiles = allAttachments.size.toLong()
-                    // 8.48 修复 H1：批量回查消息类型（此前 groupBy 内逐附件查 Messages → N+1）
-                    val msgIds = allAttachments.mapNotNull { it[EncryptedAttachments.messageId] }.distinct()
-                    val msgTypeById = if (msgIds.isEmpty()) emptyMap() else
-                        Messages.select(Messages.id, Messages.type)
-                            .where { Messages.id inList msgIds }
-                            .associate { it[Messages.id] to it[Messages.type] }
                     val byMime = allAttachments.groupBy { att ->
-                        val msgId = att[EncryptedAttachments.messageId]
-                        if (msgId == null) "orphan"
-                        else when (msgTypeById[msgId]) {
-                            "IMAGE" -> "image"
-                            "VIDEO" -> "video"
-                            "FILE" -> "file"
-                            "VOICE" -> "voice"
-                            else -> "other"
-                        }
+                        if (att[EncryptedAttachments.messageId] == null) "orphan" else "encrypted"
                     }.map { (category, list) ->
                         StorageBreakdownEntry(
                             category = category,
@@ -419,7 +416,16 @@ fun Application.configureAdminRouting(
                             .associate { it[bucket] to it[col.count()].toLong() }
                     }
                     val userCounts = dayCounts(Users.lastSeen)
-                    val messageCounts = dayCounts(Messages.timestamp)
+                    val messageBucket = dayBucketExpression(MessagingV2Messages.serverTimestamp)
+                    val messageCounts = MessagingV2Messages
+                        .slice(messageBucket, MessagingV2Messages.id.count())
+                        .selectAll()
+                        .where {
+                            (MessagingV2Messages.serverTimestamp greaterEq dayStartMs) and
+                                (MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE)
+                        }
+                        .groupBy(messageBucket)
+                        .associate { it[messageBucket] to it[MessagingV2Messages.id.count()].toLong() }
                     val postCounts = dayCounts(Posts.createdAt)
                     val reportCounts = dayCounts(Reports.createdAt)
                     val aiCounts = dayCounts(AiAuditLogs.createdAt)
@@ -594,7 +600,10 @@ fun Application.configureAdminRouting(
                         postRestrictedUntil = row[Users.postRestrictedUntil],
                         messageRestrictedUntil = row[Users.messageRestrictedUntil],
                         deletedAt = row[Users.deletedAt],
-                        messageCount = Messages.selectAll().where { Messages.senderId eq id }.count(),
+                        messageCount = MessagingV2Messages.selectAll().where {
+                            (MessagingV2Messages.senderUserId eq id) and
+                                (MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE)
+                        }.count(),
                         postCount = Posts.selectAll().where { Posts.authorId eq id }.count(),
                         commentCount = PostComments.selectAll().where { PostComments.authorId eq id }.count(),
                         chatCount = ChatParticipants.selectAll().where { ChatParticipants.userId eq id }.count(),
@@ -849,7 +858,7 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
                 val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
                 if (id == actorId) return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("不能删除自己的管理员账号"))
                 if (AdminAccess.isAdmin(id)) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("不能删除其他超级管理员"))
-                val groupAvatarCandidates = chatRepo.groupAvatarUrlsForParticipant(id)
+                val groupAvatarCandidates = groupMediaReferenceRepo.avatarUrlsForParticipant(id)
                 val deactivation = userRepo.adminDeactivateAccount(id, actorId)
                     ?: return@delete call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在或已注销"))
                 // 8.37：DB 注销已在事务内提交，磁盘清理必须逐项容错——任一失败若抛 500，
@@ -873,7 +882,7 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
                 bestEffort("postImages") { com.maodouchat.server.service.FileStorageService.deletePostImagesForUser(id) }
                 bestEffort("groupAvatars") {
                     groupAvatarCandidates
-                        .filterNot(chatRepo::isGroupAvatarUrlReferenced)
+                        .filterNot(groupMediaReferenceRepo::isAvatarUrlReferenced)
                         .forEach { url -> com.maodouchat.server.service.FileStorageService.deleteGroupAvatarUrl(url) }
                 }
                 bestEffort("avatar") { com.maodouchat.server.service.FileStorageService.deleteAvatarUrl(deactivation.avatarUrl, id) }
@@ -1000,11 +1009,14 @@ put("status", "deleted")
                             .groupBy(ChatParticipants.chatId)
                             .associate { it[ChatParticipants.chatId] to it[countExpr].toInt() }
                     val lastMsgMap: Map<String, Long> = if (chatIds.isEmpty()) emptyMap() else {
-                        val maxExpr = Messages.timestamp.max()
-                        Messages.slice(Messages.chatId, maxExpr)
-                            .selectAll().where { Messages.chatId inList chatIds }
-                            .groupBy(Messages.chatId)
-                            .associate { it[Messages.chatId] to (it[maxExpr] ?: 0L) }
+                        val maxExpr = MessagingV2Messages.serverTimestamp.max()
+                        MessagingV2Messages.slice(MessagingV2Messages.conversationId, maxExpr)
+                            .selectAll().where {
+                                (MessagingV2Messages.conversationId inList chatIds) and
+                                    (MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE)
+                            }
+                            .groupBy(MessagingV2Messages.conversationId)
+                            .associate { it[MessagingV2Messages.conversationId] to (it[maxExpr] ?: 0L) }
                     }
                     rows.map { row ->
                         val chatId = row[Chats.id]
@@ -1034,13 +1046,7 @@ put("status", "deleted")
                         return@transaction Triple("forbidden", emptyList<String>(), null)
                     }
                     // 清理关联表（外键约束要求先删除引用表）
-                    val messageIds = Messages.select(Messages.id).where { Messages.chatId eq id }.map { it[Messages.id] }
-                    if (messageIds.isNotEmpty()) {
-                        MessageReactions.deleteWhere { MessageReactions.messageId inList messageIds }
-                        ReadReceipts.deleteWhere { ReadReceipts.messageId inList messageIds }
-                        StarMessages.deleteWhere { StarMessages.messageId inList messageIds }
-                        PinnedMessages.deleteWhere { PinnedMessages.messageId inList messageIds }
-                    }
+                    deleteMessagingV2ConversationInTx(id)
                     val attachmentIds = EncryptedAttachments
                         .select(EncryptedAttachments.id)
                         .where { EncryptedAttachments.chatId eq id }
@@ -1048,11 +1054,9 @@ put("status", "deleted")
                     if (attachmentIds.isNotEmpty()) {
                         EncryptedAttachments.deleteWhere { EncryptedAttachments.id inList attachmentIds }
                     }
-                    // FK: direct_chat_pairs / secret_chat_pairs / message_mutations → chats
+                    // FK: direct_chat_pairs / secret_chat_pairs -> chats
                     DirectChatPairs.deleteWhere { DirectChatPairs.chatId eq id }
                     SecretChatPairs.deleteWhere { SecretChatPairs.chatId eq id }
-                    MessageMutations.deleteWhere { MessageMutations.chatId eq id }
-                    SenderKeyDistributions.deleteWhere { SenderKeyDistributions.chatId eq id }
                     ChatUserSettings.deleteWhere { ChatUserSettings.chatId eq id }
                     GroupAuditLogs.deleteWhere { GroupAuditLogs.chatId eq id }
                     val chainIds = GroupChains.select(GroupChains.id)
@@ -1071,7 +1075,6 @@ put("status", "deleted")
                     }
                     GroupCheckins.deleteWhere { GroupCheckins.chatId eq id }
                     BotCommandLogs.deleteWhere { BotCommandLogs.chatId eq id }
-                    Messages.deleteWhere { Messages.chatId eq id }
                     ChatParticipants.deleteWhere { ChatParticipants.chatId eq id }
                     Chats.deleteWhere { Chats.id eq id }
                     Triple("ok", attachmentIds, chat[Chats.groupAvatar])
@@ -1440,7 +1443,9 @@ put("status", "resolved")
                     val pollOpen = com.maodouchat.server.db.GroupPolls.selectAll()
                         .where { com.maodouchat.server.db.GroupPolls.closed eq false }.count()
                     val voteTotal = com.maodouchat.server.db.GroupPollVotes.selectAll().count()
-                    val msgTotal = com.maodouchat.server.db.Messages.selectAll().count()
+                    val msgTotal = MessagingV2Messages.selectAll().where {
+                        MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE
+                    }.count()
                     val userTotal = com.maodouchat.server.db.Users.selectAll().count()
                     OpsSnapshotResponse(
                         users = userTotal,
@@ -1748,44 +1753,42 @@ put("userId", id)
                 if (q.isBlank() && chatId.isBlank() && userId.isBlank()) {
                     return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("q or chatId or userId required"))
                 }
-                // Metadata search only: E2EE payloads are opaque; match non-encrypted types / prefixes.
+                // Metadata-only search. Human payloads remain opaque to the server.
                 val rows = transaction {
-                    var query = Messages.selectAll()
-                    if (chatId.isNotBlank()) query = query.andWhere { Messages.chatId eq chatId }
-                    if (userId.isNotBlank()) query = query.andWhere { Messages.senderId eq userId }
+                    var query = MessagingV2Messages.selectAll()
+                    if (chatId.isNotBlank()) query = query.andWhere { MessagingV2Messages.conversationId eq chatId }
+                    if (userId.isNotBlank()) query = query.andWhere { MessagingV2Messages.senderUserId eq userId }
                     query = query.andWhere {
-                        Messages.chatId notInSubQuery (
+                        (MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE) and
+                        (MessagingV2Messages.conversationId notInSubQuery (
                             Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
-                        )
+                        ))
                     }
                     if (q.isNotBlank()) {
                         val like = "%" + escapeLikePattern(q.take(80)) + "%"
                         query = query.andWhere {
-                            (Messages.id like like) or
-                                (Messages.type like like) or
-                                (
-                                    (Messages.type inList listOf("SYSTEM", "NUDGE", "TEXT", "MARKDOWN")) and
-                                        (Messages.content like like)
-                                )
+                            (MessagingV2Messages.id like like) or
+                                (MessagingV2Messages.conversationId like like) or
+                                (MessagingV2Messages.senderUserId like like) or
+                                (MessagingV2Messages.kind like like)
                         }
                     }
-                    query.orderBy(Messages.timestamp to SortOrder.DESC, Messages.id to SortOrder.DESC)
+                    query.orderBy(
+                        MessagingV2Messages.serverTimestamp to SortOrder.DESC,
+                        MessagingV2Messages.id to SortOrder.DESC,
+                    )
                         .limit(limit, offset.toLong())
                         .map {
-                            // 9.131：contentPreview 仅投影平台明文类型（SYSTEM/NUDGE 等 bot/系统文案）。
-                            // 用户消息的 content 是 E2EE 密文载荷——「Metadata search only」原则下
-                            // 不得把密文字节投进管理端响应（此前对所有类型 take(120) 原样输出）
-                            val platformPlaintext = it[Messages.type] in setOf("SYSTEM", "NUDGE")
                             buildJsonObject {
-                                put("id", it[Messages.id])
-                                put("chatId", it[Messages.chatId])
-                                put("senderId", it[Messages.senderId])
-                                put("type", it[Messages.type])
-                                put("timestamp", it[Messages.timestamp])
-                                put("status", it[Messages.status])
-                                put("sealedSender", runCatching { it[Messages.sealedSender] }.getOrDefault(false))
-                                put("contentPreview", if (platformPlaintext) it[Messages.content].take(120) else "")
-                                put("e2eeLikely", it[Messages.content].length > 40 && !it[Messages.content].startsWith("{") && it[Messages.type] !in setOf("SYSTEM", "NUDGE"))
+                                put("id", it[MessagingV2Messages.id])
+                                put("chatId", it[MessagingV2Messages.conversationId])
+                                put("senderId", it[MessagingV2Messages.senderUserId])
+                                put("type", it[MessagingV2Messages.kind])
+                                put("timestamp", it[MessagingV2Messages.serverTimestamp])
+                                put("status", "DURABLE")
+                                put("sealedSender", true)
+                                put("contentPreview", "")
+                                put("e2eeLikely", it[MessagingV2Messages.kind] != "SERVICE")
                             }
                         }
                 }
@@ -2478,21 +2481,27 @@ put("count", logs.size)
 
             get("/message-stats-export") {
                 if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-                // Aggregate by type only — never export message bodies (E2EE privacy).
-                // 8.46 修复：原先把全表消息载入内存 + eachCount（百万级 OOM）；改为 SQL GROUP BY。
+                // Aggregate durable transport kinds only; never export message bodies.
                 val rows = transaction {
-                    com.maodouchat.server.db.Messages
-                        .slice(com.maodouchat.server.db.Messages.type, com.maodouchat.server.db.Messages.type.count())
+                    MessagingV2Messages
+                        .slice(MessagingV2Messages.kind, MessagingV2Messages.kind.count())
                         .selectAll()
-                        .groupBy(com.maodouchat.server.db.Messages.type)
+                        .where {
+                            MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE
+                        }
+                        .groupBy(MessagingV2Messages.kind)
                         .map { row ->
-                            val type = row[com.maodouchat.server.db.Messages.type]
-                            val count = row[com.maodouchat.server.db.Messages.type.count()]
+                            val type = row[MessagingV2Messages.kind]
+                            val count = row[MessagingV2Messages.kind.count()]
                             listOf(csvCell(type), csvCell(count)).joinToString(",")
                         }
                         .sorted()
                 }
-                val total = transaction { com.maodouchat.server.db.Messages.selectAll().count() }
+                val total = transaction {
+                    MessagingV2Messages.selectAll().where {
+                        MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE
+                    }.count()
+                }
                 val csv = buildString {
                     appendLine("type,count")
                     rows.forEach { appendLine(it) }

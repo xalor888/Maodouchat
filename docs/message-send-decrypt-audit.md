@@ -47,7 +47,7 @@
 - 旧行为：当服务端已经提交消息、但 ACK 或 fan-out 丢失时，客户端用相同 ID 重试；旧幂等分支只返回既有消息或 ACK，没有重新 fan-out。
 - 影响：幂等性避免了重复写入，却同时固化了“已提交但未投递”的空窗。
 - 修复：WebSocket 与 REST 都让精确重试重新进入仓库幂等路径，并按至少一次语义重放 `NEW_MESSAGE`。客户端按消息 ID 去重；push 和 webhook 仍由 `wasExisting == false` 限制为首次副作用。
-- 证据：`server/src/main/kotlin/com/maodouchat/server/plugins/Sockets.kt:492`、`:546`；`server/src/main/kotlin/com/maodouchat/server/plugins/Routing.kt:13354`、`:13500`；`server/src/main/kotlin/com/maodouchat/server/repository/MessageRepository.kt:70`。
+- 历史证据：旧 WebSocket/REST/`MessageRepository` 路径已由 messaging v2 替换并删除。
 
 ### 4. 附件精确重试未推进到 `COMMITTED`
 
@@ -55,7 +55,7 @@
 - 旧行为：附件已上传为 `UPLOADED`，消息首次请求在附件 commit 前后中断；精确重试走快捷返回，绕过附件状态推进。消息可见但收件人下载会失败。
 - 影响：附件消息永久停在不可下载状态，继续重试也只能得到 ACK。
 - 修复：附件消息写入和 `UPLOADED -> COMMITTED` 在同一数据库事务内完成；精确重试也调用同一仓库路径。附件尚未就绪时明确返回冲突，而不是伪造发送成功。
-- 证据：`server/src/main/kotlin/com/maodouchat/server/repository/MessageRepository.kt:150`、`:249`、`:261`；`server/src/main/kotlin/com/maodouchat/server/plugins/Routing.kt:13365`。
+- 历史证据：旧服务端消息仓库已删除；当前收敛由 durable v2 inbox/outbox 保证。
 
 ### 5. 多设备 session 覆盖与 device ID migration
 
@@ -70,8 +70,8 @@
 - 严重程度：High
 - 旧行为：首次发送可能在取得 certificate 后使用 `sealedSender=true`，但本地 outbox 快照仍保留 `false`，或重试时缺少相同 certificate。服务端把 sealed sender 标志视为消息 ID 的不可变身份字段，因此相同 ID 的重试会变成 `MESSAGE_ID_CONFLICT`。
 - 影响：消息在 ACK 丢失或断线恢复后无法完成 outbox，界面长期停在发送中或转失败。
-- 修复：一旦某个客户端消息 ID 以 sealed sender 发送，本地合并只能保持或升级该标志，不能降级；首次发送与 outbox flusher 使用同一组 wire content、sealed 标志和 certificate 约束。证书暂不可用时延后重试，而不是改成非 sealed 请求。
-- 证据：`app/src/main/java/com/maodouchat/data/repository/MessagePersistencePolicy.kt:39`；`app/src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt:8116`；`app/src/main/java/com/maodouchat/data/repository/TextOutboxFlusher.kt`；`app/src/main/java/com/maodouchat/network/WebSocketClient.kt:725`。
+- 修复：发送内容先写入 durable v2 outbox，由唯一的 outbox coordinator 准备并重试不可变的设备密文集合；界面不再保存或重放一套独立的发送参数。证书或会话暂不可用时保留队列项并退避重试，不再切换成另一种 wire 身份。
+- 证据：`app/src/main/java/com/maodouchat/messaging/v2/MessagingV2Outbox.kt`；`app/src/main/java/com/maodouchat/messaging/v2/MessagingV2OutboxCoordinator.kt`；`app/src/main/java/com/maodouchat/messaging/v2/SignalMessagingV2Adapter.kt`。
 
 ### 7. Signal store 持久化失败被静默吞掉
 
@@ -96,7 +96,7 @@
 - 旧行为：WebSocket、REST backlog 或状态刷新再次 upsert 同一消息时，服务端保存的 ciphertext 被当成较新快照，覆盖 Room 中已经成功解密的 plaintext。
 - 影响：消息短暂可读，刷新列表、重连或同步后又变回“加密消息”或解密失败占位。
 - 修复：统一 Room 合并策略按编辑版本、可读性和 wire 类型选择 content。已有可读明文优先于同版本 wire/占位；没有明文时优先保留原始 wire，而不是不可重试的占位；投递状态保持单调递增。
-- 证据：`app/src/main/java/com/maodouchat/data/repository/MessagePersistencePolicy.kt:15`、`:74`、`:85`；`app/src/main/java/com/maodouchat/data/repository/MessageRepository.kt`。
+- 证据：本地明文只进入 SQLCipher `LocalMessageStore`，网络传输由 messaging v2 独立负责。
 
 ### 3. ratchet/session 持久化失败及 device ID migration
 

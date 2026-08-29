@@ -30,6 +30,10 @@ class AttachmentTransferWorker(
         Log.i(TAG, "doWork start: $messageId attempt=$runAttemptCount")
         val app = applicationContext as? MaodouchatApp ?: return Result.failure()
         val dao = app.database.attachmentTransferDao()
+        if (app.database.messagingV2Dao().isMessageTerminal(expectedOwnerUserId, messageId)) {
+            AttachmentTransferCoordinator.discardTerminal(app, messageId, expectedOwnerUserId)
+            return Result.success()
+        }
         val tokenManager = TokenManager.getInstance(applicationContext)
         val ownerBeforeTokenRead = tokenManager.getUserId().orEmpty()
         if (ownerBeforeTokenRead != expectedOwnerUserId) return Result.success()
@@ -177,7 +181,8 @@ class AttachmentTransferWorker(
         val outcome = AttachmentTransferFinalizer.finalize(applicationContext, messageId, ownerUserId)
     ) {
         is AttachmentFinalizeOutcome.Sent,
-        AttachmentFinalizeOutcome.AlreadyClaimed -> Result.success()
+        AttachmentFinalizeOutcome.AlreadyClaimed,
+        AttachmentFinalizeOutcome.DiscardedTerminal -> Result.success()
         // SK 轮换清 wire / 弱网：保持 READY 或已释放 claim，worker 重试
         AttachmentFinalizeOutcome.ClaimInvalidated,
         AttachmentFinalizeOutcome.ReuploadRequired,

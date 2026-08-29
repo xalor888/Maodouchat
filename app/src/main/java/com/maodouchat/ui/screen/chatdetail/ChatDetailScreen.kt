@@ -404,14 +404,14 @@ fun ChatDetailScreen(
         val peer = state.contact.id.takeIf { it.isNotBlank() && it != "me" && !state.chatIsGroup }
         when {
             state.chatIsGroup -> {
-                com.maodouchat.crypto.SessionCipherOccupancy.occupy(
+                viewModel.occupySessionCipher(
                     viewModel.activeChatId,
                     peerUserId = null,
                     updatePeer = true
                 )
             }
             peer != null -> {
-                com.maodouchat.crypto.SessionCipherOccupancy.occupy(
+                viewModel.occupySessionCipher(
                     viewModel.activeChatId,
                     peer,
                     updatePeer = true
@@ -421,7 +421,7 @@ fun ChatDetailScreen(
                 // Contact not loaded yet — pin chatId only. Never pass updatePeer=true
                 // with a blank peer: that clears openPeerUserId and lets list/backlog
                 // decrypt the sibling DIRECT/SECRET ratchet.
-                com.maodouchat.crypto.SessionCipherOccupancy.occupy(viewModel.activeChatId)
+                viewModel.occupySessionCipher(viewModel.activeChatId)
             }
         }
     }
@@ -438,17 +438,17 @@ fun ChatDetailScreen(
                 // 使「打开中的聊天」重新享有消息不弹通知/不计未读的语义。
                 val resumePeer = state.contact.id.takeIf { it.isNotBlank() && it != "me" && !state.chatIsGroup }
                 when {
-                    state.chatIsGroup -> com.maodouchat.crypto.SessionCipherOccupancy.occupy(
+                    state.chatIsGroup -> viewModel.occupySessionCipher(
                         viewModel.activeChatId,
                         peerUserId = null,
                         updatePeer = true
                     )
-                    resumePeer != null -> com.maodouchat.crypto.SessionCipherOccupancy.occupy(
+                    resumePeer != null -> viewModel.occupySessionCipher(
                         viewModel.activeChatId,
                         resumePeer,
                         updatePeer = true
                     )
-                    else -> com.maodouchat.crypto.SessionCipherOccupancy.occupy(viewModel.activeChatId)
+                    else -> viewModel.occupySessionCipher(viewModel.activeChatId)
                 }
                 if (com.maodouchat.MaodouchatApp.activeChatOpenedAtMs == 0L) {
                     com.maodouchat.MaodouchatApp.activeChatOpenedAtMs = System.currentTimeMillis()

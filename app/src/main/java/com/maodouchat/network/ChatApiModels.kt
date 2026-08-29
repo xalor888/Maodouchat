@@ -87,21 +87,6 @@ data class GroupAuditLogDto(val id: String, val actorId: String, val actorName: 
 data class JoinGroupInviteRequest(val token: String)
 
 @Serializable
-data class SenderKeyDistributionTargetRequest(
-    val userId: String,
-    val deviceId: Int,
-    val status: String = "SENT",
-    val error: String? = null
-)
-
-@Serializable
-data class SenderKeyDistributionReportRequest(
-    val epoch: Long,
-    val messageId: String? = null,
-    val targets: List<SenderKeyDistributionTargetRequest>
-)
-
-@Serializable
 data class SenderKeyDistributionTargetDto(
     val userId: String,
     val deviceId: Int,
@@ -120,4 +105,3 @@ data class SenderKeyDistributionStatusDto(
     val pending: Int = 0,
     val targets: List<SenderKeyDistributionTargetDto> = emptyList()
 )
-

@@ -13,11 +13,10 @@ import com.maodouchat.server.plugins.configureStatusPages
 import com.maodouchat.server.plugins.configurePollRouting
 import com.maodouchat.server.plugins.configureAdminEnhanceRouting
 import com.maodouchat.server.plugins.configureSecretSurfaceRouting
+import com.maodouchat.server.plugins.configureMessagingV2Routing
 import com.maodouchat.server.plugins.startRateLimitStatsSampler
 import com.maodouchat.server.plugins.CachingPlugin
 import com.maodouchat.server.plugins.SecurityHeaders
-import com.maodouchat.server.repository.ChatRepository
-import com.maodouchat.server.repository.MessageRepository
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.NotificationPreferenceRepository
 import com.maodouchat.server.repository.PushTokenRepository
@@ -26,6 +25,7 @@ import com.maodouchat.server.repository.SignalingRepository
 import com.maodouchat.server.repository.AnnouncementRepository
 import com.maodouchat.server.repository.RateLimitStatsRepository
 import com.maodouchat.server.repository.UserTagRepository
+import com.maodouchat.server.messaging.v2.MessagingV2Repository
 import com.maodouchat.server.service.AiGatewayService
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.CallInviteRateLimiter
@@ -72,8 +72,7 @@ fun main() {
 
     // 创建仓库
     val userRepo = UserRepository()
-    val chatRepo = ChatRepository()
-    val messageRepo = MessageRepository()
+    val messagingV2Repository = MessagingV2Repository()
     val postRepo = PostRepository()
     val notificationPreferenceRepo = NotificationPreferenceRepository()
     val pushTokenRepo = PushTokenRepository()
@@ -115,16 +114,12 @@ fun main() {
         install(CachingPlugin)
         configureSockets(
             userRepo,
-            messageRepo,
-            chatRepo,
             signalingRepo = signalingRepo,
             pushService = pushService,
             callInviteRateLimiter = callInviteRateLimiter
         )
         configureRouting(
             userRepo,
-            chatRepo,
-            messageRepo,
             postRepo,
             aiGateway = aiGateway,
             notificationPreferenceRepo = notificationPreferenceRepo,
@@ -133,6 +128,7 @@ fun main() {
             signalingRepo = signalingRepo,
             callInviteRateLimiter = callInviteRateLimiter
         )
+        configureMessagingV2Routing(messagingV2Repository)
         // 群玩法 B3：群签到+排行 / 群接龙 / 群 PK / 投票同步（REST + WS 推送）
         configurePollRouting()
         configureDeveloperRouting()
@@ -146,8 +142,6 @@ fun main() {
         )
         // B2 密聊防泄漏扩展（Surface #71–#78）：burnz/ttlz/fwlz/simz/2faz/ndz/dvz/sntz + hints
         configureSecretSurfaceRouting(
-            chatRepo = chatRepo,
-            messageRepo = messageRepo,
             userRepo = userRepo
         )
         // 8.31 运维修复：限流采样器注册优雅关闭（退出瞬间不再执行 DB 写）；

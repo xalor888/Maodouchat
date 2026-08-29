@@ -9,6 +9,7 @@ import com.maodouchat.ai.AiTaskReminderScheduler
 import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.attachment.AttachmentTransferScheduler
 import com.maodouchat.crypto.SignalProtocol
+import com.maodouchat.messaging.v2.MessagingV2Runtime
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.data.repository.NotificationCenterRepository
@@ -66,6 +67,7 @@ class MaodouchatApp : Application() {
     @Volatile private var _secureSessionManager: SecureSessionManager? = null
     @Volatile private var _senderKeyRetryManager: SenderKeyRetryManager? = null
     @Volatile private var _imageOcrAutoIndexer: com.maodouchat.ai.ImageOcrAutoIndexer? = null
+    @Volatile private var _messagingV2Runtime: MessagingV2Runtime? = null
 
     // 延迟初始化 + 双检锁：后台线程首次访问时创建，不阻塞 onCreate
     val database: AppDatabase
@@ -108,6 +110,20 @@ class MaodouchatApp : Application() {
                 database = database
             ).also { _imageOcrAutoIndexer = it }
         }
+
+    val messagingV2Runtime: MessagingV2Runtime
+        get() = _messagingV2Runtime ?: synchronized(this) {
+            _messagingV2Runtime ?: MessagingV2Runtime(this, applicationScope).also {
+                _messagingV2Runtime = it
+            }
+        }
+
+    val messagingV2Outbox: com.maodouchat.messaging.v2.MessagingV2Outbox
+        get() = messagingV2Runtime.outbox
+
+    internal val messagingV2MutationEvents by lazy {
+        com.maodouchat.messaging.v2.MessagingV2MutationEventBus()
+    }
 
     /** 通知中心聚合仓库：统一持久化所有的应用层通知事件 */
     val notificationCenter: NotificationCenterRepository by lazy { NotificationCenterRepository(this) }
@@ -172,6 +188,7 @@ class MaodouchatApp : Application() {
             // 触发 lazy 创建（SQLCipher 解密 ~100ms）
             database
             signalProtocol
+            messagingV2Runtime.start()
             // Cold start while still logged in: restore identity/sessions before chat crypto
             val tokenManager = TokenManager.getInstance(this@MaodouchatApp)
             val userId = tokenManager.getUserId()
@@ -208,11 +225,11 @@ class MaodouchatApp : Application() {
             // 此前排在最前会把 outbox flush 拖后数秒，重发消息迟迟不发
             if (!userId.isNullOrBlank() && tokenManager.isLoggedIn()) {
                 try {
-                    com.maodouchat.data.repository.TextOutboxFlusher.flush(app = this@MaodouchatApp)
+                    messagingV2Runtime.syncNow()
                 } catch (error: kotlinx.coroutines.CancellationException) {
                     throw error
                 } catch (error: Exception) {
-                    android.util.Log.w("MaodouchatApp", "cold-start text outbox flush failed", error)
+                    android.util.Log.w("MaodouchatApp", "cold-start v2 convergence failed", error)
                 }
                 try {
                     com.maodouchat.util.ClientPrefsSync.pullAndApply(this@MaodouchatApp)

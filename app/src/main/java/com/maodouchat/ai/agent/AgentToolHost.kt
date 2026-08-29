@@ -7,15 +7,18 @@ import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
+import com.maodouchat.data.model.MessageReaction
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.ChatRepository
-import com.maodouchat.data.repository.MessageRepository
+import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.data.repository.MessageSearchRepository
-import com.maodouchat.data.repository.TextOutboxFlusher
 import com.maodouchat.data.repository.UserRepository
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
+import com.maodouchat.messaging.v2.MessagingV2Event
+import com.maodouchat.messaging.v2.MessagingV2EventAction
+import com.maodouchat.messaging.v2.MessagingV2MessageGateway
 import com.maodouchat.security.ChatLockSession
 import com.maodouchat.util.JsonFormat
 import kotlinx.coroutines.flow.first
@@ -219,7 +222,7 @@ object AgentToolHost {
 
     private suspend fun getChatHistory(app: MaodouchatApp, chatId: String, limit: Int): String {
         requireReadableChat(app, chatId)?.let { return it }
-        val messages = MessageRepository(app.database.messageDao(), app.database)
+        val messages = LocalMessageStore(app.database.messageDao(), app.database)
             .getRecentMessages(chatId, limit.coerceIn(1, AgentToolPolicy.MAX_CHAT_HISTORY))
         if (messages.isEmpty()) return "No messages."
         return messages.asReversed().joinToString("\n") { formatMessage(it) }
@@ -410,8 +413,17 @@ object AgentToolHost {
             status = MessageStatus.SENDING,
             meta = meta
         )
-        MessageRepository(app.database.messageDao(), app.database).insertMessage(message)
-        TextOutboxFlusher.flush(app)
+        val messageStore = LocalMessageStore(app.database.messageDao(), app.database)
+        MessagingV2MessageGateway(
+            database = app.database,
+            messageStore = messageStore,
+            outbox = app.messagingV2Outbox,
+        ).stageAndEnqueue(
+            message = message,
+            groupRevision = chat.memberRevision.takeIf { chat.isGroup },
+            body = content,
+            type = MessageType.TEXT,
+        )
         return "Queued ${message.id} to ${if (chat.isGroup) "group" else "direct"} $chatId via E2EE outbox"
     }
 
@@ -509,7 +521,7 @@ object AgentToolHost {
         if (messageId.isBlank()) return "Error: messageId required"
         val message = app.database.messageDao().getMessageById(messageId) ?: return "Error: message not found"
         denySecretOrLockedChat(app, message.chatId)?.let { return it }
-        MessageRepository(app.database.messageDao(), app.database).deleteMessage(messageId)
+        LocalMessageStore(app.database.messageDao(), app.database).deleteMessage(messageId)
         return "Deleted local message $messageId"
     }
 
@@ -606,29 +618,63 @@ object AgentToolHost {
 
     private suspend fun revokeMessage(app: MaodouchatApp, messageId: String): String {
         if (messageId.isBlank()) return "Error: messageId required"
-        val token = token(app) ?: return "Error: not signed in"
+        token(app) ?: return "Error: not signed in"
         val local = app.database.messageDao().getMessageById(messageId)
-        local?.let { denySecretOrLockedChat(app, it.chatId)?.let { err -> return err } }
-        ApiService.revokeMessage(token, messageId).getOrElse { return fail(it) }
-        if (local != null) {
-            val placeholder = app.getString(com.maodouchat.R.string.chat_message_revoked_placeholder)
-            val revoked = local.toDomain().copy(
+            ?: return "Error: message not found"
+        denySecretOrLockedChat(app, local.chatId)?.let { return it }
+        val ownerUserId = TokenManager.getInstance(app).getUserId().orEmpty()
+        if (local.senderId != ownerUserId) return "Error: only the sender can revoke this message"
+        val chat = app.database.chatDao().getChatById(local.chatId)
+        val placeholder = app.getString(com.maodouchat.R.string.chat_message_revoked_placeholder)
+        app.messagingV2Outbox.enqueueEvent(
+            conversationId = local.chatId,
+            event = MessagingV2Event(
+                action = MessagingV2EventAction.REVOKE,
+                targetMessageId = messageId,
                 content = placeholder,
-                type = MessageType.REVOKED,
-                meta = MessageMeta()
-            )
-            MessageRepository(app.database.messageDao(), app.database).insertMessage(revoked)
-        }
+                editedAt = System.currentTimeMillis(),
+            ),
+            groupRevision = chat?.memberRevision?.takeIf { chat.isGroup },
+        )
+        val revoked = local.toDomain().copy(
+            content = placeholder,
+            type = MessageType.REVOKED,
+            meta = MessageMeta(),
+        )
+        LocalMessageStore(app.database.messageDao(), app.database).insertMessage(revoked)
+        MaodouchatApp.emitChatListPreviewRefresh(local.chatId)
         return "Revoked $messageId"
     }
 
     private suspend fun react(app: MaodouchatApp, messageId: String, emoji: String): String {
         if (messageId.isBlank() || emoji.isBlank()) return "Error: messageId and emoji required"
+        token(app) ?: return "Error: not signed in"
         val local = app.database.messageDao().getMessageById(messageId)
-        local?.let { denySecretOrLockedChat(app, it.chatId)?.let { err -> return err } }
-        val token = token(app) ?: return "Error: not signed in"
-        val result = ApiService.setMessageReaction(token, messageId, emoji.take(16)).getOrElse { return fail(it) }
-        return "Reaction updated on $messageId count=${result.reactions.size}"
+            ?: return "Error: message not found"
+        denySecretOrLockedChat(app, local.chatId)?.let { return it }
+        val ownerUserId = TokenManager.getInstance(app).getUserId().orEmpty()
+        val normalizedEmoji = emoji.trim().take(16)
+        val current = local.toDomain()
+        val nextEmoji = normalizedEmoji.takeUnless {
+            current.reactions.any { reaction ->
+                reaction.userId == ownerUserId && reaction.emoji == normalizedEmoji
+            }
+        }
+        val chat = app.database.chatDao().getChatById(local.chatId)
+        app.messagingV2Outbox.enqueueEvent(
+            conversationId = local.chatId,
+            event = MessagingV2Event(
+                action = MessagingV2EventAction.REACTION_SET,
+                targetMessageId = messageId,
+                reactionEmoji = nextEmoji,
+            ),
+            groupRevision = chat?.memberRevision?.takeIf { chat.isGroup },
+        )
+        val reactions = current.reactions.filterNot { it.userId == ownerUserId } +
+            listOfNotNull(nextEmoji?.let { MessageReaction(ownerUserId, it) })
+        LocalMessageStore(app.database.messageDao(), app.database)
+            .updateMessageReactions(messageId, reactions)
+        return "Reaction updated on $messageId count=${reactions.size}"
     }
 
     private suspend fun pinMessage(app: MaodouchatApp, chatId: String, messageId: String): String {

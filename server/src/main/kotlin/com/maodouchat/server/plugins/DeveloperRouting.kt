@@ -8,7 +8,7 @@ import com.maodouchat.server.db.BotCommandLogs
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AuthTokenRepository
 import com.maodouchat.server.repository.BotRepository
-import com.maodouchat.server.repository.ChatRepository
+import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
@@ -68,7 +68,7 @@ private const val JWT_ISSUER = "maodouchat"
 // Stateless repo wrappers; safe to share across requests (all ops open their own transactions).
 private val devUserRepo = UserRepository()
 private val devAuthTokenRepo = AuthTokenRepository()
-private val devChatRepo = ChatRepository()
+private val devParticipantRepo = ConversationParticipantRepository()
 private val devJson = Json { ignoreUnknownKeys = true }
 
 /** Mint a 2-hour dev_session JWT for [userId]. */
@@ -474,7 +474,7 @@ fun Application.configureDeveloperRouting() {
                 val affectedGroupIds = BotRepository.groupChatIdsFor(botId)
                 val ok = BotRepository.delete(botId, userId)
                 if (!ok) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
-                val groupSnapshots = devChatRepo.getGroupRevisionAndParticipantIds(affectedGroupIds)
+                val groupSnapshots = devParticipantRepo.groupRevisionAndParticipantIds(affectedGroupIds)
                 groupSnapshots.forEach { (chatId, snapshot) ->
                     notifyGroupRevisionChangedWithData(
                         json = devJson,

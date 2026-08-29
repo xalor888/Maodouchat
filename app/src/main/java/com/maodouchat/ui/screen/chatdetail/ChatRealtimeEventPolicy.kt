@@ -3,20 +3,6 @@ package com.maodouchat.ui.screen.chatdetail
 internal fun isActiveChatEvent(activeChatId: String, eventChatId: String): Boolean =
     activeChatId.isNotBlank() && eventChatId == activeChatId
 
-/** Old MESSAGE_EDITED payloads omitted chatId, so their locally resolved message must prove scope. */
-internal fun shouldApplyRealtimeEdit(
-    activeChatId: String,
-    eventChatId: String,
-    existingMessageChatId: String,
-    existingEditedAt: Long?,
-    eventEditedAt: Long?
-): Boolean {
-    if (activeChatId.isBlank() || existingMessageChatId != activeChatId) return false
-    if (eventChatId.isNotBlank() && eventChatId != activeChatId) return false
-    if (eventEditedAt == null || existingEditedAt == null) return true
-    return eventEditedAt >= existingEditedAt
-}
-
 internal fun shouldApplyContactPresence(
     isGroupChat: Boolean,
     contactId: String,

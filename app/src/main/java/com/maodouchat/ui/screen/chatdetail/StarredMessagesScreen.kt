@@ -69,7 +69,7 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
-import com.maodouchat.data.repository.MessageRepository
+import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.MessageDto
@@ -120,9 +120,8 @@ class StarredMessagesViewModel(
     private val chatId: String = savedStateHandle.get<String>("chatId")?.takeIf { it.isNotBlank() }.orEmpty()
     private val globalScope: Boolean = chatId.isBlank()
     private val app = application as MaodouchatApp
-    private val messageRepo = MessageRepository(app.database.messageDao(), app.database)
+    private val messageRepo = LocalMessageStore(app.database.messageDao(), app.database)
     private val chatLockRepo = com.maodouchat.data.repository.ChatLockRepository(app.database.chatLockDao())
-    private val signalProtocol = app.signalProtocol
     private val tokenManager = TokenManager.getInstance(application)
     private val token: String get() = tokenManager.getToken().orEmpty()
     private val currentUserId: String get() = tokenManager.getUserId().orEmpty()
@@ -178,15 +177,12 @@ class StarredMessagesViewModel(
                         val chats = ApiService.getChats(liveToken).getOrThrow().map { it.toDomainChat() }
                         val chatsById = chats.associateBy { it.id }
                         val chat = chatsById[chatId]
-                        val cached = if (chatId.isNotBlank()) {
-                            messageRepo.getRecentMessages(chatId, 500).associateBy { it.id }
-                        } else {
-                            emptyMap()
-                        }
                         val remote = ApiService.getStarredMessages(
                             liveToken,
                             chatId.takeIf { it.isNotBlank() }
                         ).getOrThrow()
+                        val localById = messageRepo.getMessagesByIds(remote.map { it.messageId })
+                            .associateBy { it.id }
                         val lockedChatIds = try {
                             app.database.chatLockDao().listLockedChatIds().toSet()
                         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -208,26 +204,18 @@ class StarredMessagesViewModel(
                         val isChatLockedNow = !globalScope && chatId.isNotBlank() &&
                             RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_LOCK) &&
                             chatId in lockedChatIds
-                        val messages = remote.mapNotNull { dto ->
+                        val messages = remote.mapNotNull { reference ->
                             // Global starred must not surface bodies from PIN-locked or secret chats.
-                            if (globalScope && dto.chatId in lockedChatIds) return@mapNotNull null
-                            if (globalScope && dto.chatId in secretChatIds) return@mapNotNull null
+                            if (globalScope && reference.chatId in lockedChatIds) return@mapNotNull null
+                            if (globalScope && reference.chatId in secretChatIds) return@mapNotNull null
                             if (!globalScope && chatId in lockedChatIds &&
                                 !com.maodouchat.security.ChatLockSession.isUnlocked(chatId)
                             ) {
                                 return@mapNotNull null
                             }
-                            val scopeChat = chatsById[dto.chatId] ?: chat
-                            val cachedRow = cached[dto.id]?.takeIf { row ->
-                                row.content.isNotBlank() &&
-                                    !com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(row.content) &&
-                                    !com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(row.parsedContent())
-                            }
-                            cachedRow?.copy(
-                                starred = true,
-                                editedAt = dto.editedAt ?: cachedRow.editedAt,
-                                reactions = dto.reactions.ifEmpty { cachedRow.reactions }
-                            ) ?: decryptDto(dto, scopeChat, if (isSecretScoped) chatId else null).copy(starred = true)
+                            localById[reference.messageId]
+                                ?.takeIf { it.chatId == reference.chatId }
+                                ?.copy(starred = true)
                         }
                         Result.success(StarredLoadPayload(chat, chatsById, messages, isSecretScoped, isChatLockedNow))
                     } catch (error: kotlinx.coroutines.CancellationException) {
@@ -381,103 +369,6 @@ class StarredMessagesViewModel(
         }
     }
 
-    private suspend fun decryptDto(dto: MessageDto, chat: Chat?, secretChatId: String? = null): Message {
-        val base = Message(
-            id = dto.id,
-            chatId = dto.chatId,
-            senderId = dto.senderId,
-            content = dto.content,
-            type = MessageType.fromWire(dto.type),
-            timestamp = dto.timestamp,
-            status = MessageStatus.fromWire(dto.status),
-            editedAt = dto.editedAt,
-            starred = dto.starred,
-            reactions = dto.reactions,
-            expiresAt = dto.expiresAt, sealedSender = dto.sealedSender
-        )
-        // 8.48 修复 M3：自己消息不再无条件显示占位符——本地自有设备会话存在时尝试解密
-        //（自己的文本消息本地就是明文存储，收藏页此前全局列表每条自己消息都隐藏正文）。
-        // 解密失败（无会话/多设备格式）才回退占位，行为与聊天详情一致。
-        val localPlain = runCatching { messageRepo.getMessageById(dto.id) }.getOrNull()
-            ?.takeIf { cached ->
-                cached.content.isNotBlank() &&
-                    !com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(cached.content) &&
-                    !com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(cached.parsedContent()) &&
-                    !signalProtocol.isEncryptedEnvelope(cached.content) &&
-                    !signalProtocol.isSenderKeyEnvelope(cached.content)
-            }
-        if (localPlain != null) {
-            return localPlain.copy(starred = true)
-        }
-        val skipSession = com.maodouchat.crypto.SessionCipherOccupancy.shouldSkipSessionCipher(
-            dto.chatId,
-            dto.senderId
-        ) && !(chat?.isGroup == true && signalProtocol.isSenderKeyEnvelope(dto.content))
-        if (skipSession) {
-            return base.copy(content = encryptedPreview(base.type))
-        }
-        if (dto.senderId == currentUserId) {
-            val own = runCatching {
-                if (base.type == MessageType.TEXT || base.type == MessageType.MARKDOWN) {
-                    signalProtocol.decryptTextEnvelope(dto.senderId, dto.content)
-                } else {
-                    signalProtocol.decryptContentEnvelope(dto.senderId, dto.content)
-                }
-            }.getOrNull()
-            if (own is SignalProtocol.DecryptResult.Success &&
-                (base.type == MessageType.TEXT || base.type == MessageType.MARKDOWN)
-            ) {
-                val plaintext = own.plaintext
-                if (!com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(plaintext)) {
-                    return base.copy(content = plaintext)
-                }
-            }
-            return base.copy(content = encryptedPreview(base.type))
-        }
-        val result = if (chat?.isGroup == true && signalProtocol.isSenderKeyEnvelope(dto.content)) {
-            signalProtocol.decryptGroupContentEnvelope(dto.senderId, dto.content)
-        } else if (base.type == MessageType.TEXT || base.type == MessageType.MARKDOWN) {
-            signalProtocol.decryptTextEnvelope(dto.senderId, dto.content)
-        } else {
-            signalProtocol.decryptContentEnvelope(dto.senderId, dto.content)
-        }
-        return when (result) {
-            is SignalProtocol.DecryptResult.Success -> {
-                if (base.type == MessageType.TEXT || base.type == MessageType.MARKDOWN) {
-                    val plaintext = result.plaintext
-                    if (com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(plaintext)) {
-                        base.copy(content = encryptedPreview(base.type))
-                    } else {
-                        base.copy(content = plaintext)
-                    }
-                }
-                else {
-                    val restored = MediaCache.restoreDecryptedMedia(getApplication(), result.plaintext, base.id, base.type, secretChatId)
-                    val metadata = restored?.fileMetadata
-                    base.copy(
-                        content = restored?.uri ?: encryptedPreview(base.type),
-                        meta = if (metadata == null) base.meta else base.meta.copy(
-                            fileName = metadata.fileName,
-                            fileMimeType = metadata.mimeType,
-                            fileSizeBytes = metadata.sizeBytes
-                        )
-                    )
-                }
-            }
-            else -> base.copy(content = encryptedPreview(base.type))
-        }
-    }
-
-    private fun encryptedPreview(type: MessageType): String = when (type) {
-        MessageType.IMAGE -> text(R.string.starred_encrypted_image)
-        MessageType.GIF -> text(R.string.starred_encrypted_gif)
-        MessageType.STICKER -> text(R.string.starred_encrypted_sticker)
-        MessageType.LOCATION -> text(R.string.starred_encrypted_location)
-        MessageType.VIDEO -> text(R.string.starred_encrypted_video)
-        MessageType.VOICE -> text(R.string.starred_encrypted_voice)
-        MessageType.FILE -> text(R.string.starred_encrypted_file)
-        else -> text(R.string.starred_encrypted_message)
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

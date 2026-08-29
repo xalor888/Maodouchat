@@ -197,10 +197,13 @@ class SecureSessionManager(
                 Log.w(TAG, "Failed to cancel periodic workers during local purge", error)
             }
             try {
-                val scheduled = com.maodouchat.util.ScheduledMessageStore.list(context)
-                scheduled.forEach { com.maodouchat.util.ScheduledMessageScheduler.cancel(context, it.id) }
-                accountUserId?.takeIf { it.isNotBlank() }?.let {
-                    com.maodouchat.util.ScheduledMessageStore.clearForUser(context, it)
+                accountUserId?.takeIf { it.isNotBlank() }?.let { ownerUserId ->
+                    com.maodouchat.util.ScheduledMessageStore
+                        .listForUser(context, ownerUserId)
+                        .forEach { item ->
+                            com.maodouchat.util.ScheduledMessageScheduler.cancel(context, item.id)
+                        }
+                    com.maodouchat.util.ScheduledMessageStore.clearForUser(context, ownerUserId)
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error

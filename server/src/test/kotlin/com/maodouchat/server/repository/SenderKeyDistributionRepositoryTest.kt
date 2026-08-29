@@ -1,9 +1,10 @@
 package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.Chats
+import com.maodouchat.server.db.MessagingV2Envelopes
+import com.maodouchat.server.db.MessagingV2Messages
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
-import com.maodouchat.server.model.SenderKeyDistributionTargetRequest
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.TransactionManager
@@ -12,13 +13,8 @@ import org.junit.jupiter.api.AfterEach
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
-/**
- * SKD coverage: unknown statuses must not be promoted to SENT, and GET with
- * `expectedTargets` must drop historical rows for removed devices while
- * synthesizing PENDING for current devices that were never reported.
- */
+/** v2 Sender Key coverage is derived from committed mailbox envelopes only. */
 class SenderKeyDistributionRepositoryTest {
 
     private var database: Database? = null
@@ -56,64 +52,44 @@ class SenderKeyDistributionRepositoryTest {
     }
 
     @Test
-    fun `unknown status is stored as PENDING not SENT`() {
+    fun `committed v2 sender key mailbox is authoritative coverage`() {
         setupDb()
-        val repo = SenderKeyDistributionRepository()
-        repo.record(
-            chatId = "g1",
-            epoch = 7L,
-            senderId = "u1",
-            messageId = "m_skd",
-            targets = listOf(
-                SenderKeyDistributionTargetRequest("u2", 1, status = "SENT"),
-                SenderKeyDistributionTargetRequest("u2", 2, status = "BOGUS"),
-                SenderKeyDistributionTargetRequest("u2", 3, status = "failed"),
-            )
-        )
+        val now = System.currentTimeMillis()
+        transaction {
+            MessagingV2Messages.insert {
+                it[MessagingV2Messages.id] = "sk_v2_1"
+                it[MessagingV2Messages.conversationId] = "g1"
+                it[MessagingV2Messages.senderUserId] = "u1"
+                it[MessagingV2Messages.senderDeviceId] = 1
+                it[MessagingV2Messages.kind] = "SENDER_KEY"
+                it[MessagingV2Messages.recordClass] = "INTERNAL"
+                it[MessagingV2Messages.groupRevision] = 11L
+                it[MessagingV2Messages.clientTimestamp] = now
+                it[MessagingV2Messages.serverTimestamp] = now
+                it[MessagingV2Messages.requestDigest] = "digest-v2-sender-key"
+            }
+            listOf(1, 2).forEach { deviceId ->
+                MessagingV2Envelopes.insert {
+                    it[MessagingV2Envelopes.id] = "env-v2-$deviceId"
+                    it[MessagingV2Envelopes.messageId] = "sk_v2_1"
+                    it[MessagingV2Envelopes.recipientUserId] = "u2"
+                    it[MessagingV2Envelopes.recipientDeviceId] = deviceId
+                    it[MessagingV2Envelopes.ciphertextType] = "DIRECT"
+                    it[MessagingV2Envelopes.ciphertext] = "ciphertext-$deviceId"
+                    it[MessagingV2Envelopes.serverTimestamp] = now
+                }
+            }
+        }
 
-        val status = repo.getStatus(chatId = "g1", senderId = "u1", epoch = 7L)
-        assertEquals(3, status.total)
-        assertEquals(1, status.sent)
-        assertEquals(1, status.failed)
-        assertEquals(1, status.pending)
-        val byDevice = status.targets.associateBy { it.deviceId }
-        assertEquals("SENT", byDevice[1]?.status)
-        assertEquals("PENDING", byDevice[2]?.status)
-        assertEquals("FAILED", byDevice[3]?.status)
-    }
-
-    @Test
-    fun `expectedTargets drops removed devices and synthesizes uncovered current devices`() {
-        setupDb()
-        val repo = SenderKeyDistributionRepository()
-        repo.record(
-            chatId = "g1",
-            epoch = 9L,
-            senderId = "u1",
-            messageId = "m_skd_cov",
-            targets = listOf(
-                SenderKeyDistributionTargetRequest("u2", 1, status = "SENT"),
-                SenderKeyDistributionTargetRequest("u2", 2, status = "SENT"),
-            )
-        )
-
-        val withoutFilter = repo.getStatus(chatId = "g1", senderId = "u1", epoch = 9L)
-        assertEquals(setOf(1, 2), withoutFilter.targets.map { it.deviceId }.toSet())
-
-        val coverage = repo.getStatus(
+        val status = SenderKeyDistributionRepository().getStatus(
             chatId = "g1",
             senderId = "u1",
-            epoch = 9L,
-            expectedTargets = setOf("u2" to 1, "u2" to 3)
+            epoch = 11L,
+            expectedTargets = setOf("u2" to 1, "u2" to 2),
         )
-        assertEquals(2, coverage.total)
-        assertEquals(1, coverage.sent)
-        assertEquals(1, coverage.pending)
-        assertEquals(0, coverage.failed)
-        val byDevice = coverage.targets.associateBy { it.deviceId }
-        assertTrue(2 !in byDevice, "removed device 2 must not remain in coverage")
-        assertEquals("SENT", byDevice[1]?.status)
-        assertEquals("PENDING", byDevice[3]?.status)
-        assertEquals("device_not_covered", byDevice[3]?.error)
+        assertEquals(2, status.total)
+        assertEquals(2, status.sent)
+        assertEquals(0, status.pending)
+        assertEquals(0, status.failed)
     }
 }

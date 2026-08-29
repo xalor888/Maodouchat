@@ -36,13 +36,29 @@ object ScheduledMessageStore {
     @Synchronized
     fun list(context: Context): List<ScheduledMessage> {
         val userId = userId(context)
-        if (userId.isBlank()) return emptyList()
-        return readAll(context).filter { it.ownerUserId == userId }.map { it.item }
+        return listForUser(context, userId)
+    }
+
+    @Synchronized
+    fun listForUser(context: Context, ownerUserId: String): List<ScheduledMessage> {
+        if (ownerUserId.isBlank()) return emptyList()
+        return readAll(context)
+            .filter { it.ownerUserId == ownerUserId }
+            .map { it.item }
     }
 
     @Synchronized
     fun listForChat(context: Context, chatId: String): List<ScheduledMessage> =
         list(context).filter { it.chatId == chatId }.sortedBy { it.sendAtMillis }
+
+    @Synchronized
+    fun listForChatForUser(
+        context: Context,
+        chatId: String,
+        ownerUserId: String,
+    ): List<ScheduledMessage> = listForUser(context, ownerUserId)
+        .filter { it.chatId == chatId }
+        .sortedBy { it.sendAtMillis }
 
     @Synchronized
     fun get(context: Context, id: String): ScheduledMessage? =
@@ -72,14 +88,41 @@ object ScheduledMessageStore {
         repeatCount: Int = 0,
         occurrencesSent: Int = 0,
         weekdaysOnly: Boolean = false
+    ): ScheduledMessage? = addForUser(
+        context = context,
+        ownerUserId = userId(context),
+        chatId = chatId,
+        peerUserId = peerUserId,
+        text = text,
+        sendAtMillis = sendAtMillis,
+        isGroup = isGroup,
+        repeatIntervalMs = repeatIntervalMs,
+        repeatCount = repeatCount,
+        occurrencesSent = occurrencesSent,
+        weekdaysOnly = weekdaysOnly,
+    )
+
+    @Synchronized
+    fun addForUser(
+        context: Context,
+        ownerUserId: String,
+        chatId: String,
+        peerUserId: String,
+        text: String,
+        sendAtMillis: Long,
+        isGroup: Boolean = false,
+        repeatIntervalMs: Long = 0L,
+        repeatCount: Int = 0,
+        occurrencesSent: Int = 0,
+        weekdaysOnly: Boolean = false,
     ): ScheduledMessage? {
-        val userId = userId(context)
-        if (userId.isBlank()) return null
+        val userId = ownerUserId.trim()
+        if (userId.isBlank() || chatId.isBlank()) return null
         val normalized = ScheduledMessagePolicy.normalizeText(text)
         if (!ScheduledMessagePolicy.isValidText(normalized)) return null
         val now = System.currentTimeMillis()
         val sendAt = ScheduledMessagePolicy.clampSendAt(sendAtMillis, now)
-        val pending = listForChat(context, chatId)
+        val pending = listForChatForUser(context, chatId, userId)
         if (!ScheduledMessagePolicy.canAddMore(pending.size)) return null
         val item = ScheduledMessage(
             id = "sch_${UUID.randomUUID().toString().take(12)}",
@@ -107,8 +150,23 @@ object ScheduledMessageStore {
         id: String,
         text: String? = null,
         sendAtMillis: Long? = null
+    ): ScheduledMessage? = updateTextAndTimeForUser(
+        context = context,
+        ownerUserId = userId(context),
+        id = id,
+        text = text,
+        sendAtMillis = sendAtMillis,
+    )
+
+    @Synchronized
+    fun updateTextAndTimeForUser(
+        context: Context,
+        ownerUserId: String,
+        id: String,
+        text: String? = null,
+        sendAtMillis: Long? = null,
     ): ScheduledMessage? {
-        val userId = userId(context)
+        val userId = ownerUserId.trim()
         if (userId.isBlank()) return null
         val all = readAll(context).toMutableList()
         val idx = all.indexOfFirst { it.ownerUserId == userId && it.item.id == id }
@@ -153,15 +211,22 @@ object ScheduledMessageStore {
     /** Cancel-store rows for one chat (current owner). Returns removed item ids. */
     @Synchronized
     fun clearForChat(context: Context, chatId: String): List<String> {
-        if (chatId.isBlank()) return emptyList()
-        val userId = userId(context)
-        if (userId.isBlank()) return emptyList()
+        return clearForChatForUser(context, chatId, userId(context))
+    }
+
+    @Synchronized
+    fun clearForChatForUser(
+        context: Context,
+        chatId: String,
+        ownerUserId: String,
+    ): List<String> {
+        if (chatId.isBlank() || ownerUserId.isBlank()) return emptyList()
         val all = readAll(context)
         val removedIds = all
-            .filter { it.ownerUserId == userId && it.item.chatId == chatId }
+            .filter { it.ownerUserId == ownerUserId && it.item.chatId == chatId }
             .map { it.item.id }
         if (removedIds.isEmpty()) return emptyList()
-        writeAll(context, all.filterNot { it.ownerUserId == userId && it.item.chatId == chatId })
+        writeAll(context, all.filterNot { it.ownerUserId == ownerUserId && it.item.chatId == chatId })
         return removedIds
     }
 

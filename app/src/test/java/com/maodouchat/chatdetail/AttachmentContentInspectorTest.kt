@@ -1,7 +1,7 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.ui.screen.chatdetail.isAttachmentContentCompatible
+import com.maodouchat.attachment.isAttachmentContentCompatible
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

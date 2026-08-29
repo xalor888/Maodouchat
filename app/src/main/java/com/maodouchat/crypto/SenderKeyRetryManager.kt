@@ -9,7 +9,6 @@ import com.maodouchat.data.local.entity.hasCompletedUpload
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.SenderKeyDistributionTargetDto
-import com.maodouchat.network.SenderKeyDistributionTargetRequest
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -298,6 +297,13 @@ class SenderKeyRetryManager(
             } catch (error: kotlinx.coroutines.CancellationException) {
                 // Cancel mid-coverage must not invalidate SK or clear READY attachment wire.
                 throw error
+            } catch (error: SenderKeyCoveragePendingException) {
+                if (!sessionActive(userId)) {
+                    return@withLock Result.failure(IllegalStateException("sender_key_session_changed"))
+                }
+                enqueueLocked(userId, chatId, expectedEpoch, "coverage_mailbox_pending", 1_000L)
+                refreshBackgroundSchedule(userId)
+                Result.failure(error)
             } catch (error: Exception) {
                 if (!sessionActive(userId)) {
                     return@withLock Result.failure(IllegalStateException("sender_key_session_changed", error))
@@ -411,27 +417,22 @@ class SenderKeyRetryManager(
         ) {
             error("sender_key_session_changed")
         }
-        liveToken = tokenManager.getToken().orEmpty().ifBlank { liveToken }
         val messageId = "sk_${UUID.randomUUID()}"
-        ApiService.sendMessage(liveToken, task.chatId, distribution.envelope, MessageType.SK_DIST.name, messageId).getOrThrow()
-        check(sessionActive(expectedOwnerUserId)) { "sender_key_session_changed" }
-        liveToken = tokenManager.getToken().orEmpty().ifBlank { liveToken }
-        ApiService.reportSenderKeyDistribution(
-            token = liveToken,
-            chatId = task.chatId,
-            epoch = epoch,
+        val app = context as? com.maodouchat.MaodouchatApp
+            ?: throw IllegalStateException("sender_key_runtime_unavailable")
+        app.messagingV2Outbox.enqueueSenderKeyDistribution(
+            conversationId = task.chatId,
+            distributionEnvelope = rawEnvelope,
+            groupRevision = epoch,
             messageId = messageId,
-            targets = distribution.targets.map {
-                SenderKeyDistributionTargetRequest(it.userId, it.deviceId, "SENT")
-            }
-        ).getOrThrow()
+        )
         check(sessionActive(expectedOwnerUserId)) { "sender_key_session_changed" }
-        return epoch
+        // The durable outbox item must reach the server before coverage can be considered
+        // complete. Returning success here lets a foreground data message race ahead of SKDM.
+        throw SenderKeyCoveragePendingException(task.chatId, epoch)
     }
 
-    /**
-     * POST report 只反映本次 fan-out 的 targets；必须以 GET（含 expected 设备集合）判定是否真覆盖。
-     */
+    /** Coverage GET is evaluated against the committed v2 Sender Key mailbox envelopes. */
     private suspend fun verifyCoverageComplete(token: String, chatId: String, epoch: Long, expectedOwnerUserId: String): Boolean {
         if (epoch <= 0L) return false
         val coverageResult = ApiService.getSenderKeyDistributionStatus(
@@ -567,13 +568,18 @@ class SenderKeyRetryManager(
 
 /**
  * 群 SenderKey 覆盖分发时的瞬态网络失败标记（8.41）。
- * 与 ApiException.NETWORK/TIMEOUT 同语义：发送路径应保持 SENDING 待 flusher 重试，
- * 不得标 FAILED（MessageMutationPolicy.shouldMarkOutboxFailed 已识别）。
+ * 与 ApiException.NETWORK/TIMEOUT 同语义：调用方应保留 durable v2 outbox 项等待重试。
  */
 class TransientCoverageException(
     message: String,
     cause: Throwable? = null
 ) : java.io.IOException(message, cause)
+
+/** Sender Key distribution is durable locally but has not committed to the server mailbox yet. */
+class SenderKeyCoveragePendingException(
+    val chatId: String,
+    val epoch: Long,
+) : IllegalStateException("sender_key_coverage_pending")
 
 /**
  * 聊天级 SenderKey 重试状态，用于 UI 显示。

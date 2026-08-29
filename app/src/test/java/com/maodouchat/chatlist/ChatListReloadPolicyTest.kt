@@ -31,24 +31,10 @@ class ChatListReloadPolicyTest {
     }
 
     @Test
-    fun deleteRevokeGroupRevisionAreDebouncedSilent() {
-        for (trigger in listOf(
-            Trigger.MESSAGE_DELETED,
-            Trigger.MESSAGE_REVOKED,
-            Trigger.GROUP_REVISION
-        )) {
-            val mode = ChatListReloadPolicy.modeFor(trigger)
-            assertEquals(Mode.DEBOUNCED_SILENT, mode)
-            assertFalse(ChatListReloadPolicy.shouldShowLoading(mode))
-            assertEquals(ChatListReloadPolicy.DEFAULT_DEBOUNCE_MS, ChatListReloadPolicy.debounceMs(mode))
-        }
-    }
-
-    @Test
-    fun unknownChatMessageIsImmediateSilent() {
-        val mode = ChatListReloadPolicy.modeFor(Trigger.UNKNOWN_CHAT_MESSAGE)
-        assertEquals(Mode.IMMEDIATE_SILENT, mode)
+    fun groupRevisionIsDebouncedSilent() {
+        val mode = ChatListReloadPolicy.modeFor(Trigger.GROUP_REVISION)
+        assertEquals(Mode.DEBOUNCED_SILENT, mode)
         assertFalse(ChatListReloadPolicy.shouldShowLoading(mode))
-        assertEquals(0L, ChatListReloadPolicy.debounceMs(mode))
+        assertEquals(ChatListReloadPolicy.DEFAULT_DEBOUNCE_MS, ChatListReloadPolicy.debounceMs(mode))
     }
 }

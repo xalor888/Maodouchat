@@ -41,41 +41,6 @@ class FcmPushService(
         logger.info("Wake push service shut down (no FCM transport)")
     }
 
-    fun enqueueEncryptedMessage(
-        recipientIds: Collection<String>,
-        chatId: String,
-        messageId: String,
-        senderId: String,
-        messageType: String,
-        sealedSender: Boolean = false
-    ) {
-        if (closed.get()) return
-        if (chatId.isBlank() || messageId.isBlank()) return
-        val recipients = recipientIds.asSequence()
-            .filter { it.isNotBlank() && it != senderId }
-            .distinct()
-            .toList()
-        if (recipients.isEmpty()) return
-        val pushSender = if (sealedSender) SealedSenderDelivery.REDACTED_SENDER else senderId
-        recipients.forEach { recipientId ->
-            record(
-                Delivery(
-                    recipientId = recipientId,
-                    isCall = false,
-                    data = buildMap {
-                        put("type", "NEW_MESSAGE")
-                        put("chatId", chatId)
-                        put("messageId", messageId)
-                        put("senderId", pushSender)
-                        put("messageType", messageType)
-                        put("recipientId", recipientId)
-                        if (sealedSender) put("sealedSender", "1")
-                    }
-                )
-            )
-        }
-    }
-
     fun enqueueIncomingCall(recipientId: String, senderId: String, isVideo: Boolean, callId: String = "") {
         if (closed.get() || recipientId.isBlank() || recipientId == senderId) return
         record(

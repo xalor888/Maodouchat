@@ -1,24 +1,17 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.crypto.SignalExchangeException
-import com.maodouchat.crypto.SignalExchangeFailure
-import com.maodouchat.crypto.LocalCryptoNotReadyException
-import com.maodouchat.crypto.SignalStorePersistenceException
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageReaction
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.data.model.User
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
-import com.maodouchat.ui.screen.chatdetail.MessageMutationKind
-import com.maodouchat.ui.screen.chatdetail.MessageMutationTracker
+import com.maodouchat.messaging.v2.MessageMutationKind
+import com.maodouchat.messaging.v2.MessageMutationTracker
 import com.maodouchat.ui.screen.chatdetail.isAlreadyTerminalMutation
 import com.maodouchat.ui.screen.chatdetail.isAmbiguousTransportFailure
 import com.maodouchat.ui.screen.chatdetail.mergeMessageVersions
 import com.maodouchat.ui.screen.chatdetail.toOptimisticEdit
-import com.maodouchat.data.repository.resolveDirectOutboxPeerId
-import com.maodouchat.data.repository.shouldMarkOutboxFailed
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -191,120 +184,6 @@ class MessageMutationPolicyTest {
         assertFalse(isAlreadyTerminalMutation(ApiException(ApiFailureKind.HTTP, statusCode = 403)))
         assertFalse(isAlreadyTerminalMutation(ApiException(ApiFailureKind.NETWORK)))
         assertFalse(isAlreadyTerminalMutation(null))
-    }
-
-    @Test
-    fun `outbox marks definitive rejects failed but keeps transport ambiguity pending`() {
-        assertTrue(shouldMarkOutboxFailed(ApiException(ApiFailureKind.HTTP, statusCode = 403)))
-        assertTrue(shouldMarkOutboxFailed(ApiException(ApiFailureKind.HTTP, statusCode = 400)))
-        assertTrue(shouldMarkOutboxFailed(IllegalStateException("encrypt")))
-        assertTrue(shouldMarkOutboxFailed(IllegalStateException("outbox_peer_unresolved")))
-        assertFalse(shouldMarkOutboxFailed(ApiException(ApiFailureKind.NETWORK)))
-        assertFalse(shouldMarkOutboxFailed(ApiException(ApiFailureKind.TIMEOUT)))
-        assertFalse(shouldMarkOutboxFailed(ApiException(ApiFailureKind.HTTP, statusCode = 503)))
-        assertTrue(shouldMarkOutboxFailed(ApiException(ApiFailureKind.HTTP, statusCode = 409)))
-        assertFalse(shouldMarkOutboxFailed(null))
-    }
-
-    @Test
-    fun `sender key coverage transient failure keeps outbox pending`() {
-        // 8.41：SK 覆盖的瞬态网络失败（TransientCoverageException）不得标 FAILED——
-        // 群消息在 SK 分发阶段的弱网失败应保持 SENDING 待 flusher 重试
-        assertFalse(
-            shouldMarkOutboxFailed(
-                com.maodouchat.crypto.TransientCoverageException("sender key coverage transient failure")
-            )
-        )
-        assertTrue(
-            shouldMarkOutboxFailed(
-                IllegalStateException("sender_key_epoch_changed")
-            )
-        )
-    }
-
-    @Test
-    fun `signal exchange transport failures keep outbox pending`() {
-        assertFalse(shouldMarkOutboxFailed(SignalExchangeException(SignalExchangeFailure.NETWORK)))
-        assertFalse(shouldMarkOutboxFailed(SignalExchangeException(SignalExchangeFailure.TIMEOUT)))
-        assertFalse(
-            shouldMarkOutboxFailed(
-                SignalExchangeException(SignalExchangeFailure.HTTP, statusCode = 408)
-            )
-        )
-        assertFalse(
-            shouldMarkOutboxFailed(
-                SignalExchangeException(SignalExchangeFailure.HTTP, statusCode = 429)
-            )
-        )
-        assertFalse(
-            shouldMarkOutboxFailed(
-                SignalExchangeException(SignalExchangeFailure.HTTP, statusCode = 503)
-            )
-        )
-        assertTrue(
-            shouldMarkOutboxFailed(
-                SignalExchangeException(SignalExchangeFailure.HTTP, statusCode = 403)
-            )
-        )
-        assertFalse(shouldMarkOutboxFailed(LocalCryptoNotReadyException()))
-        assertFalse(shouldMarkOutboxFailed(SignalStorePersistenceException(IllegalStateException("disk"))))
-    }
-
-    @Test
-    fun `outbox peer prefers active contact then chat participants and never self`() {
-        val peer = User(id = "peer-1", name = "Peer")
-        val self = User(id = "me", name = "Me")
-        assertEquals(
-            "peer-1",
-            resolveDirectOutboxPeerId(
-                chatId = "c1",
-                activeChatId = "c1",
-                activeContactId = "peer-1",
-                selfUserId = "me",
-                chatParticipants = listOf(self, peer)
-            )
-        )
-        // Active contact not ready (empty / self): fall back to participants.
-        assertEquals(
-            "peer-1",
-            resolveDirectOutboxPeerId(
-                chatId = "c1",
-                activeChatId = "c1",
-                activeContactId = "",
-                selfUserId = "me",
-                chatParticipants = listOf(self, peer)
-            )
-        )
-        // Flushing another chat must not use the open chat's contact.
-        assertEquals(
-            "peer-2",
-            resolveDirectOutboxPeerId(
-                chatId = "c2",
-                activeChatId = "c1",
-                activeContactId = "peer-1",
-                selfUserId = "me",
-                chatParticipants = listOf(User(id = "peer-2", name = ""))
-            )
-        )
-        // No recoverable peer → null so flush can mark FAILED instead of silent skip.
-        assertNull(
-            resolveDirectOutboxPeerId(
-                chatId = "c1",
-                activeChatId = "c1",
-                activeContactId = "me",
-                selfUserId = "me",
-                chatParticipants = listOf(self)
-            )
-        )
-        assertNull(
-            resolveDirectOutboxPeerId(
-                chatId = "c1",
-                activeChatId = "c1",
-                activeContactId = null,
-                selfUserId = "me",
-                chatParticipants = emptyList()
-            )
-        )
     }
 
     @Test

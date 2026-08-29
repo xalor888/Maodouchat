@@ -9,12 +9,11 @@ import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.GroupAuditLogs
 import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.GroupPolls
-import com.maodouchat.server.db.MessageReactions
-import com.maodouchat.server.db.Messages
-import com.maodouchat.server.db.ReadReceipts
-import com.maodouchat.server.db.SenderKeyDistributions
+import com.maodouchat.server.db.ServiceMessageReactions
+import com.maodouchat.server.db.ServiceMessages
 import com.maodouchat.server.db.StarMessages
 import com.maodouchat.server.db.Users
+import com.maodouchat.server.db.deleteMessagingV2ParticipantStateInTx
 import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.plugins.isAllowedWebhookAddress
 import kotlinx.serialization.Serializable
@@ -316,9 +315,11 @@ object BotRepository {
                 }
             }
             // Drop memberships first so history/fanout no longer targets the bot identity.
+            lockedChats.forEach { chat ->
+                deleteMessagingV2ParticipantStateInTx(chat[Chats.id], botId)
+            }
             ChatUserSettings.deleteWhere { ChatUserSettings.userId eq botId }
             ChatParticipants.deleteWhere { ChatParticipants.userId eq botId }
-            MessageReactions.deleteWhere { MessageReactions.userId eq botId }
             // 9.124：bot 可经 /api/bot/sendPoll 以自身身份创建群投票——删除 bot 时连投票
             // 及其选项投票一并清掉（与 UserRepository.removeOwnedBots 的 deletePollsCreatedBy 对齐），
             // 否则群内残留创建者已注销的孤儿投票。
@@ -332,12 +333,8 @@ object BotRepository {
                 GroupPolls.deleteWhere { GroupPolls.id inList botPollIds }
             }
             GroupPollVotes.deleteWhere { GroupPollVotes.userId eq botId }
-            ReadReceipts.deleteWhere { ReadReceipts.userId eq botId }
             StarMessages.deleteWhere { StarMessages.userId eq botId }
-            SenderKeyDistributions.deleteWhere {
-                (SenderKeyDistributions.senderId eq botId) or
-                    (SenderKeyDistributions.recipientUserId eq botId)
-            }
+            ServiceMessageReactions.deleteWhere { ServiceMessageReactions.botUserId eq botId }
             lockedChats.filter { it[Chats.isGroup] }.forEach { chat ->
                 Chats.update({ Chats.id eq chat[Chats.id] }) {
                     it[Chats.memberRevision] = chat[Chats.memberRevision] + 1
@@ -351,7 +348,7 @@ object BotRepository {
                     (BotApps.id eq botId) and (BotApps.ownerUserId eq ownerUserId)
                 } != 1
             ) return@transaction false
-            // Keep a tombstoned Users row for historical message.senderId FK integrity.
+            // Keep a tombstone so historical v2 sender attribution remains stable.
             Users.update({ Users.id eq botId }) {
                 it[Users.name] = "deleted-bot"
                 it[Users.status] = ""
@@ -497,10 +494,12 @@ object BotRepository {
         if (participants.none { it[ChatParticipants.userId] == userId } ||
             participants.none { it[ChatParticipants.userId] == botId }
         ) return@transaction false
-        val message = Messages.selectAll().where { Messages.id eq messageId }.firstOrNull()
+        val message = ServiceMessages.selectAll().where {
+            (ServiceMessages.id eq messageId) and ServiceMessages.deletedAt.isNull()
+        }.firstOrNull()
             ?: return@transaction false
-        if (message[Messages.chatId] != chatId || message[Messages.senderId] != botId) return@transaction false
-        if (!containsCallbackData(message[Messages.content], callbackData)) return@transaction false
+        if (message[ServiceMessages.chatId] != chatId || message[ServiceMessages.senderId] != botId) return@transaction false
+        if (!containsCallbackData(message[ServiceMessages.content], callbackData)) return@transaction false
         evictOldestInboxLocked(botId)
         BotUpdateInbox.insert {
             it[BotUpdateInbox.botId] = botId

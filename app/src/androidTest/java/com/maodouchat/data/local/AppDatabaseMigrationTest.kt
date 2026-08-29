@@ -393,6 +393,54 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migrate33To34CreatesTerminalTombstonesWithConversationCascade() {
+        helper.createDatabase(TOMBSTONE_TEST_DB, 33).apply {
+            execSQL(
+                """
+                INSERT INTO chats (
+                    id, lastMessage, lastMessageType, lastMessageTime, unreadCount,
+                    isGroup, chatType, groupName, groupAnnouncement, groupAvatar,
+                    memberRevision, pinnedAt, notificationsMuted, archived, markedUnread,
+                    settingsUpdatedAt, disappearingMessageSeconds, participantIds
+                ) VALUES ('c_terminal', '', 'TEXT', 0, 0, 0, 'DIRECT', NULL, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, 'u1,u2')
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val database = helper.runMigrationsAndValidate(
+            TOMBSTONE_TEST_DB,
+            34,
+            true,
+            AppDatabase.MIGRATION_33_34,
+        )
+        try {
+            database.execSQL(
+                """
+                INSERT INTO message_mutation_tombstones (
+                    ownerUserId, messageId, conversationId, kind, terminalAt
+                ) VALUES ('u1', 'm_terminal', 'c_terminal', 'DELETE', 123)
+                """.trimIndent(),
+            )
+            database.query(
+                "SELECT kind, terminalAt FROM message_mutation_tombstones WHERE messageId = 'm_terminal'",
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("DELETE", cursor.getString(0))
+                assertEquals(123L, cursor.getLong(1))
+            }
+
+            database.execSQL("DELETE FROM chats WHERE id = 'c_terminal'")
+            database.query("SELECT COUNT(*) FROM message_mutation_tombstones").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
+            }
+        } finally {
+            database.close()
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-16-17"
         const val SETTINGS_TEST_DB = "migration-17-18"
@@ -401,5 +449,6 @@ class AppDatabaseMigrationTest {
         const val SEARCH_TYPE_TEST_DB = "migration-25-26-search-type"
         const val FULL_CHAIN_TEST_DB = "migration-16-20-full-chain"
         const val FULL_CHAIN_25_TO_30_TEST_DB = "migration-25-30-full-chain"
+        const val TOMBSTONE_TEST_DB = "migration-33-34-tombstone"
     }
 }

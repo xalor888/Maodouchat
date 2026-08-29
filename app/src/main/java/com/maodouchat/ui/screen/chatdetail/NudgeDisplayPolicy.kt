@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
 /**
- * Server persists NUDGE as sender-centric plain text (`你拍了拍{target}`).
- * Recipients must not show that literally — rewrite for local display only.
+ * The encrypted NUDGE body is sender-centric (`你拍了拍{target}`). Recipients rewrite it for
+ * their local point of view after the v2 Inbox decrypts the message.
  */
 object NudgeDisplayPolicy {
 
@@ -17,7 +17,7 @@ object NudgeDisplayPolicy {
 
     /**
      * @param isOwnMessage true when local user is the nudge sender
-     * @param storedContent server/wire body (usually "你拍了拍X")
+     * @param storedContent decrypted body (usually "你拍了拍X")
      * @param senderDisplayName resolved peer/group member name for non-own display
      * @param isDirectChat when true, non-own copy becomes "{sender} 拍了拍你"
      */

@@ -19,50 +19,15 @@ data class MessageDto(
     val sealedSender: Boolean = false
 )
 
-/** 多设备 DELETE/REVOKE/EDIT 变更回放条目 */
-@Serializable
-data class MessageMutationDto(
-    val id: String,
-    val chatId: String,
-    val messageId: String,
-    val action: String,
-    val actorId: String,
-    val content: String? = null,
-    val editedAt: Long? = null,
-    val createdAt: Long
-)
-
-@Serializable
-data class UnreadWindowDto(
-    val messageIds: List<String> = emptyList(),
-    val totalCount: Int = 0,
-    val truncated: Boolean = false
-)
-
-@Serializable
-data class SendMessageRequest(
-    val chatId: String,
-    val content: String,
-    val type: String = "TEXT",
-    val id: String? = null,
-    val sealedSender: Boolean = false,
-    val sealedSenderCertificate: String? = null,
-    val silent: Boolean = false
-)
-
-@Serializable
-data class UpdateMessageReactionRequest(val emoji: String)
-
-@Serializable
-data class MessageReactionUpdatedResponse(
-    val chatId: String,
-    val messageId: String,
-    val userId: String,
-    val reactions: List<MessageReaction> = emptyList()
-)
-
 @Serializable
 data class StarMessageResponse(val status: String = "ok", val starred: Boolean = false)
+
+@Serializable
+data class StarredMessageRefDto(
+    val messageId: String,
+    val chatId: String,
+    val starredAt: Long,
+)
 
 @Serializable
 data class PinnedMessageDto(
@@ -86,9 +51,6 @@ data class TogglePinResponse(
 )
 
 @Serializable
-data class ReadReceiptDto(val userId: String, val readAt: Long)
-
-@Serializable
 data class UpdateDisappearingMessagesRequest(val seconds: Int = 0)
 
 @Serializable
@@ -99,20 +61,7 @@ data class DisappearingMessagesResponse(
 )
 
 @Serializable
-data class MessageExpiresDto(
-    val messageId: String,
-    val chatId: String,
-    val expiresAt: Long
-)
-
-@Serializable
-data class UpdateStatusRequest(val messageId: String, val status: String)
-
-@Serializable
 data class MarkReadResponse(val status: String, val updated: Int)
 
 @Serializable
 data class MarkReadRequest(val throughId: String? = null)
-
-@Serializable
-data class BatchReadRequest(val chatIds: List<String> = emptyList())

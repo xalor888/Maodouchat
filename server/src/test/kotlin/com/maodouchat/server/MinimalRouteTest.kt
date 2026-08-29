@@ -38,6 +38,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.signal.libsignal.protocol.ecc.Curve
 import java.security.MessageDigest
 import java.util.Base64
@@ -62,7 +63,7 @@ import kotlin.test.assertTrue
  * - 2. 注册：空 body → 400；合法 body → 200 + token
  * - 3. 用户列表：Bearer token 登录 + 不泄漏 email
  * - 4. 发帖：认证 + 返回 JSON + feed 可见
- * - 5. 消息：合法类型 + 非法类型校验
+ * - 5. 旧消息 REST：必须保持物理下线
  */
 
 private fun freshDbUrl(): String =
@@ -95,8 +96,6 @@ private fun Application.moduleUnderTest(seedDemoUsers: Boolean = false, aiGatewa
     Database.connect(ServerConfig.databaseUrl, driver = ServerConfig.databaseDriver)
     initDatabase()
     val userRepo = UserRepository()
-    val chatRepo = ChatRepository()
-    val messageRepo = MessageRepository()
     val postRepo = PostRepository()
     if (seedDemoUsers) userRepo.createDefaultUsers()
     configureAuthentication()
@@ -104,11 +103,9 @@ private fun Application.moduleUnderTest(seedDemoUsers: Boolean = false, aiGatewa
     configureStatusPages()
     val signalingRepo = SignalingRepository()
     val callInviteRateLimiter = CallInviteRateLimiter()
-    configureSockets(userRepo, messageRepo, chatRepo, signalingRepo = signalingRepo, callInviteRateLimiter = callInviteRateLimiter)
+    configureSockets(userRepo, signalingRepo = signalingRepo, callInviteRateLimiter = callInviteRateLimiter)
     configureRouting(
         userRepo,
-        chatRepo,
-        messageRepo,
         postRepo,
         aiGateway,
         signalingRepo = signalingRepo,
@@ -122,7 +119,7 @@ private fun Application.moduleUnderTest(seedDemoUsers: Boolean = false, aiGatewa
         userTagRepo = com.maodouchat.server.repository.UserTagRepository(),
         rateLimitStatsRepo = com.maodouchat.server.repository.RateLimitStatsRepository()
     )
-    configureSecretSurfaceRouting(chatRepo = chatRepo, messageRepo = messageRepo, userRepo = userRepo)
+    configureSecretSurfaceRouting(userRepo = userRepo)
 }
 
 class RefreshSessionIsolationRouteTest {
@@ -658,110 +655,6 @@ class UsersRouteTest {
         assertTrue(feed.bodyAsText().contains("hello world"))
     }
 
-    @Test
-    fun `POST messages require valid type and chat id`() = testApplication {
-        application { moduleUnderTest(seedDemoUsers = true) }
-        val login = client.post("/api/auth/login") {
-            contentType(ContentType.Application.Json)
-            setBody("""{"email":"alex@example.com","password":"password123"}""")
-        }
-        val token = extractToken(login.bodyAsText())
-
-        // 群聊：当前登录用户为 u1（alex），所以选 u2 作为对方
-        val chatResp = client.post("/api/chats") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"participantIds":["u2"],"isGroup":false}""")
-        }
-        assertEquals(HttpStatusCode.Created, chatResp.status, chatResp.bodyAsText())
-        val chatId = (Json.parseToJsonElement(chatResp.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
-
-        val bad = client.post("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":"x","type":"UNSUPPORTED_TYPE"}""")
-        }
-        assertEquals(HttpStatusCode.BadRequest, bad.status)
-
-        val good = client.post("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":"hi","type":"TEXT"}""")
-        }
-        assertEquals(HttpStatusCode.Created, good.status, good.bodyAsText())
-    }
-}
-
-class PerUserUnreadRouteTest {
-    @Test
-    fun `group unread windows remain independent after another member reads`() = testApplication {
-        application { moduleUnderTest(seedDemoUsers = true) }
-
-        suspend fun login(email: String): String {
-            val response = client.post("/api/auth/login") {
-                contentType(ContentType.Application.Json)
-                setBody("""{"email":"$email","password":"password123"}""")
-            }
-            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
-            return extractToken(response.bodyAsText())
-        }
-
-        val ownerToken = login("alex@example.com")
-        val aliceToken = login("alice@example.com")
-        val bobToken = login("bob@example.com")
-        val groupResponse = client.post("/api/chats") {
-            header(HttpHeaders.Authorization, "Bearer $ownerToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"participantIds":["u2","u3"],"isGroup":true,"groupName":"Unread Test"}""")
-        }
-        assertEquals(HttpStatusCode.Created, groupResponse.status, groupResponse.bodyAsText())
-        val chatId = (Json.parseToJsonElement(groupResponse.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
-        // 9.3xx：参与者先接受群邀请才成为正式成员
-        acceptAllGroupInvites(aliceToken)
-        acceptAllGroupInvites(bobToken)
-
-        val plaintext = client.post("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $ownerToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":"ciphertext","type":"TEXT"}""")
-        }
-        assertEquals(HttpStatusCode.BadRequest, plaintext.status, plaintext.bodyAsText())
-
-        val sk = """{"version":1,"algorithm":"signal-sender-key-v1","groupId":"$chatId","epoch":0,"senderDeviceId":1,"distributionId":"d","payloadType":"TEXT","ciphertext":"abc"}"""
-        val sent = client.post("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $ownerToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":${kotlinx.serialization.json.JsonPrimitive(sk)},"type":"TEXT"}""")
-        }
-        assertEquals(HttpStatusCode.Created, sent.status, sent.bodyAsText())
-
-        val aliceBefore = client.get("/api/chats/$chatId/unread-window") {
-            header(HttpHeaders.Authorization, "Bearer $aliceToken")
-        }
-        assertEquals(HttpStatusCode.OK, aliceBefore.status, aliceBefore.bodyAsText())
-        assertTrue(aliceBefore.bodyAsText().contains("\"totalCount\":1"))
-
-        val aliceRead = client.post("/api/chats/$chatId/mark-read") {
-            header(HttpHeaders.Authorization, "Bearer $aliceToken")
-        }
-        assertEquals(HttpStatusCode.OK, aliceRead.status, aliceRead.bodyAsText())
-
-        val aliceAfter = client.get("/api/chats/$chatId/unread-window") {
-            header(HttpHeaders.Authorization, "Bearer $aliceToken")
-        }
-        assertTrue(aliceAfter.bodyAsText().contains("\"totalCount\":0"), aliceAfter.bodyAsText())
-
-        val bobAfterAlice = client.get("/api/chats/$chatId/unread-window") {
-            header(HttpHeaders.Authorization, "Bearer $bobToken")
-        }
-        assertEquals(HttpStatusCode.OK, bobAfterAlice.status, bobAfterAlice.bodyAsText())
-        assertTrue(bobAfterAlice.bodyAsText().contains("\"totalCount\":1"), bobAfterAlice.bodyAsText())
-
-        val bobChats = client.get("/api/chats") {
-            header(HttpHeaders.Authorization, "Bearer $bobToken")
-        }
-        assertTrue(bobChats.bodyAsText().contains("\"unreadCount\":1"), bobChats.bodyAsText())
-    }
 }
 
 class ChatUserSettingsRouteTest {
@@ -1278,69 +1171,6 @@ class RetiredAiSummarySyncGoneTest {
 
 class NewFeaturesRouteTest {
     @Test
-    fun `test message editing and read receipts and starring`() = testApplication {
-        application { moduleUnderTest(seedDemoUsers = true) }
-        
-        // 1. Login
-        val login = client.post("/api/auth/login") {
-            contentType(ContentType.Application.Json)
-            setBody("""{"email":"alex@example.com","password":"password123"}""")
-        }
-        val token = extractToken(login.bodyAsText())
-        
-        // 2. Create Chat
-        val chatResp = client.post("/api/chats") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"participantIds":["u2"],"isGroup":false}""")
-        }
-        assertEquals(HttpStatusCode.Created, chatResp.status)
-        val chatId = (Json.parseToJsonElement(chatResp.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
-        
-        // 3. Send Message
-        val msgResp = client.post("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":"hello","type":"TEXT"}""")
-        }
-        assertEquals(HttpStatusCode.Created, msgResp.status)
-        val msgId = (Json.parseToJsonElement(msgResp.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
-        
-        // 4. Edit Message
-        val editResp = client.put("/api/messages/$msgId") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":"hello edited","type":"TEXT"}""")
-        }
-        assertEquals(HttpStatusCode.OK, editResp.status)
-        
-        // 5. Star Message
-        val starResp = client.post("/api/messages/$msgId/star") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-        }
-        assertEquals(HttpStatusCode.OK, starResp.status)
-        
-        // 6. Get Starred Messages
-        val starredList = client.get("/api/messages/starred") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-        }
-        assertEquals(HttpStatusCode.OK, starredList.status)
-        assertTrue(starredList.bodyAsText().contains(msgId))
-        
-        // 7. Mark Read
-        val markReadResp = client.post("/api/chats/$chatId/mark-read") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-        }
-        assertEquals(HttpStatusCode.OK, markReadResp.status)
-        
-        // 8. Get Read Receipts
-        val receiptsResp = client.get("/api/messages/$msgId/read-receipts") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-        }
-        assertEquals(HttpStatusCode.OK, receiptsResp.status)
-    }
-
-    @Test
     fun `test group management role title and nicknames`() = testApplication {
         application { moduleUnderTest(seedDemoUsers = true) }
         
@@ -1449,19 +1279,20 @@ class NewFeaturesRouteTest {
         }
         assertEquals(HttpStatusCode.BadRequest, badHashUpload.status)
 
-        val messageResponse = client.post("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $ownerToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":"opaque-reference-envelope","type":"FILE","id":"$messageId"}""")
+        transaction {
+            insertMessagingV2MessageFixture(
+                messageId = messageId,
+                conversationId = chatId,
+                senderUserId = "u1",
+                timestamp = System.currentTimeMillis(),
+            )
+            com.maodouchat.server.db.EncryptedAttachments.update({
+                com.maodouchat.server.db.EncryptedAttachments.id eq attachmentId
+            }) {
+                it[com.maodouchat.server.db.EncryptedAttachments.status] = "COMMITTED"
+                it[com.maodouchat.server.db.EncryptedAttachments.expiresAt] = null
+            }
         }
-        assertEquals(HttpStatusCode.Created, messageResponse.status)
-
-        val explicitCommit = client.post("/api/attachments/$attachmentId/commit") {
-            header(HttpHeaders.Authorization, "Bearer $ownerToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"messageId":"$messageId"}""")
-        }
-        assertEquals(HttpStatusCode.OK, explicitCommit.status)
 
         val ownerDownload = client.get("/api/attachments/$attachmentId") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
@@ -1481,10 +1312,12 @@ class NewFeaturesRouteTest {
         }
         assertEquals(HttpStatusCode.Forbidden, outsiderDownload.status)
 
-        val deleteMessage = client.delete("/api/messages/$messageId") {
-            header(HttpHeaders.Authorization, "Bearer $ownerToken")
-        }
-        assertEquals(HttpStatusCode.OK, deleteMessage.status)
+        val deleteResult = com.maodouchat.server.messaging.v2.MessagingV2Repository()
+            .deleteMessageForModeration(messageId)
+        assertNotNull(deleteResult)
+        deleteResult.deletedAttachmentIds.forEach(
+            com.maodouchat.server.service.EncryptedAttachmentStorage::delete,
+        )
         val deletedDownload = client.get("/api/attachments/$attachmentId") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
         }
@@ -1519,6 +1352,23 @@ class NewFeaturesRouteTest {
         val messageId = "m_resumable_attachment_test"
         val ciphertext = "resumable-ciphertext-with-a-gcm-tag".toByteArray()
         val fullHash = sha256(ciphertext)
+
+        fun commitV2Fixture(targetMessageId: String, targetAttachmentId: String) {
+            transaction {
+                insertMessagingV2MessageFixture(
+                    messageId = targetMessageId,
+                    conversationId = chatId,
+                    senderUserId = "u1",
+                    timestamp = System.currentTimeMillis(),
+                )
+                com.maodouchat.server.db.EncryptedAttachments.update({
+                    com.maodouchat.server.db.EncryptedAttachments.id eq targetAttachmentId
+                }) {
+                    it[com.maodouchat.server.db.EncryptedAttachments.status] = "COMMITTED"
+                    it[com.maodouchat.server.db.EncryptedAttachments.expiresAt] = null
+                }
+            }
+        }
 
         val sessionResponse = client.post("/api/attachment-uploads") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
@@ -1564,25 +1414,13 @@ class NewFeaturesRouteTest {
         assertEquals("true", finalJson["complete"]!!.jsonPrimitive.content)
         assertEquals(ciphertext.size.toString(), finalJson["uploadedBytes"]!!.jsonPrimitive.content)
 
-        val messageResponse = client.post("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $ownerToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":"opaque-reference-envelope","type":"FILE","id":"$messageId"}""")
-        }
-        assertEquals(HttpStatusCode.Created, messageResponse.status)
+        commitV2Fixture(messageId, attachmentId)
 
         val committedStatus = client.get("/api/attachment-uploads/$attachmentId") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
         }
         assertEquals(HttpStatusCode.OK, committedStatus.status)
         assertTrue(committedStatus.bodyAsText().contains("\"status\":\"COMMITTED\""))
-
-        val idempotentMessageRetry = client.post("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $ownerToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":"opaque-reference-envelope","type":"FILE","id":"$messageId"}""")
-        }
-        assertEquals(HttpStatusCode.Created, idempotentMessageRetry.status)
 
         val rangeStart = 7
         val rangeResponse = client.get("/api/attachments/$attachmentId") {
@@ -1623,14 +1461,7 @@ class NewFeaturesRouteTest {
             }
             assertEquals(HttpStatusCode.OK, objectUpload.status)
 
-            val objectMessage = client.post("/api/chats/$chatId/messages") {
-                header(HttpHeaders.Authorization, "Bearer $ownerToken")
-                contentType(ContentType.Application.Json)
-                setBody(
-                    """{"chatId":"$chatId","content":"opaque-$attachmentType-reference-envelope","type":"$attachmentType","id":"$objectMessageId"}"""
-                )
-            }
-            assertEquals(HttpStatusCode.Created, objectMessage.status)
+            commitV2Fixture(objectMessageId, objectId)
 
             val committedObjectStatus = client.get("/api/attachment-uploads/$objectId") {
                 header(HttpHeaders.Authorization, "Bearer $ownerToken")
@@ -1689,61 +1520,6 @@ class WsHeartbeatRouteTest {
     }
 }
 
-class MessageEditRealtimeRouteTest {
-    @Test
-    fun `edited event includes chat id for client isolation`() = testApplication {
-        application { moduleUnderTest(seedDemoUsers = true) }
-        val login = client.post("/api/auth/login") {
-            contentType(ContentType.Application.Json)
-            setBody("""{"email":"alex@example.com","password":"password123"}""")
-        }
-        val token = extractToken(login.bodyAsText())
-        val chatResponse = client.post("/api/chats") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"participantIds":["u2"],"isGroup":false}""")
-        }
-        val chatId = Json.parseToJsonElement(chatResponse.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
-        val sent = client.post("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":"cipher-v1","type":"TEXT"}""")
-        }
-        val messageId = Json.parseToJsonElement(sent.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
-        val websocketClient = createClient { install(WebSockets) }
-
-        websocketClient.webSocket(
-            request = {
-                url("/ws")
-                header(HttpHeaders.Authorization, "Bearer $token")
-            }
-        ) {
-            val edited = client.put("/api/messages/$messageId") {
-                header(HttpHeaders.Authorization, "Bearer $token")
-                contentType(ContentType.Application.Json)
-                setBody("""{"chatId":"$chatId","content":"cipher-v2","type":"TEXT"}""")
-            }
-            assertEquals(HttpStatusCode.OK, edited.status, edited.bodyAsText())
-
-            val payload = withTimeout(5_000L) {
-                while (true) {
-                    val text = (incoming.receive() as? Frame.Text)?.readText() ?: continue
-                    val outer = Json.parseToJsonElement(text).jsonObject
-                    if (outer["type"]?.jsonPrimitive?.content == "MESSAGE_EDITED") {
-                        return@withTimeout Json.parseToJsonElement(
-                            outer["payload"]!!.jsonPrimitive.content
-                        ).jsonObject
-                    }
-                }
-                error("unreachable")
-            }
-            assertEquals(messageId, payload["messageId"]!!.jsonPrimitive.content)
-            assertEquals(chatId, payload["chatId"]!!.jsonPrimitive.content)
-            assertEquals("cipher-v2", payload["content"]!!.jsonPrimitive.content)
-        }
-    }
-}
-
 class ChatCleanupRouteTest {
     @Test
     fun `last participant can delete chat with message dependencies`() = testApplication {
@@ -1768,24 +1544,18 @@ class ChatCleanupRouteTest {
         assertEquals(HttpStatusCode.Created, chatResponse.status)
         val chatId = (Json.parseToJsonElement(chatResponse.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
 
-        val messageResponse = client.post("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $ownerToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":"opaque-envelope","type":"TEXT"}""")
+        val messageId = "m_chat_cleanup_v2"
+        transaction {
+            insertMessagingV2MessageFixture(
+                messageId = messageId,
+                conversationId = chatId,
+                senderUserId = "u1",
+                timestamp = System.currentTimeMillis(),
+            )
         }
-        assertEquals(HttpStatusCode.Created, messageResponse.status)
-        val messageId = (Json.parseToJsonElement(messageResponse.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
 
         assertEquals(HttpStatusCode.OK, client.post("/api/messages/$messageId/star") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
-        }.status)
-        assertEquals(HttpStatusCode.OK, client.post("/api/chats/$chatId/mark-read") {
-            header(HttpHeaders.Authorization, "Bearer $participantToken")
-        }.status)
-        assertEquals(HttpStatusCode.OK, client.put("/api/messages/$messageId/reaction") {
-            header(HttpHeaders.Authorization, "Bearer $participantToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"emoji":"👍"}""")
         }.status)
 
         assertEquals(HttpStatusCode.OK, client.delete("/api/chats/$chatId") {
@@ -1840,39 +1610,6 @@ class ChatLookupPrivacyRouteTest {
 }
 
 class SenderKeyDistributionRouteTest {
-    @Test
-    fun `rest accepts per-device encrypted sender key distribution`() = testApplication {
-        application { moduleUnderTest(seedDemoUsers = true) }
-
-        suspend fun login(email: String): String {
-            val response = client.post("/api/auth/login") {
-                contentType(ContentType.Application.Json)
-                setBody("""{"email":"$email","password":"password123"}""")
-            }
-            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
-            return extractToken(response.bodyAsText())
-        }
-
-        val alexToken = login("alex@example.com")
-        val aliceToken = login("alice@example.com")
-        val created = client.post("/api/chats") {
-            header(HttpHeaders.Authorization, "Bearer $alexToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"participantIds":["u2"],"isGroup":true,"groupName":"SK envelope route test"}""")
-        }
-        assertEquals(HttpStatusCode.Created, created.status, created.bodyAsText())
-        val chatId = (Json.parseToJsonElement(created.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
-        acceptAllGroupInvites(aliceToken)
-
-        val encryptedDistribution = """{"version":3,"algorithm":"signal-multi-device-v1","senderDeviceId":1,"payloadType":"SK_DIST","entries":[{"recipientUserId":"u2","recipientDeviceId":1,"ciphertextType":"prekey","ciphertext":"abc"}]}"""
-        val response = client.post("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $alexToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":${Json.encodeToString(JsonPrimitive(encryptedDistribution))},"type":"SK_DIST","id":"sk_route_1"}""")
-        }
-        assertEquals(HttpStatusCode.Created, response.status, response.bodyAsText())
-    }
-
     @Test
     fun `sender key coverage is isolated per sender and exposes newly confirmed devices`() = testApplication {
         application { moduleUnderTest(seedDemoUsers = true) }
@@ -1953,43 +1690,33 @@ class SenderKeyDistributionRouteTest {
             assertEquals(SignalKeyRepository.ConfirmDeviceResult.CONFIRMED, confirmDevice("u2", 2, 1, proof))
         }
 
-        val alexFirstReport = client.post("/api/chats/$chatId/sender-key-distributions") {
+        // Coverage is no longer client-reported. Only a committed v2 Sender Key mailbox
+        // message can make a target SENT.
+        val retiredReport = client.post("/api/chats/$chatId/sender-key-distributions") {
             header(HttpHeaders.Authorization, "Bearer $alexToken")
             contentType(ContentType.Application.Json)
             setBody("""{"epoch":1,"messageId":"sk_alex_1","targets":[{"userId":"u2","deviceId":1,"status":"SENT"}]}""")
         }
-        assertEquals(HttpStatusCode.OK, alexFirstReport.status, alexFirstReport.bodyAsText())
+        assertEquals(HttpStatusCode.NotFound, retiredReport.status, retiredReport.bodyAsText())
 
         val alexCoverage = client.get("/api/chats/$chatId/sender-key-distributions?epoch=1&currentDeviceId=1") {
             header(HttpHeaders.Authorization, "Bearer $alexToken")
         }
         assertEquals(HttpStatusCode.OK, alexCoverage.status, alexCoverage.bodyAsText())
-        assertTrue(alexCoverage.bodyAsText().contains("\"pending\":1"), alexCoverage.bodyAsText())
+        assertTrue(alexCoverage.bodyAsText().contains("\"pending\":2"), alexCoverage.bodyAsText())
         assertTrue(alexCoverage.bodyAsText().contains("device_not_covered"), alexCoverage.bodyAsText())
 
-        val aliceReport = client.post("/api/chats/$chatId/sender-key-distributions") {
+        val aliceRetiredReport = client.post("/api/chats/$chatId/sender-key-distributions") {
             header(HttpHeaders.Authorization, "Bearer $aliceToken")
             contentType(ContentType.Application.Json)
             setBody("""{"epoch":1,"messageId":"sk_alice_1","targets":[{"userId":"u1","deviceId":1,"status":"SENT"},{"userId":"u2","deviceId":2,"status":"SENT"}]}""")
         }
-        assertEquals(HttpStatusCode.OK, aliceReport.status, aliceReport.bodyAsText())
+        assertEquals(HttpStatusCode.NotFound, aliceRetiredReport.status, aliceRetiredReport.bodyAsText())
 
         val alexStillPending = client.get("/api/chats/$chatId/sender-key-distributions?epoch=1&currentDeviceId=1") {
             header(HttpHeaders.Authorization, "Bearer $alexToken")
         }
-        assertTrue(alexStillPending.bodyAsText().contains("\"pending\":1"), alexStillPending.bodyAsText())
-
-        val alexSecondReport = client.post("/api/chats/$chatId/sender-key-distributions") {
-            header(HttpHeaders.Authorization, "Bearer $alexToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"epoch":1,"messageId":"sk_alex_2","targets":[{"userId":"u2","deviceId":2,"status":"SENT"}]}""")
-        }
-        assertEquals(HttpStatusCode.OK, alexSecondReport.status, alexSecondReport.bodyAsText())
-        val complete = client.get("/api/chats/$chatId/sender-key-distributions?epoch=1&currentDeviceId=1") {
-            header(HttpHeaders.Authorization, "Bearer $alexToken")
-        }
-        assertTrue(complete.bodyAsText().contains("\"sent\":2"), complete.bodyAsText())
-        assertTrue(complete.bodyAsText().contains("\"pending\":0"), complete.bodyAsText())
+        assertTrue(alexStillPending.bodyAsText().contains("\"pending\":2"), alexStillPending.bodyAsText())
 
         assertEquals(HttpStatusCode.OK, client.delete("/api/keys/devices/2") {
             header(HttpHeaders.Authorization, "Bearer $aliceToken")
@@ -1998,7 +1725,7 @@ class SenderKeyDistributionRouteTest {
             header(HttpHeaders.Authorization, "Bearer $alexToken")
         }
         assertTrue(afterDeviceRemoval.bodyAsText().contains("\"total\":1"), afterDeviceRemoval.bodyAsText())
-        assertTrue(afterDeviceRemoval.bodyAsText().contains("\"sent\":1"), afterDeviceRemoval.bodyAsText())
+        assertTrue(afterDeviceRemoval.bodyAsText().contains("\"pending\":1"), afterDeviceRemoval.bodyAsText())
     }
 
     @Test
@@ -2753,268 +2480,75 @@ class CommentEditRouteTest {
     }
 }
 
-class MessageIdempotencyRouteTest {
+class WsLegacyMessageProtocolRetiredTest {
     @Test
-    fun `text retry with same id is created once and conflicting payload is 409`() = testApplication {
+    fun `legacy websocket message commands are rejected`() = testApplication {
         application { moduleUnderTest(seedDemoUsers = true) }
         val login = client.post("/api/auth/login") {
             contentType(ContentType.Application.Json)
             setBody("""{"email":"alex@example.com","password":"password123"}""")
         }
         val token = extractToken(login.bodyAsText())
-        val chatResp = client.post("/api/chats") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"participantIds":["u2"],"isGroup":false}""")
+        val websocketClient = createClient { install(WebSockets) }
+
+        websocketClient.webSocket(
+            request = {
+                url("/ws")
+                header(HttpHeaders.Authorization, "Bearer $token")
+            }
+        ) {
+            send(Frame.Text("""{"type":"SEND_MESSAGE","payload":"{}"}"""))
+            val outer = withTimeout(5_000L) {
+                Json.parseToJsonElement((incoming.receive() as Frame.Text).readText()).jsonObject
+            }
+            assertEquals("ERROR", outer["type"]!!.jsonPrimitive.content)
+            val error = Json.parseToJsonElement(outer["payload"]!!.jsonPrimitive.content).jsonObject
+            assertEquals("UNSUPPORTED_WS_COMMAND", error["code"]!!.jsonPrimitive.content)
         }
-        assertEquals(HttpStatusCode.Created, chatResp.status, chatResp.bodyAsText())
-        val chatId = (Json.parseToJsonElement(chatResp.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
-        val messageId = "m_text_idempotent_xal7"
-
-        suspend fun send(content: String) = client.post("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":"$content","type":"TEXT","id":"$messageId"}""")
-        }
-
-        val first = send("cipher-v1")
-        assertEquals(HttpStatusCode.Created, first.status, first.bodyAsText())
-        val retry = send("cipher-v1")
-        assertEquals(HttpStatusCode.Created, retry.status, retry.bodyAsText())
-        assertEquals(
-            Json.parseToJsonElement(first.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content,
-            Json.parseToJsonElement(retry.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
-        )
-
-        val conflict = send("cipher-other")
-        assertEquals(HttpStatusCode.Conflict, conflict.status, conflict.bodyAsText())
-        assertTrue(conflict.bodyAsText().contains("消息 ID 已存在"), conflict.bodyAsText())
-
-        val history = client.get("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-        }
-        assertEquals(HttpStatusCode.OK, history.status, history.bodyAsText())
-        val messages = Json.parseToJsonElement(history.bodyAsText()).jsonArray
-        assertEquals(1, messages.size, history.bodyAsText())
-        assertEquals(messageId, messages[0].jsonObject["id"]!!.jsonPrimitive.content)
-        assertEquals("cipher-v1", messages[0].jsonObject["content"]!!.jsonPrimitive.content)
     }
+}
 
+class RestLegacyMessageProtocolRetiredTest {
     @Test
-    fun `rest idempotent retry does not consume message send quota`() = testApplication {
+    fun `legacy human message routes stay physically removed`() = testApplication {
         application { moduleUnderTest(seedDemoUsers = true) }
         val login = client.post("/api/auth/login") {
             contentType(ContentType.Application.Json)
             setBody("""{"email":"alex@example.com","password":"password123"}""")
         }
         val token = extractToken(login.bodyAsText())
-        val chatResp = client.post("/api/chats") {
+        val chatResponse = client.post("/api/chats") {
             header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
             setBody("""{"participantIds":["u2"],"isGroup":false}""")
         }
-        assertEquals(HttpStatusCode.Created, chatResp.status, chatResp.bodyAsText())
-        val chatId = (Json.parseToJsonElement(chatResp.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
-        val keepId = "m_rest_quota_keep"
-
-        suspend fun send(id: String, content: String) = client.post("/api/chats/$chatId/messages") {
+        val chatId = Json.parseToJsonElement(chatResponse.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        val auth: HttpRequestBuilder.() -> Unit = {
             header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":"$content","type":"TEXT","id":"$id"}""")
         }
 
-        val first = send(keepId, "cipher-keep")
-        assertEquals(HttpStatusCode.Created, first.status, first.bodyAsText())
-        // 打满 message_send 默认桶（RuntimeConfig max_message_per_min=180）：首条 + 179 条唯一消息。
-        for (i in 1..179) {
-            val filled = send("m_rest_quota_$i", "cipher-$i")
-            assertEquals(HttpStatusCode.Created, filled.status, filled.bodyAsText())
-        }
-
-        val retry = send(keepId, "cipher-keep")
-        assertEquals(HttpStatusCode.Created, retry.status, retry.bodyAsText())
-        assertEquals(
-            keepId,
-            Json.parseToJsonElement(retry.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        val responses = listOf(
+            client.get("/api/chats/$chatId/messages", auth),
+            client.post("/api/chats/$chatId/messages") { auth(); setBody("{}") },
+            client.get("/api/chats/$chatId/unread-window", auth),
+            client.post("/api/chats/$chatId/mark-read", auth),
+            client.put("/api/messages/legacy-message/status") { auth(); setBody("{}") },
+            client.post("/api/messages/legacy-message/revoke", auth),
+            client.put("/api/messages/legacy-message") { auth(); setBody("{}") },
+            client.put("/api/messages/legacy-message/reaction") { auth(); setBody("{}") },
+            client.get("/api/messages/legacy-message/read-receipts", auth),
+            client.post("/api/messages/batch-read") { auth(); setBody("{}") },
+            client.delete("/api/messages/legacy-message", auth),
+            client.get("/api/chats/$chatId/message-mutations", auth),
+            client.post("/api/search") { auth(); setBody("{\"query\":\"hello\"}") },
+            client.post("/api/chats/$chatId/arm-disappearing", auth),
+            client.post("/api/attachments/legacy-attachment/commit") { auth(); setBody("{}") },
         )
 
-        val overflow = send("m_rest_quota_overflow", "cipher-overflow")
-        assertEquals(HttpStatusCode.TooManyRequests, overflow.status, overflow.bodyAsText())
-        assertTrue(overflow.bodyAsText().contains("发送过于频繁"), overflow.bodyAsText())
-    }
-}
-
-class WsMessageIdempotencyRouteTest {
-    @Test
-    fun `websocket retry with same id replays new message and stores one row`() = testApplication {
-        application { moduleUnderTest(seedDemoUsers = true) }
-
-        suspend fun login(email: String): String {
-            val response = client.post("/api/auth/login") {
-                contentType(ContentType.Application.Json)
-                setBody("""{"email":"$email","password":"password123"}""")
-            }
-            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
-            return extractToken(response.bodyAsText())
+        responses.forEach { response ->
+            assertEquals(HttpStatusCode.NotFound, response.status, response.bodyAsText())
         }
-
-        val alexToken = login("alex@example.com")
-        val aliceToken = login("alice@example.com")
-        val chatResp = client.post("/api/chats") {
-            header(HttpHeaders.Authorization, "Bearer $alexToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"participantIds":["u2"],"isGroup":false}""")
-        }
-        assertEquals(HttpStatusCode.Created, chatResp.status, chatResp.bodyAsText())
-        val chatId = (Json.parseToJsonElement(chatResp.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
-        val messageId = "m_ws_idempotent_xal7"
-        val sendFrame =
-            """{"type":"SEND_MESSAGE","payload":"{\"id\":\"$messageId\",\"chatId\":\"$chatId\",\"content\":\"cipher-ws\",\"type\":\"TEXT\"}"}"""
-        val websocketClient = createClient { install(WebSockets) }
-
-        websocketClient.webSocket(
-            request = {
-                url("/ws")
-                header(HttpHeaders.Authorization, "Bearer $aliceToken")
-            }
-        ) {
-            websocketClient.webSocket(
-                request = {
-                    url("/ws")
-                    header(HttpHeaders.Authorization, "Bearer $alexToken")
-                }
-            ) {
-                send(Frame.Text(sendFrame))
-                val firstAck = withTimeout(5_000L) {
-                    while (true) {
-                        val text = (incoming.receive() as? Frame.Text)?.readText() ?: continue
-                        val outer = Json.parseToJsonElement(text).jsonObject
-                        if (outer["type"]?.jsonPrimitive?.content == "MESSAGE_STATUS") {
-                            return@withTimeout Json.parseToJsonElement(outer["payload"]!!.jsonPrimitive.content).jsonObject
-                        }
-                    }
-                    error("unreachable")
-                }
-                assertEquals(messageId, firstAck["messageId"]!!.jsonPrimitive.content)
-                assertEquals("SENT", firstAck["status"]!!.jsonPrimitive.content)
-
-                send(Frame.Text(sendFrame))
-                val retryAck = withTimeout(5_000L) {
-                    while (true) {
-                        val text = (incoming.receive() as? Frame.Text)?.readText() ?: continue
-                        val outer = Json.parseToJsonElement(text).jsonObject
-                        if (outer["type"]?.jsonPrimitive?.content == "MESSAGE_STATUS") {
-                            return@withTimeout Json.parseToJsonElement(outer["payload"]!!.jsonPrimitive.content).jsonObject
-                        }
-                    }
-                    error("unreachable")
-                }
-                assertEquals(messageId, retryAck["messageId"]!!.jsonPrimitive.content)
-                assertEquals("SENT", retryAck["status"]!!.jsonPrimitive.content)
-            }
-
-            var newMessageCount = 0
-            withTimeout(5_000L) {
-                while (newMessageCount < 1) {
-                    val text = (incoming.receive() as? Frame.Text)?.readText() ?: continue
-                    val outer = Json.parseToJsonElement(text).jsonObject
-                    if (outer["type"]?.jsonPrimitive?.content == "NEW_MESSAGE") {
-                        val payload = Json.parseToJsonElement(outer["payload"]!!.jsonPrimitive.content).jsonObject
-                        if (payload["id"]?.jsonPrimitive?.content == messageId) newMessageCount++
-                    }
-                }
-            }
-            val duplicate = runCatching {
-                withTimeout(800L) {
-                    while (true) {
-                        val text = (incoming.receive() as? Frame.Text)?.readText() ?: continue
-                        val outer = Json.parseToJsonElement(text).jsonObject
-                        if (outer["type"]?.jsonPrimitive?.content == "NEW_MESSAGE") {
-                            val payload = Json.parseToJsonElement(outer["payload"]!!.jsonPrimitive.content).jsonObject
-                            if (payload["id"]?.jsonPrimitive?.content == messageId) return@withTimeout true
-                        }
-                    }
-                    error("unreachable")
-                }
-            }
-            assertEquals(1, newMessageCount)
-            assertEquals(true, duplicate.getOrNull(), "idempotent WS retry must replay NEW_MESSAGE")
-        }
-
-        val history = client.get("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $alexToken")
-        }
-        assertEquals(HttpStatusCode.OK, history.status, history.bodyAsText())
-        val stored = Json.parseToJsonElement(history.bodyAsText()).jsonArray
-            .count { it.jsonObject["id"]?.jsonPrimitive?.content == messageId }
-        assertEquals(1, stored)
-    }
-}
-
-class RestMessageIdempotencyFanoutRouteTest {
-    @Test
-    fun `rest retry with same id replays new message and stores one row`() = testApplication {
-        application { moduleUnderTest(seedDemoUsers = true) }
-
-        suspend fun login(email: String): String {
-            val response = client.post("/api/auth/login") {
-                contentType(ContentType.Application.Json)
-                setBody("""{"email":"$email","password":"password123"}""")
-            }
-            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
-            return extractToken(response.bodyAsText())
-        }
-
-        val alexToken = login("alex@example.com")
-        val aliceToken = login("alice@example.com")
-        val chatResp = client.post("/api/chats") {
-            header(HttpHeaders.Authorization, "Bearer $alexToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"participantIds":["u2"],"isGroup":false}""")
-        }
-        assertEquals(HttpStatusCode.Created, chatResp.status, chatResp.bodyAsText())
-        val chatId = Json.parseToJsonElement(chatResp.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
-        val messageId = "m_rest_idempotent_fanout"
-        val websocketClient = createClient { install(WebSockets) }
-
-        suspend fun send() = client.post("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $alexToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":"cipher-rest","type":"TEXT","id":"$messageId"}""")
-        }
-
-        websocketClient.webSocket(
-            request = {
-                url("/ws")
-                header(HttpHeaders.Authorization, "Bearer $aliceToken")
-            }
-        ) {
-            repeat(2) {
-                val response = send()
-                assertEquals(HttpStatusCode.Created, response.status, response.bodyAsText())
-                val receivedId = withTimeout(5_000L) {
-                    while (true) {
-                        val text = (incoming.receive() as? Frame.Text)?.readText() ?: continue
-                        val outer = Json.parseToJsonElement(text).jsonObject
-                        if (outer["type"]?.jsonPrimitive?.content != "NEW_MESSAGE") continue
-                        val payload = Json.parseToJsonElement(outer["payload"]!!.jsonPrimitive.content).jsonObject
-                        if (payload["id"]?.jsonPrimitive?.content == messageId) {
-                            return@withTimeout messageId
-                        }
-                    }
-                    error("unreachable")
-                }
-                assertEquals(messageId, receivedId)
-            }
-        }
-
-        val history = client.get("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $alexToken")
-        }
-        assertEquals(HttpStatusCode.OK, history.status, history.bodyAsText())
-        val stored = Json.parseToJsonElement(history.bodyAsText()).jsonArray
-            .count { it.jsonObject["id"]?.jsonPrimitive?.content == messageId }
-        assertEquals(1, stored)
     }
 }
 
@@ -3224,5 +2758,183 @@ class BotInboxRouteTest {
             setBody("""{"text":"hi bot"}""")
         }
         assertEquals(HttpStatusCode.OK, dmInbox.status, dmInbox.bodyAsText())
+    }
+}
+
+class BotProbeRoutingTest {
+    @Test
+    fun `table driven bot probes preserve every compatibility response`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+        val login = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"alex@example.com","password":"password123"}""")
+        }
+        val userToken = Json.parseToJsonElement(login.bodyAsText())
+            .jsonObject["token"]!!.jsonPrimitive.content
+        val created = client.post("/api/bots") {
+            header(HttpHeaders.Authorization, "Bearer $userToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"name":"Probe Bot","username":"probe_table_bot"}""")
+        }
+        assertEquals(HttpStatusCode.OK, created.status, created.bodyAsText())
+        val botToken = Json.parseToJsonElement(created.bodyAsText())
+            .jsonObject["tokenOnce"]!!.jsonPrimitive.content
+
+        val expected = mapOf(
+            "buzzz" to (60 to "buzz"),
+            "chimez" to (60 to "chime"),
+            "ringz" to (60 to "ring"),
+            "beepz" to (60 to "beep"),
+            "pushz" to (60 to "push"),
+            "quietz" to (60 to "quiet"),
+            "fealz" to (60 to "feel"),
+            "slidez" to (60 to "slide"),
+            "leakz" to (60 to "leak"),
+            "vaultz" to (61 to "vault"),
+            "sealz" to (62 to "seal"),
+            "markz" to (63 to "mark"),
+            "linkz" to (64 to "link"),
+            "privz" to (65 to "priv"),
+            "metaz" to (66 to "meta"),
+            "typtz" to (67 to "typing"),
+            "redz" to (68 to "read"),
+            "presz" to (69 to "presence"),
+            "lastsz" to (70 to "lastseen"),
+        )
+        expected.forEach { (path, expectation) ->
+            val response = client.get("/api/bot/$path") {
+                header("X-Bot-Token", botToken)
+            }
+            assertEquals(HttpStatusCode.OK, response.status, "$path: ${response.bodyAsText()}")
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            assertEquals(expectation.first, body["surface"]!!.jsonPrimitive.content.toInt(), path)
+            assertEquals(expectation.second, body["ping"]!!.jsonPrimitive.content, path)
+        }
+        val booleanSignals = mapOf(
+            "readyz" to "ready",
+            "alivez" to "alive",
+            "heartbeatz" to "heartbeat",
+            "pulsez" to "pulse",
+            "tickz" to "tick",
+            "tockz" to "tock",
+            "clangz" to "clang",
+            "dingz" to "ding",
+        )
+        booleanSignals.forEach { (path, signal) ->
+            val response = client.get("/api/bot/$path") {
+                header("X-Bot-Token", botToken)
+            }
+            assertEquals(HttpStatusCode.OK, response.status, "$path: ${response.bodyAsText()}")
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            assertEquals("true", body[signal]!!.jsonPrimitive.content, path)
+            assertEquals(60, body["surface"]!!.jsonPrimitive.content.toInt(), path)
+            assertTrue(body["serverTime"]!!.jsonPrimitive.content.toLong() > 0L, path)
+        }
+        val flagProbes = mapOf(
+            "getCallMediaFlags" to (60 to setOf("callsEnabled", "voiceCallEnabled", "videoCallEnabled", "gifSendEnabled")),
+            "getAppearanceFlags" to (60 to setOf("chatWallpaperEnabled", "chatFontScaleEnabled", "voiceCallEnabled", "videoCallEnabled")),
+            "getNotifyFlags" to (60 to setOf("unreadPriorityEnabled", "ringtoneEnabled", "chatWallpaperEnabled", "chatFontScaleEnabled")),
+            "getAlertMediaFlags" to (60 to setOf("notificationSoundEnabled", "notificationPreviewEnabled", "unreadPriorityEnabled", "ringtoneEnabled")),
+            "getPushFlags" to (60 to setOf("pushNotificationsEnabled", "taskRemindersEnabled", "notificationSoundEnabled", "notificationPreviewEnabled")),
+            "getQuietFlags" to (60 to setOf("dndEnabled", "pushNotificationsEnabled", "taskRemindersEnabled")),
+            "getFeelFlags" to (60 to setOf("inAppSoundsEnabled", "hapticsEnabled", "dndEnabled")),
+            "getMotionFlags" to (60 to setOf("chatAnimationsEnabled", "navTransitionsEnabled", "inAppSoundsEnabled", "hapticsEnabled")),
+            "getCaptureShieldFlags" to (60 to setOf("screenshotDetectEnabled", "recentsExclusionEnabled", "screenSecureRuntimeEnabled", "captureAlertEnabled")),
+            "getSecretLeakFlags" to (60 to setOf("secretCopyBlockEnabled", "secretMediaExportBlockEnabled", "screenshotDetectEnabled", "recentsExclusionEnabled")),
+            "getSecretVaultFlags" to (61 to setOf("secretForwardBlockEnabled", "secretChatExportBlockEnabled", "secretCopyBlockEnabled", "secretMediaExportBlockEnabled")),
+            "getSealedCryptoFlags" to (62 to setOf("sealedSenderEnabled", "pqxdhPreview", "secretChatEnabled")),
+            "getMarkPrivacyFlags" to (63 to setOf("secretAutoDisappearEnabled", "blindWatermarkEnabled")),
+            "getLinkPrivacyFlags" to (64 to setOf("secretLinkPreviewBlockEnabled", "secretExternalLinkBlockEnabled", "linkPreviewEnabled")),
+            "getNotifyPrivacyFlags" to (65 to setOf("secretNotifPreviewBlockEnabled", "secretListPreviewBlockEnabled", "secretReactionBlockEnabled", "secretStarBlockEnabled", "notificationPreviewEnabled")),
+            "getSecretMetaFlags" to (66 to setOf("secretReactionBlockEnabled", "secretStarBlockEnabled", "reactionsEnabled", "messageStarringEnabled")),
+            "getSecretTypingFlags" to (67 to setOf("secretTypingBlockEnabled", "typingIndicatorsEnabled")),
+            "getSecretReadReceiptFlags" to (68 to setOf("secretReadReceiptBlockEnabled", "readReceiptsEnabled")),
+            "getSecretPresenceFlags" to (69 to setOf("secretPresenceBlockEnabled", "presenceEnabled")),
+            "getSecretLastSeenFlags" to (70 to setOf("secretLastSeenBlockEnabled", "presenceEnabled")),
+        )
+        flagProbes.forEach { (path, expectation) ->
+            val response = client.get("/api/bot/$path") {
+                header("X-Bot-Token", botToken)
+            }
+            assertEquals(HttpStatusCode.OK, response.status, "$path: ${response.bodyAsText()}")
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            assertEquals(expectation.first, body["surface"]!!.jsonPrimitive.content.toInt(), path)
+            expectation.second.forEach { key -> assertTrue(key in body, "$path missing $key") }
+        }
+        val runtimeProjectionSizes = mapOf(
+            "getRuntimeFlags" to 63,
+            "getMuteArchiveFlags" to 58,
+            "getPrivacyFlags" to 57,
+            "getMessagePolicyFlags" to 54,
+            "getEngagementFlags" to 52,
+            "getComposerFlags" to 50,
+            "getSocialFlags" to 49,
+            "getIdentityFlags" to 44,
+            "getMediaFlags" to 42,
+            "getLocationFlags" to 6,
+            "getPrivacySecureFlags" to 6,
+            "getMediaSendFlags" to 6,
+            "getMediaPrivacyFlags" to 8,
+        )
+        runtimeProjectionSizes.forEach { (path, expectedSize) ->
+            val response = client.get("/api/bot/$path") {
+                header("X-Bot-Token", botToken)
+            }
+            assertEquals(HttpStatusCode.OK, response.status, "$path: ${response.bodyAsText()}")
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            assertEquals(expectedSize, body.size, path)
+            assertTrue(body["serverTime"]!!.jsonPrimitive.content.toLong() > 0L, path)
+        }
+    }
+}
+
+class BotHintRoutingTest {
+    @Test
+    fun `table driven hints persist policy prefix and sanitize secret metadata`() = testApplication {
+        application { moduleUnderTest(seedDemoUsers = true) }
+        val login = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"alex@example.com","password":"password123"}""")
+        }
+        val userToken = extractToken(login.bodyAsText())
+        val createdBot = client.post("/api/bots") {
+            header(HttpHeaders.Authorization, "Bearer $userToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"name":"Hint Bot","username":"hint_table_bot"}""")
+        }
+        assertEquals(HttpStatusCode.OK, createdBot.status, createdBot.bodyAsText())
+        val botBody = Json.parseToJsonElement(createdBot.bodyAsText()).jsonObject
+        val botId = botBody["id"]!!.jsonPrimitive.content
+        val botToken = botBody["tokenOnce"]!!.jsonPrimitive.content
+        val createdChat = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $userToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":[],"isGroup":true,"groupName":"Hint Test"}""")
+        }
+        assertEquals(HttpStatusCode.Created, createdChat.status, createdChat.bodyAsText())
+        val chatId = Json.parseToJsonElement(createdChat.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        val invited = client.post("/api/chats/$chatId/bots") {
+            header(HttpHeaders.Authorization, "Bearer $userToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"botId":"$botId"}""")
+        }
+        assertEquals(HttpStatusCode.OK, invited.status, invited.bodyAsText())
+
+        suspend fun send(path: String, hintJson: String): String {
+            val response = client.post("/api/bot/$path") {
+                header("X-Bot-Token", botToken)
+                contentType(ContentType.Application.Json)
+                setBody("""{"chatId":"$chatId","hint":$hintJson}""")
+            }
+            assertEquals(HttpStatusCode.OK, response.status, "$path: ${response.bodyAsText()}")
+            return Json.parseToJsonElement(response.bodyAsText()).jsonObject["messageId"]!!.jsonPrimitive.content
+        }
+
+        val voiceId = send("sendVoiceCallHint", "\"Use voice\"")
+        val secretId = send("sendSecretReactionHint", "\"Line\\nBreak\\u0001\"")
+        val repository = ServiceMessageRepository()
+        assertEquals("CALL:VOICE Use voice", repository.getById(voiceId)?.content)
+        assertEquals("META:REACT Line Break", repository.getById(secretId)?.content)
+        assertEquals("SYSTEM", repository.getById(secretId)?.type)
     }
 }

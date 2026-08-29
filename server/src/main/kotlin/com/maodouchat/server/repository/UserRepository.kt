@@ -548,8 +548,6 @@ class UserRepository {
 
             BlockedUsers.deleteWhere { (BlockedUsers.blockerId eq userId) or (BlockedUsers.blockedId eq userId) }
             StarMessages.deleteWhere { StarMessages.userId eq userId }
-            ReadReceipts.deleteWhere { ReadReceipts.userId eq userId }
-            MessageReactions.deleteWhere { MessageReactions.userId eq userId }
             RefreshTokens.deleteWhere { RefreshTokens.userId eq userId }
             AuthSessions.deleteWhere { AuthSessions.userId eq userId }
             RevokedAccessTokens.deleteWhere { RevokedAccessTokens.userId eq userId }
@@ -566,7 +564,6 @@ class UserRepository {
             }
             PushTokens.deleteWhere { PushTokens.userId eq userId }
             UserLocations.deleteWhere { UserLocations.userId eq userId }
-            SenderKeyDistributions.deleteWhere { (SenderKeyDistributions.senderId eq userId) or (SenderKeyDistributions.recipientUserId eq userId) }
             SignalKeys.deleteWhere { SignalKeys.userId eq userId }
             SignalDevices.deleteWhere { SignalDevices.userId eq userId }
             SignalingMessages.deleteWhere { (SignalingMessages.fromUserId eq userId) or (SignalingMessages.toUserId eq userId) }
@@ -675,6 +672,11 @@ class UserRepository {
             }
         }
 
+        lockedChats.forEach { chat ->
+            botIds.forEach { botId ->
+                deleteMessagingV2ParticipantStateInTx(chat[Chats.id], botId)
+            }
+        }
         ChatUserSettings.deleteWhere { ChatUserSettings.userId inList botIds }
         ChatParticipants.deleteWhere { ChatParticipants.userId inList botIds }
         val orphanedAttachmentIds = mutableListOf<String>()
@@ -699,12 +701,6 @@ class UserRepository {
         deletePollsCreatedBy(botIds)
         GroupPollVotes.deleteWhere { GroupPollVotes.userId inList botIds }
         StarMessages.deleteWhere { StarMessages.userId inList botIds }
-        ReadReceipts.deleteWhere { ReadReceipts.userId inList botIds }
-        MessageReactions.deleteWhere { MessageReactions.userId inList botIds }
-        SenderKeyDistributions.deleteWhere {
-            (SenderKeyDistributions.senderId inList botIds) or
-                (SenderKeyDistributions.recipientUserId inList botIds)
-        }
         botIds.forEach { botId ->
             BotCommandLogs.deleteWhere {
                 (BotCommandLogs.botId eq botId) or (BotCommandLogs.userId eq botId)
@@ -791,6 +787,7 @@ class UserRepository {
 
         for ((chatId, role) in memberships) {
             val chat = chatsById[chatId] ?: continue
+            deleteMessagingV2ParticipantStateInTx(chatId, userId)
             val others = participantsByChat[chatId].orEmpty()
                 .filter { it[ChatParticipants.userId] != userId }
             if (chat[Chats.isGroup] && role == "OWNER" && others.isNotEmpty()) {
@@ -859,20 +856,7 @@ class UserRepository {
 
     /** Deletes all chat-owned rows; returns attachment IDs that still need file cleanup. */
     private fun tearDownEmptyChat(chatId: String): List<String> {
-        val messageIds = Messages.select(Messages.id)
-            .where { Messages.chatId eq chatId }
-            .orderBy(Messages.id to SortOrder.ASC)
-            .forUpdate()
-            .map { it[Messages.id] }
-        if (messageIds.isNotEmpty()) {
-            MessageReactions.deleteWhere { MessageReactions.messageId inList messageIds }
-            ReadReceipts.deleteWhere { ReadReceipts.messageId inList messageIds }
-            StarMessages.deleteWhere { StarMessages.messageId inList messageIds }
-            // BUG-1 fix: PinnedMessages FK 到 Messages/Chats，必须先删除
-            PinnedMessages.deleteWhere { PinnedMessages.messageId inList messageIds }
-        }
-        // The caller holds chat; keep the global chat -> message -> attachment lock order.
-        Messages.deleteWhere { Messages.chatId eq chatId }
+        deleteMessagingV2ConversationInTx(chatId)
         val attachmentIds = EncryptedAttachments
             .select(EncryptedAttachments.id)
             .where { EncryptedAttachments.chatId eq chatId }
@@ -891,7 +875,7 @@ class UserRepository {
             GroupPollVotes.deleteWhere { GroupPollVotes.pollId inList pollIds }
             GroupPolls.deleteWhere { GroupPolls.id inList pollIds }
         }
-        // 8.50 修复 L5：对齐 ChatRepository.deleteChatRows 的完整清理集——补群接龙/PK/签到
+        // Keep account deletion aligned with ConversationStateDeletion's group-play cleanup set.
         // 残留（此前最后成员注销/清空群时留下群玩法孤儿行）
         GroupCheckins.deleteWhere { GroupCheckins.chatId eq chatId }
         val chainIds = GroupChains.select(GroupChains.id)
@@ -909,11 +893,9 @@ class UserRepository {
         }
         GroupPkRounds.deleteWhere { GroupPkRounds.chatId eq chatId }
         BotCommandLogs.deleteWhere { BotCommandLogs.chatId eq chatId }
-        // FK: direct_chat_pairs / secret_chat_pairs / message_mutations → chats.id
+        // FK: direct_chat_pairs / secret_chat_pairs -> chats.id
         DirectChatPairs.deleteWhere { DirectChatPairs.chatId eq chatId }
         SecretChatPairs.deleteWhere { SecretChatPairs.chatId eq chatId }
-        MessageMutations.deleteWhere { MessageMutations.chatId eq chatId }
-        SenderKeyDistributions.deleteWhere { SenderKeyDistributions.chatId eq chatId }
         ChatUserSettings.deleteWhere { ChatUserSettings.chatId eq chatId }
         GroupAuditLogs.deleteWhere { GroupAuditLogs.chatId eq chatId }
         ChatParticipants.deleteWhere { ChatParticipants.chatId eq chatId }

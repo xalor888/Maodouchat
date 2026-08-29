@@ -1,6 +1,7 @@
 package com.maodouchat.attachment
 
 import android.content.Context
+import androidx.room.withTransaction
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.local.entity.AttachmentTransferState
@@ -13,15 +14,32 @@ import java.io.File
 import kotlinx.coroutines.CancellationException
 
 object AttachmentTransferCoordinator {
-    suspend fun enqueue(context: Context, transfer: AttachmentTransferEntity) {
+    suspend fun enqueue(context: Context, transfer: AttachmentTransferEntity) =
+        enqueue(context, transfer) {}
+
+    suspend fun enqueue(
+        context: Context,
+        transfer: AttachmentTransferEntity,
+        persistMessage: suspend () -> Unit,
+    ) {
         val app = context.applicationContext as MaodouchatApp
         val ownerUserId = currentOwner(context)
         require(ownerUserId.isNotBlank() && transfer.ownerUserId == ownerUserId) { "attachment_transfer_owner_invalid" }
         require(isPrivateUploadFile(context, File(transfer.encryptedPath))) { "attachment_transfer_path_invalid" }
         require(isCurrentOwner(context, ownerUserId)) { "attachment_transfer_owner_changed" }
-        app.database.attachmentTransferDao().upsert(transfer)
+        app.database.withTransaction {
+            require(isCurrentOwner(context, ownerUserId)) { "attachment_transfer_owner_changed" }
+            persistMessage()
+            app.database.attachmentTransferDao().upsert(transfer)
+        }
         if (!isCurrentOwner(context, ownerUserId)) return
-        AttachmentTransferScheduler.schedule(context, transfer.messageId, ownerUserId, replace = true)
+        // The database row is the durable source of truth. Reconcile can restore scheduling if
+        // WorkManager rejects this immediate wake-up after the transaction has committed.
+        runCatching {
+            AttachmentTransferScheduler.schedule(context, transfer.messageId, ownerUserId, replace = true)
+        }.onFailure {
+            android.util.Log.w("AttachmentTransferCoordinator", "schedule failed for ${transfer.messageId}", it)
+        }
     }
 
     suspend fun pause(context: Context, messageId: String): Boolean {
@@ -113,6 +131,29 @@ object AttachmentTransferCoordinator {
         MediaCache.releasePersistableReadPermission(context, transfer.sourceUri)
         if (!isCurrentOwner(context, ownerUserId)) return
         dao.delete(messageId, ownerUserId = ownerUserId)
+    }
+
+    /** Terminal message mutations always win over an upload/finalize worker. */
+    suspend fun discardTerminal(context: Context, messageId: String, ownerUserId: String) {
+        val app = context.applicationContext as MaodouchatApp
+        if (ownerUserId.isBlank() || !isCurrentOwner(context, ownerUserId)) return
+        val dao = app.database.attachmentTransferDao()
+        val transfer = dao.get(messageId, ownerUserId = ownerUserId) ?: return
+        AttachmentTransferScheduler.cancel(context, messageId, ownerUserId)
+        runCatching { deleteServerObject(context, transfer) }
+            .onFailure {
+                android.util.Log.w(
+                    "AttachmentTransferCoordinator",
+                    "terminal server object cleanup failed for $messageId",
+                    it,
+                )
+            }
+        deletePrivateUploadFile(context, transfer.encryptedPath)
+        MediaCache.deletePreparedAttachmentSource(context, transfer.sourceUri)
+        MediaCache.releasePersistableReadPermission(context, transfer.sourceUri)
+        if (isCurrentOwner(context, ownerUserId)) {
+            dao.delete(messageId, ownerUserId = ownerUserId)
+        }
     }
 
     suspend fun cancelForChat(context: Context, chatId: String) {

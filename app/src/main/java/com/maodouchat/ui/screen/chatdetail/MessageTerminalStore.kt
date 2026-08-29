@@ -11,16 +11,32 @@ internal class MessageTerminalStore(
 ) {
     suspend fun persistDeleted(messageId: String) {
         if (messageId.isBlank()) return
-        deleteCachedMedia(messageId)
-        deleteSearchDocument(messageId)
-        deleteLocalMessage(messageId)
+        runAll(
+            { deleteCachedMedia(messageId) },
+            { deleteSearchDocument(messageId) },
+            { deleteLocalMessage(messageId) },
+        )
     }
 
     suspend fun persistRevoked(messageId: String, revokedMessage: Message?) {
         if (messageId.isBlank()) return
         // Cache removal is mandatory even if Room no longer has enough data to render a placeholder.
-        deleteCachedMedia(messageId)
-        deleteSearchDocument(messageId)
-        if (revokedMessage != null) upsertLocalMessage(revokedMessage)
+        runAll(
+            { deleteCachedMedia(messageId) },
+            { deleteSearchDocument(messageId) },
+            { if (revokedMessage != null) upsertLocalMessage(revokedMessage) },
+        )
+    }
+
+    private suspend fun runAll(vararg operations: suspend () -> Unit) {
+        var firstFailure: Exception? = null
+        operations.forEach { operation ->
+            try {
+                operation()
+            } catch (error: Exception) {
+                if (firstFailure == null) firstFailure = error else firstFailure.addSuppressed(error)
+            }
+        }
+        firstFailure?.let { throw it }
     }
 }

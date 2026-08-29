@@ -331,7 +331,7 @@ class TokenManager private constructor(private val context: Context) {
     private fun chatMutationIdKey(chatId: String): String =
         "mutation_sync_id:$chatId"
 
-    /** (ts, id) lexicographic strict greater — matches server getMessagesSince / getMutationsSince. */
+    /** Legacy cursor retained only for non-message migrations; v2 Inbox owns message ordering. */
     private fun isCursorStrictlyAfter(a: SyncCursor, b: SyncCursor): Boolean {
         if (a.timestampMs > b.timestampMs) return true
         if (a.timestampMs < b.timestampMs) return false

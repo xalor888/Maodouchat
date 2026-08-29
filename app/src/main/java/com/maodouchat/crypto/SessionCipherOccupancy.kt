@@ -10,11 +10,49 @@ import com.maodouchat.MaodouchatApp
  */
 object SessionCipherOccupancy {
 
+    class Lease internal constructor(internal val generation: Long)
+
+    private var generation: Long = 0L
+
+    @Volatile
+    private var activeLeaseGeneration: Long = 0L
+
     @Volatile
     var openPeerUserId: String? = null
         private set
 
+    /**
+     * Claim ownership for one ChatDetail instance. A later claim supersedes the previous one,
+     * so a delayed onCleared from the old ViewModel cannot release the new conversation's
+     * SessionCipher guard.
+     */
+    @Synchronized
+    fun acquire(chatId: String): Lease {
+        val lease = Lease(++generation)
+        activeLeaseGeneration = lease.generation
+        occupyInternal(chatId, peerUserId = null, updatePeer = false)
+        return lease
+    }
+
+    /** Update the marker only while [lease] still owns it. */
+    @Synchronized
+    fun occupy(
+        lease: Lease,
+        chatId: String,
+        peerUserId: String? = null,
+        updatePeer: Boolean = false,
+    ): Boolean {
+        if (lease.generation != activeLeaseGeneration) return false
+        occupyInternal(chatId, peerUserId, updatePeer)
+        return true
+    }
+
+    @Synchronized
     fun occupy(chatId: String, peerUserId: String? = null, updatePeer: Boolean = false) {
+        occupyInternal(chatId, peerUserId, updatePeer)
+    }
+
+    private fun occupyInternal(chatId: String, peerUserId: String?, updatePeer: Boolean) {
         val id = chatId.trim()
         if (id.isBlank()) return
         MaodouchatApp.openChatDetailId = id
@@ -33,20 +71,35 @@ object SessionCipherOccupancy {
         openPeerUserId = peerUserId?.trim()?.takeIf { it.isNotBlank() }
     }
 
-    fun release(chatId: String) {
+    @Synchronized
+    fun release(lease: Lease): Boolean {
+        if (lease.generation != activeLeaseGeneration) return false
+        activeLeaseGeneration = 0L
+        MaodouchatApp.activeChatId = null
+        MaodouchatApp.activeChatOpenedAtMs = 0L
+        MaodouchatApp.openChatDetailId = null
+        openPeerUserId = null
+        return true
+    }
+
+    /** Legacy release path for non-ChatDetail callers. It is idempotent and never clears a
+     * different chat's marker, but ChatDetail should use the lease overload above. */
+    @Synchronized
+    fun release(chatId: String): Boolean {
         val id = chatId.trim()
-        if (id.isBlank()) return
+        if (id.isBlank() || MaodouchatApp.openChatDetailId != id && MaodouchatApp.activeChatId != id) {
+            return false
+        }
+        activeLeaseGeneration = 0L
         if (MaodouchatApp.activeChatId == id) {
             MaodouchatApp.activeChatId = null
             MaodouchatApp.activeChatOpenedAtMs = 0L
         }
         if (MaodouchatApp.openChatDetailId == id) {
             MaodouchatApp.openChatDetailId = null
-        }
-        // Peer occupancy follows the open chat; another VM may re-occupy immediately.
-        if (MaodouchatApp.openChatDetailId == null) {
             openPeerUserId = null
         }
+        return true
     }
 
     fun isChatOccupied(chatId: String): Boolean {

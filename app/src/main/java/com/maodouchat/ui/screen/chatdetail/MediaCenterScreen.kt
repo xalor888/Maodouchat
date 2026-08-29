@@ -97,7 +97,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.data.repository.MessageRepository
+import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.MediaExport
@@ -123,7 +123,7 @@ data class MediaCenterUiState(
 class MediaCenterViewModel(application: Application, savedStateHandle: SavedStateHandle) : AndroidViewModel(application) {
     val chatId: String = savedStateHandle["chatId"] ?: ""
     private val app = application as MaodouchatApp
-    private val repository = MessageRepository(app.database.messageDao(), app.database)
+    private val repository = LocalMessageStore(app.database.messageDao(), app.database)
     private val chatLockRepo = com.maodouchat.data.repository.ChatLockRepository(app.database.chatLockDao())
 
     private val tokenManager = com.maodouchat.network.TokenManager.getInstance(application)

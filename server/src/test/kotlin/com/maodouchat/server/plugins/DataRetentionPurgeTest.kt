@@ -10,19 +10,14 @@ import com.maodouchat.server.db.GroupChains
 import com.maodouchat.server.db.GroupCheckins
 import com.maodouchat.server.db.GroupPkRounds
 import com.maodouchat.server.db.GroupPkVotes
-import com.maodouchat.server.db.Messages
-import com.maodouchat.server.db.MessageReactions
-import com.maodouchat.server.db.ReadReceipts
 import com.maodouchat.server.db.SignalKeys
-import com.maodouchat.server.db.StarMessages
 import com.maodouchat.server.db.SystemAnnouncements
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.BotRepository
-import com.maodouchat.server.repository.ChatRepository
+import com.maodouchat.server.repository.GroupAuditRepository
 import com.maodouchat.server.repository.FriendRepository
 import com.maodouchat.server.repository.GroupCheckinRepository
-import com.maodouchat.server.repository.MessageRepository
 import com.maodouchat.server.repository.ReportRepository
 import com.maodouchat.server.repository.SenderKeyDistributionRepository
 import com.maodouchat.server.repository.SignalKeyRepository
@@ -159,42 +154,14 @@ class DataRetentionPurgeTest {
                 it[id] = "sk_new"; it[userId] = "u1"; it[keyType] = "consumed_pre_key"
                 it[keyData] = "base64"; it[keyId] = 2; it[createdAt] = recent
             }
-            // 消息 + 派生行：超期消息（用 400 天前的 timestamp）+ 近期消息
-            Messages.insert {
-                it[id] = "m_old"; it[chatId] = "c1"; it[senderId] = "u1"
-                it[content] = "x"; it[type] = "TEXT"; it[timestamp] = old
-            }
-            Messages.insert {
-                it[id] = "m_new"; it[chatId] = "c1"; it[senderId] = "u1"
-                it[content] = "x"; it[type] = "TEXT"; it[timestamp] = recent
-            }
-            MessageReactions.insert {
-                it[messageId] = "m_old"; it[userId] = "u2"; it[emoji] = "👍"; it[reactedAt] = recent
-            }
-            MessageReactions.insert {
-                it[messageId] = "m_new"; it[userId] = "u2"; it[emoji] = "👍"; it[reactedAt] = recent
-            }
-            ReadReceipts.insert {
-                it[messageId] = "m_old"; it[userId] = "u2"; it[readAt] = recent
-            }
-            ReadReceipts.insert {
-                it[messageId] = "m_new"; it[userId] = "u2"; it[readAt] = recent
-            }
-            StarMessages.insert {
-                it[messageId] = "m_old"; it[userId] = "u2"; it[starredAt] = recent
-            }
-            StarMessages.insert {
-                it[messageId] = "m_new"; it[userId] = "u2"; it[starredAt] = recent
-            }
         }
 
         // 执行全部清理（保留期参数故意缩短验证只删超期）
         val friendDeleted = FriendRepository().expireStalePending(days = 30)
         val playDeleted = GroupCheckinRepository.purgeOldData(retentionDays = 365)
-        val groupAuditDeleted = ChatRepository().purgeOldAuditLogs(retentionDays = 365)
+        val groupAuditDeleted = GroupAuditRepository().purgeOlderThan(retentionDays = 365)
         val botDeleted = BotRepository.purgeOldCommandLogs(retentionDays = 180)
         val preKeyDeleted = SignalKeyRepository().purgeConsumedPreKeys(retentionDays = 30)
-        val derivedDeleted = MessageRepository().purgeOldDerivedRows(retentionDays = 365)
 
         transaction {
             assertEquals(1, friendDeleted, "仅删超期 PENDING 好友请求")
@@ -206,7 +173,6 @@ class DataRetentionPurgeTest {
             assertEquals(1, groupAuditDeleted, "仅删超期群审计")
             assertEquals(1, botDeleted, "仅删超期 bot 命令日志")
             assertEquals(1, preKeyDeleted, "仅删超期 consumed prekey")
-            assertEquals(2, derivedDeleted, "超期消息的 reaction+收藏共 2 行（ReadReceipts 保留防未读振荡）")
             // 近期数据全部保留
             assertTrue(FriendRequests.selectAll().count() == 1L)
             assertTrue(GroupCheckins.selectAll().count() == 1L)
@@ -217,10 +183,6 @@ class DataRetentionPurgeTest {
             assertTrue(GroupAuditLogs.selectAll().count() == 1L)
             assertTrue(BotCommandLogs.selectAll().count() == 1L)
             assertTrue(SignalKeys.selectAll().count() == 1L)
-            assertTrue(MessageReactions.selectAll().count() == 1L)
-            // ReadReceipts 不参与清理（未读数按回执存在与否计算，清掉会让旧消息周期性"复活"为未读）
-            assertTrue(ReadReceipts.selectAll().count() == 2L)
-            assertTrue(StarMessages.selectAll().count() == 1L)
         }
     }
 }

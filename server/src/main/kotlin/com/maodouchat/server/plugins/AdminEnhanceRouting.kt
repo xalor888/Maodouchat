@@ -63,7 +63,7 @@ import java.util.concurrent.TimeUnit
  * 安全约束（红线）：
  * - 所有 `/api/admin/` 端点双重门控：`authenticate("admin-jwt")` + `isAdminUser()`（MASTER_ADMINS）。
  * - 不导出 E2EE 明文：本模块只读写公告（平台明文广播）、用户标签、审计元数据、限流统计、设备一致性序列，
- *   绝不触碰 Messages / EncryptedAttachments 的密文列。
+ *   绝不触碰 v2 envelopes / EncryptedAttachments 的密文列。
  * - 所有变更操作写 ModerationAuditLog 审计。
  *
  * 本文件只注册 AdminRouting.kt 中不存在的全新路径，不修改其已有路由。

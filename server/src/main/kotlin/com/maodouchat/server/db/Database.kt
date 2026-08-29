@@ -119,31 +119,6 @@ object ChatUserSettings : Table("chat_user_settings") {
     init { index("idx_chat_user_settings_user_archive", false, userId, archived) }
 }
 
-object Messages : Table("messages") {
-    val id = varchar("id", 100)
-    val chatId = varchar("chat_id", 50) references Chats.id
-    val senderId = varchar("sender_id", 50) references Users.id
-    val content = text("content")
-    val type = varchar("type", 20).default("TEXT")
-    val timestamp = long("timestamp")
-    val status = varchar("status", 20).default("SENT")
-    /** 编辑时间戳，null 表示未编辑 */
-    val editedAt = long("edited_at").nullable()
-    /** 阅后即焚截止时间；null/0=不销毁；首次对方已读时写入 */
-    val expiresAt = long("expires_at").nullable()
-    /** When true, fan-out/push/webhooks redact sender metadata (sealed-sender style). */
-    val sealedSender = bool("sealed_sender").default(false)
-    override val primaryKey = PrimaryKey(id)
-
-    // 缺少索引会让 getMessages 的 WHERE chatId ORDER BY timestamp DESC 全表扫描
-    // (chat_id, timestamp, id) 支撑 getMessagesSince 的 (ts,id) 游标分页
-    init {
-        index("idx_messages_chat_ts", false, chatId, timestamp)
-        index("idx_messages_chat_ts_id", false, chatId, timestamp, id)
-        index("idx_messages_expires_at", false, expiresAt)
-    }
-}
-
 /**
  * 1:1 私聊唯一对：跨进程/多实例创建时用 DB 唯一约束防重复，
  * 进程内 synchronized 无法覆盖多 JVM。
@@ -172,29 +147,6 @@ object SecretChatPairs : Table("secret_chat_pairs") {
 
     init {
         index("idx_secret_chat_pairs_chat", false, chatId)
-    }
-}
-
-/**
- * 消息变更日志：DELETE/REVOKE/EDIT 写入后供多设备增量同步。
- * 离线设备无法只靠 WS 收到变更，必须能按 (createdAt, id) 游标回放。
- */
-object MessageMutations : Table("message_mutations") {
-    val id = varchar("id", 100)
-    val chatId = varchar("chat_id", 50) references Chats.id
-    val messageId = varchar("message_id", 100)
-    /** DELETE / REVOKE / EDIT */
-    val action = varchar("action", 20)
-    val actorId = varchar("actor_id", 50)
-    /** EDIT 时的新密文；REVOKE 时为墓碑文案；DELETE 为空 */
-    val content = text("content").nullable()
-    val editedAt = long("edited_at").nullable()
-    val createdAt = long("created_at")
-    override val primaryKey = PrimaryKey(id)
-
-    init {
-        index("idx_message_mutations_chat_created", false, chatId, createdAt, id)
-        index("idx_message_mutations_message", false, messageId)
     }
 }
 
@@ -449,7 +401,7 @@ object RevokedAccessTokens : Table("revoked_access_tokens") {
 
 object StarMessages : Table("star_messages") {
     val userId = varchar("user_id", 50) references Users.id
-    val messageId = varchar("message_id", 100) references Messages.id
+    val messageId = varchar("message_id", 100) references MessagingV2Messages.id
     val starredAt = long("starred_at").default(System.currentTimeMillis())
     override val primaryKey = PrimaryKey(userId, messageId)
 }
@@ -457,7 +409,7 @@ object StarMessages : Table("star_messages") {
 /** 会话级消息置顶（全员可见）；仅元数据，不存明文。 */
 object PinnedMessages : Table("pinned_messages") {
     val chatId = varchar("chat_id", 50) references Chats.id
-    val messageId = varchar("message_id", 100) references Messages.id
+    val messageId = varchar("message_id", 100) references MessagingV2Messages.id
     val pinnedBy = varchar("pinned_by", 50) references Users.id
     val pinnedAt = long("pinned_at").default(System.currentTimeMillis())
     override val primaryKey = PrimaryKey(chatId, messageId)
@@ -467,52 +419,6 @@ object PinnedMessages : Table("pinned_messages") {
         index("idx_pinned_messages_message_id", false, messageId)
     }
 }
-
-object ReadReceipts : Table("read_receipts") {
-    val messageId = varchar("message_id", 100) references Messages.id
-    val userId = varchar("user_id", 50) references Users.id
-    val readAt = long("read_at")
-    override val primaryKey = PrimaryKey(messageId, userId)
-
-    init {
-        index("idx_read_receipts_message_id", false, messageId)
-        index("idx_read_receipts_user_id", false, userId)
-    }
-}
-
-object MessageReactions : Table("message_reactions") {
-    val messageId = varchar("message_id", 100) references Messages.id
-    val userId = varchar("user_id", 50) references Users.id
-    val emoji = varchar("emoji", 16)
-    val reactedAt = long("reacted_at").default(System.currentTimeMillis())
-    override val primaryKey = PrimaryKey(messageId, userId)
-
-    init {
-        index("idx_message_reactions_message_id", false, messageId)
-    }
-}
-
-object SenderKeyDistributions : Table("sender_key_distributions") {
-    val id = varchar("id", 100)
-    val chatId = varchar("chat_id", 50) references Chats.id
-    val epoch = long("epoch")
-    val senderId = varchar("sender_id", 50) references Users.id
-    val recipientUserId = varchar("recipient_user_id", 50) references Users.id
-    val recipientDeviceId = integer("recipient_device_id")
-    val messageId = varchar("message_id", 100).nullable()
-    val status = varchar("status", 20).default("SENT")
-    val error = varchar("error", 200).nullable()
-    val createdAt = long("created_at").default(System.currentTimeMillis())
-    val updatedAt = long("updated_at").default(System.currentTimeMillis())
-    override val primaryKey = PrimaryKey(id)
-
-    init {
-        index("idx_sender_key_dist_chat_epoch", false, chatId, epoch)
-        index("idx_sender_key_dist_sender_epoch", false, chatId, senderId, epoch)
-        index("idx_sender_key_dist_recipient", false, recipientUserId, recipientDeviceId)
-    }
-}
-
 
 object NotificationPreferences : Table("notification_preferences") {
     val userId = varchar("user_id", 50) references Users.id
@@ -721,10 +627,10 @@ fun initDatabase() {
     org.jetbrains.exposed.sql.transactions.transaction {
 
         SchemaUtils.createMissingTablesAndColumns(
-            Users, Chats, ChatParticipants, ChatUserSettings, GroupAuditLogs, Messages, MessageMutations,
+            Users, Chats, ChatParticipants, ChatUserSettings, GroupAuditLogs,
             EncryptedAttachments, SignalKeys, SignalDevices, SignalingMessages, Posts, PostImageClaims, PostLikes, PostComments, CommentLikes,
             BlockedUsers, UserLocations, AuthSessions, RefreshTokens, RevokedAccessTokens, StarMessages, PinnedMessages,
-            ReadReceipts, MessageReactions, SenderKeyDistributions, NotificationPreferences,
+            NotificationPreferences,
             PushTokens, GroupPolls, GroupPollVotes, BotApps, BotCommandLogs, BotUpdateInbox, Reports, ModerationAuditLog, AiAuditLogs, ModerationRules,
             RiskEvents, DirectChatPairs, SecretChatPairs, FriendRequests, Friendships, ChatFolders, ClientPrefs, SystemSettings,
             // 9.3xx：群邀请同意流程（成员入群前须本人接受）
@@ -733,8 +639,14 @@ fun initDatabase() {
             GroupCheckins, GroupChains, GroupChainEntries, GroupPkRounds, GroupPkVotes,
             // B6 运维增强：用户标签先于公告建表（公告 target_tag_id 外键引用 user_tags.id）
             UserTags, UserTagAssignments, SystemAnnouncements, AnnouncementAcks, AuditExportRecords,
-            RateLimitStatsSnapshots, DeviceEventSequences, DeviceEventConsistencyLog
+            RateLimitStatsSnapshots, DeviceEventSequences, DeviceEventConsistencyLog,
+            // V2 messaging owns durable per-device delivery. WebSocket is notification only.
+            MessagingV2Messages, MessagingV2Envelopes, ServiceMessages, ServiceMessageReactions
         )
+        dropMessagingV2SenderUserForeignKey()
+        migrateMessagingV2RecordClasses()
+        migrateMessageControlForeignKeys()
+        retireLegacyMessagingTables()
         widenClientPrefsWritingStyleColumn()
         widenFriendRequestMessageColumn()
         // 9.144：既有库加宽（新增实例由 Table 定义直接建宽列）
@@ -753,6 +665,110 @@ fun initDatabase() {
         backfillChatTypes()
         backfillModeratorEmails()
         backfillModerationRules()
+    }
+}
+
+private fun migrateMessagingV2RecordClasses() {
+    TransactionManager.current().exec(
+        """
+        UPDATE messaging_v2_messages
+        SET record_class = 'INTERNAL'
+        WHERE kind IN ('RECEIPT', 'SENDER_KEY')
+        """.trimIndent()
+    )
+    TransactionManager.current().exec(
+        """
+        UPDATE messaging_v2_messages
+        SET record_class = 'EVENT'
+        WHERE kind = 'SERVICE'
+          AND id IN (
+            SELECT message_id
+            FROM messaging_v2_envelopes
+            WHERE ciphertext_type = 'SERVICE_PLAINTEXT'
+              AND ciphertext LIKE '%\"type\":\"EVENT\"%'
+          )
+        """.trimIndent()
+    )
+}
+
+/** Move star/pin ownership from the retired plaintext message table to v2 metadata. */
+private fun migrateMessageControlForeignKeys() {
+    val marker = "messaging_v2_message_controls"
+    if (SystemSettings.selectAll().where { SystemSettings.key eq marker }.firstOrNull() != null) return
+
+    listOf("star_messages", "pinned_messages").forEach { tableName ->
+        val names = TransactionManager.current().exec(
+            """
+            SELECT tc.constraint_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+              ON tc.constraint_name = kcu.constraint_name
+             AND tc.constraint_schema = kcu.constraint_schema
+            WHERE LOWER(tc.table_name) = '$tableName'
+              AND LOWER(kcu.column_name) = 'message_id'
+              AND tc.constraint_type = 'FOREIGN KEY'
+            """.trimIndent()
+        ) { result ->
+            buildList {
+                while (result.next()) add(result.getString(1))
+            }
+        }.orEmpty()
+        names.forEach { name ->
+            require(name.matches(Regex("[A-Za-z0-9_]+"))) { "unsafe constraint name" }
+            TransactionManager.current().exec("ALTER TABLE $tableName DROP CONSTRAINT \"$name\"")
+        }
+    }
+
+    TransactionManager.current().exec(
+        "DELETE FROM star_messages WHERE message_id NOT IN (SELECT id FROM messaging_v2_messages)"
+    )
+    TransactionManager.current().exec(
+        "DELETE FROM pinned_messages WHERE message_id NOT IN (SELECT id FROM messaging_v2_messages)"
+    )
+    TransactionManager.current().exec(
+        """
+        ALTER TABLE star_messages
+        ADD CONSTRAINT fk_star_messages_v2_message
+        FOREIGN KEY (message_id) REFERENCES messaging_v2_messages(id)
+        """.trimIndent()
+    )
+    TransactionManager.current().exec(
+        """
+        ALTER TABLE pinned_messages
+        ADD CONSTRAINT fk_pinned_messages_v2_message
+        FOREIGN KEY (message_id) REFERENCES messaging_v2_messages(id)
+        """.trimIndent()
+    )
+    SystemSettings.insert {
+        it[key] = marker
+        it[value] = "1"
+        it[updatedAt] = System.currentTimeMillis()
+        it[updatedBy] = null
+    }
+}
+
+private fun dropMessagingV2SenderUserForeignKey() {
+    val names = TransactionManager.current().exec(
+        """
+        SELECT tc.constraint_name
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu
+          ON tc.constraint_name = kcu.constraint_name
+         AND tc.constraint_schema = kcu.constraint_schema
+        WHERE LOWER(tc.table_name) = 'messaging_v2_messages'
+          AND LOWER(kcu.column_name) = 'sender_user_id'
+          AND tc.constraint_type = 'FOREIGN KEY'
+        """.trimIndent()
+    ) { result ->
+        buildList {
+            while (result.next()) add(result.getString(1))
+        }
+    }.orEmpty()
+    names.forEach { name ->
+        require(name.matches(Regex("[A-Za-z0-9_]+"))) { "unsafe constraint name" }
+        TransactionManager.current().exec(
+            "ALTER TABLE messaging_v2_messages DROP CONSTRAINT \"$name\""
+        )
     }
 }
 
@@ -869,11 +885,7 @@ private fun widenModerationAuditDetailColumn() {
 
 private fun ensureIndexes() {
     val indexes = listOf(
-        "CREATE INDEX IF NOT EXISTS idx_messages_chat_ts ON messages(chat_id, timestamp)",
-        "CREATE INDEX IF NOT EXISTS idx_messages_chat_ts_id ON messages(chat_id, timestamp, id)",
-        "CREATE INDEX IF NOT EXISTS idx_message_mutations_chat_created ON message_mutations(chat_id, created_at, id)",
         "CREATE INDEX IF NOT EXISTS idx_direct_chat_pairs_chat ON direct_chat_pairs(chat_id)",
-        "CREATE INDEX IF NOT EXISTS idx_message_mutations_message ON message_mutations(message_id)",
         "CREATE INDEX IF NOT EXISTS idx_attachments_chat ON encrypted_attachments(chat_id)",
         "CREATE INDEX IF NOT EXISTS idx_attachments_uploader_status ON encrypted_attachments(uploader_id, status)",
         "CREATE INDEX IF NOT EXISTS idx_attachments_message ON encrypted_attachments(message_id)",
@@ -898,6 +910,14 @@ private fun ensureIndexes() {
         "CREATE INDEX IF NOT EXISTS idx_signal_keys_user_device_type ON signal_keys(user_id, device_id, key_type)",
         "CREATE INDEX IF NOT EXISTS idx_signal_devices_user ON signal_devices(user_id)",
         "CREATE INDEX IF NOT EXISTS idx_signal_devices_user_status ON signal_devices(user_id, status)",
+        "CREATE INDEX IF NOT EXISTS idx_messaging_v2_messages_conversation_time ON messaging_v2_messages(conversation_id, server_timestamp)",
+        "CREATE INDEX IF NOT EXISTS idx_messaging_v2_messages_sender_time ON messaging_v2_messages(sender_user_id, server_timestamp)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS uidx_messaging_v2_envelope_target ON messaging_v2_envelopes(message_id, recipient_user_id, recipient_device_id)",
+        "CREATE INDEX IF NOT EXISTS idx_messaging_v2_inbox_pending ON messaging_v2_envelopes(recipient_user_id, recipient_device_id, acknowledged_at, sequence)",
+        "CREATE INDEX IF NOT EXISTS idx_messaging_v2_envelope_message ON messaging_v2_envelopes(message_id)",
+        "CREATE INDEX IF NOT EXISTS idx_service_messages_chat_time ON service_messages(chat_id, timestamp)",
+        "CREATE INDEX IF NOT EXISTS idx_service_messages_sender_time ON service_messages(sender_id, timestamp)",
+        "CREATE INDEX IF NOT EXISTS idx_service_reactions_message ON service_message_reactions(message_id)",
         "CREATE INDEX IF NOT EXISTS idx_signaling_to_user_ts ON signaling_messages(to_user_id, timestamp)",
         // Bug #26: chat_participants 按 userId 查询的索引
         "CREATE INDEX IF NOT EXISTS idx_chat_participants_user_id ON chat_participants(user_id)",
@@ -907,13 +927,8 @@ private fun ensureIndexes() {
         "CREATE INDEX IF NOT EXISTS idx_refresh_tokens_session_id ON refresh_tokens(session_id)",
         "CREATE INDEX IF NOT EXISTS idx_revoked_access_tokens_user_id ON revoked_access_tokens(user_id)",
         "CREATE INDEX IF NOT EXISTS idx_revoked_access_tokens_expires_at ON revoked_access_tokens(expires_at)",
-        "CREATE INDEX IF NOT EXISTS idx_read_receipts_message_id ON read_receipts(message_id)",
-        "CREATE INDEX IF NOT EXISTS idx_read_receipts_user_id ON read_receipts(user_id)",
-        "CREATE INDEX IF NOT EXISTS idx_message_reactions_message_id ON message_reactions(message_id)",
         "CREATE INDEX IF NOT EXISTS idx_pinned_messages_chat_pinned_at ON pinned_messages(chat_id, pinned_at)",
         "CREATE INDEX IF NOT EXISTS idx_pinned_messages_message_id ON pinned_messages(message_id)",
-        "CREATE INDEX IF NOT EXISTS idx_sender_key_dist_chat_epoch ON sender_key_distributions(chat_id, epoch)",
-        "CREATE INDEX IF NOT EXISTS idx_sender_key_dist_recipient ON sender_key_distributions(recipient_user_id, recipient_device_id)",
         "CREATE INDEX IF NOT EXISTS idx_push_tokens_user_id ON push_tokens(user_id)",
         "CREATE INDEX IF NOT EXISTS idx_push_tokens_auth_session ON push_tokens(auth_session_id)",
         "CREATE INDEX IF NOT EXISTS idx_ai_audit_user_created ON ai_audit_logs(user_id, created_at)",
@@ -942,31 +957,23 @@ private fun ensureIndexes() {
         // 消除全表扫描 DELETE/UPDATE：
         // - deleteExpired（15 分钟循环）按 refresh_tokens.expires_at 两次全扫
         // - purgeStaleInTx（每次 store/poll）按 signaling_messages.timestamp 全扫
-        // - purgeOldDerivedRows 按 messages.timestamp 驱动 3 张表
         // - 全部周期清理按各自时间列
         "CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at)",
         // timestamp 是 SQL 保留字（Exposed 存小写带引号）；signal_keys 的 key_type 列
         // 同样为小写带引号存储（历史建表方式），两者原生 DDL 必须加引号，其余列大写裸写。
         "CREATE INDEX IF NOT EXISTS idx_signaling_ts ON signaling_messages(\"timestamp\")",
-        "CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(\"timestamp\")",
-        "CREATE INDEX IF NOT EXISTS idx_message_mutations_created_at ON message_mutations(created_at)",
         "CREATE INDEX IF NOT EXISTS idx_group_audit_created_at ON group_audit_logs(created_at)",
         "CREATE INDEX IF NOT EXISTS idx_bot_update_inbox_created_at ON bot_update_inbox(created_at)",
         "CREATE INDEX IF NOT EXISTS idx_bot_command_logs_created_at ON bot_command_logs(created_at)",
         "CREATE INDEX IF NOT EXISTS idx_ai_audit_created_at ON ai_audit_logs(created_at)",
-        "CREATE INDEX IF NOT EXISTS idx_sender_key_dist_created_at ON sender_key_distributions(created_at)",
         "CREATE INDEX IF NOT EXISTS idx_risk_events_created_at ON risk_events(created_at)",
         "CREATE INDEX IF NOT EXISTS idx_signal_keys_type_created ON signal_keys(\"key_type\", created_at)",
         "CREATE INDEX IF NOT EXISTS idx_group_checkins_checked_at ON group_checkins(checked_at)",
         "CREATE INDEX IF NOT EXISTS idx_group_chains_created_at ON group_chains(created_at)",
         "CREATE INDEX IF NOT EXISTS idx_group_pk_rounds_created_at ON group_pk_rounds(created_at)",
         "CREATE INDEX IF NOT EXISTS idx_user_locations_expires_at ON user_locations(expires_at)",
-        // 8.48 修复：以下旧表索引仅声明在 Table.init{}——init 对「已存在表」不建索引
-        //（ensureIndexes 才是权威创建路径），未加入列表则对已部署库永不生效：
-        "CREATE INDEX IF NOT EXISTS idx_messages_expires_at ON messages(expires_at)",
         "CREATE INDEX IF NOT EXISTS idx_chat_user_settings_user_archive ON chat_user_settings(user_id, archived)",
         "CREATE INDEX IF NOT EXISTS idx_group_audit_chat_created ON group_audit_logs(chat_id, created_at)",
-        "CREATE INDEX IF NOT EXISTS idx_sender_key_dist_sender_epoch ON sender_key_distributions(chat_id, sender_id, epoch)",
         "CREATE INDEX IF NOT EXISTS idx_signaling_call ON signaling_messages(call_id, from_user_id, to_user_id)",
         "CREATE INDEX IF NOT EXISTS idx_signaling_group_call ON signaling_messages(group_id, call_id)",
         // B3 群玩法表索引：虽为新表（建表时 init 会建），补入列表保证 Table.init 与 ensureIndexes

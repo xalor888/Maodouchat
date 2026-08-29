@@ -4,7 +4,6 @@ import com.maodouchat.ui.screen.chatdetail.GroupRevisionImpact
 import com.maodouchat.ui.screen.chatdetail.groupRevisionImpact
 import com.maodouchat.ui.screen.chatdetail.isActiveChatEvent
 import com.maodouchat.ui.screen.chatdetail.shouldApplyContactPresence
-import com.maodouchat.ui.screen.chatdetail.shouldApplyRealtimeEdit
 import com.maodouchat.ui.screen.chatdetail.shouldInvalidateGroupKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -17,20 +16,6 @@ class ChatRealtimeEventPolicyTest {
         assertTrue(isActiveChatEvent("chat-a", "chat-a"))
         assertFalse(isActiveChatEvent("chat-a", "chat-b"))
         assertFalse(isActiveChatEvent("", ""))
-    }
-
-    @Test
-    fun `older edit cannot overwrite a newer local version`() {
-        assertFalse(shouldApplyRealtimeEdit("chat-a", "chat-a", "chat-a", 200L, 100L))
-        assertTrue(shouldApplyRealtimeEdit("chat-a", "chat-a", "chat-a", 100L, 200L))
-        assertTrue(shouldApplyRealtimeEdit("chat-a", "chat-a", "chat-a", 200L, 200L))
-    }
-
-    @Test
-    fun `legacy edit without chat id requires locally proven active chat`() {
-        assertTrue(shouldApplyRealtimeEdit("chat-a", "", "chat-a", 100L, null))
-        assertFalse(shouldApplyRealtimeEdit("chat-a", "", "chat-b", 100L, null))
-        assertFalse(shouldApplyRealtimeEdit("chat-a", "chat-b", "chat-a", 100L, 200L))
     }
 
     @Test

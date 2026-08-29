@@ -2,7 +2,7 @@ package com.maodouchat.notification
 
 /**
  * Pure merge helpers for [com.maodouchat.data.repository.NotificationCenterRepository.add].
- * FCM data-only + in-app WS can both emit the same NEW_MESSAGE; count must not double.
+ * Push wake-up and local v2 Inbox projection may surface the same message; count must not double.
  * Ring-timeout + peer hang-up can both emit the same MISSED_CALL; same for callId.
  */
 object NotificationCenterMergePolicy {

@@ -42,6 +42,18 @@ class AttachmentErrorUiPolicyTest {
     }
 
     @Test
+    fun classifiesWorkflowBoundaryFailures() {
+        assertEquals(
+            AttachmentErrorUiPolicy.Kind.TOO_LARGE,
+            AttachmentErrorUiPolicy.classify(AttachmentTooLargeException())
+        )
+        assertEquals(
+            AttachmentErrorUiPolicy.Kind.INVALID_REFERENCE,
+            AttachmentErrorUiPolicy.classify(AttachmentReferenceInvalidException())
+        )
+    }
+
+    @Test
     fun unknownFallsBack() {
         assertEquals(
             AttachmentErrorUiPolicy.Kind.FALLBACK,

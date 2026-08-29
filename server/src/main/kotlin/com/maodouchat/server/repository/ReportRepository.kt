@@ -1,7 +1,7 @@
 package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.ChatParticipants
-import com.maodouchat.server.db.Messages
+import com.maodouchat.server.db.MessagingV2Messages
 import com.maodouchat.server.db.ModerationAuditLog
 import com.maodouchat.server.db.PostComments
 import com.maodouchat.server.db.Posts
@@ -9,6 +9,7 @@ import com.maodouchat.server.db.Reports
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.CreateReportRequest
 import com.maodouchat.server.model.ReportResponse
+import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -68,9 +69,12 @@ class ReportRepository {
                         normalizedMessageId = null
                     }
                     "MESSAGE" -> {
-                        val message = Messages.selectAll().where { Messages.id eq targetId }.firstOrNull()
+                        val message = MessagingV2Messages.selectAll().where {
+                            (MessagingV2Messages.id eq targetId) and
+                                (MessagingV2Messages.recordClass eq MessagingV2RecordClass.MESSAGE)
+                        }.firstOrNull()
                             ?: return@transaction CreateResult.Failure("消息不存在")
-                        val messageChatId = message[Messages.chatId]
+                        val messageChatId = message[MessagingV2Messages.conversationId]
                         val canSee = ChatParticipants.selectAll()
                             .where { (ChatParticipants.chatId eq messageChatId) and (ChatParticipants.userId eq reporterId) }
                             .firstOrNull() != null

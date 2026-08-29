@@ -228,6 +228,10 @@ object ChatListPreviewPolicy {
         if (!isOwnMessage) return false
         if (messageType !in OWN_ECHO_PREVIEW_TYPES) return false
         val body = existingSameMessageContent?.takeIf { it.isNotBlank() } ?: return false
+        // This helper is called for a same-id local echo. A JSON object/array here may be a
+        // wire envelope that has not been decrypted yet, even when an older/unknown envelope
+        // shape does not satisfy the stricter Signal signature detector.
+        if (looksLikeWireEnvelope(body)) return false
         if (looksLikeLeftoverPreviewGarbage(body)) return false
         if (body == encryptedPlaceholder) return false
         return true
@@ -268,7 +272,11 @@ object ChatListPreviewPolicy {
         encryptedPlaceholder: String,
         maxLen: Int = 200
     ): String {
-        val body = decryptedPlain?.takeIf { it.isNotBlank() && !looksLikeLeftoverPreviewGarbage(it) }
+        val body = decryptedPlain?.takeIf {
+            it.isNotBlank() &&
+                !looksLikeWireEnvelope(it) &&
+                !looksLikeLeftoverPreviewGarbage(it)
+        }
         return body?.take(maxLen) ?: encryptedPlaceholder
     }
 

@@ -1,6 +1,7 @@
 package com.maodouchat.crypto
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -62,5 +63,37 @@ class SignalSessionPolicyTest {
         assertFalse(SignalSessionPolicy.shouldEstablishSession("", 1, "me", 1))
         assertFalse(SignalSessionPolicy.shouldEstablishSession("peer", 0, "me", 1))
         assertFalse(SignalSessionPolicy.shouldEstablishSession("peer", -1, "me", 1))
+    }
+
+    @Test
+    fun keepsDurableSessionsWhenDiscoveryIsUnavailable() {
+        assertEquals(
+            listOf(2, 4),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = null,
+                persistedSessionDeviceIds = listOf(4, 2, 0, 300),
+            ),
+        )
+    }
+
+    @Test
+    fun discoveryRemainsAuthoritativeWhenItSucceeds() {
+        assertEquals(
+            listOf(1, 3),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = listOf(3, 1),
+                persistedSessionDeviceIds = listOf(2),
+            ),
+        )
+    }
+
+    @Test
+    fun noDiscoveryAndNoDurableSessionHasNoCandidates() {
+        assertTrue(
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = emptyList(),
+                persistedSessionDeviceIds = emptyList(),
+            ).isEmpty()
+        )
     }
 }

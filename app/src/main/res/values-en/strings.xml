@@ -356,6 +356,7 @@
     <string name="chat_clear_history_title">Delete cache on this device?</string>
     <string name="chat_clear_history_body">Deletes decrypted messages and media for this chat on this device. This cannot be undone. The server only has ciphertext, not a readable backup; the same envelopes cannot be decrypted again. Other devices are not affected.</string>
     <string name="chat_clear_history_done">Local plaintext cleared. There is no readable cloud backup.</string>
+    <string name="chat_clear_history_partial">Some local data could not be cleared. Try again.</string>
     <string name="chat_permission_record">Microphone access is required to record audio</string>
     <string name="chat_permission_voice_call">Microphone access is required for voice calls</string>
     <string name="chat_permission_video_call">Microphone and camera access are required for video calls</string>
@@ -1146,6 +1147,7 @@
     <string name="chat_edit_not_allowed">You can only edit your own text messages within 5 minutes</string>
     <string name="chat_encryption_failed">Encryption failed</string>
     <string name="chat_edit_failed">Could not edit the message. Try again later.</string>
+    <string name="chat_mutation_committed_local_sync_pending">The change is safely queued. Local history will sync in the background.</string>
     <string name="chat_starred_status">Message starred</string>
     <string name="chat_unstarred_status">Star removed</string>
     <string name="chat_star_failed">Could not update the star</string>
@@ -1354,6 +1356,7 @@
     <string name="chat_lock_enabled">Chat PIN enabled</string>
     <string name="chat_lock_disabled">Chat PIN disabled</string>
     <string name="chat_lock_cleared_local">Local history cleared and PIN removed</string>
+    <string name="chat_lock_clear_partial">Local cleanup did not finish. Try again.</string>
     <string name="chat_lock_forgot_confirm_title">Clear local chat?</string>
     <string name="chat_lock_forgot_confirm_body">This deletes decrypted messages and the PIN for this chat on this device. There is no readable cloud backup.</string>
     <string name="chat_lock_list_indicator">Locked</string>

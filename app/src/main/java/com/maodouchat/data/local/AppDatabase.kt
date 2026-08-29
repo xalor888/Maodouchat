@@ -20,6 +20,7 @@ import com.maodouchat.data.local.dao.IdentityTrustDao
 import com.maodouchat.data.local.dao.MessageDao
 import com.maodouchat.data.local.dao.MessageSearchDao
 import com.maodouchat.data.local.dao.MissedCallDao
+import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.dao.SecretChatDao
 import com.maodouchat.data.local.dao.SenderKeyRetryDao
 import com.maodouchat.data.local.dao.SignalKeyDao
@@ -33,17 +34,21 @@ import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.local.entity.ChatLockEntity
 import com.maodouchat.data.local.entity.IdentityTrustEntity
 import com.maodouchat.data.local.entity.MessageEntity
+import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
 import com.maodouchat.data.local.entity.MessageSearchDocumentEntity
 import com.maodouchat.data.local.entity.MessageSearchTokenEntity
 import com.maodouchat.data.local.entity.MissedCallEntity
+import com.maodouchat.data.local.entity.MessagingV2InboxEntity
+import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
+import com.maodouchat.data.local.entity.MessagingV2ReceiptEntity
 import com.maodouchat.data.local.entity.SecretChatEntity
 import com.maodouchat.data.local.entity.SenderKeyRetryEntity
 import com.maodouchat.data.local.entity.SignalKeyEntity
 import com.maodouchat.data.local.entity.UserEntity
 
 @Database(
-    entities = [UserEntity::class, ChatEntity::class, ChatDraftEntity::class, MessageEntity::class, SignalKeyEntity::class, IdentityTrustEntity::class, MissedCallEntity::class, ChatLockEntity::class, SecretChatEntity::class, AiSummaryCacheEntity::class, SenderKeyRetryEntity::class, AiTaskEntity::class, MessageSearchDocumentEntity::class, MessageSearchTokenEntity::class, AttachmentTransferEntity::class, AiOperationEntity::class],
-    version = 31,
+    entities = [UserEntity::class, ChatEntity::class, ChatDraftEntity::class, MessageEntity::class, SignalKeyEntity::class, IdentityTrustEntity::class, MissedCallEntity::class, ChatLockEntity::class, SecretChatEntity::class, AiSummaryCacheEntity::class, SenderKeyRetryEntity::class, AiTaskEntity::class, MessageSearchDocumentEntity::class, MessageSearchTokenEntity::class, AttachmentTransferEntity::class, AiOperationEntity::class, MessagingV2InboxEntity::class, MessagingV2OutboxEntity::class, MessagingV2ReceiptEntity::class, MessageMutationTombstoneEntity::class],
+    version = 34,
     exportSchema = true
 )abstract class AppDatabase : RoomDatabase() {
 
@@ -62,6 +67,7 @@ import com.maodouchat.data.local.entity.UserEntity
     abstract fun aiOperationDao(): AiOperationDao
     abstract fun senderKeyRetryDao(): SenderKeyRetryDao
     abstract fun attachmentTransferDao(): AttachmentTransferDao
+    abstract fun messagingV2Dao(): MessagingV2Dao
 
     companion object {
         @Volatile
@@ -120,7 +126,7 @@ import com.maodouchat.data.local.entity.UserEntity
                     AppDatabase::class.java,
                     DATABASE_NAME
                 ).openHelperFactory(SupportFactory(passphrase))
-                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31)
+                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34)
                 if (allowDestructiveMigration) {
                     builder.fallbackToDestructiveMigration(dropAllTables = true)
                 }
@@ -538,9 +544,8 @@ import com.maodouchat.data.local.entity.UserEntity
                         "ON messages(chatId, timestamp)"
                 )
 
-                // 3) messages：本地发件箱轮询（MessageDao.getSendingOutbox）
-                //    WHERE status='SENDING' AND senderId=? AND type IN (...) ORDER BY timestamp
-                //    status 低区分度，放最左结合 senderId 收窄范围，再按 timestamp 排序。
+                // 3) Historical local outbox index. V2 uses messaging_v2_outbox; keep this
+                // migration statement so databases created through v28 retain schema parity.
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS index_messages_status_senderId_timestamp " +
                         "ON messages(status, senderId, timestamp)"
@@ -581,6 +586,123 @@ import com.maodouchat.data.local.entity.UserEntity
         val MIGRATION_30_31 = object : Migration(30, 31) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE messages ADD COLUMN sealedSender INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_31_32 = object : Migration(31, 32) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS messaging_v2_inbox (
+                        envelopeId TEXT NOT NULL PRIMARY KEY,
+                        ownerUserId TEXT NOT NULL,
+                        deviceId INTEGER NOT NULL,
+                        sequence INTEGER NOT NULL,
+                        messageId TEXT NOT NULL,
+                        conversationId TEXT NOT NULL,
+                        senderUserId TEXT NOT NULL,
+                        senderDeviceId INTEGER NOT NULL,
+                        kind TEXT NOT NULL,
+                        groupRevision INTEGER,
+                        clientTimestamp INTEGER NOT NULL,
+                        serverTimestamp INTEGER NOT NULL,
+                        ciphertextType TEXT NOT NULL,
+                        ciphertext TEXT NOT NULL,
+                        state TEXT NOT NULL,
+                        attempts INTEGER NOT NULL,
+                        nextAttemptAt INTEGER NOT NULL,
+                        lastErrorCode TEXT,
+                        receivedAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_messaging_v2_inbox_ownerUserId_deviceId_sequence " +
+                        "ON messaging_v2_inbox(ownerUserId, deviceId, sequence)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_messaging_v2_inbox_ownerUserId_deviceId_state_nextAttemptAt_sequence " +
+                        "ON messaging_v2_inbox(ownerUserId, deviceId, state, nextAttemptAt, sequence)",
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_messaging_v2_inbox_messageId ON messaging_v2_inbox(messageId)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS messaging_v2_outbox (
+                        messageId TEXT NOT NULL PRIMARY KEY,
+                        ownerUserId TEXT NOT NULL,
+                        conversationId TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        localPayload TEXT NOT NULL,
+                        clientTimestamp INTEGER NOT NULL,
+                        groupRevision INTEGER,
+                        preparedEnvelopesJson TEXT,
+                        state TEXT NOT NULL,
+                        attempts INTEGER NOT NULL,
+                        nextAttemptAt INTEGER NOT NULL,
+                        lastErrorCode TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_messaging_v2_outbox_ownerUserId_state_nextAttemptAt_createdAt " +
+                        "ON messaging_v2_outbox(ownerUserId, state, nextAttemptAt, createdAt)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_messaging_v2_outbox_ownerUserId_conversationId_createdAt " +
+                        "ON messaging_v2_outbox(ownerUserId, conversationId, createdAt)",
+                )
+            }
+        }
+
+        val MIGRATION_32_33 = object : Migration(32, 33) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS messaging_v2_receipts (
+                        ownerUserId TEXT NOT NULL,
+                        messageId TEXT NOT NULL,
+                        conversationId TEXT NOT NULL,
+                        recipientUserId TEXT NOT NULL,
+                        deliveredAt INTEGER,
+                        readAt INTEGER,
+                        updatedAt INTEGER NOT NULL,
+                        PRIMARY KEY(ownerUserId, messageId, recipientUserId)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_messaging_v2_receipts_ownerUserId_conversationId_messageId " +
+                        "ON messaging_v2_receipts(ownerUserId, conversationId, messageId)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_messaging_v2_receipts_ownerUserId_recipientUserId_readAt " +
+                        "ON messaging_v2_receipts(ownerUserId, recipientUserId, readAt)",
+                )
+            }
+        }
+
+        val MIGRATION_33_34 = object : Migration(33, 34) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS message_mutation_tombstones (
+                        ownerUserId TEXT NOT NULL,
+                        messageId TEXT NOT NULL,
+                        conversationId TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        terminalAt INTEGER NOT NULL,
+                        PRIMARY KEY(ownerUserId, messageId),
+                        FOREIGN KEY(conversationId) REFERENCES chats(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_message_mutation_tombstones_conversationId " +
+                        "ON message_mutation_tombstones(conversationId)",
+                )
             }
         }
     }

@@ -3,7 +3,6 @@ package com.maodouchat.server
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.ChatUserSettings
 import com.maodouchat.server.db.Chats
-import com.maodouchat.server.db.Messages
 import com.maodouchat.server.db.PinnedMessages
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.plugins.configureAdminEnhanceRouting
@@ -16,8 +15,7 @@ import com.maodouchat.server.plugins.configureSerialization
 import com.maodouchat.server.plugins.configureSockets
 import com.maodouchat.server.plugins.configureStatusPages
 import com.maodouchat.server.repository.AnnouncementRepository
-import com.maodouchat.server.repository.ChatRepository
-import com.maodouchat.server.repository.MessageRepository
+import com.maodouchat.server.repository.ConversationCreationRepository
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.RateLimitStatsRepository
 import com.maodouchat.server.repository.SignalingRepository
@@ -71,8 +69,6 @@ class AdminChatIsolationRouteTest {
         Database.connect(ServerConfig.databaseUrl, driver = ServerConfig.databaseDriver)
         initDatabase()
         val userRepo = UserRepository()
-        val chatRepo = ChatRepository()
-        val messageRepo = MessageRepository()
         val postRepo = PostRepository()
         userRepo.createDefaultUsers()
         configureAuthentication()
@@ -80,11 +76,9 @@ class AdminChatIsolationRouteTest {
         configureStatusPages()
         val signalingRepo = SignalingRepository()
         val callInviteRateLimiter = CallInviteRateLimiter()
-        configureSockets(userRepo, messageRepo, chatRepo, signalingRepo = signalingRepo, callInviteRateLimiter = callInviteRateLimiter)
+        configureSockets(userRepo, signalingRepo = signalingRepo, callInviteRateLimiter = callInviteRateLimiter)
         configureRouting(
             userRepo,
-            chatRepo,
-            messageRepo,
             postRepo,
             IsolationFakeAiGateway(),
             signalingRepo = signalingRepo,
@@ -97,7 +91,7 @@ class AdminChatIsolationRouteTest {
             userTagRepo = UserTagRepository(),
             rateLimitStatsRepo = RateLimitStatsRepository()
         )
-        configureSecretSurfaceRouting(chatRepo = chatRepo, messageRepo = messageRepo, userRepo = userRepo)
+        configureSecretSurfaceRouting(userRepo = userRepo)
     }
 
     private fun extractToken(body: String): String =
@@ -105,10 +99,8 @@ class AdminChatIsolationRouteTest {
 
     @Test
     fun `admin chats hide secret and refuse dissolving 1-1`() = testApplication {
-        lateinit var chatRepo: ChatRepository
         application {
             moduleUnderTest()
-            chatRepo = ChatRepository()
         }
 
         val login = client.post("/api/auth/login") {
@@ -125,19 +117,17 @@ class AdminChatIsolationRouteTest {
         assertEquals(HttpStatusCode.OK, session.status, session.bodyAsText())
         val adminToken = extractToken(session.bodyAsText())
 
-        val group = chatRepo.createChat(listOf("u1", "u2"), isGroup = true, groupName = "ops-group", creatorId = "u1")
-        val direct = chatRepo.getOrCreateDirectChat("u1", "u2")
-        val secret = chatRepo.getOrCreateSecretChat("u1", "u2")
+        val creationRepo = ConversationCreationRepository()
+        val group = creationRepo.create(listOf("u1", "u2"), isGroup = true, groupName = "ops-group", creatorId = "u1")
+        val direct = creationRepo.getOrCreateDirect("u1", "u2")
+        val secret = creationRepo.getOrCreateSecret("u1", "u2")
         transaction {
-            Messages.insert {
-                it[id] = "m_secret_admin_search"
-                it[chatId] = secret.id
-                it[senderId] = "u1"
-                it[content] = "cipherblob-should-not-leak"
-                it[type] = "TEXT"
-                it[timestamp] = System.currentTimeMillis()
-                it[status] = "SENT"
-            }
+            insertMessagingV2MessageFixture(
+                messageId = "m_secret_admin_search",
+                conversationId = secret.id,
+                senderUserId = "u1",
+                timestamp = System.currentTimeMillis(),
+            )
             Chats.update({ Chats.id eq secret.id }) {
                 it[disappearingMessageSeconds] = 30
             }

@@ -76,3 +76,10 @@ backups/
 
 # WebRTC 原生库二进制（~9.8MB，部署时用 scripts/webrtc-sync-native.sh 从 Gradle 缓存提取）
 server/src/main/resources/webrtc/
+
+# Sprint artifacts (not product assets)
+.tmp-*.png
+.qa-screenshots/
+.v2c/
+.video_agent/
+emulator-*.png

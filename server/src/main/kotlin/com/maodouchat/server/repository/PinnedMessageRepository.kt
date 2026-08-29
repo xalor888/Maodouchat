@@ -2,8 +2,9 @@ package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
-import com.maodouchat.server.db.Messages
+import com.maodouchat.server.db.MessagingV2Messages
 import com.maodouchat.server.db.PinnedMessages
+import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import com.maodouchat.server.model.PinnedMessageResponse
 import java.sql.SQLException
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -78,13 +79,14 @@ class PinnedMessageRepository {
                     .firstOrNull() != null
                 if (!isMember) return@transaction ToggleOutcome(PinResult.FORBIDDEN)
 
-                val msg = Messages.selectAll().where { Messages.id eq messageId }.firstOrNull()
+                val msg = MessagingV2Messages.selectAll()
+                    .where { MessagingV2Messages.id eq messageId }
+                    .firstOrNull()
                     ?: return@transaction ToggleOutcome(PinResult.NOT_FOUND)
-                if (msg[Messages.chatId] != chatId) {
+                if (msg[MessagingV2Messages.conversationId] != chatId) {
                     return@transaction ToggleOutcome(PinResult.NOT_FOUND)
                 }
-                val type = msg[Messages.type]
-                if (type in NON_PINNABLE_TYPES) {
+                if (msg[MessagingV2Messages.recordClass] != MessagingV2RecordClass.MESSAGE) {
                     // 允许取消历史脏数据
                     val existingDirty = PinnedMessages.selectAll()
                         .where { (PinnedMessages.chatId eq chatId) and (PinnedMessages.messageId eq messageId) }
@@ -180,7 +182,6 @@ class PinnedMessageRepository {
 
     companion object {
         const val MAX_PINS_PER_CHAT = 20
-        private val NON_PINNABLE_TYPES = setOf("SK_DIST", "SYSTEM", "REVOKED", "NUDGE")
 
         private fun isUniqueViolation(error: Throwable): Boolean {
             var current: Throwable? = error

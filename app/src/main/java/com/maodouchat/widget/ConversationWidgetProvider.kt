@@ -148,7 +148,8 @@ class ConversationWidgetProvider : AppWidgetProvider() {
         val app = context.applicationContext as? MaodouchatApp ?: return
         app.applicationScope.launch {
             try {
-                // 先同步服务端，避免“只清本地角标、换设备/重同步后未读复活”的历史问题。
+                // Persist the read watermark before clearing the local badge so another device
+                // converges through the same durable v2 inbox path.
                 val tokenManager = com.maodouchat.network.TokenManager.getInstance(app)
                 val ownerUserId = tokenManager.getUserId().orEmpty()
                 val token = tokenManager.getToken().orEmpty()
@@ -159,14 +160,28 @@ class ConversationWidgetProvider : AppWidgetProvider() {
                         liveUserId = tokenManager.getUserId(),
                     )
                 ) {
-                    val isSecret = runCatching { app.database.chatDao().isSecretChat(chatId) }.getOrDefault(false)
-                    val serverResult = if (isSecret) {
-                        com.maodouchat.network.ApiService.armSecretChatExpiry(token, chatId)
+                    val chat = app.database.chatDao().getChatById(chatId)
+                    val serverResult = if (chat?.chatType == "SECRET") {
+                        Result.success(Unit)
                     } else {
-                        com.maodouchat.network.ApiService.markAllAsRead(token, chatId)
+                        val boundary = com.maodouchat.data.repository.LocalMessageStore(
+                            app.database.messageDao(),
+                            app.database,
+                        ).getLatestIncomingMessage(chatId, ownerUserId)
+                        if (boundary == null) {
+                            Result.success(Unit)
+                        } else {
+                            runCatching {
+                                app.messagingV2Outbox.enqueueReadReceipt(
+                                    conversationId = chatId,
+                                    throughMessageId = boundary.id,
+                                    groupRevision = chat?.memberRevision?.takeIf { chat.isGroup },
+                                )
+                            }
+                        }
                     }
                     if (serverResult.isFailure) {
-                        android.util.Log.w("ConversationWidgetProvider", "widget mark-read server sync failed", serverResult.exceptionOrNull())
+                        android.util.Log.w("ConversationWidgetProvider", "widget mark-read v2 enqueue failed", serverResult.exceptionOrNull())
                     }
                 }
                 val chatRepo = com.maodouchat.data.repository.ChatRepository(app.database.chatDao(), app.database.userDao())

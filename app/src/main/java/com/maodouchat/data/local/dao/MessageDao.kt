@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.Flow
  * B7 索引映射（v27→v28 追加，见 AppDatabase.MIGRATION_27_28；查询语句本身未改动）：
  * - [getMessagesByChatId] / [getRecentMessages] / [getFirstMessageAtOrAfter] /
  *   [getEarliestMessageTimestamp] → index_messages_chatId_timestamp (chatId, timestamp)
- * - [getSendingOutbox] / [getSendingOutboxForChat] → index_messages_status_senderId_timestamp (status, senderId, timestamp)
  * - [getExpiredMessageIds] → index_messages_expiresAt (expiresAt)
  * - [getImageMessages] / [getSearchableMessages] / [getSearchableMessageIds] /
  *   [getSearchableMessagesAfterCursor] → index_messages_type_timestamp (type, timestamp)
@@ -48,6 +47,49 @@ interface MessageDao {
     @Query(
         """
         SELECT * FROM messages
+        WHERE chatId = :chatId AND senderId != :ownerUserId AND type != 'SK_DIST'
+        ORDER BY timestamp DESC, id DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun getLatestIncomingMessage(
+        chatId: String,
+        ownerUserId: String,
+    ): MessageEntity?
+
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE chatId = :chatId AND senderId = :senderId
+          AND (timestamp < :throughTimestamp OR (timestamp = :throughTimestamp AND id <= :throughMessageId))
+        ORDER BY timestamp ASC, id ASC
+        """,
+    )
+    suspend fun getOutgoingMessagesThrough(
+        chatId: String,
+        senderId: String,
+        throughTimestamp: Long,
+        throughMessageId: String,
+    ): List<MessageEntity>
+
+    @Query(
+        """
+        UPDATE messages SET status = 'READ'
+        WHERE chatId = :chatId AND senderId != :ownerUserId
+          AND type != 'SK_DIST'
+          AND (timestamp < :throughTimestamp OR (timestamp = :throughTimestamp AND id <= :throughMessageId))
+        """,
+    )
+    suspend fun markIncomingReadThrough(
+        chatId: String,
+        ownerUserId: String,
+        throughTimestamp: Long,
+        throughMessageId: String,
+    ): Int
+
+    @Query(
+        """
+        SELECT * FROM messages
         WHERE starred = 1
           AND chatId NOT IN (SELECT id FROM chats WHERE chatType = 'SECRET')
         ORDER BY timestamp DESC
@@ -64,7 +106,7 @@ interface MessageDao {
     suspend fun getMessagesByIds(ids: List<String>): List<MessageEntity>
 
     /**
-     * 同会话/发送者/时间戳的候选行（WS + REST / 乐观发送双写时 id 不同）。
+     * 同会话/发送者/时间戳的候选行（v2 Inbox 与乐观发送收敛时 id 可能不同）。
      * LIMIT 防止异常时间戳碰撞扫全表。
      */
     @Query(
@@ -98,35 +140,6 @@ interface MessageDao {
         """
     )
     suspend fun getEarliestMessageTimestamp(chatId: String): Long?
-
-    /**
-     * Local outbox: non-attachment messages still waiting for server ACK.
-     * NUDGE is WS-ephemeral (server rewrites content) — never encrypt/REST flush it.
-     */
-    @Query(
-        """
-        SELECT * FROM messages
-        WHERE status = 'SENDING'
-          AND senderId = :senderId
-          AND type IN ('TEXT', 'MARKDOWN', 'STICKER', 'LOCATION')
-        ORDER BY timestamp ASC
-        LIMIT :limit
-        """
-    )
-    suspend fun getSendingOutbox(senderId: String, limit: Int = 50): List<MessageEntity>
-
-    @Query(
-        """
-        SELECT * FROM messages
-        WHERE chatId = :chatId
-          AND status = 'SENDING'
-          AND senderId = :senderId
-          AND type IN ('TEXT', 'MARKDOWN', 'STICKER', 'LOCATION')
-        ORDER BY timestamp ASC
-        LIMIT :limit
-        """
-    )
-    suspend fun getSendingOutboxForChat(chatId: String, senderId: String, limit: Int = 50): List<MessageEntity>
 
     // TEXT/VOICE primary; LOCATION label + NUDGE body indexable after local decrypt.
     // 加 LIMIT 防止消息量大的数据库 OOM；DESC 排序保留最新消息，配合 MessageSearchRepository.refreshIndex

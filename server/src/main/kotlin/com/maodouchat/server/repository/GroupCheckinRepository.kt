@@ -394,7 +394,7 @@ object GroupCheckinRepository {
         if (c.isBlank() || c.length > MAX_CHAIN_CONTENT_LENGTH) return null
         return transaction {
             // 8.50 修复 H1：先锁 chat 再锁 chain——原「先锁 chain 再锁 chat」与 leaveChat/
-            // deleteChatRows 的「chat → chain」构成 AB-BA 死锁环（PG deadlock / SQLite locked）
+            // ConversationStateDeletion's chat -> chain lock order can otherwise form an AB-BA cycle.
             val chatId = GroupChains.select(GroupChains.chatId)
                 .where { GroupChains.id eq chainId }
                 .firstOrNull()?.get(GroupChains.chatId) ?: return@transaction null
