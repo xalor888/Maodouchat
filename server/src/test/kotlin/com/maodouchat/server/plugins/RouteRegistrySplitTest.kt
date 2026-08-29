@@ -166,6 +166,7 @@ class RouteRegistrySplitTest {
             "BotPresentationStatusRouting.kt",
             "BotPresentationCardsRouting.kt",
             "BotChatInviteRouting.kt",
+            "BotMediaRouting.kt",
         )
     }
 }
