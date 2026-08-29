@@ -81,9 +81,9 @@
 
 ### A01 构建、依赖与装配
 
-当前状态：`[ ]`。目前 Android 仍是单 `:app` 模块，全局对象和 service locator 较多。
+当前状态：`[~]`。core/domain/feature 空壳模块已全部建立（§4.1 所列模块），但依赖注入装配、架构静态检查和代码迁移尚未开始。
 
-- [ ] 建立上面的 core/domain/feature 模块骨架和单向依赖规则。
+- [x] 建立上面的 core/domain/feature 模块骨架和单向依赖规则（17 个模块全部可编译，依赖方向 feature→domain→core 无环）。
 - [ ] 引入统一依赖注入装配；领域类不得读取 `MaodouchatApp.instance`。
 - [ ] 为禁止依赖建立静态检查：ViewModel/Composable 不得依赖 DAO、全局 API、Application。
 - [ ] `MaodouchatApp.kt` 只保留进程级初始化和 dependency graph。
