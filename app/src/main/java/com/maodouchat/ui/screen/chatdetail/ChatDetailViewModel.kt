@@ -41,12 +41,9 @@ import com.maodouchat.messaging.v2.MessageMutationProjection
 import com.maodouchat.messaging.v2.MessageMutationKind
 import com.maodouchat.messaging.v2.createAndroidGroupMessagingCoordinator
 import com.maodouchat.messaging.v2.MessagingV2MessageGateway
-import com.maodouchat.messaging.v2.OutgoingConversationContext
 import com.maodouchat.messaging.v2.OutgoingConversationErrors
 import com.maodouchat.messaging.v2.OutgoingConversationRequest
-import com.maodouchat.messaging.v2.OutgoingConversationResolver
 import com.maodouchat.messaging.v2.OutgoingMessageCommand
-import com.maodouchat.messaging.v2.OutgoingMessageCoordinator
 import com.maodouchat.messaging.v2.OutgoingMessageResult
 import com.maodouchat.forwarding.ConversationForwardCoordinator
 import com.maodouchat.data.local.entity.AttachmentTransferState
@@ -72,7 +69,6 @@ import com.maodouchat.data.repository.AiTaskRepository
 import com.maodouchat.data.repository.AiOperationRepository
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.data.repository.UserRepository
-import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.AiContextMessage
 import com.maodouchat.network.AiGroupTask
 import com.maodouchat.network.AiSemanticSearchCandidate
@@ -82,12 +78,7 @@ import com.maodouchat.network.ApiService
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.PinnedMessageDto
 import com.maodouchat.network.TokenManager
-import com.maodouchat.network.WebSocketClient
 import com.maodouchat.network.WebSocketEvent
-import com.maodouchat.network.shouldApplyTypingEvent
-import com.maodouchat.network.resolveTypingSignalAction
-import com.maodouchat.network.TypingSignalAction
-import com.maodouchat.network.REMOTE_TYPING_TIMEOUT_MS
 import com.maodouchat.scheduling.AndroidConversationScheduleBackend
 import com.maodouchat.scheduling.ChatReminderOutcome
 import com.maodouchat.scheduling.ChatScheduleCommand
@@ -228,8 +219,8 @@ class ChatDetailViewModel(
     private val chatRepo = ChatRepository(app.database.chatDao(), app.database.userDao())
     private val chatDraftDao = app.database.chatDraftDao()
     internal val tokenManager = TokenManager.getInstance(application)
-    private val outgoingConversationResolver by lazy {
-        OutgoingConversationResolver(
+    private val outgoingFacade by lazy {
+        ChatOutgoingFacade(
             getCachedConversation = chatRepo::getChatById,
             fetchConversations = { liveToken ->
                 ApiService.getChats(liveToken).getOrThrow().map { it.toDomainChat() }
@@ -258,19 +249,19 @@ class ChatDetailViewModel(
                 recipientNotReady = { text(R.string.chat_recipient_not_ready) },
                 cannotSendToSelf = { text(R.string.chat_cannot_send_self) },
             ),
-        )
-    }
-    private val outgoingMessageCoordinator by lazy {
-        OutgoingMessageCoordinator(
-            resolveConversation = {
-                val resolved = resolveOutgoingChat().getOrThrow()
-                OutgoingConversationContext(
-                    conversationId = resolved.chatId,
-                    groupRevision = resolved.chat.memberRevision.takeIf { resolved.chat.isGroup },
-                    isGroup = resolved.chat.isGroup,
-                    peerUserId = resolved.peerId,
+            currentRequest = {
+                val state = _uiState.value
+                OutgoingConversationRequest(
+                    ownerUserId = currentUserId,
+                    authToken = token,
+                    activeConversationId = activeChatId,
+                    constructorConversationId = chatId,
+                    paintedConversation = state.chat,
+                    activeContactId = state.contact.id,
+                    createSecretConversation = state.chat?.isSecret == true || state.isSecretChat == true,
                 )
             },
+            hydrateConversation = ::hydrateOutgoingChat,
             stageDurableMessage = { message, groupRevision, body, type ->
                 messageGateway.stageAndEnqueue(message, groupRevision, body, type)
             },
@@ -278,13 +269,6 @@ class ChatDetailViewModel(
                 messageGateway.retry(message, groupRevision, body, type)
             },
             persistFailedMessage = messageRepo::insertMessage,
-            isOwnerSessionCurrent = { ownerUserId ->
-                com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            },
         )
     }
     private val conversationScheduleCoordinator = ConversationScheduleCoordinator(
@@ -586,9 +570,92 @@ class ChatDetailViewModel(
         receiptsEnabled = { RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.READ_RECEIPTS) },
         errorMessage = { error -> error.message ?: text(R.string.chat_read_details_failed) },
     )
-    private val remoteTypingCoordinator = RemoteTypingCoordinator(viewModelScope) { userId ->
-        _uiState.update { it.copy(typingContact = userId) }
-    }
+    private val pinStarController = ChatPinStarController(
+        application = application,
+        scope = viewModelScope,
+        chatId = { chatId },
+        ownerUserId = { currentUserId },
+        token = { token },
+        sessionActive = { ownerUserId ->
+            com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                expectedUserId = ownerUserId,
+                liveToken = tokenManager.getToken(),
+                liveUserId = tokenManager.getUserId(),
+            )
+        },
+        currentState = _uiState::value,
+        updateState = { transform -> _uiState.update(transform) },
+        persistMessage = messageRepo::insertMessage,
+        text = { id, args -> text(id, *args) },
+    )
+    private val moderationController = ChatModerationController(
+        application = application,
+        scope = viewModelScope,
+        ownerUserId = { currentUserId },
+        token = { token },
+        activeChatId = { activeChatId },
+        sessionActive = { ownerUserId ->
+            com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                expectedUserId = ownerUserId,
+                liveToken = tokenManager.getToken(),
+                liveUserId = tokenManager.getUserId(),
+            )
+        },
+        currentState = _uiState::value,
+        updateState = { transform -> _uiState.update(transform) },
+        text = { id, args -> text(id, *args) },
+    )
+    private val botGroupActionController = ChatBotGroupActionController(
+        scope = viewModelScope,
+        groupLifecycleCoordinator = groupLifecycleCoordinator,
+        ownerUserId = { currentUserId },
+        token = { token },
+        activeChatId = { activeChatId },
+        sessionActive = { ownerUserId ->
+            com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                expectedUserId = ownerUserId,
+                liveToken = tokenManager.getToken(),
+                liveUserId = tokenManager.getUserId(),
+            )
+        },
+        currentState = _uiState::value,
+        updateState = { transform -> _uiState.update(transform) },
+        text = { id, args -> text(id, *args) },
+        quantityText = { id, quantity, args -> quantityText(id, quantity, *args) },
+    )
+    private val realtimeController = ChatRealtimeController(
+        application = application,
+        scope = viewModelScope,
+        tokenManager = tokenManager,
+        ownerUserId = { currentUserId },
+        token = { token },
+        activeChatId = { activeChatId },
+        sessionActive = { ownerUserId ->
+            com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                expectedUserId = ownerUserId,
+                liveToken = tokenManager.getToken(),
+                liveUserId = tokenManager.getUserId(),
+            )
+        },
+        currentState = _uiState::value,
+        updateState = { transform -> _uiState.update(transform) },
+        persistDisappearingMessages = { targetChatId, seconds ->
+            chatRepo.getChatById(targetChatId)?.let { local ->
+                chatRepo.cacheChats(listOf(local.copy(disappearingMessageSeconds = seconds)))
+            }
+        },
+        applyRealtimeVisibility = { event ->
+            app.database.userDao().applyRealtimeVisibility(
+                userId = event.userId,
+                isOnline = event.isOnline,
+                onlineRevoked = event.onlineRevoked,
+                statusRevoked = event.statusRevoked,
+                updatedAt = System.currentTimeMillis(),
+            )
+        },
+        onGroupRevisionChanged = ::handleGroupRevisionChanged,
+        text = { id -> text(id) },
+    )
 
     init {
         _uiState.update {
@@ -636,9 +703,7 @@ class ChatDetailViewModel(
             loadChat()
             observeLocalMessages()
             observeAuthoritativeMessageMutations()
-            connectWebSocket()
-            observeWebSocket()
-            observePresenceFallbackPolling()
+            realtimeController.start()
             observeMessageStatus()
             readReceiptCoordinator.observe(activeChatId.ifBlank { chatId })
             observeAttachmentTransfers()
@@ -1156,30 +1221,8 @@ class ChatDetailViewModel(
         }
     }
 
-    private suspend fun refreshPinnedMessages(expectedUserId: String) {
-        if (expectedUserId.isBlank() || chatId.isBlank()) return
-        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = expectedUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
-        ) {
-            return
-        }
-        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-        if (liveToken.isBlank()) return
-        ApiService.getPinnedMessages(liveToken, chatId).onSuccess { response ->
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = expectedUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) {
-                return@onSuccess
-            }
-            _uiState.update { it.copy(pinnedMessages = response.pins) }
-        }
-    }
+    private suspend fun refreshPinnedMessages(expectedUserId: String) =
+        pinStarController.refreshPinnedMessages(expectedUserId)
 
     private suspend fun refreshMyMemberRole(expectedUserId: String) {
         if (expectedUserId.isBlank() || chatId.isBlank()) return
@@ -1206,90 +1249,7 @@ class ChatDetailViewModel(
         }
     }
 
-    fun togglePinMessage(messageId: String) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_PIN)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
-            return
-        }
-        val state = _uiState.value
-        val message = state.messages.find { it.id == messageId } ?: return
-        val pinOwnerUserId = currentUserId
-        if (token.isBlank() || pinOwnerUserId.isBlank() || chatId.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        if (!MessagePinPolicy.canPin(state.chatIsGroup, state.myMemberRole, message.type)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_pin_forbidden)) }
-            return
-        }
-        val alreadyPinned = state.pinnedMessages.any { it.messageId == messageId }
-        if (MessagePinPolicy.wouldExceedLimit(state.pinnedMessages.size, alreadyPinned)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_pin_limit, MessagePinPolicy.MAX_PINS)) }
-            return
-        }
-        if (state.isTogglingPin) return
-        _uiState.update { it.copy(isTogglingPin = true) }
-        viewModelScope.launch {
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = pinOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) {
-                    _uiState.update {
-                        it.copy(
-                            isTogglingPin = false,
-                            groupEncryptionWarning = text(R.string.error_session_expired)
-                        )
-                    }
-                    return@launch
-                }
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                ApiService.togglePinnedMessage(liveToken, chatId, messageId).fold(
-                    onSuccess = { response ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = pinOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            return@fold
-                        }
-                        _uiState.update {
-                            it.copy(
-                                isTogglingPin = false,
-                                pinnedMessages = response.pins,
-                                groupEncryptionWarning = if (response.pinned) {
-                                    text(R.string.chat_pin_success)
-                                } else {
-                                    text(R.string.chat_unpin_success)
-                                }
-                            )
-                        }
-                    },
-                    onFailure = { error ->
-                        _uiState.update {
-                            it.copy(
-                                isTogglingPin = false,
-                                groupEncryptionWarning = error.message ?: text(R.string.chat_pin_failed)
-                            )
-                        }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { it.copy(isTogglingPin = false) }
-                throw error
-            } catch (error: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isTogglingPin = false,
-                        groupEncryptionWarning = error.message ?: text(R.string.chat_pin_failed)
-                    )
-                }
-            }
-        }
-    }
+    fun togglePinMessage(messageId: String) = pinStarController.togglePinMessage(messageId)
 
     fun jumpToPinnedMessage(messageId: String) {
         if (messageId.isBlank()) return
@@ -1302,106 +1262,8 @@ class ChatDetailViewModel(
         _uiState.update { state -> searchSelectionStateController.navigateTo(state, messageId) }
     }
 
-    // 1.10：多选批量置顶/取消置顶（逐条调用置顶接口，最后统一提示成功/失败数）
-    fun togglePinMessages(messageIds: List<String>, shouldPin: Boolean) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_PIN)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
-            return
-        }
-        val state = _uiState.value
-        val pinOwnerUserId = currentUserId
-        if (token.isBlank() || pinOwnerUserId.isBlank() || chatId.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        if (state.isTogglingPin) return
-        val pinnedIds = state.pinnedMessages.map { it.messageId }.toSet()
-        val targetIds = messageIds.filter { (it in pinnedIds) != shouldPin }
-        if (targetIds.isEmpty()) return
-        val targets = state.messages.filter { it.id in targetIds }
-        if (targets.size != targetIds.size) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_pin_failed)) }
-            return
-        }
-        // 1.24：仅处理可置顶类型的消息（系统/撤回等跳过），全部不可置顶才拒绝
-        val pinnableTargets = targets.filter {
-            MessagePinPolicy.canPin(state.chatIsGroup, state.myMemberRole, it.type)
-        }
-        if (pinnableTargets.isEmpty()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_pin_forbidden)) }
-            return
-        }
-        val effectiveTargetIds = pinnableTargets.map { it.id }
-        if (shouldPin) {
-            val newCount = pinnedIds.size + effectiveTargetIds.count { it !in pinnedIds }
-            if (newCount > MessagePinPolicy.MAX_PINS) {
-                _uiState.update {
-                    it.copy(groupEncryptionWarning = text(R.string.chat_pin_limit, MessagePinPolicy.MAX_PINS))
-                }
-                return
-            }
-        }
-        _uiState.update { it.copy(isTogglingPin = true) }
-        viewModelScope.launch {
-            var currentPins = state.pinnedMessages
-            var successCount = 0
-            var sessionExpired = false
-            try {
-                for (messageId in effectiveTargetIds) {
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = pinOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
-                    ) {
-                        sessionExpired = true
-                        break
-                    }
-                    val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                    ApiService.togglePinnedMessage(liveToken, chatId, messageId).fold(
-                        onSuccess = { response ->
-                            successCount += 1
-                            currentPins = response.pins
-                        },
-                        onFailure = { _ ->
-                            // 单条失败继续尝试其余，最终按成败数统计提示
-                        }
-                    )
-                }
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { it.copy(isTogglingPin = false) }
-                throw error
-            } catch (error: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isTogglingPin = false,
-                        groupEncryptionWarning = error.message ?: text(R.string.chat_pin_failed)
-                    )
-                }
-                return@launch
-            }
-            val failedCount = effectiveTargetIds.size - successCount
-            _uiState.update {
-                it.copy(
-                    isTogglingPin = false,
-                    pinnedMessages = currentPins,
-                    groupEncryptionWarning = when {
-                        sessionExpired -> text(R.string.error_session_expired)
-                        failedCount > 0 && successCount > 0 -> text(
-                            if (shouldPin) R.string.chat_batch_pin_partial else R.string.chat_batch_unpin_partial,
-                            successCount,
-                            failedCount
-                        )
-                        successCount > 0 -> text(
-                            if (shouldPin) R.string.chat_batch_pin_success else R.string.chat_batch_unpin_success,
-                            successCount
-                        )
-                        else -> text(R.string.chat_pin_failed)
-                    }
-                )
-            }
-        }
-    }
+    fun togglePinMessages(messageIds: List<String>, shouldPin: Boolean) =
+        pinStarController.togglePinMessages(messageIds, shouldPin)
 
     // 1.11：发送名片（联系人卡片）——构造卡片文本后复用 sendMessage 完整发送链路（加密/出站/状态）
     fun sendContactCard(targetUserId: String, displayName: String) {
@@ -1682,236 +1544,6 @@ class ChatDetailViewModel(
         }
     }
 
-    private fun connectWebSocket() {
-        val connectOwnerUserId = currentUserId
-        if (
-            connectOwnerUserId.isBlank() ||
-            connectOwnerUserId == "me" ||
-            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = connectOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
-        ) {
-            return
-        }
-        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-        if (liveToken.isBlank()) return
-        WebSocketClient.connect(ApiConfig.WS_URL, liveToken)
-    }
-
-    /**
-     * 9.295：presence 轮询兜底——服务端 USER_STATUS 广播有频控（20次/分）与在线规模上限
-     * （PRESENCE_FANOUT_CAP），超限即丢弃；服务端注释声明「由客户端定期轮询在线状态兜底」，
-     * 但此前客户端从未实现轮询——广播一旦被丢，顶栏在线状态就永远不再更新（用户反馈「实时状态没了」）。
-     * 单聊打开期间每 30 秒拉一次对端状态；群聊/密聊不走此路径（与 WS 事件门控一致）。
-     */
-    private fun observePresenceFallbackPolling() {
-        viewModelScope.launch {
-            while (true) {
-                kotlinx.coroutines.delay(30_000L)
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = currentUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) continue
-                if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.PRESENCE)) continue
-                val state = _uiState.value
-                if (state.chatIsGroup || state.isSecretChat == true) continue
-                // 密聊 presence 门控（同 WS 事件路径 Surface #69）
-                if (RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_PRESENCE_BLOCK) && state.isSecretChat == true) continue
-                val contactId = state.contact.id.takeIf(String::isNotBlank) ?: continue
-                val liveToken = tokenManager.getToken().orEmpty()
-                if (liveToken.isBlank()) continue
-                ApiService.getUser(liveToken, contactId).onSuccess { dto ->
-                    // 服务端已按 showOnline 隐私计算返回值，客户端直接应用
-                    _uiState.update { cur ->
-                        if (cur.contact.id != contactId || cur.chatIsGroup) cur
-                        else cur.copy(contact = cur.contact.copy(isOnline = dto.isOnline, lastSeen = dto.lastSeen))
-                    }
-                }
-            }
-        }
-    }
-
-    private fun observeWebSocket() {
-        viewModelScope.launch {
-            WebSocketClient.events.collect { event ->
-                // Buffered WS events after logout must not mutate the next account's UI/DB.
-                if (tokenManager.getUserId().isNullOrBlank() || tokenManager.getToken().isNullOrBlank()) {
-                    return@collect
-                }
-                when (event) {
-                    is WebSocketEvent.PinnedMessagesUpdated -> {
-                        val pinOwnerUserId = currentUserId
-                        if (
-                            pinOwnerUserId.isBlank() ||
-                            pinOwnerUserId == "me" ||
-                            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = pinOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            return@collect
-                        }
-                        if (isActiveChatEvent(activeChatId, event.chatId)) {
-                            _uiState.update { it.copy(pinnedMessages = event.pins) }
-                        }
-                    }
-                    is WebSocketEvent.DisappearingMessagesUpdated -> {
-                        val ownerUserId = currentUserId
-                        if (
-                            ownerUserId.isBlank() ||
-                            ownerUserId == "me" ||
-                            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            return@collect
-                        }
-                        if (!isActiveChatEvent(activeChatId, event.chatId)) return@collect
-                        val seconds = com.maodouchat.util.DisappearingMessagePolicy.normalizeSeconds(event.seconds)
-                        _uiState.update {
-                            it.copy(
-                                disappearingMessageSeconds = seconds,
-                                chat = it.chat?.copy(disappearingMessageSeconds = seconds)
-                            )
-                        }
-                        withContext(Dispatchers.IO) {
-                            val local = chatRepo.getChatById(event.chatId)
-                            if (local != null) {
-                                chatRepo.cacheChats(listOf(local.copy(disappearingMessageSeconds = seconds)))
-                            }
-                        }
-                    }
-                    is WebSocketEvent.UserTyping -> {
-                        val typingOwnerUserId = currentUserId
-                        if (
-                            typingOwnerUserId.isBlank() ||
-                            typingOwnerUserId == "me" ||
-                            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = typingOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            return@collect
-                        }
-                        remoteTypingCoordinator.onEvent(
-                            activeChatId = activeChatId,
-                            eventChatId = event.chatId,
-                            userId = event.userId,
-                            isTyping = event.isTyping
-                        )
-                    }
-                    is WebSocketEvent.GroupRevisionChanged -> handleGroupRevisionChanged(event)
-
-                    is WebSocketEvent.UserOnline -> {
-                        val presenceOwnerUserId = currentUserId
-                        if (
-                            presenceOwnerUserId.isBlank() ||
-                            presenceOwnerUserId == "me" ||
-                            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = presenceOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            return@collect
-                        }
-                        if (event.onlineRevoked || event.statusRevoked) {
-                            app.database.userDao().applyRealtimeVisibility(
-                                userId = event.userId,
-                                isOnline = event.isOnline,
-                                onlineRevoked = event.onlineRevoked,
-                                statusRevoked = event.statusRevoked,
-                                updatedAt = System.currentTimeMillis()
-                            )
-                        }
-                        if (shouldApplyContactPresence(_uiState.value.chatIsGroup, _uiState.value.contact.id, event.userId)) {
-                            if (event.onlineRevoked || event.statusRevoked) {
-                                _uiState.update { state ->
-                                    val contact = state.contact
-                                    val visibility = com.maodouchat.network.resolveUserVisibility(
-                                        currentIsOnline = contact.isOnline,
-                                        currentStatus = contact.status,
-                                        currentLastSeen = contact.lastSeen,
-                                        eventIsOnline = event.isOnline,
-                                        eventLastSeen = event.lastSeen,
-                                        onlineRevoked = event.onlineRevoked,
-                                        statusRevoked = event.statusRevoked
-                                    )
-                                    state.copy(
-                                        contact = contact.copy(
-                                            isOnline = visibility.isOnline,
-                                            status = visibility.status,
-                                            lastSeen = visibility.lastSeen
-                                        )
-                                    )
-                                }
-                                return@collect
-                            }
-                            if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.PRESENCE)) return@collect
-                            // Surface #69: 密聊 presence 门控 — 防止在线状态侧信道
-                            if (_uiState.value.isSecretChat == true && RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_PRESENCE_BLOCK)) return@collect
-                            _uiState.update {
-                                it.copy(contact = it.contact.copy(isOnline = event.isOnline, lastSeen = event.lastSeen))
-                            }
-                        }
-                    }
-                    is WebSocketEvent.Connected -> {
-                        // 重连后走按 chat 游标的增量同步，避免仅靠 UI 时间戳窗口漏消息
-                        if (event.success) {
-                            disconnectBannerJob?.cancel()
-                            disconnectBannerJob = null
-                            // Clear soft WS disconnect banner if it was the connection-failed string.
-                            _uiState.update { state ->
-                                if (state.groupEncryptionWarning == text(R.string.chat_ws_connection_failed)) {
-                                    state.copy(groupEncryptionWarning = null)
-                                } else state
-                            }
-                        } else {
-                            scheduleDisconnectBanner()
-                        }
-                    }
-                    is WebSocketEvent.Disconnected -> {
-                        // Peer typing leases are WS-only; drop them so UI does not stick after drop.
-                        remoteTypingCoordinator.clear()
-                        scheduleDisconnectBanner()
-                    }
-                    is WebSocketEvent.Error -> {
-                        Log.w("ChatDetailViewModel", "WS error: ${event.kind}; ${event.debugDetail.orEmpty()}")
-                        if (event.kind == com.maodouchat.network.WebSocketErrorKind.CONNECTION) {
-                            scheduleDisconnectBanner()
-                        } else {
-                            _uiState.update {
-                                it.copy(groupEncryptionWarning = text(R.string.chat_ws_data_invalid))
-                            }
-                        }
-                    }
-                    is WebSocketEvent.ServerError -> {
-                        // WebSocket no longer carries message sends or delivery mutations. Its
-                        // errors belong to ephemeral control traffic and must never fail a v2 row.
-                        Log.w(
-                            "ChatDetailViewModel",
-                            "WS server error: ${event.code.orEmpty()} ${event.message}",
-                        )
-                        if (event.message.isNotBlank()) {
-                            _uiState.update {
-                                it.copy(groupEncryptionWarning = event.message.take(120))
-                            }
-                        }
-                    }
-                    else -> Unit
-                }
-            }
-        }
-    }
-
     private suspend fun handleGroupRevisionChanged(event: WebSocketEvent.GroupRevisionChanged) {
         val revisionOwnerUserId = currentUserId
         if (
@@ -1956,7 +1588,7 @@ class ChatDetailViewModel(
             ) {
                 return
             }
-            remoteTypingCoordinator.clear()
+            realtimeController.clearRemoteTyping()
             semanticSearchGate.invalidate()
             aiRewriteGate.invalidate()
             aiReplyGate.invalidate()
@@ -2036,26 +1668,6 @@ class ChatDetailViewModel(
         refreshMyMemberRole(revisionOwnerUserId)
     }
 
-    private var typingDebounceJob: kotlinx.coroutines.Job? = null
-    private var disconnectBannerJob: kotlinx.coroutines.Job? = null
-    private var announcedTypingChatId: String? = null
-
-    private fun scheduleDisconnectBanner() {
-        if (disconnectBannerJob?.isActive == true) return
-        disconnectBannerJob = viewModelScope.launch {
-            delay(com.maodouchat.network.RealtimeDisconnectPolicy.BANNER_DELAY_MS)
-            if (com.maodouchat.network.WebSocketClient.isConnected()) return@launch
-            val connectionMsg = text(R.string.chat_ws_connection_failed)
-            _uiState.update { state ->
-                if (state.groupEncryptionWarning.isNullOrBlank() ||
-                    state.groupEncryptionWarning == connectionMsg
-                ) {
-                    state.copy(groupEncryptionWarning = connectionMsg)
-                } else state
-            }
-        }
-    }
-
     fun onInputChange(text: String) {
         hasUserEditedInput = true
         // 8.52 UX：对齐服务端 4000 上限本地截断（此前粘贴超长文本会无限进入输入态/被服务端拒绝）
@@ -2065,18 +1677,7 @@ class ChatDetailViewModel(
         // 1.162：用户编辑后清除「已恢复草稿」标识
         _uiState.update { it.copy(inputText = clipped, hasSavedDraft = false, aiSuggestions = emptyList(), aiReplyStreamErrorCode = null) }
         scheduleDraftPersistence(clipped)
-        typingDebounceJob?.cancel()
-        when (resolveTypingSignalAction(announcedTypingChatId != null, text.isNotBlank())) {
-            TypingSignalAction.START -> announceTypingStarted()
-            TypingSignalAction.STOP -> stopTypingAnnouncement()
-            TypingSignalAction.NONE -> Unit
-        }
-        if (text.isNotBlank()) {
-            typingDebounceJob = viewModelScope.launch {
-                kotlinx.coroutines.delay(REMOTE_TYPING_TIMEOUT_MS)
-                stopTypingAnnouncement()
-            }
-        }
+        realtimeController.onComposerTextChanged(text.isNotBlank())
     }
 
     internal suspend fun commitAiMessageResult(
@@ -2108,48 +1709,6 @@ class ChatDetailViewModel(
             aiAutoRetryAt.remove(operationId)
         }
         return true
-    }
-
-    private fun announceTypingStarted() {
-        // Surface #67: 密聊 typing 门控 — 防止输入状态侧信道泄露
-        if (_uiState.value.isSecretChat == true && RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_TYPING_BLOCK)) {
-            return
-        }
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.TYPING_INDICATORS)) return
-        if (!TypingSessionPolicy.shouldAnnounceStart(activeChatId, announcedTypingChatId)) return
-        val chatId = activeChatId
-        val typingOwnerUserId = currentUserId
-        // Logout/disconnect/switch: do not emit typing under a dead or switched session.
-        if (!TypingSessionPolicy.mayEmit(
-                ownerUserId = typingOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId()
-            )
-        ) {
-            return
-        }
-        announcedTypingChatId?.let { WebSocketClient.sendTyping(it, false) }
-        if (WebSocketClient.sendTyping(chatId, true)) announcedTypingChatId = chatId
-    }
-
-    private fun stopTypingAnnouncement() {
-        // Surface #67: 密聊 typing 门控 — 从未发起则无需 stop（避免状态泄漏）
-        if (_uiState.value.isSecretChat == true && RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_TYPING_BLOCK)) {
-            return
-        }
-        val chatId = announcedTypingChatId ?: return
-        announcedTypingChatId = null
-        val typingOwnerUserId = currentUserId
-        // Best-effort stop; only if socket still authenticated for this process session.
-        if (!TypingSessionPolicy.mayEmit(
-                ownerUserId = typingOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId()
-            )
-        ) {
-            return
-        }
-        WebSocketClient.sendTyping(chatId, false)
     }
 
     private fun observeAttachmentFinalizedEvents() {
@@ -3025,7 +2584,7 @@ class ChatDetailViewModel(
         viewModelScope.launch {
             try {
                 val result = withContext(Dispatchers.IO) {
-                    outgoingMessageCoordinator.enqueue(
+                    outgoingFacade.enqueue(
                         OutgoingMessageCommand(
                             ownerUserId = nudgeOwnerUserId,
                             optimisticMessage = optimistic,
@@ -3090,7 +2649,7 @@ class ChatDetailViewModel(
                     text(R.string.chat_retry_type_unsupported)
                 }
                 val result = withContext(Dispatchers.IO) {
-                    outgoingMessageCoordinator.retry(
+                    outgoingFacade.retry(
                         OutgoingMessageCommand(
                             ownerUserId = retryOwnerUserId,
                             optimisticMessage = sendingMsg,
@@ -3387,152 +2946,10 @@ class ChatDetailViewModel(
         }
     }
 
-    fun toggleStarMessage(messageId: String) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_STARRING)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.message_starring_disabled)) }
-            return
-        }
-        // Surface #70: 密聊 star 门控 - 防止通过 star 留存密聊内容索引
-        if (_uiState.value.isSecretChat == true && RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_STAR_BLOCK)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_star_blocked)) }
-            return
-        }
+    fun toggleStarMessage(messageId: String) = pinStarController.toggleStarMessage(messageId)
 
-        val original = _uiState.value.messages.find { it.id == messageId } ?: return
-        val starOwnerUserId = currentUserId
-        if (token.isBlank() || starOwnerUserId.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        // Optimistic star/unstar so list + bubble flip immediately; cancel/failure roll back.
-        val optimistic = original.copy(starred = !original.starred)
-        _uiState.update { state ->
-            state.copy(messages = state.messages.map { if (it.id == messageId) optimistic else it })
-        }
-        viewModelScope.launch {
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = starOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) {
-                    _uiState.update { state ->
-                        state.copy(
-                            messages = state.messages.map { if (it.id == messageId) original else it },
-                            groupEncryptionWarning = text(R.string.error_session_expired)
-                        )
-                    }
-                    return@launch
-                }
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                ApiService.toggleStarMessage(liveToken, messageId).fold(
-                    onSuccess = { response ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = starOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            return@fold
-                        }
-                        val updated = original.copy(starred = response.starred)
-                        _uiState.update { state ->
-                            state.copy(
-                                messages = state.messages.map { if (it.id == messageId) updated else it },
-                                groupEncryptionWarning = if (response.starred) text(R.string.chat_starred_status) else text(R.string.chat_unstarred_status)
-                            )
-                        }
-                        withContext(Dispatchers.IO) { messageRepo.insertMessage(updated) }
-                    },
-                    onFailure = { error ->
-                        _uiState.update { state ->
-                            state.copy(
-                                messages = state.messages.map { if (it.id == messageId) original else it },
-                                groupEncryptionWarning = error.message ?: text(R.string.chat_star_failed)
-                            )
-                        }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { state ->
-                    state.copy(messages = state.messages.map { if (it.id == messageId) original else it })
-                }
-                throw error
-            }
-        }
-    }
-
-    /**
-     * 9.227：批量收藏/取消收藏——单协程内串行逐条执行。旧多选实现对每条并发触发
-     * [toggleStarMessage]，选 20 条即 20 个并发 REST（限流/服务端放大风险）且警告互相覆盖；
-     * 现批量乐观更新后串行确认，单条失败仅回滚该条，末尾统一汇总提示。
-     */
-    fun toggleStarMessagesBatch(messageIds: List<String>, shouldStar: Boolean) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_STARRING)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.message_starring_disabled)) }
-            return
-        }
-        // Surface #70: 密聊 star 门控 - 防止通过 star 留存密聊内容索引
-        if (_uiState.value.isSecretChat == true && RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_STAR_BLOCK)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_star_blocked)) }
-            return
-        }
-        val starOwnerUserId = currentUserId
-        if (token.isBlank() || starOwnerUserId.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        val idSet = messageIds.toSet()
-        val targets = _uiState.value.messages.filter { it.id in idSet && it.starred != shouldStar }
-        if (targets.isEmpty()) return
-        // 批量乐观更新，列表/气泡立即翻转；失败逐条回滚
-        val targetIds = targets.map { it.id }.toSet()
-        _uiState.update { state ->
-            state.copy(messages = state.messages.map { if (it.id in targetIds) it.copy(starred = shouldStar) else it })
-        }
-        viewModelScope.launch {
-            var failed = 0
-            try {
-                for (msg in targets) {
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = starOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
-                    ) {
-                        _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-                        return@launch
-                    }
-                    val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                    ApiService.toggleStarMessage(liveToken, msg.id).fold(
-                        onSuccess = { response ->
-                            val updated = msg.copy(starred = response.starred)
-                            _uiState.update { state ->
-                                state.copy(messages = state.messages.map { if (it.id == msg.id) updated else it })
-                            }
-                            withContext(Dispatchers.IO) { messageRepo.insertMessage(updated) }
-                        },
-                        onFailure = { _ ->
-                            failed++
-                            _uiState.update { state ->
-                                state.copy(messages = state.messages.map { if (it.id == msg.id) msg else it })
-                            }
-                        }
-                    )
-                }
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            }
-            _uiState.update {
-                it.copy(
-                    groupEncryptionWarning = if (failed == 0) {
-                        if (shouldStar) text(R.string.chat_starred_status) else text(R.string.chat_unstarred_status)
-                    } else text(R.string.chat_star_failed)
-                )
-            }
-        }
-    }
+    fun toggleStarMessagesBatch(messageIds: List<String>, shouldStar: Boolean) =
+        pinStarController.toggleStarMessagesBatch(messageIds, shouldStar)
 
     fun setMessageReaction(messageId: String, emoji: String) {
         if (!requireReactions()) return
@@ -3612,313 +3029,26 @@ class ChatDetailViewModel(
     fun loadGroupReadCount(messageId: String, force: Boolean = false) =
         readReceiptCoordinator.loadCount(messageId, force)
 
-    private fun refreshBlockState(contactId: String = _uiState.value.contact.id) {
-        val ownerUserId = currentUserId
-        if (contactId.isBlank() || token.isBlank() || ownerUserId.isBlank()) return
-        viewModelScope.launch {
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) {
-                return@launch
-            }
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            ApiService.getBlockedUsers(liveToken).onSuccess { blocked ->
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) {
-                    return@onSuccess
-                }
-                _uiState.update { it.copy(isContactBlocked = contactId in blocked) }
-            }
-        }
-    }
+    private fun refreshBlockState(contactId: String = _uiState.value.contact.id) =
+        moderationController.refreshBlockState(contactId)
 
-    fun blockContact() {
-        val contactId = _uiState.value.contact.id
-        val ownerUserId = currentUserId
-        if (contactId.isBlank() || contactId == ownerUserId) return
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.BLOCK_REPORT)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
-            return
-        }
-        if (token.isBlank() || ownerUserId.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        if (_uiState.value.isBlockingContact) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isBlockingContact = true, groupEncryptionWarning = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) {
-                    _uiState.update { it.copy(isBlockingContact = false) }
-                    return@launch
-                }
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                ApiService.blockUser(liveToken, contactId).fold(
-                    onSuccess = {
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            return@fold
-                        }
-                        _uiState.update { it.copy(isContactBlocked = true, isBlockingContact = false, groupEncryptionWarning = text(R.string.chat_blocked_user_status, it.contact.displayName)) }
-                    },
-                    onFailure = { error -> _uiState.update { it.copy(isBlockingContact = false, groupEncryptionWarning = error.message ?: text(R.string.chat_block_failed)) } }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { it.copy(isBlockingContact = false) }
-                throw error
-            }
-        }
-    }
+    fun blockContact() = moderationController.blockContact()
 
-    fun unblockContact() {
-        val contactId = _uiState.value.contact.id
-        val ownerUserId = currentUserId
-        if (contactId.isBlank()) return
-        // Unblock remains available even when block/report feature is toggled off.
-        if (token.isBlank() || ownerUserId.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        if (_uiState.value.isBlockingContact) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isBlockingContact = true, groupEncryptionWarning = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) {
-                    _uiState.update { it.copy(isBlockingContact = false) }
-                    return@launch
-                }
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                ApiService.unblockUser(liveToken, contactId).fold(
-                    onSuccess = {
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            return@fold
-                        }
-                        _uiState.update { it.copy(isContactBlocked = false, isBlockingContact = false, groupEncryptionWarning = text(R.string.chat_unblocked_user_status, it.contact.displayName)) }
-                    },
-                    onFailure = { error -> _uiState.update { it.copy(isBlockingContact = false, groupEncryptionWarning = error.message ?: text(R.string.chat_unblock_failed)) } }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { it.copy(isBlockingContact = false) }
-                throw error
-            }
-        }
-    }
+    fun unblockContact() = moderationController.unblockContact()
 
-    fun reportContact(reason: String, description: String? = null) {
-        val contactId = _uiState.value.contact.id
-        val ownerUserId = currentUserId
-        if (contactId.isBlank() || contactId == ownerUserId) return
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.BLOCK_REPORT)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
-            return
-        }
-        if (token.isBlank() || ownerUserId.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        viewModelScope.launch {
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) {
-                return@launch
-            }
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            ApiService.createReport(
-                token = liveToken,
-                targetType = "USER",
-                targetId = contactId,
-                chatId = activeChatId.takeIf { it.isNotBlank() },
-                reason = reason,
-                description = description
-            ).fold(
-                onSuccess = {
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
-                    ) {
-                        return@fold
-                    }
-                    _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_report_submitted)) }
-                },
-                onFailure = { error -> _uiState.update { it.copy(groupEncryptionWarning = error.message ?: text(R.string.chat_report_failed)) } }
-            )
-        }
-    }
+    fun reportContact(reason: String, description: String? = null) =
+        moderationController.reportContact(reason, description)
 
-    fun reportMessage(messageId: String, reason: String, description: String? = null) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.BLOCK_REPORT)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
-            return
-        }
-        val ownerUserId = currentUserId
-        if (messageId.isBlank()) return
-        if (token.isBlank() || ownerUserId.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        if (_uiState.value.isReporting) return
-        _uiState.update { it.copy(isReporting = true) }
-        viewModelScope.launch {
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) {
-                return@launch
-            }
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            ApiService.createReport(
-                token = liveToken,
-                targetType = "MESSAGE",
-                targetId = messageId,
-                chatId = activeChatId.takeIf { it.isNotBlank() },
-                messageId = messageId,
-                reason = reason,
-                description = description
-            ).fold(
-                onSuccess = {
-                    _uiState.update { it.copy(isReporting = false) }
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
-                    ) {
-                        return@fold
-                    }
-                    _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_report_submitted)) }
-                },
-                onFailure = { error -> _uiState.update { it.copy(groupEncryptionWarning = error.message ?: text(R.string.chat_report_failed), isReporting = false) } }
-            )
-        }
-    }
+    fun reportMessage(messageId: String, reason: String, description: String? = null) =
+        moderationController.reportMessage(messageId, reason, description)
 
-    fun loadGroupCandidates() {
-        val chat = _uiState.value.chat ?: return
-        val ownerUserId = currentUserId
-        if (!chat.isGroup) return
-        if (token.isBlank() || ownerUserId.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        viewModelScope.launch {
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) {
-                return@launch
-            }
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            ApiService.getAllSearchableUsers(liveToken).fold(
-                onSuccess = { users ->
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
-                    ) {
-                        return@fold
-                    }
-                    val existingIds = _uiState.value.chat?.participants.orEmpty().map { it.id }.toSet()
-                    val candidates = users
-                        .filter { it.id !in existingIds && it.id != currentUserId }
-                        .map { User(it.id, it.name, it.avatar, it.email, it.isOnline, it.status, lastSeen = it.lastSeen) }
-                    _uiState.update { it.copy(groupCandidates = candidates) }
-                },
-                onFailure = { error ->
-                    _uiState.update {
-                        it.copy(
-                            groupEncryptionWarning = error.message ?: text(R.string.contacts_load_failed)
-                        )
-                    }
-                }
-            )
-        }
-    }
+    fun loadGroupCandidates() = botGroupActionController.loadGroupCandidates()
 
-    fun renameGroup(newName: String) {
-        if (_uiState.value.isUpdatingGroup) return
-        val chat = _uiState.value.chat ?: return
-        val trimmed = newName.trim()
-        if (!chat.isGroup) return
-        if (trimmed.isBlank() || trimmed.length > 50) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_group_name_length)) }
-            return
-        }
-        mutateGroup(
-            chat = chat,
-            successMessage = text(R.string.chat_group_name_updated),
-            failureMessage = text(R.string.chat_group_name_failed),
-            fallbackChat = { it.copy(groupName = trimmed) },
-        ) { liveToken ->
-            ApiService.renameGroup(liveToken, chat.id, trimmed).getOrThrow()
-        }
-    }
+    fun renameGroup(newName: String) = botGroupActionController.renameGroup(newName)
 
-    fun addGroupMember(userId: String) {
-        if (_uiState.value.isUpdatingGroup) return
-        val chat = _uiState.value.chat ?: return
-        if (!chat.isGroup || userId.isBlank()) return
-        mutateGroup(
-            chat = chat,
-            rotateSenderKey = true,
-            refreshCandidates = true,
-            successMessage = text(R.string.chat_group_member_added_key),
-            failureMessage = text(R.string.chat_group_add_failed),
-        ) { liveToken ->
-            ApiService.addGroupMembers(liveToken, chat.id, listOf(userId)).getOrThrow()
-        }
-    }
+    fun addGroupMember(userId: String) = botGroupActionController.addGroupMember(userId)
 
-    fun removeGroupMember(userId: String) {
-        if (_uiState.value.isUpdatingGroup) return
-        val chat = _uiState.value.chat ?: return
-        val ownerUserId = currentUserId
-        if (!chat.isGroup || userId.isBlank() || userId == ownerUserId) return
-        mutateGroup(
-            chat = chat,
-            rotateSenderKey = true,
-            refreshCandidates = true,
-            successMessage = text(R.string.chat_group_member_removed_key),
-            failureMessage = text(R.string.chat_group_remove_failed),
-        ) { liveToken ->
-            ApiService.removeGroupMember(liveToken, chat.id, userId).getOrThrow()
-        }
-    }
+    fun removeGroupMember(userId: String) = botGroupActionController.removeGroupMember(userId)
 
     private suspend fun invalidateGroupSenderKey(groupId: String, newRevision: Long? = null) {
         groupMessagingCoordinator.invalidateSenderKey(
@@ -3926,81 +3056,6 @@ class ChatDetailViewModel(
             ownerUserId = currentUserId,
             newRevision = newRevision,
         )
-    }
-
-    private fun mutateGroup(
-        chat: Chat,
-        rotateSenderKey: Boolean = false,
-        refreshCandidates: Boolean = false,
-        successMessage: String,
-        failureMessage: String,
-        fallbackChat: (Chat) -> Chat = { it },
-        mutation: suspend (token: String) -> Unit,
-    ) {
-        val ownerUserId = currentUserId
-        if (token.isBlank() || ownerUserId.isBlank() ||
-            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
-        ) {
-            _uiState.update { it.copy(isUpdatingGroup = false, groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        viewModelScope.launch {
-            _uiState.update { it.copy(isUpdatingGroup = true, groupEncryptionWarning = null) }
-            try {
-                val commit = withContext(Dispatchers.IO) {
-                    groupLifecycleCoordinator.mutate(
-                        chatId = chat.id,
-                        rotateSenderKey = rotateSenderKey,
-                        mutation = mutation,
-                    )
-                }
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) {
-                    _uiState.update { it.copy(isUpdatingGroup = false) }
-                    return@launch
-                }
-                val updated = commit.refreshedChat?.toDomainChat() ?: fallbackChat(chat)
-                val groupContact = User(
-                    id = updated.id,
-                    name = updated.groupName ?: text(R.string.chat_group),
-                    avatar = updated.groupAvatar,
-                    status = quantityText(
-                        R.plurals.chat_members_count,
-                        updated.participants.size,
-                        updated.participants.size,
-                    ),
-                )
-                _uiState.update {
-                    it.copy(
-                        chat = updated,
-                        contact = groupContact,
-                        isUpdatingGroup = false,
-                        groupEncryptionWarning = successMessage,
-                    )
-                }
-                if (refreshCandidates) {
-                    loadGroupCandidates()
-                }
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { it.copy(isUpdatingGroup = false) }
-                throw error
-            } catch (error: Throwable) {
-                _uiState.update {
-                    it.copy(
-                        isUpdatingGroup = false,
-                        groupEncryptionWarning = error.message ?: failureMessage,
-                    )
-                }
-            }
-        }
     }
 
     fun loadForwardTargets() {
@@ -4600,100 +3655,14 @@ class ChatDetailViewModel(
         chatId: String,
         plaintext: String,
         isGroup: Boolean,
-        peerId: String
-    ) {
-        val isDirectWithBot = !isGroup && com.maodouchat.bot.BotCommandPolicy.isBotUserId(peerId)
-        val hasGroupBots = isGroup && (
-            _uiState.value.botCommands.isNotEmpty() ||
-                _uiState.value.chat?.participants.orEmpty().any {
-                    com.maodouchat.bot.BotCommandPolicy.isBotUserId(it.id)
-                }
-            )
-        if (!com.maodouchat.bot.BotCommandPolicy.shouldSendInbox(plaintext, isDirectWithBot, hasGroupBots)) {
-            return
-        }
-        ApiService.postBotInbox(liveToken, chatId, plaintext).onFailure { error ->
-            if (error is kotlinx.coroutines.CancellationException) throw error
-            android.util.Log.w("ChatDetail", "bot-inbox failed: ${error.message}")
-        }
-    }
+        peerId: String,
+    ) = botGroupActionController.maybeForwardBotInbox(liveToken, chatId, plaintext, isGroup, peerId)
 
-    private fun refreshBotCommands(chatId: String) {
-        if (chatId.isBlank()) return
-        val ownerUserId = currentUserId
-        viewModelScope.launch(Dispatchers.IO) {
-            val liveToken = tokenManager.getToken().orEmpty()
-            if (liveToken.isBlank()) return@launch
-            val raw = ApiService.listChatBotCommands(liveToken, chatId).getOrNull() ?: return@launch
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) return@launch
-            val parsed = parseBotCommands(raw)
-            _uiState.update { it.copy(botCommands = parsed) }
-        }
-    }
+    private fun refreshBotCommands(chatId: String) = botGroupActionController.refreshBotCommands(chatId)
 
-    private fun parseBotCommands(raw: String): List<com.maodouchat.bot.BotCommandPolicy.BotCommandItem> {
-        val root = runCatching { org.json.JSONObject(raw) }.getOrNull() ?: return emptyList()
-        val arr = root.optJSONArray("commands") ?: return emptyList()
-        val out = ArrayList<com.maodouchat.bot.BotCommandPolicy.BotCommandItem>(arr.length())
-        for (i in 0 until arr.length()) {
-            val o = arr.optJSONObject(i) ?: continue
-            val command = o.optString("command").trim()
-            val username = o.optString("username").trim()
-            val botId = o.optString("botId").trim()
-            if (command.isBlank() || username.isBlank() || botId.isBlank()) continue
-            out += com.maodouchat.bot.BotCommandPolicy.BotCommandItem(
-                botId = botId,
-                username = username,
-                name = o.optString("name").ifBlank { username },
-                command = command,
-                description = o.optString("description")
-            )
-        }
-        return out
-    }
+    fun inviteFirstOwnedBot() = botGroupActionController.inviteFirstOwnedBot()
 
-    fun inviteFirstOwnedBot() {
-        viewModelScope.launch {
-            val liveToken = tokenManager.getToken().orEmpty()
-            if (liveToken.isBlank()) {
-                _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-                return@launch
-            }
-            val listRaw = withContext(Dispatchers.IO) { ApiService.listBots(liveToken) }
-            listRaw.onSuccess { raw ->
-                val arr = runCatching { org.json.JSONArray(raw) }.getOrNull()
-                val firstId = if (arr != null && arr.length() > 0) arr.optJSONObject(0)?.optString("id").orEmpty() else ""
-                if (firstId.isBlank()) {
-                    _uiState.update { it.copy(groupEncryptionWarning = text(R.string.group_play_bot_invite_failed)) }
-                } else {
-                    inviteBot(firstId)
-                }
-            }.onFailure {
-                _uiState.update { it.copy(groupEncryptionWarning = text(R.string.group_play_bot_invite_failed)) }
-            }
-        }
-    }
-
-fun inviteBot(botId: String) {
-        val chatId = activeChatId
-        if (chatId.isBlank() || botId.isBlank()) return
-        viewModelScope.launch {
-            val liveToken = tokenManager.getToken().orEmpty()
-            val result = withContext(Dispatchers.IO) {
-                ApiService.inviteBotToChat(liveToken, chatId, botId)
-            }
-            result.onSuccess {
-                _uiState.update { it.copy(groupEncryptionWarning = text(R.string.group_play_bot_invited)) }
-            }.onFailure {
-                _uiState.update { it.copy(groupEncryptionWarning = text(R.string.group_play_bot_invite_failed)) }
-            }
-        }
-    }
+    fun inviteBot(botId: String) = botGroupActionController.inviteBot(botId)
 
     fun notifyLocalCaptureDetected(message: String) {
         val msg = message.trim()
@@ -5228,7 +4197,7 @@ fun sendCurrentLocation() {
     ) {
         try {
             val result = withContext(Dispatchers.IO) {
-                outgoingMessageCoordinator.enqueue(
+                outgoingFacade.enqueue(
                     OutgoingMessageCommand(
                         ownerUserId = optimistic.senderId,
                         optimisticMessage = optimistic,
@@ -5356,7 +4325,7 @@ fun sendCurrentLocation() {
                     context = getApplication(),
                     messageStore = messageRepo,
                     tokenManager = tokenManager,
-                    resolveChatId = ::resolveOutgoingChatId,
+                    resolveChatId = outgoingFacade::resolveChatId,
                     onEncryptionProgress = { id, completed, total ->
                         updateFileTransferProgress(id, completed, total, 0f, 0.35f)
                     },
@@ -5696,44 +4665,6 @@ fun sendCurrentLocation() {
 
     private val recipientId: String get() = _uiState.value.contact.id
 
-    private data class ResolvedOutgoingChat(
-        val chatId: String,
-        val chat: Chat,
-        val peerId: String?
-    )
-
-    /**
-     * Resolve both the server chat id and its encryption mode. A known id is authoritative:
-     * hydrate its metadata from Room/API instead of creating a direct chat from a temporarily
-     * blank contact or treating an as-yet-unpainted group as 1:1.
-     */
-    private suspend fun resolveOutgoingChatId(): Result<String> =
-        resolveOutgoingChat().map { it.chatId }
-
-    private suspend fun resolveOutgoingChat(): Result<ResolvedOutgoingChat> {
-        try {
-            val ownerUserId = currentUserId
-            val state = _uiState.value
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            val resolved = outgoingConversationResolver.resolve(
-                OutgoingConversationRequest(
-                    ownerUserId = ownerUserId,
-                    authToken = liveToken,
-                    activeConversationId = activeChatId,
-                    constructorConversationId = chatId,
-                    paintedConversation = state.chat,
-                    activeContactId = state.contact.id,
-                    createSecretConversation = state.chat?.isSecret == true || state.isSecretChat == true,
-                ),
-            ).getOrThrow()
-            return Result.success(hydrateOutgoingChat(resolved.conversation, ownerUserId, resolved.peerUserId))
-        } catch (error: kotlinx.coroutines.CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            return Result.failure(error)
-        }
-    }
-
     private suspend fun hydrateOutgoingChat(
         chat: Chat,
         ownerUserId: String,
@@ -5902,7 +4833,7 @@ fun sendCurrentLocation() {
     ) {
         try {
             val result = withContext(Dispatchers.IO) {
-                outgoingMessageCoordinator.enqueue(
+                outgoingFacade.enqueue(
                     command = OutgoingMessageCommand(
                         ownerUserId = optimistic.senderId,
                         optimisticMessage = optimistic,
@@ -6943,10 +5874,7 @@ fun sendCurrentLocation() {
         aiAutoRetryAt.clear()
         draftSaveJob?.cancel()
         draftSaveJob = null
-        typingDebounceJob?.cancel()
-        typingDebounceJob = null
-        stopTypingAnnouncement()
-        remoteTypingCoordinator.clear()
+        realtimeController.clear()
         val draftOwnerUserId = tokenManager.getUserId().orEmpty()
         val draftChatId = activeChatId
         val draftText = _uiState.value.inputText

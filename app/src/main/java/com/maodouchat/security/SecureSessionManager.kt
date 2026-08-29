@@ -15,6 +15,7 @@ import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketClient
+import com.maodouchat.session.RealtimeConnectionManager
 import com.maodouchat.push.PushRegistrationManager
 import kotlinx.coroutines.sync.withLock
 
@@ -26,6 +27,7 @@ class SecureSessionManager(
     private val database: AppDatabase,
     private val signalProtocol: SignalProtocol,
     private val tokenManager: TokenManager,
+    private val realtimeConnectionManager: RealtimeConnectionManager? = null,
     private val onEncryptedDatabaseDestroyed: (() -> Unit)? = null
 ) {
 
@@ -41,6 +43,11 @@ class SecureSessionManager(
                 if (expectedOwnerUserId != null && tokenManager.getUserId() != expectedOwnerUserId) {
                     return@withLock false
                 }
+                if (!tokenManager.beginSessionTermination(expectedOwnerUserId)) {
+                    return@withLock false
+                }
+                realtimeConnectionManager?.stopCurrent() ?: WebSocketClient.disconnect()
+                runCatching { ApiService.clearSessionTokens() }
                 purgeInProgress.set(true)
                 try {
                     purgeLocalSessionLocked(destroyEncryptedDatabase)
@@ -134,13 +141,6 @@ class SecureSessionManager(
                 } catch (error: Exception) {
                     Log.w(TAG, "Failed to revoke refresh token during logout", error)
                 }
-            }
-            try {
-                WebSocketClient.disconnect()
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                Log.w(TAG, "Failed to disconnect WebSocket during local purge", error)
             }
             // Drop in-memory ring state + end any foreground call so the next account
             // never inherits another user's pending offer or active media session.
@@ -386,7 +386,10 @@ class SecureSessionManager(
                 onEncryptedDatabaseDestroyed?.invoke()
             } finally {
                 authCleared = tokenManager.clear()
-                if (!authCleared) Log.e(TAG, "Failed to persist auth-token clear during local purge")
+                if (!authCleared) {
+                    tokenManager.endSessionTermination()
+                    Log.e(TAG, "Failed to persist auth-token clear during local purge")
+                }
                 // Ensure memory JWT cannot outlive disk clear on either soft or hard purge path.
                 runCatching { com.maodouchat.network.ApiService.clearSessionTokens() }
                 runCatching { SealedSenderSupport.clearCache() }

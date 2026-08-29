@@ -81,9 +81,51 @@ class RouteRegistrySplitTest {
             "/api/public/profile/{username}",
             "/u/{username}",
         ).forEach { path ->
-            val declaration = Regex("(?m)^\\s*(get|post|put|delete|patch)\\(\\\"${Regex.escape(path)}\\\"")
+            val declaration = Regex("(?m)^\\s*(get|post|put|delete|patch)\\(\\\"${Regex.escape(path)}\\\"\\)")
             assertFalse(declaration.containsMatchIn(registry), path)
             assertTrue(declaration.containsMatchIn(update) || declaration.containsMatchIn(profile), path)
+        }
+    }
+
+    @Test
+    fun `priority route families are delegated with endpoint parity`() {
+        val registry = source("Routing.kt")
+        val modules = listOf(
+            source("AuthRouting.kt"),
+            source("AccountRouting.kt"),
+            source("AttachmentRouting.kt"),
+            source("ReportModerationRouting.kt"),
+            source("SocialPostRouting.kt"),
+            source("PublicSiteRouting.kt"),
+            source("PollLegacyRouting.kt"),
+        )
+
+        listOf(
+            "configureAuthRoutes(",
+            "configureAuthenticatedSessionRoutes(",
+            "configureAccountRoutes(",
+            "configureEncryptedAttachmentRoutes(",
+            "configureReportModerationRoutes(",
+            "configureSocialPostRoutes(",
+            "configurePublicSiteRoutes()",
+            "configurePollLegacyRoutes(",
+        ).forEach { registration -> assertTrue(registration in registry, registration) }
+
+        listOf(
+            "/api/auth/login",
+            "/api/auth/logout-all",
+            "/api/users/me",
+            "/api/attachment-uploads",
+            "/api/attachments/{id}",
+            "/api/reports",
+            "/api/moderator/reports/{reportId}/action",
+            "/api/posts",
+            "/api/chats/{chatId}/polls",
+            "/api/files/post-image/{filename}",
+        ).forEach { path ->
+            val declaration = Regex("(?m)^\\s*(get|post|put|delete|patch)\\(\\\"${Regex.escape(path)}\\\"\\)")
+            assertFalse(declaration.containsMatchIn(registry), path)
+            assertTrue(modules.any { declaration.containsMatchIn(it) }, path)
         }
     }
 

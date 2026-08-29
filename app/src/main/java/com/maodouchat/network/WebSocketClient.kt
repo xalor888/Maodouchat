@@ -1,5 +1,10 @@
 package com.maodouchat.network
 
+import com.maodouchat.session.AccountScopedRealtimeConnectionManager
+import com.maodouchat.session.RealtimeConnectionManager
+import com.maodouchat.session.RealtimeTransport
+import com.maodouchat.session.RealtimeTransportEvent
+import com.maodouchat.session.TokenManagerSessionContextProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -217,7 +222,7 @@ private data class IncomingGroupRevisionChanged(
 /**
  * WebSocket 客户端（单例 + 自动重连）
  */
-object WebSocketClient {
+internal object WebSocketTransport : RealtimeTransport {
 
     private const val INITIAL_RECONNECT_DELAY_MS = 1_000L
     private const val MAX_RECONNECT_DELAY_MS = 30_000L
@@ -250,8 +255,8 @@ object WebSocketClient {
     // 来电 offer 由 IncomingCallCoordinator 和服务端 pending signaling 持久承接。
     // 事件桥接协程挂在独立作用域：不随连接生命周期 reset，避免重连期间队列积压被取消。
     private val eventScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
-    private val eventBus = NonReplayingEventBus<WebSocketEvent>(capacity = 64, scope = eventScope)
-    val events: SharedFlow<WebSocketEvent> = eventBus.flow
+    private val eventBus = NonReplayingEventBus<RealtimeTransportEvent>(capacity = 64, scope = eventScope)
+    override val events: SharedFlow<RealtimeTransportEvent> = eventBus.flow
     private val sessionGate = WebSocketSessionGate()
 
     @Volatile
@@ -270,6 +275,7 @@ object WebSocketClient {
     private val reconnectDelayMs = AtomicLong(INITIAL_RECONNECT_DELAY_MS)
     // 重连尝试计数器，达到 MAX_RECONNECT_ATTEMPTS 后停止重连，等用户手动操作（如重新登录、检查网络）
     private val reconnectAttempts = java.util.concurrent.atomic.AtomicInteger(0)
+    private val connectionGeneration = AtomicLong(0L)
 
     // AtomicReference 保证在多线程重连和主线程 connect() 之间读到的 URL/token 对是完整的
     private val serverUrl = AtomicReference<String?>(null)
@@ -286,29 +292,39 @@ object WebSocketClient {
         connectionParent = SupervisorJob()
     }
 
+    override fun open(serverUrl: String, accessToken: String, reconnect: Boolean): Long? {
+        return if (connect(serverUrl, accessToken, isReconnect = reconnect)) {
+            connectionGeneration.get().takeIf { it > 0L }
+        } else {
+            null
+        }
+    }
+
     @Synchronized
-    fun connect(newServerUrl: String, newToken: String, isReconnect: Boolean = false, reconnectSession: Long? = null) {
+    internal fun connect(newServerUrl: String, newToken: String, isReconnect: Boolean = false, reconnectSession: Long? = null): Boolean {
         // 8.33 修复（登出↔重连竞态）：重连 job 在 delay 后可能晚于 disconnect() 执行——
         // disconnect() 先置 shouldReconnect=false，此时任何自动重连都必须放弃，否则
         // 会用旧 token 复活一个「当前会话」（旧账号持续在线直至 1008，事件污染新账号）。
         // 手动连接（登录/换号）isReconnect=false 不受此守卫影响。
-        if (isReconnect && !shouldReconnect) return
+        if (isReconnect && !shouldReconnect) return false
         // 8.33 修复：重连 job 捕获其失败时的会话代号；若期间发生过 disconnect/换号/刷新
         // （nextSession 递增代号），该 job 已过期，即使 shouldReconnect 再次为 true 也拒绝，
         // 杜绝「旧 job 在用户重新登录后仍用旧 token 拆掉新连接」的窗口。
-        if (isReconnect && reconnectSession != null && !sessionGate.isCurrent(reconnectSession)) return
+        if (isReconnect && reconnectSession != null && !sessionGate.isCurrent(reconnectSession)) return false
         // 8.33 修复：空白 token 一律拒绝（登出清理顺序为 shouldReconnect→parent cancel→token 清空，
         // 此守卫兜底任何晚到路径，杜绝「Bearer null」僵尸连接）。
-        if (newToken.isBlank()) return
+        if (newToken.isBlank()) return false
         // 上一次 disconnect() 已 cancel 旧 parent Job，重置以便重连子协程可以重新启动
         if (!connectionParent.isActive) resetConnectionScope()
         val oldUrl = serverUrl.get()
         val oldToken = authToken.get()
-        if (isConnected && oldUrl == newServerUrl && oldToken == newToken) return
+        if (isConnected && oldUrl == newServerUrl && oldToken == newToken) return true
         val parametersChanged = oldUrl != newServerUrl || oldToken != newToken
         // 同参数连接正在建立时复用；换号/换 token 必须立即淘汰旧连接，不能被旧 CAS 挡住。
-        if (connecting.get() && !parametersChanged) return
+        if (connecting.get() && !parametersChanged) return true
         val session = sessionGate.nextSession()
+        if (!isReconnect) connectionGeneration.incrementAndGet()
+        val ownerGeneration = connectionGeneration.get()
         connecting.set(true)
         if (parametersChanged) {
             reconnectJob?.cancel()
@@ -371,7 +387,7 @@ object WebSocketClient {
                 // 9.3xx：连接看门狗完成使命；启动应用层心跳（Ideaura 式保活）
                 connectWatchdogJob?.cancel()
                 startHeartbeat(session)
-                eventBus.post(WebSocketEvent.Connected(true))
+                postEvent(WebSocketEvent.Connected(true), ownerGeneration)
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -380,9 +396,9 @@ object WebSocketClient {
                 lastTrafficAt.set(System.currentTimeMillis())
                 try {
                     val wsMsg = json.decodeFromString<WsMessage>(text)
-                    handleWsMessage(wsMsg)
+                    handleWsMessage(wsMsg, ownerGeneration)
                 } catch (e: Exception) {
-                    emitError(WebSocketErrorKind.ENVELOPE_PARSE, e)
+                    emitError(WebSocketErrorKind.ENVELOPE_PARSE, e, ownerGeneration)
                 }
             }
 
@@ -391,7 +407,7 @@ object WebSocketClient {
                 if (!sessionGate.isCurrent(session)) return
                 isConnected = false
                 connecting.set(false)
-                eventBus.post(WebSocketEvent.Disconnected)
+                postEvent(WebSocketEvent.Disconnected, ownerGeneration)
                 // 1008 POLICY：封禁/登出/密码修改/会话失效 — 勿用旧 token 无限重连；
                 // 同时立即触发登录失效流程（purge + 跳登录），避免停留在假登录态直到
                 // 下一次 API 401（远端踢线/设备被删时用户应立刻感知）。
@@ -434,8 +450,8 @@ object WebSocketClient {
                 if (!sessionGate.isCurrent(session)) return
                 isConnected = false
                 connecting.set(false)
-                emitError(WebSocketErrorKind.CONNECTION, t)
-                eventBus.post(WebSocketEvent.Disconnected)
+                emitError(WebSocketErrorKind.CONNECTION, t, ownerGeneration)
+                postEvent(WebSocketEvent.Disconnected, ownerGeneration)
                 // 8.45 修复：WS 升级请求被 HTTP 401/403 拒绝（token 失效）——原先无视
                 // response code 直接用旧 token 重试 20 次（约 10 分钟耗电）；改为先刷新
                 // token 再重连；刷新失败则停止（REST 401 路径负责 purge）。
@@ -466,19 +482,19 @@ object WebSocketClient {
             // newWebSocket 同步失败时（如 URL 非法），重置 connecting 标志并调度重连
             connecting.set(false)
             isConnected = false
-            emitError(WebSocketErrorKind.CONNECTION, e)
+            emitError(WebSocketErrorKind.CONNECTION, e, ownerGeneration)
             if (isNonRecoverableWebSocketNetworkError(e)) {
                 shouldReconnect = false
             } else if (shouldReconnect) {
                 scheduleReconnect()
             }
         }
+        return true
     }
 
     /**
-     * WS 回调线程（OkHttp 读线程）里需要「刷新 token 后决定是否重连」时使用：
-     * 把刷新放到 scope 协程执行，避免 runBlocking 阻塞 OkHttp 读线程（最多 30s 停摆）。
-     * 刷新失败则停止重连（REST 401 路径负责 purge）。
+     * WS callback threads refresh asynchronously so OkHttp readers are never blocked.
+     * Refresh failure stops reconnect unless the current account still owns a live session.
      */
     private fun refreshTokenThenReconnect() {
         if (!shouldReconnect || reconnectJob?.isActive == true) return
@@ -628,17 +644,17 @@ object WebSocketClient {
             r.contains("token")
     }
 
-    fun sendTyping(chatId: String, isTyping: Boolean): Boolean {
+    override fun sendTyping(chatId: String, isTyping: Boolean): Boolean {
         val payload = json.encodeToString(TypingPayload.serializer(), TypingPayload("", chatId, isTyping))
         return send(WsMessage("TYPING", payload))
     }
 
     /** 前台才算在线：Activity onStart/onStop 上报，不把后台保活 WS 当成在线。 */
-    fun sendPresence(foreground: Boolean): Boolean =
+    override fun sendPresence(foreground: Boolean): Boolean =
         send(WsMessage(type = "PRESENCE", payload = if (foreground) "true" else "false"))
 
     @Synchronized
-    fun disconnect() {
+    override fun disconnect() {
         shouldReconnect = false
         sessionGate.invalidate()
         // 取消整个 parent Job 使所有重连子协程在下一挂起点退出，避免孤立协程继续调用 connect()
@@ -660,9 +676,9 @@ object WebSocketClient {
         connecting.set(false)
     }
 
-    fun isConnected(): Boolean = isConnected
+    override fun isConnected(): Boolean = isConnected
 
-    fun sendRaw(text: String): Boolean {
+    override fun sendRaw(text: String): Boolean {
         if (!isConnected) return false
         return webSocket?.send(text) == true
     }
@@ -672,18 +688,24 @@ object WebSocketClient {
         return webSocket?.send(json.encodeToString(WsMessage.serializer(), msg)) == true
     }
 
-    private fun handleWsMessage(wsMsg: WsMessage) {
+    private fun handleWsMessage(wsMsg: WsMessage, connectionSession: Long) {
+        fun postEvent(event: WebSocketEvent) {
+            this@WebSocketTransport.postEvent(event, connectionSession)
+        }
+        fun emitError(kind: WebSocketErrorKind, cause: Throwable) {
+            this@WebSocketTransport.emitError(kind, cause, connectionSession)
+        }
         when (wsMsg.type) {
-            "INBOX_AVAILABLE_V2" -> eventBus.post(WebSocketEvent.InboxAvailableV2)
+            "INBOX_AVAILABLE_V2" -> postEvent(WebSocketEvent.InboxAvailableV2)
             "ADMIN_BROADCAST" -> {
                 try {
                     val data = json.decodeFromString<AdminBroadcastPayload>(wsMsg.payload)
-                    eventBus.post(WebSocketEvent.AdminBroadcast(data.title, data.text, data.ts))
+                    postEvent(WebSocketEvent.AdminBroadcast(data.title, data.text, data.ts))
                 } catch (e: Exception) {
                     // payload may be raw json object string already
                         runCatching {
                             val o = org.json.JSONObject(wsMsg.payload)
-                            eventBus.post(
+                            postEvent(
                                 WebSocketEvent.AdminBroadcast(
                                     title = o.optString("title", "System"),
                                     text = o.optString("text").takeIf { it != "null" }.orEmpty(),
@@ -696,7 +718,7 @@ object WebSocketClient {
             "POST_DELETED" -> {
                 try {
                     val data = json.decodeFromString<IncomingPostDeleted>(wsMsg.payload)
-                    eventBus.post(WebSocketEvent.PostDeleted(data.postId))
+                    postEvent(WebSocketEvent.PostDeleted(data.postId))
                 } catch (e: Exception) {
                     emitError(WebSocketErrorKind.POST_DELETE_PARSE, e)
                 }
@@ -704,7 +726,7 @@ object WebSocketClient {
             "PINNED_MESSAGES_UPDATED" -> {
                 try {
                     val data = json.decodeFromString<IncomingPinnedMessagesUpdated>(wsMsg.payload)
-                    eventBus.post(
+                    postEvent(
                         WebSocketEvent.PinnedMessagesUpdated(
                             chatId = data.chatId,
                             actorId = data.actorId,
@@ -718,7 +740,7 @@ object WebSocketClient {
             "DISAPPEARING_MESSAGES_UPDATED" -> {
                 try {
                     val data = json.decodeFromString<IncomingDisappearingMessagesUpdated>(wsMsg.payload)
-                    eventBus.post(
+                    postEvent(
                         WebSocketEvent.DisappearingMessagesUpdated(
                             chatId = data.chatId,
                             seconds = data.seconds,
@@ -732,7 +754,7 @@ object WebSocketClient {
             "USER_STATUS" -> {
                 try {
                     val data = json.decodeFromString<IncomingUserStatus>(wsMsg.payload)
-                    eventBus.post(
+                    postEvent(
                         WebSocketEvent.UserOnline(
                             userId = data.userId,
                             isOnline = data.isOnline,
@@ -748,7 +770,7 @@ object WebSocketClient {
             "USER_TYPING" -> {
                 try {
                     val data = json.decodeFromString<IncomingTyping>(wsMsg.payload)
-                    eventBus.post(WebSocketEvent.UserTyping(data.userId, data.chatId, data.isTyping))
+                    postEvent(WebSocketEvent.UserTyping(data.userId, data.chatId, data.isTyping))
                 } catch (e: Exception) {
                     emitError(WebSocketErrorKind.TYPING_PARSE, e)
                 }
@@ -757,7 +779,7 @@ object WebSocketClient {
             "GROUP_REVISION_CHANGED" -> {
                 try {
                     val data = json.decodeFromString<IncomingGroupRevisionChanged>(wsMsg.payload)
-                    eventBus.post(
+                    postEvent(
                         WebSocketEvent.GroupRevisionChanged(
                             chatId = data.chatId,
                             memberRevision = data.memberRevision,
@@ -774,7 +796,7 @@ object WebSocketClient {
             "FRIEND_REQUEST" -> {
                 try {
                     val data = json.decodeFromString<IncomingFriendRequestEvent>(wsMsg.payload)
-                    eventBus.post(WebSocketEvent.FriendRequestUpdated(data.action, data.request))
+                    postEvent(WebSocketEvent.FriendRequestUpdated(data.action, data.request))
                 } catch (e: Exception) {
                     emitError(WebSocketErrorKind.FRIEND_REQUEST_PARSE, e)
                 }
@@ -783,7 +805,7 @@ object WebSocketClient {
             "GROUP_INVITE" -> {
                 try {
                     val data = json.decodeFromString<IncomingGroupInviteEvent>(wsMsg.payload)
-                    eventBus.post(WebSocketEvent.GroupInviteUpdated(data.action, data.invite))
+                    postEvent(WebSocketEvent.GroupInviteUpdated(data.action, data.invite))
                 } catch (e: Exception) {
                     emitError(WebSocketErrorKind.FRIEND_REQUEST_PARSE, e)
                 }
@@ -796,7 +818,7 @@ object WebSocketClient {
                     val event = obj["event"]?.jsonPrimitive?.contentOrNull.orEmpty()
                     val chatId = obj["data"]?.jsonObject?.get("chatId")
                         ?.jsonPrimitive?.contentOrNull.orEmpty()
-                    eventBus.post(WebSocketEvent.GroupPlayUpdated(chatId, event, wsMsg.payload))
+                    postEvent(WebSocketEvent.GroupPlayUpdated(chatId, event, wsMsg.payload))
                 } catch (e: Exception) {
                     emitError(WebSocketErrorKind.MESSAGE_PARSE, e)
                 }
@@ -805,7 +827,7 @@ object WebSocketClient {
             "SIGNALING" -> {
                 try {
                     val data = json.decodeFromString<IncomingSignaling>(wsMsg.payload)
-                    eventBus.post(
+                    postEvent(
                         WebSocketEvent.SignalingReceived(
                             data.fromUserId,
                             data.type,
@@ -824,7 +846,7 @@ object WebSocketClient {
             "ERROR" -> {
                 runCatching { json.decodeFromString<IncomingServerError>(wsMsg.payload) }
                     .onSuccess { error ->
-                        eventBus.post(
+                        postEvent(
                             WebSocketEvent.ServerError(
                                 code = error.code,
                                 retryAfterSeconds = error.retryAfterSeconds,
@@ -837,8 +859,107 @@ object WebSocketClient {
         }
     }
 
-    private fun emitError(kind: WebSocketErrorKind, cause: Throwable) {
+    private fun postEvent(event: WebSocketEvent, connectionSession: Long = sessionGate.current()) {
+        eventBus.post(RealtimeTransportEvent(connectionSession, event))
+    }
+
+    private fun emitError(
+        kind: WebSocketErrorKind,
+        cause: Throwable,
+        connectionSession: Long = sessionGate.current(),
+    ) {
         android.util.Log.w("WebSocketClient", "WebSocket failure: $kind", cause)
-        eventBus.post(WebSocketEvent.Error(kind, cause.message))
+        postEvent(WebSocketEvent.Error(kind, cause.message), connectionSession)
+    }
+}
+
+/**
+ * Compatibility facade for existing callers. Account ownership and lifecycle are enforced by
+ * [RealtimeConnectionManager]; callers cannot retain a socket across a session generation change.
+ */
+object WebSocketClient {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private fun manager(): RealtimeConnectionManager? {
+        val tokenManager = TokenManager.getInstanceOrNull() ?: return null
+        return ManagerHolder.getOrCreate(tokenManager)
+    }
+
+    val events: SharedFlow<WebSocketEvent>
+        get() = manager()?.events ?: EmptyEvents.flow
+
+    /** Must be called before any process-long collector captures [events]. */
+    fun install(connectionManager: RealtimeConnectionManager) {
+        ManagerHolder.install(connectionManager)
+    }
+
+    fun connect(
+        newServerUrl: String,
+        newToken: String,
+        isReconnect: Boolean = false,
+        reconnectSession: Long? = null,
+    ) {
+        val tokenManager = TokenManager.getInstanceOrNull() ?: return
+        val owner = tokenManager.currentSessionContext() ?: return
+        if (reconnectSession != null && reconnectSession != owner.generation) return
+        manager()?.start(newServerUrl, newToken, owner, reconnect = isReconnect)
+    }
+
+    fun disconnect() {
+        manager()?.stopCurrent() ?: WebSocketTransport.disconnect()
+    }
+
+    fun isConnected(): Boolean {
+        val owner = TokenManager.getInstanceOrNull()?.currentSessionContext() ?: return false
+        return manager()?.isConnected(owner) == true
+    }
+
+    fun sendRaw(text: String): Boolean {
+        val owner = TokenManager.getInstanceOrNull()?.currentSessionContext() ?: return false
+        return manager()?.sendRaw(owner, text) == true
+    }
+
+    fun sendTyping(chatId: String, isTyping: Boolean): Boolean {
+        val owner = TokenManager.getInstanceOrNull()?.currentSessionContext() ?: return false
+        return manager()?.sendTyping(owner, chatId, isTyping) == true
+    }
+
+    fun sendPresence(foreground: Boolean): Boolean {
+        val owner = TokenManager.getInstanceOrNull()?.currentSessionContext() ?: return false
+        return manager()?.sendPresence(owner, foreground) == true
+    }
+
+    private object ManagerHolder {
+        @Volatile
+        private var tokenManager: TokenManager? = null
+
+        @Volatile
+        private var manager: RealtimeConnectionManager? = null
+
+        fun install(connectionManager: RealtimeConnectionManager) {
+            synchronized(this) {
+                manager?.stopCurrent()
+                tokenManager = TokenManager.getInstanceOrNull()
+                manager = connectionManager
+            }
+        }
+
+        fun getOrCreate(currentTokenManager: TokenManager): RealtimeConnectionManager {
+            manager?.takeIf { tokenManager === currentTokenManager }?.let { return it }
+            return synchronized(this) {
+                manager?.takeIf { tokenManager === currentTokenManager } ?: run {
+                    tokenManager = currentTokenManager
+                    AccountScopedRealtimeConnectionManager(
+                        sessionContextProvider = TokenManagerSessionContextProvider(currentTokenManager),
+                        transport = WebSocketTransport,
+                        scope = scope,
+                    ).also { manager = it }
+                }
+            }
+        }
+    }
+
+    private object EmptyEvents {
+        val flow = kotlinx.coroutines.flow.MutableSharedFlow<WebSocketEvent>(replay = 0)
     }
 }

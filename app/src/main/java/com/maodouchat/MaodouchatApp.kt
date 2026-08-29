@@ -15,6 +15,10 @@ import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.TokenManager
+import com.maodouchat.network.WebSocketClient
+import com.maodouchat.network.WebSocketTransport
+import com.maodouchat.session.AccountScopedRealtimeConnectionManager
+import com.maodouchat.session.TokenManagerSessionContextProvider
 import com.maodouchat.push.PushRegistrationManager
 import com.maodouchat.util.AppLocaleManager
 import com.maodouchat.security.SecureSessionManager
@@ -68,6 +72,13 @@ class MaodouchatApp : Application() {
     @Volatile private var _senderKeyRetryManager: SenderKeyRetryManager? = null
     @Volatile private var _imageOcrAutoIndexer: com.maodouchat.ai.ImageOcrAutoIndexer? = null
     @Volatile private var _messagingV2Runtime: MessagingV2Runtime? = null
+    private val realtimeConnectionManager by lazy {
+        AccountScopedRealtimeConnectionManager(
+            sessionContextProvider = TokenManagerSessionContextProvider(TokenManager.getInstance(this)),
+            transport = WebSocketTransport,
+            scope = applicationScope,
+        )
+    }
 
     // 延迟初始化 + 双检锁：后台线程首次访问时创建，不阻塞 onCreate
     val database: AppDatabase
@@ -88,6 +99,7 @@ class MaodouchatApp : Application() {
                 database = database,
                 signalProtocol = signalProtocol,
                 tokenManager = TokenManager.getInstance(this),
+                realtimeConnectionManager = realtimeConnectionManager,
                 onEncryptedDatabaseDestroyed = { rebuildLocalStorage() }
             ).also { _secureSessionManager = it }
         }
@@ -153,6 +165,7 @@ class MaodouchatApp : Application() {
         com.maodouchat.network.ServerIdentity.refreshAsync()
         // TokenManager is a process singleton; initialize it before any network worker may read tokens.
         TokenManager.getInstance(this)
+        WebSocketClient.install(realtimeConnectionManager)
         PushRegistrationManager.initialize(this)
         runCatching {
             val uid = TokenManager.getInstance(this).getUserId().orEmpty()

@@ -6,6 +6,10 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.maodouchat.session.MutableSessionContextProvider
+import com.maodouchat.session.SessionContext
+import kotlinx.coroutines.flow.StateFlow
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Token 加密存储管理
@@ -27,6 +31,43 @@ class TokenManager private constructor(private val context: Context) {
     }
 
     private val sessionLock = Any()
+    private val sessionState by lazy {
+        MutableSessionContextProvider(getUserId()?.takeIf(String::isNotBlank))
+    }
+    private val sessionTerminating = AtomicBoolean(false)
+
+    val sessionContexts: StateFlow<SessionContext?>
+        get() = sessionState.contexts
+
+    fun currentSessionContext(): SessionContext? = sessionState.contexts.value
+
+    fun owns(context: SessionContext): Boolean =
+        !sessionTerminating.get() &&
+            currentSessionContext() == context &&
+            getUserId() == context.ownerUserId
+
+    /**
+     * Invalidates process-owned account work before logout performs any suspendable cleanup.
+     * Returns false when a conditional purge belongs to a different account.
+     */
+    fun beginSessionTermination(expectedOwnerUserId: String? = null): Boolean = synchronized(sessionLock) {
+        val currentUserId = getUserId()?.takeIf(String::isNotBlank)
+        if (expectedOwnerUserId != null && currentUserId != expectedOwnerUserId) {
+            return@synchronized false
+        }
+        sessionTerminating.set(true)
+        sessionState.invalidate(expectedOwnerUserId ?: currentUserId)
+        true
+    }
+
+    fun endSessionTermination() {
+        sessionTerminating.set(false)
+    }
+
+    private fun publishAuthenticatedOwner(userId: String) {
+        sessionTerminating.set(false)
+        sessionState.activate(userId)
+    }
 
     private val masterKey by lazy {
         MasterKey.Builder(context)
@@ -113,6 +154,7 @@ class TokenManager private constructor(private val context: Context) {
         refreshTokenExpiresAt: Long
     ): Boolean = synchronized(sessionLock) {
         saveAuthSessionLocked(token, refreshToken, userId, accessTokenExpiresAt, refreshTokenExpiresAt)
+            .also { saved -> if (saved) publishAuthenticatedOwner(userId) }
     }
 
     fun saveAuthSessionIfCurrent(
@@ -132,6 +174,7 @@ class TokenManager private constructor(private val context: Context) {
             return@synchronized ConditionalSessionSaveResult.SESSION_CHANGED
         }
         if (saveAuthSessionLocked(token, refreshToken, userId, accessTokenExpiresAt, refreshTokenExpiresAt)) {
+            publishAuthenticatedOwner(userId)
             ConditionalSessionSaveResult.SAVED
         } else {
             ConditionalSessionSaveResult.WRITE_FAILED
@@ -167,6 +210,7 @@ class TokenManager private constructor(private val context: Context) {
         }
             .onFailure { Log.w(TAG, "saveUserId failed", it) }
             .isSuccess
+            .also { saved -> if (saved) publishAuthenticatedOwner(userId) }
     }
 
     fun getUserId(): String? =
@@ -340,6 +384,8 @@ class TokenManager private constructor(private val context: Context) {
 
     /** @return true if the preferences were successfully cleared */
     fun clear(): Boolean = synchronized(sessionLock) {
+        sessionTerminating.set(true)
+        sessionState.invalidate(getUserId()?.takeIf(String::isNotBlank))
         runCatching {
             val lastOwner = prefs.getString(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY, null)
                 ?: prefs.getString(ApiConfig.Prefs.USER_ID_KEY, null)
@@ -353,6 +399,7 @@ class TokenManager private constructor(private val context: Context) {
             // commit() may fail by returning false without throwing. isSuccess would turn
             // that storage failure into a false-positive logout and revive old JWTs on restart.
             .getOrDefault(false)
+            .also { cleared -> if (cleared) sessionTerminating.set(false) }
     }
 
     companion object {
