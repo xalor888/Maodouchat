@@ -533,9 +533,9 @@ Gate：refresh rotation/replay、多设备登出、TOTP、两节点限流、注�
 
 ### B03 Signal Key 与设备注册
 
-当前状态：`[ ]`。
+当前状态：`[~]`。领域模型（DeviceInfo/DeviceBundle/KeyData/PreKeyUpload/…）已从 `SignalKeyRepository` 抽到 `SignalKeyModels.kt`；DeviceRegistry/KeyStore 类拆分尚未开始。
 
-- [ ] 拆 `DeviceRegistry`、`IdentityKeyStore`、`PreKeyStore`、`SignedPreKeyStore`。
+- [~] 拆 `DeviceRegistry`、`IdentityKeyStore`、`PreKeyStore`、`SignedPreKeyStore`（模型已分离，类拆分待做）。
 - [ ] 设备状态明确为 pending/confirmed/revoked。
 - [ ] one-time pre-key 消费使用数据库原子操作。
 - [ ] 身份密钥变化产生安全事件并触发会话风险处理。
