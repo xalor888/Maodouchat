@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 35,
-    "identityHash": "7607e0ac2e01de3485b6870fc7737cc3",
+    "identityHash": "89cbfd2f1773cdfecc5105e9885a2aa5",
     "entities": [
       {
         "tableName": "users",
@@ -1432,7 +1432,7 @@
       },
       {
         "tableName": "messaging_v2_inbox",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`envelopeId` TEXT NOT NULL, `ownerUserId` TEXT NOT NULL, `deviceId` INTEGER NOT NULL, `sequence` INTEGER NOT NULL, `messageId` TEXT NOT NULL, `conversationId` TEXT NOT NULL, `senderUserId` TEXT NOT NULL, `senderDeviceId` INTEGER NOT NULL, `kind` TEXT NOT NULL, `groupRevision` INTEGER, `clientTimestamp` INTEGER NOT NULL, `serverTimestamp` INTEGER NOT NULL, `ciphertextType` TEXT NOT NULL, `ciphertext` TEXT NOT NULL, `plaintextJournal` TEXT NOT NULL, `state` TEXT NOT NULL, `attempts` INTEGER NOT NULL, `nextAttemptAt` INTEGER NOT NULL, `lastErrorCode` TEXT, `receivedAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`envelopeId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`envelopeId` TEXT NOT NULL, `ownerUserId` TEXT NOT NULL, `deviceId` INTEGER NOT NULL, `sequence` INTEGER NOT NULL, `messageId` TEXT NOT NULL, `conversationId` TEXT NOT NULL, `senderUserId` TEXT NOT NULL, `senderDeviceId` INTEGER NOT NULL, `kind` TEXT NOT NULL, `groupRevision` INTEGER, `clientTimestamp` INTEGER NOT NULL, `serverTimestamp` INTEGER NOT NULL, `ciphertextType` TEXT NOT NULL, `ciphertext` TEXT NOT NULL, `plaintextJournal` TEXT NOT NULL DEFAULT '', `state` TEXT NOT NULL, `attempts` INTEGER NOT NULL, `nextAttemptAt` INTEGER NOT NULL, `lastErrorCode` TEXT, `receivedAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`envelopeId`))",
         "fields": [
           {
             "fieldPath": "envelopeId",
@@ -1521,7 +1521,8 @@
             "fieldPath": "plaintextJournal",
             "columnName": "plaintextJournal",
             "affinity": "TEXT",
-            "notNull": true
+            "notNull": true,
+            "defaultValue": "''"
           },
           {
             "fieldPath": "state",
@@ -1867,7 +1868,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7607e0ac2e01de3485b6870fc7737cc3')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '89cbfd2f1773cdfecc5105e9885a2aa5')"
     ]
   }
 }

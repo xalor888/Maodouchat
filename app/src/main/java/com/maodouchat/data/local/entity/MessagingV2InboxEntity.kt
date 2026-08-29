@@ -1,5 +1,6 @@
 package com.maodouchat.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -33,6 +34,7 @@ data class MessagingV2InboxEntity(
      * replayed envelope is projected from the journal instead of being acknowledged as a
      * libsignal Duplicate without ever reaching the timeline.
      */
+    @ColumnInfo(defaultValue = "")
     val plaintextJournal: String = "",
     val state: String = MessagingV2InboxState.RECEIVED,
     val attempts: Int = 0,
