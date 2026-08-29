@@ -76,7 +76,6 @@ class FcmPushServiceTest {
     @Test
     fun `incoming call uses short ttl other types keep 24h`() {
         assertEquals("60s", FcmPushService.ttlFor("INCOMING_CALL"))
-        assertEquals("86400s", FcmPushService.ttlFor("NEW_MESSAGE"))
         assertEquals("86400s", FcmPushService.ttlFor("GROUP_INVITE"))
         assertEquals("86400s", FcmPushService.ttlFor(null))
     }
@@ -135,10 +134,10 @@ class FcmPushServiceTest {
     @Test
     fun `signPayload sorts keys and hmac matches client canonical form`() {
         val data = mapOf(
-            "type" to "NEW_MESSAGE",
+            "type" to "GROUP_INVITE",
             "chatId" to "c1",
-            "messageId" to "m1",
-            "senderId" to "u1",
+            "inviteId" to "i1",
+            "fromUserId" to "u1",
             "recipientId" to "u2"
         )
         val signed = FcmPushService.signPayload("u2", data)
@@ -148,31 +147,13 @@ class FcmPushServiceTest {
         val canonical = data.keys.sorted().joinToString("&") { "$it=${data[it]}" }
         val expected = hmacHex(FcmPushService.pushKeyForUser("u2"), "$canonical&ts=$ts")
         assertTrue(MessageDigest.isEqual(expected.toByteArray(), signed.getValue("sig").toByteArray()))
-        assertEquals("NEW_MESSAGE", signed["type"])
+        assertEquals("GROUP_INVITE", signed["type"])
         assertFalse("ciphertext" in signed.values.joinToString())
     }
 
     @Test
     fun `enqueue drops blank ids self send and empty recipient lists`() {
         withConfiguredService { service, queued ->
-            service.enqueueEncryptedMessage(
-                recipientIds = listOf("u1", "", "u1", "u2"),
-                chatId = "c1",
-                messageId = "m1",
-                senderId = "u1",
-                messageType = "TEXT"
-            )
-            assertEquals(1, queued.size)
-            assertEquals("u2", queued.single().recipientId)
-            assertEquals("NEW_MESSAGE", queued.single().data["type"])
-            assertEquals("c1", queued.single().data["chatId"])
-            queued.clear()
-
-            service.enqueueEncryptedMessage(listOf("u2"), chatId = " ", messageId = "m1", senderId = "u1", messageType = "TEXT")
-            service.enqueueEncryptedMessage(listOf("u2"), chatId = "c1", messageId = "", senderId = "u1", messageType = "TEXT")
-            service.enqueueEncryptedMessage(emptyList(), chatId = "c1", messageId = "m1", senderId = "u1", messageType = "TEXT")
-            assertTrue(queued.isEmpty())
-
             service.enqueueIncomingCall(recipientId = "", senderId = "u1", isVideo = false, callId = "call-1")
             service.enqueueIncomingCall(recipientId = "u1", senderId = "u1", isVideo = true)
             assertTrue(queued.isEmpty())
@@ -217,9 +198,9 @@ class FcmPushServiceTest {
         service.onQueued = { queued += it }
         try {
             assertFalse(service.isConfigured)
-            service.enqueueEncryptedMessage(listOf("u2"), "c1", "m1", "u1", "TEXT")
+            service.enqueueGroupInvite("u2", "u1", "i1", "c1", "CREATED")
             assertEquals(1, queued.size)
-            assertEquals("NEW_MESSAGE", queued.single().data["type"])
+            assertEquals("GROUP_INVITE", queued.single().data["type"])
         } finally {
             service.shutdown()
         }

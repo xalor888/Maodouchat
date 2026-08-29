@@ -19,24 +19,18 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.maodouchat.MainActivity
 import com.maodouchat.R
-import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.TokenManager
-import com.maodouchat.network.WebSocketClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /**
- * 9.3xx：后台推送保活前台服务（Ideaura KeepAliveService 同款移植）：
+ * Visible foreground owner for the authenticated push WebSocket transport.
  *
- * - 前台服务类型 dataSync/mediaPlayback（按当前保活模式），START_STICKY
- * - PARTIAL_WAKE_LOCK + WIFI_MODE_FULL_HIGH_PERF WifiLock
- * - 网络变化回调：bindProcessToNetwork + 可用时立即重连 WebSocket
- * - 低优先级常驻通知
- * - 模式 media：挂 MediaSession「播放中」+ 静音循环（音乐播放器伪装）
- * - 模式 call：挂 onHold 假来电（通话级优先级伪装）
- * - 被系统销毁时启动守护服务（PushDaemonService）互相复活
+ * Stored legacy keepalive modes remain accepted for preference compatibility, but every enabled
+ * mode now uses the same data-sync foreground service. No silent media or synthetic Telecom call
+ * is created. The process/network locks and daemon resurrection retain their existing behavior.
  */
 class PushKeepAliveService : Service() {
 
@@ -44,7 +38,7 @@ class PushKeepAliveService : Service() {
     private var wifiLock: WifiManager.WifiLock? = null
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
-    private var mediaKeepAlive: MediaKeepAlive? = null
+    private lateinit var pushTransport: PushTransport
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -57,7 +51,8 @@ class PushKeepAliveService : Service() {
         Log.i(TAG, "onCreate mode=${PushKeepAliveModeStore.mode(this)}")
 
         createChannel()
-        // startForegroundService 合同：5s 内必须进前台，即使马上因无 token 退出。
+        pushTransport = androidPushTransport(this)
+        // startForegroundService contract: promote within five seconds before validating the session.
         val promoted = startAsForeground()
         val shouldRun = PushKeepAlivePolicy.shouldStartService(
             PushKeepAliveModeStore.mode(this),
@@ -91,7 +86,13 @@ class PushKeepAliveService : Service() {
                     runCatching {
                         connectivityManager?.bindProcessToNetwork(network)
                     }
-                    ensureWebSocket()
+                    when (pushTransport.onNetworkAvailable()) {
+                        PushTransportState.NoSession -> {
+                            allowDaemonResurrection = false
+                            stopSelf()
+                        }
+                        else -> Unit
+                    }
                 }
 
                 override fun onLost(network: Network) {
@@ -107,26 +108,7 @@ class PushKeepAliveService : Service() {
                 )
             }
         }
-        applyStrategy()
-        ensureWebSocket()
-        // 9.3xx：策略自愈循环——假来电被系统按未接来电超时挂断 / 媒体会话被系统回收时，
-        // 每 30s 检测并按当前模式重挂，保证保活不静默失效
-        scope.launch {
-            while (true) {
-                kotlinx.coroutines.delay(30_000L)
-                if (PushKeepAliveModeStore.wantsFakeCall(this@PushKeepAliveService) &&
-                    !FakeCallKeepAlive.isActive()
-                ) {
-                    FakeCallKeepAlive.addFakeCall(this@PushKeepAliveService)
-                }
-                if (PushKeepAliveModeStore.wantsMedia(this@PushKeepAliveService) &&
-                    MediaKeepAlive.active == null
-                ) {
-                    mediaKeepAlive = mediaKeepAlive ?: MediaKeepAlive(this@PushKeepAliveService)
-                    mediaKeepAlive?.start()
-                }
-            }
-        }
+        ensureTransport()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -141,52 +123,21 @@ class PushKeepAliveService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        ensureWebSocket()
-        // 每次 onStartCommand 都重校验策略：真实通话结束后（onRealCallEnded 触发重启）
-        // 或模式切换后，媒体会话/假来电按当前模式恢复
-        applyStrategy()
+        ensureTransport()
         return START_STICKY
     }
 
-    /** 按模式挂策略（媒体会话 / 假来电）。 */
-    private fun applyStrategy() {
-        when {
-            PushKeepAliveModeStore.wantsMedia(this) -> {
-                // 前台类型切到 mediaPlayback（媒体豁免），再挂静音循环
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val ok = runCatching {
-                        startForeground(
-                            NOTIFICATION_ID,
-                            buildNotification(),
-                            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-                        )
-                    }.isSuccess
-                    if (!ok) {
-                        Log.w(TAG, "media startForeground failed; leaving dataSync type")
-                    }
-                }
-                mediaKeepAlive = mediaKeepAlive ?: MediaKeepAlive(this)
-                mediaKeepAlive?.start()
-            }
-            PushKeepAliveModeStore.wantsFakeCall(this) -> {
-                FakeCallKeepAlive.addFakeCall(this)
-            }
-        }
-    }
-
-    /** 保活服务拉起时确保 WS 连接（登录态才有意义）。 */
-    private fun ensureWebSocket() {
+    private fun ensureTransport() {
         scope.launch {
-            val token = TokenManager.getInstance(this@PushKeepAliveService).getToken()
-            if (token.isNullOrBlank()) {
-                Log.w(TAG, "no token; stopping keepalive")
-                allowDaemonResurrection = false
-                stopSelf()
-                return@launch
-            }
-            if (!WebSocketClient.isConnected()) {
-                Log.i(TAG, "connecting ws from keepalive service")
-                WebSocketClient.connect(ApiConfig.WS_URL, token)
+            when (pushTransport.ensureForegroundConnection()) {
+                PushTransportState.NoSession -> {
+                    Log.w(TAG, "no active session; stopping push transport")
+                    allowDaemonResurrection = false
+                    stopSelf()
+                }
+                is PushTransportState.Connecting -> Log.i(TAG, "connecting foreground push transport")
+                is PushTransportState.Connected -> Unit
+                PushTransportState.Stopped -> Unit
             }
         }
     }
@@ -210,11 +161,7 @@ class PushKeepAliveService : Service() {
         val notification = buildNotification()
         // 后台启动限制 / FGS 类型权限失败不得带崩进程；全失败则放弃保活。
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val type = if (PushKeepAliveModeStore.wantsMedia(this)) {
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-            } else {
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-            }
+            val type = android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
             val ok = runCatching { startForeground(NOTIFICATION_ID, notification, type) }.isSuccess
             if (ok) return true
             Log.w(TAG, "typed startForeground failed; falling back to untyped")
@@ -250,9 +197,7 @@ class PushKeepAliveService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         Log.i(TAG, "onDestroy")
-        mediaKeepAlive?.stop()
-        mediaKeepAlive = null
-        FakeCallKeepAlive.removeFakeCall()
+        pushTransport.stop()
         runCatching { if (wakeLock?.isHeld == true) wakeLock?.release() }
         runCatching { if (wifiLock?.isHeld == true) wifiLock?.release() }
         networkCallback?.let { runCatching { connectivityManager?.unregisterNetworkCallback(it) } }

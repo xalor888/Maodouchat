@@ -11,9 +11,6 @@ data class AttachmentUploadResponse(
 )
 
 @Serializable
-data class AttachmentCommitRequest(val messageId: String)
-
-@Serializable
 data class AttachmentUploadSessionRequest(
     val chatId: String,
     val messageId: String,

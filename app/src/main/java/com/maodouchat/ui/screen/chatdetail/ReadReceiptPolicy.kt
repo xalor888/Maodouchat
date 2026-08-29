@@ -68,7 +68,7 @@ object ReadReceiptPolicy {
     }
 
     /**
-     * 群聊不推 MESSAGE_STATUS READ（一人已读 ≠ 全员已读），发送方只能轮询 GET read-receipts。
+     * 群聊的一人已读不等于全员已读；发送方按本地 v2 回执快照聚合展示。
      * 刷新尚未读满的自己消息，以及发送时还是 SENDING、从未预拉过的气泡。
      */
     fun incompleteGroupReadMessageIds(

@@ -7,8 +7,6 @@ import com.maodouchat.server.plugins.configureRouting
 import com.maodouchat.server.plugins.configureSerialization
 import com.maodouchat.server.plugins.configureSockets
 import com.maodouchat.server.plugins.configureStatusPages
-import com.maodouchat.server.repository.ChatRepository
-import com.maodouchat.server.repository.MessageRepository
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.SignalingRepository
 import com.maodouchat.server.repository.UserRepository
@@ -53,8 +51,6 @@ class AppUpdatePublishRouteTest {
         Database.connect(ServerConfig.databaseUrl, driver = ServerConfig.databaseDriver)
         initDatabase()
         val userRepo = UserRepository()
-        val chatRepo = ChatRepository()
-        val messageRepo = MessageRepository()
         val postRepo = PostRepository()
         configureAuthentication()
         configureSerialization()
@@ -62,15 +58,11 @@ class AppUpdatePublishRouteTest {
         val signalingRepo = SignalingRepository()
         configureSockets(
             userRepo,
-            messageRepo,
-            chatRepo,
             signalingRepo = signalingRepo,
             callInviteRateLimiter = CallInviteRateLimiter(),
         )
         configureRouting(
             userRepo,
-            chatRepo,
-            messageRepo,
             postRepo,
             FakeUpdateAiGateway(),
             signalingRepo = signalingRepo,

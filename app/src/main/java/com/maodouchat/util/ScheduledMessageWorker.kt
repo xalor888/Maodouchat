@@ -4,22 +4,22 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.data.repository.TextOutboxFlusher
-import com.maodouchat.network.ApiService
+import com.maodouchat.data.repository.LocalMessageStore
+import com.maodouchat.messaging.v2.MessagingV2MessageGateway
 import com.maodouchat.network.TokenManager
-import com.maodouchat.network.WebSocketClient
+import com.maodouchat.quickreply.ChatGateVerdict
+import com.maodouchat.quickreply.QuickReplyPolicy
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
 /**
- * 到期后把本地定时文本转成 SENDING 发件箱消息并尝试投递；失败则保留 SENDING 供 TextOutboxFlusher 重试。
- * 1:1 与群聊均支持纯文本（群聊走 TextOutboxFlusher 的 Sender Key 覆盖加密路径）。
+ * 到期后把本地定时文本转成 SENDING 消息并写入 messaging v2 持久发件箱。
+ * 单聊和群聊共用同一条按设备投递、离线可收敛的发送管线。
  */
 class ScheduledMessageWorker(
     appContext: Context,
@@ -62,6 +62,15 @@ class ScheduledMessageWorker(
         }
         val app = applicationContext as? MaodouchatApp
             ?: return@withContext Result.retry()
+        // 到点发送必须与手动发送同门禁：密聊/会话锁定的会话不得经定时路径绕过隐私边界。
+        // 被拒时按 abandon 处理（重复项按既有策略重排下一次），不静默丢弃用户意图。
+        when (val gate = QuickReplyPolicy.gateForChat(app, item.chatId, ownerUserId)) {
+            is ChatGateVerdict.Allowed -> Unit
+            is ChatGateVerdict.Rejected -> {
+                android.util.Log.i(TAG, "scheduled send rejected by privacy gate (${gate.reason}) chat=${item.chatId}")
+                return@withContext abandonScheduledMessage(item, scheduleId, expectedOwnerUserId)
+            }
+        }
         val msgId = "sm_${scheduleId.removePrefix("sch_")}"
         val now = System.currentTimeMillis()
         val optimistic = Message(
@@ -73,13 +82,6 @@ class ScheduledMessageWorker(
             timestamp = now,
             status = MessageStatus.SENDING
         )
-        runCatching {
-            app.database.messageDao().insertMessage(optimistic.toEntity())
-        }.onFailure {
-            if (it is kotlinx.coroutines.CancellationException) throw it
-            return@withContext Result.retry()
-        }
-
         if (!BackgroundSessionGate.mayContinue(
                 expectedUserId = expectedOwnerUserId,
                 liveToken = tokenManager.getToken(),
@@ -90,22 +92,44 @@ class ScheduledMessageWorker(
             return@withContext Result.retry()
         }
 
+        // Stage the message before mutating the schedule. If the process exits after this
+        // point, the durable outbox can still converge and the deterministic message id makes
+        // the next worker retry idempotent.
+        runCatching {
+            val messageStore = LocalMessageStore(app.database.messageDao(), app.database)
+            val chat = app.database.chatDao().getChatById(item.chatId)
+            MessagingV2MessageGateway(
+                database = app.database,
+                messageStore = messageStore,
+                outbox = app.messagingV2Outbox,
+            ).stageAndEnqueue(
+                message = optimistic,
+                body = item.text,
+                type = optimistic.type,
+                groupRevision = chat?.memberRevision?.takeIf { chat.isGroup },
+            )
+        }.onFailure {
+            if (it is kotlinx.coroutines.CancellationException) throw it
+            return@withContext Result.retry()
+        }
+
         // 1.14 修复（1.07 遗留 bug）：此前成功发送路径只 remove 不重排，
         // 重复定时消息首轮发送后即终止，重复从未生效。现改为先重排下一次再移除当前到条目。
         // 1.21：repeatCount>0 时达上限（occurrencesSent+1 >= repeatCount）即停止重排。
         if (item.repeatIntervalMs > 0L && (item.repeatCount == 0 || item.occurrencesSent + 1 < item.repeatCount)) {
             try {
-                ScheduledMessageStore.add(
-                    applicationContext,
-                    item.chatId,
-                    item.peerUserId,
-                    item.text,
-                    nextRepeatSendAt(item),
-                    item.isGroup,
-                    item.repeatIntervalMs,
-                    item.repeatCount,
-                    item.occurrencesSent + 1,
-                    item.weekdaysOnly
+                ScheduledMessageStore.addForUser(
+                    context = applicationContext,
+                    ownerUserId = expectedOwnerUserId,
+                    chatId = item.chatId,
+                    peerUserId = item.peerUserId,
+                    text = item.text,
+                    sendAtMillis = nextRepeatSendAt(item),
+                    isGroup = item.isGroup,
+                    repeatIntervalMs = item.repeatIntervalMs,
+                    repeatCount = item.repeatCount,
+                    occurrencesSent = item.occurrencesSent + 1,
+                    weekdaysOnly = item.weekdaysOnly,
                 )?.let { rescheduled ->
                     ScheduledMessageScheduler.schedule(applicationContext, rescheduled)
                 }
@@ -116,60 +140,11 @@ class ScheduledMessageWorker(
             }
         }
         ScheduledMessageStore.removeForUser(applicationContext, scheduleId, expectedOwnerUserId)
-
-        if (item.isGroup) {
-            // Group encrypt needs epoch + Sender Key coverage; reuse durable outbox path.
-            runCatching {
-                TextOutboxFlusher.flush(app = app, activeChatId = item.chatId)
-            }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
-            MaodouchatApp.emitMessageSent(item.chatId, item.text.take(200), if (com.maodouchat.ui.component.ChatMarkdown.looksLikeMarkdown(item.text)) MessageType.MARKDOWN.name else MessageType.TEXT.name)
-            return@withContext Result.success()
-        }
-
-        val delivered = runCatching {
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) {
-                return@runCatching false
-            }
-            val peerId = item.peerUserId
-            if (peerId.isBlank()) return@runCatching false
-            val wire = if (com.maodouchat.bot.BotCommandPolicy.isBotUserId(peerId)) {
-                item.text
-            } else {
-                check(app.signalProtocol.ensureLocalCryptoReady(liveToken, ownerUserId)) {
-                    "signal_local_crypto_not_ready"
-                }
-                app.signalProtocol.encryptSyncedContentEnvelope(
-                    liveToken,
-                    peerId,
-                    item.text,
-                    optimistic.type.name
-                ).getOrThrow()
-            }
-            val wireMsg = optimistic.copy(content = wire)
-            if (WebSocketClient.sendMessage(wireMsg)) {
-                // WebSocket 直发成功也要本地落库为 SENT，否则消息会一直停在 SENDING。
-                val sent = optimistic.copy(status = MessageStatus.SENT)
-                app.database.messageDao().insertMessage(sent.toEntity())
-                true
-            } else {
-                ApiService.sendMessage(liveToken, item.chatId, wire, optimistic.type.name, msgId).getOrThrow()
-                val sent = optimistic.copy(status = MessageStatus.SENT)
-                app.database.messageDao().insertMessage(sent.toEntity())
-                true
-            }
-        }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }.getOrDefault(false)
-
-        if (!delivered) {
-            TextOutboxFlusher.flush(app = app)
-        } else {
-            MaodouchatApp.emitMessageSent(item.chatId, item.text.take(200), if (com.maodouchat.ui.component.ChatMarkdown.looksLikeMarkdown(item.text)) MessageType.MARKDOWN.name else MessageType.TEXT.name)
-        }
+        MaodouchatApp.emitMessageSent(
+            item.chatId,
+            item.text.take(200),
+            optimistic.type.name,
+        )
         Result.success()
     }
 
@@ -200,20 +175,30 @@ class ScheduledMessageWorker(
         expectedOwnerUserId: String
     ): Result {
         try {
+            // 重复定时重排前必须确认账号仍归属当前会话：purge 与运行中的 Worker 存在竞态，
+            // 登出/换号后重排会给已登出账号复活一条待发行并触发离任通知。
+            val ownerStillCurrent = com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                expectedUserId = expectedOwnerUserId,
+                liveToken = TokenManager.getInstance(applicationContext).getToken(),
+                liveUserId = TokenManager.getInstance(applicationContext).getUserId(),
+            )
             // 1.07：重复定时——发送前若配置了重复间隔，重新入队下一次（净增 1 条）
             // 1.21：与成功路径一致，达重复次数上限后不再重排
-            if (item.repeatIntervalMs > 0L && (item.repeatCount == 0 || item.occurrencesSent + 1 < item.repeatCount)) {
-                ScheduledMessageStore.add(
-                    applicationContext,
-                    item.chatId,
-                    item.peerUserId,
-                    item.text,
-                    nextRepeatSendAt(item),
-                    item.isGroup,
-                    item.repeatIntervalMs,
-                    item.repeatCount,
-                    item.occurrencesSent + 1,
-                    item.weekdaysOnly
+            if (ownerStillCurrent &&
+                item.repeatIntervalMs > 0L && (item.repeatCount == 0 || item.occurrencesSent + 1 < item.repeatCount)
+            ) {
+                ScheduledMessageStore.addForUser(
+                    context = applicationContext,
+                    ownerUserId = expectedOwnerUserId,
+                    chatId = item.chatId,
+                    peerUserId = item.peerUserId,
+                    text = item.text,
+                    sendAtMillis = nextRepeatSendAt(item),
+                    isGroup = item.isGroup,
+                    repeatIntervalMs = item.repeatIntervalMs,
+                    repeatCount = item.repeatCount,
+                    occurrencesSent = item.occurrencesSent + 1,
+                    weekdaysOnly = item.weekdaysOnly,
                 )?.let { rescheduled ->
                     ScheduledMessageScheduler.schedule(applicationContext, rescheduled)
                 }

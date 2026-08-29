@@ -315,16 +315,15 @@ internal fun isValidGroupSignalMetadata(
     callId: String,
     fromUserId: String,
     toUserId: String,
-    chatRepo: com.maodouchat.server.repository.ChatRepository
+    conversationQueryRepository: com.maodouchat.server.repository.ConversationQueryRepository
 ): Boolean {
     if (groupId.isBlank()) return groupMemberIds.isEmpty() && !groupInvite
     if (callId.isBlank()) return false
     if (!CALL_ID_REGEX.matches(groupId) || groupMemberIds.size !in 2..MAX_MESH_CALL_MEMBERS) return false
     val distinctMembers = groupMemberIds.distinct()
     if (distinctMembers.size != groupMemberIds.size || fromUserId !in distinctMembers || toUserId !in distinctMembers) return false
-    val chat = chatRepo.getChatById(groupId) ?: return false
+    val chat = conversationQueryRepository.getById(groupId) ?: return false
     if (!chat.isGroup) return false
     val actualMembers = chat.participants.map { it.id }.toSet()
     return distinctMembers.all { it in actualMembers }
 }
-

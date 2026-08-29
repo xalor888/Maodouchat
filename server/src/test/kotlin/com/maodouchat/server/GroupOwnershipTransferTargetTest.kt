@@ -1,9 +1,14 @@
 package com.maodouchat.server
 
 import com.maodouchat.server.db.ChatParticipants
+import com.maodouchat.server.db.MessagingV2Envelopes
+import com.maodouchat.server.db.MessagingV2Messages
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
-import com.maodouchat.server.repository.ChatRepository
+import com.maodouchat.server.repository.ConversationQueryRepository
+import com.maodouchat.server.repository.ConversationCreationRepository
+import com.maodouchat.server.repository.GroupLifecycleService
+import com.maodouchat.server.repository.GroupMembershipRepository
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
@@ -16,6 +21,7 @@ import org.junit.jupiter.api.AfterEach
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * 9.241：转让群主不得指向已注销账号——注销清理与转让存在竞态窗口，
@@ -52,8 +58,7 @@ class GroupOwnershipTransferTargetTest {
     @Test
     fun `transfer to deactivated account is rejected and roles unchanged`() {
         setupDb()
-        val repo = ChatRepository()
-        val group = repo.createChat(
+        val group = ConversationCreationRepository().create(
             participantIds = listOf("u1", "u2", "u3"),
             isGroup = true,
             groupName = "transfer target",
@@ -64,8 +69,8 @@ class GroupOwnershipTransferTargetTest {
             Users.update({ Users.id eq "u3" }) { it[Users.deletedAt] = System.currentTimeMillis() }
         }
         assertEquals(
-            ChatRepository.TransferOwnershipResult.TARGET_DEACTIVATED,
-            repo.transferOwnership(group.id, "u1", "u3")
+            com.maodouchat.server.repository.TransferOwnershipResult.TARGET_DEACTIVATED,
+            GroupMembershipRepository().transferOwnership(group.id, "u1", "u3")
         )
         // 角色不变：u1 仍是 OWNER
         transaction {
@@ -79,16 +84,15 @@ class GroupOwnershipTransferTargetTest {
     @Test
     fun `transfer to active member still succeeds`() {
         setupDb()
-        val repo = ChatRepository()
-        val group = repo.createChat(
+        val group = ConversationCreationRepository().create(
             participantIds = listOf("u1", "u2"),
             isGroup = true,
             groupName = "transfer ok",
             creatorId = "u1"
         )
         assertEquals(
-            ChatRepository.TransferOwnershipResult.TRANSFERRED,
-            repo.transferOwnership(group.id, "u1", "u2")
+            com.maodouchat.server.repository.TransferOwnershipResult.TRANSFERRED,
+            GroupMembershipRepository().transferOwnership(group.id, "u1", "u2")
         )
         transaction {
             val roles = ChatParticipants.selectAll()
@@ -96,6 +100,79 @@ class GroupOwnershipTransferTargetTest {
                 .associate { it[ChatParticipants.userId] to it[ChatParticipants.role] }
             assertEquals("OWNER", roles["u2"])
             assertEquals("ADMIN", roles["u1"])
+        }
+    }
+
+    @Test
+    fun `group lifecycle service returns pre-mutation recipients and committed revision`() {
+        setupDb()
+        val queries = ConversationQueryRepository()
+        val group = ConversationCreationRepository().create(
+            participantIds = listOf("u1", "u2", "u3"),
+            isGroup = true,
+            groupName = "service boundary",
+            creatorId = "u1"
+        )
+        val beforeRevision = queries.getById(group.id)!!.memberRevision
+        val commit = GroupLifecycleService(GroupMembershipRepository()).removeMember(group.id, "u1", "u3")
+
+        assertEquals(com.maodouchat.server.repository.GroupMemberMutationResult.UPDATED, commit.result)
+        assertEquals(setOf("u1", "u2", "u3"), commit.recipientsBefore.toSet())
+        assertEquals(beforeRevision + 1, commit.memberRevisionAfter)
+    }
+
+    @Test
+    fun `removing offline member deletes only their pending mailbox and bumps revision`() {
+        setupDb()
+        val queries = ConversationQueryRepository()
+        val group = ConversationCreationRepository().create(
+            participantIds = listOf("u1", "u2", "u3"),
+            isGroup = true,
+            groupName = "offline removal",
+            creatorId = "u1",
+        )
+        transaction {
+            MessagingV2Messages.insert {
+                it[id] = "membership-envelope-message"
+                it[conversationId] = group.id
+                it[senderUserId] = "u1"
+                it[senderDeviceId] = 1
+                it[kind] = "DATA"
+                it[recordClass] = "MESSAGE"
+                it[groupRevision] = queries.getById(group.id)!!.memberRevision
+                it[clientTimestamp] = 100L
+                it[serverTimestamp] = 100L
+                it[requestDigest] = "a".repeat(64)
+            }
+            listOf("u2", "u3").forEachIndexed { index, recipient ->
+                MessagingV2Envelopes.insert {
+                    it[id] = "membership-envelope-$recipient"
+                    it[messageId] = "membership-envelope-message"
+                    it[recipientUserId] = recipient
+                    it[recipientDeviceId] = 1
+                    it[ciphertextType] = "SIGNAL"
+                    it[ciphertext] = "cipher-$recipient"
+                    it[serverTimestamp] = 100L + index
+                    it[acknowledgedAt] = null
+                }
+            }
+        }
+
+        val commit = GroupLifecycleService(GroupMembershipRepository())
+            .removeMember(group.id, "u1", "u3")
+
+        assertEquals(com.maodouchat.server.repository.GroupMemberMutationResult.UPDATED, commit.result)
+        assertEquals(2, commit.memberRevisionAfter)
+        transaction {
+            val pendingRecipients = MessagingV2Envelopes.selectAll()
+                .where { MessagingV2Envelopes.messageId eq "membership-envelope-message" }
+                .map { it[MessagingV2Envelopes.recipientUserId] }
+            assertEquals(listOf("u2"), pendingRecipients)
+            assertTrue(
+                MessagingV2Messages.selectAll()
+                    .where { MessagingV2Messages.id eq "membership-envelope-message" }
+                    .any()
+            )
         }
     }
 }

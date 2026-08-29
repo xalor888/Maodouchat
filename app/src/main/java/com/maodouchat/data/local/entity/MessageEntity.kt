@@ -28,6 +28,7 @@ import kotlinx.serialization.json.Json
         Index(value = ["chatId", "type", "timestamp"]),
         // B7: 仅追加索引，与 MIGRATION_27_28 保持一致，保证新建库与迁移库 schema 等价
         Index(value = ["chatId", "timestamp"]),
+        // Retained for schema compatibility with historical v28 databases; v2 outbox uses its own table.
         Index(value = ["status", "senderId", "timestamp"]),
         Index("expiresAt"),
         Index(value = ["type", "timestamp"])

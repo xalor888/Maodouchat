@@ -7,13 +7,12 @@ import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.GroupPolls
-import com.maodouchat.server.db.MessageReactions
-import com.maodouchat.server.db.Messages
-import com.maodouchat.server.db.ReadReceipts
-import com.maodouchat.server.db.SenderKeyDistributions
+import com.maodouchat.server.db.MessagingV2Messages
+import com.maodouchat.server.db.ServiceMessageReactions
 import com.maodouchat.server.db.StarMessages
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
+import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
@@ -28,6 +27,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -91,39 +91,17 @@ class BotCreateOutcomeTest {
                 it[ChatParticipants.userId] = botId
                 it[ChatParticipants.joinedAt] = now
             }
-            Messages.insert {
-                it[Messages.id] = "m1"
-                it[Messages.chatId] = "c1"
-                it[Messages.senderId] = botId
-                it[Messages.content] = "x"
-                it[Messages.type] = "TEXT"
-                it[Messages.timestamp] = now
-            }
-            MessageReactions.insert {
-                it[MessageReactions.messageId] = "m1"
-                it[MessageReactions.userId] = botId
-                it[MessageReactions.emoji] = "x"
-                it[MessageReactions.reactedAt] = now
-            }
-            ReadReceipts.insert {
-                it[ReadReceipts.messageId] = "m1"
-                it[ReadReceipts.userId] = botId
-                it[ReadReceipts.readAt] = now
+            insertV2Message("m1", "c1", botId, now)
+            ServiceMessageReactions.insert {
+                it[messageId] = "m1"
+                it[botUserId] = botId
+                it[emoji] = "x"
+                it[reactedAt] = now
             }
             StarMessages.insert {
                 it[StarMessages.userId] = botId
                 it[StarMessages.messageId] = "m1"
                 it[StarMessages.starredAt] = now
-            }
-            SenderKeyDistributions.insert {
-                it[SenderKeyDistributions.id] = "skd_1"
-                it[SenderKeyDistributions.chatId] = "c1"
-                it[SenderKeyDistributions.epoch] = 1
-                it[SenderKeyDistributions.senderId] = botId
-                it[SenderKeyDistributions.recipientUserId] = "u1"
-                it[SenderKeyDistributions.recipientDeviceId] = 1
-                it[SenderKeyDistributions.createdAt] = now
-                it[SenderKeyDistributions.updatedAt] = now
             }
             GroupPolls.insert {
                 it[GroupPolls.id] = "poll_1"
@@ -146,15 +124,8 @@ class BotCreateOutcomeTest {
 
         assertTrue(BotRepository.delete(botId, "u1"))
         transaction {
-            assertTrue(MessageReactions.selectAll().where { MessageReactions.userId eq botId }.empty())
-            assertTrue(ReadReceipts.selectAll().where { ReadReceipts.userId eq botId }.empty())
+            assertTrue(ServiceMessageReactions.selectAll().where { ServiceMessageReactions.botUserId eq botId }.empty())
             assertTrue(StarMessages.selectAll().where { StarMessages.userId eq botId }.empty())
-            assertTrue(
-                SenderKeyDistributions.selectAll().where {
-                    (SenderKeyDistributions.senderId eq botId) or
-                        (SenderKeyDistributions.recipientUserId eq botId)
-                }.empty()
-            )
             assertTrue(GroupPollVotes.selectAll().where { GroupPollVotes.userId eq botId }.empty())
         }
     }
@@ -275,7 +246,7 @@ class BotCreateOutcomeTest {
     }
 
     @Test
-    fun `insertBotMessage revalidates owner state inside message transaction`() {
+    fun `service message insert revalidates owner state inside transaction`() {
         setupDb()
         val created = BotRepository.create("u1", "Message Bot", "message_bot", "description")
         assertIs<BotRepository.BotCreateResult.Success>(created)
@@ -292,7 +263,8 @@ class BotCreateOutcomeTest {
             }
         }
 
-        assertTrue(MessageRepository().insertBotMessage("m1", "c1", botId, "hello", now))
+        val serviceMessageRepo = ServiceMessageRepository()
+        assertTrue(serviceMessageRepo.insert("m1", "c1", botId, "hello", now))
 
         val suspendedUntil = System.currentTimeMillis() + 60_000
         transaction {
@@ -300,7 +272,7 @@ class BotCreateOutcomeTest {
                 it[Users.suspendedUntil] = suspendedUntil
             }
         }
-        assertFalse(MessageRepository().insertBotMessage("m2", "c1", botId, "blocked", now))
+        assertFalse(serviceMessageRepo.insert("m2", "c1", botId, "blocked", now))
     }
 
     @Test
@@ -448,14 +420,7 @@ class BotCreateOutcomeTest {
                 it[ChatParticipants.joinedAt] = now
             }
             listOf("m1", "m2").forEach { messageId ->
-                Messages.insert {
-                    it[Messages.id] = messageId
-                    it[Messages.chatId] = "g1"
-                    it[Messages.senderId] = botId
-                    it[Messages.content] = messageId
-                    it[Messages.type] = "TEXT"
-                    it[Messages.timestamp] = now
-                }
+                insertV2Message(messageId, "g1", botId, now)
             }
         }
 
@@ -521,10 +486,11 @@ class BotCreateOutcomeTest {
             }
         }
 
-        val chatRepo = ChatRepository()
+        val groupModerationRepo = GroupModerationRepository()
+        val groupProfileRepo = GroupProfileRepository()
         assertEquals(
-            ChatRepository.GroupMemberMutationResult.UPDATED,
-            chatRepo.updateGroupMemberMuteAsAdmin(
+            com.maodouchat.server.repository.GroupMemberMutationResult.UPDATED,
+            groupModerationRepo.updateMemberMute(
                 chatId = "g1",
                 actorId = botId,
                 targetUserId = "u2",
@@ -541,8 +507,8 @@ class BotCreateOutcomeTest {
         }
 
         assertEquals(
-            ChatRepository.GroupMemberMutationResult.FORBIDDEN,
-            chatRepo.updateGroupMemberMuteAsAdmin(
+            com.maodouchat.server.repository.GroupMemberMutationResult.FORBIDDEN,
+            groupModerationRepo.updateMemberMute(
                 chatId = "g1",
                 actorId = botId,
                 targetUserId = "u2",
@@ -551,8 +517,8 @@ class BotCreateOutcomeTest {
             )
         )
         assertEquals(
-            ChatRepository.GroupMemberMutationResult.FORBIDDEN,
-            chatRepo.removeGroupMemberAs(
+            com.maodouchat.server.repository.GroupMemberMutationResult.FORBIDDEN,
+            GroupMembershipRepository().removeMember(
                 chatId = "g1",
                 actorId = botId,
                 targetUserId = "u2",
@@ -560,8 +526,8 @@ class BotCreateOutcomeTest {
             )
         )
         assertEquals(
-            ChatRepository.GroupMemberMutationResult.FORBIDDEN,
-            chatRepo.updateGroupNameAsAdmin(
+            com.maodouchat.server.repository.GroupMemberMutationResult.FORBIDDEN,
+            groupProfileRepo.updateName(
                 chatId = "g1",
                 actorId = botId,
                 name = "Blocked",
@@ -569,8 +535,8 @@ class BotCreateOutcomeTest {
             )
         )
         assertEquals(
-            0,
-            chatRepo.muteGroupMembersAsAdmin(
+            GroupBulkMuteResult(GroupMemberMutationResult.FORBIDDEN),
+            groupModerationRepo.updateMembersMute(
                 chatId = "g1",
                 actorId = botId,
                 targetUserIds = listOf("u2"),
@@ -579,8 +545,8 @@ class BotCreateOutcomeTest {
             )
         )
         assertEquals(
-            ChatRepository.GroupMemberMutationResult.FORBIDDEN,
-            chatRepo.configureGroupInviteAsAdmin(
+            com.maodouchat.server.repository.GroupMemberMutationResult.FORBIDDEN,
+            GroupInvitationRepository().configureToken(
                 chatId = "g1",
                 actorId = botId,
                 rotate = true,
@@ -607,26 +573,21 @@ class BotCreateOutcomeTest {
                 it[ChatParticipants.userId] = botId
                 it[ChatParticipants.joinedAt] = now
             }
-            listOf("m_ok", "m_blocked").forEach { messageId ->
-                Messages.insert {
-                    it[Messages.id] = messageId
-                    it[Messages.chatId] = "c1"
-                    it[Messages.senderId] = botId
-                    it[Messages.content] = "hello"
-                    it[Messages.type] = "TEXT"
-                    it[Messages.timestamp] = now
-                }
-            }
         }
 
-        val messageRepo = MessageRepository()
+        val messageRepo = ServiceMessageRepository()
         val starMessageRepo = StarMessageRepository()
+        assertTrue(messageRepo.insert("m_ok", "c1", botId, "hello", now))
+        assertTrue(messageRepo.insert("m_blocked", "c1", botId, "hello", now))
+        transaction {
+            insertV2Message("m_ok", "c1", botId, now)
+            insertV2Message("m_blocked", "c1", botId, now)
+        }
 
-        assertTrue(messageRepo.editMessage("m_ok", botId, "edited", requireBotDeliverable = true))
-        assertTrue(messageRepo.editBotMessageCaption("m_ok", botId, "caption", now + 1L))
-        assertTrue(messageRepo.setReaction("m_ok", botId, "x", requireBotDeliverable = true) != null)
+        assertNotNull(messageRepo.editOwn("m_ok", botId, "caption", now + 1L))
+        assertNotNull(messageRepo.setReaction("m_ok", botId, "x"))
         assertTrue(starMessageRepo.toggleStar(botId, "m_ok", requireBotDeliverable = true) == true)
-        assertEquals(true, messageRepo.deleteMessage("m_ok", botId, requireBotDeliverable = true).ok)
+        assertNotNull(messageRepo.deleteOwn("m_ok", botId))
 
         val suspendedUntil = System.currentTimeMillis() + 60_000
         transaction {
@@ -635,11 +596,10 @@ class BotCreateOutcomeTest {
             }
         }
 
-        assertFalse(messageRepo.editMessage("m_blocked", botId, "blocked", requireBotDeliverable = true))
-        assertFalse(messageRepo.editBotMessageCaption("m_blocked", botId, "blocked", now + 2L))
-        assertNull(messageRepo.setReaction("m_blocked", botId, "y", requireBotDeliverable = true))
+        assertNull(messageRepo.editOwn("m_blocked", botId, "blocked", now + 2L))
+        assertNull(messageRepo.setReaction("m_blocked", botId, "y"))
         assertNull(starMessageRepo.toggleStar(botId, "m_blocked", requireBotDeliverable = true))
-        assertEquals(false, messageRepo.deleteMessage("m_blocked", botId, requireBotDeliverable = true).ok)
+        assertNull(messageRepo.deleteOwn("m_blocked", botId))
     }
 
     @Test
@@ -732,5 +692,20 @@ class BotCreateOutcomeTest {
         assertEquals(1, updates.size)
         assertTrue(updates.first().second.contains("user_command"))
         assertFalse(updates.first().second.contains("ciphertext"))
+    }
+
+    private fun insertV2Message(messageId: String, chatId: String, senderId: String, timestamp: Long) {
+        MessagingV2Messages.insert {
+            it[id] = messageId
+            it[conversationId] = chatId
+            it[senderUserId] = senderId
+            it[senderDeviceId] = 0
+            it[kind] = "SERVICE"
+            it[recordClass] = MessagingV2RecordClass.MESSAGE
+            it[groupRevision] = null
+            it[clientTimestamp] = timestamp
+            it[serverTimestamp] = timestamp
+            it[requestDigest] = "test-$messageId"
+        }
     }
 }

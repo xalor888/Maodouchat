@@ -320,6 +320,8 @@ class SignalKeyRepository {
         SignalKeys.deleteWhere {
             (SignalKeys.userId eq userId) and (SignalKeys.deviceId eq deviceId)
         }
+        // B06：设备退役立即清理其未投递邮箱，避免删除设备的信封等待周期任务。
+        com.maodouchat.server.messaging.retention.MailboxRetentionService().purgeRetiredDevice(userId, deviceId)
         DeleteDeviceOutcome(DeleteDeviceResult.DELETED, revokedSessionIds)
     }
 

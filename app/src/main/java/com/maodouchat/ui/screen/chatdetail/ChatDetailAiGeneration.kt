@@ -12,7 +12,6 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.UnreadWindowDto
 import com.maodouchat.network.AiContextMessage
 import com.maodouchat.network.AiSemanticSearchCandidate
 import com.maodouchat.data.model.semanticSearchText
@@ -1822,8 +1821,7 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
 
     internal fun ChatDetailViewModel.maybeGenerateUnreadSummary(messages: List<Message>) {
         val state = _uiState.value
-        val exactWindow = unreadSummaryWindow
-        val unreadCount = exactWindow?.totalCount ?: state.chat?.unreadCount ?: 0
+        val unreadCount = state.chat?.unreadCount ?: 0
         if (unreadCount <= 0 || messages.isEmpty() || token.isBlank()) return
         if (
             !aiSettingsLoaded ||
@@ -1832,20 +1830,15 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
             !com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(app)
         ) return
 
-        val exactMessageIds = exactWindow?.messageIds?.toHashSet()
         val candidates = messages
             .filter { message ->
                 message.senderId != currentUserId &&
                     (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) &&
                     !message.parsedMeta().aiAssisted &&
-                    message.parsedContent().isNotBlank() &&
-                    (exactMessageIds == null || message.id in exactMessageIds)
+                    message.parsedContent().isNotBlank()
             }
             .sortedBy { it.timestamp }
-            .takeLast(
-                if (exactMessageIds == null) unreadCount.coerceIn(1, 24)
-                else MAX_AI_SUMMARY_MESSAGES
-            )
+            .takeLast(unreadCount.coerceIn(1, MAX_AI_SUMMARY_MESSAGES))
 
         if (candidates.isEmpty()) return
         val first = candidates.first()

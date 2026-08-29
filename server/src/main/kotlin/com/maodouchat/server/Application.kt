@@ -2,6 +2,7 @@ package com.maodouchat.server
 
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.initDatabase
+import com.maodouchat.server.db.migration.runDatabaseMigrations
 import com.maodouchat.server.plugins.configureAuthentication
 import com.maodouchat.server.plugins.configureCORS
 import com.maodouchat.server.plugins.configureDeveloperRouting
@@ -13,11 +14,10 @@ import com.maodouchat.server.plugins.configureStatusPages
 import com.maodouchat.server.plugins.configurePollRouting
 import com.maodouchat.server.plugins.configureAdminEnhanceRouting
 import com.maodouchat.server.plugins.configureSecretSurfaceRouting
+import com.maodouchat.server.plugins.configureMessagingV2Routing
 import com.maodouchat.server.plugins.startRateLimitStatsSampler
 import com.maodouchat.server.plugins.CachingPlugin
 import com.maodouchat.server.plugins.SecurityHeaders
-import com.maodouchat.server.repository.ChatRepository
-import com.maodouchat.server.repository.MessageRepository
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.NotificationPreferenceRepository
 import com.maodouchat.server.repository.PushTokenRepository
@@ -26,6 +26,7 @@ import com.maodouchat.server.repository.SignalingRepository
 import com.maodouchat.server.repository.AnnouncementRepository
 import com.maodouchat.server.repository.RateLimitStatsRepository
 import com.maodouchat.server.repository.UserTagRepository
+import com.maodouchat.server.messaging.v2.MessagingV2Repository
 import com.maodouchat.server.service.AiGatewayService
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.CallInviteRateLimiter
@@ -33,6 +34,10 @@ import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.compression.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.jetbrains.exposed.sql.Database
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -67,13 +72,31 @@ fun main() {
     )
     Database.connect(dataSource)
 
-    // 初始化数据库表
+    // Bootstrap table definitions once, then apply ordered, locked migrations.
     initDatabase()
+    runDatabaseMigrations()
+
+    // B06：mailbox retention——进程内定时批处理（单实例部署；多实例 lease 属迁移框架后续）。
+    // 每小时触发一次，单轮最多 20 批 × 500 行，失败只记日志不影响服务。
+    kotlinx.coroutines.CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+        val retentionService = com.maodouchat.server.messaging.retention.MailboxRetentionService()
+        val retentionLogger = org.slf4j.LoggerFactory.getLogger("MailboxRetention")
+        while (true) {
+            kotlinx.coroutines.delay(3_600_000L)
+            runCatching {
+                var more = true
+                var batches = 0
+                while (more && batches < 20) {
+                    more = retentionService.purgeBatch().hasMore
+                    batches++
+                }
+            }.onFailure { e -> retentionLogger.warn("mailbox retention purge failed", e) }
+        }
+    }
 
     // 创建仓库
     val userRepo = UserRepository()
-    val chatRepo = ChatRepository()
-    val messageRepo = MessageRepository()
+    val messagingV2Repository = MessagingV2Repository()
     val postRepo = PostRepository()
     val notificationPreferenceRepo = NotificationPreferenceRepository()
     val pushTokenRepo = PushTokenRepository()
@@ -115,16 +138,12 @@ fun main() {
         install(CachingPlugin)
         configureSockets(
             userRepo,
-            messageRepo,
-            chatRepo,
             signalingRepo = signalingRepo,
             pushService = pushService,
             callInviteRateLimiter = callInviteRateLimiter
         )
         configureRouting(
             userRepo,
-            chatRepo,
-            messageRepo,
             postRepo,
             aiGateway = aiGateway,
             notificationPreferenceRepo = notificationPreferenceRepo,
@@ -133,6 +152,7 @@ fun main() {
             signalingRepo = signalingRepo,
             callInviteRateLimiter = callInviteRateLimiter
         )
+        configureMessagingV2Routing(messagingV2Repository)
         // 群玩法 B3：群签到+排行 / 群接龙 / 群 PK / 投票同步（REST + WS 推送）
         configurePollRouting()
         configureDeveloperRouting()
@@ -146,8 +166,6 @@ fun main() {
         )
         // B2 密聊防泄漏扩展（Surface #71–#78）：burnz/ttlz/fwlz/simz/2faz/ndz/dvz/sntz + hints
         configureSecretSurfaceRouting(
-            chatRepo = chatRepo,
-            messageRepo = messageRepo,
             userRepo = userRepo
         )
         // 8.31 运维修复：限流采样器注册优雅关闭（退出瞬间不再执行 DB 写）；

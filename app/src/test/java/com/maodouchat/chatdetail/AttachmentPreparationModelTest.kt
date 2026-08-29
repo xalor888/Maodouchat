@@ -1,7 +1,7 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.ui.screen.chatdetail.normalizeAttachmentMetadata
+import com.maodouchat.attachment.normalizeAttachmentMetadata
 import com.maodouchat.util.MediaCache
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

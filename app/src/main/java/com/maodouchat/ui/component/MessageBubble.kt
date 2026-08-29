@@ -26,7 +26,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -78,12 +77,11 @@ import androidx.compose.ui.unit.IntSize
 import kotlin.math.roundToInt
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.style.TextAlign
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.maodouchat.ui.component.OwnerScopedImageKeys
@@ -119,7 +117,6 @@ import java.util.Locale
 // 9.205：气泡形状改为 LocalBubbleShapes 提供（设置页可自定义），以下保留为旧引用兼容常量
 private val SentBubbleShape = com.maodouchat.ui.theme.BUBBLE_SHAPE_DEFAULT.sent
 private val ReceivedBubbleShape = com.maodouchat.ui.theme.BUBBLE_SHAPE_DEFAULT.received
-private val SystemBubbleShape = RoundedCornerShape(16.dp)
 
 // 语音波形高度常量
 private val WaveHeights = listOf(0.3f, 0.7f, 1f, 0.5f, 0.9f, 0.4f, 0.6f, 0.2f)
@@ -209,7 +206,8 @@ fun MessageBubble(
     } else {
         message
     }
-    when (message.type) {
+    val presentation = remember(message) { MessagePresentationMapper.map(message) }
+    when (presentation.type) {
         MessageType.NUDGE -> {
             // Hoist format templates via stringResource so locale changes recompose correctly.
             val youNudgedFmt = stringResource(R.string.chat_nudge_you_nudged)
@@ -222,58 +220,60 @@ fun MessageBubble(
             )
             val display = NudgeDisplayPolicy.displayText(
                 isOwnMessage = isOwnMessage,
-                storedContent = message.content,
+                storedContent = presentation.body,
                 senderDisplayName = senderName.orEmpty(),
                 isDirectChat = !isGroupChat,
                 templates = templates
             )
-            SystemMessageBubble(display, modifier)
+            SystemMessageRenderer(display, modifier)
         }
-        MessageType.SYSTEM -> SystemMessageBubble(message.content, modifier)
-        MessageType.REVOKED -> SystemMessageBubble(stringResource(R.string.chat_message_revoked_placeholder), modifier)
+        MessageType.SYSTEM -> SystemMessageRenderer(presentation.body, modifier)
+        MessageType.REVOKED -> SystemMessageRenderer(stringResource(R.string.chat_message_revoked_placeholder), modifier)
         MessageType.MARKDOWN, MessageType.TEXT -> TextBubble(
-            message, isOwnMessage, modifier, showAvatar, showSenderName, isGroupEdge, senderName, mentionedUserIds, replyToPreview, onReply,
-            onReplyPreviewClick, onBoundsMeasured, translationText, isTranslating, isAiAssisted, currentUserId, safetyWarning, onDismissSafety,
+            message, presentation, isOwnMessage, modifier, showAvatar, showSenderName, isGroupEdge, senderName,
+            mentionedUserIds.ifEmpty { presentation.meta.mentions }, replyToPreview, onReply,
+            onReplyPreviewClick, onBoundsMeasured, translationText, isTranslating, isAiAssisted || presentation.meta.aiAssisted, currentUserId, safetyWarning, onDismissSafety,
             onReactionClick, onPollVote, secretChatId, onInlineKeyboardClick, onContactCardClick, onSenderClick, onStatusClick,
             memberRole = memberRole,
             showStatusIcon = showStatusIcon
         )
         MessageType.IMAGE -> ImageBubble(
-            message, isOwnMessage, modifier, showAvatar, senderName, onImageClick, onBoundsMeasured,
+            message, presentation, isOwnMessage, modifier, showAvatar, senderName, onImageClick, onBoundsMeasured,
             fileTransferProgress, fileTransferState, fileTransferError,
             onPauseFileTransfer, onResumeFileTransfer, onCancelFileTransfer, onRequestMediaAttachment, mediaDownloadFailed,
             currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler, onStatusClick, showStatusIcon
         )
         MessageType.GIF -> ImageBubble(
-            message, isOwnMessage, modifier, showAvatar, senderName, onImageClick, onBoundsMeasured,
+            message, presentation, isOwnMessage, modifier, showAvatar, senderName, onImageClick, onBoundsMeasured,
             fileTransferProgress, fileTransferState, fileTransferError,
             onPauseFileTransfer, onResumeFileTransfer, onCancelFileTransfer, onRequestMediaAttachment, mediaDownloadFailed,
             currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler, onStatusClick, showStatusIcon
         )
         MessageType.STICKER -> StickerBubble(
-            message, isOwnMessage, modifier, showAvatar, senderName, onBoundsMeasured, currentUserId, onReactionClick, onStatusClick,
+            message, presentation, isOwnMessage, modifier, showAvatar, senderName, onBoundsMeasured, currentUserId, onReactionClick, onStatusClick,
             showStatusIcon
         )
         MessageType.LOCATION -> LocationBubble(
-            message, isOwnMessage, modifier, showAvatar, senderName, onBoundsMeasured, currentUserId, onReactionClick, onStatusClick,
+            message, presentation, isOwnMessage, modifier, showAvatar, senderName, onBoundsMeasured, currentUserId, onReactionClick, onStatusClick,
             showStatusIcon
         )
         MessageType.VOICE -> VoiceBubble(
-            message, isOwnMessage, modifier, showAvatar, senderName, onBoundsMeasured,
-            voiceTranscript, isVoiceTranscribing, onRequestVoiceTranscript, onCopyVoiceTranscript,
+            message, presentation, isOwnMessage, modifier, showAvatar, senderName, onBoundsMeasured,
+            voiceTranscript ?: presentation.meta.voiceTranscript, isVoiceTranscribing, onRequestVoiceTranscript, onCopyVoiceTranscript,
             fileTransferProgress, fileTransferState,
             fileTransferError, onPauseFileTransfer, onResumeFileTransfer,
             onCancelFileTransfer, onRequestMediaAttachment, mediaDownloadFailed,
             currentUserId, onReactionClick, onStatusClick, showStatusIcon
         )
         MessageType.VIDEO -> VideoBubble(
-            message, isOwnMessage, modifier, showAvatar, senderName, onVideoClick, onBoundsMeasured,
+            message, presentation, isOwnMessage, modifier, showAvatar, senderName, onVideoClick, onBoundsMeasured,
             fileTransferProgress, fileTransferState, fileTransferError,
             onPauseFileTransfer, onResumeFileTransfer, onCancelFileTransfer, onRequestMediaAttachment, mediaDownloadFailed,
             currentUserId, onReactionClick, secretChatId, onViewOnceOpened, onRevealSpoiler, onStatusClick, showStatusIcon
         )
-        MessageType.FILE -> FileBubble(
+        MessageType.FILE -> FileMessageRenderer(
             message,
+            presentation,
             isOwnMessage,
             modifier,
             showAvatar,
@@ -298,7 +298,7 @@ fun MessageBubble(
 data class ReplyPreview(val senderName: String, val preview: String)
 
 @Composable
-private fun ReactionSummaryRow(
+internal fun ReactionSummaryRow(
     message: Message,
     currentUserId: String?,
     isOwnMessage: Boolean,
@@ -362,6 +362,7 @@ private fun ReactionSummaryRow(
 @Composable
 private fun LocationBubble(
     message: Message,
+    presentation: MessagePresentation,
     isOwnMessage: Boolean,
     modifier: Modifier,
     showAvatar: Boolean,
@@ -374,9 +375,9 @@ private fun LocationBubble(
     showStatusIcon: Boolean = true
 ) {
     val palette = LocalChatPalette.current
-    val payload = remember(message.content) { message.parsedLocation() }
+    val payload = presentation.location
     if (payload == null) {
-        SystemMessageBubble(stringResource(R.string.message_location_invalid), modifier)
+        SystemMessageRenderer(stringResource(R.string.message_location_invalid), modifier)
         return
     }
     val context = LocalContext.current
@@ -395,10 +396,10 @@ private fun LocationBubble(
             }
         }
     }
-    val liveActive = com.maodouchat.util.LiveLocationPolicy.isLive(payload, liveNow)
+    val liveActive = payload.live && (payload.liveUntil == null || payload.liveUntil > liveNow)
     val liveRemain = if (liveActive) {
         com.maodouchat.util.LiveLocationPolicy.formatRemaining(
-            com.maodouchat.util.LiveLocationPolicy.remainingMs(payload, liveNow)
+            com.maodouchat.util.LiveLocationPolicy.remainingFromUntil(payload.liveUntil, liveNow)
         )
     } else ""
     val displayLocationLabel = if (liveActive) {
@@ -455,7 +456,7 @@ private fun LocationBubble(
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp, end = 4.dp)) {
-                if (message.parsedMeta().silent) {
+                if (presentation.meta.silent) {
                     Icon(
                         imageVector = Icons.Outlined.NotificationsOff,
                         contentDescription = null,
@@ -486,6 +487,7 @@ private fun LocationBubble(
 @Composable
 private fun StickerBubble(
     message: Message,
+    presentation: MessagePresentation,
     isOwnMessage: Boolean,
     modifier: Modifier,
     showAvatar: Boolean,
@@ -519,7 +521,7 @@ private fun StickerBubble(
             modifier = Modifier.captureBubbleBounds(onBoundsMeasured)
         ) {
             Text(
-                text = message.parsedContent(),
+                text = presentation.body,
                 fontSize = 72.sp,
                 lineHeight = 78.sp,
                 modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
@@ -543,7 +545,7 @@ private fun StickerBubble(
     }
 }
 
-private fun Modifier.captureBubbleBounds(onBoundsMeasured: ((IntOffset, IntSize) -> Unit)?): Modifier {
+internal fun Modifier.captureBubbleBounds(onBoundsMeasured: ((IntOffset, IntSize) -> Unit)?): Modifier {
     if (onBoundsMeasured == null) return this
     return onGloballyPositioned { coordinates ->
         val position = coordinates.positionInRoot()
@@ -586,6 +588,7 @@ private fun resolveBubbleShape(isOwnMessage: Boolean, isGroupEdge: Boolean): and
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 private fun TextBubble(
     message: Message,
+    presentation: MessagePresentation,
     isOwnMessage: Boolean,
     modifier: Modifier,
     showAvatar: Boolean,
@@ -617,13 +620,11 @@ private fun TextBubble(
     memberRole: String? = null,
     showStatusIcon: Boolean = true
 ) {
-    // 漏网信封绝不把 algorithm/ciphertext 渲成正文。已有可读明文时不要盖成「无法解密」。
-    val message = if (
-        message.type in setOf(MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER) &&
-        com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(message.parsedContent())
-    ) {
-        message.copy(content = stringResource(R.string.chat_decrypt_pending))
-    } else message
+    val displayBody = if (presentation.requiresDecryptPlaceholder) {
+        stringResource(R.string.chat_decrypt_pending)
+    } else {
+        presentation.body
+    }
     val palette = LocalChatPalette.current
     // 9.252：TG 式动态气泡宽度——此前固定 280dp，大屏上气泡偏窄、长文本折行过多
     // 观感拥挤；参考 TG ChatMessageCell 按屏宽比例（平板封顶 480dp）
@@ -673,7 +674,7 @@ private fun TextBubble(
                 modifier = Modifier.widthIn(max = bubbleMaxWidth)
             ) {
             // 0.67 新功能：已转发标记（E2EE meta 内传输，密聊转发仅标记不露来源名）
-            val forwardedFrom = message.parsedMeta().forwardedFrom
+            val forwardedFrom = presentation.meta.forwardedFrom
             if (forwardedFrom != null) {
                 Text(
                     text = stringResource(R.string.message_forwarded_from, forwardedFrom),
@@ -732,8 +733,8 @@ private fun TextBubble(
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                 }
-                val parsedMeta = message.parsedMeta()
-                val dice = com.maodouchat.util.GroupPlayPolicy.parseDice(message.parsedContent())
+                val parsedMeta = presentation.meta
+                val dice = com.maodouchat.util.GroupPlayPolicy.parseDice(displayBody)
                 if (dice != null) {
                     val (sides, value) = dice
                     Text(
@@ -743,7 +744,7 @@ private fun TextBubble(
                     )
                     return@Column
                 }
-                val lucky = com.maodouchat.util.GroupPlayPolicy.parseLuckyDraw(message.parsedContent())
+                val lucky = com.maodouchat.util.GroupPlayPolicy.parseLuckyDraw(displayBody)
                 if (lucky != null) {
                     val (picker, target) = lucky
                     Text(
@@ -753,7 +754,7 @@ private fun TextBubble(
                     )
                     return@Column
                 }
-                val parsedBody = message.parsedContent()
+                val parsedBody = displayBody
                 if (com.maodouchat.util.CaptureAlertPolicy.isCaptureAlert(parsedBody)) {
                     // 8.49 防御：解析失败直接跳过（此前 parse()!! 依赖「isCaptureAlert 与 parse 永远一致」的脆弱不变量）
                     val parsedAlert = com.maodouchat.util.CaptureAlertPolicy.parse(parsedBody) ?: return@Column
@@ -961,11 +962,11 @@ private fun TextBubble(
                 val useMarkdown = markdownAllowed && (
                     message.type == MessageType.MARKDOWN ||
                     parsedMeta.markdown ||
-                    ChatMarkdown.looksLikeMarkdown(message.parsedContent())
+                    ChatMarkdown.looksLikeMarkdown(displayBody)
                 )
                 if (useMarkdown) {
                     MarkdownMessageContent(
-                        text = message.parsedContent(),
+                        text = displayBody,
                         isOwnMessage = isOwnMessage,
                         allowSelection = secretChatId.isNullOrBlank(),
                         onLinkClick = { url ->
@@ -1001,7 +1002,7 @@ private fun TextBubble(
                     RichTextContent(
                         // 9.146：正文为空白时不得回退渲染原始 content——其中含 <meta> JSON
                         //（附件解密密钥/转写文本等），曾整块显示在气泡上
-                        text = message.parsedContent(),
+                        text = displayBody,
                         mentionedUserIds = mentionedUserIds,
                         isOwnMessage = isOwnMessage,
                         onContactCardClick = onContactCardClick,
@@ -1049,7 +1050,7 @@ private fun TextBubble(
             }
 
             LinkPreviewSlot(
-                messageContent = message.content,
+                messageContent = displayBody,
                 isOwnMessage = isOwnMessage,
                 secretChat = !secretChatId.isNullOrBlank(),
                 modifier = Modifier
@@ -1138,7 +1139,7 @@ private fun TextBubble(
                 )
             }
 
-            val kb = message.parsedMeta().inlineKeyboard
+            val kb = presentation.meta.inlineKeyboard
             if (kb.isNotEmpty()) {
                 InlineKeyboardGrid(
                     rows = kb,
@@ -1162,7 +1163,7 @@ private fun TextBubble(
                     )
                     Spacer(modifier = Modifier.width(3.dp))
                 }
-                if (message.parsedMeta().silent) {
+                if (presentation.meta.silent) {
                     Icon(
                         imageVector = Icons.Outlined.NotificationsOff,
                         contentDescription = null,
@@ -1175,8 +1176,8 @@ private fun TextBubble(
                 // Markdown/其它类型仍走底部时间行（判定与正文渲染分支同构）
                 val timeInline = !(RuntimeFlags.isEnabled(LocalContext.current, RuntimeFlags.MARKDOWN) && (
                     message.type == MessageType.MARKDOWN ||
-                        message.parsedMeta().markdown ||
-                        ChatMarkdown.looksLikeMarkdown(message.parsedContent())
+                        presentation.meta.markdown ||
+                        ChatMarkdown.looksLikeMarkdown(displayBody)
                     ))
                 if (!timeInline) {
                     Text(
@@ -1232,6 +1233,7 @@ private fun TextBubble(
 @Composable
 private fun ImageBubble(
     message: Message,
+    presentation: MessagePresentation,
     isOwnMessage: Boolean,
     modifier: Modifier,
     showAvatar: Boolean,
@@ -1258,15 +1260,15 @@ private fun ImageBubble(
 ) {
     val palette = LocalChatPalette.current
     val context = LocalContext.current
-    val viewOnce = com.maodouchat.util.ViewOncePolicy.isViewOnce(message)
-    val viewOnceLocked = com.maodouchat.util.ViewOncePolicy.isLockedForViewer(message, isOwnMessage)
-    val spoilerMeta = message.parsedMeta()
-    val spoilerHidden = spoilerMeta.spoilerMedia && !spoilerMeta.spoilerRevealed && !isOwnMessage
-    val mediaContent = message.parsedContent()
-    val needsDownload = remember(message.id, message.content) {
-        !viewOnceLocked && message.parsedMeta().attachmentId != null && !MediaCache.isReadableLocalUri(context, mediaContent)
+    val attachment = presentation.attachment
+    val viewOnce = attachment?.viewOnce == true
+    val viewOnceLocked = attachment?.let { viewOnce && !isOwnMessage && it.viewOnceOpened } == true
+    val spoilerHidden = attachment?.let { it.spoiler && !it.spoilerRevealed && !isOwnMessage } == true
+    val mediaContent = attachment?.uri.orEmpty()
+    val needsDownload = remember(presentation.id, attachment?.attachmentId, mediaContent, viewOnceLocked) {
+        !viewOnceLocked && attachment?.attachmentId != null && !MediaCache.isReadableLocalUri(context, mediaContent)
     }
-    LaunchedEffect(message.id, message.content, needsDownload) {
+    LaunchedEffect(presentation.id, attachment?.attachmentId, needsDownload) {
         if (needsDownload) onRequestAttachment?.invoke(message.id)
     }
     Row(
@@ -1437,6 +1439,7 @@ private fun ImageBubble(
 @Composable
 private fun VoiceBubble(
     message: Message,
+    presentation: MessagePresentation,
     isOwnMessage: Boolean,
     modifier: Modifier,
     showAvatar: Boolean,
@@ -1462,11 +1465,12 @@ private fun VoiceBubble(
 ) {
     val palette = LocalChatPalette.current
     val context = LocalContext.current
-    val mediaContent = message.parsedContent()
-    val needsDownload = remember(message.id, message.content) {
-        message.parsedMeta().attachmentId != null && !MediaCache.isReadableLocalUri(context, mediaContent)
+    val attachment = presentation.attachment
+    val mediaContent = attachment?.uri.orEmpty()
+    val needsDownload = remember(presentation.id, attachment?.attachmentId, mediaContent) {
+        attachment?.attachmentId != null && !MediaCache.isReadableLocalUri(context, mediaContent)
     }
-    LaunchedEffect(message.id, message.content, needsDownload) {
+    LaunchedEffect(presentation.id, attachment?.attachmentId, needsDownload) {
         if (needsDownload) onRequestAttachment?.invoke(message.id)
     }
     val playerState by com.maodouchat.util.VoicePlayer.state.collectAsState()
@@ -1476,7 +1480,7 @@ private fun VoiceBubble(
     val isVoicePlayed = remember(message.id) { com.maodouchat.util.VoicePlayedStore.isPlayed(context, message.id) }
     val progress = if (isThisActive) playerState.progress else 0f
     val knownDuration = playerState.takeIf { it.messageId == message.id && it.durationMs > 0L }?.durationMs
-        ?: message.parsedMeta().voiceDurationMs
+        ?: presentation.meta.voiceDurationMs
         ?: 1_000L
     val totalSeconds = knownDuration / 1000
     val displaySeconds = if (totalSeconds > 0) totalSeconds else 1 // 无 duration 时默认 1s
@@ -1835,6 +1839,7 @@ private fun VoiceBubble(
 @Composable
 private fun VideoBubble(
     message: Message,
+    presentation: MessagePresentation,
     isOwnMessage: Boolean,
     modifier: Modifier,
     showAvatar: Boolean,
@@ -1861,14 +1866,15 @@ private fun VideoBubble(
 ) {
     val palette = LocalChatPalette.current
     val context = LocalContext.current
-    val mediaContent = message.parsedContent()
-    val needsDownload = remember(message.id, message.content) {
-        message.parsedMeta().attachmentId != null && !MediaCache.isReadableLocalUri(context, mediaContent)
+    val attachment = presentation.attachment
+    val mediaContent = attachment?.uri.orEmpty()
+    val needsDownload = remember(presentation.id, attachment?.attachmentId, mediaContent) {
+        attachment?.attachmentId != null && !MediaCache.isReadableLocalUri(context, mediaContent)
     }
-    val viewOnceLocked = com.maodouchat.util.ViewOncePolicy.isLockedForViewer(message, isOwnMessage)
-    val viewOnce = message.parsedMeta().viewOnce
-    val spoilerHidden = message.parsedMeta().spoilerMedia && !message.parsedMeta().spoilerRevealed && !isOwnMessage
-    LaunchedEffect(message.id, message.content, needsDownload) {
+    val viewOnceLocked = attachment?.viewOnce == true && !isOwnMessage && attachment.viewOnceOpened
+    val viewOnce = attachment?.viewOnce == true
+    val spoilerHidden = attachment?.let { it.spoiler && !it.spoilerRevealed && !isOwnMessage } == true
+    LaunchedEffect(presentation.id, attachment?.attachmentId, needsDownload) {
         if (needsDownload) onRequestAttachment?.invoke(message.id)
     }
     val secretPayload = remember(secretChatId, currentUserId) {
@@ -2034,146 +2040,6 @@ private fun VideoBubble(
 }
 
 @Composable
-private fun FileBubble(
-    message: Message,
-    isOwnMessage: Boolean,
-    modifier: Modifier,
-    showAvatar: Boolean,
-    senderName: String? = null,
-    onBoundsMeasured: ((IntOffset, IntSize) -> Unit)? = null,
-    onFileClick: ((Message) -> Unit)? = null,
-    transferProgress: Float? = null,
-    transferState: String? = null,
-    transferError: String? = null,
-    onPauseTransfer: ((String) -> Unit)? = null,
-    onResumeTransfer: ((String) -> Unit)? = null,
-    onCancelTransfer: ((String) -> Unit)? = null,
-    currentUserId: String? = null,
-    onReactionClick: ((String) -> Unit)? = null,
-    /** 1.70：点击已读状态图标打开阅读详情。 */
-    onStatusClick: ((Message) -> Unit)? = null,
-    showStatusIcon: Boolean = true
-) {
-    val palette = LocalChatPalette.current
-    val defaultFileName = stringResource(R.string.message_file)
-    val metadata = remember(message.content) { message.parsedMeta() }
-    val fileName = remember(message.content, metadata.fileName) {
-        metadata.fileName?.takeIf { it.isNotBlank() }
-            ?: runCatching { java.net.URI(message.parsedContent()).path?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: defaultFileName }.getOrDefault(defaultFileName)
-            .ifBlank { defaultFileName }
-    }
-    val fileDetails = remember(metadata.fileMimeType, metadata.fileSizeBytes, message.timestamp) {
-        val mime = metadata.fileMimeType?.substringAfterLast('/')?.uppercase()?.takeIf { it.isNotBlank() && it != "OCTET-STREAM" }
-        val size = metadata.fileSizeBytes?.takeIf { it > 0 }?.let(::formatFileSize)
-        listOfNotNull(mime, size, formatTime(message.timestamp)).joinToString(" · ")
-    }
-    val transferStatus = transferState?.let { state -> fileTransferStatusText(state, transferError) }
-    val controlTint = if (isOwnMessage) Color.White else Primary
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start,
-        verticalAlignment = Alignment.Bottom
-    ) {
-        if (!isOwnMessage) {
-            if (showAvatar) {
-                Avatar(name = senderName ?: "?", size = AvatarSize.SM, modifier = Modifier.padding(bottom = 4.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-            } else {
-                Spacer(modifier = Modifier.width(44.dp))
-            }
-        }
-
-        Column(horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start) {
-            Box(
-                modifier = Modifier
-                    .captureBubbleBounds(onBoundsMeasured)
-                    .widthIn(max = 260.dp)
-                    .clip(if (isOwnMessage) com.maodouchat.ui.theme.LocalBubbleShapes.current.sent else com.maodouchat.ui.theme.LocalBubbleShapes.current.received)
-                    .background(if (isOwnMessage) LocalChatBubbleColor.current else palette.chatBubbleReceived)
-                    .then(if (!isOwnMessage) Modifier.border(1.dp, palette.chatBubbleReceivedBorder, com.maodouchat.ui.theme.LocalBubbleShapes.current.received) else Modifier)
-                    .then(if (onFileClick != null && transferState == null) Modifier.clickable { onFileClick(message) } else Modifier)
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(38.dp).background(if (isOwnMessage) Color.White else Primary.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.InsertDriveFile, contentDescription = stringResource(R.string.message_file), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(fileName, style = MaterialTheme.typography.bodyMedium, color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(fileDetails, style = MaterialTheme.typography.labelSmall, color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        transferStatus?.let { status ->
-                            Text(
-                                status,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (transferState == AttachmentTransferState.FAILED) {
-                                    if (isOwnMessage) Color.White else UnreadRed
-                                } else if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        transferProgress?.let { progress ->
-                            Spacer(modifier = Modifier.height(5.dp))
-                            LinearProgressIndicator(
-                                progress = { progress.coerceIn(0f, 1f) },
-                                modifier = Modifier.fillMaxWidth().height(3.dp),
-                                color = if (isOwnMessage) Color.White else Primary,
-                                trackColor = if (isOwnMessage) Color.White.copy(alpha = 0.25f) else Primary.copy(alpha = 0.14f)
-                            )
-                        }
-                        when (transferState) {
-                            AttachmentTransferState.QUEUED, AttachmentTransferState.UPLOADING -> {
-                                Row(modifier = Modifier.height(32.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(onClick = { onPauseTransfer?.invoke(message.id) }, modifier = Modifier.size(32.dp), enabled = onPauseTransfer != null) {
-                                        Icon(Icons.Default.Pause, contentDescription = stringResource(R.string.chat_file_transfer_pause), tint = controlTint, modifier = Modifier.size(18.dp))
-                                    }
-                                    IconButton(onClick = { onCancelTransfer?.invoke(message.id) }, modifier = Modifier.size(32.dp), enabled = onCancelTransfer != null) {
-                                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.chat_file_transfer_cancel), tint = controlTint, modifier = Modifier.size(18.dp))
-                                    }
-                                }
-                            }
-                            AttachmentTransferState.PAUSED, AttachmentTransferState.FAILED -> {
-                                Row(modifier = Modifier.height(32.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(onClick = { onResumeTransfer?.invoke(message.id) }, modifier = Modifier.size(32.dp), enabled = onResumeTransfer != null) {
-                                        Icon(
-                                            if (transferState == AttachmentTransferState.FAILED) Icons.Default.Refresh else Icons.Default.PlayArrow,
-                                            contentDescription = stringResource(if (transferState == AttachmentTransferState.FAILED) R.string.chat_file_transfer_retry else R.string.chat_file_transfer_resume),
-                                            tint = controlTint,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                    IconButton(onClick = { onCancelTransfer?.invoke(message.id) }, modifier = Modifier.size(32.dp), enabled = onCancelTransfer != null) {
-                                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.chat_file_transfer_cancel), tint = controlTint, modifier = Modifier.size(18.dp))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = isOwnMessage)
-                        if (isOwnMessage && showStatusIcon) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            if (onStatusClick != null) {
-                                Box(modifier = Modifier.clickable { onStatusClick(message) }) {
-                                    MessageStatusIcon(message.status)
-                                }
-                            } else {
-                                MessageStatusIcon(message.status)
-                            }
-                        }
-                    }
-                }
-            }
-            ReactionSummaryRow(message, currentUserId, isOwnMessage, onReactionClick)
-        }
-    }
-}
-
-@Composable
 private fun AttachmentTransferOverlay(
     messageId: String,
     state: String,
@@ -2242,7 +2108,7 @@ private fun AttachmentTransferOverlay(
 }
 
 @Composable
-private fun fileTransferStatusText(state: String, errorCode: String?): String = when (state) {
+internal fun fileTransferStatusText(state: String, errorCode: String?): String = when (state) {
     AttachmentTransferState.PREPARING -> stringResource(R.string.chat_file_transfer_preparing)
     AttachmentTransferState.QUEUED -> stringResource(R.string.chat_file_transfer_queued)
     AttachmentTransferState.UPLOADING -> stringResource(R.string.chat_file_transfer_uploading)
@@ -2257,31 +2123,6 @@ private fun fileTransferStatusText(state: String, errorCode: String?): String = 
         else -> stringResource(R.string.chat_file_transfer_failed)
     }
     else -> stringResource(R.string.chat_file_transfer_queued)
-}
-
-private fun formatFileSize(bytes: Long): String = when {
-    bytes >= 1_048_576L -> String.format(java.util.Locale.ROOT, "%.1f MB", bytes / 1_048_576.0)
-    bytes >= 1_024L -> String.format(java.util.Locale.ROOT, "%.1f KB", bytes / 1_024.0)
-    else -> "$bytes B"
-}
-
-@Composable
-private fun SystemMessageBubble(content: String, modifier: Modifier = Modifier) {
-    val palette = LocalChatPalette.current
-    Box(
-        modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = content,
-            style = MaterialTheme.typography.bodyMedium,
-            color = palette.systemMessageText,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .background(palette.systemMessageBackground, SystemBubbleShape)
-                .padding(horizontal = 12.dp, vertical = 6.dp)
-        )
-    }
 }
 
 @Composable
@@ -2400,7 +2241,7 @@ private fun formatDisappearCountdown(expiresAt: Long?, nowMs: Long): String? {
 }
 
 @Composable
-private fun DisappearCountdownLabel(
+internal fun DisappearCountdownLabel(
     expiresAt: Long?,
     isOwnMessage: Boolean,
     modifier: Modifier = Modifier
@@ -2747,7 +2588,7 @@ private fun MessageBubblePreview() {
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(16.dp)
         ) {
-            SystemMessageBubble("You nudged Alex Chen")
+            SystemMessageRenderer("You nudged Alex Chen")
             MessageBubble(
                 message = Message(
                     id = "1",
@@ -2915,7 +2756,7 @@ private fun InteractivePollCard(
 
 @Composable
 private fun InlineKeyboardGrid(
-    rows: List<List<com.maodouchat.data.model.InlineKeyboardButton>>,
+    rows: List<List<InlineKeyboardButtonPresentation>>,
     isOwnMessage: Boolean,
     messageId: String,
     onClick: ((String, String) -> Unit)?

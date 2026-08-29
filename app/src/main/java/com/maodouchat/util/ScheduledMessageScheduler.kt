@@ -22,7 +22,7 @@ object ScheduledMessageScheduler {
             .putString(ScheduledMessageWorker.KEY_SCHEDULE_ID, item.id)
             .putString(ScheduledMessageWorker.KEY_OWNER_USER_ID, ownerUserId)
             .build()
-        // 不加网络约束：离线到期时 Worker 仍会把消息转入 SENDING 发件箱（由 TextOutboxFlusher 联网后投递），
+        // 不加网络约束：离线到期时 Worker 仍会把消息转入 v2 持久发件箱，
         // 加 CONNECTED 反而会让"到点转发件箱"被无限推迟。retry() 走显式指数退避。
         val request = OneTimeWorkRequestBuilder<ScheduledMessageWorker>()
             .setInitialDelay(delay, TimeUnit.MILLISECONDS)

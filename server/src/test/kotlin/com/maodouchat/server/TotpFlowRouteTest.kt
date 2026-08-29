@@ -143,8 +143,6 @@ class TotpFlowRouteTest {
         Database.connect(ServerConfig.databaseUrl, driver = ServerConfig.databaseDriver)
         initDatabase()
         val userRepo = UserRepository()
-        val chatRepo = ChatRepository()
-        val messageRepo = MessageRepository()
         val postRepo = PostRepository()
         if (seedDemoUsers) userRepo.createDefaultUsers()
         configureAuthentication()
@@ -152,11 +150,9 @@ class TotpFlowRouteTest {
         configureStatusPages()
         val signalingRepo = SignalingRepository()
         val callInviteRateLimiter = CallInviteRateLimiter()
-        configureSockets(userRepo, messageRepo, chatRepo, signalingRepo = signalingRepo, callInviteRateLimiter = callInviteRateLimiter)
+        configureSockets(userRepo, signalingRepo = signalingRepo, callInviteRateLimiter = callInviteRateLimiter)
         configureRouting(
             userRepo,
-            chatRepo,
-            messageRepo,
             postRepo,
             aiGateway,
             signalingRepo = signalingRepo,
@@ -169,7 +165,7 @@ class TotpFlowRouteTest {
             userTagRepo = com.maodouchat.server.repository.UserTagRepository(),
             rateLimitStatsRepo = com.maodouchat.server.repository.RateLimitStatsRepository()
         )
-        configureSecretSurfaceRouting(chatRepo = chatRepo, messageRepo = messageRepo, userRepo = userRepo)
+        configureSecretSurfaceRouting(userRepo = userRepo)
     }
 
     private fun extractToken(body: String): String =

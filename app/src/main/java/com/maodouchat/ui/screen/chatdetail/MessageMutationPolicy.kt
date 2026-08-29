@@ -1,17 +1,12 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.crypto.DecryptPlaceholderPolicy
-import com.maodouchat.data.repository.resolveDirectOutboxPeerId
-import com.maodouchat.data.repository.shouldMarkOutboxFailed
-
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
-
-internal enum class MessageMutationKind { DELETE, REVOKE, EDIT }
 
 /**
  * Transport / server ambiguity: the request may already have been applied.
@@ -41,13 +36,6 @@ internal fun isAmbiguousTransportFailure(error: Throwable?): Boolean {
 internal fun isAlreadyTerminalMutation(error: Throwable?): Boolean =
     error is ApiException && error.kind == ApiFailureKind.HTTP && error.statusCode == 404
 
-/**
- * Outbox flush: definitive business rejections must leave SENDING → FAILED so the user
- * can see the failure and retry. Transport ambiguity keeps SENDING for a later flush.
- *
- * Local non-ApiException failures (encrypt/state) are definitive for this attempt even though
- * [isAmbiguousTransportFailure] treats unknown throwables as ambiguous for mutation rollback.
- */
 internal fun Message.toRevokedPlaceholder(placeholder: String): Message = copy(
     content = placeholder,
     type = MessageType.REVOKED,
@@ -58,65 +46,6 @@ internal fun Message.toOptimisticEdit(newContent: String): Message {
     val previousRevision = maxOf(timestamp, editedAt ?: timestamp)
     val nextRevision = if (previousRevision == Long.MAX_VALUE) Long.MAX_VALUE else previousRevision + 1L
     return copy(content = newContent, editedAt = nextRevision)
-}
-
-internal data class MessageMutationTicket(
-    val messageId: String,
-    val kind: MessageMutationKind,
-    val generation: Long
-)
-
-/**
- * Tracks one in-flight mutation per message and remembers terminal server events.
- * A WebSocket confirmation invalidates a pending REST rollback, which prevents a
- * lost HTTP response from resurrecting a message already deleted or revoked.
- */
-internal class MessageMutationTracker {
-    private var generation = 0L
-    private val pending = mutableMapOf<String, MessageMutationTicket>()
-    private val deleted = mutableSetOf<String>()
-    private val revoked = mutableSetOf<String>()
-
-    @Synchronized
-    fun begin(messageId: String, kind: MessageMutationKind): MessageMutationTicket? {
-        if (messageId.isBlank() || messageId in deleted || pending.containsKey(messageId)) return null
-        return MessageMutationTicket(messageId, kind, ++generation).also { pending[messageId] = it }
-    }
-
-    @Synchronized
-    fun shouldRollback(ticket: MessageMutationTicket): Boolean {
-        if (pending[ticket.messageId] != ticket) return false
-        pending.remove(ticket.messageId)
-        return ticket.messageId !in deleted && ticket.messageId !in revoked
-    }
-
-    @Synchronized
-    fun complete(ticket: MessageMutationTicket): Boolean {
-        if (pending[ticket.messageId] != ticket) return false
-        pending.remove(ticket.messageId)
-        return true
-    }
-
-    @Synchronized
-    fun observeAuthoritative(messageId: String, kind: MessageMutationKind) {
-        pending.remove(messageId)
-        when (kind) {
-            MessageMutationKind.DELETE -> {
-                deleted += messageId
-                revoked -= messageId
-            }
-            MessageMutationKind.REVOKE -> if (messageId !in deleted) revoked += messageId
-            MessageMutationKind.EDIT -> Unit
-        }
-    }
-
-    @Synchronized
-    fun shouldDrop(messageId: String): Boolean =
-        messageId in deleted || pending[messageId]?.kind == MessageMutationKind.DELETE
-
-    @Synchronized
-    fun shouldRenderRevoked(messageId: String): Boolean =
-        messageId in revoked || pending[messageId]?.kind == MessageMutationKind.REVOKE
 }
 
 /** Incoming versions are authoritative unless they would regress an edit or terminal revoke. */

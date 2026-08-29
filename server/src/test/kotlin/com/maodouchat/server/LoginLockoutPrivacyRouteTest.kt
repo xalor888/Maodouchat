@@ -47,8 +47,6 @@ class LoginLockoutPrivacyRouteTest {
         Database.connect(ServerConfig.databaseUrl, driver = ServerConfig.databaseDriver)
         initDatabase()
         val userRepo = UserRepository()
-        val chatRepo = ChatRepository()
-        val messageRepo = MessageRepository()
         val postRepo = PostRepository()
         if (seedDemoUsers) userRepo.createDefaultUsers()
         configureAuthentication()
@@ -56,11 +54,9 @@ class LoginLockoutPrivacyRouteTest {
         configureStatusPages()
         val signalingRepo = SignalingRepository()
         val callInviteRateLimiter = CallInviteRateLimiter()
-        configureSockets(userRepo, messageRepo, chatRepo, signalingRepo = signalingRepo, callInviteRateLimiter = callInviteRateLimiter)
+        configureSockets(userRepo, signalingRepo = signalingRepo, callInviteRateLimiter = callInviteRateLimiter)
         configureRouting(
             userRepo,
-            chatRepo,
-            messageRepo,
             postRepo,
             aiGateway,
             signalingRepo = signalingRepo,
@@ -73,7 +69,7 @@ class LoginLockoutPrivacyRouteTest {
             userTagRepo = com.maodouchat.server.repository.UserTagRepository(),
             rateLimitStatsRepo = com.maodouchat.server.repository.RateLimitStatsRepository()
         )
-        configureSecretSurfaceRouting(chatRepo = chatRepo, messageRepo = messageRepo, userRepo = userRepo)
+        configureSecretSurfaceRouting(userRepo = userRepo)
     }
 
     private fun extractToken(body: String): String =
@@ -156,7 +152,7 @@ class LoginLockoutPrivacyRouteTest {
     }
 
     @Test
-    fun `block hides profile rejects chat recreation and message send from blocked party`() = testApplication {
+    fun `block hides profile and rejects chat recreation from blocked party`() = testApplication {
         application { moduleUnderTest(seedDemoUsers = true) }
         val alexToken = extractToken(client.post("/api/auth/login") {
             contentType(ContentType.Application.Json)
@@ -196,13 +192,6 @@ class LoginLockoutPrivacyRouteTest {
         }
         assertEquals(HttpStatusCode.Forbidden, recreate.status, recreate.bodyAsText())
 
-        // 5) B 向已有私聊发消息 → 403（发消息 1:1 拉黑预检；body 需带 chatId 与路径一致）
-        val send = client.post("/api/chats/$chatId/messages") {
-            header(HttpHeaders.Authorization, "Bearer $bobToken")
-            contentType(ContentType.Application.Json)
-            setBody("""{"chatId":"$chatId","content":"hello","id":"m_privacy_test_1"}""")
-        }
-        assertEquals(HttpStatusCode.Forbidden, send.status, send.bodyAsText())
     }
 
     @Test

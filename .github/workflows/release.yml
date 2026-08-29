@@ -106,7 +106,7 @@ jobs:
       - name: Install Android SDK packages
         run: |
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+          sdkmanager "platforms;android-37" "build-tools;37.0.0" "platform-tools"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -126,17 +126,8 @@ jobs:
             echo "KEY_PASSWORD=$KEY_PASSWORD_SECRET" >> "$GITHUB_ENV"
             echo "keystore=1" >> "$GITHUB_OUTPUT"
           else
-            # 未配置生产签名密钥：生成临时 debug 签名，保证 APK 可安装（非生产签名）。
-            # 否则 Android 拒绝安装未签名 APK，报「解析包时出现问题」。
-            keytool -genkeypair -v -keystore "$RUNNER_TEMP/release.jks" \
-              -storepass android -alias androiddebugkey -keypass android \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Maodouchat Debug, OU=Maodouchat, O=Maodouchat, L=City, ST=State, C=CN" >/dev/null 2>&1
-            echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
-            echo "KEYSTORE_PASSWORD=android" >> "$GITHUB_ENV"
-            echo "KEY_ALIAS=androiddebugkey" >> "$GITHUB_ENV"
-            echo "KEY_PASSWORD=android" >> "$GITHUB_ENV"
-            echo "::warning::Secret KEYSTORE_BASE64 未配置——使用临时 debug 签名（APK 可安装，但非生产签名）"
+            echo "::error::KEYSTORE_BASE64 must be configured for a release build" >&2
+            exit 1
           fi
 
       - name: Build & verify Android release APK

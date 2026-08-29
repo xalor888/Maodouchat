@@ -11,15 +11,18 @@ import com.maodouchat.server.db.GroupPkRounds
 import com.maodouchat.server.db.GroupPkVotes
 import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.GroupPolls
-import com.maodouchat.server.db.MessageReactions
-import com.maodouchat.server.db.Messages
-import com.maodouchat.server.db.ReadReceipts
-import com.maodouchat.server.db.SenderKeyDistributions
+import com.maodouchat.server.db.MessagingV2Envelopes
 import com.maodouchat.server.db.StarMessages
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
-import com.maodouchat.server.repository.ChatRepository
+import com.maodouchat.server.repository.ConversationParticipantRepository
+import com.maodouchat.server.repository.ConversationQueryRepository
+import com.maodouchat.server.repository.GroupAuditRepository
+import com.maodouchat.server.repository.ConversationLifecycleRepository
+import com.maodouchat.server.repository.ConversationCreationRepository
+import com.maodouchat.server.repository.LeaveConversationResult
 import com.maodouchat.server.repository.GroupCheckinRepository
+import com.maodouchat.server.repository.GroupInvitationRepository
 import com.maodouchat.server.repository.GroupPlayRepository
 import com.maodouchat.server.repository.PollRepository
 import org.jetbrains.exposed.sql.Database
@@ -35,6 +38,7 @@ import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -268,76 +272,54 @@ class GroupPlayBlockedVisibilityTest {
         assertEquals(3, u2ForU3.todayCount)
         assertNull(GroupCheckinRepository.checkinForViewer("g1", "u2", "u1"))
 
-        val members = ChatRepository().getGroupMembers("g1", viewerId = "u1")
+        val members = ConversationParticipantRepository().groupMembers("g1", viewerId = "u1")
         assertEquals(setOf("u1", "u3"), members.map { it.userId }.toSet())
 
-        val audit = ChatRepository().getGroupAudit("g1", 100, 0, viewerId = "u1")
+        val audit = GroupAuditRepository().list("g1", 100, 0, viewerId = "u1")
         assertEquals(listOf("gal_2"), audit.map { it.id })
-        val auditFirstPage = ChatRepository().getGroupAudit("g1", 1, 0, viewerId = "u1")
+        val auditFirstPage = GroupAuditRepository().list("g1", 1, 0, viewerId = "u1")
         assertEquals(listOf("gal_2"), auditFirstPage.map { it.id })
 
-        val chat = ChatRepository().getChatById("g1", viewerId = "u1")!!
+        val chat = ConversationQueryRepository().getById("g1", viewerId = "u1")!!
         assertEquals(setOf("u1", "u3"), chat.participants.map { it.id }.toSet())
-        val chatList = ChatRepository().getChatsForUser("u1")
+        val chatList = ConversationQueryRepository().listForUser("u1")
         assertEquals(setOf("u1", "u3"), chatList.single().participants.map { it.id }.toSet())
 
-        val created = ChatRepository().createChat(
-            participantIds = listOf("u1", "u2", "u3"),
-            isGroup = true,
-            groupName = "Created",
-            creatorId = "u1"
-        )
-        assertEquals(setOf("u1", "u3"), created.participants.map { it.id }.toSet())
+        assertFailsWith<IllegalArgumentException> {
+            ConversationCreationRepository().create(
+                participantIds = listOf("u1", "u2", "u3"),
+                isGroup = true,
+                groupName = "Blocked creation",
+                creatorId = "u1",
+            )
+        }
 
         transaction {
-            Messages.insert {
-                it[Messages.id] = "m_blocked"
-                it[Messages.chatId] = "g1"
-                it[Messages.senderId] = "u1"
-                it[Messages.content] = "blocked preview"
-                it[Messages.type] = "TEXT"
-                it[Messages.timestamp] = now + 100L
-            }
-            Messages.insert {
-                it[Messages.id] = "m_sk"
-                it[Messages.chatId] = "g1"
-                it[Messages.senderId] = "u3"
-                it[Messages.content] = "sk"
-                it[Messages.type] = "SK_DIST"
-                it[Messages.timestamp] = now + 200L
-            }
-            MessageReactions.insert {
-                it[MessageReactions.messageId] = "m_blocked"
-                it[MessageReactions.userId] = "u2"
-                it[MessageReactions.emoji] = "x"
-                it[MessageReactions.reactedAt] = now + 100L
-            }
-            ReadReceipts.insert {
-                it[ReadReceipts.messageId] = "m_blocked"
-                it[ReadReceipts.userId] = "u2"
-                it[ReadReceipts.readAt] = now + 100L
+            insertMessagingV2MessageFixture("m_blocked", "g1", "u1", now + 100L)
+            listOf("u2", "u3").forEach { recipientId ->
+                MessagingV2Envelopes.insert {
+                    it[id] = "env_m_blocked_$recipientId"
+                    it[messageId] = "m_blocked"
+                    it[recipientUserId] = recipientId
+                    it[recipientDeviceId] = 1
+                    it[ciphertextType] = "PREKEY"
+                    it[ciphertext] = "cipher-$recipientId"
+                    it[serverTimestamp] = now + 100L
+                    it[acknowledgedAt] = null
+                }
             }
             StarMessages.insert {
                 it[StarMessages.userId] = "u2"
                 it[StarMessages.messageId] = "m_blocked"
                 it[StarMessages.starredAt] = now + 100L
             }
-            SenderKeyDistributions.insert {
-                it[SenderKeyDistributions.id] = "skd_u2"
-                it[SenderKeyDistributions.chatId] = "g1"
-                it[SenderKeyDistributions.epoch] = 1
-                it[SenderKeyDistributions.senderId] = "u2"
-                it[SenderKeyDistributions.recipientUserId] = "u1"
-                it[SenderKeyDistributions.recipientDeviceId] = 1
-                it[SenderKeyDistributions.createdAt] = now
-                it[SenderKeyDistributions.updatedAt] = now
-            }
         }
         val inviteJoin = requireNotNull(
-            ChatRepository().consumeGroupInvite("invite-token-00000000000000000000000000", "u2", maxMembers = 100)
+            GroupInvitationRepository().consumeToken("invite-token-00000000000000000000000000", "u2", maxMembers = 100)
         ) { "join should succeed" }
-        assertEquals("", inviteJoin.chat.lastMessage)
-        assertEquals(setOf("u2", "u3"), inviteJoin.chat.participants.map { it.id }.toSet())
+        val inviteChat = requireNotNull(ConversationQueryRepository().getById(inviteJoin.chatId, viewerId = "u2"))
+        assertEquals("", inviteChat.lastMessage)
+        assertEquals(setOf("u2", "u3"), inviteChat.participants.map { it.id }.toSet())
 
         val seqChain = GroupCheckinRepository.createChain("g1", "u1", "Sequence", "", 3)!!
         GroupCheckinRepository.joinChain(seqChain.id, "u2", "first")
@@ -358,8 +340,8 @@ class GroupPlayBlockedVisibilityTest {
         )
 
         assertEquals(
-            ChatRepository.LeaveChatResult.LEFT,
-            ChatRepository().leaveChat("g1", "u2").result
+            LeaveConversationResult.LEFT,
+            ConversationLifecycleRepository().leave("g1", "u2").result
         )
         transaction {
             assertTrue(
@@ -384,32 +366,27 @@ class GroupPlayBlockedVisibilityTest {
                 }.empty()
             )
             assertTrue(
-                MessageReactions.selectAll().where {
-                    (MessageReactions.messageId eq "m_blocked") and (MessageReactions.userId eq "u2")
-                }.empty()
-            )
-            assertTrue(
-                ReadReceipts.selectAll().where {
-                    (ReadReceipts.messageId eq "m_blocked") and (ReadReceipts.userId eq "u2")
-                }.empty()
-            )
-            assertTrue(
                 StarMessages.selectAll().where {
                     (StarMessages.messageId eq "m_blocked") and (StarMessages.userId eq "u2")
                 }.empty()
             )
             assertTrue(
-                SenderKeyDistributions.selectAll().where {
-                    (SenderKeyDistributions.chatId eq "g1") and
-                        ((SenderKeyDistributions.senderId eq "u2") or
-                            (SenderKeyDistributions.recipientUserId eq "u2"))
+                MessagingV2Envelopes.selectAll().where {
+                    (MessagingV2Envelopes.messageId eq "m_blocked") and
+                        (MessagingV2Envelopes.recipientUserId eq "u2")
                 }.empty()
+            )
+            assertTrue(
+                MessagingV2Envelopes.selectAll().where {
+                    (MessagingV2Envelopes.messageId eq "m_blocked") and
+                        (MessagingV2Envelopes.recipientUserId eq "u3")
+                }.any()
             )
         }
 
         assertEquals(
-            ChatRepository.LeaveChatResult.LEFT,
-            ChatRepository().leaveChat("g1", "u3").result
+            LeaveConversationResult.LEFT,
+            ConversationLifecycleRepository().leave("g1", "u3").result
         )
         assertNull(GroupCheckinRepository.closePk("pk_1", "u3"))
     }

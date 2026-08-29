@@ -58,7 +58,7 @@ object DisappearingMessagePolicy {
 
     /**
      * 密聊不报已读回执，但销毁必须武装。
-     * 对端打开会话（可见）时起算，不依赖 markAllAsRead。
+     * 对端打开会话（可见）时起算，不依赖旧的批量已读接口。
      */
     fun shouldArmOnVisible(isSecretChat: Boolean, timerSeconds: Int): Boolean =
         isSecretChat

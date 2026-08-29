@@ -45,15 +45,6 @@ data class SetUsernameRequest(val username: String)
 data class SetUsernameResponse(val ok: Boolean = false, val username: String? = null)
 
 @Serializable
-data class AdvancedSearchRequest(val query: String, val type: String = "", val dateFrom: Long = 0, val dateTo: Long = 0, val chatId: String = "", val limit: Int = 50)
-
-@Serializable
-data class AdvancedSearchResponse(val ok: Boolean = false, val results: List<MessageSearchResultDto> = emptyList())
-
-@Serializable
-data class MessageSearchResultDto(val id: String, val chatId: String, val senderId: String, val content: String, val type: String = "TEXT", val timestamp: Long = 0, val status: String = "SENT")
-
-@Serializable
 data class UserPrivacyDto(
     val showOnline: Boolean = true,
     val showStatus: Boolean = true,
@@ -76,6 +67,8 @@ data class PublicUpdatesDto(
     val versionCode: Int = 0,
     val versionName: String = "0",
     val apkUrl: String = "",
+    /** SHA-256 of the exact APK bytes advertised by the official update endpoint. */
+    val apkSha256: String = "",
     val serverUrl: String = "",
     val notes: String = ""
 )

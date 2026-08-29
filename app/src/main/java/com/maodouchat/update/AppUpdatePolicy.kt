@@ -11,9 +11,10 @@ object AppUpdatePolicy {
         currentVersionCode: Int,
         remoteVersionCode: Int,
         apkUrl: String,
+        apkSha256: String = "",
     ): Boolean {
         if (currentVersionCode < 0 || remoteVersionCode <= 0) return false
-        if (!isOfficialApkUrl(apkUrl)) return false
+        if (!isOfficialApkUrl(apkUrl) || !hasExpectedApkSha256(apkSha256)) return false
         return remoteVersionCode > currentVersionCode
     }
 
@@ -26,6 +27,15 @@ object AppUpdatePolicy {
             host.equals("mdou.me", ignoreCase = true) ||
             host.endsWith(".mdou.me", ignoreCase = true)
     }
+
+    fun hasExpectedApkSha256(apkSha256: String): Boolean =
+        SHA256_REGEX.matches(apkSha256.trim())
+
+    fun matchesExpectedApkSha256(actualSha256: String, expectedSha256: String): Boolean =
+        hasExpectedApkSha256(expectedSha256) &&
+            actualSha256.equals(expectedSha256.trim(), ignoreCase = true)
+
+    private val SHA256_REGEX = Regex("^[A-Fa-f0-9]{64}$")
 
     private fun hostOf(url: String): String? {
         val withoutScheme = url.substringAfter("://", missingDelimiterValue = "")

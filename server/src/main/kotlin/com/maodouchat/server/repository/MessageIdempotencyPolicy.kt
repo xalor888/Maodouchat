@@ -30,6 +30,11 @@ internal object MessageIdempotencyPolicy {
         equivalentContent(existing.content, content, type)
 
     private fun equivalentContent(existing: String, retry: String, outerType: String): Boolean {
+        // An exact replay cannot change the committed logical message. Accept it even when it
+        // uses a legacy encrypted-envelope shape that the current parser no longer recognizes.
+        // This is required for crash/reconnect retries of SK_DIST control messages.
+        if (existing == retry) return true
+
         val left = stableEncryptedMetadata(existing, outerType)
         val right = stableEncryptedMetadata(retry, outerType)
         if (left != null || right != null) return left != null && left == right

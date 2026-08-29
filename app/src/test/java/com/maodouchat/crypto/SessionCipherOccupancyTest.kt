@@ -51,4 +51,19 @@ class SessionCipherOccupancyTest {
             SessionCipherOccupancy.occupyPeer(null)
         }
     }
+
+    @Test
+    fun staleLeaseCannotReleaseNewConversation() {
+        val old = SessionCipherOccupancy.acquire("old-chat")
+        val current = SessionCipherOccupancy.acquire("new-chat")
+
+        assertFalse(SessionCipherOccupancy.release(old))
+        assertTrue(SessionCipherOccupancy.isChatOccupied("new-chat"))
+        assertTrue(SessionCipherOccupancy.occupy(current, "new-chat", "alice", updatePeer = true))
+        assertTrue(SessionCipherOccupancy.isPeerOccupied("alice"))
+
+        assertTrue(SessionCipherOccupancy.release(current))
+        assertFalse(SessionCipherOccupancy.isChatOccupied("new-chat"))
+        assertFalse(SessionCipherOccupancy.isPeerOccupied("alice"))
+    }
 }

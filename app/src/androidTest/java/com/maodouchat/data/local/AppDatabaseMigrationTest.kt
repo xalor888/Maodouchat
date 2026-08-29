@@ -393,6 +393,131 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migrate31To32MarksLegacySendingMessagesFailed() {
+        helper.createDatabase(LEGACY_SENDING_TEST_DB, 31).apply {
+            execSQL(
+                """
+                INSERT INTO chats (
+                    id, lastMessage, lastMessageType, lastMessageTime, unreadCount,
+                    isGroup, chatType, groupName, groupAnnouncement, groupAvatar,
+                    memberRevision, pinnedAt, notificationsMuted, archived, markedUnread,
+                    settingsUpdatedAt, disappearingMessageSeconds, participantIds
+                ) VALUES ('c_sending', '', 'TEXT', 0, 0, 0, 'DIRECT', NULL, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, 'u1,u2')
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO messages (
+                    id, chatId, senderId, content, type, timestamp, status,
+                    editedAt, starred, reactionsJson, expiresAt, sealedSender
+                ) VALUES ('m_sending', 'c_sending', 'u1', 'legacy plaintext', 'TEXT', 55, 'SENDING', NULL, 0, '[]', NULL, 0)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val database = helper.runMigrationsAndValidate(
+            LEGACY_SENDING_TEST_DB,
+            32,
+            true,
+            AppDatabase.MIGRATION_31_32,
+        )
+        try {
+            database.query("SELECT status FROM messages WHERE id = 'm_sending'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("FAILED", cursor.getString(0))
+            }
+            database.query("SELECT COUNT(*) FROM messaging_v2_outbox").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
+            }
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun migrate34To35AddsPlaintextJournalWithEmptyDefault() {
+        helper.createDatabase(JOURNAL_TEST_DB, 34).apply {
+            execSQL(
+                """
+                INSERT INTO messaging_v2_inbox (
+                    envelopeId, ownerUserId, deviceId, sequence, messageId, conversationId,
+                    senderUserId, senderDeviceId, kind, clientTimestamp, serverTimestamp,
+                    ciphertextType, ciphertext, state, attempts, nextAttemptAt, receivedAt, updatedAt
+                ) VALUES ('e_journal', 'u1', 1, 1, 'm_journal', 'c_journal', 'u2', 1, 'DATA', 1, 1, 'PREKEY', 'cipher', 'RECEIVED', 0, 0, 1, 1)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val database = helper.runMigrationsAndValidate(
+            JOURNAL_TEST_DB,
+            35,
+            true,
+            AppDatabase.MIGRATION_34_35,
+        )
+        try {
+            // runMigrationsAndValidate above already asserts the Room schema (including the
+            // column default) matches the entity; verify existing rows read back as empty.
+            database.query("SELECT plaintextJournal FROM messaging_v2_inbox WHERE envelopeId = 'e_journal'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("", cursor.getString(0))
+            }
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun migrate33To34CreatesTerminalTombstonesWithConversationCascade() {
+        helper.createDatabase(TOMBSTONE_TEST_DB, 33).apply {
+            execSQL(
+                """
+                INSERT INTO chats (
+                    id, lastMessage, lastMessageType, lastMessageTime, unreadCount,
+                    isGroup, chatType, groupName, groupAnnouncement, groupAvatar,
+                    memberRevision, pinnedAt, notificationsMuted, archived, markedUnread,
+                    settingsUpdatedAt, disappearingMessageSeconds, participantIds
+                ) VALUES ('c_terminal', '', 'TEXT', 0, 0, 0, 'DIRECT', NULL, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, 'u1,u2')
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val database = helper.runMigrationsAndValidate(
+            TOMBSTONE_TEST_DB,
+            34,
+            true,
+            AppDatabase.MIGRATION_33_34,
+        )
+        try {
+            database.execSQL(
+                """
+                INSERT INTO message_mutation_tombstones (
+                    ownerUserId, messageId, conversationId, kind, terminalAt
+                ) VALUES ('u1', 'm_terminal', 'c_terminal', 'DELETE', 123)
+                """.trimIndent(),
+            )
+            database.query(
+                "SELECT kind, terminalAt FROM message_mutation_tombstones WHERE messageId = 'm_terminal'",
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("DELETE", cursor.getString(0))
+                assertEquals(123L, cursor.getLong(1))
+            }
+
+            database.execSQL("DELETE FROM chats WHERE id = 'c_terminal'")
+            database.query("SELECT COUNT(*) FROM message_mutation_tombstones").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
+            }
+        } finally {
+            database.close()
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-16-17"
         const val SETTINGS_TEST_DB = "migration-17-18"
@@ -401,5 +526,8 @@ class AppDatabaseMigrationTest {
         const val SEARCH_TYPE_TEST_DB = "migration-25-26-search-type"
         const val FULL_CHAIN_TEST_DB = "migration-16-20-full-chain"
         const val FULL_CHAIN_25_TO_30_TEST_DB = "migration-25-30-full-chain"
+        const val LEGACY_SENDING_TEST_DB = "migration-31-32-legacy-sending"
+        const val JOURNAL_TEST_DB = "migration-34-35-plaintext-journal"
+        const val TOMBSTONE_TEST_DB = "migration-33-34-tombstone"
     }
 }

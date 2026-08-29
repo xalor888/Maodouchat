@@ -78,4 +78,21 @@ interface ChatDao {
     /** Backlog 同步本地增量未读（服务端会话快照会覆盖校准，仅用于断线窗口兜底）。 */
     @Query("UPDATE chats SET unreadCount = unreadCount + :delta, settingsUpdatedAt = :now WHERE id = :chatId")
     suspend fun incrementUnread(chatId: String, delta: Int, now: Long = System.currentTimeMillis())
+
+    /** Atomically advances the durable local conversation projection for a newly inserted v2 row. */
+    @Query("""
+        UPDATE chats SET
+            lastMessage = CASE WHEN :timestamp >= lastMessageTime THEN :content ELSE lastMessage END,
+            lastMessageType = CASE WHEN :timestamp >= lastMessageTime THEN :messageType ELSE lastMessageType END,
+            lastMessageTime = CASE WHEN :timestamp >= lastMessageTime THEN :timestamp ELSE lastMessageTime END,
+            unreadCount = unreadCount + :unreadDelta
+        WHERE id = :chatId
+    """)
+    suspend fun projectMessageArrival(
+        chatId: String,
+        content: String,
+        messageType: String,
+        timestamp: Long,
+        unreadDelta: Int,
+    )
 }

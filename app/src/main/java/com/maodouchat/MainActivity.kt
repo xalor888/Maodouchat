@@ -336,9 +336,9 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun consumeNotificationIntent(intent: Intent) {
-        // 调用来源校验（安全加固）：只接受系统投递（通知/Telecom，callingPackage 为 null）
-        // 或本应用发起的 intent。第三方应用显式携带 ANSWER_CALL / EXTRA_OPEN_CHAT_ID 等
-        // extra 启动本 Activity 可伪造来电、锁屏展示内容或取消通知 —— 一律丢弃。
+        // Caller identity is unavailable for some Android Telecom launches, so null must not be
+        // trusted. Notification extras and Telecom actions are accepted only from this app's own
+        // pending-call state; external ACTION_VIEW deep links are separately handled below.
         val caller = callingPackage ?: callingActivity?.packageName
         if (caller != null && caller != packageName) {
             clearNotificationExtras(intent)
@@ -380,26 +380,33 @@ class MainActivity : FragmentActivity() {
                 return
             }
         }
-        // ConnectionService 接听 / 来电 intent：保持屏幕常亮并唤醒来电流程
+        // ConnectionService transport actions have no reliable calling package on modern Android.
+        // Treat a null caller as untrusted and accept only an action matching an app-owned pending
+        // call. The pending call is established by the in-process signaling/Telecom pipeline and
+        // cannot be forged by an external explicit Intent.
         val telecomAction = intent.action
-        if (telecomAction == "com.maodouchat.ANSWER_CALL" || telecomAction == "com.maodouchat.INCOMING_CALL") {
+        val telecomCallId = intent.getStringExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_CALL_ID).orEmpty()
+        val isTelecomAction = telecomAction == ACTION_ANSWER_CALL || telecomAction == ACTION_INCOMING_CALL
+        if (isTelecomAction && !isTrustedTelecomTransport(telecomCallId)) {
+            clearTelecomExtras(intent)
+            return
+        }
+        if (isTelecomAction) {
             applyCallLockScreenFlags(enabled = true)
-            val callId = intent.getStringExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_CALL_ID).orEmpty()
-            if (callId.isNotBlank()) {
-                AppNotifier.cancelIncomingCall(this, callId)
+            if (telecomCallId.isNotBlank()) {
+                AppNotifier.cancelIncomingCall(this, telecomCallId)
             }
             MaodouchatApp.emitIncomingCallWake(
                 IncomingCallWake(
-                    callId = callId,
+                    callId = telecomCallId,
                     senderId = "",
                     isVideo = intent.getBooleanExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_IS_VIDEO, false),
                     // 8.56：系统 Telecom「接听」≠「来电拉起」——标记自动接听，应用内不再要求二次点击
-                    autoAnswer = telecomAction == "com.maodouchat.ANSWER_CALL",
+                    autoAnswer = telecomAction == ACTION_ANSWER_CALL,
                 )
             )
-            intent.removeExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_CALL_ID)
-            intent.removeExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_CALLER_NAME)
-            intent.removeExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_IS_VIDEO)
+            clearTelecomExtras(intent)
+            clearNotificationExtras(intent)
         }
         val chatId = intent.getStringExtra(AppNotifier.EXTRA_OPEN_CHAT_ID)?.takeIf(String::isNotBlank)
         // 8.41：消息「稍后提醒」点击 → 打开聊天后高亮原消息
@@ -475,6 +482,18 @@ class MainActivity : FragmentActivity() {
             else -> notificationTarget.value = null
         }
         clearNotificationExtras(intent)
+    }
+
+    private fun clearTelecomExtras(intent: Intent?) {
+        intent?.removeExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_CALL_ID)
+        intent?.removeExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_CALLER_NAME)
+        intent?.removeExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_IS_VIDEO)
+    }
+
+    private fun isTrustedTelecomTransport(callId: String): Boolean {
+        if (callId.isBlank()) return false
+        return com.maodouchat.call.IncomingCallCoordinator.peekPending()?.callId == callId ||
+            com.maodouchat.service.CallForegroundService.getActiveCallId() == callId
     }
 
     private fun clearNotificationExtras(intent: Intent?) {
@@ -699,6 +718,11 @@ class MainActivity : FragmentActivity() {
                 delay(1000)
             }
         }
+    }
+
+    private companion object {
+        const val ACTION_ANSWER_CALL = "com.maodouchat.ANSWER_CALL"
+        const val ACTION_INCOMING_CALL = "com.maodouchat.INCOMING_CALL"
     }
 
     private sealed interface NotificationTarget {

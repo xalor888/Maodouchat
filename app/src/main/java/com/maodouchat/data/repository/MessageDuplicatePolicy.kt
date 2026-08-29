@@ -4,7 +4,7 @@ import com.maodouchat.data.model.Message
 
 /**
  * 本地消息去重：同 id 无变化则跳过写入；不同 id 但同一投递（同会话/发送者/时间戳/正文）
- * 视为重复行，合并到已有主键，避免 WS + REST / 乐观发送双写两条。
+ * 视为重复行，合并到已有主键，避免 v2 Inbox 与乐观发送落成两条。
  */
 object MessageDuplicatePolicy {
     fun isRedundantWrite(existing: Message, merged: Message): Boolean {

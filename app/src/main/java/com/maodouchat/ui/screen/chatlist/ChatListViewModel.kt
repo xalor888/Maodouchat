@@ -14,19 +14,21 @@ import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.ChatRepository
-import com.maodouchat.data.repository.AiSummaryRepository
-import com.maodouchat.data.repository.AiTaskRepository
-import com.maodouchat.data.repository.AiOperationRepository
-import com.maodouchat.data.repository.MessageRepository
+import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.data.repository.NotificationCenterRepository
+import com.maodouchat.conversation.ConversationLocalCleanupMode
+import com.maodouchat.conversation.ConversationLocalCleanupSession
+import com.maodouchat.conversation.conversationLocalCleanupSession
+import com.maodouchat.conversation.createAndroidConversationLocalStateCoordinator
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.MessageMutationDto
 import com.maodouchat.network.UpdateChatSettingsRequest
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketClient
 import com.maodouchat.network.WebSocketEvent
+import com.maodouchat.scheduling.AndroidConversationScheduleBackend
+import com.maodouchat.scheduling.ConversationScheduleCoordinator
 import com.maodouchat.ui.OwnerSessionPolicy
 import com.maodouchat.ui.OwnerSessionSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -226,63 +228,42 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
 
     private val app = application as MaodouchatApp
     private val chatRepo = ChatRepository(app.database.chatDao(), app.database.userDao())
-    private val messageRepo = MessageRepository(app.database.messageDao(), app.database)
-    private val aiSummaryRepo = AiSummaryRepository(app.database.aiSummaryCacheDao())
-    private val aiTaskRepo = AiTaskRepository(app.database.aiTaskDao(), application)
-    private val aiOperationRepo = AiOperationRepository(app.database.aiOperationDao())
+    private val messageRepo = LocalMessageStore(app.database.messageDao(), app.database)
     private val missedRepo = com.maodouchat.data.repository.MissedCallRepository(app.database.missedCallDao())
     private val tokenManager = TokenManager.getInstance(application)
+    private val conversationScheduleCoordinator = ConversationScheduleCoordinator(
+        ownerUserId = { tokenManager.getUserId().orEmpty() },
+        backend = AndroidConversationScheduleBackend(application),
+    )
+    private val conversationLocalStateCoordinator = createAndroidConversationLocalStateCoordinator(
+        app = app,
+        tokenManager = tokenManager,
+        scheduleCoordinator = conversationScheduleCoordinator,
+    )
     private fun text(id: Int): String = getApplication<Application>().getString(id)
-
-    private suspend fun <T> bestEffort(block: suspend () -> T): T? = try {
-        block()
-    } catch (error: kotlinx.coroutines.CancellationException) {
-        throw error
-    } catch (_: Exception) {
-        null
-    }
 
     /** 清空指定会话的本地明文（保留会话/PIN/草稿/同步游标）。不清游标，避免重拉密文 Duplicate。 */
     fun clearLocalChatHistory(chatId: String) {
         if (chatId.isBlank()) return
         val ownerUserId = tokenManager.getUserId().orEmpty()
         if (ownerUserId.isBlank()) return
+        val cleanupSession = conversationLocalCleanupSession(ownerUserId)
         viewModelScope.launch(Dispatchers.IO) {
-            val cachedMessageIds = bestEffort { messageRepo.getMessageIdsByChatId(chatId) }.orEmpty()
-            bestEffort { com.maodouchat.attachment.AttachmentTransferCoordinator.cancelForChat(app, chatId) }
-            bestEffort {
-                val removed = com.maodouchat.util.ScheduledMessageStore.clearForChat(app, chatId)
-                removed.forEach { com.maodouchat.util.ScheduledMessageScheduler.cancel(app, it) }
+            val report = withContext(kotlinx.coroutines.NonCancellable) {
+                conversationLocalStateCoordinator.cleanup(
+                    chatId = chatId,
+                    expectedSession = cleanupSession,
+                    mode = ConversationLocalCleanupMode.CLEAR_HISTORY,
+                )
             }
-            bestEffort { messageRepo.deleteMessagesByChatId(chatId) }
-            bestEffort { app.database.messageSearchDao().deleteChatIndex(chatId) }
-            if (ownerUserId.isNotBlank()) {
-                bestEffort {
-                    app.database.attachmentTransferDao().clearWireContentForChat(chatId, ownerUserId = ownerUserId)
-                }
+            report.failures.forEach { failure ->
+                android.util.Log.w(
+                    "ChatListViewModel",
+                    "local conversation cleanup failed at ${failure.step} for $chatId",
+                    failure.error,
+                )
             }
-            cachedMessageIds.forEach { messageId ->
-                bestEffort { com.maodouchat.util.MediaCache.deleteCachedMediaForMessage(app, messageId) }
-            }
-            bestEffort {
-                app.notificationCenter.removeChatItems(chatId)
-                com.maodouchat.util.AppNotifier.cancelMessage(app, chatId)
-            }
-            val local = chatRepo.getChatById(chatId)
-            if (local != null) {
-                bestEffort {
-                    chatRepo.cacheChats(
-                        listOf(
-                            local.copy(
-                                lastMessage = "",
-                                lastMessageType = MessageType.TEXT,
-                                unreadCount = 0,
-                                markedUnread = false
-                            )
-                        )
-                    )
-                }
-            }
+            if (!report.completed) return@launch
             loadChats(showLoading = false)
         }
     }
@@ -321,9 +302,8 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
 
     /**
      * 本 VM 生命周期内已成功删除（退出服务端）的会话 id。
-     * 用于防止删除竞态：删除先乐观从 UI 移除，但服务端 leave 尚未生效时若 WS 推来该会话的新消息，
-     * MessageReceived 分支会触发 requestLoadChats→loadChats 从服务端重新拉回该会话（角标鬼影/复活）。
-     * 命中本集合的未知会话消息不触发重载，loadChats 合入时也会丢弃，并从本地清理。
+     * 用于防止删除竞态：删除先乐观从 UI 移除，但服务端 leave 尚未生效时同步快照仍可能
+     * 把会话重新带回。命中本集合的会话在合并时丢弃，并从本地清理。
      */
     private val deletedChatIds = mutableSetOf<String>()
 
@@ -352,10 +332,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             true
         }
     }
-
-    /** Reaction WS can arrive before the message row exists; buffer briefly. */
-    @Volatile
-    private var pendingReactions: Map<String, PendingReactionPolicy.Entry> = emptyMap()
 
     val notificationCenterUnread: StateFlow<Int> = notificationRepo.items
         .map { items -> items.count { !it.read } }
@@ -1038,9 +1014,8 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
 
     /** 1.146：刷新各会话待发送定时消息数（本地 prefs store）。 */
     fun refreshScheduledCounts() {
-        val ctx = getApplication<Application>()
         val counts = try {
-            com.maodouchat.util.ScheduledMessageStore.list(ctx)
+            conversationScheduleCoordinator.listAllScheduled()
                 .groupingBy { it.chatId }
                 .eachCount()
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -1133,38 +1108,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         loadChats(showLoading = ChatListReloadPolicy.shouldShowLoading(mode))
     }
 
-    /** Flush SENDING text outbox without requiring ChatDetail to be open. */
-    private fun flushTextOutbox() {
-        val flushOwnerUserId = tokenManager.getUserId().orEmpty()
-        if (
-            flushOwnerUserId.isBlank() ||
-            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = flushOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
-        ) {
-            return
-        }
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = flushOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) {
-                    return@launch
-                }
-                com.maodouchat.data.repository.TextOutboxFlusher.flush(app = app)
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                android.util.Log.w("ChatListViewModel", "text outbox flush failed: ${error.message}")
-            }
-        }
-    }
-
     /**
      * Update list preview + sort key in memory and Room.
      * [unreadDelta] is applied only when the chat is already on the list (incoming path).
@@ -1230,61 +1173,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /**
-     * Inactive group chats never open ChatDetail, so list-side decrypt has no Sender Key
-     * unless we install SK_DIST here first. ChatDetail still owns the active-chat path.
-     */
-    private suspend fun ingestInactiveChatSenderKey(message: Message) {
-        val liveToken = tokenManager.getToken()?.takeIf(String::isNotBlank) ?: return
-        if (!ensureLocalSignalReady()) return
-        com.maodouchat.crypto.InactiveChatSenderKeyIngest.ingest(
-            signal = app.signalProtocol,
-            chatRepo = chatRepo,
-            messageRepo = messageRepo,
-            message = message,
-            token = liveToken,
-        )
-    }
-
-    /** Cipher entry points must wait for the account-scoped store restored at cold start. */
-    private suspend fun ensureLocalSignalReady(ownerUserId: String = currentUserIdStr): Boolean {
-        val liveToken = tokenManager.getToken()?.takeIf(String::isNotBlank) ?: return false
-        if (ownerUserId.isBlank()) return false
-        return try {
-            app.signalProtocol.ensureLocalCryptoReady(liveToken, ownerUserId)
-        } catch (error: kotlinx.coroutines.CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            android.util.Log.w("ChatListViewModel", "Signal local restore failed", error)
-            false
-        }
-    }
-
-    private suspend fun retryDecryptInactiveGroupTail(
-        chatId: String,
-        ownerUserId: String,
-        session: OwnerSessionSnapshot,
-    ) {
-        if (chatId.isBlank() || !isOwnerSessionCurrent(session)) return
-        if (com.maodouchat.crypto.SessionCipherOccupancy.isChatOccupied(chatId)) {
-            return
-        }
-        val recent = messageRepo.getRecentMessages(chatId, limit = 24)
-        var recoveredAny = false
-        for (msg in recent) {
-            if (msg.type !in setOf(MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER, MessageType.LOCATION)) {
-                continue
-            }
-            if (!ChatListPreviewPolicy.isUnreadableListHead(msg)) continue
-            val plain = tryDecryptInlinePreview(msg) ?: continue
-            messageRepo.insertMessage(msg.copy(content = plain))
-            recoveredAny = true
-        }
-        if (recoveredAny) {
-            refreshChatListPreviewFromLocal(chatId, ownerUserId, session.sessionGeneration)
-        }
-    }
-
     private fun mediaPreviewLabel(type: MessageType): String = when (type) {
         MessageType.IMAGE -> text(R.string.message_preview_image)
         MessageType.GIF -> text(R.string.message_preview_gif)
@@ -1296,59 +1184,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         MessageType.NUDGE -> text(R.string.message_preview_nudge)
         MessageType.SYSTEM -> text(R.string.message_preview_system)
         else -> text(R.string.message_preview_encrypted)
-    }
-
-    /**
-     * Best-effort decrypt for inactive-chat list/notify previews.
-     * Only TEXT/STICKER/LOCATION (inline plaintext body). On success the caller persists
-     * plaintext so ChatDetail [localReadableMessage] skips re-decrypt (ratchet-safe).
-     * Returns null on failure / non-inline types / already-plaintext.
-     */
-    private suspend fun tryDecryptInlinePreview(message: Message): String? {
-        if (message.type !in setOf(MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER, MessageType.LOCATION)) {
-            return null
-        }
-        val content = message.content
-        if (content.isBlank()) return null
-        // IO 里再拦一次：进会话竞态下列表不得再走 SessionCipher / GroupCipher。
-        // 1:1 ratchet 按 peer 寻址，SECRET 与同人 DIRECT 共用，不能只比 chatId。
-        if (com.maodouchat.crypto.SessionCipherOccupancy.shouldSkipSessionCipher(message.chatId, message.senderId)) {
-            return null
-        }
-        val signal = app.signalProtocol
-        // Already readable local body (own multi-device echo, etc.)
-        if (!signal.isEncryptedEnvelope(content) &&
-            !signal.isSenderKeyEnvelope(content) &&
-            !ChatListPreviewPolicy.looksLikeWireEnvelope(content)
-        ) {
-            return content
-        }
-        if (!ensureLocalSignalReady()) return null
-        return try {
-            val isGroup = _uiState.value.chats.find { it.id == message.chatId }?.isGroup == true
-            val result = if (isGroup || signal.isSenderKeyEnvelope(content)) {
-                signal.decryptGroupContentEnvelope(
-                    message.senderId,
-                    content,
-                    expectedGroupId = message.chatId
-                )
-            } else {
-                signal.decryptContentEnvelope(message.senderId, content)
-            }
-            when (result) {
-                is com.maodouchat.crypto.SignalProtocol.DecryptResult.Success ->
-                    result.plaintext.takeIf { it.isNotBlank() }
-                else -> null
-            }
-        } catch (error: kotlinx.coroutines.CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            android.util.Log.w(
-                "ChatListViewModel",
-                "tryDecryptInlinePreview failed for ${message.id}: ${error.message}"
-            )
-            null
-        }
     }
 
     /** Recipient-facing NUDGE copy; stored body is always sender-centric from server. */
@@ -1625,9 +1460,8 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
-     * 未读文件夹「全部已读」：对所有未读会话逐个调用 mark-read。
-     * 服务端会向本账号广播 CHAT_MARKED_READ，本机既有处理器会把角标归零；
-     * 这里再做乐观清零 + 落库，保证列表即时收敛且进程死亡不复活角标。
+     * 未读文件夹「全部已读」：本地原子清零，再为每个普通会话写入持久 v2 已读水位。
+     * 乐观投影会落 Room，保证列表即时收敛且进程死亡不复活角标。
      */
     fun markAllUnreadChatsRead() {
         val ownerUserId = currentUserIdStr
@@ -1646,7 +1480,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             })
         }
         viewModelScope.launch {
-            val chatIds = ordinaryUnread.map { it.id }
             unreadChats.forEach { chat ->
                 if (!isOwnerSessionCurrent(session)) return@launch
                 val liveToken = tokenManager.getToken().orEmpty()
@@ -1668,25 +1501,16 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 // 已读后清理该会话的 tray 通知（与聊天页进入后的行为一致）
                 runCatching { com.maodouchat.util.AppNotifier.cancelMessage(getApplication(), chat.id) }
             }
-            // 0.89：批量已读一次请求（此前每未读会话一次 markAllAsRead，N 次请求 → 1 次）
-            if (chatIds.isNotEmpty() && isOwnerSessionCurrent(session)) {
-                val liveToken = tokenManager.getToken().orEmpty()
-                if (liveToken.isNotBlank()) {
-                    // 失败静默：下次 getChats 服务端数据会收敛角标
-                    try {
-                        ApiService.batchMarkRead(liveToken, chatIds)
-                    } catch (error: kotlinx.coroutines.CancellationException) {
-                        throw error
-                    } catch (_: Exception) {
-                        // 静默：下次同步会收敛角标
-                    }
+            if (ordinaryUnread.isNotEmpty() && isOwnerSessionCurrent(session)) {
+                ordinaryUnread.forEach { chat ->
+                    val boundary = messageRepo.getLatestIncomingMessage(chat.id, ownerUserId)
+                        ?: return@forEach
+                    app.messagingV2Outbox.enqueueReadReceipt(
+                        conversationId = chat.id,
+                        throughMessageId = boundary.id,
+                        groupRevision = chat.memberRevision.takeIf { chat.isGroup },
+                    )
                 }
-            }
-            secretUnread.forEach { chat ->
-                if (!isOwnerSessionCurrent(session)) return@launch
-                val liveToken = tokenManager.getToken().orEmpty()
-                if (liveToken.isBlank()) return@launch
-                runCatching { ApiService.armSecretChatExpiry(liveToken, chat.id) }
             }
         }
     }
@@ -1721,7 +1545,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         selected.forEach(::togglePinned)
     }
 
-    /** 1.368：批量标记已读选中会话（未读/标未读才调用，服务端一次 batchMarkRead） */
+    /** Batch local read projection plus one durable v2 read watermark per conversation. */
     fun batchMarkReadSelected() {
         val selected = _uiState.value.selectedChatIds
         if (selected.isEmpty()) return
@@ -1734,7 +1558,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         val ordinary = toRead.filter { !it.isSecret }
         val secret = toRead.filter { it.isSecret }
         val session = ownerSession(ownerUserId)
-        val targetIds = ordinary.map { it.id }
         val allReadIds = toRead.map { it.id }.toSet()
         _uiState.update { state ->
             state.copy(chats = state.chats.map { chat ->
@@ -1763,22 +1586,15 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 }
                 runCatching { com.maodouchat.util.AppNotifier.cancelMessage(getApplication(), chat.id) }
             }
-            secret.forEach { chat ->
-                if (!isOwnerSessionCurrent(session)) return@launch
-                val liveToken = tokenManager.getToken().orEmpty()
-                if (liveToken.isBlank()) return@launch
-                runCatching { ApiService.armSecretChatExpiry(liveToken, chat.id) }
-            }
-            if (targetIds.isNotEmpty() && isOwnerSessionCurrent(session)) {
-                val liveToken = tokenManager.getToken().orEmpty()
-                if (liveToken.isNotBlank()) {
-                    try {
-                        ApiService.batchMarkRead(liveToken, targetIds)
-                    } catch (error: kotlinx.coroutines.CancellationException) {
-                        throw error
-                    } catch (_: Exception) {
-                        // 静默：下次同步会收敛角标
-                    }
+            if (ordinary.isNotEmpty() && isOwnerSessionCurrent(session)) {
+                ordinary.forEach { chat ->
+                    val boundary = messageRepo.getLatestIncomingMessage(chat.id, ownerUserId)
+                        ?: return@forEach
+                    app.messagingV2Outbox.enqueueReadReceipt(
+                        conversationId = chat.id,
+                        throughMessageId = boundary.id,
+                        groupRevision = chat.memberRevision.takeIf { chat.isGroup },
+                    )
                 }
             }
         }
@@ -2033,6 +1849,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
     fun deleteChat(chatId: String) {
         val token = tokenManager.getToken().orEmpty()
         val deleteOwnerUserId = currentUserIdStr
+        val cleanupSession = conversationLocalCleanupSession(deleteOwnerUserId)
         if (token.isBlank() || deleteOwnerUserId.isBlank()) {
             _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             return
@@ -2095,30 +1912,8 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 leaveConfirmed = true
                 // leave 已成功：本地清理必须跑完，避免半清草稿/密钥/附件
                 deletedChatIds.add(chatId)
-                // 8.53：删除会话后清理该会话全部待触发「稍后提醒」——否则到点通知 deeplink 落空
-                withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    try {
-                        val uid = tokenManager.getUserId()?.takeIf { it.isNotBlank() } ?: return@withContext
-                        val reminders = com.maodouchat.util.MessageReminderStore.list(getApplication(), uid)
-                        reminders.filter { it.chatId == chatId }.forEach { r ->
-                            com.maodouchat.util.MessageReminderScheduler.cancel(getApplication(), r.id)
-                            com.maodouchat.util.MessageReminderStore.remove(getApplication(), r.id, uid)
-                        }
-                    } catch (error: kotlinx.coroutines.CancellationException) {
-                        throw error
-                    } catch (_: Exception) {
-                        // 提醒清理失败不阻塞会话删除主流程
-                    }
-                }
-                withContext(kotlinx.coroutines.NonCancellable) {
-                    if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = deleteOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
-                    ) {
-                        cleanupLocalChat(chatId, deleteOwnerUserId)
-                    }
+                withContext(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.NonCancellable) {
+                    cleanupLocalChat(chatId, cleanupSession)
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 // 取消且 leave 未确认：恢复列表项；本地缓存未 cleanup
@@ -2156,62 +1951,22 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 .thenByDescending { it.lastMessageTime }
         )
 
-    private suspend fun cleanupLocalChat(chatId: String, ownerUserId: String) {
-        // 先记录消息 ID；删除 SQLCipher 行后将无法定位对应的解密媒体缓存。
-        val cachedMessageIds = messageRepo.getMessageIdsByChatId(chatId)
-        com.maodouchat.attachment.AttachmentTransferCoordinator.cancelForChat(app, chatId)
-        // Drop pending timed sends so leave/delete cannot fire into a gone chat.
-        try {
-            val removed = com.maodouchat.util.ScheduledMessageStore.clearForChat(app, chatId)
-            removed.forEach { com.maodouchat.util.ScheduledMessageScheduler.cancel(app, it) }
-        } catch (error: kotlinx.coroutines.CancellationException) {
-            throw error
-        } catch (_: Exception) {
-        }
-        aiTaskRepo.deleteByChatId(chatId)
-        aiOperationRepo.deleteByChatId(ownerUserId, chatId)
-        aiSummaryRepo.deleteByChatId(chatId)
-        app.database.chatDraftDao().deleteForChat(ownerUserId, chatId)
-        app.database.chatLockDao().remove(chatId)
-        com.maodouchat.security.ChatLockSession.clear(chatId)
-        app.database.secretChatDao().remove(chatId) // TTL 心跳行，不是密聊开关
-        com.maodouchat.security.SecretChatSession.markSurfaceInactive(chatId, getApplication())
-        app.database.senderKeyRetryDao().delete(ownerUserId, chatId)
-        app.signalProtocol.invalidateGroupSenderKey(chatId)
-        try {
-            app.database.attachmentTransferDao().clearWireContentForChat(
-                chatId,
-                ownerUserId = ownerUserId,
+    private suspend fun cleanupLocalChat(
+        chatId: String,
+        cleanupSession: ConversationLocalCleanupSession,
+    ) {
+        val report = conversationLocalStateCoordinator.cleanup(
+            chatId = chatId,
+            expectedSession = cleanupSession,
+            mode = ConversationLocalCleanupMode.DELETE_CONVERSATION,
+        )
+        report.failures.forEach { failure ->
+            android.util.Log.w(
+                "ChatListViewModel",
+                "conversation deletion cleanup failed at ${failure.step} for $chatId",
+                failure.error,
             )
-        } catch (error: kotlinx.coroutines.CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            android.util.Log.w("ChatListViewModel", "clearWireContentForChat failed for $chatId", error)
         }
-        cachedMessageIds.forEach { messageId ->
-            com.maodouchat.util.MediaCache.deleteCachedMediaForMessage(app, messageId)
-        }
-        // Keyword index must not keep orphan docs after leave/delete.
-        try {
-            app.database.messageSearchDao().deleteChatIndex(chatId)
-        } catch (error: kotlinx.coroutines.CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            android.util.Log.w("ChatListViewModel", "deleteChatIndex failed for $chatId", error)
-        }
-        tokenManager.clearChatCursors(chatId)
-        // In-app notification center + system tray for this chat (messages + AI task reminders).
-        try {
-            notificationRepo.removeChatItems(chatId)
-            com.maodouchat.util.AppNotifier.cancelMessage(app, chatId)
-            com.maodouchat.util.AppNotifier.cancelAiTaskRemindersForChat(app, chatId)
-        } catch (error: kotlinx.coroutines.CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            android.util.Log.w("ChatListViewModel", "notification cleanup failed for $chatId", error)
-        }
-        messageRepo.deleteMessagesByChatId(chatId)
-        chatRepo.deleteChat(chatId)
     }
 
     /** 1.142：会话列表长按菜单「清除草稿」（本地，不打开会话）。 */
@@ -2295,43 +2050,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             }
         } catch (_: Exception) {
             preview
-        }
-    }
-
-    /**
-     * Apply buffered MESSAGE_REACTION_UPDATED once the message row exists.
-     * Must run on a coroutine that can hit Room (caller already on IO when needed).
-     */
-    private suspend fun applyPendingReactionsIfAny(
-        chatId: String,
-        messageId: String,
-        session: OwnerSessionSnapshot,
-    ) {
-        if (chatId.isBlank() || messageId.isBlank() || !isOwnerSessionCurrent(session)) return
-        val result = PendingReactionPolicy.takeForMessage(
-            pending = pendingReactions,
-            chatId = chatId,
-            messageId = messageId,
-            nowMs = System.currentTimeMillis()
-        )
-        pendingReactions = result.pending
-        withOwnerRoomWrite(session) {
-            for (entry in result.ready) {
-                try {
-                    val existing = messageRepo.getMessageById(entry.messageId) ?: continue
-                    if (existing.chatId != entry.chatId) continue
-                    if (existing.type == MessageType.REVOKED) continue
-                    messageRepo.updateMessageReactions(entry.messageId, entry.reactions)
-                } catch (error: kotlinx.coroutines.CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    android.util.Log.w(
-                        "ChatListViewModel",
-                        "Failed to apply pending reaction for ${entry.messageId}",
-                        error
-                    )
-                }
-            }
         }
     }
 
@@ -2441,712 +2159,9 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                             }
                         }
                     }
-                    is WebSocketEvent.MessageReceived -> {
-                        if (event.message.type == MessageType.SK_DIST) {
-                            val distChatId = event.message.chatId
-                            val distOwner = liveUserId
-                            if (distChatId.isNotBlank() &&
-                                distOwner.isNotBlank() &&
-                                !com.maodouchat.crypto.SessionCipherOccupancy.shouldSkipSessionCipher(
-                                    distChatId,
-                                    event.message.senderId
-                                )
-                            ) {
-                                withContext(Dispatchers.IO) {
-                                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                            expectedUserId = distOwner,
-                                            liveToken = tokenManager.getToken(),
-                                            liveUserId = tokenManager.getUserId(),
-                                        )
-                                    ) {
-                                        return@withContext
-                                    }
-                                    ingestInactiveChatSenderKey(event.message)
-                                    retryDecryptInactiveGroupTail(distChatId, distOwner, realtimeSession)
-                                }
-                            }
-                            return@collect
-                        }
-                        // SK_DIST is crypto control traffic — never bump unread / overwrite list preview / notify.
-                        val controlOnly = event.message.type in setOf(
-                            MessageType.REVOKED // revoke arrives via MessageRevoked / mutation, not as content head
-                        )
-                        if (!controlOnly) {
-                            // 收到新消息时，更新预览、递增未读数、置顶聊天（UI + Room 同步）
-                            try {
-                                val targetId = event.message.chatId
-                                val isOwnMessage = event.message.senderId == liveUserId
-                                // Active chat: ChatDetail owns decrypt (avoid double-ratchet). List may
-                                // briefly show ciphertext placeholder until detail emits plaintext.
-                                // Inactive chat: best-effort decrypt TEXT/STICKER/LOCATION so list/notify
-                                // show readable tail and Room holds plaintext for open-chat skip path.
-                                val isActiveChat = com.maodouchat.crypto.SessionCipherOccupancy.shouldSkipSessionCipher(
-                                    targetId,
-                                    event.message.senderId
-                                )
-                                val encryptedPlaceholder = text(R.string.message_preview_encrypted)
-                                // Same-message local echo only: Room already has plaintext for this id
-                                // (emitMessageSent path). Do not key on chat-list lastMessage — that is
-                                // the previous head and would freeze multi-device new sends on old tail.
-                                val listReceiveOwnerUserId = liveUserId
-                                val existingSameMessage = withContext(Dispatchers.IO) {
-                                    messageRepo.getMessageById(event.message.id)
-                                }
-                                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                        expectedUserId = listReceiveOwnerUserId,
-                                        liveToken = tokenManager.getToken(),
-                                        liveUserId = tokenManager.getUserId(),
-                                    )
-                                ) return@collect
-                                val sameMessageReadable = existingSameMessage?.content?.takeIf { body ->
-                                    body.isNotBlank() &&
-                                        !ChatListPreviewPolicy.looksLikeWireEnvelope(body) &&
-                                        !app.signalProtocol.isEncryptedEnvelope(body) &&
-                                        !app.signalProtocol.isSenderKeyEnvelope(body)
-                                }
-                                if (ChatListPreviewPolicy.shouldKeepExistingOwnPreview(
-                                        isOwnMessage = isOwnMessage,
-                                        messageType = event.message.type,
-                                        existingSameMessageContent = sameMessageReadable,
-                                        encryptedPlaceholder = encryptedPlaceholder
-                                    ) && sameMessageReadable != null
-                                ) {
-                                    val listPreview = _uiState.value.chats.find { it.id == targetId }?.lastMessage
-                                    val previewText = ChatListPreviewPolicy.ownEchoListPreview(
-                                        messageType = event.message.type,
-                                        sameMessagePlainOrLabel = sameMessageReadable,
-                                        existingListPreview = listPreview,
-                                        mediaLabel = ::mediaPreviewLabel
-                                    )
-                                    applyChatListPreview(
-                                        chatId = targetId,
-                                        previewText = previewText,
-                                        messageType = event.message.type,
-                                        timestamp = event.message.timestamp,
-                                        unreadDelta = 0,
-                                        ownerUserId = listReceiveOwnerUserId,
-                                        sessionGeneration = realtimeSession.sessionGeneration,
-                                    )
-                                    // Own echo already in Room — still drain any reaction that raced ahead.
-                                    withContext(Dispatchers.IO) {
-                                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                                expectedUserId = listReceiveOwnerUserId,
-                                                liveToken = tokenManager.getToken(),
-                                                liveUserId = tokenManager.getUserId(),
-                                            )
-                                        ) return@withContext
-                                        applyPendingReactionsIfAny(
-                                            chatId = targetId,
-                                            messageId = event.message.id,
-                                            session = realtimeSession,
-                                        )
-                                    }
-                                    // Skip decrypt / notify for this event only (not the whole collector).
-                                    return@collect
-                                }
-                                val decryptedPlain: String? = if (!isActiveChat) {
-                                    withContext(Dispatchers.IO) {
-                                        tryDecryptInlinePreview(event.message)
-                                    }
-                                } else null
-                                // Decrypt / Room read can outlive logout; drop before list/notify side effects.
-                                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                        expectedUserId = listReceiveOwnerUserId,
-                                        liveToken = tokenManager.getToken(),
-                                        liveUserId = tokenManager.getUserId(),
-                                    )
-                                ) {
-                                    return@collect
-                                }
-                                val previewText = when (event.message.type) {
-                                    MessageType.IMAGE -> text(R.string.message_preview_image)
-                                    MessageType.GIF -> text(R.string.message_preview_gif)
-                                    MessageType.STICKER -> text(R.string.message_preview_sticker)
-                                    MessageType.LOCATION -> text(R.string.message_preview_location)
-                                    MessageType.VOICE -> text(R.string.message_preview_voice)
-                                    MessageType.VIDEO -> text(R.string.message_preview_video)
-                                    MessageType.FILE -> text(R.string.message_preview_file)
-                                    MessageType.NUDGE -> listNudgePreview(
-                                        isOwnMessage = isOwnMessage,
-                                        storedContent = event.message.content,
-                                        senderId = event.message.senderId,
-                                        chatId = targetId
-                                    )
-                                    MessageType.SYSTEM -> event.message.content
-                                    MessageType.TEXT, MessageType.MARKDOWN -> ChatListPreviewPolicy.textPreviewFromPlainOrEncrypted(
-                                        decryptedPlain = decryptedPlain,
-                                        encryptedPlaceholder = encryptedPlaceholder
-                                    )
-                                    else -> encryptedPlaceholder
-                                }
-                                // 1.66：群聊实时收消息预览带发送者名前缀（微信式「张三: 内容」；SYSTEM/NUDGE 例外）
-                                val targetChatForPreview = _uiState.value.chats.find { it.id == targetId }
-                                val senderForPreview = if (event.message.type in setOf(MessageType.SYSTEM, MessageType.NUDGE)) {
-                                    null
-                                } else {
-                                    targetChatForPreview
-                                        ?.takeIf { it.isGroup }
-                                        ?.participants
-                                        ?.firstOrNull { it.id == event.message.senderId }
-                                        ?.displayName
-                                }
-                                val senderPrefixed = if (!senderForPreview.isNullOrBlank()) {
-                                    senderForPreview + ": " + previewText
-                                } else previewText
-                                // 1.30：会话列表预览「[有人@我]」前缀（与通知强调一致，微信式；仅实时收消息路径）
-                                val mentionListHighlight = runCatching {
-                                    val contentForMeta = decryptedPlain ?: event.message.content
-                                    val mentionIds = event.message.copy(content = contentForMeta).parsedMeta().mentions
-                                    com.maodouchat.ui.screen.chatdetail.MentionPolicy.shouldHighlightMention(
-                                        mentionIds = mentionIds,
-                                        currentUserId = listReceiveOwnerUserId,
-                                        notificationsMuted = false,
-                                    )
-                                }.getOrDefault(false)
-                                val listPreviewText = if (mentionListHighlight) {
-                                    text(R.string.chat_list_mention_prefix) + senderPrefixed
-                                } else senderPrefixed
-                                // 修复竞态：如果用户正在查看该聊天，不递增未读数（ChatDetailViewModel 会实时标记已读）
-                                // 去重：WS NEW_MESSAGE 为 at-least-once，重连时服务端可能重发已落库的消息；
-                                // 若该 id 本次事件前已存在于 Room（existingSameMessage != null），不再重复累未读，避免重连风暴导致未读角标翻倍。
-                                val unreadDelta = if (isOwnMessage || isActiveChat || existingSameMessage != null) 0 else 1
-                                applyChatListPreview(
-                                    chatId = targetId,
-                                    previewText = listPreviewText,
-                                    messageType = event.message.type,
-                                    timestamp = event.message.timestamp,
-                                    unreadDelta = unreadDelta,
-                                    ownerUserId = listReceiveOwnerUserId,
-                                    sessionGeneration = realtimeSession.sessionGeneration,
-                                )
-                                // Persist before UI/notify so open-chat localReadableMessage
-                                // sees plaintext and never double-decrypts the same ratchet step.
-                                // NUDGE is plaintext control-ish UX body (not E2EE wire) — still Room+index
-                                // so list LIKE / global search hit while chat was never opened.
-                                val shouldPersistInactive = !isActiveChat && when (event.message.type) {
-                                    MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER, MessageType.LOCATION ->
-                                        decryptedPlain != null || event.message.content.isNotBlank()
-                                    MessageType.NUDGE ->
-                                        event.message.content.isNotBlank()
-                                    else -> false
-                                }
-                                if (shouldPersistInactive) {
-                                    withContext(Dispatchers.IO) {
-                                        withOwnerRoomWrite(realtimeSession) {
-                                            val existing = messageRepo.getMessageById(event.message.id)
-                                            val alreadyPlain = existing != null &&
-                                                existing.content.isNotBlank() &&
-                                                !ChatListPreviewPolicy.looksLikeLeftoverPreviewGarbage(existing.content) &&
-                                                !app.signalProtocol.isEncryptedEnvelope(existing.content) &&
-                                                !app.signalProtocol.isSenderKeyEnvelope(existing.content)
-                                            val plainMessage = when (event.message.type) {
-                                                MessageType.NUDGE -> event.message
-                                                else -> decryptedPlain?.let { event.message.copy(content = it) }
-                                                    ?: event.message
-                                            }
-                                            // Placeholder / ciphertext rows must still accept a later list decrypt.
-                                            if (decryptedPlain != null || !alreadyPlain) {
-                                                messageRepo.insertMessage(plainMessage)
-                                            }
-                                            applyPendingReactionsIfAny(
-                                                chatId = targetId,
-                                                messageId = event.message.id,
-                                                session = realtimeSession,
-                                            )
-                                            val indexable = decryptedPlain != null || event.message.type == MessageType.NUDGE
-                                            if (indexable) {
-                                                try {
-                                                    com.maodouchat.data.repository.MessageSearchRepository(app.database)
-                                                        .indexMessage(plainMessage)
-                                                } catch (error: kotlinx.coroutines.CancellationException) {
-                                                    throw error
-                                                } catch (error: Exception) {
-                                                    android.util.Log.w(
-                                                        "ChatListViewModel",
-                                                        "indexMessage after list decrypt failed",
-                                                        error
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else if (!isActiveChat) {
-                                    // Media / undecrypted rows may already exist from history; drain buffer.
-                                    withContext(Dispatchers.IO) {
-                                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                                expectedUserId = listReceiveOwnerUserId,
-                                                liveToken = tokenManager.getToken(),
-                                                liveUserId = tokenManager.getUserId(),
-                                            )
-                                        ) {
-                                            return@withContext
-                                        }
-                                        val existing = messageRepo.getMessageById(event.message.id)
-                                        if (existing != null && existing.chatId == targetId) {
-                                            applyPendingReactionsIfAny(
-                                                chatId = targetId,
-                                                messageId = event.message.id,
-                                                session = realtimeSession,
-                                            )
-                                        }
-                                    }
-                                }
-                                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                        expectedUserId = listReceiveOwnerUserId,
-                                        liveToken = tokenManager.getToken(),
-                                        liveUserId = tokenManager.getUserId(),
-                                    )
-                                ) {
-                                    return@collect
-                                }
-                                // 修复 Bug #19：收到不在列表中的聊天的消息时，刷新聊天列表
-                                // 但若该会话已被本会话删除（退出服务端），不触发重载，避免删除竞态下被 WS 推回（角标鬼影）
-                                if (_uiState.value.chats.none { it.id == targetId } && !deletedChatIds.contains(targetId)) {
-                                    requestLoadChats(ChatListReloadPolicy.Trigger.UNKNOWN_CHAT_MESSAGE)
-                                }
-                                // 应用内（前台或当前打开的会话）一律不响接收提示音、不弹有声托盘。
-                                val appInForeground = com.maodouchat.MaodouchatApp.appInForeground
-                                if (!isOwnMessage && !isActiveChat && existingSameMessage == null && !appInForeground) {
-                                    val target = _uiState.value.chats.find { it.id == targetId }
-                                    val ctx = getApplication<Application>()
-                                    val suppressLocal =
-                                        com.maodouchat.notification.LocalNotificationSuppressPolicy.shouldSuppress(
-                                            notificationsEnabled =
-                                                com.maodouchat.notification.NotificationPreferences.notificationsEnabled(ctx),
-                                            dndStartHour =
-                                                com.maodouchat.notification.NotificationPreferences.dndStartHour(ctx),
-                                            dndEndHour =
-                                                com.maodouchat.notification.NotificationPreferences.dndEndHour(ctx),
-                                            hourOfDay = java.util.Calendar.getInstance()
-                                                .get(java.util.Calendar.HOUR_OF_DAY),
-                                            dndRuntimeEnabled = RuntimeFlags.isEnabled(ctx, RuntimeFlags.DND),
-                                            dndEnabled =
-                                                com.maodouchat.notification.NotificationPreferences.dndEnabled(ctx),
-                                            startMinute =
-                                                com.maodouchat.notification.NotificationPreferences.dndStartMinute(ctx),
-                                            endMinute =
-                                                com.maodouchat.notification.NotificationPreferences.dndEndMinute(ctx),
-                                            currentMinute = java.util.Calendar.getInstance().let { c ->
-                                                c.get(java.util.Calendar.HOUR_OF_DAY) * 60 + c.get(java.util.Calendar.MINUTE)
-                                            },
-                                        )
-                                    // 8.46：会话级免打扰时段——per-chat 静音窗内不弹通知（本地，与全局 DND 互补）
-                                    val quietHoursSuppress =
-                                        com.maodouchat.notification.ChatQuietHoursPolicy.shouldSuppress(
-                                            com.maodouchat.notification.ChatQuietHoursStore.get(ctx, targetId),
-                                            java.util.Calendar.getInstance().let { c ->
-                                                c.get(java.util.Calendar.HOUR_OF_DAY) * 60 + c.get(java.util.Calendar.MINUTE)
-                                            }
-                                        )
-                                    // 1.28：临时静音至（silentUntil）窗口内不弹通知（与 FCM/BacklogSync 路径一致）
-                                    val silentUntilSuppress =
-                                        com.maodouchat.notification.ChatQuietHoursStore.silentUntil(ctx, targetId) > System.currentTimeMillis()
-                                    val silentSend = runCatching {
-                                        val contentForMeta = decryptedPlain ?: event.message.content
-                                        event.message.copy(content = contentForMeta).parsedMeta().silent
-                                    }.getOrDefault(false)
-                                    if (target?.notificationsMuted != true && !suppressLocal && !quietHoursSuppress && !silentUntilSuppress && !silentSend) {
-                                        val senderName = listSenderLabel(target, event.message.senderId)
-                                        // 解密后的 meta.mentions：@我 / @所有人 时标题强调（E2EE 服务端不可见）
-                                        val mentionIds = runCatching {
-                                            val contentForMeta = decryptedPlain ?: event.message.content
-                                            event.message.copy(content = contentForMeta).parsedMeta().mentions
-                                        }.getOrDefault(emptyList())
-                                        val selfId = listReceiveOwnerUserId
-                                        val mentionHighlight =
-                                            com.maodouchat.ui.screen.chatdetail.MentionPolicy.shouldHighlightMention(
-                                                mentionIds = mentionIds,
-                                                currentUserId = selfId,
-                                                notificationsMuted = false,
-                                            )
-                                        val notifyTitle = when {
-                                            mentionHighlight && mentionIds.contains(
-                                                com.maodouchat.ui.screen.chatdetail.MentionPolicy.EVERYONE_ID
-                                            ) && !mentionIds.contains(selfId) ->
-                                                ctx.getString(R.string.notification_mentioned_everyone, senderName)
-                                            mentionHighlight ->
-                                                ctx.getString(R.string.notification_mentioned_you, senderName)
-                                            else -> senderName
-                                        }
-                                        // Reuse decryptedPlain (same WS event; never decrypt twice).
-                                        // soundEnabled must match FCM path (prefs), not default true.
-                                        // 9.164：showMessage 内部含 runBlocking(IO) 查锁/密聊表——
-                                        // 该 collector 跑在主线程，直接调用会阻塞主线程（消息洪峰下掉帧/ANR）
-                                        withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                            com.maodouchat.util.AppNotifier.showMessage(
-                                                ctx,
-                                                targetId,
-                                                notifyTitle,
-                                                previewText,
-                                                event.message.id,
-                                                soundEnabled =
-                                                    com.maodouchat.notification.NotificationPreferences.soundEnabled(ctx),
-                                                expectedUserId = listReceiveOwnerUserId,
-                                                isGroup = target?.isGroup == true || target?.isChannel == true,
-                                            )
-                                        }
-                                    }
-                                }
-                            } catch (error: kotlinx.coroutines.CancellationException) {
-                                throw error
-                            } catch (error: Exception) {
-                                android.util.Log.w("ChatListViewModel", "Failed to update chat on message", error)
-                            }
-                        }
-                    }
-                    is WebSocketEvent.MessageDeleted -> {
-                        // 即使未打开该聊天，也必须清本地行，否则重开会显示幽灵消息
-                        val deletedId = event.messageId
-                        val chatId = event.chatId
-                        val deleteOwnerUserId = liveUserId
-                        if (deletedId.isNotBlank()) {
-                            viewModelScope.launch {
-                                try {
-                                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                            expectedUserId = deleteOwnerUserId,
-                                            liveToken = tokenManager.getToken(),
-                                            liveUserId = tokenManager.getUserId(),
-                                        )
-                                    ) {
-                                        return@launch
-                                    }
-                                    com.maodouchat.util.MediaCache.deleteCachedMediaForMessage(app, deletedId)
-                                    if (!withOwnerRoomWrite(realtimeSession) {
-                                            app.database.messageSearchDao().deleteDocument(deletedId)
-                                            messageRepo.deleteMessage(deletedId)
-                                        }
-                                    ) return@launch
-                                    // Absolute local preview: do not wait for getChats for last-message tail.
-                                    if (chatId.isNotBlank()) {
-                                        refreshChatListPreviewFromLocal(
-                                            chatId,
-                                            deleteOwnerUserId,
-                                            realtimeSession.sessionGeneration,
-                                        )
-                                    }
-                                    // Privacy: drop tray/center if still showing this message body.
-                                    dismissNotificationIfReferencesMessage(chatId, deletedId, realtimeSession)
-                                } catch (error: kotlinx.coroutines.CancellationException) {
-                                    throw error
-                                } catch (error: Exception) {
-                                    android.util.Log.w("ChatListViewModel", "Failed to apply remote delete", error)
-                                }
-                            }
-                        }
-                        requestLoadChats(ChatListReloadPolicy.Trigger.MESSAGE_DELETED)
-                    }
-                    is WebSocketEvent.MessageRevoked -> {
-                        // 未打开聊天时也必须本地落撤回，否则 cursor 已越过该 timestamp 后永远收敛不到
-                        val revokedId = event.messageId
-                        val chatId = event.chatId
-                        val revokeOwnerUserId = liveUserId
-                        if (revokedId.isNotBlank()) {
-                            viewModelScope.launch {
-                                try {
-                                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                            expectedUserId = revokeOwnerUserId,
-                                            liveToken = tokenManager.getToken(),
-                                            liveUserId = tokenManager.getUserId(),
-                                        )
-                                    ) {
-                                        return@launch
-                                    }
-                                    val placeholder = text(R.string.chat_message_revoked_placeholder)
-                                    com.maodouchat.util.MediaCache.deleteCachedMediaForMessage(app, revokedId)
-                                    if (!withOwnerRoomWrite(realtimeSession) {
-                                            val original = messageRepo.getMessageById(revokedId)
-                                            val revoked = (original ?: com.maodouchat.data.model.Message(
-                                                id = revokedId,
-                                                chatId = chatId,
-                                                senderId = "",
-                                                content = placeholder,
-                                                type = MessageType.REVOKED,
-                                                timestamp = System.currentTimeMillis(),
-                                                status = MessageStatus.SENT
-                                            )).copy(
-                                                content = placeholder,
-                                                type = MessageType.REVOKED,
-                                                meta = com.maodouchat.data.model.MessageMeta()
-                                            )
-                                            app.database.messageSearchDao().deleteDocument(revokedId)
-                                            messageRepo.insertMessage(revoked)
-                                        }
-                                    ) return@launch
-                                    if (chatId.isNotBlank()) {
-                                        refreshChatListPreviewFromLocal(
-                                            chatId,
-                                            revokeOwnerUserId,
-                                            realtimeSession.sessionGeneration,
-                                        )
-                                    }
-                                    // Privacy: revoked body must not linger in tray/center preview.
-                                    dismissNotificationIfReferencesMessage(chatId, revokedId, realtimeSession)
-                                } catch (error: kotlinx.coroutines.CancellationException) {
-                                    throw error
-                                } catch (error: Exception) {
-                                    android.util.Log.w("ChatListViewModel", "Failed to apply remote revoke", error)
-                                }
-                            }
-                        }
-                        requestLoadChats(ChatListReloadPolicy.Trigger.MESSAGE_REVOKED)
-                    }
-                    is WebSocketEvent.ChatMarkedRead -> {
-                        // 跨设备已读同步：同账号其他设备标记了该会话已读，本地未读角标立即清零
-                        //（服务端 mark-read 广播 CHAT_MARKED_READ，含本设备连接，幂等处理）。
-                        // 8.32 修复 F1：同步清理 tray 通知与通知中心未读，避免三处状态不一致。
-                        val markedChatId = event.chatId
-                        if (markedChatId.isNotBlank()) {
-                            viewModelScope.launch {
-                                try {
-                                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                            expectedUserId = liveUserId,
-                                            liveToken = tokenManager.getToken(),
-                                            liveUserId = tokenManager.getUserId(),
-                                        )
-                                    ) {
-                                        return@launch
-                                    }
-                                    withOwnerRoomWrite(realtimeSession) {
-                                        app.database.chatDao().markAllRead(markedChatId)
-                                    }
-                                    runCatching {
-                                        com.maodouchat.util.AppNotifier.cancelMessage(app, markedChatId)
-                                    }
-                                    runCatching {
-                                        app.notificationCenter.markChatMessagesRead(markedChatId)
-                                    }
-                                    loadChats(showLoading = false)
-                                } catch (error: kotlinx.coroutines.CancellationException) {
-                                    throw error
-                                } catch (error: Exception) {
-                                    android.util.Log.w("ChatListViewModel", "Failed to apply cross-device read", error)
-                                }
-                            }
-                        }
-                    }
-                    is WebSocketEvent.StatusChanged -> {
-                        // 全局落库投递状态，避免未打开详情时 MESSAGE_STATUS ACK 丢失导致 outbox 永久 SENDING
-                        val messageId = event.messageId
-                        val statusOwnerUserId = liveUserId
-                        if (messageId.isNotBlank()) {
-                            viewModelScope.launch {
-                                try {
-                                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                            expectedUserId = statusOwnerUserId,
-                                            liveToken = tokenManager.getToken(),
-                                            liveUserId = tokenManager.getUserId(),
-                                        )
-                                    ) {
-                                        return@launch
-                                    }
-                                    withOwnerRoomWrite(realtimeSession) {
-                                        messageRepo.updateMessageStatus(messageId, event.status)
-                                    }
-                                    val latest = messageRepo.getMessageById(messageId)
-                                    val receipt = ChatListReceiptPolicy.fromLatest(latest, statusOwnerUserId)
-                                    val chatId = latest?.chatId
-                                    if (receipt != null && !chatId.isNullOrBlank()) {
-                                        _uiState.update { state ->
-                                            state.copy(
-                                                receiptsByChat = state.receiptsByChat + (chatId to receipt)
-                                            )
-                                        }
-                                    }
-                                } catch (error: kotlinx.coroutines.CancellationException) {
-                                    throw error
-                                } catch (error: Exception) {
-                                    android.util.Log.w("ChatListViewModel", "Failed to apply remote status", error)
-                                }
-                            }
-                        }
-                    }
-                    is WebSocketEvent.MessageReactionUpdated -> {
-                        // Reactions are not in message-mutations cursor; list must persist while detail closed.
-                        // If the message row is not yet in Room, buffer until MessageReceived inserts it.
-                        val messageId = event.messageId
-                        val chatId = event.chatId
-                        val reactionOwnerUserId = liveUserId
-                        if (messageId.isNotBlank() && chatId.isNotBlank()) {
-                            viewModelScope.launch {
-                                try {
-                                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                            expectedUserId = reactionOwnerUserId,
-                                            liveToken = tokenManager.getToken(),
-                                            liveUserId = tokenManager.getUserId(),
-                                        )
-                                    ) {
-                                        return@launch
-                                    }
-                                    val existing = app.database.withTransaction {
-                                        if (!isOwnerSessionCurrent(realtimeSession)) null
-                                        else messageRepo.getMessageById(messageId)
-                                    }
-                                    if (existing == null) {
-                                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                                expectedUserId = reactionOwnerUserId,
-                                                liveToken = tokenManager.getToken(),
-                                                liveUserId = tokenManager.getUserId(),
-                                            )
-                                        ) {
-                                            return@launch
-                                        }
-                                        pendingReactions = PendingReactionPolicy.put(
-                                            pending = pendingReactions,
-                                            chatId = chatId,
-                                            messageId = messageId,
-                                            reactions = event.reactions,
-                                            nowMs = System.currentTimeMillis()
-                                        )
-                                        return@launch
-                                    }
-                                    if (existing.chatId != chatId) return@launch
-                                    if (existing.type == MessageType.REVOKED) return@launch
-                                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                            expectedUserId = reactionOwnerUserId,
-                                            liveToken = tokenManager.getToken(),
-                                            liveUserId = tokenManager.getUserId(),
-                                        )
-                                    ) {
-                                        return@launch
-                                    }
-                                    withOwnerRoomWrite(realtimeSession) {
-                                        messageRepo.updateMessageReactions(messageId, event.reactions)
-                                    }
-                                } catch (error: kotlinx.coroutines.CancellationException) {
-                                    throw error
-                                } catch (error: Exception) {
-                                    android.util.Log.w("ChatListViewModel", "Failed to apply remote reaction", error)
-                                }
-                            }
-                        }
-                    }
-                    is WebSocketEvent.MessageEdited -> {
-                        // 详情未打开时也落库 editedAt/content：仅当本地已有行（可解密）才更新，避免写入密文污染正文
-                        val editedId = event.messageId
-                        if (editedId.isNotBlank() && event.chatId.isNotBlank()) {
-                            val editOwnerUserId = liveUserId
-                            viewModelScope.launch {
-                                try {
-                                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                            expectedUserId = editOwnerUserId,
-                                            liveToken = tokenManager.getToken(),
-                                            liveUserId = tokenManager.getUserId(),
-                                        )
-                                    ) {
-                                        return@launch
-                                    }
-                                    val existing = messageRepo.getMessageById(editedId) ?: return@launch
-                                    if (existing.chatId != event.chatId) return@launch
-                                    if (existing.type == MessageType.REVOKED) return@launch
-                                    val eventEditedAt = event.editedAt ?: System.currentTimeMillis()
-                                    val existingEdit = existing.editedAt ?: Long.MIN_VALUE
-                                    if (eventEditedAt < existingEdit) return@launch
-                                    // 列表层无完整 decrypt 管道：只更新已是明文的 TEXT 行（编辑目标类型）
-                                    if (existing.type != MessageType.TEXT && existing.type != MessageType.MARKDOWN) return@launch
-                                    // 8.31 性能修复 F1：解密含同步阻塞 Room 读（SignalProtocol 内部），
-                                    // 必须切 IO 线程，避免主线程磁盘 I/O + 掉帧。
-                                    val plaintext = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                        val signal = app.signalProtocol
-                                        if (!ensureLocalSignalReady(editOwnerUserId)) return@withContext null
-                                        val isGroup = _uiState.value.chats.find { it.id == event.chatId }?.isGroup == true
-                                        val skipSession = com.maodouchat.crypto.SessionCipherOccupancy.shouldSkipSessionCipher(
-                                            event.chatId,
-                                            existing.senderId
-                                        )
-                                        // Align wire heuristic with list preview policy (not bare startsWith("{")).
-                                        when {
-                                            !signal.isEncryptedEnvelope(event.content) &&
-                                                !signal.isSenderKeyEnvelope(event.content) &&
-                                                !ChatListPreviewPolicy.looksLikeWireEnvelope(event.content) -> event.content
-                                            isGroup || signal.isSenderKeyEnvelope(event.content) -> when (
-                                                val r = signal.decryptGroupContentEnvelope(
-                                                    existing.senderId, event.content, expectedGroupId = event.chatId
-                                                )
-                                            ) {
-                                                is com.maodouchat.crypto.SignalProtocol.DecryptResult.Success -> r.plaintext
-                                                else -> null
-                                            }
-                                            skipSession -> null
-                                            else -> when (val r = signal.decryptTextEnvelope(existing.senderId, event.content)) {
-                                                is com.maodouchat.crypto.SignalProtocol.DecryptResult.Success -> r.plaintext
-                                                else -> null
-                                            }
-                                        }
-                                    } ?: return@launch
-                                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                            expectedUserId = editOwnerUserId,
-                                            liveToken = tokenManager.getToken(),
-                                            liveUserId = tokenManager.getUserId(),
-                                        )
-                                    ) {
-                                        return@launch
-                                    }
-                                    val plainEdited = existing.copy(content = plaintext, editedAt = eventEditedAt)
-                                    if (!withOwnerRoomWrite(realtimeSession) {
-                                            messageRepo.insertMessage(plainEdited)
-                                            try {
-                                                com.maodouchat.data.repository.MessageSearchRepository(app.database)
-                                                    .indexMessage(plainEdited)
-                                            } catch (cancel: kotlinx.coroutines.CancellationException) {
-                                                throw cancel
-                                            } catch (indexError: Exception) {
-                                                android.util.Log.w(
-                                                    "ChatListViewModel",
-                                                    "indexMessage after remote edit failed",
-                                                    indexError
-                                                )
-                                            }
-                                        }
-                                    ) return@launch
-                                    // Only head edits change list preview text.
-                                    val headId = messageRepo.getRecentMessages(event.chatId, limit = 1)
-                                        .firstOrNull()?.id
-                                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                            expectedUserId = editOwnerUserId,
-                                            liveToken = tokenManager.getToken(),
-                                            liveUserId = tokenManager.getUserId(),
-                                        )
-                                    ) return@launch
-                                    if (ChatListPreviewPolicy.affectsListHead(headId, editedId)) {
-                                        refreshChatListPreviewFromLocal(
-                                            event.chatId,
-                                            editOwnerUserId,
-                                            realtimeSession.sessionGeneration,
-                                        )
-                                    }
-                                    // Keep notification-center body in sync with edited plaintext.
-                                    refreshNotificationPreviewIfReferencesMessage(
-                                        event.chatId,
-                                        editedId,
-                                        plaintext,
-                                        realtimeSession,
-                                    )
-                                } catch (error: kotlinx.coroutines.CancellationException) {
-                                    throw error
-                                } catch (error: Exception) {
-                                    android.util.Log.w("ChatListViewModel", "Failed to apply remote edit", error)
-                                }
-                            }
-                        }
-                    }
                     is WebSocketEvent.GroupRevisionChanged -> {
                         // Membership bursts (join/leave/kick) often arrive in clusters.
                         requestLoadChats(ChatListReloadPolicy.Trigger.GROUP_REVISION)
-                    }
-                    is WebSocketEvent.SenderKeyRequested -> {
-                        if (event.requesterId == liveUserId) return@collect
-                        viewModelScope.launch {
-                            val epoch = event.epoch.takeIf { it > 0L }
-                                ?: withContext(Dispatchers.IO) {
-                                    chatRepo.getChatById(event.chatId)?.memberRevision
-                                }
-                                ?: return@launch
-                            if (epoch <= 0L) return@launch
-                            runCatching {
-                                app.senderKeyRetryManager.enqueue(event.chatId, epoch, "peer_request")
-                                app.senderKeyRetryManager.ensureCoverageNow(event.chatId, epoch)
-                            }
-                        }
                     }
                     is WebSocketEvent.Connected -> {
                         if (event.success) {
@@ -3155,8 +2170,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                             _uiState.update { it.copy(realtimeBanner = null) }
                             // Immediate silent: keep previous rows, don't flash isLoading.
                             requestLoadChats(ChatListReloadPolicy.Trigger.RECONNECT)
-                            // Leave-chat SENDING text must not wait for ChatDetail re-open.
-                            flushTextOutbox()
                             // 9.3xx：断线窗口补拉（Ideaura 式）——重连后立即同步各会话增量，
                             // 否则断线期间的消息要等 15 分钟周期任务或手动打开聊天才出现。
                             runCatching {
@@ -3270,6 +2283,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         val requestId = ++loadChatsRequestId
         val token = tokenManager.getToken().orEmpty()
         val loadOwnerUserId = currentUserIdStr
+        val loadCleanupSession = conversationLocalCleanupSession(loadOwnerUserId)
         if (showLoading) {
             // Keep the previous list; only the first empty load shows shimmer.
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
@@ -3422,7 +2436,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                         }
                         // 服务端列表已到手：过期会话清理 + 缓存 + 列表 UI 收敛必须跑完，
                         // 避免 cancel 留下「半清本地 / UI 仍显示幽灵会话 / isLoading 卡死」
-                        withContext(kotlinx.coroutines.NonCancellable) {
+                        withContext(Dispatchers.IO + kotlinx.coroutines.NonCancellable) {
                             // BUG 2.1 fix: cleanup 可能抛异常，包裹 try-catch 确保 isLoading 总能被清除
                             try {
                                 for (staleId in staleChatIds) {
@@ -3431,7 +2445,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                         finishIfCurrent(errorMessage = text(R.string.error_session_expired))
                                         return@withContext
                                     }
-                                    cleanupLocalChat(staleId, loadOwnerUserId)
+                                    cleanupLocalChat(staleId, loadCleanupSession)
                                 }
                                 if (requestId != loadChatsRequestId) return@withContext
                                 if (!stillCurrent()) {
@@ -3471,19 +2485,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                             }
                             refreshIdentityWarnings()
                         }
-                        // 离线/漏 WS 时：列表侧回放 mutation 日志（不依赖打开详情）；可取消
-                        if (requestId == loadChatsRequestId &&
-                            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = loadOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            val liveTok = tokenManager.getToken() ?: token
-                            syncClosedChatMutations(liveTok, chats.map { it.id })
-                            // 冷启动/回列表：冲 SENDING 文本发件箱（附件走 WorkManager）
-                            flushTextOutbox()
-                        }
                     },
                     onFailure = { error ->
                         if (error is kotlinx.coroutines.CancellationException) throw error
@@ -3505,8 +2506,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                         }
                         finishIfCurrent(errorMessage = nextError, chats = chats)
                         refreshIdentityWarnings()
-                        // 仍可尝试用本地 chat 缓存加密 flush（网络失败时 send 仍可能短暂可用）
-                        flushTextOutbox()
                     }
                 )
             } catch (error: kotlinx.coroutines.CancellationException) {
@@ -3525,230 +2524,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     chats = chats
                 )
             }
-        }
-    }
-
-    /**
-     * 关闭中的聊天也要收敛 DELETE/REVOKE（及可解密的 EDIT）。
-     * 跳过当前活跃详情页（由 ChatDetailViewModel 单飞同步）。
-     */
-    private suspend fun syncClosedChatMutations(token: String, chatIds: List<String>) {
-        if (token.isBlank() || chatIds.isEmpty()) return
-        val targets = chatIds.asSequence()
-            .filter { it.isNotBlank() && !com.maodouchat.crypto.SessionCipherOccupancy.isChatOccupied(it) }
-            .distinct()
-            .take(40)
-            .toList()
-        val mutationOwnerUserId = tokenManager.getUserId().orEmpty()
-        withContext(Dispatchers.IO) {
-            for (cid in targets) {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = mutationOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) {
-                    break
-                }
-                try {
-                    val liveTok = tokenManager.getToken() ?: token
-                    syncMutationsForClosedChat(liveTok, cid)
-                } catch (error: kotlinx.coroutines.CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    android.util.Log.w("ChatListViewModel", "mutation sync failed for $cid", error)
-                }
-            }
-        }
-    }
-
-    private suspend fun syncMutationsForClosedChat(token: String, chatId: String) {
-        val pageLimit = 100
-        val maxPages = 8
-        val pageOwnerUserId = tokenManager.getUserId().orEmpty()
-        if (pageOwnerUserId.isBlank()) return
-        var liveToken = token
-        var cursor = tokenManager.getMutationCursor(chatId)
-        var previewDirty = false
-        for (page in 0 until maxPages) {
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = pageOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) {
-                break
-            }
-            liveToken = tokenManager.getToken().orEmpty().ifBlank { liveToken }
-            val pageResult = ApiService.getMessageMutationsSince(
-                token = liveToken,
-                chatId = chatId,
-                sinceMs = cursor.timestampMs,
-                limit = pageLimit,
-                sinceId = cursor.messageId.takeIf { it.isNotBlank() }
-            )
-            val pageError = pageResult.exceptionOrNull()
-            if (pageError is kotlinx.coroutines.CancellationException) throw pageError
-            val mutations = pageResult.getOrNull() ?: break
-            if (mutations.isEmpty()) break
-            var advanced = cursor
-            // 列表侧 EDIT 解密失败不推进越过该条（详情打开后会再处理）
-            var pendingEditBlock: TokenManager.SyncCursor? = null
-            mutations.sortedWith(
-                compareBy<MessageMutationDto> { it.createdAt }.thenBy { it.id }
-            ).forEach { mut ->
-                // Page can outlive logout; stop applying without advancing past unapplied rows.
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = pageOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) {
-                    return@forEach
-                }
-                val applied = when (mut.action) {
-                    "DELETE" -> {
-                        com.maodouchat.util.MediaCache.deleteCachedMediaForMessage(app, mut.messageId)
-                        app.database.messageSearchDao().deleteDocument(mut.messageId)
-                        messageRepo.deleteMessage(mut.messageId)
-                        dismissNotificationIfReferencesMessage(mut.chatId, mut.messageId, ownerSession(pageOwnerUserId))
-                        previewDirty = true
-                        true
-                    }
-                    "REVOKE" -> {
-                        val original = messageRepo.getMessageById(mut.messageId)
-                        val placeholder = text(R.string.chat_message_revoked_placeholder)
-                        val revoked = (original ?: Message(
-                            id = mut.messageId,
-                            chatId = mut.chatId,
-                            senderId = mut.actorId,
-                            content = placeholder,
-                            type = MessageType.REVOKED,
-                            timestamp = mut.createdAt,
-                            status = MessageStatus.SENT
-                        )).copy(
-                            content = placeholder,
-                            type = MessageType.REVOKED,
-                            meta = MessageMeta()
-                        )
-                        com.maodouchat.util.MediaCache.deleteCachedMediaForMessage(app, mut.messageId)
-                        app.database.messageSearchDao().deleteDocument(mut.messageId)
-                        messageRepo.insertMessage(revoked)
-                        dismissNotificationIfReferencesMessage(mut.chatId, mut.messageId, ownerSession(pageOwnerUserId))
-                        previewDirty = true
-                        true
-                    }
-                    "EDIT" -> {
-                        val newContent = mut.content
-                        if (newContent == null) {
-                            true
-                        } else {
-                            val existing = messageRepo.getMessageById(mut.messageId)
-                            when {
-                                existing == null || existing.chatId != chatId -> true
-                                existing.type == MessageType.REVOKED -> true
-                                else -> {
-                                    // 列表层无法可靠解密信封：仅当已是明文（非 wire envelope）时更新。
-                                    // 密文 EDIT 留给详情 decrypt 路径，游标不越过。
-                                    val looksEncrypted = ChatListPreviewPolicy.looksLikeWireEnvelope(newContent) ||
-                                        app.signalProtocol.isEncryptedEnvelope(newContent) ||
-                                        app.signalProtocol.isSenderKeyEnvelope(newContent)
-                                    val existingPlain = existing.content.isNotBlank() &&
-                                        !ChatListPreviewPolicy.looksLikeWireEnvelope(existing.content) &&
-                                        !app.signalProtocol.isEncryptedEnvelope(existing.content) &&
-                                        !app.signalProtocol.isSenderKeyEnvelope(existing.content)
-                                    if (looksEncrypted && existingPlain) {
-                                        // 已解密本地行，不要用密文覆盖
-                                        if (pendingEditBlock == null) {
-                                            pendingEditBlock = TokenManager.SyncCursor(mut.createdAt, mut.id)
-                                        }
-                                        false
-                                    } else if (looksEncrypted) {
-                                        // 本地也是密文：可写新密文（详情打开时再解）
-                                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                                expectedUserId = pageOwnerUserId,
-                                                liveToken = tokenManager.getToken(),
-                                                liveUserId = tokenManager.getUserId(),
-                                            )
-                                        ) {
-                                            false
-                                        } else {
-                                            messageRepo.insertMessage(
-                                                existing.copy(
-                                                    content = newContent,
-                                                    editedAt = mut.editedAt ?: mut.createdAt
-                                                )
-                                            )
-                                            // Ciphertext edit does not improve list plaintext preview.
-                                            true
-                                        }
-                                    } else {
-                                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                                expectedUserId = pageOwnerUserId,
-                                                liveToken = tokenManager.getToken(),
-                                                liveUserId = tokenManager.getUserId(),
-                                            )
-                                        ) {
-                                            false
-                                        } else {
-                                            val plainEdited = existing.copy(
-                                                content = newContent,
-                                                editedAt = mut.editedAt ?: mut.createdAt
-                                            )
-                                            messageRepo.insertMessage(plainEdited)
-                                            try {
-                                                com.maodouchat.data.repository.MessageSearchRepository(app.database)
-                                                    .indexMessage(plainEdited)
-                                            } catch (error: kotlinx.coroutines.CancellationException) {
-                                                throw error
-                                            } catch (error: Exception) {
-                                                android.util.Log.w(
-                                                    "ChatListViewModel",
-                                                    "indexMessage after closed-chat mutation EDIT failed",
-                                                    error
-                                                )
-                                            }
-                                            refreshNotificationPreviewIfReferencesMessage(mut.chatId, mut.messageId, newContent, ownerSession(pageOwnerUserId))
-                                            previewDirty = true
-                                            true
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    else -> true
-                }
-                if (applied) {
-                    val block = pendingEditBlock
-                    val mutCursor = TokenManager.SyncCursor(mut.createdAt, mut.id)
-                    if (block == null) {
-                        advanced = mutCursor
-                    } else {
-                        val beforeBlock = mutCursor.timestampMs < block.timestampMs ||
-                            (mutCursor.timestampMs == block.timestampMs && mutCursor.messageId < block.messageId)
-                        if (beforeBlock) advanced = mutCursor
-                    }
-                }
-            }
-            val advancedPast = advanced.timestampMs > cursor.timestampMs ||
-                (advanced.timestampMs == cursor.timestampMs && advanced.messageId > cursor.messageId)
-            if (advancedPast) {
-                tokenManager.saveMutationCursor(chatId, advanced)
-                cursor = advanced
-            } else {
-                break
-            }
-            if (mutations.size < pageLimit || pendingEditBlock != null) break
-        }
-        if (previewDirty &&
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = pageOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
-        ) {
-            refreshChatListPreviewFromLocal(chatId)
         }
     }
 

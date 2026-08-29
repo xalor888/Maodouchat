@@ -40,6 +40,7 @@ object RuntimeConfigService {
     const val KEY_UPDATE_VERSION_CODE = "update_version_code"
     const val KEY_UPDATE_VERSION_NAME = "update_version_name"
     const val KEY_UPDATE_APK_URL = "update_apk_url"
+    const val KEY_UPDATE_APK_SHA256 = "update_apk_sha256"
     const val KEY_UPDATE_SERVER_URL = "update_server_url"
     const val KEY_UPDATE_NOTES = "update_notes"
     const val KEY_MAX_BOTS_PER_USER = "max_bots_per_user"
@@ -162,6 +163,7 @@ object RuntimeConfigService {
         KEY_UPDATE_VERSION_CODE,
         KEY_UPDATE_VERSION_NAME,
         KEY_UPDATE_APK_URL,
+        KEY_UPDATE_APK_SHA256,
         KEY_UPDATE_SERVER_URL,
         KEY_UPDATE_NOTES,
         KEY_MAX_BOTS_PER_USER,
@@ -284,6 +286,7 @@ object RuntimeConfigService {
         KEY_UPDATE_VERSION_CODE to "0",
         KEY_UPDATE_VERSION_NAME to "",
         KEY_UPDATE_APK_URL to "",
+        KEY_UPDATE_APK_SHA256 to "",
         KEY_UPDATE_SERVER_URL to "",
         KEY_UPDATE_NOTES to "",
         KEY_MAX_BOTS_PER_USER to "20",
@@ -756,13 +759,20 @@ object RuntimeConfigService {
     }
 
     /** GitHub Release 上传成功后只改更新元数据，不走站长 JWT。 */
-    fun applyPublishedUpdate(versionCode: Int, versionName: String, apkUrl: String, notes: String) {
+    fun applyPublishedUpdate(
+        versionCode: Int,
+        versionName: String,
+        apkUrl: String,
+        apkSha256: String,
+        notes: String,
+    ) {
         val now = System.currentTimeMillis()
         val actorId = "github-release"
         val values = mapOf(
             KEY_UPDATE_VERSION_CODE to versionCode.toString(),
             KEY_UPDATE_VERSION_NAME to versionName,
             KEY_UPDATE_APK_URL to apkUrl,
+            KEY_UPDATE_APK_SHA256 to apkSha256.lowercase(),
             KEY_UPDATE_NOTES to notes,
         )
         transaction {

@@ -103,6 +103,13 @@ data class TogglePinResponse(
 )
 
 @Serializable
+data class StarredMessageReference(
+    val messageId: String,
+    val chatId: String,
+    val starredAt: Long,
+)
+
+@Serializable
 data class MessageResponse(
     val id: String,
     val chatId: String,
@@ -128,19 +135,6 @@ data class DisappearingMessagesResponse(
     val updatedAt: Long
 )
 
-@Serializable
-data class MessageExpiresPayload(
-    val messageId: String,
-    val chatId: String,
-    val expiresAt: Long
-)
-
-/** 跨设备已读同步：某设备标记会话已读后广播给同账号其他活跃连接。 */
-@Serializable
-data class ChatMarkedReadPayload(
-    val chatId: String
-)
-
 /** 多设备 DELETE/REVOKE/EDIT 变更回放条目 */
 @Serializable
 data class MessageMutationResponse(
@@ -162,27 +156,12 @@ data class UnreadWindowResponse(
 )
 
 @Serializable
-data class SendMessageRequest(
-    val chatId: String,
-    val content: String,
-    val type: String = "TEXT",
-    val id: String? = null,
-    /** Client requests sealed-sender style delivery (requires valid cert header or matching field). */
-    val sealedSender: Boolean = false,
-    val sealedSenderCertificate: String? = null,
-    val silent: Boolean = false
-)
-
-@Serializable
 data class AttachmentUploadResponse(
     val id: String,
     val cipherSha256: String,
     val cipherSize: Long,
     val expiresAt: Long
 )
-
-@Serializable
-data class AttachmentCommitRequest(val messageId: String)
 
 @Serializable
 data class AttachmentUploadSessionRequest(
@@ -251,9 +230,6 @@ data class GroupAuditLogResponse(
 data class JoinGroupInviteRequest(val token: String)
 
 @Serializable
-data class UpdateStatusRequest(val messageId: String, val status: String)
-
-@Serializable
 data class WsMessage(val type: String, val payload: String)
 
 @Serializable
@@ -263,13 +239,6 @@ data class GroupRevisionChangedPayload(
     val reason: String,
     val actorId: String? = null,
     val targetUserId: String? = null
-)
-
-@Serializable
-data class SenderKeyRequestPayload(
-    val chatId: String,
-    val requesterId: String = "",
-    val epoch: Long = 0L
 )
 
 @Serializable
@@ -737,9 +706,6 @@ data class PostResponse(
 data class EditPostRequest(val content: String = "", val visibility: String? = null)
 
 @Serializable
-data class BatchReadRequest(val chatIds: List<String> = emptyList())
-
-@Serializable
 data class CreateCommentRequest(val content: String, /** 1.76：回复目标评论 id（可选）。 */ val replyToId: String? = null)
 
 @Serializable
@@ -802,21 +768,6 @@ data class UpdateMemberMuteRequest(val mutedUntil: Long = 0)
 // 已读回执
 @Serializable
 data class ReadReceiptResponse(val userId: String, val readAt: Long)
-
-@Serializable
-data class SenderKeyDistributionTargetRequest(
-    val userId: String,
-    val deviceId: Int,
-    val status: String = "SENT",
-    val error: String? = null
-)
-
-@Serializable
-data class SenderKeyDistributionReportRequest(
-    val epoch: Long,
-    val messageId: String? = null,
-    val targets: List<SenderKeyDistributionTargetRequest>
-)
 
 @Serializable
 data class SenderKeyDistributionTargetResponse(

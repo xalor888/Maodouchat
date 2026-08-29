@@ -6,12 +6,28 @@ import java.io.InputStream
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
 
 object AppUpdateStorage {
     private const val DIR = "app-updates"
     const val FILE_NAME = "latest.apk"
 
     fun latestFile(): File = File(typeRoot(), FILE_NAME)
+
+    fun latestSha256(): String? {
+        val file = latestFile()
+        if (!file.isFile) return null
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().buffered().use { input ->
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
 
     fun saveFromStream(input: InputStream, maxBytes: Long = AppUpdatePublishPolicy.MAX_APK_BYTES): File {
         val dir = typeRoot()

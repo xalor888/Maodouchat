@@ -72,6 +72,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
     var downloadingUpdate by remember { mutableStateOf(false) }
     var updateMessage by remember { mutableStateOf<String?>(null) }
     var downloadUrl by remember { mutableStateOf<String?>(null) }
+    var downloadSha256 by remember { mutableStateOf<String?>(null) }
     // 9.209：关于页展示当前连接的服务器身份（第三方模式显示运营方名称）
     val serverIdentity by com.maodouchat.network.ServerIdentity.current.collectAsState()
 
@@ -163,17 +164,19 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                     checkingUpdate = true
                     updateMessage = null
                     downloadUrl = null
+                    downloadSha256 = null
                     scope.launch {
                         val result = ApiService.getPublicUpdates()
                         checkingUpdate = false
                         result.fold(
                             onSuccess = { remote ->
-                                if (AppUpdatePolicy.shouldOfferUpdate(versionCode, remote.versionCode, remote.apkUrl)) {
+                                if (AppUpdatePolicy.shouldOfferUpdate(versionCode, remote.versionCode, remote.apkUrl, remote.apkSha256)) {
                                     updateMessage = context.getString(
                                         R.string.about_update_available,
                                         remote.versionName.ifBlank { remote.versionCode.toString() }
                                     )
                                     downloadUrl = remote.apkUrl
+                                    downloadSha256 = remote.apkSha256
                                 } else {
                                     updateMessage = context.getString(R.string.about_update_latest)
                                 }
@@ -204,6 +207,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                             val result = OfficialApkInstaller.downloadAndPromptInstall(
                                 context = context,
                                 apkUrl = url,
+                                expectedSha256 = downloadSha256.orEmpty(),
                                 onProgress = { percent ->
                                     updateMessage = context.getString(R.string.about_update_downloading, percent)
                                 },

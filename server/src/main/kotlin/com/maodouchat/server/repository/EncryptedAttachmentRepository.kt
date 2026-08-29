@@ -3,8 +3,9 @@ package com.maodouchat.server.repository
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.EncryptedAttachments
-import com.maodouchat.server.db.Messages
+import com.maodouchat.server.db.MessagingV2Messages
 import com.maodouchat.server.db.Users
+import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
@@ -92,7 +93,7 @@ class EncryptedAttachmentRepository {
         ) {
             throw AttachmentNotAllowedException("muted")
         }
-        if (Messages.selectAll().where { Messages.id eq pendingMessageId }.limit(1).firstOrNull() != null) {
+        if (MessagingV2Messages.selectAll().where { MessagingV2Messages.id eq pendingMessageId }.limit(1).firstOrNull() != null) {
             throw AttachmentMessageAlreadyUsedException()
         }
         val existing = EncryptedAttachments.selectAll().where {
@@ -157,7 +158,7 @@ class EncryptedAttachmentRepository {
         ) {
             throw AttachmentNotAllowedException("muted")
         }
-        if (Messages.selectAll().where { Messages.id eq pendingMessageId }.limit(1).firstOrNull() != null) {
+        if (MessagingV2Messages.selectAll().where { MessagingV2Messages.id eq pendingMessageId }.limit(1).firstOrNull() != null) {
             throw AttachmentMessageAlreadyUsedException()
         }
         val existing = EncryptedAttachments.selectAll().where {
@@ -281,39 +282,16 @@ class EncryptedAttachmentRepository {
         } == 1
     }
 
-    fun commit(id: String, userId: String, messageId: String): Boolean = transaction {
-        // MessageRepository 的删除/撤回统一按 message -> attachment 加锁；这里保持同一顺序，避免互等。
-        val message = Messages.selectAll().where { Messages.id eq messageId }.forUpdate().firstOrNull()
-            ?: return@transaction false
-        if (
-            message[Messages.senderId] != userId ||
-            message[Messages.type] !in ATTACHMENT_MESSAGE_TYPES
-        ) return@transaction false
-        val attachment = EncryptedAttachments.selectAll().where { EncryptedAttachments.id eq id }.forUpdate().firstOrNull()
-            ?: return@transaction false
-        if (
-            attachment[EncryptedAttachments.uploaderId] != userId ||
-            attachment[EncryptedAttachments.messageId] != messageId ||
-            message[Messages.chatId] != attachment[EncryptedAttachments.chatId]
-        ) return@transaction false
-        if (attachment[EncryptedAttachments.status] == STATUS_COMMITTED) return@transaction true
-        if (attachment[EncryptedAttachments.status] != STATUS_UPLOADED) return@transaction false
-        EncryptedAttachments.update({ EncryptedAttachments.id eq id }) {
-            it[EncryptedAttachments.status] = STATUS_COMMITTED
-            it[EncryptedAttachments.expiresAt] = null
-        } == 1
-    }
-
     fun isBoundToLiveMessage(id: String): Boolean = transaction {
         val attachment = EncryptedAttachments.selectAll().where {
             (EncryptedAttachments.id eq id) and (EncryptedAttachments.status eq STATUS_COMMITTED)
         }.limit(1).firstOrNull() ?: return@transaction false
         val messageId = attachment[EncryptedAttachments.messageId] ?: return@transaction false
-        Messages.select(Messages.id).where {
-            (Messages.id eq messageId) and
-                (Messages.chatId eq attachment[EncryptedAttachments.chatId]) and
-                (Messages.senderId eq attachment[EncryptedAttachments.uploaderId]) and
-                (Messages.type inList ATTACHMENT_MESSAGE_TYPES)
+        MessagingV2Messages.select(MessagingV2Messages.id).where {
+            (MessagingV2Messages.id eq messageId) and
+                (MessagingV2Messages.conversationId eq attachment[EncryptedAttachments.chatId]) and
+                (MessagingV2Messages.senderUserId eq attachment[EncryptedAttachments.uploaderId]) and
+                (MessagingV2Messages.recordClass eq MessagingV2RecordClass.MESSAGE)
         }.limit(1).any()
     }
 
@@ -334,7 +312,7 @@ class EncryptedAttachmentRepository {
     }
 
     fun deleteForMessage(messageId: String): List<String> = transaction {
-        // FOR UPDATE：与 commit 串行，避免删行与 COMMITTED 写交叉留下永不过期孤儿
+        // FOR UPDATE keeps moderation/account deletion serialized with message send.
         val ids = EncryptedAttachments.selectAll()
             .where { EncryptedAttachments.messageId eq messageId }
             .forUpdate()

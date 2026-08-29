@@ -9,7 +9,7 @@ import com.maodouchat.server.model.PreKeyBundleResponse
 import com.maodouchat.server.model.UploadKeysRequest
 import com.maodouchat.server.repository.AuthTokenRepository
 import com.maodouchat.server.repository.IssuedRefreshToken
-import com.maodouchat.server.repository.ChatRepository
+import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.SignalKeyRepository
 import com.maodouchat.server.model.UserResponse
 import com.maodouchat.server.model.ErrorResponse
@@ -650,7 +650,7 @@ internal fun SignalKeyRepository.DeviceBundle.toDevicePreKeyBundleResponse(): De
 internal suspend fun ApplicationCall.canFetchKeys(
     requesterId: String,
     targetUserId: String,
-    chatRepo: ChatRepository,
+    conversationQueryRepository: ConversationQueryRepository,
     preKeyFetchTracker: BoundedRateLimiter,
     allowSelf: Boolean = false
 ): Boolean {
@@ -659,7 +659,7 @@ internal suspend fun ApplicationCall.canFetchKeys(
         respond(HttpStatusCode.BadRequest, ErrorResponse("不能获取自己的密钥包"))
         return false
     }
-    if (!chatRepo.shareChat(requesterId, targetUserId)) {
+    if (!conversationQueryRepository.shareConversation(requesterId, targetUserId)) {
         respond(HttpStatusCode.Forbidden, ErrorResponse("只能获取会话参与者的密钥包"))
         return false
     }

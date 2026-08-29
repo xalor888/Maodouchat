@@ -88,7 +88,7 @@ data class ChatDetailUiState(
     /** 1.03：进入聊天时未读起点消息 id（渲染「以下为未读消息」分隔线）。 */
     val unreadSeparatorId: String? = null,
     val isLoadingOlderMessages: Boolean = false,
-    val hasMoreOlderMessages: Boolean = true,
+    val hasMoreOlderMessages: Boolean = false,
     val inputText: String = "",
     /** 1.162：已从本地恢复草稿（用户编辑输入后清除）。 */
     val hasSavedDraft: Boolean = false,

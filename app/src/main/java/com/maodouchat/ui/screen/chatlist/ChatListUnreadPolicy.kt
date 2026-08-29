@@ -27,7 +27,7 @@ object ChatListUnreadPolicy {
         val local = localUnread?.coerceAtLeast(0)
         if (local == null) return server
         // Local already zero after open-chat/emitChatRead and server tail is not newer →
-        // keep zero so in-flight markAllAsRead cannot resurrect the badge.
+        // Keep zero so an in-flight read watermark cannot resurrect the badge.
         // Require localLastMessageTime > 0 so empty/stub local rows still accept server unread.
         if (local == 0 && !localMarkedUnread &&
             localLastMessageTime > 0L &&

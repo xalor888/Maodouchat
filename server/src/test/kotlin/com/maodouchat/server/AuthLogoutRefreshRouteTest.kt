@@ -12,8 +12,6 @@ import com.maodouchat.server.plugins.configureSerialization
 import com.maodouchat.server.plugins.configureSockets
 import com.maodouchat.server.plugins.configureStatusPages
 import com.maodouchat.server.repository.AnnouncementRepository
-import com.maodouchat.server.repository.ChatRepository
-import com.maodouchat.server.repository.MessageRepository
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.RateLimitStatsRepository
 import com.maodouchat.server.repository.SignalingRepository
@@ -64,8 +62,6 @@ class AuthLogoutRefreshRouteTest {
         Database.connect(ServerConfig.databaseUrl, driver = ServerConfig.databaseDriver)
         initDatabase()
         val userRepo = UserRepository()
-        val chatRepo = ChatRepository()
-        val messageRepo = MessageRepository()
         val postRepo = PostRepository()
         if (seedDemoUsers) userRepo.createDefaultUsers()
         configureAuthentication()
@@ -73,11 +69,9 @@ class AuthLogoutRefreshRouteTest {
         configureStatusPages()
         val signalingRepo = SignalingRepository()
         val callInviteRateLimiter = CallInviteRateLimiter()
-        configureSockets(userRepo, messageRepo, chatRepo, signalingRepo = signalingRepo, callInviteRateLimiter = callInviteRateLimiter)
+        configureSockets(userRepo, signalingRepo = signalingRepo, callInviteRateLimiter = callInviteRateLimiter)
         configureRouting(
             userRepo,
-            chatRepo,
-            messageRepo,
             postRepo,
             aiGateway,
             signalingRepo = signalingRepo,
@@ -90,7 +84,7 @@ class AuthLogoutRefreshRouteTest {
             userTagRepo = UserTagRepository(),
             rateLimitStatsRepo = RateLimitStatsRepository()
         )
-        configureSecretSurfaceRouting(chatRepo = chatRepo, messageRepo = messageRepo, userRepo = userRepo)
+        configureSecretSurfaceRouting(userRepo = userRepo)
     }
 
     private fun loginJson(body: String): JsonObject =
