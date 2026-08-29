@@ -257,12 +257,6 @@ class SignalKeyRepository {
      * 删除设备。与「至少保留一个已确认设备」在同一事务内、用户行锁下判定，
      * 避免双设备并发删除把最后一个 CONFIRMED 清光。
      */
-    enum class DeleteDeviceResult { DELETED, NOT_FOUND, LAST_CONFIRMED }
-
-    data class DeleteDeviceOutcome(
-        val result: DeleteDeviceResult,
-        val revokedSessionIds: Set<String> = emptySet()
-    )
 
     fun deleteDeviceAndRevokeSessionsGuarded(userId: String, deviceId: Int): DeleteDeviceOutcome = transaction {
         com.maodouchat.server.db.Users.selectAll()
@@ -757,8 +751,6 @@ class SignalKeyRepository {
         }
     }
 
-    data class PreKeyUpload(val keyId: Int, val publicKeyBase64: String)
-    data class KeyData(val keyId: Int, val publicKeyBase64: String)
     private data class DeviceMetadata(
         val deviceName: String,
         val status: String,
@@ -766,41 +758,9 @@ class SignalKeyRepository {
         val confirmedByDeviceId: Int?,
         val lastSeenAt: Long?
     )
-    data class DeviceInfo(
-        val userId: String,
-        val deviceId: Int,
-        val deviceName: String,
-        val identityKey: String,
-        val lastSeenAt: Long? = null,
-        val isCurrent: Boolean = false,
-        val status: String = DEVICE_STATUS_CONFIRMED,
-        val confirmedAt: Long? = null,
-        val confirmedByDeviceId: Int? = null
-    )
-    data class DeviceBundle(
-        val userId: String,
-        val registrationId: Int,
-        val deviceId: Int,
-        val identityKey: String,
-        val signedPreKeyId: Int,
-        val signedPreKey: String,
-        val signedPreKeySignature: String,
-        val preKeyId: Int?,
-        val preKey: String?
-    )
 
-    enum class ConfirmDeviceResult {
-        CONFIRMED,
-        ALREADY_CONFIRMED,
-        NOT_FOUND,
-        APPROVER_NOT_TRUSTED,
-        INVALID_PROOF,
-        INVALID
-    }
 
     companion object {
-        const val DEVICE_STATUS_CONFIRMED = "CONFIRMED"
-        const val DEVICE_STATUS_PENDING = "PENDING"
         private const val PRE_KEY_TYPE = "pre_key"
         private const val CONSUMED_PRE_KEY_TYPE = "consumed_pre_key"
         private val PRE_KEY_STATES = listOf(PRE_KEY_TYPE, CONSUMED_PRE_KEY_TYPE)

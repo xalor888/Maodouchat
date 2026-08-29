@@ -21,6 +21,8 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import com.maodouchat.server.repository.DEVICE_STATUS_PENDING
+import com.maodouchat.server.repository.PreKeyUpload
 
 class SignalKeyUploadRepositoryTest {
 
@@ -102,7 +104,7 @@ class SignalKeyUploadRepositoryTest {
 
         val allDevices = repository.getDeviceInfos(USER_ID, currentDeviceId = 7, includePending = true)
         assertEquals(
-            SignalKeyRepository.DEVICE_STATUS_PENDING,
+            DEVICE_STATUS_PENDING,
             allDevices.single { it.deviceId == 7 }.status,
         )
         assertTrue(repository.getDeviceIds(USER_ID).contains(1))
@@ -244,7 +246,7 @@ class SignalKeyUploadRepositoryTest {
                 "invalid-prekey-session",
                 7,
                 identity,
-                listOf(SignalKeyRepository.PreKeyUpload(44, "not-a-curve-point")),
+                listOf(PreKeyUpload(44, "not-a-curve-point")),
             ),
         )
         transaction {
@@ -312,7 +314,7 @@ class SignalKeyUploadRepositoryTest {
         sessionId: String,
         deviceId: Int,
         identity: IdentityMaterial,
-        preKeys: List<SignalKeyRepository.PreKeyUpload> = emptyList(),
+        preKeys: List<PreKeyUpload> = emptyList(),
     ): SignalKeyRepository.UploadKeyPackageResult {
         val signedPreKeyPair = Curve.generateKeyPair()
         val signature = Curve.calculateSignature(
@@ -332,8 +334,8 @@ class SignalKeyUploadRepositoryTest {
         )
     }
 
-    private fun preKey(id: Int, pair: org.signal.libsignal.protocol.ecc.ECKeyPair): SignalKeyRepository.PreKeyUpload =
-        SignalKeyRepository.PreKeyUpload(id, encodedPublicKey(pair))
+    private fun preKey(id: Int, pair: org.signal.libsignal.protocol.ecc.ECKeyPair): PreKeyUpload =
+        PreKeyUpload(id, encodedPublicKey(pair))
 
     private fun encodedPublicKey(pair: org.signal.libsignal.protocol.ecc.ECKeyPair): String =
         Base64.getEncoder().encodeToString(pair.publicKey.serialize())

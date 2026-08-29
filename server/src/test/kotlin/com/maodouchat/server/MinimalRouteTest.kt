@@ -49,6 +49,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import com.maodouchat.server.repository.ConfirmDeviceResult
 
 /**
  * 服务端路由骨架测试。
@@ -1686,8 +1687,8 @@ class SenderKeyDistributionRouteTest {
             val proofPayload = "maodouchat-device-confirm:v1\nu2\n1\n2\n$targetIdentity".toByteArray()
             val proof = Base64.getEncoder().encodeToString(Curve.calculateSignature(approverKeyPair.privateKey, proofPayload))
             val forgedProof = Base64.getEncoder().encodeToString(ByteArray(64))
-            assertEquals(SignalKeyRepository.ConfirmDeviceResult.INVALID_PROOF, confirmDevice("u2", 2, 1, forgedProof))
-            assertEquals(SignalKeyRepository.ConfirmDeviceResult.CONFIRMED, confirmDevice("u2", 2, 1, proof))
+            assertEquals(ConfirmDeviceResult.INVALID_PROOF, confirmDevice("u2", 2, 1, forgedProof))
+            assertEquals(ConfirmDeviceResult.CONFIRMED, confirmDevice("u2", 2, 1, proof))
         }
 
         // Coverage is no longer client-reported. Only a committed v2 Sender Key mailbox
@@ -1793,7 +1794,7 @@ class SenderKeyDistributionRouteTest {
             touchDevice("u1", 2)
             val proofPayload = "maodouchat-device-confirm:v1\nu1\n1\n2\n$secondIdentity".toByteArray()
             val proof = Base64.getEncoder().encodeToString(Curve.calculateSignature(firstKeyPair.privateKey, proofPayload))
-            assertEquals(SignalKeyRepository.ConfirmDeviceResult.CONFIRMED, confirmDevice("u1", 2, 1, proof))
+            assertEquals(ConfirmDeviceResult.CONFIRMED, confirmDevice("u1", 2, 1, proof))
             uploadBundle("u2", 1)
             touchDevice("u2", 1)
         }

@@ -9,6 +9,9 @@ import com.maodouchat.server.model.UpdateDeviceNameRequest
 import com.maodouchat.server.model.UploadKeysRequest
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.SignalKeyRepository
+import com.maodouchat.server.repository.PreKeyUpload
+import com.maodouchat.server.repository.ConfirmDeviceResult
+import com.maodouchat.server.repository.DeleteDeviceResult
 import com.maodouchat.server.service.RuntimeConfigService
 import com.maodouchat.server.service.SealedSenderCertificateService
 import io.ktor.http.HttpStatusCode
@@ -62,7 +65,7 @@ internal fun Route.configureSignalKeyRoutes(
                     signedPreKeyId = request.signedPreKeyId,
                     signedPreKey = request.signedPreKey,
                     signedPreKeySignature = request.signedPreKeySignature,
-                    preKeys = request.preKeys.map { SignalKeyRepository.PreKeyUpload(it.keyId, it.publicKey) },
+                    preKeys = request.preKeys.map { PreKeyUpload(it.keyId, it.publicKey) },
                     deviceName = request.deviceName,
                 )
             ) {
@@ -174,15 +177,15 @@ internal fun Route.configureSignalKeyRoutes(
                 return@post
             }
             when (signalKeyRepository.confirmDevice(requesterId, deviceId, request.approverDeviceId, request.signature)) {
-                SignalKeyRepository.ConfirmDeviceResult.CONFIRMED,
-                SignalKeyRepository.ConfirmDeviceResult.ALREADY_CONFIRMED -> call.respondOk()
-                SignalKeyRepository.ConfirmDeviceResult.NOT_FOUND ->
+                ConfirmDeviceResult.CONFIRMED,
+                ConfirmDeviceResult.ALREADY_CONFIRMED -> call.respondOk()
+                ConfirmDeviceResult.NOT_FOUND ->
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("设备不存在"))
-                SignalKeyRepository.ConfirmDeviceResult.APPROVER_NOT_TRUSTED ->
+                ConfirmDeviceResult.APPROVER_NOT_TRUSTED ->
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("请使用已确认的其他设备批准登录"))
-                SignalKeyRepository.ConfirmDeviceResult.INVALID_PROOF ->
+                ConfirmDeviceResult.INVALID_PROOF ->
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("设备批准证明无效"))
-                SignalKeyRepository.ConfirmDeviceResult.INVALID ->
+                ConfirmDeviceResult.INVALID ->
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("设备 ID 无效"))
             }
         }
@@ -205,11 +208,11 @@ internal fun Route.configureSignalKeyRoutes(
             }
             val removal = signalKeyRepository.deleteDeviceAndRevokeSessionsGuarded(requesterId, deviceId)
             when (removal.result) {
-                SignalKeyRepository.DeleteDeviceResult.NOT_FOUND ->
+                DeleteDeviceResult.NOT_FOUND ->
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("设备不存在"))
-                SignalKeyRepository.DeleteDeviceResult.LAST_CONFIRMED ->
+                DeleteDeviceResult.LAST_CONFIRMED ->
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("至少保留一个已确认设备"))
-                SignalKeyRepository.DeleteDeviceResult.DELETED -> {
+                DeleteDeviceResult.DELETED -> {
                     disconnectUserSessionsByAuthSessionIds(
                         requesterId,
                         removal.revokedSessionIds,

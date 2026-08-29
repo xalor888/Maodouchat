@@ -11,6 +11,7 @@ import com.maodouchat.server.repository.AuthTokenRepository
 import com.maodouchat.server.repository.IssuedRefreshToken
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.SignalKeyRepository
+import com.maodouchat.server.repository.DeviceBundle
 import com.maodouchat.server.model.UserResponse
 import com.maodouchat.server.model.ErrorResponse
 import io.ktor.http.HttpHeaders
@@ -624,7 +625,7 @@ internal fun restrictionMessage(until: Long, action: String): String {
 
 // ── Signal 密钥辅助 ───────────────────
 
-internal fun SignalKeyRepository.DeviceBundle.toPreKeyBundleResponse(): PreKeyBundleResponse = PreKeyBundleResponse(
+internal fun DeviceBundle.toPreKeyBundleResponse(): PreKeyBundleResponse = PreKeyBundleResponse(
     registrationId = registrationId,
     deviceId = deviceId,
     identityKey = identityKey,
@@ -635,7 +636,7 @@ internal fun SignalKeyRepository.DeviceBundle.toPreKeyBundleResponse(): PreKeyBu
     preKey = preKey
 )
 
-internal fun SignalKeyRepository.DeviceBundle.toDevicePreKeyBundleResponse(): DevicePreKeyBundleResponse = DevicePreKeyBundleResponse(
+internal fun DeviceBundle.toDevicePreKeyBundleResponse(): DevicePreKeyBundleResponse = DevicePreKeyBundleResponse(
     userId = userId,
     deviceId = deviceId,
     registrationId = registrationId,
