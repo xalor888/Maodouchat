@@ -108,12 +108,12 @@ Gate：并发 401、进程恢复、A-B-A 换号、切服、设备吊销、错误
 
 ### A03 Room、SQLCipher 与本地数据生命周期
 
-当前状态：`[ ]`。`AppDatabase.kt` 集中维护大量手写 migration，仪器测试覆盖不足。
+当前状态：`[~]`。Room 迁移已从 `AppDatabase.kt` 抽出（`DatabaseMigrations.kt`），但 entity/DAO 领域拆分、`DatabaseLifecycle` 类、schema fixture 与仪器测试尚未完成。
 
 - [ ] 定义最低支持升级版本；明确 1-15 是否停止直接升级。
 - [ ] 按领域拆 entity、DAO、transaction 和 migration ownership。
-- [ ] `AppDatabase.kt` 只负责数据库创建、注册 migration 和 transaction boundary。
-- [ ] 建立 `DatabaseLifecycle`，覆盖创建、解锁、换号销毁、迁移失败和恢复。
+- [x] `AppDatabase.kt` 只负责数据库创建、注册 migration 和 transaction boundary（30 个迁移已抽到 `DatabaseMigrations.kt`，AppDatabase 723→171 行）。
+- [~] 建立 `DatabaseLifecycle`，覆盖创建、解锁、换号销毁、迁移失败和恢复（companion 已含 getInstance/close/destroy/backup-recreate，待抽为独立 `DatabaseLifecycle` 类）。
 - [ ] 为每个受支持旧版本到当前版本保存 schema fixture 和真实数据 fixture。
 - [ ] 测试 SQLCipher 密钥错误、迁移中断、磁盘满、FTS、外键、墓碑和账号隔离。
 - [ ] 所有 SharedPreferences JSON 业务存储迁移到版本化 Room 表；偏好设置除外。
