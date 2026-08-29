@@ -175,9 +175,18 @@ class ScheduledMessageWorker(
         expectedOwnerUserId: String
     ): Result {
         try {
+            // 重复定时重排前必须确认账号仍归属当前会话：purge 与运行中的 Worker 存在竞态，
+            // 登出/换号后重排会给已登出账号复活一条待发行并触发离任通知。
+            val ownerStillCurrent = com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                expectedUserId = expectedOwnerUserId,
+                liveToken = TokenManager.getInstance(applicationContext).getToken(),
+                liveUserId = TokenManager.getInstance(applicationContext).getUserId(),
+            )
             // 1.07：重复定时——发送前若配置了重复间隔，重新入队下一次（净增 1 条）
             // 1.21：与成功路径一致，达重复次数上限后不再重排
-            if (item.repeatIntervalMs > 0L && (item.repeatCount == 0 || item.occurrencesSent + 1 < item.repeatCount)) {
+            if (ownerStillCurrent &&
+                item.repeatIntervalMs > 0L && (item.repeatCount == 0 || item.occurrencesSent + 1 < item.repeatCount)
+            ) {
                 ScheduledMessageStore.addForUser(
                     context = applicationContext,
                     ownerUserId = expectedOwnerUserId,

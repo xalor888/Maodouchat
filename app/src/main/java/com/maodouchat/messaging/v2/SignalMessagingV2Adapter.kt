@@ -238,6 +238,9 @@ class SignalMessagingV2EnvelopeProcessor(
                 }
             }
             SignalProtocol.DecryptResult.Duplicate -> {
+                // Sender-key installation is idempotent: a replayed distribution after a crash
+                // is already installed and must be acknowledged instead of dead-lettered.
+                if (envelope.kind == KIND_SENDER_KEY) return
                 // The ratchet step survived a previous attempt. Recover the projection from the
                 // journal written before the original commit; otherwise acknowledge only when
                 // the message verifiably reached the timeline. Anything else is retried into

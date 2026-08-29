@@ -9,6 +9,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.notExists
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -71,15 +72,22 @@ class MailboxRetentionService(
         return transaction {
             val candidates = MessagingV2Envelopes.selectAll()
                 .where {
-                    // Retired-device candidates must be unacknowledged: acknowledged rows are
-                    // governed by clause 1 alone. Without this guard, rows acknowledged recently
-                    // but received long ago flood the bounded scan window and starve the purge.
+                    // Clause 3 (retired-device) must exclude envelopes whose device row still
+                    // exists. Otherwise unacknowledged envelopes aged 1..30d on an active
+                    // device match the scan, occupy the bounded window head, and starve every
+                    // purge until the backlog ages past the unacknowledged horizon.
                     ((MessagingV2Envelopes.acknowledgedAt.isNotNull()) and
                         (MessagingV2Envelopes.acknowledgedAt lessEq acknowledgedCutoff)) or
                         ((MessagingV2Envelopes.acknowledgedAt.isNull()) and
                             (MessagingV2Envelopes.serverTimestamp lessEq unacknowledgedCutoff)) or
                         ((MessagingV2Envelopes.acknowledgedAt.isNull()) and
-                            (MessagingV2Envelopes.serverTimestamp lessEq retiredDeviceCutoff))
+                            (MessagingV2Envelopes.serverTimestamp lessEq retiredDeviceCutoff) and
+                            notExists(
+                                SignalDevices.selectAll().where {
+                                    (SignalDevices.userId eq MessagingV2Envelopes.recipientUserId) and
+                                        (SignalDevices.deviceId eq MessagingV2Envelopes.recipientDeviceId)
+                                }
+                            ))
                 }
                 .orderBy(MessagingV2Envelopes.sequence to SortOrder.ASC)
                 .limit(maxRows + 1)

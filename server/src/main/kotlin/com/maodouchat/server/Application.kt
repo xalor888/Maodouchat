@@ -84,10 +84,13 @@ fun main() {
         while (true) {
             kotlinx.coroutines.delay(3_600_000L)
             runCatching {
-                repeat(20) {
-                    if (!retentionService.purgeBatch().hasMore) return@repeat
+                var more = true
+                var batches = 0
+                while (more && batches < 20) {
+                    more = retentionService.purgeBatch().hasMore
+                    batches++
                 }
-            }.onFailure { e -> retentionLogger.warn("mailbox retention purge failed: {}", e.message) }
+            }.onFailure { e -> retentionLogger.warn("mailbox retention purge failed", e) }
         }
     }
 

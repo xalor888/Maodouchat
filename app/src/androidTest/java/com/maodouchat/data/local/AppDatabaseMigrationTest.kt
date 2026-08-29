@@ -438,6 +438,39 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate34To35AddsPlaintextJournalWithEmptyDefault() {
+        helper.createDatabase(JOURNAL_TEST_DB, 34).apply {
+            execSQL(
+                """
+                INSERT INTO messaging_v2_inbox (
+                    envelopeId, ownerUserId, deviceId, sequence, messageId, conversationId,
+                    senderUserId, senderDeviceId, kind, clientTimestamp, serverTimestamp,
+                    ciphertextType, ciphertext, state, attempts, nextAttemptAt, receivedAt, updatedAt
+                ) VALUES ('e_journal', 'u1', 1, 1, 'm_journal', 'c_journal', 'u2', 1, 'DATA', 1, 1, 'PREKEY', 'cipher', 'RECEIVED', 0, 0, 1, 1)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val database = helper.runMigrationsAndValidate(
+            JOURNAL_TEST_DB,
+            35,
+            true,
+            AppDatabase.MIGRATION_34_35,
+        )
+        try {
+            // runMigrationsAndValidate above already asserts the Room schema (including the
+            // column default) matches the entity; verify existing rows read back as empty.
+            database.query("SELECT plaintextJournal FROM messaging_v2_inbox WHERE envelopeId = 'e_journal'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("", cursor.getString(0))
+            }
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun migrate33To34CreatesTerminalTombstonesWithConversationCascade() {
         helper.createDatabase(TOMBSTONE_TEST_DB, 33).apply {
             execSQL(
@@ -494,6 +527,7 @@ class AppDatabaseMigrationTest {
         const val FULL_CHAIN_TEST_DB = "migration-16-20-full-chain"
         const val FULL_CHAIN_25_TO_30_TEST_DB = "migration-25-30-full-chain"
         const val LEGACY_SENDING_TEST_DB = "migration-31-32-legacy-sending"
+        const val JOURNAL_TEST_DB = "migration-34-35-plaintext-journal"
         const val TOMBSTONE_TEST_DB = "migration-33-34-tombstone"
     }
 }

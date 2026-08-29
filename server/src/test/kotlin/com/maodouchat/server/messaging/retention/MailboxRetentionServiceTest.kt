@@ -69,6 +69,35 @@ class MailboxRetentionServiceTest {
         }
     }
 
+    @Test
+    fun `active device backlog does not starve acknowledged purge`() {
+        setupDatabase()
+        val now = 10_000L
+        transaction {
+            // 501 unacknowledged envelopes aged 2d on the still-active device 1: they match
+            // neither the acknowledged nor the unacknowledged horizon and must be excluded
+            // from the retired-device scan so they cannot occupy the bounded window head.
+            repeat(501) { index ->
+                insertEnvelope("active-$index", now - 2L * 24L * 3600L * 1000L)
+            }
+            // Acknowledged-old envelope inserted last so its sequence is higher than the
+            // entire backlog above: without the NOT EXISTS guard the scan would never reach it.
+            insertEnvelope("ack-old-behind", now - 2L * 24L * 3600L * 1000L, acknowledgedAt = now - 8L * 24L * 3600L * 1000L)
+        }
+
+        val result = MailboxRetentionService { now }.purgeBatch(
+            policy = MailboxRetentionPolicy(
+                acknowledgedRetentionMs = 24L * 3600L * 1000L,
+                unacknowledgedRetentionMs = 30L * 24L * 3600L * 1000L,
+                retiredDeviceRetentionMs = 24L * 3600L * 1000L,
+            ),
+        )
+
+        assertEquals(1, result.acknowledged)
+        assertEquals(0, result.unacknowledged)
+        assertEquals(0, result.deviceRetired)
+    }
+
     private fun setupDatabase() {
         database = Database.connect(
             "jdbc:h2:mem:mailbox-retention-${AtomicInteger().incrementAndGet()}-${kotlin.random.Random.nextInt()};DB_CLOSE_DELAY=-1",
