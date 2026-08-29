@@ -162,6 +162,7 @@ class RouteRegistrySplitTest {
             "BotMessageForwardingRouting.kt",
             "BotMemberPromotionRouting.kt",
             "BotProfileRouting.kt",
+            "BotPresentationWidgetsRouting.kt",
         )
     }
 }
