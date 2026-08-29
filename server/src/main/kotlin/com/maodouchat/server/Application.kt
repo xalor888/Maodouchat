@@ -2,6 +2,7 @@ package com.maodouchat.server
 
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.initDatabase
+import com.maodouchat.server.db.migration.runDatabaseMigrations
 import com.maodouchat.server.plugins.configureAuthentication
 import com.maodouchat.server.plugins.configureCORS
 import com.maodouchat.server.plugins.configureDeveloperRouting
@@ -67,8 +68,9 @@ fun main() {
     )
     Database.connect(dataSource)
 
-    // 初始化数据库表
+    // Bootstrap table definitions once, then apply ordered, locked migrations.
     initDatabase()
+    runDatabaseMigrations()
 
     // 创建仓库
     val userRepo = UserRepository()

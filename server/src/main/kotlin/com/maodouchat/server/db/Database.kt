@@ -625,8 +625,16 @@ object BotUpdateInbox : Table("bot_update_inbox") {
 
 fun initDatabase() {
     org.jetbrains.exposed.sql.transactions.transaction {
+        createSchemaTables()
+    }
+}
 
-        SchemaUtils.createMissingTablesAndColumns(
+/**
+ * Creates missing application tables and columns without deleting data or applying data migrations.
+ * Versioned changes belong in [com.maodouchat.server.db.migration.runDatabaseMigrations].
+ */
+internal fun createSchemaTables() {
+    SchemaUtils.createMissingTablesAndColumns(
             Users, Chats, ChatParticipants, ChatUserSettings, GroupAuditLogs,
             EncryptedAttachments, SignalKeys, SignalDevices, SignalingMessages, Posts, PostImageClaims, PostLikes, PostComments, CommentLikes,
             BlockedUsers, UserLocations, AuthSessions, RefreshTokens, RevokedAccessTokens, StarMessages, PinnedMessages,
@@ -642,30 +650,32 @@ fun initDatabase() {
             RateLimitStatsSnapshots, DeviceEventSequences, DeviceEventConsistencyLog,
             // V2 messaging owns durable per-device delivery. WebSocket is notification only.
             MessagingV2Messages, MessagingV2Envelopes, ServiceMessages, ServiceMessageReactions
-        )
-        dropMessagingV2SenderUserForeignKey()
-        migrateMessagingV2RecordClasses()
-        migrateMessageControlForeignKeys()
-        retireLegacyMessagingTables()
-        widenClientPrefsWritingStyleColumn()
-        widenFriendRequestMessageColumn()
-        // 9.144：既有库加宽（新增实例由 Table 定义直接建宽列）
-        widenReportsColumns()
-        widenRiskEventsMatchedColumn()
-        widenModerationAuditDetailColumn()
-        // 确保 init {} 中的索引被创建（createMissingTablesAndColumns 可能不会自动建）
-        ensureIndexes()
-        dropRetiredCloudAiTables()
-        // 9.4xx：PostgreSQL 全文/模糊搜索索引（pg_trgm；H2 与受限环境自动跳过）
-        ensureSearchIndexes()
-        migrateAuthSessionState()
-        backfillSignalKeyDeviceIds()
-        backfillSignalDeviceConfirmation()
-        backfillMemberRoles()
-        backfillChatTypes()
-        backfillModeratorEmails()
-        backfillModerationRules()
-    }
+    )
+}
+
+/** Applies the historical non-destructive and corrective changes captured by migration version 1. */
+internal fun applyBaselineSchemaMigration() {
+    createSchemaTables()
+    dropMessagingV2SenderUserForeignKey()
+    migrateMessagingV2RecordClasses()
+    migrateMessageControlForeignKeys()
+    widenClientPrefsWritingStyleColumn()
+    widenFriendRequestMessageColumn()
+    // 9.144：既有库加宽（新增实例由 Table 定义直接建宽列）
+    widenReportsColumns()
+    widenRiskEventsMatchedColumn()
+    widenModerationAuditDetailColumn()
+    // 确保 init {} 中的索引被创建（createMissingTablesAndColumns 可能不会自动建）
+    ensureIndexes()
+    // 9.4xx：PostgreSQL 全文/模糊搜索索引（pg_trgm；H2 与受限环境自动跳过）
+    ensureSearchIndexes()
+    migrateAuthSessionState()
+    backfillSignalKeyDeviceIds()
+    backfillSignalDeviceConfirmation()
+    backfillMemberRoles()
+    backfillChatTypes()
+    backfillModeratorEmails()
+    backfillModerationRules()
 }
 
 private fun migrateMessagingV2RecordClasses() {
@@ -776,15 +786,6 @@ private fun dropMessagingV2SenderUserForeignKey() {
  * 存量 chats 行补全 chat_type：群聊推导为 GROUP，私聊推导为 DIRECT。
  * 新列由 createMissingTablesAndColumns 自动补列（默认 DIRECT），随后此处修正历史群聊。
  */
-
-private fun dropRetiredCloudAiTables() {
-    try {
-        TransactionManager.current().exec("DROP TABLE IF EXISTS ai_summary_sync_envelopes")
-        TransactionManager.current().exec("DROP TABLE IF EXISTS ai_preferences")
-    } catch (_: Exception) {
-        // H2/Postgres naming differences; leftover tables are unused.
-    }
-}
 
 private fun backfillChatTypes() {
     try {

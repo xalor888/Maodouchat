@@ -11,6 +11,16 @@ import org.jetbrains.exposed.sql.transactions.TransactionManager
  */
 internal fun retireLegacyMessagingTables() {
     if (legacyTableExists("messages")) {
+        val humanMessageCount = TransactionManager.current().exec(
+            "SELECT COUNT(*) FROM messages WHERE sender_id NOT LIKE 'bot_%'"
+        ) { result ->
+            result.next()
+            result.getLong(1)
+        } ?: 0L
+        check(humanMessageCount == 0L) {
+            "Legacy messaging retirement is blocked: messages contains $humanMessageCount human-authored row(s). " +
+                "Export or migrate them before applying this one-way contract migration."
+        }
         TransactionManager.current().exec(
             """
             INSERT INTO service_messages

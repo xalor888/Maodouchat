@@ -49,7 +49,6 @@ import com.maodouchat.messaging.v2.OutgoingMessageCommand
 import com.maodouchat.messaging.v2.OutgoingMessageCoordinator
 import com.maodouchat.messaging.v2.OutgoingMessageResult
 import com.maodouchat.forwarding.ConversationForwardCoordinator
-import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.local.entity.hasCompletedUpload
 import com.maodouchat.data.local.entity.AiOperationEntity
@@ -574,6 +573,10 @@ class ChatDetailViewModel(
 
     internal val _uiState = MutableStateFlow(ChatDetailUiState())
     val uiState: StateFlow<ChatDetailUiState> = _uiState.asStateFlow()
+    private val timelineStateController = ChatTimelineStateController(::mergeMessages)
+    private val searchSelectionStateController = ChatSearchSelectionStateController()
+    private val groupSecurityStateController = ChatGroupSecurityStateController()
+    private val mediaStateController = ChatMediaStateController()
     private val readReceiptCoordinator = ChatReadReceiptCoordinator(
         scope = viewModelScope,
         dao = app.database.messagingV2Dao(),
@@ -810,34 +813,7 @@ class ChatDetailViewModel(
                     transfer.ownerUserId == liveOwnerUserId &&
                         (transfer.chatId == activeChatId || transfer.messageId in visibleMessageIds)
                 }
-                val transfersByMessageId = transfers.associateBy { it.messageId }
-                _uiState.update { state ->
-                    val oldTransferIds = state.fileTransferStates.keys
-                    val progress = (state.fileTransferProgress - oldTransferIds).toMutableMap()
-                    val states = mutableMapOf<String, String>()
-                    val errors = mutableMapOf<String, String>()
-                    transfers.forEach { transfer ->
-                        progress[transfer.messageId] = transfer.uiProgress()
-                        states[transfer.messageId] = transfer.state
-                        transfer.lastErrorCode?.let { errors[transfer.messageId] = it }
-                    }
-                    state.copy(
-                        messages = state.messages.map { message ->
-                            when (transfersByMessageId[message.id]?.state) {
-                                AttachmentTransferState.FAILED -> message.copy(status = MessageStatus.FAILED)
-                                AttachmentTransferState.QUEUED,
-                                AttachmentTransferState.UPLOADING,
-                                AttachmentTransferState.READY,
-                                AttachmentTransferState.SENDING,
-                                AttachmentTransferState.PAUSED -> message.copy(status = MessageStatus.SENDING)
-                                else -> message
-                            }
-                        },
-                        fileTransferProgress = progress,
-                        fileTransferStates = states,
-                        fileTransferErrors = errors
-                    )
-                }
+                _uiState.update { state -> mediaStateController.applyTransfers(state, transfers) }
                 transfers.filter { it.chatId == activeChatId && it.state == AttachmentTransferState.READY }.forEach { transfer ->
                     // Final send is owned by WorkManager so it survives navigation/process death.
                     com.maodouchat.attachment.AttachmentTransferScheduler.schedule(
@@ -848,16 +824,6 @@ class ChatDetailViewModel(
                 }
             }
             .launchIn(viewModelScope)
-    }
-
-    private fun AttachmentTransferEntity.uiProgress(): Float = when (state) {
-        AttachmentTransferState.QUEUED -> 0.35f
-        AttachmentTransferState.UPLOADING -> 0.35f +
-            (uploadedBytes.toDouble() / cipherSize.coerceAtLeast(1L)).coerceIn(0.0, 1.0).toFloat() * 0.55f
-        AttachmentTransferState.READY, AttachmentTransferState.SENDING -> 0.92f
-        AttachmentTransferState.PAUSED, AttachmentTransferState.FAILED ->
-            0.35f + (uploadedBytes.toDouble() / cipherSize.coerceAtLeast(1L)).coerceIn(0.0, 1.0).toFloat() * 0.55f
-        else -> 0f
     }
 
     private fun updateMessageStatus(messageId: String, status: MessageStatus) {
@@ -873,15 +839,7 @@ class ChatDetailViewModel(
         ) {
             return
         }
-        _uiState.update { state ->
-            state.copy(
-                messages = state.messages.map { message ->
-                    if (message.id != messageId) message
-                    else if (!message.status.canAdvanceTo(status)) message
-                    else message.copy(status = status)
-                }
-            )
-        }
+        _uiState.update { state -> timelineStateController.updateStatus(state, messageId, status) }
         viewModelScope.launch {
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = statusOwnerUserId,
@@ -924,7 +882,7 @@ class ChatDetailViewModel(
                 }
                 val visible = local.filter { it.type != MessageType.SK_DIST }
                 if (visible.isEmpty()) return@collect
-                _uiState.update { it.copy(messages = mergeMessages(it.messages, visible)) }
+                _uiState.update { state -> timelineStateController.mergeIncoming(state, visible) }
             }
         }
     }
@@ -1029,15 +987,8 @@ class ChatDetailViewModel(
                             status = quantityText(R.plurals.chat_members_count, chat.participants.size, chat.participants.size)
                         )
                         val revisionWarning = if (shouldInvalidateSenderKey) text(R.string.chat_group_members_changed_key) else null
-                        _uiState.update {
-                            it.copy(
-                                chat = chat,
-                                chatIsGroup = true,
-                                isSecretChat = false,
-                                contact = groupContact,
-                                groupEncryptionWarning = revisionWarning ?: it.groupEncryptionWarning,
-                                disappearingMessageSeconds = 0
-                            )
+                        _uiState.update { state ->
+                            groupSecurityStateController.presentGroup(state, chat, groupContact, revisionWarning)
                         }
                         occupySessionCipher(chat.id, peerUserId = null, updatePeer = true)
                         loadGroupCandidates()
@@ -1075,14 +1026,9 @@ class ChatDetailViewModel(
                                 avatar = cachedChat.groupAvatar,
                                 status = quantityText(R.plurals.chat_members_count, cachedChat.participants.size, cachedChat.participants.size)
                             )
-                            _uiState.update {
-                                it.copy(
-                                    chat = cachedChat,
-                                    chatIsGroup = true,
-                                    contact = groupContact,
-                                    disappearingMessageSeconds = 0
-                                )
-                            }
+                        _uiState.update { state ->
+                            groupSecurityStateController.presentGroup(state, cachedChat, groupContact)
+                        }
                             occupySessionCipher(cachedChat.id, peerUserId = null, updatePeer = true)
                             loadGroupCandidates()
                         } else {
@@ -1134,13 +1080,7 @@ class ChatDetailViewModel(
                         null
                     }
                     _uiState.update { state ->
-                        state.copy(
-                            messages = mergeMessages(state.messages, messages),
-                            unreadSeparatorId = unreadSeparatorId,
-                            hasMoreOlderMessages = false,
-                            initialTimelineReady = true,
-                            initialLoadError = null,
-                        )
+                        timelineStateController.initialHistoryLoaded(state, messages, unreadSeparatorId)
                     }
                     maybeAutoLoadLastGroupReadCount()
                     hydrateMissingLocalAttachments(messages)
@@ -1262,20 +1202,7 @@ class ChatDetailViewModel(
             ) {
                 return@onSuccess
             }
-            val selfMember = members.firstOrNull { it.userId == expectedUserId }
-            _uiState.update {
-                it.copy(
-                    myMemberRole = selfMember?.role,
-                    // 8.48：群成员接口带 mutedUntil——本机被禁言时输入区明确提示（而非仅发送失败时）
-                    myMutedUntil = selfMember?.mutedUntil ?: 0L,
-                    // 0.65 新功能：全体成员角色映射，供消息发送者旁渲染群主/管理员徽章
-                    memberRoleByUser = members.associate { m -> m.userId to m.role },
-                    // 0.69 修复：群内昵称映射——群聊消息发送者显示名优先使用群昵称
-                    memberNicknameByUser = members
-                        .filter { !it.groupNickname.isNullOrBlank() }
-                        .associate { m -> m.userId to m.groupNickname!! }
-                )
-            }
+            _uiState.update { state -> groupSecurityStateController.presentMembers(state, members, expectedUserId) }
         }
     }
 
@@ -1366,13 +1293,13 @@ class ChatDetailViewModel(
 
     fun jumpToPinnedMessage(messageId: String) {
         if (messageId.isBlank()) return
-        _uiState.update { it.copy(navigationTargetMessageId = messageId) }
+        _uiState.update { state -> searchSelectionStateController.navigateTo(state, messageId) }
     }
 
     /** 通用跳转定位：点击引用预览/置顶跳转等，滚动到指定消息并高亮。 */
     fun jumpToMessage(messageId: String) {
         if (messageId.isBlank()) return
-        _uiState.update { it.copy(navigationTargetMessageId = messageId) }
+        _uiState.update { state -> searchSelectionStateController.navigateTo(state, messageId) }
     }
 
     // 1.10：多选批量置顶/取消置顶（逐条调用置顶接口，最后统一提示成功/失败数）
@@ -2657,42 +2584,30 @@ class ChatDetailViewModel(
         }
         if (messageId in _uiState.value.downloadingFileMessageIds) return
         viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    downloadingFileMessageIds = it.downloadingFileMessageIds + messageId,
-                    mediaDownloadErrorMessageIds = it.mediaDownloadErrorMessageIds - messageId,
-                    fileTransferProgress = it.fileTransferProgress + (messageId to 0f),
-                    groupEncryptionWarning = null
-                )
-            }
+            _uiState.update { state -> mediaStateController.beginDownload(state, messageId) }
             try {
                 ensureLocalAttachment(message).fold(
                     onSuccess = { localMessage ->
-                        _uiState.update {
-                            it.copy(
-                                downloadingFileMessageIds = it.downloadingFileMessageIds - messageId,
-                                fileTransferProgress = it.fileTransferProgress - messageId,
-                                fileReadyToOpenUri = localMessage.parsedContent()
+                        _uiState.update { state ->
+                            mediaStateController.finishDownload(
+                                state,
+                                messageId,
+                                localUri = localMessage.parsedContent(),
                             )
                         }
                     },
                     onFailure = { error ->
-                        _uiState.update {
-                            it.copy(
-                                downloadingFileMessageIds = it.downloadingFileMessageIds - messageId,
-                                fileTransferProgress = it.fileTransferProgress - messageId,
-                                groupEncryptionWarning = attachmentErrorText(error, R.string.chat_attachment_download_failed)
+                        _uiState.update { state ->
+                            mediaStateController.finishDownload(
+                                state,
+                                messageId,
+                                failureMessage = attachmentErrorText(error, R.string.chat_attachment_download_failed),
                             )
                         }
-                    }
+                    },
                 )
             } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update {
-                    it.copy(
-                        downloadingFileMessageIds = it.downloadingFileMessageIds - messageId,
-                        fileTransferProgress = it.fileTransferProgress - messageId
-                    )
-                }
+                _uiState.update { state -> mediaStateController.finishDownload(state, messageId) }
                 throw error
             }
         }
@@ -2705,49 +2620,32 @@ class ChatDetailViewModel(
         if (MediaCache.isReadableLocalUri(getApplication(), message.parsedContent())) return
         if (messageId in _uiState.value.downloadingFileMessageIds) return
         viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    downloadingFileMessageIds = it.downloadingFileMessageIds + messageId,
-                    fileTransferProgress = it.fileTransferProgress + (messageId to 0f),
-                    groupEncryptionWarning = null
-                )
-            }
+            _uiState.update { state -> mediaStateController.beginDownload(state, messageId) }
             try {
                 ensureLocalAttachment(message).fold(
                     onSuccess = {
-                        _uiState.update { state ->
-                            state.copy(
-                                downloadingFileMessageIds = state.downloadingFileMessageIds - messageId,
-                                mediaDownloadErrorMessageIds = state.mediaDownloadErrorMessageIds - messageId,
-                                fileTransferProgress = state.fileTransferProgress - messageId
-                            )
-                        }
+                        _uiState.update { state -> mediaStateController.finishDownload(state, messageId) }
                     },
                     onFailure = { error ->
                         _uiState.update { state ->
-                            state.copy(
-                                downloadingFileMessageIds = state.downloadingFileMessageIds - messageId,
-                                mediaDownloadErrorMessageIds = state.mediaDownloadErrorMessageIds + messageId,
-                                fileTransferProgress = state.fileTransferProgress - messageId,
-                                groupEncryptionWarning = attachmentErrorText(error, R.string.chat_attachment_download_failed)
+                            mediaStateController.finishDownload(
+                                state,
+                                messageId,
+                                failureMessage = attachmentErrorText(error, R.string.chat_attachment_download_failed),
+                                markMediaFailure = true,
                             )
                         }
-                    }
+                    },
                 )
             } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { state ->
-                    state.copy(
-                        downloadingFileMessageIds = state.downloadingFileMessageIds - messageId,
-                        fileTransferProgress = state.fileTransferProgress - messageId
-                    )
-                }
+                _uiState.update { state -> mediaStateController.finishDownload(state, messageId) }
                 throw error
             }
         }
     }
 
     fun consumeFileReadyToOpen() {
-        _uiState.update { it.copy(fileReadyToOpenUri = null) }
+        _uiState.update(mediaStateController::consumeReadyFile)
     }
 
     /**
@@ -2776,26 +2674,24 @@ class ChatDetailViewModel(
     }
 
     fun requestSemanticSearch(query: String, candidateMessageIds: List<String>) {
-        // 密聊会话禁止语义搜索：解密明文不得送服务端 AI
-        if (_uiState.value.isSecretChat == true) {
-            _uiState.update { it.copy(semanticSearchError = text(R.string.secret_chat_ai_blocked)) }
-            return
+        when (
+            val admission = searchSelectionStateController.admitSemanticSearch(
+                state = _uiState.value,
+                query = query,
+                candidateMessageIds = candidateMessageIds,
+                secretChatError = text(R.string.secret_chat_ai_blocked),
+                aiDisabledError = text(R.string.chat_ai_disabled_warning),
+                blankQueryError = text(R.string.chat_semantic_search_enter_query),
+                noContextError = text(R.string.chat_semantic_search_no_context),
+            )
+        ) {
+            is ChatSearchSelectionStateController.SemanticSearchAdmission.Accepted -> {
+                runAiWithConsent(PendingAiAction.SemanticSearch(admission.query, admission.candidateIds))
+            }
+            is ChatSearchSelectionStateController.SemanticSearchAdmission.Rejected -> {
+                _uiState.update { admission.state }
+            }
         }
-        val normalizedQuery = query.trim().take(300)
-        if (!_uiState.value.aiEnabled) {
-            _uiState.update { it.copy(semanticSearchError = text(R.string.chat_ai_disabled_warning)) }
-            return
-        }
-        if (normalizedQuery.isBlank()) {
-            _uiState.update { it.copy(semanticSearchError = text(R.string.chat_semantic_search_enter_query)) }
-            return
-        }
-        val safeIds = candidateMessageIds.filter(String::isNotBlank).distinct().take(100)
-        if (safeIds.isEmpty()) {
-            _uiState.update { it.copy(semanticSearchError = text(R.string.chat_semantic_search_no_context)) }
-            return
-        }
-        runAiWithConsent(PendingAiAction.SemanticSearch(normalizedQuery, safeIds))
     }
 
     fun clearSemanticSearch() {
@@ -2805,19 +2701,16 @@ class ChatDetailViewModel(
         if (pendingAiAction is PendingAiAction.SemanticSearch) {
             pendingAiAction = null
         }
-        _uiState.update {
-            it.copy(
-                semanticSearchResultIds = emptyList(),
-                semanticSearchQuery = "",
-                isSemanticSearching = false,
-                semanticSearchError = null,
-                showAiConsentDialog = if (pendingAiAction == null) false else it.showAiConsentDialog
+        _uiState.update { state ->
+            searchSelectionStateController.clearSemanticSearch(
+                state,
+                showConsentDialog = pendingAiAction != null && state.showAiConsentDialog,
             )
         }
     }
 
     fun consumeNavigationTarget() {
-        _uiState.update { it.copy(navigationTargetMessageId = null) }
+        _uiState.update(searchSelectionStateController::consumeNavigation)
     }
 
     fun acceptAiConsentAndContinue() {
@@ -3464,22 +3357,7 @@ class ChatDetailViewModel(
     }
 
     private fun projectMessageMutation(projection: MessageMutationProjection) {
-        _uiState.update { state ->
-            when (projection) {
-                is MessageMutationProjection.Remove -> state.copy(
-                    messages = state.messages.filterNot { it.id == projection.messageId },
-                )
-                is MessageMutationProjection.Set -> {
-                    val message = projection.message
-                    val messages = if (state.messages.any { it.id == message.id }) {
-                        state.messages.map { if (it.id == message.id) message else it }
-                    } else {
-                        mergeMessages(state.messages, listOf(message))
-                    }
-                    state.copy(messages = messages)
-                }
-            }
-        }
+        _uiState.update { state -> timelineStateController.applyMutation(state, projection) }
     }
 
     private fun applyMessageMutationOutcome(
@@ -5588,15 +5466,7 @@ fun sendCurrentLocation() {
         end: Float
     ) {
         _uiState.update { state ->
-            val previous = state.fileTransferProgress[messageId] ?: -1f
-            val progress = com.maodouchat.attachment.AttachmentProgressPolicy.mapSegmentProgress(
-                completed = completed,
-                total = total,
-                start = start,
-                end = end,
-                previousPublished = previous
-            ) ?: return@update state
-            state.copy(fileTransferProgress = state.fileTransferProgress + (messageId to progress))
+            mediaStateController.updateSegmentProgress(state, messageId, completed, total, start, end)
         }
     }
 
@@ -5620,17 +5490,7 @@ fun sendCurrentLocation() {
 
     private fun refreshIdentitySafetyState(contactId: String) {
         if (_uiState.value.chat?.isGroup == true) {
-            _uiState.update {
-                it.copy(
-                    identityWarning = null,
-                    safetyCode = null,
-                    trustState = SignalProtocol.IdentityTrustState.TRUSTED,
-                    deviceSafetyStates = emptyList(),
-                    isLoadingDeviceSafety = false,
-                    deviceSafetyWarning = null,
-                    canVerifyIdentity = false
-                )
-            }
+            _uiState.update(groupSecurityStateController::resetDirectIdentityForGroup)
             return
         }
         if (contactId.isBlank()) return
