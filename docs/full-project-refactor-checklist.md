@@ -203,9 +203,9 @@ Gate：所有成员离线、单成员群、新设备、踢人、连续 revision�
 
 当前状态：`[~]`。已有 `OutgoingMessageCoordinator`，页面仍保留多套发送入口。
 
-- [ ] `ConversationCommandFacade` 成为文本、内联消息和重试的唯一 UI 入口。
-- [ ] `OutgoingConversationResolver` 唯一负责本地会话 ID、首次直聊创建和 crypto readiness。
-- [ ] 一次 intent 只允许生成一个 local message 和一个 outbox command。
+- [~] `ConversationCommandFacade` 成为文本、内联消息和重试的唯一 UI 入口（契约已冻结，实现与接线待做）。
+- [~] `OutgoingConversationResolver` 唯一负责本地会话 ID、首次直聊创建和 crypto readiness（契约已冻结）。
+- [~] 一次 intent 只允许生成一个 local message 和一个 outbox command（`SendMessageCommand.idempotencyKey` 契约已定义）。
 - [ ] 发送提交后的索引、通知、唤醒失败只记录 convergence warning。
 - [ ] 删除 `sendMessage`、`sendGroupTextMessage`、页面内 encrypt/enqueue 等重复实现。
 
