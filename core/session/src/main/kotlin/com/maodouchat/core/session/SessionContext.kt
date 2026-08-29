@@ -1,23 +1,11 @@
 package com.maodouchat.core.session
 
-import com.maodouchat.core.model.AccountId
-
-/**
- * Immutable account identity captured at command submission time.
- * Long-running work must compare this generation before persisting results.
- */
+/** 冻结会话上下文：认证会话的最小稳定快照，供领域层只读注入。 */
 data class SessionContext(
-    val accountId: AccountId,
-    val generation: Long,
-    val accessToken: String,
+    val userId: String,
+    val deviceId: Int,
 ) {
-    init {
-        require(generation >= 0L) { "generation must not be negative" }
-        require(accessToken.isNotBlank()) { "accessToken must not be blank" }
+    companion object {
+        val EMPTY = SessionContext(userId = "", deviceId = 0)
     }
-}
-
-interface SessionContextProvider {
-    fun current(): SessionContext?
-    fun isCurrent(context: SessionContext): Boolean
 }
