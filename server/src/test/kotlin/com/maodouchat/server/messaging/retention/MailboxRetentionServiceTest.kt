@@ -78,6 +78,18 @@ class MailboxRetentionServiceTest {
         )
         initDatabase()
         transaction {
+            Users.insert {
+                it[id] = "sender"
+                it[name] = "Sender"
+                it[email] = "sender@example.com"
+                it[passwordHash] = "test"
+            }
+            Users.insert {
+                it[id] = "recipient"
+                it[name] = "Recipient"
+                it[email] = "recipient@example.com"
+                it[passwordHash] = "test"
+            }
             Chats.insert {
                 it[id] = "chat-active"
                 it[isGroup] = false
