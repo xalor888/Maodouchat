@@ -649,9 +649,9 @@ Gate：并发举报、重复 disposition、权限矩阵、审计不可缺失和�
 
 ### B12 Bot、Developer API、Webhook 与 Service Message
 
-当前状态：`[ ]`。`BotApiRouting.kt` 5,260 行，是后端最大遗留之一。
+当前状态：`[~]`。BotCoreRouting（3454 行）已拆 13 个子模块，BotPresentationRouting 已开始拆分（→ BotPresentationWidgetsRouting）；webhook outbox/worker lease、GroupMembershipService 统一等仍未做。
 
-- [ ] 按 bot-auth、management、updates、messaging、group-admin、media 拆模块。
+- [~] 按 bot-auth、management、updates、messaging、group-admin、media 拆模块（BotCore→13 模块 + BotPresentation 开始拆，共 14 个 Bot 子模块；仍有约 90 个端点待拆）。
 - [ ] Developer Console 与公开 Bot API 分离。
 - [ ] webhook 使用数据库 outbox、worker lease、退避、死信和重放。
 - [ ] Bot 群操作调用统一 GroupMembershipService。
