@@ -9,8 +9,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 
 /**
- * 主题风格家族。产品只留一档 MAODOU（白底液态玻璃）。
- * 旧 TG id 读入时一律归一到 MAODOU，保持悬浮胶囊底栏。
+ * 主题风格家族。MAODOU（白底液态玻璃）为品牌默认；TG_* 为 Telegram/Nekogram 扁平主题，
+ * 色板见下方 Tg*Scheme/Palette（已按 WCAG 4.5:1 校准）。
  */
 enum class ThemeFamily(val id: String) {
     MAODOU("maodou"),
@@ -18,11 +18,16 @@ enum class ThemeFamily(val id: String) {
     TG_MIDNIGHT("tg_midnight"),
     TG_GRAPHITE("tg_graphite");
 
-    val isLiquidGlass: Boolean get() = true
-    val isTelegram: Boolean get() = false
+    val isLiquidGlass: Boolean get() = this == MAODOU
+    val isTelegram: Boolean get() = this != MAODOU
 
     companion object {
-        fun normalize(@Suppress("UNUSED_PARAMETER") raw: String?): ThemeFamily = MAODOU
+        fun normalize(raw: String?): ThemeFamily = when (raw?.trim()?.lowercase()) {
+            "tg_classic", "tg", "telegram", "telegram_classic" -> TG_CLASSIC
+            "tg_midnight", "midnight" -> TG_MIDNIGHT
+            "tg_graphite", "graphite" -> TG_GRAPHITE
+            else -> MAODOU
+        }
 
         val ALL: List<ThemeFamily> = entries
         val PICKABLE: List<ThemeFamily> = listOf(MAODOU)
@@ -353,8 +358,8 @@ private fun relativeLuminance(color: Color): Float {
     return 0.2126f * lin(color.red) + 0.7152f * lin(color.green) + 0.0722f * lin(color.blue)
 }
 
-/** 解析当前主题家族 + 深浅 → 完整绘制参数。产品只使用 MAODOU 白底/近黑。 */
-fun resolveThemePaint(@Suppress("UNUSED_PARAMETER") family: ThemeFamily, dark: Boolean): ThemePaint {
+/** 解析当前主题家族 + 深浅 → 完整绘制参数。MAODOU 为白底液态玻璃；TG_* 为 Telegram 扁平主题。 */
+fun resolveThemePaint(family: ThemeFamily, dark: Boolean): ThemePaint {
     val maodou = ThemePaint(
         colorScheme = if (dark) MaodouDarkScheme else MaodouLightScheme,
         chatPalette = if (dark) DarkChatPalette else LightChatPalette,
@@ -364,5 +369,27 @@ fun resolveThemePaint(@Suppress("UNUSED_PARAMETER") family: ThemeFamily, dark: B
             SentBubbleSpec(Color(0xFFF2F2F2), Color(0xFF1A1A1A), Color(0x991A1A1A))
         }
     )
-    return maodou
+    if (!family.isTelegram) return maodou
+
+    // TG 浅色发送气泡用经典浅绿 #EFFDDE（配深墨字）；TG 深色沿用近黑灰气泡（配浅字）。
+    val tgLightSent = SentBubbleSpec(Color(0xFFEFFDDE), Color(0xFF1A1A1A), Color(0x991A1A1A))
+    val tgDarkSent = SentBubbleSpec(Color(0xFF2A2A2A), Color(0xFFF2F2F2), Color(0xB3F2F2F2))
+    return when (family) {
+        ThemeFamily.TG_CLASSIC -> ThemePaint(
+            colorScheme = if (dark) TgDarkScheme else TgClassicScheme,
+            chatPalette = if (dark) TgDarkPalette else TgClassicPalette,
+            sentBubbleSpec = if (dark) tgDarkSent else tgLightSent,
+        )
+        ThemeFamily.TG_MIDNIGHT -> ThemePaint(
+            colorScheme = if (dark) TgMidnightScheme else TgClassicScheme,
+            chatPalette = if (dark) TgMidnightPalette else TgClassicPalette,
+            sentBubbleSpec = if (dark) tgDarkSent else tgLightSent,
+        )
+        ThemeFamily.TG_GRAPHITE -> ThemePaint(
+            colorScheme = if (dark) TgGraphiteScheme else TgClassicScheme,
+            chatPalette = if (dark) TgGraphitePalette else TgClassicPalette,
+            sentBubbleSpec = if (dark) tgDarkSent else tgLightSent,
+        )
+        ThemeFamily.MAODOU -> maodou
+    }
 }

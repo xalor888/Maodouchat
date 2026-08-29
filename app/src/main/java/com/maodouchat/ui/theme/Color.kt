@@ -146,7 +146,7 @@ object ChatBubbleColorPalette {
 
     fun normalize(raw: String?): String {
         val id = raw?.trim()?.lowercase().orEmpty()
-        return if (id in setOf(BLUE, GREEN, PURPLE, ORANGE, PINK, TEAL)) id else BLUE
+        return if (id in setOf(BLUE, GREEN, PURPLE, ORANGE, PINK, TEAL)) id else GREEN
     }
 
     /** 发送气泡渐变（浅色端略亮，保留原蓝色梯度观感）。 */
@@ -162,7 +162,7 @@ object ChatBubbleColorPalette {
 }
 
 /** 当前会话的发送气泡颜色（默认品牌蓝；由设置页「聊天气泡颜色」与账号偏好控制）。 */
-val LocalChatBubbleColor = androidx.compose.runtime.staticCompositionLocalOf { Color(0xFFF2F2F2) }
+val LocalChatBubbleColor = androidx.compose.runtime.staticCompositionLocalOf { ChatBubbleColorPalette.light(ChatBubbleColorPalette.GREEN) }
 
 // ─── Story / Moment Ring Gradient ───────────────────────────
 val StoryRingGradient = listOf(

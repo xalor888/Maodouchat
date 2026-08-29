@@ -52,7 +52,8 @@ object ChatAppearancePolicy {
 
     /** 浅色模式下的壁纸底色；DEFAULT 返回 null 表示用主题默认。 */
     fun wallpaperColorLight(preset: ChatWallpaperPreset): Color? = when (preset) {
-        ChatWallpaperPreset.DEFAULT -> null
+        // 默认壁纸 = Telegram 式浅蓝，告别灰白死气
+        ChatWallpaperPreset.DEFAULT -> Color(0xFFDBE7F3)
         ChatWallpaperPreset.MINT -> Color(0xFFE8F6F1)
         ChatWallpaperPreset.LAVENDER -> Color(0xFFF0ECFA)
         ChatWallpaperPreset.SAND -> Color(0xFFF7F1E6)
@@ -71,7 +72,8 @@ object ChatAppearancePolicy {
     }
 
     fun wallpaperColorDark(preset: ChatWallpaperPreset): Color? = when (preset) {
-        ChatWallpaperPreset.DEFAULT -> null
+        // 默认深色壁纸 = TG 经典深蓝 #0E1621
+        ChatWallpaperPreset.DEFAULT -> Color(0xFF0E1621)
         ChatWallpaperPreset.MINT -> Color(0xFF14241F)
         ChatWallpaperPreset.LAVENDER -> Color(0xFF1C1830)
         ChatWallpaperPreset.SAND -> Color(0xFF2A241A)

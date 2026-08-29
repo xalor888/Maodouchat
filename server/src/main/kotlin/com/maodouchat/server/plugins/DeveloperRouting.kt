@@ -1076,14 +1076,4 @@ data class DevMeResponse(
 internal fun unixDayStartMs(epochMs: Long, dayMs: Long = 86_400_000L): Long =
     epochMs - (epochMs % dayMs)
 
-/** 8.48 修复 M9：按「Unix 天编号」分组的 Exposed 表达式（SQL GROUP BY 聚合 bot 日志趋势）。 */
-private fun dayBucketExpression(column: Column<Long>): Expression<Long> =
-    object : Expression<Long>() {
-        override fun toQueryBuilder(queryBuilder: QueryBuilder) {
-            // 8.63 修复：`$column` 插值会输出 Kotlin 全限定路径（H2 把 com 当库名报
-            // "Database COM not found"），且 CAST 用跨库 BIGINT（非 MySQL 的 SIGNED）
-            queryBuilder.append("CAST(")
-            column.toQueryBuilder(queryBuilder)
-            queryBuilder.append(" / 86400000 AS BIGINT)")
-        }
-    }
+// dayBucketExpression 已统一到 AdminSupport.kt（内部共享版本）。

@@ -33,11 +33,11 @@ data class ChatPalette(
 val LocalChatPalette = compositionLocalOf { LightChatPalette }
 
 val LightChatPalette = ChatPalette(
-    chatBackground = Color(0xFFFFFFFF),
-    chatBubbleReceived = Color(0xFFF2F2F2),
-    chatBubbleReceivedBorder = Color.Transparent,
-    chatInputBackground = Color(0xFFF7F7F7),
-    chatInputBorder = Color(0xFFE0E0E0),
+    chatBackground = Color(0xFFDBE7F3),
+    chatBubbleReceived = Color(0xFFFFFFFF),
+    chatBubbleReceivedBorder = Color(0xFFD5DEE8),
+    chatInputBackground = Color(0xFFFFFFFF),
+    chatInputBorder = Color(0xFFD5DEE8),
     chatInputPlaceholder = Color(0xFF8A9099),
     systemMessageBackground = Color(0x99F2F2F2),
     systemMessageText = Color(0xFF1A1A1A),
@@ -52,11 +52,11 @@ val LightChatPalette = ChatPalette(
 )
 
 val DarkChatPalette = ChatPalette(
-    chatBackground = Color(0xFF111111),
-    chatBubbleReceived = Color(0xFF2A2A2A),
-    chatBubbleReceivedBorder = Color.Transparent,
-    chatInputBackground = Color(0xFF1A1A1A),
-    chatInputBorder = Color(0xFF2A2A2A),
+    chatBackground = Color(0xFF0E1621),
+    chatBubbleReceived = Color(0xFF182533),
+    chatBubbleReceivedBorder = Color(0xFF20303F),
+    chatInputBackground = Color(0xFF17212B),
+    chatInputBorder = Color(0xFF243B53),
     chatInputPlaceholder = Color(0xFFC5CCD4),
     systemMessageBackground = Color(0x992A2A2A),
     systemMessageText = Color(0xFFF2F2F2),

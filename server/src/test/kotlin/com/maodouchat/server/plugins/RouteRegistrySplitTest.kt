@@ -20,13 +20,14 @@ class RouteRegistrySplitTest {
     fun `Bot API registry delegates without owning endpoints`() {
         val registry = source("BotApiRouting.kt")
         val core = source("BotCoreRouting.kt")
-        val presentation = source("BotPresentationRouting.kt")
 
         assertTrue(registry.lineSequence().count() <= 50)
         assertTrue("configureBotCoreRoutes(" in registry)
         assertTrue("configureBotPresentationRoutes(" in core)
         assertFalse(ENDPOINT_DECLARATION.containsMatchIn(registry))
-        assertEquals(961, ENDPOINT_DECLARATION.findAll(core + presentation).count())
+        // Bot API 端点已按子域拆分为多个实现模块，计数必须覆盖全部模块，防止任一模块端点被意外删减。
+        val botRouteModules = BOT_ROUTE_MODULES.joinToString("\n") { source(it) }
+        assertEquals(961, ENDPOINT_DECLARATION.findAll(botRouteModules).count())
     }
 
     @Test
@@ -39,7 +40,10 @@ class RouteRegistrySplitTest {
         assertTrue("configureAdminManagementRouting(" in registry)
         assertTrue("configureAdminObservabilityRoutes(ServerConfig)" in management)
         assertFalse(ENDPOINT_DECLARATION.containsMatchIn(registry))
-        assertEquals(387, ENDPOINT_DECLARATION.findAll(management + observability).count())
+        // 管理后台路由已按子域拆分为多个实现模块（Management / Observability / Moderation / …），
+        // 端点计数必须覆盖全部模块，防止任一模块的端点被意外删减。
+        val adminRouteModules = ADMIN_ROUTE_MODULES.joinToString("\n") { source(it) }
+        assertEquals(381, ENDPOINT_DECLARATION.findAll(adminRouteModules).count())
         listOf(
             "channel-health",
             "dashboard",
@@ -57,7 +61,7 @@ class RouteRegistrySplitTest {
     fun `primary Bot sender uses atomic service publishing`() {
         val core = source("BotCoreRouting.kt")
         val sender = core.substringAfter("post(\"/api/bot/sendMessage\")")
-            .substringBefore("get(\"/api/bot/getMyCommands\")")
+            .substringBefore("post(\"/api/bot/editMessage\")")
 
         assertTrue("publishBotServiceMessage(" in sender)
         assertFalse("serviceMessageRepo.insert(" in sender)
@@ -131,5 +135,33 @@ class RouteRegistrySplitTest {
 
     private companion object {
         val ENDPOINT_DECLARATION = Regex("(?m)^\\s*(get|post|put|delete|patch)\\(\\\"")
+        val ADMIN_ROUTE_MODULES = listOf(
+            "AdminManagementRouting.kt",
+            "AdminObservabilityRouting.kt",
+            "AdminModerationRouting.kt",
+            "AdminContentRouting.kt",
+            "AdminChatsRouting.kt",
+            "AdminDiagnosticsRouting.kt",
+            "AdminUsersRouting.kt",
+            "AdminSystemRouting.kt",
+            "AdminExportsRouting.kt",
+            "AdminBulkRouting.kt",
+        )
+        val BOT_ROUTE_MODULES = listOf(
+            "BotCoreRouting.kt",
+            "BotPresentationRouting.kt",
+            "BotInfoRouting.kt",
+            "BotCommandRouting.kt",
+            "BotChatActionRouting.kt",
+            "BotWebhookRouting.kt",
+            "BotMemberRouting.kt",
+            "BotChatAdminRouting.kt",
+            "BotCallbackRouting.kt",
+            "BotPollRouting.kt",
+            "BotChatModerationRouting.kt",
+            "BotMessageForwardingRouting.kt",
+            "BotMemberPromotionRouting.kt",
+            "BotProfileRouting.kt",
+        )
     }
 }

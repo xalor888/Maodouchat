@@ -26,11 +26,15 @@ class AdminNavTabsRegressionTest {
 
     @Test
     fun `admin js still exposes the e2e selector ids used by each remaining tab`() {
-        val js = requireNotNull(javaClass.classLoader.getResource("admin/admin.js")) {
-            "admin/admin.js missing from classpath"
-        }.readText()
+        // Admin 前端已模块化拆分（admin-core/admin-ops 等），selector 只需保证
+        // 在所有已发布 JS 资源的并集里仍存在，避免重构时误删 E2E 依赖。
+        val js = ADMIN_JS_FILES.joinToString("\n") { name ->
+            requireNotNull(javaClass.classLoader.getResource("admin/$name")) {
+                "admin/$name missing from classpath"
+            }.readText()
+        }
         for (needle in E2E_SELECTOR_NEEDLES) {
-            assertTrue(js.contains(needle), "admin.js must still emit $needle")
+            assertTrue(js.contains(needle), "admin JS must still emit $needle")
         }
     }
 
@@ -49,6 +53,7 @@ class AdminNavTabsRegressionTest {
             "diagnostics",
             "audit",
         )
+        val ADMIN_JS_FILES = listOf("admin.js", "admin-ops.js", "admin-core.js", "admin-theme.js", "admin-branding.js")
         val E2E_SELECTOR_NEEDLES = listOf(
             "id=\"search-btn-' + kind + '\"",
             "id=\"filter-reports\"",

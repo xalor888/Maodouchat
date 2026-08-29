@@ -141,9 +141,21 @@
     });
   }
 
+  function buildThemeToggle() {
+    var btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      set(LS.theme, next);
+      syncSunMoon(next === 'light');
+    });
+  }
+
   function init() {
     buildPopover();
     buildButton();
+    buildThemeToggle();
     syncSunMoon(document.documentElement.getAttribute('data-theme') === 'light');
   }
   if (document.readyState === 'loading') {

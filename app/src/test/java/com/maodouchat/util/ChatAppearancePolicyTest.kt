@@ -1,8 +1,8 @@
 package com.maodouchat.util
 
+import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ChatAppearancePolicyTest {
@@ -15,8 +15,9 @@ class ChatAppearancePolicyTest {
     }
 
     @Test
-    fun `default wallpaper has no override color`() {
-        assertNull(ChatAppearancePolicy.wallpaperColorLight(ChatWallpaperPreset.DEFAULT))
+    fun `default wallpaper uses telegram light blue`() {
+        // 默认壁纸已对齐 Telegram 浅蓝 #DBE7F3（不再返回 null 用主题默认灰白）
+        assertEquals(Color(0xFFDBE7F3), ChatAppearancePolicy.wallpaperColorLight(ChatWallpaperPreset.DEFAULT))
         assertNotNull(ChatAppearancePolicy.wallpaperColorLight(ChatWallpaperPreset.ROSE))
     }
 

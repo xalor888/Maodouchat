@@ -82,7 +82,7 @@ object ChatAppearancePreferences {
 
     /** 聊天气泡颜色 id（见 ChatBubbleColorPalette）。 */
     fun getBubbleColor(context: Context): String {
-        val userId = currentUserId(context) ?: return com.maodouchat.ui.theme.ChatBubbleColorPalette.BLUE
+        val userId = currentUserId(context) ?: return com.maodouchat.ui.theme.ChatBubbleColorPalette.GREEN
         val raw = prefs(context).getString(key(KEY_BUBBLE_COLOR, userId), null)
         return com.maodouchat.ui.theme.ChatBubbleColorPalette.normalize(raw)
     }

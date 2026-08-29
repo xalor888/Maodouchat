@@ -16,12 +16,10 @@ import kotlinx.serialization.json.Json
  */
 object MediaCache {
     private const val MAX_INLINE_MEDIA_BYTES = 1_200_000L
-    private const val MAX_INLINE_MEDIA_BASE64_CHARS = 1_600_000
     private const val MAX_CACHE_BYTES = 360L * 1024L * 1024L
     private const val MAX_CACHE_AGE_MS = 21L * 24L * 60L * 60L * 1000L
     private const val CACHE_DIR = "maodouchat_media"
     private const val SECRET_CACHE_DIR = "maodouchat_media_secret"
-    private const val FILE_PAYLOAD_KIND = "maodouchat-file-v1"
     private const val ATTACHMENT_PAYLOAD_KIND = "maodouchat-attachment-v1"
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
@@ -29,12 +27,6 @@ object MediaCache {
         val fileName: String,
         val mimeType: String,
         val sizeBytes: Long
-    )
-
-    data class RestoredMedia(
-        val uri: String,
-        val fileMetadata: LocalFileMetadata? = null,
-        val attachmentReference: EncryptedAttachmentReference? = null
     )
 
     @Serializable
@@ -50,15 +42,6 @@ object MediaCache {
         val mimeType: String,
         val plainSize: Long,
         val durationMs: Long? = null
-    )
-
-    @Serializable
-    private data class EncryptedFilePayload(
-        val kind: String = FILE_PAYLOAD_KIND,
-        val dataBase64: String,
-        val fileName: String,
-        val mimeType: String,
-        val sizeBytes: Long
     )
 
     fun uriToRawBase64(context: Context, uri: Uri, maxBytes: Long = MAX_INLINE_MEDIA_BYTES): String? {
@@ -107,31 +90,6 @@ object MediaCache {
         )
     }
 
-    fun restoreDecryptedMedia(
-        context: Context,
-        plaintext: String,
-        messageId: String,
-        type: MessageType,
-        secretChatId: String? = null
-    ): RestoredMedia? {
-        if (type in setOf(MessageType.FILE, MessageType.IMAGE, MessageType.GIF, MessageType.VIDEO, MessageType.VOICE)) {
-            decodeEncryptedAttachmentReference(plaintext)?.let { reference ->
-                return RestoredMedia(
-                    uri = attachmentUri(reference.attachmentId),
-                    fileMetadata = LocalFileMetadata(reference.fileName, reference.mimeType, reference.plainSize),
-                    attachmentReference = reference
-                )
-            }
-        }
-        val payload = if (type == MessageType.FILE) decodeEncryptedFilePayload(plaintext) else null
-        val base64 = payload?.dataBase64 ?: plaintext
-        val metadata = payload?.let {
-            LocalFileMetadata(sanitizeFileName(it.fileName), it.mimeType.lowercase().take(100), it.sizeBytes)
-        }
-        val uri = writeBase64ToCache(context, base64, messageId, type, metadata?.fileName, secretChatId) ?: return null
-        return RestoredMedia(uri, metadata)
-    }
-
     fun encodeEncryptedAttachmentReference(reference: EncryptedAttachmentReference): String {
         if (!isValidAttachmentReference(reference)) {
             throw AttachmentCryptoException(AttachmentCryptoFailure.INVALID_REFERENCE)
@@ -175,38 +133,6 @@ object MediaCache {
                 )
             }
         }
-    }
-
-    fun writeBase64ToCache(
-        context: Context,
-        base64: String,
-        messageId: String,
-        type: MessageType,
-        originalFileName: String? = null,
-        secretChatId: String? = null
-    ): String? {
-        return runCatching {
-            if (base64.length > MAX_INLINE_MEDIA_BASE64_CHARS) {
-                Log.w(TAG, "Base64 media too large: ${base64.length} chars")
-                return null
-            }
-            val bytes = Base64.decode(base64, Base64.NO_WRAP)
-            if (bytes.size.toLong() > MAX_INLINE_MEDIA_BYTES) {
-                Log.w(TAG, "Decoded media too large: ${bytes.size} bytes")
-                return null
-            }
-            val dir = if (!secretChatId.isNullOrBlank()) {
-                secretChatDir(context, secretChatId)?.apply { mkdirs() } ?: return@runCatching null
-            } else {
-                File(context.cacheDir, CACHE_DIR).apply { mkdirs() }
-            }
-            cleanupMediaCache(context)
-            val safeId = messageId.replace(Regex("[^A-Za-z0-9_-]"), "_")
-            val file = File(dir, "$safeId${type.extension(originalFileName)}")
-            file.writeBytes(bytes)
-            cleanupMediaCache(context)
-            file.toUri().toString()
-        }.onFailure { Log.w(TAG, "writeBase64ToCache failed", it) }.getOrNull()
     }
 
     fun copyFileToCache(
@@ -436,18 +362,6 @@ object MediaCache {
     )
 
     private const val TAG = "MediaCache"
-
-    private fun decodeEncryptedFilePayload(text: String): EncryptedFilePayload? {
-        if (!text.startsWith('{') || text.length > MAX_INLINE_MEDIA_BASE64_CHARS + 1_024) return null
-        return runCatching { json.decodeFromString(EncryptedFilePayload.serializer(), text) }
-            .getOrNull()
-            ?.takeIf {
-                it.kind == FILE_PAYLOAD_KIND &&
-                    it.dataBase64.isNotBlank() &&
-                    it.dataBase64.length <= MAX_INLINE_MEDIA_BASE64_CHARS &&
-                    it.sizeBytes in 0L..MAX_INLINE_MEDIA_BYTES
-            }
-    }
 
     private fun isValidAttachmentReference(reference: EncryptedAttachmentReference): Boolean {
         return reference.kind == ATTACHMENT_PAYLOAD_KIND &&

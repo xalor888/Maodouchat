@@ -15,6 +15,7 @@ object ThemePreferences {
     private const val PREFS = "general_settings"
     private const val KEY_THEME = "theme_mode"
     private const val KEY_THEME_STYLE = "theme_style"
+    private const val DEFAULT_THEME_STYLE = "tg_classic"
     private const val KEY_ACCENT = "accent_color"
     // 9.211：定时深色（TG 式）——本地分钟数时段，默认 21:00 → 07:00
     private const val KEY_NIGHT_START = "night_start_minutes"
@@ -28,7 +29,7 @@ object ThemePreferences {
     private var seeded = false
     private val _mode = MutableStateFlow("system")
     val mode: StateFlow<String> = _mode.asStateFlow()
-    private val _family = MutableStateFlow("maodou")
+    private val _family = MutableStateFlow(DEFAULT_THEME_STYLE)
     val family: StateFlow<String> = _family.asStateFlow()
     private val _accent = MutableStateFlow("none")
     val accent: StateFlow<String> = _accent.asStateFlow()
@@ -44,7 +45,7 @@ object ThemePreferences {
             _mode.value = normalize(prefs.getString(KEY_THEME, "system"))
         }
         if (key == null || key == KEY_THEME_STYLE) {
-            _family.value = normalizeStyle(prefs.getString(KEY_THEME_STYLE, "maodou"))
+            _family.value = normalizeStyle(prefs.getString(KEY_THEME_STYLE, DEFAULT_THEME_STYLE))
         }
         if (key == null || key == KEY_ACCENT) {
             _accent.value = normalizeAccent(prefs.getString(KEY_ACCENT, "none"))
@@ -66,7 +67,7 @@ object ThemePreferences {
             if (seeded) return
             val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             _mode.value = normalize(prefs.getString(KEY_THEME, "system"))
-            val storedStyle = prefs.getString(KEY_THEME_STYLE, "maodou")
+            val storedStyle = prefs.getString(KEY_THEME_STYLE, DEFAULT_THEME_STYLE)
             val normalizedStyle = normalizeStyle(storedStyle)
             if (storedStyle != normalizedStyle) {
                 prefs.edit().putString(KEY_THEME_STYLE, normalizedStyle).apply()
@@ -119,8 +120,13 @@ object ThemePreferences {
         _family.value = normalized
     }
 
-    /** 主题风格只留 maodou；云端 leftover tg_* 一律归一，保持液态玻璃悬浮底栏。 */
-    fun normalizeStyle(@Suppress("UNUSED_PARAMETER") raw: String?): String = "maodou"
+    /** 主题风格归一：maodou 默认，tg_* 保留对应 Telegram 扁平主题，未知回落 maodou。 */
+    fun normalizeStyle(raw: String?): String = when (raw?.trim()?.lowercase()) {
+        "tg_classic", "tg", "telegram", "telegram_classic" -> "tg_classic"
+        "tg_midnight", "midnight" -> "tg_midnight"
+        "tg_graphite", "graphite" -> "tg_graphite"
+        else -> "maodou"
+    }
 
     fun getAccent(context: Context): String {
         ensureSeeded(context)

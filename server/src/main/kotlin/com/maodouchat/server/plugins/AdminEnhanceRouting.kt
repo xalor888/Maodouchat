@@ -938,36 +938,13 @@ object DeviceEventConsistencyGuard {
 // ─────────────────────────────────────────────
 // 内部辅助
 // ─────────────────────────────────────────────
-
-private suspend fun ApplicationCall.isAdminUser(): Boolean {
-    val principal = principal<JWTPrincipal>() ?: return false
-    val userId = principal.payload.subject
-    return AdminAccess.isAdmin(userId)
-}
-
-private fun recordAdminAudit(actorId: String, action: String, detail: String) {
-    transaction {
-        ModerationAuditLog.insert {
-            it[ModerationAuditLog.actorId] = actorId
-            it[ModerationAuditLog.action] = action.take(40)
-            it[ModerationAuditLog.detail] = detail.take(500)
-            it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-        }
-    }
-}
+// isAdminUser / recordAdminAudit / csvCell 已统一到 AdminSupport.kt（内部共享版本）。
 
 private val enhanceJson = Json { ignoreUnknownKeys = true }
 
 private suspend inline fun <reified T> ApplicationCall.receiveEnhanceJson(): T? {
     val body = receiveBoundedText(MAX_ENHANCE_JSON_BODY_CHARS) ?: return null
     return runCatching { enhanceJson.decodeFromString<T>(body) }.getOrNull()
-}
-
-private fun csvCell(value: Any?): String {
-    val raw = value?.toString() ?: ""
-    // 公式注入防护须按「去除前导空白后的首字符」判定（Excel 忽略前导空白/制表符求值）
-    val formulaSafe = if (raw.trimStart().firstOrNull() in setOf('=', '+', '-', '@')) "'$raw" else raw
-    return "\"${formulaSafe.replace("\"", "\"\"")}\""
 }
 
 /** 时间范围导出：仅导出元数据/平台明文公告，绝不导出 E2EE 消息密文。返回 CSV 与实际行数。 */

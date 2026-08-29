@@ -48,181 +48,6 @@ import kotlinx.coroutines.withContext
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 
-internal const val GROUP_OWNER_TRANSFER_REQUIRED = "GROUP_OWNER_TRANSFER_REQUIRED"
-
-internal fun requiresGroupOwnershipTransfer(error: Throwable?): Boolean =
-    (error as? ApiException)?.serverCode == GROUP_OWNER_TRANSFER_REQUIRED
-
-/** Notification / nudge sender label: nickname → name → truncated id, never a blank title. */
-internal fun listSenderLabel(chat: Chat?, senderId: String, unknownLabel: String = ""): String {
-    val fromParticipant = chat?.participants
-        ?.firstOrNull { it.id == senderId }
-        ?.displayName
-        ?.trim()
-        ?.takeIf { it.isNotEmpty() }
-    val truncated = com.maodouchat.ui.screen.chatdetail.truncatedSenderId(senderId)
-    return fromParticipant ?: truncated ?: unknownLabel.ifBlank { senderId }
-}
-
-data class ChatListUiState(
-    val chats: List<Chat> = emptyList(),
-    val searchQuery: String = "",
-    val messageMatchedChatIds: Set<String> = emptySet(),
-    val isLoading: Boolean = false,
-    val errorMessage: String? = null,
-    /** Non-blocking banner when realtime WS is down (cleared on Connected). */
-    val realtimeBanner: String? = null,
-    val ownerTransferRequiredChatId: String? = null,
-    val selectedTab: Int = 0,
-    val missedCalls: List<com.maodouchat.data.model.MissedCall> = emptyList(),
-    val drafts: Map<String, ChatDraftEntity> = emptyMap(),
-    /** 1.146：各会话待发送的本地定时消息数（chatId -> count） */
-    val scheduledByChat: Map<String, Int> = emptyMap(),
-    val showArchived: Boolean = false,
-    /** 本地会话文件夹；null/all 表示全部 */
-    val folders: List<com.maodouchat.util.ChatFolder> = emptyList(),
-    val selectedFolderId: String? = null,
-    /** 未读智能优先（本地排序，默认开） */
-    val unreadPriorityEnabled: Boolean = true,
-    /** 本地 PIN 锁定的会话 id */
-    val lockedChatIds: Set<String> = emptySet(),
-    /** 密聊会话 id（chatType=SECRET，双方同步的独立 1:1） */
-    val secretChatIds: Set<String> = emptySet(),
-    /** 从列表发起密聊成功后打开新会话 */
-    val createdSecretChatId: String? = null,
-    /** 正在删除中的会话 id，防止双击删除并发重复清理本地数据 */
-    val deletingChatIds: Set<String> = emptySet(),
-    /** 服务端活跃公告（未读 + 生效窗口内，已按优先级排序） */
-    val activeAnnouncements: List<com.maodouchat.notification.AnnouncementPolicy.AnnouncementData> = emptyList(),
-    /** 8.47：智能归档建议（纯本地启发式；采纳走现有归档流程） */
-    val archiveSuggestions: List<com.maodouchat.ai.AiArchiveSuggestion.Suggestion> = emptyList(),
-    /** 1.103：对端正在输入（chatId -> userId，3s 过期） */
-    val typingByChat: Map<String, String> = emptyMap(),
-    /** 1.165：身份密钥已变更（CHANGED）的对端 userId（本地 identity_trust 聚合，会话列表警告）。 */
-    val identityChangedUserIds: Set<String> = emptySet(),
-    /** 1.368：多选模式（批量置顶/已读/删除，对标 TG/微信会话列表长按多选） */
-    val selectionMode: Boolean = false,
-    /** 1.368：多选模式下已勾选的会话 id */
-    val selectedChatIds: Set<String> = emptySet(),
-    /** 本机最近一条可见消息的回执（chatId → 自己发出时才有）。不进 Room schema。 */
-    val receiptsByChat: Map<String, ChatListReceiptPolicy.Receipt> = emptyMap(),
-) {
-    val filteredChats: List<Chat>
-        get() {
-            val visible = chats.filter { it.archived == showArchived }
-            val folderFiltered = when {
-                selectedFolderId.isNullOrBlank() ->
-                    visible.filter { !com.maodouchat.security.SecretChatPolicy.excludeFromAllChats(it.isSecret) }
-                selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_GROUPS_ID ->
-                    visible.filter { it.isGroup }
-                selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_DIRECT_ID ->
-                    visible.filter { !it.isGroup && !it.isSecret }
-                selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID ->
-                    visible.filter {
-                        !it.isSecret &&
-                            com.maodouchat.util.ChatFolderPolicy.isUnreadChat(it.unreadCount, it.markedUnread)
-                    }
-                selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_SECRET_ID ->
-                    visible.filter { it.isSecret || it.id in secretChatIds }
-                selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_LOCKED_ID ->
-                    visible.filter { it.id in lockedChatIds && !it.isSecret }
-                else -> {
-                    val folder = folders.firstOrNull { it.id == selectedFolderId }
-                    if (folder == null) visible.filter { !it.isSecret }
-                    else {
-                        val ids = folder.chatIds.toSet()
-                        visible.filter { it.id in ids && !it.isSecret }
-                    }
-                }
-            }
-            val matched = if (searchQuery.isBlank()) folderFiltered else folderFiltered.filter { chat ->
-                val name = chat.groupName
-                    ?: chat.participants.firstOrNull()?.displayName
-                    ?: chat.participants.firstOrNull()?.name
-                    ?: ""
-                val nameHit = name.contains(searchQuery, ignoreCase = true) ||
-                    chat.participants.any { user ->
-                        user.displayName.contains(searchQuery, ignoreCase = true) ||
-                            user.name.contains(searchQuery, ignoreCase = true) ||
-                            (user.nickname?.contains(searchQuery, ignoreCase = true) == true) ||
-                            user.email.contains(searchQuery, ignoreCase = true)
-                    }
-                // PIN-locked chats: match by title/participants only; hide body/draft hits.
-                if (chat.id in lockedChatIds) return@filter nameHit
-                nameHit ||
-                    chat.lastMessage.contains(searchQuery, ignoreCase = true) ||
-                    drafts[chat.id]?.text?.contains(searchQuery, ignoreCase = true) == true ||
-                    chat.id in messageMatchedChatIds
-            }
-            return matched.sortedWith(
-                compareByDescending<Chat> { it.pinnedAt > 0 }
-                    .thenByDescending { it.pinnedAt }
-                    .thenByDescending { chat ->
-                        if (unreadPriorityEnabled) {
-                            com.maodouchat.util.UnreadPriorityPolicy.activityScore(
-                                lastMessageTime = chat.lastMessageTime,
-                                draftUpdatedAt = drafts[chat.id]?.updatedAt ?: 0L,
-                                unreadCount = chat.unreadCount,
-                                markedUnread = chat.markedUnread,
-                                muted = chat.notificationsMuted
-                            )
-                        } else {
-                            maxOf(chat.lastMessageTime, drafts[chat.id]?.updatedAt ?: 0L)
-                        }
-                    }
-                    // 1.244：时间相近时静音会话排后面（微信式；仅在未读优先关闭时生效）
-                    .thenBy { if (!unreadPriorityEnabled && it.notificationsMuted) 1 else 0 }
-            )
-        }
-
-    val unreadChatCount: Int
-        get() = com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
-            unreadCounts = chats.filter { !it.archived && !it.isSecret }.map { it.unreadCount },
-            markedUnreadFlags = chats.filter { !it.archived && !it.isSecret }.map { it.markedUnread }
-        )
-
-    val showUnreadPriorityHint: Boolean
-        get() = com.maodouchat.util.UnreadPriorityPolicy.shouldShowHint(
-            enabled = unreadPriorityEnabled,
-            totalUnreadChats = unreadChatCount,
-            isSearching = searchQuery.isNotBlank()
-        )
-
-    fun unreadInFolder(folderId: String): Int {
-        if (folderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_GROUPS_ID) {
-            return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
-                unreadCounts = chats.filter { !it.archived && it.isGroup }.map { it.unreadCount },
-                markedUnreadFlags = chats.filter { !it.archived && it.isGroup }.map { it.markedUnread }
-            )
-        }
-        if (folderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_DIRECT_ID) {
-            return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
-                unreadCounts = chats.filter { !it.archived && !it.isGroup && !it.isSecret }.map { it.unreadCount },
-                markedUnreadFlags = chats.filter { !it.archived && !it.isGroup && !it.isSecret }.map { it.markedUnread }
-            )
-        }
-        if (folderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID) {
-            return unreadChatCount
-        }
-        if (folderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_SECRET_ID) {
-            val secretVisible = chats.filter { !it.archived && (it.isSecret || it.id in secretChatIds) }
-            return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
-                unreadCounts = secretVisible.map { it.unreadCount },
-                markedUnreadFlags = secretVisible.map { it.markedUnread }
-            )
-        }
-        if (folderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_LOCKED_ID) {
-            val lockedVisible = chats.filter { !it.archived && it.id in lockedChatIds && !it.isSecret }
-            return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
-                unreadCounts = lockedVisible.map { it.unreadCount },
-                markedUnreadFlags = lockedVisible.map { it.markedUnread }
-            )
-        }
-        val folder = folders.firstOrNull { it.id == folderId } ?: return 0
-        val unreadMap = chats.filter { !it.isSecret }.associate { it.id to it.unreadCount }
-        return com.maodouchat.util.ChatFolderPolicy.unreadInFolder(folder, unreadMap)
-    }
-}
 
 class ChatListViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -297,6 +122,13 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
     private val _uiState = MutableStateFlow(ChatListUiState())
     val uiState: StateFlow<ChatListUiState> = _uiState.asStateFlow()
 
+    private val folderController = ChatFolderController(
+        context = application,
+        scope = viewModelScope,
+        tokenManager = tokenManager,
+        uiState = _uiState,
+    )
+
     // 设置开关（置顶/静音/归档/标未读）入口级重入保护：防止同帧连点发出方向相反的两笔请求
     private val settingsInFlight = mutableSetOf<String>()
 
@@ -343,8 +175,8 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     init {
-        loadFolders()
-        loadUnreadPriority()
+        folderController.loadFolders()
+        folderController.loadUnreadPriority()
         refreshLockedChats()
         refreshSecretChats()
         requestLoadChats(ChatListReloadPolicy.Trigger.INITIAL)
@@ -650,180 +482,23 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    private fun loadFolders() {
-        val folders = com.maodouchat.util.ChatFolderPreferences.getFolders(getApplication())
-        _uiState.update { it.copy(folders = folders) }
-        syncFoldersFromCloud()
-    }
+    fun refreshUnreadPriorityPreference() = folderController.refreshUnreadPriorityPreference()
 
-    /** 拉取云端文件夹并与本地合并（云端更新时间更新时优先云端，否则推本地）。 */
-    private fun syncFoldersFromCloud() {
-        val token = tokenManager.getToken().orEmpty()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank()) return
-        viewModelScope.launch {
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) return@launch
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            val remoteResult = ApiService.getChatFolders(liveToken)
-            val remoteError = remoteResult.exceptionOrNull()
-            if (remoteError is kotlinx.coroutines.CancellationException) throw remoteError
-            val remote = remoteResult.getOrNull() ?: return@launch
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) return@launch
-            val local = com.maodouchat.util.ChatFolderPreferences.getFolders(getApplication())
-            if (remote.folders.isEmpty() && local.isNotEmpty()) {
-                pushFoldersToCloud(local)
-                return@launch
-            }
-            if (remote.folders.isEmpty()) return@launch
-            val mapped = remote.folders.map { dto ->
-                com.maodouchat.util.ChatFolder(
-                    id = dto.id,
-                    name = dto.name,
-                    chatIds = dto.chatIds,
-                    sortOrder = dto.sortOrder
-                )
-            }.sortedBy { it.sortOrder }
-            com.maodouchat.util.ChatFolderPreferences.setFolders(getApplication(), mapped)
-            _uiState.update {
-                val selectedStillExists = it.selectedFolderId == null ||
-                    com.maodouchat.util.ChatFolderPolicy.isSystemFilter(it.selectedFolderId) ||
-                    mapped.any { folder -> folder.id == it.selectedFolderId }
-                it.copy(
-                    folders = mapped,
-                    selectedFolderId = if (selectedStillExists) it.selectedFolderId else null
-                )
-            }
-        }
-    }
+    fun setUnreadPriorityEnabled(enabled: Boolean) = folderController.setUnreadPriorityEnabled(enabled)
 
-    private fun pushFoldersToCloud(folders: List<com.maodouchat.util.ChatFolder>) {
-        val token = tokenManager.getToken().orEmpty()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank()) return
-        viewModelScope.launch {
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            ) return@launch
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            val payload = folders.map { folder ->
-                com.maodouchat.network.ChatFolderDto(
-                    id = folder.id,
-                    name = folder.name,
-                    sortOrder = folder.sortOrder,
-                    chatIds = folder.chatIds
-                )
-            }
-            val result = ApiService.putChatFolders(liveToken, payload)
-            val error = result.exceptionOrNull()
-            if (error is kotlinx.coroutines.CancellationException) throw error
-        }
-    }
+    fun selectFolder(folderId: String?) = folderController.selectFolder(folderId)
 
-    private fun loadUnreadPriority() {
-        refreshUnreadPriorityPreference()
-    }
+    fun createFolder(name: String): Boolean = folderController.createFolder(name)
 
-    /** 从设置页返回时同步开关（不外发）。 */
-    fun refreshUnreadPriorityPreference() {
-        val enabled = com.maodouchat.util.UnreadPriorityPreferences.isEnabled(getApplication())
-        _uiState.update { it.copy(unreadPriorityEnabled = enabled) }
-    }
+    fun renameFolder(folderId: String, name: String): Boolean = folderController.renameFolder(folderId, name)
 
-    fun setUnreadPriorityEnabled(enabled: Boolean) {
-        com.maodouchat.util.UnreadPriorityPreferences.setEnabled(getApplication(), enabled)
-        _uiState.update { it.copy(unreadPriorityEnabled = enabled) }
-    }
+    fun deleteFolder(folderId: String) = folderController.deleteFolder(folderId)
 
-    private fun persistFolders(folders: List<com.maodouchat.util.ChatFolder>) {
-        val secretIds = _uiState.value.secretChatIds +
-            _uiState.value.chats.filter { it.isSecret }.map { it.id }.toSet()
-        val sanitized = folders.map { folder ->
-            folder.copy(chatIds = folder.chatIds.filterNot { it in secretIds })
-        }
-        com.maodouchat.util.ChatFolderPreferences.setFolders(getApplication(), sanitized)
-        _uiState.update {
-            val selectedStillExists = it.selectedFolderId == null ||
-                com.maodouchat.util.ChatFolderPolicy.isSystemFilter(it.selectedFolderId) ||
-                sanitized.any { folder -> folder.id == it.selectedFolderId }
-            it.copy(
-                folders = sanitized,
-                selectedFolderId = if (selectedStillExists) it.selectedFolderId else null
-            )
-        }
-        pushFoldersToCloud(sanitized)
-    }
+    fun moveFolder(folderId: String, delta: Int): Boolean = folderController.moveFolder(folderId, delta)
 
-    fun selectFolder(folderId: String?) {
-        _uiState.update {
-            val id = folderId?.takeIf { raw -> raw.isNotBlank() }
-            // System filters and user folders both sticky for this session only
-            it.copy(selectedFolderId = id)
-        }
-    }
+    fun reorderFolder(folderId: String, targetIndex: Int): Boolean = folderController.reorderFolder(folderId, targetIndex)
 
-    fun createFolder(name: String): Boolean {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_FOLDERS)) {
-            return false
-        }
-        val next = com.maodouchat.util.ChatFolderPolicy.createFolder(_uiState.value.folders, name)
-            ?: return false
-        persistFolders(next)
-        return true
-    }
-
-    fun renameFolder(folderId: String, name: String): Boolean {
-        val next = com.maodouchat.util.ChatFolderPolicy.renameFolder(_uiState.value.folders, folderId, name)
-            ?: return false
-        persistFolders(next)
-        return true
-    }
-
-    fun deleteFolder(folderId: String) {
-        persistFolders(com.maodouchat.util.ChatFolderPolicy.deleteFolder(_uiState.value.folders, folderId))
-    }
-
-    /** 9.222：文件夹上下移（交换 sortOrder，本地+云端同步）。 */
-    fun moveFolder(folderId: String, delta: Int): Boolean {
-        val next = com.maodouchat.util.ChatFolderPolicy.moveFolder(_uiState.value.folders, folderId, delta)
-            ?: return false
-        persistFolders(next)
-        return true
-    }
-
-    /** 9.233：拖拽排序——把文件夹移到目标位置（插入语义，云端同步）。 */
-    fun reorderFolder(folderId: String, targetIndex: Int): Boolean {
-        val next = com.maodouchat.util.ChatFolderPolicy.reorderFolder(_uiState.value.folders, folderId, targetIndex)
-            ?: return false
-        persistFolders(next)
-        return true
-    }
-
-    fun moveChatToFolder(chatId: String, folderId: String?) {
-        if (chatId.isBlank()) return
-        val moving = _uiState.value.chats.firstOrNull { it.id == chatId }
-        if (moving?.isSecret == true || chatId in _uiState.value.secretChatIds) return
-        persistFolders(
-            com.maodouchat.util.ChatFolderPolicy.moveChatToFolder(
-                existing = _uiState.value.folders,
-                chatId = chatId,
-                targetFolderId = folderId
-            )
-        )
-    }
-
+    fun moveChatToFolder(chatId: String, folderId: String?) = folderController.moveChatToFolder(chatId, folderId)
     fun markMissedCallsRead() {
         val markOwnerUserId = currentUserIdStr
         if (

@@ -17,13 +17,13 @@ class ThemeStyleTest {
     @Test
     fun `normalize maps known ids and falls back to maodou`() {
         assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize("maodou"))
-        assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize("TG_Classic"))
-        assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize(" tg_midnight "))
-        assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize("tg_graphite"))
-        assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize("telegram"))
+        assertEquals(ThemeFamily.TG_CLASSIC, ThemeFamily.normalize("TG_Classic"))
+        assertEquals(ThemeFamily.TG_MIDNIGHT, ThemeFamily.normalize(" tg_midnight "))
+        assertEquals(ThemeFamily.TG_GRAPHITE, ThemeFamily.normalize("tg_graphite"))
+        assertEquals(ThemeFamily.TG_CLASSIC, ThemeFamily.normalize("telegram"))
         assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize(null))
         assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize("unknown"))
-        assertEquals("maodou", ThemePreferences.normalizeStyle("tg_midnight"))
+        assertEquals("tg_midnight", ThemePreferences.normalizeStyle("tg_midnight"))
         assertEquals("maodou", ThemePreferences.normalizeStyle("default"))
         assertEquals(listOf(ThemeFamily.MAODOU), ThemeFamily.PICKABLE)
     }
@@ -42,18 +42,23 @@ class ThemeStyleTest {
         assertEquals(Color(0xFF1A1A1A), light.content)
         assertEquals(Color(0xFF111111), darkPaint.colorScheme.background)
         assertEquals(Color(0xFF2A2A2A), dark!!.color)
-        assertEquals(Color(0xFFF2F2F2), lightPaint.chatPalette.chatBubbleReceived)
+        // 9.x：接收气泡对齐 Telegram 浅色白底带边框（发送气泡仍为灰墨色，见上一断言）
+        assertEquals(Color(0xFFFFFFFF), lightPaint.chatPalette.chatBubbleReceived)
     }
 
     @Test
-    fun `legacy tg ids still paint as maodou white theme`() {
+    fun `tg ids resolve to telegram flat theme`() {
         listOf(false, true).forEach { dark ->
             val paint = resolveThemePaint(ThemeFamily.normalize("tg_classic"), dark)
-            assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize("tg_classic"))
-            assertNotNull("maodou dark=$dark should have sent spec", paint.sentBubbleSpec)
+            assertEquals(ThemeFamily.TG_CLASSIC, ThemeFamily.normalize("tg_classic"))
+            assertNotNull("tg_classic dark=$dark should have sent spec", paint.sentBubbleSpec)
             if (!dark) {
                 assertEquals(Color(0xFFFFFFFF), paint.colorScheme.background)
-                assertEquals(Color(0xFFF2F2F2), paint.sentBubbleSpec!!.color)
+                assertEquals(Color(0xFFE7EBEE), paint.chatPalette.chatBackground)
+                assertEquals(Color(0xFFEFFDDE), paint.sentBubbleSpec!!.color)
+            } else {
+                assertEquals(Color(0xFF0E1621), paint.colorScheme.background)
+                assertEquals(Color(0xFF0E1621), paint.chatPalette.chatBackground)
             }
         }
     }

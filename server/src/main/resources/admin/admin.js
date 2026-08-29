@@ -4,10 +4,16 @@
 (function () {
   'use strict';
 
+  // ─── 共享框架（admin-core.js，单一真相源；见 window.Admin） ────────
+  var Admin = window.Admin;
+  var session = Admin.session; // { token, expiresAt } —— admin token 只存内存
+  var el = Admin.el, esc = Admin.esc, date = Admin.date, dateShort = Admin.dateShort;
+  var timeAgo = Admin.timeAgo, fmtBytes = Admin.fmtBytes, fmtDuration = Admin.fmtDuration;
+  var asList = Admin.asList, toast = Admin.toast, api = Admin.api;
+  var showConfirm = Admin.showConfirm, showPrompt = Admin.showPrompt;
+  var showSelect = Admin.showSelect, showForm = Admin.showForm;
+
   // ─── 状态 ───────────────────────────
-  var token = '';
-  var sessionExpiresAt = 0;
-  var sessionTimer = 0;
   var activeTab = 'dashboard';
   var page = { users: 0, chats: 0, posts: 0, comments: 0, reports: 0, audit: 0, 'risk-events': 0, 'ai-usage': 0, 'push-tokens': 0 };
   var pageSize = 25;
@@ -65,49 +71,7 @@
     });
   }
 
-  // ─── DOM 辅助 ───────────────────────
-  var el = function (id) { return document.getElementById(id); };
-  var esc = function (v) {
-    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-    });
-  };
-  var date = function (v) {
-    if (!v) return '—';
-    var d = new Date(v);
-    var pad = function (n) { return String(n).padStart(2, '0'); };
-    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-  };
-  var dateShort = function (v) {
-    if (!v) return '—';
-    var d = new Date(v);
-    var pad = function (n) { return String(n).padStart(2, '0'); };
-    return pad(d.getMonth() + 1) + '/' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-  };
-  var timeAgo = function (v) {
-    if (!v) return '—';
-    var diff = Date.now() - v;
-    if (diff < 60000) return Math.floor(diff / 1000) + ' 秒前';
-    if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前';
-    if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前';
-    return Math.floor(diff / 86400000) + ' 天前';
-  };
-  var fmtBytes = function (v) {
-    if (!v || v < 1024) return v + ' B';
-    if (v < 1048576) return (v / 1024).toFixed(1) + ' KB';
-    if (v < 1073741824) return (v / 1048576).toFixed(1) + ' MB';
-    return (v / 1073741824).toFixed(2) + ' GB';
-  };
-  var fmtDuration = function (ms) {
-    if (!ms) return '—';
-    var s = Math.floor(ms / 1000);
-    var d = Math.floor(s / 86400);
-    var h = Math.floor((s % 86400) / 3600);
-    var m = Math.floor((s % 3600) / 60);
-    if (d > 0) return d + '天 ' + h + '时';
-    if (h > 0) return h + '时 ' + m + '分';
-    return m + '分 ' + (s % 60) + '秒';
-  };
+  // DOM 辅助 / 格式化工具已迁至 admin-core.js（window.Admin），本文件通过顶部别名复用。
 
   // ─── 审计动作标签 ───────────────────
   var auditLabels = {
@@ -176,7 +140,7 @@
   };
   var dispositionTemplatesLoaded = false;
   async function ensureDispositionTemplates() {
-    if (dispositionTemplatesLoaded || !token) return;
+    if (dispositionTemplatesLoaded || !session.token) return;
     try {
       var data = await api('/api/admin/disposition-templates');
       if (data && data.banReasons && data.banReasons.length) {
@@ -188,67 +152,7 @@
     }
   }
 
-  // ─── Toast ──────────────────────────
-  function toast(msg, type) {
-    var t = el('toast');
-    t.className = 'toast' + (type ? ' toast-' + type : '');
-    t.querySelector('.toast-text').textContent = msg;
-    t.classList.remove('hidden');
-    clearTimeout(toast._timer);
-    toast._timer = setTimeout(function () { t.classList.add('hidden'); }, 3000);
-  }
-
-  // ─── API ────────────────────────────
-  async function api(path, opt) {
-    opt = opt || {};
-    opt.headers = Object.assign({ Authorization: 'Bearer ' + token }, opt.headers || {});
-    if (opt.body) opt.headers['Content-Type'] = 'application/json';
-    var r = await fetch(path, opt);
-    var text = await r.text();
-    var data = null;
-    if (text) { try { data = JSON.parse(text); } catch (e) { /* non-JSON response */ } }
-    if (!r.ok) throw new Error((data && data.error) || ('请求失败 ' + r.status));
-    return data;
-  }
-
-  function asList(data) {
-    if (Array.isArray(data)) return data;
-    if (!data || typeof data !== 'object') return [];
-    if (Array.isArray(data.items)) return data.items;
-    if (Array.isArray(data.rows)) return data.rows;
-    if (Array.isArray(data.users)) return data.users;
-    if (Array.isArray(data.reports)) return data.reports;
-    if (Array.isArray(data.events)) return data.events;
-    if (Array.isArray(data.rules)) return data.rules;
-    if (Array.isArray(data.posts)) return data.posts;
-    if (Array.isArray(data.comments)) return data.comments;
-    if (Array.isArray(data.chats)) return data.chats;
-    if (Array.isArray(data.messages)) return data.messages;
-    if (Array.isArray(data.announcements)) return data.announcements;
-    if (Array.isArray(data.logs)) return data.logs;
-    if (Array.isArray(data.tokens)) return data.tokens;
-    return [];
-  }
-
-  // ─── 会话时钟 ───────────────────────
-  function startSessionClock() {
-    clearInterval(sessionTimer);
-    function tick() {
-      var left = Math.max(0, Math.ceil((sessionExpiresAt - Date.now()) / 1000));
-      var m = Math.floor(left / 60);
-      var s = left % 60;
-      el('session-info').querySelector('span').textContent = m + ':' + String(s).padStart(2, '0');
-      if (left <= 30) el('session-info').style.color = 'var(--danger)';
-      if (left === 0) {
-        clearInterval(sessionTimer);
-        token = '';
-        toast('管理员会话已到期，请重新登录', 'error');
-        setTimeout(function () { location.reload(); }, 1500);
-      }
-    }
-    tick();
-    sessionTimer = setInterval(tick, 1000);
-  }
+  // Toast / API / asList / 会话时钟已迁至 admin-core.js（window.Admin），本文件通过顶部别名复用。
 
   // ─── 登录 ───────────────────────────
   el('login-form').addEventListener('submit', async function (e) {
@@ -299,9 +203,9 @@
         throw new Error((sd && sd.error) || ('管理员二次验证失败 ' + sr.status));
       }
 
-      token = sd.token;
-      sessionExpiresAt = sd.expiresAt;
-      startSessionClock();
+      session.token = sd.token;
+      session.expiresAt = sd.expiresAt;
+      Admin.startSessionClock();
       el('login').classList.add('hidden');
       el('app').classList.remove('hidden');
       el('password').value = '';
@@ -310,13 +214,13 @@
       await loadTab();
       loadNavBadges();
     } catch (x) {
-      token = '';
+      session.token = '';
       el('password').value = '';
       el('totp-code').value = '';
       el('login-error').textContent = x.message;
     } finally {
       btn.disabled = false;
-      if (el('totp-field') && !el('totp-field').classList.contains('hidden') && !token) {
+      if (el('totp-field') && !el('totp-field').classList.contains('hidden') && !session.token) {
         btnLabel.textContent = '验证并登录';
       } else {
         btnLabel.textContent = '登录';
@@ -325,7 +229,7 @@
   });
 
   // ─── 退出 ───────────────────────────
-  el('logout').onclick = function () { token = ''; location.reload(); };
+  el('logout').onclick = function () { session.token = ''; location.reload(); };
 
   // ─── 刷新 ───────────────────────────
   el('refresh-btn').onclick = function () { loadTab(); toast('已刷新'); };
@@ -764,7 +668,7 @@
       ue.onclick = async function () {
         try {
           var res = await fetch('/api/admin/users-export?limit=5000', {
-            headers: { Authorization: 'Bearer ' + token }
+            headers: { Authorization: 'Bearer ' + session.token }
           });
           if (!res.ok) throw new Error('export failed ' + res.status);
           var blob = await res.blob();
@@ -1212,7 +1116,7 @@ async function loadChats(seq) {
       ce.onclick = async function () {
         try {
           var res = await fetch('/api/admin/chats-export?limit=2000', {
-            headers: { Authorization: 'Bearer ' + token }
+            headers: { Authorization: 'Bearer ' + session.token }
           });
           if (!res.ok) throw new Error('export failed ' + res.status);
           var blob = await res.blob();
@@ -1840,7 +1744,7 @@ async function loadChats(seq) {
     el('audit-export').onclick = async function () {
       try {
         var exportUrl = '/api/admin/audit-logs/export';
-        var r = await fetch(exportUrl, { headers: { Authorization: 'Bearer ' + token } });
+        var r = await fetch(exportUrl, { headers: { Authorization: 'Bearer ' + session.token } });
         if (!r.ok) { var d = await r.json(); toast(d.error || '导出失败', 'error'); return; }
         var blob = await r.blob();
         var url = URL.createObjectURL(blob);
@@ -1995,201 +1899,7 @@ async function loadChats(seq) {
     el('content').innerHTML = statsHtml + catHtml;
   }
 
-  // ═════════════════════════════════════
-  // Modal 对话框系统
-  // ═════════════════════════════════════
-  var modalCallback = null;
-
-  function resetModalChrome() {
-    el('modal-box').classList.remove('wide');
-    el('modal-input-wrap').classList.add('hidden');
-    el('modal-select-wrap').classList.add('hidden');
-    var formWrap = el('modal-form-wrap');
-    if (formWrap) {
-      formWrap.classList.add('hidden');
-      formWrap.innerHTML = '';
-    }
-  }
-
-  function showConfirm(title, body, type, callback) {
-    modalCallback = callback;
-    el('modal-title').textContent = title;
-    el('modal-body').textContent = body;
-    resetModalChrome();
-
-    var iconWrap = el('modal-icon-wrap');
-    iconWrap.className = 'modal-icon ' + (type || 'info');
-    var iconPaths = {
-      warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2L21 19.5H3L12 4.2z"/><path d="M12 10v4.2M12 16.8h.01"/></svg>',
-      danger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>',
-      info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.25"/><path d="M12 11v5M12 8h.01"/></svg>'
-    };
-    iconWrap.innerHTML = iconPaths[type] || iconPaths.info;
-
-    el('modal-confirm').textContent = '确认';
-    el('modal-confirm').className = 'btn ' + (type === 'danger' ? 'btn-danger' : 'btn-primary');
-    el('modal-overlay').classList.remove('hidden');
-  }
-
-  function showPrompt(title, body, defaultVal, placeholder, callback) {
-    modalCallback = callback;
-    el('modal-title').textContent = title;
-    el('modal-body').textContent = body;
-    resetModalChrome();
-    el('modal-input-wrap').classList.remove('hidden');
-    var input = el('modal-input');
-    input.value = defaultVal || '';
-    input.placeholder = placeholder || '';
-    el('modal-input-hint').textContent = '';
-    el('modal-confirm').textContent = '确认';
-    el('modal-confirm').className = 'btn btn-primary';
-
-    var iconWrap = el('modal-icon-wrap');
-    iconWrap.className = 'modal-icon info';
-    iconWrap.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.25"/><path d="M12 11v5M12 8h.01"/></svg>';
-
-    el('modal-overlay').classList.remove('hidden');
-    setTimeout(function () { input.focus(); input.select(); }, 100);
-  }
-
-  /** options: [{value, label}] */
-  function showSelect(title, body, options, defaultValue, callback) {
-    modalCallback = callback;
-    el('modal-title').textContent = title;
-    el('modal-body').textContent = body;
-    resetModalChrome();
-    el('modal-select-wrap').classList.remove('hidden');
-    var select = el('modal-select');
-    select.innerHTML = (options || []).map(function (opt) {
-      return '<option value="' + esc(opt.value) + '"' +
-        (String(opt.value) === String(defaultValue) ? ' selected' : '') + '>' +
-        esc(opt.label) + '</option>';
-    }).join('');
-    el('modal-confirm').textContent = '下一步';
-    el('modal-confirm').className = 'btn btn-primary';
-    var iconWrap = el('modal-icon-wrap');
-    iconWrap.className = 'modal-icon warn';
-    iconWrap.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2L21 19.5H3L12 4.2z"/><path d="M12 10v4.2M12 16.8h.01"/></svg>';
-    el('modal-overlay').classList.remove('hidden');
-    setTimeout(function () { select.focus(); }, 100);
-  }
-
-  /** fields: [{name, label, type, value, placeholder, options, required, hint}] */
-  function showForm(title, body, fields, callback) {
-    modalCallback = callback;
-    el('modal-title').textContent = title;
-    el('modal-body').textContent = body || '';
-    resetModalChrome();
-    el('modal-box').classList.add('wide');
-    var wrap = el('modal-form-wrap');
-    wrap.classList.remove('hidden');
-    wrap.innerHTML = (fields || []).map(function (f) {
-      var id = 'modal-field-' + esc(f.name);
-      var html = '<div class="form-field"><label class="label" for="' + id + '">' + esc(f.label || f.name) +
-        (f.required ? ' *' : '') + '</label>';
-      if (f.type === 'select') {
-        html += '<select class="modal-select" id="' + id + '" data-field="' + esc(f.name) + '">' +
-          (f.options || []).map(function (opt) {
-            return '<option value="' + esc(opt.value) + '"' +
-              (String(opt.value) === String(f.value) ? ' selected' : '') + '>' +
-              esc(opt.label) + '</option>';
-          }).join('') + '</select>';
-      } else if (f.type === 'textarea') {
-        html += '<textarea id="' + id + '" data-field="' + esc(f.name) + '" placeholder="' +
-          esc(f.placeholder || '') + '">' + esc(f.value || '') + '</textarea>';
-      } else {
-        html += '<input type="' + esc(f.type || 'text') + '" id="' + id + '" data-field="' + esc(f.name) +
-          '" value="' + esc(f.value || '') + '" placeholder="' + esc(f.placeholder || '') + '"/>';
-      }
-      if (f.hint) html += '<div class="modal-input-hint">' + esc(f.hint) + '</div>';
-      html += '</div>';
-      return html;
-    }).join('');
-    el('modal-confirm').textContent = '确认';
-    el('modal-confirm').className = 'btn btn-primary';
-    var iconWrap = el('modal-icon-wrap');
-    iconWrap.className = 'modal-icon info';
-    iconWrap.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.25"/><path d="M12 11v5M12 8h.01"/></svg>';
-    el('modal-overlay').classList.remove('hidden');
-    setTimeout(function () {
-      var first = wrap.querySelector('input, textarea, select');
-      if (first) first.focus();
-    }, 100);
-  }
-
-  el('modal-cancel').onclick = function () {
-    el('modal-overlay').classList.add('hidden');
-    modalCallback = null;
-  };
-  el('modal-overlay').onclick = function (e) {
-    if (e.target === el('modal-overlay')) {
-      el('modal-overlay').classList.add('hidden');
-      modalCallback = null;
-    }
-  };
-  el('modal-confirm').onclick = async function () {
-    if (!modalCallback) { el('modal-overlay').classList.add('hidden'); return; }
-    // 8.47 修复：in-flight 锁——回调执行期间禁用按钮，快速双击/回车不会重复提交
-    //（封禁/删除/处置等多次连发会重复扣减/重复审计）
-    if (el('modal-confirm').disabled) return;
-    el('modal-confirm').disabled = true;
-    var input = el('modal-input');
-    var select = el('modal-select');
-    var cb = modalCallback;
-    try {
-      var formWrap = el('modal-form-wrap');
-      if (formWrap && !formWrap.classList.contains('hidden')) {
-        var values = {};
-        formWrap.querySelectorAll('[data-field]').forEach(function (node) {
-          values[node.getAttribute('data-field')] = node.value;
-        });
-        var formResult = await cb(values);
-        if (formResult === false) { el('modal-confirm').disabled = false; return; }
-      } else if (!el('modal-input-wrap').classList.contains('hidden')) {
-        var val = input.value;
-        var result = await cb(val);
-        if (result === false) { el('modal-confirm').disabled = false; return; } // callback can return false to keep modal open
-      } else if (!el('modal-select-wrap').classList.contains('hidden')) {
-        var selResult = await cb(select.value);
-        if (selResult === false) { el('modal-confirm').disabled = false; return; }
-      } else {
-        var confirmResult = await cb();
-        if (confirmResult === false) { el('modal-confirm').disabled = false; return; }
-      }
-    } catch (e) {
-      el('modal-confirm').disabled = false;
-      toast(e.message || '操作失败', 'error');
-      return;
-    }
-    el('modal-confirm').disabled = false;
-    // Only close if the callback didn't open a new modal (e.g. showConfirm inside showPrompt)
-    if (modalCallback === cb) {
-      el('modal-overlay').classList.add('hidden');
-      modalCallback = null;
-    }
-  };
-  // Enter key on modal input
-  el('modal-input').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); el('modal-confirm').click(); } };
-
-  // ═════════════════════════════════════
-  // Drawer 关闭
-  // ═════════════════════════════════════
-  el('drawer-close').onclick = function () { el('drawer-overlay').classList.add('hidden'); };
-  el('drawer-overlay').onclick = function (e) {
-    if (e.target === el('drawer-overlay')) el('drawer-overlay').classList.add('hidden');
-  };
-
-  // ═════════════════════════════════════
-  // ESC 关闭弹窗
-  // ═════════════════════════════════════
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      el('modal-overlay').classList.add('hidden');
-      el('drawer-overlay').classList.add('hidden');
-      el('sidebar').classList.remove('open');
-      el('sidebar-overlay').classList.add('hidden');
-    }
-  });
+  // Modal / Drawer / ESC 系统已迁至 admin-core.js（window.Admin），本文件通过顶部别名复用。
 
 
 
@@ -2543,7 +2253,7 @@ async function loadChats(seq) {
         if (!btn) return;
         btn.onclick = async function () {
           try {
-            var res = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+            var res = await fetch(url, { headers: { Authorization: 'Bearer ' + session.token } });
             if (!res.ok) throw new Error('export failed ' + res.status);
             var blob = await res.blob();
             var a = document.createElement('a');
@@ -2853,484 +2563,4 @@ async function adminSetModerator(userId, enabled) {
   });
 }
 
-/* ═══════════════════════════════════════════════════════
-   B6 服务端运维增强 — 公告广播 / 用户标签 / 限流仪表盘 / 设备一致性
-   （纯追加模块，自包含；通过 window.__b6Admin 访问主闭包 API）
-   ═══════════════════════════════════════════════════════ */
-(function () {
-  'use strict';
-  var H = window.__b6Admin;
-  var api = H.api, toast = H.toast, esc = H.esc, date = H.date, asList = H.asList;
-  var el = H.el;
-  var showConfirm = H.showConfirm, showPrompt = H.showPrompt, showForm = H.showForm, showSelect = H.showSelect;
-  var currentTab = '';
-  var pg = { announcements: 0, 'user-tags': 0, 'user-tag-users': 0, 'device-consistency': 0 };
-  var pageSize = 25;
-
-  var TABS = {
-    announcements: { title: '公告广播', fn: loadAnnouncements },
-    'user-tags': { title: '用户标签', fn: loadUserTags },
-    'rate-limit': { title: '限流仪表盘', fn: loadRateLimit },
-    'device-consistency': { title: '设备一致性', fn: loadDeviceConsistency }
-  };
-
-  function fail(x) {
-    el('content').innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.25"/><path d="M12 11v5M12 8h.01"/></svg><p>' + esc(x && x.message ? x.message : x) + '</p></div>';
-  }
-
-  function pager(kind, count) {
-    var p = pg[kind] || 0;
-    return '<div class="pagination">' +
-      '<span class="page-info">第 ' + (p + 1) + ' 页</span>' +
-      '<button class="btn btn-ghost btn-sm" data-b6prev="' + kind + '" ' + (p === 0 ? 'disabled' : '') + '>上一页</button>' +
-      '<button class="btn btn-ghost btn-sm" data-b6next="' + kind + '" ' + (count < pageSize ? 'disabled' : '') + '>下一页</button>' +
-      '</div>';
-  }
-  function bindPager(kind, count, loader) {
-    var prev = document.querySelector('[data-b6prev="' + kind + '"]');
-    var next = document.querySelector('[data-b6next="' + kind + '"]');
-    if (prev) prev.onclick = function () { if ((pg[kind] || 0) > 0) { pg[kind]--; loader(); } };
-    if (next) next.onclick = function () { if (count === pageSize) { pg[kind] = (pg[kind] || 0) + 1; loader(); } };
-  }
-
-  var LEVELS = ['INFO', 'WARNING', 'MAINTENANCE', 'EMERGENCY'];
-  var RISK = ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-  var STATUS_COLOR = { ACTIVE: 'badge-green', SCHEDULED: 'badge-blue', DRAFT: '', EXPIRED: '', CANCELLED: 'badge-red' };
-
-  // ─── 公告广播 ───────────────────────────
-  async function loadAnnouncements(seq) {
-    var offset = (pg.announcements || 0) * pageSize;
-    var q = document.getElementById('b6-ann-q') ? document.getElementById('b6-ann-q').value.trim() : '';
-    var st = document.getElementById('b6-ann-status') ? document.getElementById('b6-ann-status').value : '';
-    var url = '/api/admin/announcements?limit=' + pageSize + '&offset=' + offset;
-    if (st) url += '&status=' + encodeURIComponent(st);
-    if (q) url += '&q=' + encodeURIComponent(q);
-    var rows = asList(await api(url));
-
-    var statusOpts = ['', 'ACTIVE', 'SCHEDULED', 'DRAFT', 'EXPIRED', 'CANCELLED'].map(function (s) {
-      return '<option value="' + s + '"' + (st === s ? ' selected' : '') + '>' + (s || '全部状态') + '</option>';
-    }).join('');
-
-    var html = '<div class="panel"><div class="panel-header"><h2>系统公告广播</h2>' +
-      '<div class="toolbar">' +
-      '<input class="search-input" id="b6-ann-q" value="' + esc(q) + '" placeholder="搜索标题/内容…"/>' +
-      '<select class="filter-select" id="b6-ann-status">' + statusOpts + '</select>' +
-      '<button class="btn btn-primary btn-sm" id="b6-ann-search">搜索</button>' +
-      '<button class="btn btn-primary btn-sm" id="b6-ann-create">新建公告</button>' +
-      '</div></div>' +
-      '<div class="panel-body"><div class="table-wrap"><table class="table">' +
-      '<thead><tr><th>标题</th><th>级别</th><th>受众</th><th>生效</th><th>失效</th><th>状态</th><th>操作</th></tr></thead><tbody>';
-
-    if (rows.length === 0) {
-      html += '<tr><td colspan="7"><div class="empty-state"><p>暂无公告</p></div></td></tr>';
-    } else {
-      rows.forEach(function (r) {
-        html += '<tr>' +
-          '<td><strong>' + esc(r.title) + '</strong><div class="cell-sub">' + esc(r.content.slice(0, 60)) + '</div></td>' +
-          '<td><span class="badge badge-purple">' + esc(r.level) + '</span></td>' +
-          '<td>' + esc(r.audience === 'TAGGED' ? '标签:' + (r.tagId || '?') : '全员') + '</td>' +
-          '<td>' + esc(date(r.startsAt)) + '</td>' +
-          '<td>' + esc(date(r.expiresAt)) + '</td>' +
-          '<td><span class="badge ' + (STATUS_COLOR[r.status] || '') + '">' + esc(r.status) + '</span></td>' +
-          '<td style="white-space:nowrap">' +
-          (r.status === 'DRAFT' || r.status === 'SCHEDULED' ? '<button class="btn btn-primary btn-sm" data-b6-pub="' + esc(r.id) + '">发布</button> ' : '') +
-          (r.status === 'ACTIVE' || r.status === 'SCHEDULED' ? '<button class="btn btn-ghost btn-sm" data-b6-cancel="' + esc(r.id) + '">取消</button> ' : '') +
-          (r.status === 'DRAFT' ? '<button class="btn btn-danger btn-sm" data-b6-del="' + esc(r.id) + '">删除</button> ' : '') +
-          '<button class="btn btn-ghost btn-sm" data-b6-stats="' + esc(r.id) + '">统计</button>' +
-          '</td></tr>';
-      });
-    }
-
-    html += '</tbody></table></div>' + pager('announcements', rows.length) + '</div></div>';
-    if (H.isStaleTab(seq)) return;
-    el('content').innerHTML = html;
-
-    var searchBtn = document.getElementById('b6-ann-search');
-    if (searchBtn) searchBtn.onclick = function () { pg.announcements = 0; loadAnnouncements(); };
-    var input = document.getElementById('b6-ann-q');
-    if (input) input.onkeydown = function (e) { if (e.key === 'Enter') { pg.announcements = 0; loadAnnouncements(); } };
-    bindPager('announcements', rows.length, loadAnnouncements);
-
-    document.querySelectorAll('[data-b6-pub]').forEach(function (b) {
-      b.onclick = function () { api('/api/admin/announcements/' + encodeURIComponent(b.dataset.b6Pub) + '/publish', { method: 'POST', body: '{}' }).then(function () { toast('已发布', 'success'); loadAnnouncements(); }).catch(function (e) { toast('发布失败: ' + e.message, 'error'); }); };
-    });
-    document.querySelectorAll('[data-b6-cancel]').forEach(function (b) {
-      b.onclick = function () {
-        showConfirm('取消公告', '确认取消公告 ' + b.dataset.b6Cancel + '？', 'warn', function () {
-          return api('/api/admin/announcements/' + encodeURIComponent(b.dataset.b6Cancel) + '/cancel', { method: 'POST', body: '{}' }).then(function () { toast('已取消', 'success'); loadAnnouncements(); });
-        });
-      };
-    });
-    document.querySelectorAll('[data-b6-del]').forEach(function (b) {
-      b.onclick = function () {
-        showConfirm('删除草稿', '确认删除草稿 ' + b.dataset.b6Del + '？仅未发布草稿可删除。', 'danger', function () {
-          return api('/api/admin/announcements/' + encodeURIComponent(b.dataset.b6Del), { method: 'DELETE' }).then(function () { toast('已删除', 'success'); loadAnnouncements(); });
-        });
-      };
-    });
-    document.querySelectorAll('[data-b6-stats]').forEach(function (b) {
-      b.onclick = async function () {
-        try {
-          var s = await api('/api/admin/announcements/' + encodeURIComponent(b.dataset.b6Stats) + '/stats');
-          function item(label, value) {
-            return '<div class="detail-item"><span class="label">' + esc(label) + '</span><span class="value">' + esc(value) + '</span></div>';
-          }
-          el('drawer-title').textContent = '公告统计';
-          el('drawer-body').innerHTML =
-            '<div class="detail-section"><h4>投递与已读</h4><div class="detail-grid">' +
-            item('公告 ID', s.id || b.dataset.b6Stats) +
-            item('受众', s.audience === 'TAGGED' ? ('标签 ' + (s.targetTagId || '—')) : '全员') +
-            item('目标人数', s.recipientCount) +
-            item('已读确认', s.ackedCount) +
-            item('创建', date(s.createdAt)) +
-            item('发布时间', s.publishedAt ? date(s.publishedAt) : '未发布') +
-            item('取消时间', s.cancelledAt ? date(s.cancelledAt) : '—') +
-            '</div><p class="panel-sub">这是公告已读确认，不是「广播给在线用户」的 WS 横幅。总览那颗按钮走 WebSocket，只推当前在线会话。</p></div>';
-          el('drawer-overlay').classList.remove('hidden');
-        } catch (e) { toast('统计失败: ' + (e && e.message ? e.message : e), 'error'); }
-      };
-    });
-
-    document.getElementById('b6-ann-create').onclick = function () {
-      showForm(
-        '新建公告',
-        '平台明文广播，不含会话正文。',
-        [
-          { name: 'title', label: '标题', type: 'text', required: true, placeholder: '公告标题' },
-          { name: 'content', label: '内容', type: 'textarea', required: true, placeholder: '公告内容' },
-          { name: 'level', label: '级别', type: 'select', value: 'INFO', options: LEVELS.map(function (lv) { return { value: lv, label: lv }; }) },
-          { name: 'audience', label: '受众', type: 'select', value: 'ALL', options: [{ value: 'ALL', label: '全员' }, { value: 'TAGGED', label: '按标签' }] },
-          { name: 'tagId', label: '定向标签 ID', type: 'text', placeholder: '受众为「按标签」时必填', hint: '先在「用户标签」页创建标签' },
-          { name: 'startsAt', label: '生效时间戳（毫秒）', type: 'text', placeholder: '留空立即生效' },
-          { name: 'expiresAt', label: '失效时间戳（毫秒）', type: 'text', placeholder: '留空默认 7 天' }
-        ],
-        async function (values) {
-          var title = String(values.title || '').trim();
-          var content = String(values.content || '').trim();
-          if (!title) { toast('请填写标题', 'error'); return false; }
-          if (!content) { toast('请填写内容', 'error'); return false; }
-          var level = LEVELS.indexOf(String(values.level || 'INFO').toUpperCase()) >= 0 ? String(values.level).toUpperCase() : 'INFO';
-          var audience = String(values.audience || 'ALL').toUpperCase() === 'TAGGED' ? 'TAGGED' : 'ALL';
-          var tagId = String(values.tagId || '').trim() || null;
-          if (audience === 'TAGGED' && !tagId) { toast('按标签公告必须指定 tagId', 'error'); return false; }
-          var startsAt = String(values.startsAt || '').trim();
-          var expiresAt = String(values.expiresAt || '').trim();
-          var body = {
-            title: title, content: content, level: level,
-            audience: audience, tagId: tagId,
-            startsAt: startsAt && Number.isFinite(Number(startsAt)) ? Number(startsAt) : null,
-            expiresAt: expiresAt && Number.isFinite(Number(expiresAt)) ? Number(expiresAt) : null
-          };
-          await api('/api/admin/announcements', { method: 'POST', body: JSON.stringify(body) });
-          toast('公告已创建', 'success');
-          pg.announcements = 0;
-          loadAnnouncements();
-        }
-      );
-    };
-  }
-
-  // ─── 用户标签 + 风控联动 ─────────────────
-  async function loadUserTags(seq) {
-    var tags = await api('/api/admin/user-tags');
-    var risk = null;
-    try { risk = await api('/api/admin/tags/risk-summary'); } catch (e) { /* 可选 */ }
-
-    var html = '<div class="panel"><div class="panel-header"><h2>用户标签与风控</h2>' +
-      '<div class="toolbar"><button class="btn btn-primary btn-sm" id="b6-tag-create">新建标签</button></div></div>' +
-      '<div class="panel-body">';
-    if (risk && risk.tags && risk.tags.length) {
-      html += '<div class="stats-grid" style="margin-bottom:16px">' + risk.tags.map(function (t) {
-        return '<div class="stat-card"><div class="stat-value" style="color:var(--danger)">' + t.userCount + '</div>' +
-          '<div class="stat-label">' + esc(t.name) + ' (' + esc(t.riskLevel) + ')</div></div>';
-      }).join('') + '</div>';
-    }
-    html += '<div class="table-wrap"><table class="table">' +
-      '<thead><tr><th>名称</th><th>风控级别</th><th>描述</th><th>用户数</th><th>类型</th><th>操作</th></tr></thead><tbody>';
-
-    if (tags.length === 0) {
-      html += '<tr><td colspan="6"><div class="empty-state"><p>暂无标签</p></div></td></tr>';
-    } else {
-      tags.forEach(function (t) {
-        var riskBadge = t.riskLevel === 'HIGH' || t.riskLevel === 'CRITICAL' ? 'badge-red' : (t.riskLevel === 'MEDIUM' ? 'badge-warn' : '');
-        html += '<tr>' +
-          '<td><span class="badge" style="background:' + esc(t.color) + ';color:#fff">' + esc(t.name) + '</span></td>' +
-          '<td><span class="badge ' + riskBadge + '">' + esc(t.riskLevel) + '</span></td>' +
-          '<td>' + esc(t.description || '—') + '</td>' +
-          '<td>' + t.userCount + '</td>' +
-          '<td>' + (t.isSystem ? '<span class="badge badge-blue">系统</span>' : '自定义') + '</td>' +
-          '<td style="white-space:nowrap">' +
-          '<button class="btn btn-ghost btn-sm" data-b6-tag-users="' + esc(t.id) + '">用户</button> ' +
-          (t.isSystem ? '' : '<button class="btn btn-ghost btn-sm" data-b6-tag-edit="' + esc(t.id) + '">编辑</button> ' +
-            '<button class="btn btn-danger btn-sm" data-b6-tag-del="' + esc(t.id) + '">删除</button>') +
-          '</td></tr>';
-      });
-    }
-    html += '</tbody></table></div></div></div>';
-    if (H.isStaleTab(seq)) return;
-    el('content').innerHTML = html;
-
-    document.getElementById('b6-tag-create').onclick = function () {
-      showForm(
-        '新建标签',
-        '自定义用户标签，可联动风控。',
-        [
-          { name: 'name', label: '名称', type: 'text', required: true, placeholder: '标签名称' },
-          { name: 'riskLevel', label: '风控级别', type: 'select', value: 'LOW', options: RISK.map(function (lv) { return { value: lv, label: lv }; }) },
-          { name: 'color', label: '颜色', type: 'text', value: '#64748b', placeholder: '#64748b' },
-          { name: 'description', label: '描述', type: 'textarea', placeholder: '可留空' }
-        ],
-        async function (values) {
-          var name = String(values.name || '').trim();
-          if (!name) { toast('请填写标签名称', 'error'); return false; }
-          var riskLevel = RISK.indexOf(String(values.riskLevel || 'LOW').toUpperCase()) >= 0 ? String(values.riskLevel).toUpperCase() : 'LOW';
-          var color = String(values.color || '').trim() || '#64748b';
-          var desc = String(values.description || '').trim() || null;
-          await api('/api/admin/user-tags', { method: 'POST', body: JSON.stringify({ name: name, riskLevel: riskLevel, color: color, description: desc }) });
-          toast('标签已创建', 'success');
-          loadUserTags();
-        }
-      );
-    };
-    document.querySelectorAll('[data-b6-tag-edit]').forEach(function (b) {
-      b.onclick = function () {
-        showSelect(
-          '修改风控级别',
-          '标签 ' + b.dataset.b6TagEdit,
-          RISK.map(function (lv) { return { value: lv, label: lv }; }),
-          'MEDIUM',
-          async function (newRisk) {
-            newRisk = RISK.indexOf(String(newRisk || 'MEDIUM').toUpperCase()) >= 0 ? String(newRisk).toUpperCase() : 'MEDIUM';
-            await api('/api/admin/user-tags/' + encodeURIComponent(b.dataset.b6TagEdit), { method: 'PUT', body: JSON.stringify({ riskLevel: newRisk }) });
-            toast('标签已更新', 'success');
-            loadUserTags();
-          }
-        );
-      };
-    });
-    document.querySelectorAll('[data-b6-tag-del]').forEach(function (b) {
-      b.onclick = function () {
-        showConfirm('删除标签', '确认删除标签 ' + b.dataset.b6TagDel + '？会移除所有用户上的该标签。', 'danger', function () {
-          return api('/api/admin/user-tags/' + encodeURIComponent(b.dataset.b6TagDel), { method: 'DELETE' }).then(function () { toast('标签已删除', 'success'); loadUserTags(); });
-        });
-      };
-    });
-    document.querySelectorAll('[data-b6-tag-users]').forEach(function (b) {
-      b.onclick = function () { showTagUsers(b.dataset.b6TagUsers); };
-    });
-  }
-
-  async function showTagUsers(tagId) {
-    var offset = (pg['user-tag-users'] || 0) * pageSize;
-    var rows = asList(await api('/api/admin/user-tags/' + encodeURIComponent(tagId) + '/users?limit=' + pageSize + '&offset=' + offset));
-    var html = '<div class="panel"><div class="panel-header"><h2>标签用户 #' + esc(tagId) + '</h2>' +
-      '<div class="toolbar"><button class="btn btn-ghost btn-sm" id="b6-tag-users-back">返回</button>' +
-      '<button class="btn btn-primary btn-sm" id="b6-tag-users-add">添加用户</button></div></div>' +
-      '<div class="panel-body"><div class="table-wrap"><table class="table">' +
-      '<thead><tr><th>用户 ID</th><th>来源</th><th>打标人</th><th>时间</th><th>操作</th></tr></thead><tbody>';
-    if (rows.length === 0) {
-      html += '<tr><td colspan="5"><div class="empty-state"><p>该标签下暂无用户</p></div></td></tr>';
-    } else {
-      rows.forEach(function (a) {
-        html += '<tr><td><span class="cell-id">' + esc(a.userId) + '</span></td><td>' + esc(a.source) + '</td>' +
-          '<td>' + esc(a.assignedBy || '—') + '</td><td>' + esc(date(a.createdAt)) + '</td>' +
-          '<td><button class="btn btn-danger btn-sm" data-b6-unassign="' + esc(a.userId) + '">移除</button></td></tr>';
-      });
-    }
-    html += '</tbody></table></div>' + pager('user-tag-users', rows.length) + '</div></div>';
-    el('content').innerHTML = html;
-    bindPager('user-tag-users', rows.length, function () { showTagUsers(tagId); });
-    document.getElementById('b6-tag-users-back').onclick = loadUserTags;
-    document.getElementById('b6-tag-users-add').onclick = function () {
-      showPrompt('添加用户', '将该标签打到指定用户。', '', '用户 ID', async function (userId) {
-        if (!userId || !String(userId).trim()) { toast('请填写用户 ID', 'error'); return false; }
-        await api('/api/admin/users/' + encodeURIComponent(String(userId).trim()) + '/tags', { method: 'POST', body: JSON.stringify({ tagIds: [tagId] }) });
-        toast('已打标', 'success');
-        showTagUsers(tagId);
-      });
-    };
-    document.querySelectorAll('[data-b6-unassign]').forEach(function (b) {
-      b.onclick = function () {
-        showConfirm('移除标签', '移除用户 ' + b.dataset.b6Unassign + ' 的该标签？', 'warn', function () {
-          return api('/api/admin/users/' + encodeURIComponent(b.dataset.b6Unassign) + '/tags/' + encodeURIComponent(tagId), { method: 'DELETE' }).then(function () { toast('已移除', 'success'); showTagUsers(tagId); });
-        });
-      };
-    });
-  }
-
-  // ─── 限流仪表盘 ─────────────────────────
-  async function loadRateLimit(seq) {
-    var range = '24h';
-    var holder = document.getElementById('b6-rl-range');
-    if (holder) range = holder.value;
-    var d = await api('/api/admin/rate-limit/dashboard?range=' + range);
-
-    var maxR = 1;
-    d.points.forEach(function (p) { if (p.rejected > maxR) maxR = p.rejected; });
-    var bars = d.points.slice(-48).map(function (p) {
-      var h = maxR > 0 ? Math.max(2, Math.round(p.rejected / maxR * 100)) : 2;
-      return '<div class="rl-bar" title="' + date(p.bucketStartMs) + ' 拒绝 ' + p.rejected + ' / 放行 ' + p.allowed + '" style="height:' + h + '%"></div>';
-    }).join('');
-
-    var html = '<div class="panel"><div class="panel-header"><h2>限流仪表盘</h2>' +
-      '<div class="toolbar">' +
-      '<select class="filter-select" id="b6-rl-range">' +
-      '<option value="1h"' + (range === '1h' ? ' selected' : '') + '>近 1 小时</option>' +
-      '<option value="24h"' + (range === '24h' ? ' selected' : '') + '>近 24 小时</option>' +
-      '<option value="7d"' + (range === '7d' ? ' selected' : '') + '>近 7 天</option>' +
-      '</select>' +
-      '<button class="btn btn-primary btn-sm" id="b6-rl-refresh">刷新</button>' +
-      '<button class="btn btn-ghost btn-sm" id="b6-rl-sample">立即采样</button>' +
-      '</div></div>' +
-      '<div class="panel-body">' +
-      '<div class="stats-grid">' +
-      '<div class="stat-card"><div class="stat-value" style="color:var(--success)">' + d.totalAllowed + '</div><div class="stat-label">放行请求（' + range + '）</div></div>' +
-      '<div class="stat-card"><div class="stat-value" style="color:var(--danger)">' + d.totalRejected + '</div><div class="stat-label">拒绝请求（' + range + '）</div></div>' +
-      '<div class="stat-card"><div class="stat-value">' + d.peakRejectionsPerMinute + '</div><div class="stat-label">每分钟拒绝峰值</div></div>' +
-      '<div class="stat-card"><div class="stat-value">' + d.live.totalBuckets + '/' + d.live.maxBuckets + '</div><div class="stat-label">实时 IP 桶 / 上限</div></div>' +
-      '</div>' +
-      '<div class="rl-chart"><div class="rl-bars">' + (bars || '<div class="empty-state"><p>暂无采样数据（采样器每分钟写入，最多 31 天）</p></div>') + '</div></div>' +
-      '<p class="cell-sub">实时累计: 放行 ' + d.live.allowed + ' · 拒绝 ' + d.live.rejected +
-      ' · 每 IP 每分钟上限 ' + d.live.maxPerMinute + ' · 最近采样 ' + (d.lastSnapshotAt ? date(d.lastSnapshotAt) : '—') +
-      ' · 保留 ' + d.retentionDays + ' 天</p>' +
-      '</div></div>';
-    if (H.isStaleTab(seq)) return;
-    el('content').innerHTML = html;
-
-    document.getElementById('b6-rl-refresh').onclick = loadRateLimit;
-    document.getElementById('b6-rl-range').onchange = loadRateLimit;
-    document.getElementById('b6-rl-sample').onclick = async function () {
-      try {
-        await api('/api/admin/rate-limit/sample', { method: 'POST', body: '{}' });
-        toast('已手动采样', 'success');
-        loadRateLimit();
-      } catch (e) { toast('采样失败: ' + e.message, 'error'); }
-    };
-  }
-
-  // ─── 设备事件一致性 ─────────────────────
-  async function loadDeviceConsistency(seq) {
-    var offset = (pg['device-consistency'] || 0) * pageSize;
-    var sum = await api('/api/admin/device-consistency/summary');
-    var evs = asList(await api('/api/admin/device-consistency/events?limit=' + pageSize + '&offset=' + offset));
-
-    var html = '<div class="panel"><div class="panel-header"><h2>设备事件一致性</h2>' +
-      '<div class="toolbar"><span class="badge ' + (sum.anomalyCount > 0 ? 'badge-red' : 'badge-green') + '">异常事件 ' + sum.anomalyCount + '</span></div></div>' +
-      '<div class="panel-body">' +
-      '<h3 class="panel-subtitle">设备事件序列（幂等应用点）</h3>' +
-      '<div class="table-wrap"><table class="table">' +
-      '<thead><tr><th>用户</th><th>设备</th><th>事件类型</th><th>已应用 seq</th><th>最近事件</th></tr></thead><tbody>';
-    if (sum.sequences.length === 0) {
-      html += '<tr><td colspan="5"><div class="empty-state"><p>暂无设备事件序列记录</p></div></td></tr>';
-    } else {
-      sum.sequences.slice(0, 50).forEach(function (s) {
-        html += '<tr><td><span class="cell-id">' + esc(s.userId) + '</span></td><td>#' + s.deviceId + '</td>' +
-          '<td>' + esc(s.eventType) + '</td><td>' + s.lastAppliedSeq + '</td><td>' + esc(date(s.lastEventAt)) + '</td></tr>';
-      });
-    }
-    html += '</tbody></table></div>' +
-      '<h3 class="panel-subtitle">一致性异常（STALE / DUPLICATE / OUT_OF_ORDER）</h3>' +
-      '<div class="table-wrap"><table class="table">' +
-      '<thead><tr><th>时间</th><th>用户</th><th>设备</th><th>类型</th><th>seq</th><th>状态</th><th>详情</th></tr></thead><tbody>';
-    if (evs.length === 0) {
-      html += '<tr><td colspan="7"><div class="empty-state"><p>暂无异常事件，设备事件一致性正常</p></div></td></tr>';
-    } else {
-      evs.forEach(function (e) {
-        var cls = e.status === 'OUT_OF_ORDER' ? 'badge-warn' : 'badge-red';
-        html += '<tr><td>' + esc(date(e.lastSeenAt)) + '</td><td><span class="cell-id">' + esc(e.userId) + '</span></td>' +
-          '<td>#' + e.deviceId + '</td><td>' + esc(e.eventType) + '</td><td>' + e.seq + '</td>' +
-          '<td><span class="badge ' + cls + '">' + esc(e.status) + '</span></td>' +
-          '<td style="max-width:240px" class="mono">' + esc(e.detail || '—') + '</td></tr>';
-      });
-    }
-    html += '</tbody></table></div>' + pager('device-consistency', evs.length) + '</div></div>';
-    if (H.isStaleTab(seq)) return;
-    el('content').innerHTML = html;
-    bindPager('device-consistency', evs.length, loadDeviceConsistency);
-  }
-
-  function runB6Tab(name, seq) {
-    if (!TABS[name]) return;
-    currentTab = name;
-    if (typeof seq !== 'number') seq = H.nextTabSeq();
-    return TABS[name].fn(seq)
-      .catch(function (x) { if (!H.isStaleTab(seq)) fail(x); })
-      .then(function () { if (!H.isStaleTab(seq) && H.attachSubtabs) H.attachSubtabs(); });
-  }
-  H.openTab = function (name, seq) {
-    if (!TABS[name]) return;
-    el('content').innerHTML = '<div class="loading-state"><div class="spinner"></div><span>加载中…</span></div>';
-    return runB6Tab(name, seq);
-  };
-  H.clearTab = function () { currentTab = ''; };
-
-  // 公告 / 用户标签 / 限流 / 设备一致性一律由主模块 loadTab → H.openTab 分发。
-  // 不再绑定 #nav 或 #refresh-btn，避免与主监听双 spinner、公告空白。
-
-  // ─── B2 密聊防泄漏（Surface #71–#78）：设置页自动追加 8 个开关行 ───
-  // 服务端只存开关位、不接触密聊明文；行保存复用 settings-save 的 [data-setting] 收集。
-  var b2SecretRows = [
-    { key: 'secret_screenshot_burn_enabled', label: '密聊截屏后烧毁', def: true },
-    { key: 'secret_auto_destroy_enabled', label: '密聊会话到期自动销毁', def: true },
-    { key: 'secret_forward_whitelist_enabled', label: '密聊转发白名单', def: true },
-    { key: 'secret_sim_change_protection_enabled', label: '密聊 SIM 更换防护', def: true },
-    { key: 'secret_2fa_gate_enabled', label: '密聊二次验证门槛', def: false },
-    { key: 'secret_new_device_risk_enabled', label: '密聊新设备风险提示', def: true },
-    { key: 'secret_device_verify_enabled', label: '密聊设备核验', def: true },
-    { key: 'secret_session_notice_enabled', label: '密聊双向会话通知', def: true }
-  ];
-  function injectB2SecretRows(settings) {
-    var host = document.querySelector('#content .panel-body');
-    if (!host || document.getElementById('b2-secret-surface-rows')) return;
-    var s = settings || {};
-    var html = b2SecretRows.map(function (r) {
-      var raw = s[r.key] != null ? s[r.key] : r.def;
-      var on = String(raw).toLowerCase() === 'true' || raw === 1 || raw === true;
-      return '<label class="field" style="display:flex;align-items:center;gap:8px;margin:8px 0">' +
-        '<input type="checkbox" data-setting="' + esc(r.key) + '" ' + (on ? 'checked' : '') + '/>' +
-        '<span><strong>' + esc(r.label) + '</strong> <code>' + esc(r.key) + '</code></span></label>';
-    }).join('');
-    var block = document.createElement('div');
-    block.id = 'b2-secret-surface-rows';
-    block.style.marginTop = '12px';
-    block.style.paddingTop = '10px';
-    block.style.borderTop = '1px solid var(--border,#333)';
-    block.innerHTML = '<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">B2 · 密聊防泄漏扩展（Surface #71–#78 · burnz/ttlz/fwlz/simz/2faz/ndz/dvz/sntz）</div>' + html;
-    host.appendChild(block);
-  }
-  // 8.48 修复：Settings 保存后 loadSettings() 会重渲染面板——observer 必须保持连接，
-  // 每次 Settings 面板出现且 B2 行缺失时重新注入（注入本身幂等，带 in-flight 防抖）
-  var b2SettingsBusy = false;
-  var b2SettingsObserver = new MutationObserver(function () {
-    if (document.getElementById('b2-secret-surface-rows')) return;
-    var host = document.querySelector('#content .panel-body');
-    var saveBtn = el('settings-save');
-    if (!host || !saveBtn || b2SettingsBusy) return;
-    b2SettingsBusy = true;
-    api('/api/admin/settings').then(function (data) {
-      injectB2SecretRows((data && data.settings) || {});
-    }).catch(function () { /* 留待下一次 DOM 变更重试 */ })
-      .then(function () { b2SettingsBusy = false; });
-  });
-  b2SettingsObserver.observe(document.body, { childList: true, subtree: true });
-
-  // 主题切换逻辑（原 admin.html 内联脚本移入外部 JS，满足 script-src 'self' CSP）
-  (function () {
-    var root = document.documentElement;
-    var btn = document.getElementById('theme-toggle');
-    var sun = document.getElementById('icon-sun');
-    var moon = document.getElementById('icon-moon');
-    function syncIcons() {
-      var light = root.getAttribute('data-theme') === 'light';
-      if (sun) sun.hidden = light;
-      if (moon) moon.hidden = !light;
-    }
-    syncIcons();
-    if (btn) btn.addEventListener('click', function () {
-      var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-      root.setAttribute('data-theme', next);
-      try { localStorage.setItem('admin-theme', next); } catch (e) {}
-      syncIcons();
-    });
-  })();
-})();
+  // 运维增强模块（公告 / 用户标签 / 限流 / 设备一致性 / B2 密聊扩展）已迁至 admin-ops.js。
