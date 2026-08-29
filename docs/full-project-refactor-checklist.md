@@ -150,12 +150,12 @@ Gate：乱序、重复、断连、重连、账号切换、Token 撤销和冷启�
 
 ### M01 消息内容协议与模型
 
-当前状态：`[ ]`。旧模型仍将 `MessageMeta` 写入正文 `<meta>...</meta>`。
+当前状态：`[~]`。`:domain:messaging` 已定义版本化 typed `ContentPayload` 协议；但四类模型分离、`<meta>` 停写、旧正文迁移尚未开始。
 
-- [ ] 定义版本化 typed `ContentPayload`，覆盖文本、回复、提及、附件、位置、联系人、投票和系统事件。
+- [x] 定义版本化 typed `ContentPayload`，覆盖文本、回复、提及、附件、位置、联系人、投票和系统事件（`ContentEnvelope` + `ContentPayload` sealed + `Mention`/`AttachmentKind`，@SerialName 稳定 wire 名，4 单测）。
 - [ ] 分离 wire、domain、database、presentation 四类模型。
 - [ ] 新消息停止写 `<meta>`；旧解析器降级为只读 migration adapter。
-- [ ] 对未知字段、未知消息类型和未来版本 fail-safe。
+- [~] 对未知字段、未知消息类型和未来版本 fail-safe（未知字段已由 forwardCompatible Json 忽略；未知类型降级待补自定义 serializer）。
 - [ ] 建立旧正文迁移与字面 `<meta>` 内容测试。
 
 Gate：新旧客户端兼容矩阵确定；历史数据迁移可逆演练通过。
