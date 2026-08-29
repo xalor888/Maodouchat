@@ -94,14 +94,14 @@ Gate：空壳模块可编译；旧 app 仍能运行；禁止依赖检查进入 C
 
 ### A02 账号、登录、认证与会话
 
-当前状态：`[ ]`。登录、Token、WebSocket、数据库和安全清理仍相互直连。
+当前状态：`[~]`。`:core:session` 已建立会话抽象（SessionContext/SessionCoordinator/AccountGeneration）与 single-flight token 刷新；AuthRepository/CredentialVault/DeviceSessionRepository 与用例拆分尚未开始。
 
 - [ ] 拆分登录、注册、邮箱验证码、重置密码、TOTP、刷新 Token 用例。
-- [ ] 建立 `AuthRepository`、`CredentialVault`、`SessionCoordinator`、`DeviceSessionRepository`。
-- [ ] Token refresh 实现 single-flight；并发 401 只能发起一次刷新。
+- [~] 建立 `AuthRepository`、`CredentialVault`、`SessionCoordinator`、`DeviceSessionRepository`（`SessionCoordinator` 接口已建，其余待实现）。
+- [x] Token refresh 实现 single-flight；并发 401 只能发起一次刷新（`TokenRefreshSingleFlight`，3 个单测：并发单飞/失败重试/冷却过期）。
 - [ ] 明确定义登出、登出全部设备、换号、删号、切服务器的不同数据清理策略。
-- [ ] 所有后台任务和本地行按账号与 account generation 隔离。
-- [ ] Session 变化通过稳定状态流通知消息、Push、Widget、AI 等模块。
+- [~] 所有后台任务和本地行按账号与 account generation 隔离（`AccountGeneration` 值类已建）。
+- [~] Session 变化通过稳定状态流通知消息、Push、Widget、AI 等模块（`SessionCoordinator.changes: Flow` 已声明）。
 - [ ] 删除 ViewModel 和 Composable 对 Token/Application/WebSocket 的直接访问。
 
 Gate：并发 401、进程恢复、A-B-A 换号、切服、设备吊销、错误数据库密钥测试通过。
