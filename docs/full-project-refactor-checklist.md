@@ -971,8 +971,8 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 
 1. [x] 只读记录当前 86 项变更的来源与功能分组（server/plugins 36、app ui/screen 20、server/model 6、theme/nav/component 各 3、server/db 2、admin 前端资源 6、util/theme 若干、测试 3）。
 2. [x] 运行 Android 全量 JVM 测试、Server 全量测试、Lint 和 instrumentation compile，形成基线（Server 323、Android JVM 1115、lintDebug、compileDebugAndroidTestSources 全绿）。
-3. [ ] 由用户决定是否把当前成果提交成基线；未获明确许可不得提交。
-4. [ ] 基线确定后创建三个独立 worktree/`codex/refactor-*` 分支。
+3. [x] 由用户决定是否把当前成果提交成基线；用户已授权「做完一步提交一步，全部做完再推送」（基线 commit `72b43a41`，未推送）。
+4. [x] 基线确定后创建独立 worktree/分支；当前为单 Agent 串行执行，直接在 `main` 上逐步提交，不另建 worktree。
 5. [ ] 启动 Wave 0，先建立模块/迁移/测试基础，不直接重写巨型 UI。
 6. [ ] 每一波完成后汇报已完成清单 ID、测试、删除量和下一波阻塞。
 
