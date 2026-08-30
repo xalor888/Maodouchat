@@ -1,6 +1,7 @@
 package com.maodouchat.server.db.migration
 
 import com.maodouchat.server.db.applyBaselineSchemaMigration
+import com.maodouchat.server.db.backfillDirectChatPairs
 import com.maodouchat.server.db.retireLegacyMessagingTables
 
 /** Explicit entry point for startup/deployment orchestration after Exposed connects to the database. */
@@ -22,6 +23,14 @@ internal object DatabaseMigrations {
 
             override fun apply() {
                 retireLegacyMessagingTables()
+            }
+        },
+        object : DatabaseMigration {
+            override val version = 3
+            override val description = "Backfill direct_chat_pairs mapping for existing 1:1 chats"
+
+            override fun apply() {
+                backfillDirectChatPairs()
             }
         },
     )

@@ -76,10 +76,10 @@ class MigrationRunnerTest {
         connectDatabase()
         initDatabase()
 
-        assertEquals(listOf(1, 2), runDatabaseMigrations())
+        assertEquals(listOf(1, 2, 3), runDatabaseMigrations())
         assertEquals(emptyList(), runDatabaseMigrations())
         transaction {
-            assertEquals(setOf(1, 2), appliedVersions())
+            assertEquals(setOf(1, 2, 3), appliedVersions())
         }
     }
 

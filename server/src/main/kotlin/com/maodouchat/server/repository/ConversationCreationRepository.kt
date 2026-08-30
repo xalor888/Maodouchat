@@ -199,7 +199,7 @@ class ConversationCreationRepository {
             if (isIntactPairInTx(mapped, userId1, userId2, secret = false)) return mapped
             DirectChatPairs.deleteWhere { DirectChatPairs.pairKey eq pairKey }
         }
-        return findLegacyDirectIdInTx(userId1, userId2)
+        return null
     }
 
     private fun lookupSecretIdInTx(pairKey: String, userId1: String, userId2: String): String? {
@@ -253,31 +253,6 @@ class ConversationCreationRepository {
             it[DirectChatPairs.chatId] = chatId
             it[createdAt] = System.currentTimeMillis()
         }
-    }
-
-    private fun findLegacyDirectIdInTx(userId1: String, userId2: String): String? {
-        val firstIds = ChatParticipants.select(ChatParticipants.chatId)
-            .where { ChatParticipants.userId eq userId1 }
-            .mapTo(hashSetOf()) { it[ChatParticipants.chatId] }
-        val commonIds = ChatParticipants.select(ChatParticipants.chatId)
-            .where { ChatParticipants.userId eq userId2 }
-            .map { it[ChatParticipants.chatId] }
-            .filterTo(linkedSetOf()) { it in firstIds }
-        if (commonIds.isEmpty()) return null
-        val chats = Chats.selectAll().where { Chats.id inList commonIds }
-            .associateBy { it[Chats.id] }
-        val counts = ChatParticipants.selectAll().where { ChatParticipants.chatId inList commonIds }
-            .groupingBy { it[ChatParticipants.chatId] }
-            .eachCount()
-        return commonIds.asSequence()
-            .filter { chatId ->
-                val chat = chats[chatId]
-                chat != null &&
-                    !chat[Chats.isGroup] &&
-                    chat[Chats.chatType] != ChatType.SECRET &&
-                    counts[chatId] == 2
-            }
-            .minOrNull()
     }
 
     private fun hasActivePairInTx(userId1: String, userId2: String): Boolean {

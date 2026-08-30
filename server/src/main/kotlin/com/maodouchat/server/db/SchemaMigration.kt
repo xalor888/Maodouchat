@@ -520,3 +520,27 @@ private val DEFAULT_MODERATION_RULES = listOf(
     )
 )
 
+
+/** B04：回填 direct_chat_pairs 映射，供后续删除 findLegacyDirectIdInTx 热路径兼容。 */
+internal fun backfillDirectChatPairs() {
+    val memberCounts = ChatParticipants.selectAll()
+        .groupBy { it[ChatParticipants.chatId] }
+        .filter { (_, rows) -> rows.size == 2 }
+    if (memberCounts.isEmpty()) return
+    val chatIds = memberCounts.keys
+    val eligibleChats = Chats.selectAll().where { Chats.id inList chatIds }
+        .filter { !it[Chats.isGroup] && it[Chats.chatType] != com.maodouchat.server.model.ChatType.SECRET }
+    val now = System.currentTimeMillis()
+    eligibleChats.forEach { chat ->
+        val members = memberCounts.getValue(chat[Chats.id]).map { it[ChatParticipants.userId] }.sorted()
+        val key = members.joinToString(":")
+        val exists = DirectChatPairs.selectAll().where { DirectChatPairs.pairKey eq key }.any()
+        if (!exists) {
+            DirectChatPairs.insert {
+                it[DirectChatPairs.pairKey] = key
+                it[DirectChatPairs.chatId] = chat[Chats.id]
+                it[DirectChatPairs.createdAt] = now
+            }
+        }
+    }
+}

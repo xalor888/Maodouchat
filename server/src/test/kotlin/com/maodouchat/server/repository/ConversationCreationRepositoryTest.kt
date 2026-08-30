@@ -5,6 +5,7 @@ import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.DirectChatPairs
 import com.maodouchat.server.db.Users
+import com.maodouchat.server.db.backfillDirectChatPairs
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.model.ChatType
 import java.util.concurrent.atomic.AtomicInteger
@@ -94,7 +95,7 @@ class ConversationCreationRepositoryTest {
     }
 
     @Test
-    fun `legacy direct conversation is reused and pair mapping is repaired`() {
+    fun `legacy direct conversation is backfilled then reused via pair mapping`() {
         setupDb()
         transaction {
             Chats.insert {
@@ -110,6 +111,8 @@ class ConversationCreationRepositoryTest {
                 }
             }
         }
+        // migration v3 回填 direct_chat_pairs 映射（替代旧 findLegacyDirectIdInTx 热路径扫描）
+        transaction { backfillDirectChatPairs() }
 
         val result = ConversationCreationRepository().getOrCreateDirect("u1", "u2")
 
