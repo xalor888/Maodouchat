@@ -27,8 +27,7 @@ object FileStorageService {
     /** Allowed file extensions for avatar/post images. */
     private val ALLOWED_IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "gif", "webp")
 
-    private val storageDir = ServerConfig.storageDir
-    private val storageRoot = File(storageDir).canonicalFile
+    private val storageRoot = BlobRoot.storageRoot
     private val baseUrl = ServerConfig.baseUrl.trimEnd('/')
     private val safeFilenamePattern = Regex("^[A-Za-z0-9_.-]+$")
     private val storageTypes = setOf("avatars", "posts", "group-avatars")
@@ -155,10 +154,8 @@ object FileStorageService {
      */
     fun resolveFile(type: String, filename: String): File? {
         if (!filename.matches(safeFilenamePattern)) return null
-        return runCatching {
-            val typeRoot = resolveTypeRoot(type) ?: return@runCatching null
-            File(typeRoot, filename).canonicalFile.takeIf { it.parentFile == typeRoot }
-        }.getOrNull()
+        val typeRoot = resolveTypeRoot(type) ?: return null
+        return BlobRoot.resolve(typeRoot, filename)
     }
 
     private fun decodeValidatedImage(base64Data: String, label: String): BufferedImage {
@@ -277,9 +274,7 @@ object FileStorageService {
 
     private fun resolveTypeRoot(type: String): File? {
         if (type !in storageTypes) return null
-        return runCatching {
-            File(storageRoot, type).canonicalFile.takeIf { it.parentFile == storageRoot && it.isDirectory }
-        }.getOrNull()
+        return BlobRoot.resolve(storageRoot, type)?.takeIf { it.isDirectory }
     }
 
     private fun writeJpeg(image: BufferedImage, file: File) {

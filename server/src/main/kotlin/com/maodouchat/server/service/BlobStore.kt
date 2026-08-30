@@ -1,6 +1,5 @@
 package com.maodouchat.server.service
 
-import com.maodouchat.server.config.ServerConfig
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.file.AtomicMoveNotSupportedException
@@ -17,7 +16,7 @@ object BlobStore {
         data object ContentMismatch : AppendResult
     }
 
-    private val storageRoot = File(ServerConfig.storageDir).canonicalFile
+    private val storageRoot = BlobRoot.storageRoot
     private val root = File(storageRoot, "encrypted-attachments").apply {
         require(isDirectory || mkdirs()) { "附件存储目录创建失败" }
     }.canonicalFile.also {
@@ -165,9 +164,6 @@ object BlobStore {
         return synchronized(lock, block)
     }
 
-    private fun checkedFile(name: String): File {
-        val file = File(root, name).canonicalFile
-        require(file.parentFile == root) { "附件路径非法" }
-        return file
-    }
+    private fun checkedFile(name: String): File =
+        BlobRoot.resolve(root, name) ?: error("附件路径非法")
 }
