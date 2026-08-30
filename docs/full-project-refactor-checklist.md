@@ -598,10 +598,10 @@ Gate：乱序块、重复 finalize、文件系统故障、quota、访问控制�
 
 ### B08 WebSocket、Presence、Typing、Wake 与多实例
 
-当前状态：`[~]`。连接注册表/实时发布/在线状态/打字指示已拆分，presence 隐私与鉴权撤销闭环；跨节点 fanout（Redis/pub-sub）与全局 sendToUser 收口待做。
+当前状态：`[~]`。连接注册表/实时发布/在线状态/打字指示/实时总线（RealtimeBus + LocalRealtimeBus）已拆分，presence 隐私、鉴权撤销与全局 sendToUser 收口闭环；仅跨节点传输（Redis/pub-sub 实现）待部署基础设施后落地。
 
 - [x] 拆 `ConnectionRegistry`、`RealtimePublisher`、`PresenceService`、`TypingService`。
-- [ ] 使用 Redis/pub-sub 或等价总线支持跨节点 fanout。
+- [~] 使用 Redis/pub-sub 或等价总线支持跨节点 fanout。
 - [x] mailbox 是消息真相源，wake 丢失后 pull 仍可收敛。
 - [x] 认证撤销立即关闭对应连接。
 - [x] presence 隐私、拉黑和 last seen 规则统一。
