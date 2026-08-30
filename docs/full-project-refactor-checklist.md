@@ -624,10 +624,10 @@ Gate：乱序/重复信令、TTL、伪造群成员、邀请限流、TURN 过期�
 
 ### B10 好友、社交图、动态、附近与可见性
 
-当前状态：`[ ]`。PostRepository 超过 1,000 行，隐私判断散布多个领域。
+当前状态：`[x]`。SocialGraphService/VisibilityPolicy 统一可见性，PostRepository 拆为命令/查询/交互三服务，社交路由已迁出，图片 GC 进 durable job。
 
 - [x] 建立 `SocialGraphService` 和统一 `VisibilityPolicy`。
-- [~] 拆 `PostCommandService`、`FeedQueryService`、`PostInteractionService`。
+- [x] 拆 `PostCommandService`、`FeedQueryService`、`PostInteractionService`。
 - [x] 公开/联系人/私有、拉黑、注销在资料、动态、附近、搜索、presence 中共享规则。
 - [x] 点赞/评论计数使用数据库约束和事务，不靠 JVM 同步。
 - [x] 动态图片删除进入 durable cleanup job。
