@@ -241,9 +241,9 @@ Gate：每个上传边界杀进程、分片恢复、账号切换、转发、密�
 
 当前状态：`[~]`。已有 `ConversationForwardCoordinator`，附件与批量协调仍部分留在 ViewModel。
 
-- [ ] 统一 `ForwardRequest`，包含来源、目标、留言、隐私策略和幂等键。
-- [ ] Coordinator 负责目标解析、附件复制/重加密、批量结果和部分失败。
-- [ ] 密聊、PIN 锁、终态消息和来源隐私统一校验。
+- [x] 统一 `ForwardRequest`，包含来源、目标、留言、隐私策略和幂等键（契约已冻结到 `:domain:messaging`）。
+- [~] Coordinator 负责目标解析、附件复制/重加密、批量结果和部分失败（`ConversationForwardCoordinator` 契约已建，实现待做）。
+- [~] 密聊、PIN 锁、终态消息和来源隐私统一校验（`ForwardPolicy` 纯逻辑已建并测试；PIN 锁校验待补）。
 - [ ] UI 只显示逐目标结果，不循环调用发送/附件实现。
 - [ ] 删除 ViewModel 内 `forwardMessage`、batch 和附件转发实现。
 
