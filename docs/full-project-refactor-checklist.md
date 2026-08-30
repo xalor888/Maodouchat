@@ -558,12 +558,12 @@ Gate：并发建直聊、退出/删除、拉黑、账号注销和权限矩阵通
 
 ### B05 群成员、角色、邀请、审计与群玩法
 
-当前状态：`[~]`。生命周期 service 已有基础，但 HTTP/Bot/Admin/玩法仍可能重复写表。
+当前状态：`[x]`。成员/角色/邀请统一入口、revision+审计不变量、提交后通知订阅者、Admin 不直写表、群玩法独立子域均已落地。
 
 - [x] `GroupMembershipService` 是所有成员/角色/转让操作唯一入口。
 - [x] `GroupInvitationService` 统一创建、轮换、接受、拒绝、撤销和过期。
-- [ ] 每个成员事务恰好增加一次 revision，并产生领域事件与审计。
-- [ ] WS、Push、Sender Key 修复是提交后订阅者。
+- [x] 每个成员事务恰好增加一次 revision，并产生领域事件与审计。
+- [x] WS、Push、Sender Key 修复是提交后订阅者。
 - [x] Bot/Admin 不得直接写 Chats/Participants。
 - [x] 签到、接龙、PK、Poll 分为独立子域。
 
