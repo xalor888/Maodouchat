@@ -233,7 +233,8 @@ class ReportWorkflow {
             it[ModerationAuditLog.actorId] = reviewerId
             it[ModerationAuditLog.userId] = existing[Reports.targetId].takeIf { existing[Reports.targetType] == "USER" }
             it[ModerationAuditLog.action] = "REPORT_STATUS_UPDATE"
-            it[ModerationAuditLog.detail] = "reportId=$normalizedId; status=$normalizedStatus"
+            it[ModerationAuditLog.detail] =
+                "reportId=$normalizedId; reason=${existing[Reports.reason]}; before=${existing[Reports.status]}; after=$normalizedStatus"
             it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
         }
         UpdateResult.Success(Reports.selectAll().where { Reports.id eq normalizedId }.first().toResponse())
@@ -277,7 +278,8 @@ class ReportWorkflow {
             it[ModerationAuditLog.actorId] = reviewerId
             it[ModerationAuditLog.userId] = existing[Reports.targetId].takeIf { existing[Reports.targetType] == "USER" }
             it[ModerationAuditLog.action] = "REPORT_ACTION_APPLIED"
-            it[ModerationAuditLog.detail] = "reportId=$normalizedId; action=$normalizedAction"
+            it[ModerationAuditLog.detail] =
+                "reportId=$normalizedId; reason=${existing[Reports.reason]}; before=${existing[Reports.status]}; after=RESOLVED; action=$normalizedAction"
             it[ModerationAuditLog.createdAt] = now
         }
         ExecuteActionResult.Completed(Reports.selectAll().where { Reports.id eq normalizedId }.first().toResponse())
@@ -311,7 +313,8 @@ class ReportWorkflow {
             it[ModerationAuditLog.actorId] = reviewerId
             it[ModerationAuditLog.userId] = existing[Reports.targetId].takeIf { existing[Reports.targetType] == "USER" }
             it[ModerationAuditLog.action] = "REPORT_ACTION_APPLIED"
-            it[ModerationAuditLog.detail] = "reportId=$normalizedId; action=$normalizedAction"
+            it[ModerationAuditLog.detail] =
+                "reportId=$normalizedId; reason=${existing[Reports.reason]}; before=${existing[Reports.status]}; after=RESOLVED; action=$normalizedAction"
             it[ModerationAuditLog.createdAt] = now
         }
         ActionMarkResult.Applied(Reports.selectAll().where { Reports.id eq normalizedId }.first().toResponse())
