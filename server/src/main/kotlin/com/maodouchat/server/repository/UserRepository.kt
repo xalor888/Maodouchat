@@ -426,20 +426,9 @@ class UserRepository {
     fun adminDeactivateAccount(userId: String, actorId: String): AccountDeactivationResult? = accountLifecycleService.adminDeactivateAccount(userId, actorId)
 
 
-    fun getPrivacy(userId: String): UserPrivacyResponse? {
-        return transaction {
-            Users.selectAll().where { Users.id eq userId }.firstOrNull()?.let {
-                UserPrivacyResponse(
-                    showOnline = it[Users.showOnline],
-                    showStatus = it[Users.showStatus],
-                    searchable = it[Users.searchable],
-                    defaultPostVisibility = normalizeVisibility(it[Users.defaultPostVisibility]),
-                    onlineVisibility = normalizeOnlineVisibility(it[Users.onlineVisibility], it[Users.showOnline])
-                )
-            }
-        }
-    }
+    private val privacyService = PrivacyService()
 
+    fun getPrivacy(userId: String): UserPrivacyResponse? = privacyService.getPrivacy(userId)
     fun updatePrivacyWithTransitions(
         userId: String,
         showOnline: Boolean? = null,
@@ -447,39 +436,8 @@ class UserRepository {
         searchable: Boolean? = null,
         defaultPostVisibility: String? = null,
         onlineVisibility: String? = null
-    ): PrivacyUpdateResult? {
-        return transaction {
-            val normalizedVisibility = defaultPostVisibility?.let(::normalizeVisibility)
-            val previous = Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
-                ?: return@transaction null
-            val previousOnlineVis = normalizeOnlineVisibility(previous[Users.onlineVisibility], previous[Users.showOnline])
-            val nextOnlineVis = onlineVisibility?.let(::normalizeOnlineVisibility)
-                ?: showOnline?.let { if (it) previousOnlineVis.takeUnless { vis -> vis == "nobody" } ?: "everyone" else "nobody" }
-            Users.update({ Users.id eq userId }) {
-                if (showOnline != null) it[Users.showOnline] = showOnline
-                if (nextOnlineVis != null) {
-                    it[Users.onlineVisibility] = nextOnlineVis
-                    it[Users.showOnline] = nextOnlineVis != "nobody"
-                }
-                if (showStatus != null) it[Users.showStatus] = showStatus
-                if (searchable != null) it[Users.searchable] = searchable
-                if (normalizedVisibility != null) it[Users.defaultPostVisibility] = normalizedVisibility
-            }
-            val privacy = UserPrivacyResponse(
-                showOnline = (nextOnlineVis ?: previousOnlineVis) != "nobody",
-                showStatus = showStatus ?: previous[Users.showStatus],
-                searchable = searchable ?: previous[Users.searchable],
-                defaultPostVisibility = normalizedVisibility
-                    ?: normalizeVisibility(previous[Users.defaultPostVisibility]),
-                onlineVisibility = nextOnlineVis ?: previousOnlineVis
-            )
-            PrivacyUpdateResult(
-                privacy = privacy,
-                onlineRevoked = previousOnlineVis != "nobody" && privacy.onlineVisibility == "nobody",
-                statusRevoked = previous[Users.showStatus] && !privacy.showStatus
-            )
-        }
-    }
+    ): PrivacyUpdateResult? = privacyService.updatePrivacyWithTransitions(userId, showOnline, showStatus, searchable, defaultPostVisibility, onlineVisibility)
+
 
     private fun ResultRow.toPrivateUser(isOnlineOverride: Boolean? = null): UserResponse {
         return UserResponse(
@@ -610,9 +568,6 @@ class UserRepository {
         }
     }
 
-    private fun normalizeVisibility(value: String): String {
-        return if (value in ALLOWED_POST_VISIBILITIES) value else "PUBLIC"
-    }
 
     private fun String.normalizedEmail(): String = trim().lowercase()
 
@@ -640,7 +595,6 @@ class UserRepository {
         private const val MAX_STATUS_LENGTH = 80
         private const val MAX_AVATAR_LENGTH = 500
         private const val DELETED_USER_NAME = "已注销用户"
-        val ALLOWED_POST_VISIBILITIES = setOf("PUBLIC", "CONTACTS", "PRIVATE")
         val ALLOWED_ONLINE_VISIBILITIES = setOf("everyone", "contacts", "nobody")
 
         fun normalizeOnlineVisibility(value: String?, showOnlineFallback: Boolean = true): String {
