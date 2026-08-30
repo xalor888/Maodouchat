@@ -589,7 +589,7 @@ Gate：两账号各两设备、离线数小时、ACK 崩溃点、revision 并发
 
 - [x] 建立 `BlobStore`、`UploadSessionService`、`AttachmentCommitService`。
 - [x] 建立 `MediaReferenceService` 和 durable `OrphanGcJob`。
-- [ ] 统一 staged/uploading/uploaded/committed/deleted/quarantined 状态。
+- [x] 统一 staged/uploading/uploaded/committed/deleted/quarantined 状态。
 - [x] 下载授权只依赖成员身份和 message metadata。
 - [ ] 头像、群头像、动态图片和加密附件共享可替换 blob 基础设施。
 - [ ] 所有媒体 route 迁出 `Routing.kt`。

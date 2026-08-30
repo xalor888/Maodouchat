@@ -6,6 +6,7 @@ import com.maodouchat.server.db.EncryptedAttachments
 import com.maodouchat.server.db.MessagingV2Envelopes
 import com.maodouchat.server.db.MessagingV2Messages
 import com.maodouchat.server.db.Users
+import com.maodouchat.server.repository.AttachmentStatus
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
@@ -168,7 +169,7 @@ class MessageAdmissionPolicy(
                     (EncryptedAttachments.messageId eq command.id)
             }.forUpdate().toList()
             if (attachments.size != command.attachmentIds.toSet().size || attachments.any {
-                    it[EncryptedAttachments.status] !in setOf("UPLOADED", "COMMITTED")
+                    it[EncryptedAttachments.status] !in setOf(AttachmentStatus.UPLOADED.dbValue, AttachmentStatus.COMMITTED.dbValue)
                 }) {
                 throw MessagingV2AttachmentNotReadyException()
             }
@@ -178,7 +179,7 @@ class MessageAdmissionPolicy(
                     (EncryptedAttachments.uploaderId eq command.senderUserId) and
                     (EncryptedAttachments.messageId eq command.id)
             }) {
-                it[EncryptedAttachments.status] = "COMMITTED"
+                it[EncryptedAttachments.status] = AttachmentStatus.COMMITTED.dbValue
                 it[EncryptedAttachments.expiresAt] = null
             }
         }

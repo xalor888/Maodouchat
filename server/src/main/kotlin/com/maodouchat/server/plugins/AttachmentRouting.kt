@@ -114,11 +114,11 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                     encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)
                     // 9.151：已 COMMITTED 的附件密文仍被群内其他成员下载，
                     // 上传者退群后重查状态/重传不得连带删除 .bin
-                    if (record.status != "COMMITTED") BlobStore.delete(attachmentId)
+                    if (record.status != AttachmentStatus.COMMITTED.dbValue) BlobStore.delete(attachmentId)
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("已不在该聊天中"))
                     return@get
                 }
-                if (record.status == "COMMITTED") {
+                if (record.status == AttachmentStatus.COMMITTED.dbValue) {
                     call.respond(record.toUploadStatus())
                     return@get
                 }
@@ -153,7 +153,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                 if (!conversationParticipantRepo.isParticipant(record.chatId, userId)) {
                     encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)
                     // 9.151：同 GET——COMMITTED 附件密文不可因上传者退群后的重传被删除
-                    if (record.status != "COMMITTED") BlobStore.delete(attachmentId)
+                    if (record.status != AttachmentStatus.COMMITTED.dbValue) BlobStore.delete(attachmentId)
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("已不在该聊天中"))
                     return@put
                 }
@@ -171,7 +171,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("附件分块上传过于频繁"))
                     return@put
                 }
-                if (record.status != "UPLOADING") {
+                if (record.status != AttachmentStatus.UPLOADING.dbValue) {
                     call.respond(record.toUploadStatus())
                     return@put
                 }
@@ -342,7 +342,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                     call.respond(HttpStatusCode.Gone, ErrorResponse("附件已过期"))
                     return@get
                 }
-                if (record.status != "COMMITTED") {
+                if (record.status != AttachmentStatus.COMMITTED.dbValue) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("附件尚未关联消息"))
                     return@get
                 }
@@ -428,7 +428,7 @@ put("status", "ok")
 private data class ReceivedEncryptedAttachment(val byteCount: Long, val sha256: String)
 
 private fun EncryptedAttachmentRecord.toUploadStatus(uploadedBytesOverride: Long? = null): AttachmentUploadStatusResponse {
-    val actualBytes = uploadedBytesOverride ?: if (status == "UPLOADING") uploadedBytes else cipherSize
+    val actualBytes = uploadedBytesOverride ?: if (status == AttachmentStatus.UPLOADING.dbValue) uploadedBytes else cipherSize
     return AttachmentUploadStatusResponse(
         id = id,
         cipherSha256 = cipherSha256,
@@ -436,7 +436,7 @@ private fun EncryptedAttachmentRecord.toUploadStatus(uploadedBytesOverride: Long
         uploadedBytes = actualBytes.coerceIn(0L, cipherSize),
         status = status,
         expiresAt = expiresAt ?: 0L,
-        complete = status == "UPLOADED" || status == "COMMITTED"
+        complete = status == AttachmentStatus.UPLOADED.dbValue || status == AttachmentStatus.COMMITTED.dbValue
     )
 }
 
@@ -445,7 +445,7 @@ private suspend fun reconcileAttachmentUpload(
     repository: EncryptedAttachmentRepository,
     userId: String
 ): EncryptedAttachmentRecord? {
-    if (record.status != "UPLOADING") return record
+    if (record.status != AttachmentStatus.UPLOADING.dbValue) return record
     val actualBytes = withContext(Dispatchers.IO) { BlobStore.uploadedBytes(record.id) }
         ?.coerceAtMost(record.cipherSize) ?: 0L
     if (actualBytes < record.uploadedBytes) return null

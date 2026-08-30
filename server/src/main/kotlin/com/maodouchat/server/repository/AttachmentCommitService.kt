@@ -26,7 +26,7 @@ class AttachmentCommitService {
 
     fun isBoundToLiveMessage(id: String): Boolean = transaction {
         val attachment = EncryptedAttachments.selectAll().where {
-            (EncryptedAttachments.id eq id) and (EncryptedAttachments.status eq STATUS_COMMITTED)
+            (EncryptedAttachments.id eq id) and (EncryptedAttachments.status eq AttachmentStatus.COMMITTED.dbValue)
         }.limit(1).firstOrNull() ?: return@transaction false
         val messageId = attachment[EncryptedAttachments.messageId] ?: return@transaction false
         MessagingV2Messages.select(MessagingV2Messages.id).where {
@@ -39,14 +39,14 @@ class AttachmentCommitService {
 
     fun deleteExpired(now: Long = System.currentTimeMillis()): List<String> = transaction {
         val ids = EncryptedAttachments.selectAll()
-            .where { (EncryptedAttachments.status neq STATUS_COMMITTED) and (EncryptedAttachments.expiresAt lessEq now) }
+            .where { (EncryptedAttachments.status neq AttachmentStatus.COMMITTED.dbValue) and (EncryptedAttachments.expiresAt lessEq now) }
             .orderBy(EncryptedAttachments.createdAt to SortOrder.ASC)
             .forUpdate()
             .map { it[EncryptedAttachments.id] }
         if (ids.isNotEmpty()) {
             EncryptedAttachments.deleteWhere {
                 (EncryptedAttachments.id inList ids) and
-                    (EncryptedAttachments.status neq STATUS_COMMITTED) and
+                    (EncryptedAttachments.status neq AttachmentStatus.COMMITTED.dbValue) and
                     (EncryptedAttachments.expiresAt lessEq now)
             }
         }
@@ -84,7 +84,4 @@ class AttachmentCommitService {
         expiresAt = this[EncryptedAttachments.expiresAt]
     )
 
-    private companion object {
-        const val STATUS_COMMITTED = "COMMITTED"
-    }
 }

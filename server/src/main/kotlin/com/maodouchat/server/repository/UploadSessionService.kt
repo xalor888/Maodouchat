@@ -32,7 +32,7 @@ class UploadSessionService {
             (EncryptedAttachments.uploaderId eq uploaderId) and
                 (EncryptedAttachments.chatId eq chatId) and
                 (EncryptedAttachments.messageId eq pendingMessageId) and
-                (EncryptedAttachments.status neq STATUS_COMMITTED) and
+                (EncryptedAttachments.status neq AttachmentStatus.COMMITTED.dbValue) and
                 ((EncryptedAttachments.expiresAt.isNull()) or (EncryptedAttachments.expiresAt greater now))
         }.sumOf { it[EncryptedAttachments.cipherSize] }
         activeBytesForUploaderInTransaction(uploaderId) - replaceableBytes + cipherSize <= maxUserBytes
@@ -75,7 +75,7 @@ class UploadSessionService {
                 (EncryptedAttachments.chatId eq chatId) and
                 (EncryptedAttachments.messageId eq pendingMessageId)
         }.forUpdate().toList()
-        if (existing.any { it[EncryptedAttachments.status] == STATUS_COMMITTED }) {
+        if (existing.any { it[EncryptedAttachments.status] == AttachmentStatus.COMMITTED.dbValue }) {
             throw AttachmentMessageAlreadyUsedException()
         }
         val replacedIds = existing.map { it[EncryptedAttachments.id] }
@@ -96,7 +96,7 @@ class UploadSessionService {
             it[EncryptedAttachments.cipherSha256] = sha256
             it[EncryptedAttachments.cipherSize] = cipherSize
             it[EncryptedAttachments.uploadedBytes] = cipherSize
-            it[EncryptedAttachments.status] = STATUS_UPLOADED
+            it[EncryptedAttachments.status] = AttachmentStatus.UPLOADED.dbValue
             it[EncryptedAttachments.createdAt] = System.currentTimeMillis()
             it[EncryptedAttachments.expiresAt] = expiresAt
         }
@@ -140,7 +140,7 @@ class UploadSessionService {
                 (EncryptedAttachments.chatId eq chatId) and
                 (EncryptedAttachments.messageId eq pendingMessageId)
         }.forUpdate().toList()
-        if (existing.any { it[EncryptedAttachments.status] == STATUS_COMMITTED }) {
+        if (existing.any { it[EncryptedAttachments.status] == AttachmentStatus.COMMITTED.dbValue }) {
             throw AttachmentMessageAlreadyUsedException()
         }
         val nowForExpiry = System.currentTimeMillis()
@@ -182,7 +182,7 @@ class UploadSessionService {
             it[EncryptedAttachments.cipherSha256] = sha256
             it[EncryptedAttachments.cipherSize] = cipherSize
             it[EncryptedAttachments.uploadedBytes] = 0L
-            it[EncryptedAttachments.status] = STATUS_UPLOADING
+            it[EncryptedAttachments.status] = AttachmentStatus.UPLOADING.dbValue
             it[EncryptedAttachments.createdAt] = now
             it[EncryptedAttachments.expiresAt] = expiresAt
         }
@@ -195,7 +195,7 @@ class UploadSessionService {
                 cipherSha256 = sha256,
                 cipherSize = cipherSize,
                 uploadedBytes = 0L,
-                status = STATUS_UPLOADING,
+                status = AttachmentStatus.UPLOADING.dbValue,
                 createdAt = now,
                 expiresAt = expiresAt
             ),
@@ -220,8 +220,8 @@ class UploadSessionService {
         val row = EncryptedAttachments.selectAll().where {
             (EncryptedAttachments.id eq id) and (EncryptedAttachments.uploaderId eq userId)
         }.forUpdate().firstOrNull() ?: return@transaction false
-        if (row[EncryptedAttachments.status] != STATUS_UPLOADING) {
-            return@transaction row[EncryptedAttachments.status] == STATUS_UPLOADED || row[EncryptedAttachments.status] == STATUS_COMMITTED
+        if (row[EncryptedAttachments.status] != AttachmentStatus.UPLOADING.dbValue) {
+            return@transaction row[EncryptedAttachments.status] == AttachmentStatus.UPLOADED.dbValue || row[EncryptedAttachments.status] == AttachmentStatus.COMMITTED.dbValue
         }
         // 8.34 修复：并发分块提交乱序——A 写文件到 100、B 写到 200 且 B 的 DB 事务先提交，
         // A 的 100 相对当前 200 是回退。此前判定 false 会让路由销毁整个上传会话（行+文件），
@@ -238,13 +238,13 @@ class UploadSessionService {
         val row = EncryptedAttachments.selectAll().where {
             (EncryptedAttachments.id eq id) and (EncryptedAttachments.uploaderId eq userId)
         }.forUpdate().firstOrNull() ?: return@transaction false
-        if (row[EncryptedAttachments.status] == STATUS_UPLOADED || row[EncryptedAttachments.status] == STATUS_COMMITTED) {
+        if (row[EncryptedAttachments.status] == AttachmentStatus.UPLOADED.dbValue || row[EncryptedAttachments.status] == AttachmentStatus.COMMITTED.dbValue) {
             return@transaction true
         }
-        if (row[EncryptedAttachments.status] != STATUS_UPLOADING) return@transaction false
+        if (row[EncryptedAttachments.status] != AttachmentStatus.UPLOADING.dbValue) return@transaction false
         EncryptedAttachments.update({ EncryptedAttachments.id eq id }) {
             it[EncryptedAttachments.uploadedBytes] = row[EncryptedAttachments.cipherSize]
-            it[EncryptedAttachments.status] = STATUS_UPLOADED
+            it[EncryptedAttachments.status] = AttachmentStatus.UPLOADED.dbValue
         } == 1
     }
 
@@ -252,7 +252,7 @@ class UploadSessionService {
         EncryptedAttachments.deleteWhere {
             (EncryptedAttachments.id eq id) and
                 (EncryptedAttachments.uploaderId eq userId) and
-                (EncryptedAttachments.status neq STATUS_COMMITTED)
+                (EncryptedAttachments.status neq AttachmentStatus.COMMITTED.dbValue)
         } == 1
     }
 
@@ -269,9 +269,4 @@ class UploadSessionService {
         expiresAt = this[EncryptedAttachments.expiresAt]
     )
 
-    private companion object {
-        const val STATUS_UPLOADED = "UPLOADED"
-        const val STATUS_UPLOADING = "UPLOADING"
-        const val STATUS_COMMITTED = "COMMITTED"
-    }
 }
