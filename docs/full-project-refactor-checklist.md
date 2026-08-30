@@ -575,9 +575,9 @@ Gate：邀请/撤销、退群/发送、踢人/转让并发和完整权限矩阵�
 
 - [x] 拆 `MessageAdmissionPolicy`、`ConversationDeviceSnapshotStore`。
 - [x] 拆 `EnvelopeMailboxStore`、`MessageMetadataStore`、`ServiceMessagePublisher`。
-- [ ] 保持 metadata + envelopes 单事务和幂等重试。
-- [ ] 明确 ACK 后保留期、未 ACK 最大保留期、审核删除和退群清理语义。
-- [ ] 建立 `MailboxRetentionJob`，绝不删除未 ACK 有效信封。
+- [x] 保持 metadata + envelopes 单事务和幂等重试。
+- [x] 明确 ACK 后保留期、未 ACK 最大保留期、审核删除和退群清理语义。
+- [x] 建立 `MailboxRetentionJob`，绝不删除未 ACK 有效信封。
 - [ ] 路由只做 auth、DTO、错误映射和 wake。
 - [ ] 删除 Routing/Bot 中临时实例化 Messaging repository 的路径。
 
