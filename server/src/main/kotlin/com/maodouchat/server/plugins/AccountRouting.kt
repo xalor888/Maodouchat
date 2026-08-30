@@ -5,7 +5,7 @@ import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.CacheService
-import com.maodouchat.server.service.EncryptedAttachmentStorage
+import com.maodouchat.server.service.BlobStore
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -452,8 +452,8 @@ put("status", "ok")
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("密码错误或账号已注销", code = "WRONG_PASSWORD"))
                 } else {
                     // 空会话级联删除的附件行已不在 DB；先清磁盘，再清仍挂在其他会话上的本人上传
-                    deactivation.orphanedAttachmentIds.forEach(EncryptedAttachmentStorage::delete)
-                    encryptedAttachmentRepo.deleteForUploader(userId).forEach(EncryptedAttachmentStorage::delete)
+                    deactivation.orphanedAttachmentIds.forEach(BlobStore::delete)
+                    encryptedAttachmentRepo.deleteForUploader(userId).forEach(BlobStore::delete)
                     postRepo.deleteAllPostsForAuthor(userId)
                     com.maodouchat.server.service.FileStorageService.deletePostImagesForUser(userId)
                     groupAvatarCandidates

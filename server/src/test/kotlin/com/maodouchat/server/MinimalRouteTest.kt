@@ -1317,7 +1317,7 @@ class NewFeaturesRouteTest {
             .deleteMessageForModeration(messageId)
         assertNotNull(deleteResult)
         deleteResult.deletedAttachmentIds.forEach(
-            com.maodouchat.server.service.EncryptedAttachmentStorage::delete,
+            com.maodouchat.server.service.BlobStore::delete,
         )
         val deletedDownload = client.get("/api/attachments/$attachmentId") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")

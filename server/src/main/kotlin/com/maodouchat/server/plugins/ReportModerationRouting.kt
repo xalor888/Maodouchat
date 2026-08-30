@@ -2,7 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
-import com.maodouchat.server.service.EncryptedAttachmentStorage
+import com.maodouchat.server.service.BlobStore
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -240,7 +240,7 @@ put("status", "ok")
                             "DELETE_CONTENT" -> {
                                 broadcastPostDeletionFor?.let { broadcastPostDeleted(it) }
                                 deletedModeration?.let { deleted ->
-                                    deleted.deletedAttachmentIds.forEach(EncryptedAttachmentStorage::delete)
+                                    deleted.deletedAttachmentIds.forEach(BlobStore::delete)
                                     fanoutSystemDelete(
                                         conversationParticipantRepo,
                                         json,

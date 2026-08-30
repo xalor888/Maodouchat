@@ -367,11 +367,11 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
         // 空会话级联删除的附件行已不在 DB；先清磁盘，再清仍挂在其他会话上的本人上传
         bestEffort("orphanedAttachments") {
             deactivation.orphanedAttachmentIds
-                .forEach(com.maodouchat.server.service.EncryptedAttachmentStorage::delete)
+                .forEach(com.maodouchat.server.service.BlobStore::delete)
         }
         bestEffort("uploaderAttachments") {
             EncryptedAttachmentRepository().deleteForUploader(id)
-                .forEach(com.maodouchat.server.service.EncryptedAttachmentStorage::delete)
+                .forEach(com.maodouchat.server.service.BlobStore::delete)
         }
         bestEffort("posts") { postRepo.deleteAllPostsForAuthor(id) }
         bestEffort("postImages") { com.maodouchat.server.service.FileStorageService.deletePostImagesForUser(id) }

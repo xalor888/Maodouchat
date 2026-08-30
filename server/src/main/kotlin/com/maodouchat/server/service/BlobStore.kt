@@ -6,7 +6,11 @@ import java.io.RandomAccessFile
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 
-object EncryptedAttachmentStorage {
+/**
+ * B07：加密附件 blob 存储边界。分块追加（带偏移/锁/校验）、最终化、读取、删除与
+ * 过期文件回收；所有路径经 idPattern + canonicalFile 校验防路径穿越。
+ */
+object BlobStore {
     sealed interface AppendResult {
         data class Accepted(val uploadedBytes: Long, val replayed: Boolean) : AppendResult
         data class OffsetMismatch(val uploadedBytes: Long) : AppendResult

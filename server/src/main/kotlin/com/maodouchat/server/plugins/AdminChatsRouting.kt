@@ -94,7 +94,7 @@ internal fun Route.configureAdminChatsRoutes() {
         if (status == "missing") return@delete call.respond(HttpStatusCode.NotFound, ErrorResponse("聊天不存在"))
         if (status != "ok") return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("只能解散群聊或频道"))
         // 事务外清磁盘，避免 orphan .bin
-        attachmentIds.forEach { runCatching { com.maodouchat.server.service.EncryptedAttachmentStorage.delete(it) } }
+        attachmentIds.forEach { runCatching { com.maodouchat.server.service.BlobStore.delete(it) } }
         com.maodouchat.server.service.FileStorageService.deleteGroupAvatarUrl(groupAvatarUrl, id)
         recordAdminAudit(actorId, "ADMIN_CHAT_DISSOLVED", "chatId=$id")
         call.respond(

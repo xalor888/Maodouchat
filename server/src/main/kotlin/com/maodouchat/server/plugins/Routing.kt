@@ -10,7 +10,7 @@ import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.AiGatewayService
 import com.maodouchat.server.service.ContentModerationService
 import com.maodouchat.server.service.FcmPushService
-import com.maodouchat.server.service.EncryptedAttachmentStorage
+import com.maodouchat.server.service.BlobStore
 import com.maodouchat.server.service.TurnCredentialService
 import com.maodouchat.server.service.CallInviteRateLimiter
 import com.maodouchat.server.service.WebRtcBinaryService
@@ -214,8 +214,8 @@ fun Application.configureRouting(
         while (isActive) {
             runCatching {
                 val now = System.currentTimeMillis()
-                encryptedAttachmentRepo.deleteExpired(now).forEach(EncryptedAttachmentStorage::delete)
-                EncryptedAttachmentStorage.deleteStaleFiles(
+                encryptedAttachmentRepo.deleteExpired(now).forEach(BlobStore::delete)
+                BlobStore.deleteStaleFiles(
                     validIds = encryptedAttachmentRepo.allIds(),
                     olderThan = now - ATTACHMENT_UPLOAD_TTL_MS
                 )

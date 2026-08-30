@@ -13,7 +13,7 @@ import com.maodouchat.server.repository.CreateConversationResult
 import com.maodouchat.server.repository.GroupInvitationService
 import com.maodouchat.server.repository.LeaveConversationResult
 import com.maodouchat.server.repository.UserRepository
-import com.maodouchat.server.service.EncryptedAttachmentStorage
+import com.maodouchat.server.service.BlobStore
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.FileStorageService
 import com.maodouchat.server.service.RuntimeConfigService
@@ -194,7 +194,7 @@ internal fun Route.configureConversationRoutes(
                     return@delete
                 }
                 LeaveConversationResult.LEFT -> {
-                    outcome.deletedAttachmentIds.forEach(EncryptedAttachmentStorage::delete)
+                    outcome.deletedAttachmentIds.forEach(BlobStore::delete)
                     FileStorageService.deleteGroupAvatarUrl(outcome.deletedGroupAvatarUrl, chatId)
                 }
             }

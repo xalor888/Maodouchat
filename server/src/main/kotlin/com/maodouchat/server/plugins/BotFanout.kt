@@ -10,7 +10,7 @@ import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.AiGatewayService
 import com.maodouchat.server.service.ContentModerationService
 import com.maodouchat.server.service.FcmPushService
-import com.maodouchat.server.service.EncryptedAttachmentStorage
+import com.maodouchat.server.service.BlobStore
 import com.maodouchat.server.service.TurnCredentialService
 import com.maodouchat.server.service.CallInviteRateLimiter
 import com.maodouchat.server.service.WebRtcBinaryService

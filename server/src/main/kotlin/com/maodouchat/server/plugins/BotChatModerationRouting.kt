@@ -2,7 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
-import com.maodouchat.server.service.EncryptedAttachmentStorage
+import com.maodouchat.server.service.BlobStore
 import io.ktor.http.*
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -38,7 +38,7 @@ internal fun Route.configureBotChatModerationRoutes(
             )
         }
         if (outcome?.result == LeaveConversationResult.LEFT) {
-            outcome.deletedAttachmentIds.forEach(EncryptedAttachmentStorage::delete)
+            outcome.deletedAttachmentIds.forEach(BlobStore::delete)
             com.maodouchat.server.service.FileStorageService.deleteGroupAvatarUrl(
                 outcome.deletedGroupAvatarUrl,
                 chatId,

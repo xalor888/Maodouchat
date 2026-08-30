@@ -2,7 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
-import com.maodouchat.server.service.EncryptedAttachmentStorage
+import com.maodouchat.server.service.BlobStore
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -88,11 +88,11 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                     }
                     return@post
                 }
-                session.replacedIds.forEach(EncryptedAttachmentStorage::delete)
+                session.replacedIds.forEach(BlobStore::delete)
                 val refreshed = reconcileAttachmentUpload(session.record, encryptedAttachmentRepo, userId)
                 if (refreshed == null) {
                     encryptedAttachmentRepo.removeUncommitted(session.record.id, userId)
-                    EncryptedAttachmentStorage.delete(session.record.id)
+                    BlobStore.delete(session.record.id)
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("附件总哈希校验失败"))
                     return@post
                 }
@@ -114,7 +114,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                     encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)
                     // 9.151：已 COMMITTED 的附件密文仍被群内其他成员下载，
                     // 上传者退群后重查状态/重传不得连带删除 .bin
-                    if (record.status != "COMMITTED") EncryptedAttachmentStorage.delete(attachmentId)
+                    if (record.status != "COMMITTED") BlobStore.delete(attachmentId)
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("已不在该聊天中"))
                     return@get
                 }
@@ -124,13 +124,13 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                 }
                 if (record.expiresAt != null && record.expiresAt <= System.currentTimeMillis()) {
                     encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)
-                    EncryptedAttachmentStorage.delete(attachmentId)
+                    BlobStore.delete(attachmentId)
                     call.respond(HttpStatusCode.Gone, ErrorResponse("附件上传会话已过期"))
                     return@get
                 }
                 val reconciled = reconcileAttachmentUpload(record, encryptedAttachmentRepo, userId)
                 if (reconciled == null) {
-                    EncryptedAttachmentStorage.delete(attachmentId)
+                    BlobStore.delete(attachmentId)
                     encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("附件总哈希校验失败"))
                     return@get
@@ -153,7 +153,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                 if (!conversationParticipantRepo.isParticipant(record.chatId, userId)) {
                     encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)
                     // 9.151：同 GET——COMMITTED 附件密文不可因上传者退群后的重传被删除
-                    if (record.status != "COMMITTED") EncryptedAttachmentStorage.delete(attachmentId)
+                    if (record.status != "COMMITTED") BlobStore.delete(attachmentId)
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("已不在该聊天中"))
                     return@put
                 }
@@ -163,7 +163,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                 }
                 if (record.expiresAt != null && record.expiresAt <= System.currentTimeMillis()) {
                     encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)
-                    EncryptedAttachmentStorage.delete(attachmentId)
+                    BlobStore.delete(attachmentId)
                     call.respond(HttpStatusCode.Gone, ErrorResponse("附件上传会话已过期"))
                     return@put
                 }
@@ -191,34 +191,34 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                     return@put
                 }
                 when (val appended = withContext(Dispatchers.IO) {
-                    EncryptedAttachmentStorage.appendChunk(attachmentId, offset, chunk, record.cipherSize)
+                    BlobStore.appendChunk(attachmentId, offset, chunk, record.cipherSize)
                 }) {
-                    is EncryptedAttachmentStorage.AppendResult.OffsetMismatch -> {
+                    is BlobStore.AppendResult.OffsetMismatch -> {
                         call.respond(HttpStatusCode.Conflict, record.toUploadStatus(appended.uploadedBytes))
                     }
-                    EncryptedAttachmentStorage.AppendResult.ContentMismatch -> {
+                    BlobStore.AppendResult.ContentMismatch -> {
                         call.respond(HttpStatusCode.Conflict, ErrorResponse("附件分块与已上传内容冲突"))
                     }
-                    is EncryptedAttachmentStorage.AppendResult.Accepted -> {
+                    is BlobStore.AppendResult.Accepted -> {
                         if (!encryptedAttachmentRepo.updateUploadProgress(attachmentId, userId, appended.uploadedBytes)) {
                             encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)
-                            EncryptedAttachmentStorage.delete(attachmentId)
+                            BlobStore.delete(attachmentId)
                             call.respond(HttpStatusCode.Conflict, ErrorResponse("附件上传会话已被替换"))
                             return@put
                         }
                         if (appended.uploadedBytes == record.cipherSize) {
-                            if (withContext(Dispatchers.IO) { EncryptedAttachmentStorage.sha256(attachmentId) } != record.cipherSha256) {
+                            if (withContext(Dispatchers.IO) { BlobStore.sha256(attachmentId) } != record.cipherSha256) {
                                 encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)
-                                EncryptedAttachmentStorage.delete(attachmentId)
+                                BlobStore.delete(attachmentId)
                                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("附件总哈希校验失败"))
                                 return@put
                             }
                             val finalized = withContext(Dispatchers.IO) {
-                                EncryptedAttachmentStorage.finalizeResumableUpload(attachmentId)
+                                BlobStore.finalizeResumableUpload(attachmentId)
                             }
                             if (finalized == null || !encryptedAttachmentRepo.markUploaded(attachmentId, userId)) {
                                 encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)
-                                EncryptedAttachmentStorage.delete(attachmentId)
+                                BlobStore.delete(attachmentId)
                                 call.respond(HttpStatusCode.InternalServerError, ErrorResponse("附件完成状态保存失败"))
                                 return@put
                             }
@@ -273,26 +273,26 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                     return@post
                 }
                 val attachmentId = "att_${UUID.randomUUID().toString().replace("-", "")}" 
-                val tempFile = EncryptedAttachmentStorage.createTempFile(attachmentId)
+                val tempFile = BlobStore.createTempFile(attachmentId)
                 val received = try {
                     call.receiveEncryptedAttachment(tempFile, MAX_ATTACHMENT_CIPHER_BYTES)
                 } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                    EncryptedAttachmentStorage.delete(attachmentId)
+                    BlobStore.delete(attachmentId)
                     throw cancelled
                 } catch (error: Throwable) {
-                    EncryptedAttachmentStorage.delete(attachmentId)
+                    BlobStore.delete(attachmentId)
                     call.application.log.warn("Encrypted attachment receive failed", error)
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("附件上传中断"))
                     return@post
                 }
                 if (received == null || received.byteCount != declaredLength || received.sha256 != expectedHash) {
-                    EncryptedAttachmentStorage.delete(attachmentId)
+                    BlobStore.delete(attachmentId)
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("附件长度或哈希校验失败"))
                     return@post
                 }
                 val expiresAt = System.currentTimeMillis() + ATTACHMENT_UPLOAD_TTL_MS
                 val stored = runCatching {
-                    EncryptedAttachmentStorage.finalizeUpload(attachmentId, tempFile)
+                    BlobStore.finalizeUpload(attachmentId, tempFile)
                     encryptedAttachmentRepo.createReplacingPending(
                         id = attachmentId,
                         chatId = chatId,
@@ -305,7 +305,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                     )
                 }
                 if (stored.isFailure) {
-                    EncryptedAttachmentStorage.delete(attachmentId)
+                    BlobStore.delete(attachmentId)
                     when (val error = stored.exceptionOrNull()) {
                         is AttachmentQuotaExceededException -> call.respond(ATTACHMENT_QUOTA_STATUS, ErrorResponse("附件存储配额不足"))
                         is AttachmentMessageAlreadyUsedException -> call.respond(HttpStatusCode.Conflict, ErrorResponse("消息 ID 已被使用"))
@@ -317,7 +317,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                     }
                     return@post
                 }
-                stored.getOrThrow().forEach(EncryptedAttachmentStorage::delete)
+                stored.getOrThrow().forEach(BlobStore::delete)
                 call.respond(
                     HttpStatusCode.Created,
                     AttachmentUploadResponse(attachmentId, received.sha256, received.byteCount, expiresAt)
@@ -338,7 +338,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                 }
                 if (record.expiresAt != null && record.expiresAt <= System.currentTimeMillis()) {
                     encryptedAttachmentRepo.removeUncommitted(attachmentId, record.uploaderId)
-                    EncryptedAttachmentStorage.delete(attachmentId)
+                    BlobStore.delete(attachmentId)
                     call.respond(HttpStatusCode.Gone, ErrorResponse("附件已过期"))
                     return@get
                 }
@@ -366,7 +366,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                         return@get
                     }
                 }
-                val file = EncryptedAttachmentStorage.resolve(attachmentId)
+                val file = BlobStore.resolve(attachmentId)
                 if (file == null || file.length() != record.cipherSize) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("附件密文不可用"))
                     return@get
@@ -415,7 +415,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("待确认附件不存在"))
                     return@delete
                 }
-                EncryptedAttachmentStorage.delete(attachmentId)
+                BlobStore.delete(attachmentId)
                 call.respond(
                 buildJsonObject {
 put("status", "ok")
@@ -446,13 +446,13 @@ private suspend fun reconcileAttachmentUpload(
     userId: String
 ): EncryptedAttachmentRecord? {
     if (record.status != "UPLOADING") return record
-    val actualBytes = withContext(Dispatchers.IO) { EncryptedAttachmentStorage.uploadedBytes(record.id) }
+    val actualBytes = withContext(Dispatchers.IO) { BlobStore.uploadedBytes(record.id) }
         ?.coerceAtMost(record.cipherSize) ?: 0L
     if (actualBytes < record.uploadedBytes) return null
     if (!repository.updateUploadProgress(record.id, userId, actualBytes)) return null
     if (actualBytes < record.cipherSize) return repository.get(record.id)?.copy(uploadedBytes = actualBytes)
-    if (withContext(Dispatchers.IO) { EncryptedAttachmentStorage.sha256(record.id) } != record.cipherSha256) return null
-    if (withContext(Dispatchers.IO) { EncryptedAttachmentStorage.finalizeResumableUpload(record.id) } == null) return null
+    if (withContext(Dispatchers.IO) { BlobStore.sha256(record.id) } != record.cipherSha256) return null
+    if (withContext(Dispatchers.IO) { BlobStore.finalizeResumableUpload(record.id) } == null) return null
     if (!repository.markUploaded(record.id, userId)) return null
     return repository.get(record.id)
 }
