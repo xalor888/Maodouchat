@@ -613,11 +613,11 @@ Gate：双节点、慢连接、重连、fanout、拉黑侧信道、鉴权撤销�
 
 当前状态：`[ ]`。WS/REST 信令存在重复校验，仍有空 callId legacy 兼容。
 
-- [ ] `CallSignalingService` 使用统一 call session 状态机。
+- [~] `CallSignalingService` 使用统一 call session 状态机。
 - [ ] offer/answer/ICE/terminal 使用 callId、epoch、sequence 和幂等键。
-- [ ] REST durable fallback 与 WS 共享同一校验和 repository。
-- [ ] TURN 凭据短期、限用户/会话、可撤销。
-- [ ] Push 只唤醒来电，不包含敏感 SDP/消息正文。
+- [x] REST durable fallback 与 WS 共享同一校验和 repository。
+- [~] TURN 凭据短期、限用户/会话、可撤销。
+- [x] Push 只唤醒来电，不包含敏感 SDP/消息正文。
 - [ ] 协议升级后删除空 callId 兼容。
 
 Gate：乱序/重复信令、TTL、伪造群成员、邀请限流、TURN 过期和两节点通话通过。
