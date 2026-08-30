@@ -585,13 +585,13 @@ Gate：两账号各两设备、离线数小时、ACK 崩溃点、revision 并发
 
 ### B07 附件、Blob、上传会话与 GC
 
-当前状态：`[~]`。分块上传和 V2 commit 已有，文件与 DB 跨资源状态仍不统一。
+当前状态：`[x]`。BlobStore/上传会话/提交服务/状态机/媒体引用/OrphanGC 全部落地，共享可替换 blob 基础设施（BlobStorage + LocalBlobStorage + BlobRoot）。
 
 - [x] 建立 `BlobStore`、`UploadSessionService`、`AttachmentCommitService`。
 - [x] 建立 `MediaReferenceService` 和 durable `OrphanGcJob`。
 - [x] 统一 staged/uploading/uploaded/committed/deleted/quarantined 状态。
 - [x] 下载授权只依赖成员身份和 message metadata。
-- [ ] 头像、群头像、动态图片和加密附件共享可替换 blob 基础设施。
+- [x] 头像、群头像、动态图片和加密附件共享可替换 blob 基础设施。
 - [x] 所有媒体 route 迁出 `Routing.kt`。
 
 Gate：乱序块、重复 finalize、文件系统故障、quota、访问控制、checksum、GC 和 path traversal 通过。

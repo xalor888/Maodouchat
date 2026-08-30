@@ -154,8 +154,7 @@ object FileStorageService {
      */
     fun resolveFile(type: String, filename: String): File? {
         if (!filename.matches(safeFilenamePattern)) return null
-        val typeRoot = resolveTypeRoot(type) ?: return null
-        return BlobRoot.resolve(typeRoot, filename)
+        return LocalBlobStorage.resolve(type, filename)
     }
 
     private fun decodeValidatedImage(base64Data: String, label: String): BufferedImage {
@@ -235,7 +234,7 @@ object FileStorageService {
     }
 
     fun deleteStalePostImages(validFilenames: Set<String>, olderThan: Long): Int =
-        deleteStaleImages("posts", validFilenames, olderThan, ::isPostImageFilename)
+        LocalBlobStorage.deleteStale("posts", validFilenames, olderThan, ::isPostImageFilename)
 
     /** 列出已超过保留期、且文件名符合动态图片格式的候选文件（不删除）。 */
     fun listStalePostImageFiles(olderThan: Long): List<String> =
@@ -244,22 +243,7 @@ object FileStorageService {
             .map { it.name }
 
     fun deleteStaleGroupAvatars(validFilenames: Set<String>, olderThan: Long): Int =
-        deleteStaleImages("group-avatars", validFilenames, olderThan, ::isGroupAvatarFilename)
-
-    private fun deleteStaleImages(
-        type: String,
-        validFilenames: Set<String>,
-        olderThan: Long,
-        acceptsFilename: (String) -> Boolean
-    ): Int {
-        return resolveTypeRoot(type)?.listFiles().orEmpty().count { file ->
-            file.isFile &&
-                file.lastModified() <= olderThan &&
-                file.name !in validFilenames &&
-                acceptsFilename(file.name) &&
-                file.delete()
-        }
-    }
+        LocalBlobStorage.deleteStale("group-avatars", validFilenames, olderThan, ::isGroupAvatarFilename)
 
     private fun isPostImageFilename(filename: String): Boolean =
         filename.matches(safeFilenamePattern) && filename.startsWith("post_") &&
