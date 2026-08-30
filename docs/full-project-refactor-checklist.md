@@ -275,12 +275,12 @@ Gate：截图策略、后台通知、进程死亡、时钟变化、锁定恢复�
 
 ### M11 快捷回复、Widget 与系统通知动作
 
-当前状态：`[ ]`。快捷回复已走 V2，但 Provider 仍直接做门禁、DAO 和通知处理。
+当前状态：`[~]`。`QuickReplyUseCase`/`QuickReplyPolicy` 契约已冻结到 `:domain:messaging`；实现接线与 Provider 解耦尚未开始。
 
-- [ ] `QuickReplyUseCase` 同时服务通知 RemoteInput 与 Widget。
-- [ ] Receiver/Provider 只验证输入并入队命令。
+- [~] `QuickReplyUseCase` 同时服务通知 RemoteInput 与 Widget（契约已建；实现待做）。
+- [~] Receiver/Provider 只验证输入并入队命令（`QuickReplyPolicy.validate` 纯逻辑已建并测试）。
 - [ ] Widget projection 按账号生成，默认脱敏，不读服务器正文。
-- [ ] 重复 RemoteInput 具备幂等键；失败后可安全重试。
+- [~] 重复 RemoteInput 具备幂等键；失败后可安全重试（`QuickReplyRequest.idempotencyKey` 契约已定义）。
 - [ ] 删除 Provider 对 DAO、ChatRepository、outbox 的直接业务访问。
 
 Gate：冷进程、离线、旧通知、账号切换、Token 失效和重复回复测试通过。
