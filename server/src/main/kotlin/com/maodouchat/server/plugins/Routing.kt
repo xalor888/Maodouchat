@@ -510,6 +510,7 @@ fun Application.configureRouting(
             conversationQueryRepo = conversationQueryRepo,
             botSendRateLimiter = botSendRateLimiter,
             json = json,
+            messagingV2Repository = messagingV2Repository,
         )
 
         // Authentication and public identity routes.

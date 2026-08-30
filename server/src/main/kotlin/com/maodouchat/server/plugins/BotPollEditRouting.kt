@@ -18,7 +18,8 @@ internal fun Route.configureBotPollEditRoutes(
     serviceMessageRepo: ServiceMessageRepository,
     conversationParticipantRepo: ConversationParticipantRepository,
     botSendRateLimiter: BoundedRateLimiter,
-    json: Json
+    json: Json,
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
 
     get("/api/bot/health") {
@@ -131,6 +132,7 @@ put("alias", "closePoll")
                 content = newBody,
                 editedAt = editedAt,
             ),
+            messagingV2Repository = messagingV2Repository,
         )
         call.respond(
         buildJsonObject {

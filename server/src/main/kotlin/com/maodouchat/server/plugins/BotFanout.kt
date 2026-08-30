@@ -80,6 +80,7 @@ internal suspend fun fanoutBotMessage(
     chatId: String,
     botMessage: MessageResponse,
     excludedRecipientIds: Set<String> = emptySet(),
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
     val fanoutPids = participantRepository.participantIds(chatId)
     val botBlockedIds = try {
@@ -87,7 +88,7 @@ internal suspend fun fanoutBotMessage(
     } catch (_: Exception) {
         emptySet()
     }
-    val result = com.maodouchat.server.messaging.v2.MessagingV2Repository().enqueueServiceMessage(
+    val result = messagingV2Repository.enqueueServiceMessage(
         message = botMessage,
         recipientUserIds = fanoutPids.filterNotTo(linkedSetOf()) {
             it in botBlockedIds || it in excludedRecipientIds
@@ -107,6 +108,7 @@ internal suspend fun fanoutBotEvent(
     chatId: String,
     event: com.maodouchat.server.messaging.v2.ServiceMessagingV2Event,
     excludedRecipientIds: Set<String> = emptySet(),
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
     val participantIds = participantRepository.participantIds(chatId)
     val blockedIds = try {
@@ -115,7 +117,7 @@ internal suspend fun fanoutBotEvent(
         emptySet()
     }
     val now = System.currentTimeMillis()
-    val result = com.maodouchat.server.messaging.v2.MessagingV2Repository().enqueueServiceEvent(
+    val result = messagingV2Repository.enqueueServiceEvent(
         id = "bot_event_" + UUID.randomUUID().toString().replace("-", ""),
         conversationId = chatId,
         senderUserId = botId,
@@ -136,10 +138,11 @@ internal suspend fun fanoutSystemDelete(
     json: Json,
     chatId: String,
     messageId: String,
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
     val participantIds = participantRepository.participantIds(chatId).toSet()
     val now = System.currentTimeMillis()
-    val result = com.maodouchat.server.messaging.v2.MessagingV2Repository().enqueueServiceEvent(
+    val result = messagingV2Repository.enqueueServiceEvent(
         id = "system_event_" + UUID.randomUUID().toString().replace("-", ""),
         conversationId = chatId,
         senderUserId = "system",

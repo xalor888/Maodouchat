@@ -33,6 +33,7 @@ internal fun Route.configureBotCoreRoutes(
     conversationQueryRepo: ConversationQueryRepository,
     botSendRateLimiter: BoundedRateLimiter,
     json: Json,
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
 
     // Bot API uses its own token and must not be nested under user JWT authentication.
@@ -270,6 +271,7 @@ put("messageId", messageId)
                     content = contentOut,
                     editedAt = editedAt,
                 ),
+                messagingV2Repository = messagingV2Repository,
             )
         }
         call.respond(
@@ -317,6 +319,7 @@ put("messageId", messageId)
         conversationParticipantRepo = conversationParticipantRepo,
         botSendRateLimiter = botSendRateLimiter,
         json = json,
+        messagingV2Repository = messagingV2Repository,
     )
 
     configureBotChatModerationRoutes(
@@ -326,6 +329,7 @@ put("messageId", messageId)
         conversationParticipantRepo = conversationParticipantRepo,
         botSendRateLimiter = botSendRateLimiter,
         json = json,
+        messagingV2Repository = messagingV2Repository,
     )
     configureBotProfileRoutes(
         conversationParticipantRepo = conversationParticipantRepo,
@@ -351,6 +355,7 @@ put("messageId", messageId)
         conversationQueryRepo = conversationQueryRepo,
         botSendRateLimiter = botSendRateLimiter,
         json = json,
+        messagingV2Repository = messagingV2Repository,
     )
 
     configureBotGeoRoutes(
@@ -363,6 +368,7 @@ put("messageId", messageId)
         conversationQueryRepo = conversationQueryRepo,
         botSendRateLimiter = botSendRateLimiter,
         json = json,
+        messagingV2Repository = messagingV2Repository,
     )
 
     configureBotMediaRoutes(
@@ -374,6 +380,7 @@ put("messageId", messageId)
         conversationQueryRepo = conversationQueryRepo,
         botSendRateLimiter = botSendRateLimiter,
         json = json,
+        messagingV2Repository = messagingV2Repository,
     )
 
     configureBotMessagingVariantsRoutes(
@@ -383,7 +390,8 @@ put("messageId", messageId)
         conversationParticipantRepo = conversationParticipantRepo,
         conversationQueryRepo = conversationQueryRepo,
         botSendRateLimiter = botSendRateLimiter,
-        json = json
+        json = json,
+        messagingV2Repository = messagingV2Repository,
     )
 
     configureBotPollEditRoutes(
@@ -391,7 +399,8 @@ put("messageId", messageId)
         serviceMessageRepo = serviceMessageRepo,
         conversationParticipantRepo = conversationParticipantRepo,
         botSendRateLimiter = botSendRateLimiter,
-        json = json
+        json = json,
+        messagingV2Repository = messagingV2Repository,
     )
 
     configureBotReactionRoutes(
@@ -399,7 +408,8 @@ put("messageId", messageId)
         serviceMessageRepo = serviceMessageRepo,
         conversationParticipantRepo = conversationParticipantRepo,
         botSendRateLimiter = botSendRateLimiter,
-        json = json
+        json = json,
+        messagingV2Repository = messagingV2Repository,
     )
 
     configureBotChatMiscRoutes(
@@ -408,7 +418,8 @@ put("messageId", messageId)
         starMessageRepo = starMessageRepo,
         conversationParticipantRepo = conversationParticipantRepo,
         botSendRateLimiter = botSendRateLimiter,
-        json = json
+        json = json,
+        messagingV2Repository = messagingV2Repository,
     )
 
     configureBotPollQuizRoutes(
@@ -416,7 +427,8 @@ put("messageId", messageId)
         serviceMessageRepo = serviceMessageRepo,
         conversationParticipantRepo = conversationParticipantRepo,
         botSendRateLimiter = botSendRateLimiter,
-        json = json
+        json = json,
+        messagingV2Repository = messagingV2Repository,
     )
 
     configureBotPresentationRoutes(

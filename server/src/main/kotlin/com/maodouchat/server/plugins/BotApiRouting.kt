@@ -20,6 +20,7 @@ internal fun Route.configureBotApiRoutes(
     conversationQueryRepo: ConversationQueryRepository,
     botSendRateLimiter: BoundedRateLimiter,
     json: Json,
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
     configureBotCoreRoutes(
         userRepo = userRepo,
@@ -35,5 +36,6 @@ internal fun Route.configureBotApiRoutes(
         conversationQueryRepo = conversationQueryRepo,
         botSendRateLimiter = botSendRateLimiter,
         json = json,
+        messagingV2Repository = messagingV2Repository,
     )
 }

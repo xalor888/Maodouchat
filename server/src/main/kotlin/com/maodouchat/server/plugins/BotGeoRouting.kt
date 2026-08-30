@@ -22,7 +22,8 @@ internal fun Route.configureBotGeoRoutes(
     conversationParticipantRepo: ConversationParticipantRepository,
     conversationQueryRepo: ConversationQueryRepository,
     botSendRateLimiter: BoundedRateLimiter,
-    json: Json
+    json: Json,
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
 
     post("/api/bot/sendLocation") {
@@ -74,7 +75,7 @@ internal fun Route.configureBotGeoRoutes(
             id = msgId, chatId = chatId, senderId = bot.id, content = content,
             type = "LOCATION", timestamp = now, status = "SENT"
         )
-        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage)
+        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage, messagingV2Repository = messagingV2Repository)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -207,7 +208,7 @@ put("count", history.size)
             id = msgId, chatId = chatId, senderId = bot.id, content = content,
             type = "TEXT", timestamp = now, status = "SENT"
         )
-        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage)
+        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage, messagingV2Repository = messagingV2Repository)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -266,7 +267,7 @@ put("messageId", msgId)
             id = msgId, chatId = chatId, senderId = bot.id, content = content,
             type = "LOCATION", timestamp = now, status = "SENT"
         )
-        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage)
+        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage, messagingV2Repository = messagingV2Repository)
         call.respond(
         buildJsonObject {
 put("ok", true)

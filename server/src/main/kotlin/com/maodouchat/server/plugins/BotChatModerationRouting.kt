@@ -17,6 +17,7 @@ internal fun Route.configureBotChatModerationRoutes(
     conversationParticipantRepo: ConversationParticipantRepository,
     botSendRateLimiter: BoundedRateLimiter,
     json: Json,
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
 
     post("/api/bot/leaveChat") {
@@ -95,6 +96,7 @@ put("result", (outcome?.result?.name ?: "UNKNOWN"))
                     action = "DELETE",
                     targetMessageId = messageId,
                 ),
+                messagingV2Repository = messagingV2Repository,
             )
         }
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, messageId, "deleteMessage")

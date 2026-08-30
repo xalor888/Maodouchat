@@ -167,7 +167,8 @@ fun main() {
         )
         // B2 密聊防泄漏扩展（Surface #71–#78）：burnz/ttlz/fwlz/simz/2faz/ndz/dvz/sntz + hints
         configureSecretSurfaceRouting(
-            userRepo = userRepo
+            userRepo = userRepo,
+            messagingV2Repository = messagingV2Repository
         )
         // 8.31 运维修复：限流采样器注册优雅关闭（退出瞬间不再执行 DB 写）；
         // Hikari 连接池在 start 返回后显式关闭。

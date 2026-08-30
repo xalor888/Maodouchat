@@ -246,6 +246,7 @@ put("status", "ok")
                                         json,
                                         deleted.metadata.conversationId,
                                         report.messageId ?: report.targetId,
+                                        messagingV2Repository,
                                     )
                                 }
                             }

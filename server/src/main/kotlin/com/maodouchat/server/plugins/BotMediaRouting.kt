@@ -22,6 +22,7 @@ internal fun Route.configureBotMediaRoutes(
     conversationQueryRepo: ConversationQueryRepository,
     botSendRateLimiter: BoundedRateLimiter,
     json: Json,
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
 
     post("/api/bot/sendSticker") {
@@ -60,7 +61,7 @@ internal fun Route.configureBotMediaRoutes(
             id = msgId, chatId = chatId, senderId = bot.id, content = content,
             type = "STICKER", timestamp = now, status = "SENT"
         )
-        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage)
+        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage, messagingV2Repository = messagingV2Repository)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -132,7 +133,7 @@ put("type", "STICKER")
             id = msgId, chatId = chatId, senderId = bot.id, content = content,
             type = "VOICE", timestamp = now, status = "SENT"
         )
-        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage)
+        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage, messagingV2Repository = messagingV2Repository)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -287,7 +288,7 @@ put("role", "MEMBER")
             id = msgId, chatId = chatId, senderId = bot.id, content = content,
             type = "FILE", timestamp = now, status = "SENT"
         )
-        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage)
+        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage, messagingV2Repository = messagingV2Repository)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -350,7 +351,7 @@ put("size", bytes.size)
             id = msgId, chatId = chatId, senderId = bot.id, content = content,
             type = "IMAGE", timestamp = now, status = "SENT"
         )
-        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage)
+        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage, messagingV2Repository = messagingV2Repository)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -476,7 +477,7 @@ put("upToId", upTo)
             id = msgId, chatId = chatId, senderId = bot.id, content = content,
             type = "VIDEO", timestamp = now, status = "SENT"
         )
-        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage)
+        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage, messagingV2Repository = messagingV2Repository)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -531,7 +532,7 @@ put("type", "VIDEO")
             id = msgId, chatId = chatId, senderId = bot.id, content = content,
             type = "GIF", timestamp = now, status = "SENT"
         )
-        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage)
+        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage, messagingV2Repository = messagingV2Repository)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -694,7 +695,7 @@ put("event", event)
             id = msgId, chatId = chatId, senderId = bot.id, content = content,
             type = "FILE", timestamp = now, status = "SENT"
         )
-        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage)
+        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage, messagingV2Repository = messagingV2Repository)
         call.respond(
         buildJsonObject {
 put("ok", true)

@@ -23,6 +23,7 @@ internal fun Route.configureBotChatInviteRoutes(
     conversationQueryRepo: ConversationQueryRepository,
     botSendRateLimiter: BoundedRateLimiter,
     json: Json,
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
 
     post("/api/bot/unpinAllChatMessages") {
@@ -84,6 +85,7 @@ put("count", 0)
         conversationParticipantRepo = conversationParticipantRepo,
         botSendRateLimiter = botSendRateLimiter,
         json = json,
+        messagingV2Repository = messagingV2Repository,
     )
 
     post("/api/bot/exportChatInviteLink") {

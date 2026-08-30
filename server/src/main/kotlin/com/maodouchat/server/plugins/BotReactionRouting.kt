@@ -18,7 +18,8 @@ internal fun Route.configureBotReactionRoutes(
     serviceMessageRepo: ServiceMessageRepository,
     conversationParticipantRepo: ConversationParticipantRepository,
     botSendRateLimiter: BoundedRateLimiter,
-    json: Json
+    json: Json,
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
 
     get("/api/bot/getCommandStats") {
@@ -80,7 +81,7 @@ add(buildJsonObject {
             id = msgId, chatId = chatId, senderId = bot.id, content = fenced,
             type = "MARKDOWN", timestamp = now, status = "SENT"
         )
-        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage)
+        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage, messagingV2Repository = messagingV2Repository)
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -134,6 +135,7 @@ put("type", "MARKDOWN")
                 targetMessageId = messageId,
                 reactionEmoji = emoji,
             ),
+            messagingV2Repository = messagingV2Repository,
         )
         call.respond(
         buildJsonObject {
@@ -175,7 +177,7 @@ put("reactions", Json.parseToJsonElement(Json.encodeToString(botReactions)))
             id = msgId, chatId = chatId, senderId = bot.id, content = content,
             type = "MARKDOWN", timestamp = now, status = "SENT"
         )
-        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage)
+        fanoutBotMessage(userRepo, conversationParticipantRepo, json, bot.id, chatId, botMessage, messagingV2Repository = messagingV2Repository)
         call.respond(
         buildJsonObject {
 put("ok", true)

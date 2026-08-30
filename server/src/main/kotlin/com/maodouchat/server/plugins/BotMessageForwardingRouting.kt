@@ -15,6 +15,7 @@ internal fun Route.configureBotMessageForwardingRoutes(
     conversationParticipantRepo: ConversationParticipantRepository,
     botSendRateLimiter: BoundedRateLimiter,
     json: Json,
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
 
     post("/api/bot/forwardMessage") {
@@ -72,6 +73,7 @@ internal fun Route.configureBotMessageForwardingRoutes(
             toChatId,
             botMessage,
             excludedRecipientIds = sourceBlockedIds,
+            messagingV2Repository = messagingV2Repository,
         )
         call.respond(
         buildJsonObject {
@@ -136,6 +138,7 @@ put("chatId", toChatId)
             toChatId,
             botMessage,
             excludedRecipientIds = sourceBlockedIds,
+            messagingV2Repository = messagingV2Repository,
         )
         call.respond(
         buildJsonObject {
