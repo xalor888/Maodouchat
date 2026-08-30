@@ -71,7 +71,7 @@ class PostRepository {
                     it[Posts.authorId] = authorId
                     it[Posts.content] = content
                     it[Posts.imageUrls] = json.encodeToString(imageUrlListSerializer, imageUrls)
-                    it[Posts.visibility] = normalizeVisibility(visibility)
+                    it[Posts.visibility] = VisibilityPolicy.normalize(visibility)
                     it[createdAt] = now
                 }
                 filenames.forEach { filename ->
@@ -153,7 +153,7 @@ class PostRepository {
             author = toPublicUser(),
             content = this[Posts.content],
             imageUrls = decodeImageUrls(this[Posts.imageUrls]),
-            visibility = normalizeVisibility(this[Posts.visibility]),
+            visibility = VisibilityPolicy.normalize(this[Posts.visibility]),
             createdAt = this[Posts.createdAt],
             editedAt = this[Posts.editedAt],
             likeCount = meta.likeCounts[postId] ?: 0,
@@ -192,8 +192,8 @@ class PostRepository {
     ): List<PostResponse> {
         val boundedLimit = limit.coerceIn(1, 50) // BUG 3.2 fix: 仓库层也限制上限
         return transaction {
-            val contactIds = getContactIds(currentUserId)
-            val blockedUserIds = getBlockedEitherWayUserIds(currentUserId)
+            val contactIds = SocialGraphService.contactIds(currentUserId)
+            val blockedUserIds = SocialGraphService.blockedEitherWayUserIds(currentUserId)
             // 分批拉取：每次拉 boundedLimit*3 条候选，过滤可见后取 boundedLimit 条；
             // 若不足则继续拉取下一批，最多 20 次（避免极端分布下拉太多）
             val result = mutableListOf<PostResponse>()
@@ -256,8 +256,8 @@ class PostRepository {
 
     fun getPostById(postId: String, currentUserId: String): PostResponse? {
         return transaction {
-            val contactIds = getContactIds(currentUserId)
-            val blockedUserIds = getBlockedEitherWayUserIds(currentUserId)
+            val contactIds = SocialGraphService.contactIds(currentUserId)
+            val blockedUserIds = SocialGraphService.blockedEitherWayUserIds(currentUserId)
             val row = (Posts innerJoin Users)
                 .selectAll()
                 .where { Posts.id eq postId }
@@ -297,7 +297,7 @@ class PostRepository {
                 (Posts.id eq postId) and (Posts.authorId eq requesterId)
             }) {
                 it[Posts.content] = content.trim()
-                if (visibility != null) it[Posts.visibility] = normalizeVisibility(visibility)
+                if (visibility != null) it[Posts.visibility] = VisibilityPolicy.normalize(visibility)
                 it[Posts.editedAt] = now
             }
             if (updated != 1) return@transaction null
@@ -505,8 +505,8 @@ class PostRepository {
         beforeId: String? = null
     ): List<PostResponse> {
         return transaction {
-            val contactIds = getContactIds(currentUserId)
-            val blockedUserIds = getBlockedEitherWayUserIds(currentUserId)
+            val contactIds = SocialGraphService.contactIds(currentUserId)
+            val blockedUserIds = SocialGraphService.blockedEitherWayUserIds(currentUserId)
             if (currentUserId != authorId && authorId in blockedUserIds) return@transaction emptyList()
             val baseQuery = (Posts innerJoin Users)
                 .selectAll()
@@ -631,7 +631,7 @@ class PostRepository {
         val boundedLimit = limit.coerceIn(1, 100)
         return transaction {
             if (!canViewInTransaction(postId, currentUserId, lockPost = false)) return@transaction null
-            val blockedUserIds = getBlockedEitherWayUserIds(currentUserId)
+            val blockedUserIds = SocialGraphService.blockedEitherWayUserIds(currentUserId)
             val result = mutableListOf<PostCommentResponse>()
             var cursorTime = before
             var cursorId = beforeId
@@ -690,7 +690,7 @@ class PostRepository {
         val boundedLimit = limit.coerceIn(1, 100)
         return transaction {
             if (!canViewInTransaction(postId, currentUserId, lockPost = false)) return@transaction null
-            val blockedUserIds = getBlockedEitherWayUserIds(currentUserId)
+            val blockedUserIds = SocialGraphService.blockedEitherWayUserIds(currentUserId)
             val result = mutableListOf<UserResponse>()
             var cursorTime: Long? = null
             var cursorUserId: String? = null
@@ -750,7 +750,7 @@ class PostRepository {
     /** 1.130：公开读取单条评论（路由通知预览用）。 */
     fun getComment(commentId: String, currentUserId: String): PostCommentResponse? {
         return transaction {
-            val blockedUserIds = getBlockedEitherWayUserIds(currentUserId)
+            val blockedUserIds = SocialGraphService.blockedEitherWayUserIds(currentUserId)
             getCommentById(commentId, currentUserId, blockedUserIds)
         }
     }
@@ -888,65 +888,16 @@ class PostRepository {
         currentUserId: String,
         contactIds: Set<String>,
         blockedUserIds: Set<String>
-    ): Boolean {
-        val authorId = this[Posts.authorId]
-        if (authorId == currentUserId) return true
-        // 任一方拉黑：动态不可见（含 PUBLIC）
-        if (authorId in blockedUserIds) return false
-        return when (normalizeVisibility(this[Posts.visibility])) {
-            "PUBLIC" -> true
-            "CONTACTS" -> authorId in contactIds
-            else -> false
-        }
-    }
+    ): Boolean = VisibilityPolicy.isVisible(
+        this[Posts.visibility], this[Posts.authorId], currentUserId, contactIds, blockedUserIds,
+    )
 
     private fun canViewInTransaction(postId: String, userId: String, lockPost: Boolean): Boolean {
-        val contactIds = getContactIds(userId)
-        val blockedUserIds = getBlockedEitherWayUserIds(userId)
+        val contactIds = SocialGraphService.contactIds(userId)
+        val blockedUserIds = SocialGraphService.blockedEitherWayUserIds(userId)
         val query = Posts.selectAll().where { Posts.id eq postId }
         val row = if (lockPost) query.forUpdate().firstOrNull() else query.firstOrNull()
         return row?.isPostVisibleTo(userId, contactIds, blockedUserIds) == true
-    }
-
-    private fun getBlockedEitherWayUserIds(userId: String): Set<String> =
-        BlockedUsers
-            .select(BlockedUsers.blockerId, BlockedUsers.blockedId)
-            .where { (BlockedUsers.blockerId eq userId) or (BlockedUsers.blockedId eq userId) }
-            .mapTo(hashSetOf()) { row ->
-                if (row[BlockedUsers.blockerId] == userId) row[BlockedUsers.blockedId]
-                else row[BlockedUsers.blockerId]
-            }
-
-    /**
-     * CONTACTS = 已建立好友 ∪ 完整 1:1 私聊对方。
-     * 不含群成员（群邀请陌生人不得读 contacts 动态）。
-     * 加好友不会自动建 1:1 会话，探索 feed 必须把 Friendships 算进联系人，
-     * 否则好友的 CONTACTS 动态永远进不了列表。
-     */
-    private fun getContactIds(userId: String): Set<String> {
-        val contactIds = Friendships.selectAll()
-            .where { (Friendships.userLowId eq userId) or (Friendships.userHighId eq userId) }
-            .mapTo(hashSetOf()) { row ->
-                if (row[Friendships.userLowId] == userId) row[Friendships.userHighId]
-                else row[Friendships.userLowId]
-            }
-        val chatIds = ChatParticipants
-            .innerJoin(Chats)
-            .select(ChatParticipants.chatId)
-            .where { (ChatParticipants.userId eq userId) and (Chats.isGroup eq false) }
-            .map { it[ChatParticipants.chatId] }
-            .toSet()
-        if (chatIds.isEmpty()) return contactIds
-        // 8.30 性能优化 A3：一次 SQL 取回全部 1:1 聊天的成员，替代逐 chat 查询
-        val membersByChat = ChatParticipants.selectAll()
-            .where { ChatParticipants.chatId inList chatIds }
-            .groupBy({ it[ChatParticipants.chatId] }, { it[ChatParticipants.userId] })
-        membersByChat.forEach { (_, members) ->
-            if (members.size == 2 && userId in members) {
-                members.firstOrNull { it != userId }?.let { contactIds += it }
-            }
-        }
-        return contactIds
     }
 
     private fun decodeImageUrls(value: String): List<String> {
@@ -955,11 +906,6 @@ class PostRepository {
         } catch (_: Exception) {
             emptyList()
         }
-    }
-
-    private fun normalizeVisibility(value: String): String {
-        val normalized = value.trim().uppercase()
-        return if (normalized in ALLOWED_VISIBILITIES) normalized else "PRIVATE"
     }
 
     private fun isImageFilenameClaimedInTx(filename: String): Boolean {
@@ -1013,7 +959,6 @@ class PostRepository {
     }
 
     private companion object {
-        val ALLOWED_VISIBILITIES = setOf("PUBLIC", "CONTACTS", "PRIVATE")
         /** 评论分页迭代上限：游标按可见评论推进后，前几批被拉黑作者也不再「饿死」可见评论。 */
         const val MAX_COMMENT_PAGINATION_ITERATIONS = 20
     }
