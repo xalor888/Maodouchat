@@ -38,7 +38,7 @@ internal fun Route.configureBotCoreRoutes(
 
     // Bot API uses its own token and must not be nested under user JWT authentication.
 
-    configureBotInfoRoutes(botSendRateLimiter)
+    configureBotInfoRoutes(botSendRateLimiter, conversationParticipantRepo)
 
     post("/api/bot/sendMessage") {
         val bot = call.requireBot() ?: return@post

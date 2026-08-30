@@ -25,12 +25,7 @@ internal fun Route.configureBotChatMiscRoutes(
 
     get("/api/bot/getChatIds") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        val chats = org.jetbrains.exposed.sql.transactions.transaction {
-            com.maodouchat.server.db.ChatParticipants.selectAll()
-                .where { com.maodouchat.server.db.ChatParticipants.userId eq bot.id }
-                .map { it[com.maodouchat.server.db.ChatParticipants.chatId] }
-                .distinct()
-        }
+        val chats = conversationParticipantRepo.chatIdsForUser(bot.id)
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "getChatIds")
         call.respond(
         buildJsonObject {

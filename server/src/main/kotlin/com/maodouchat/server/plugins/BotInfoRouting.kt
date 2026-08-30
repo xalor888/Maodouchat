@@ -1,5 +1,6 @@
 package com.maodouchat.server.plugins
 
+import com.maodouchat.server.repository.ConversationParticipantRepository
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.server.routing.*
@@ -8,7 +9,10 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 
 /** Bot API 身份与信息探针（getMe / webhookInfo / chats）。 */
-internal fun Route.configureBotInfoRoutes(botSendRateLimiter: BoundedRateLimiter) {
+internal fun Route.configureBotInfoRoutes(
+    botSendRateLimiter: BoundedRateLimiter,
+    conversationParticipantRepo: ConversationParticipantRepository,
+) {
 
     get("/api/bot/webhookInfo") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
@@ -129,12 +133,7 @@ put("maxConnections", 40)
 
     get("/api/bot/chats") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        val chats = org.jetbrains.exposed.sql.transactions.transaction {
-            com.maodouchat.server.db.ChatParticipants.selectAll()
-                .where { com.maodouchat.server.db.ChatParticipants.userId eq bot.id }
-                .map { it[com.maodouchat.server.db.ChatParticipants.chatId] }
-                .distinct()
-        }
+        val chats = conversationParticipantRepo.chatIdsForUser(bot.id)
         call.respond(
         buildJsonObject {
 put("chatIds", Json.parseToJsonElement(Json.encodeToString(chats)))

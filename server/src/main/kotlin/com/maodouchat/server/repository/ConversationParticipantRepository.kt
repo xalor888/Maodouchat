@@ -20,6 +20,14 @@ class ConversationParticipantRepository {
             .map { it[ChatParticipants.userId] }
     }
 
+    /** 某用户参与的会话 ID 列表（B12：Bot 路由获取 bot 所在群，替代 route 内事务）。 */
+    fun chatIdsForUser(userId: String): List<String> = transaction {
+        ChatParticipants.select(ChatParticipants.chatId)
+            .where { ChatParticipants.userId eq userId }
+            .map { it[ChatParticipants.chatId] }
+            .distinct()
+    }
+
     fun groupRevisionAndParticipantIds(chatIds: List<String>): Map<String, Pair<Long, List<String>>> = transaction {
         if (chatIds.isEmpty()) return@transaction emptyMap()
         val revisions = Chats.select(Chats.id, Chats.memberRevision)

@@ -122,11 +122,7 @@ put("type", "SYSTEM")
 
     get("/api/bot/getMyStats") {
         val bot = call.requireRateLimitedBot(botRateLimiter) ?: return@get
-        val chatCount = org.jetbrains.exposed.sql.transactions.transaction {
-            com.maodouchat.server.db.ChatParticipants.selectAll()
-                .where { com.maodouchat.server.db.ChatParticipants.userId eq bot.id }
-                .count()
-        }
+        val chatCount = participantRepository.chatIdsForUser(bot.id).size
         val pending = com.maodouchat.server.repository.BotRepository.countPendingUpdates(bot.id)
         val cmds = com.maodouchat.server.repository.BotRepository.getMyCommands(bot.id)
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "getMyStats")
