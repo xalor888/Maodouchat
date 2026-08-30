@@ -91,6 +91,14 @@ class SignalingRepository {
         idempotencyKey: String,
     ): String {
         purgeStaleInTx()
+        // 幂等：同 sender + callId 已存同一 idempotencyKey 时复用既有行，避免客户端重试产生重复信令。
+        if (idempotencyKey.isNotBlank()) {
+            SignalingMessages.selectAll().where {
+                (SignalingMessages.idempotencyKey eq idempotencyKey) and
+                    (SignalingMessages.fromUserId eq fromUserId) and
+                    (SignalingMessages.callId eq callId)
+            }.firstOrNull()?.let { return it[SignalingMessages.id] }
+        }
         val id = "sig_${UUID.randomUUID()}"
         SignalingMessages.insert {
             it[SignalingMessages.id] = id
