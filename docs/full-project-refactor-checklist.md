@@ -546,13 +546,13 @@ Gate：并发 pre-key、设备批准防重放、被撤销设备、新设备群 k
 
 ### B04 会话创建、查询、设置与生命周期
 
-当前状态：`[~]`。已有多个 Conversation repository，但仍有旧 direct 扫描和重复入口。
+当前状态：`[~]`。会话域已拆为 9 个 repository 文件；旧 direct 热路径扫描已删除（回填迁移 v3 替代）。`ConversationCommandService` 统一命令入口仍未建。
 
-- [ ] `ConversationCommandService` 统一 direct/group/channel 创建、退出、删除和归档语义。
-- [ ] `ConversationQueryService` 只做授权后的 metadata 查询。
-- [ ] DirectChatPairs 唯一约束保证并发创建只有一个会话。
-- [ ] 设置、可见性和参与者查询拥有独立 repository。
-- [ ] 删除 `findLegacyDirectIdInTx` 等热路径兼容。
+- [~] `ConversationCommandService` 统一 direct/group/channel 创建、退出、删除和归档语义（CreationService/LifecycleRepository 已分，统一 CommandService 待建）。
+- [~] `ConversationQueryService` 只做授权后的 metadata 查询（`ConversationQueryRepository` 已存在）。
+- [x] DirectChatPairs 唯一约束保证并发创建只有一个会话（`pairKey` 主键）。
+- [x] 设置、可见性和参与者查询拥有独立 repository（SettingsRepository/Visibility/ParticipantRepository 已分）。
+- [x] 删除 `findLegacyDirectIdInTx` 等热路径兼容（已删，migration v3 `backfillDirectChatPairs` 回填替代）。
 
 Gate：并发建直聊、退出/删除、拉黑、账号注销和权限矩阵通过。
 
