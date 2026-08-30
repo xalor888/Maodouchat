@@ -263,11 +263,11 @@ Gate：进程重启、时区变化、重复 Worker、换号、send-now 中断和
 
 ### M10 阅后即焚、密聊与本地隐私
 
-当前状态：`[ ]`。功能多，但策略、会话状态、截图、通知、导出和 AI 门禁分散。
+当前状态：`[~]`。`ConversationPrivacyPolicy` + `SecretConversationController` 契约已冻结到 `:domain:messaging`；实现接线与重复判断删除尚未开始。
 
-- [ ] 建立 `ConversationPrivacyPolicy` 和 `SecretConversationController`。
-- [ ] 密聊 TTL、已读 arm、截图保护、水印、通知脱敏和数据销毁共享一个状态机。
-- [ ] PIN 锁、密聊、普通会话的搜索/转发/导出/AI/Widget 权限统一由 capability 决定。
+- [~] 建立 `ConversationPrivacyPolicy` 和 `SecretConversationController`（契约 + 状态机已建并测试；实现待做）。
+- [~] 密聊 TTL、已读 arm、截图保护、水印、通知脱敏和数据销毁共享一个状态机（`SecretChatStateMachine` 纯逻辑已建并测试；截图/水印/通知脱敏待接入）。
+- [~] PIN 锁、密聊、普通会话的搜索/转发/导出/AI/Widget 权限统一由 capability 决定（`ConversationPrivacyPolicy.allows` 纯逻辑已建并测试；Widget 接入待做）。
 - [ ] 销毁任务持久化、账号隔离，进程死亡后可恢复。
 - [ ] 删除 UI、通知、AI、Widget 各自维护的重复密聊判断。
 
