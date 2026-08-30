@@ -587,7 +587,7 @@ Gate：两账号各两设备、离线数小时、ACK 崩溃点、revision 并发
 
 当前状态：`[~]`。分块上传和 V2 commit 已有，文件与 DB 跨资源状态仍不统一。
 
-- [ ] 建立 `BlobStore`、`UploadSessionService`、`AttachmentCommitService`。
+- [x] 建立 `BlobStore`、`UploadSessionService`、`AttachmentCommitService`。
 - [ ] 建立 `MediaReferenceService` 和 durable `OrphanGcJob`。
 - [ ] 统一 staged/uploading/uploaded/committed/deleted/quarantined 状态。
 - [ ] 下载授权只依赖成员身份和 message metadata。
