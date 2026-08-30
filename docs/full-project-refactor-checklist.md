@@ -598,7 +598,7 @@ Gate：乱序块、重复 finalize、文件系统故障、quota、访问控制�
 
 ### B08 WebSocket、Presence、Typing、Wake 与多实例
 
-当前状态：`[ ]`。`Sockets.kt` 仍集中连接、鉴权、presence、限流、signaling 和 fanout；在线 map 为单进程。
+当前状态：`[~]`。连接注册表/实时发布/在线状态/打字指示已拆分，presence 隐私与鉴权撤销闭环；跨节点 fanout（Redis/pub-sub）与全局 sendToUser 收口待做。
 
 - [x] 拆 `ConnectionRegistry`、`RealtimePublisher`、`PresenceService`、`TypingService`。
 - [ ] 使用 Redis/pub-sub 或等价总线支持跨节点 fanout。
