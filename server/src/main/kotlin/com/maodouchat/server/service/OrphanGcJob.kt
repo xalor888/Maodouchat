@@ -3,7 +3,7 @@ package com.maodouchat.server.service
 import com.maodouchat.server.plugins.ATTACHMENT_UPLOAD_TTL_MS
 import com.maodouchat.server.plugins.MEDIA_ORPHAN_GRACE_MS
 import com.maodouchat.server.repository.EncryptedAttachmentRepository
-import com.maodouchat.server.repository.GroupMediaReferenceRepository
+import com.maodouchat.server.repository.MediaReferenceService
 import com.maodouchat.server.repository.PostRepository
 
 /**
@@ -15,7 +15,7 @@ import com.maodouchat.server.repository.PostRepository
 class OrphanGcJob(
     private val attachmentRepository: EncryptedAttachmentRepository,
     private val postRepository: PostRepository,
-    private val groupMediaReferenceRepository: GroupMediaReferenceRepository,
+    private val mediaReferenceService: MediaReferenceService,
 ) {
     data class Result(
         val deletedAttachments: Int,
@@ -28,13 +28,13 @@ class OrphanGcJob(
         val deletedAttachments = attachmentRepository.deleteExpired(now)
         deletedAttachments.forEach(BlobStore::delete)
         val staleAttachmentFiles = BlobStore.deleteStaleFiles(
-            validIds = attachmentRepository.allIds(),
+            validIds = mediaReferenceService.allReferencedAttachmentIds(),
             olderThan = now - ATTACHMENT_UPLOAD_TTL_MS,
         )
         val olderThan = now - MEDIA_ORPHAN_GRACE_MS
         val stalePostImages = postRepository.deleteStaleUnreferencedImages(olderThan)
         val staleGroupAvatars = FileStorageService.deleteStaleGroupAvatars(
-            validFilenames = groupMediaReferenceRepository.allReferencedAvatarFilenames(),
+            validFilenames = mediaReferenceService.allReferencedGroupAvatarFilenames(),
             olderThan = olderThan,
         )
         return Result(deletedAttachments.size, staleAttachmentFiles, stalePostImages, staleGroupAvatars)

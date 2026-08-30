@@ -208,10 +208,11 @@ fun Application.configureRouting(
     val conversationQueryRepo = ConversationQueryRepository()
     val groupAuditRepo = GroupAuditRepository()
     val groupMediaReferenceRepo = GroupMediaReferenceRepository()
+    val mediaReferenceService = MediaReferenceService(encryptedAttachmentRepo, groupMediaReferenceRepo)
     val orphanGcJob = com.maodouchat.server.service.OrphanGcJob(
         encryptedAttachmentRepo,
         postRepo,
-        groupMediaReferenceRepo,
+        mediaReferenceService,
     )
     val aiSummaryCleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     aiSummaryCleanupScope.launch {
