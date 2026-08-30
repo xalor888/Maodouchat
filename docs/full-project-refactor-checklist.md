@@ -626,7 +626,7 @@ Gate：乱序/重复信令、TTL、伪造群成员、邀请限流、TURN 过期�
 
 当前状态：`[ ]`。PostRepository 超过 1,000 行，隐私判断散布多个领域。
 
-- [ ] 建立 `SocialGraphService` 和统一 `VisibilityPolicy`。
+- [x] 建立 `SocialGraphService` 和统一 `VisibilityPolicy`。
 - [ ] 拆 `PostCommandService`、`FeedQueryService`、`PostInteractionService`。
 - [ ] 公开/联系人/私有、拉黑、注销在资料、动态、附近、搜索、presence 中共享规则。
 - [ ] 点赞/评论计数使用数据库约束和事务，不靠 JVM 同步。
