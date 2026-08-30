@@ -611,7 +611,7 @@ Gate：双节点、慢连接、重连、fanout、拉黑侧信道、鉴权撤销�
 
 ### B09 通话信令、TURN 与 Push 唤醒
 
-当前状态：`[ ]`。WS/REST 信令存在重复校验，仍有空 callId legacy 兼容。
+当前状态：`[~]`。CallSignalingService 统一 REST/WS 校验与仓储，epoch/sequence/幂等键已入库；去重/排序与会话级 TURN 撤销待完成。
 
 - [~] `CallSignalingService` 使用统一 call session 状态机。
 - [~] offer/answer/ICE/terminal 使用 callId、epoch、sequence 和幂等键。
