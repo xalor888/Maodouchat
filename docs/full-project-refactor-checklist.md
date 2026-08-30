@@ -253,10 +253,10 @@ Gate：多目标部分失败、重复请求、附件、留言、账号切换和�
 
 当前状态：`[~]`。Controller/Coordinator 已有，但 Store 仍混用 SharedPreferences。
 
-- [ ] 定时消息和提醒迁入 Room，拥有 owner、状态、attempt、nextRunAt 和幂等键。
+- [~] 定时消息和提醒迁入 Room，拥有 owner、状态、attempt、nextRunAt 和幂等键（`ScheduledMessage` 模型 + `ScheduledMessageStore` 端口已冻结到 `:domain:messaging`，Room 实现待做）。
 - [ ] 定时发送调用普通消息 facade，不另建加密/发送链路。
 - [ ] send-now 只有在消息 durable staged 后才删除 schedule row。
-- [ ] 支持时区、夏令时、改期、取消、重复周期和登出清理。
+- [~] 支持时区、夏令时、改期、取消、重复周期和登出清理（重复周期 `RecurrenceRule`/`ScheduledMessagePolicy.nextRunAt` 已建并测试；时区/夏令时待实现）。
 - [ ] 删除旧 `util/ScheduledMessage*Store` 与 ViewModel 重复包装逻辑。
 
 Gate：进程重启、时区变化、重复 Worker、换号、send-now 中断和 tombstone 测试通过。
