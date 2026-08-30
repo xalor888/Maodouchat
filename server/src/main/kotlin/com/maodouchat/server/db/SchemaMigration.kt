@@ -544,3 +544,16 @@ internal fun backfillDirectChatPairs() {
         }
     }
 }
+
+/** B09：为既有库补充 signaling epoch / seq_no / idempotency_key 列（新库由基线建表自带）。 */
+internal fun addSignalingEpochSequenceColumns() {
+    org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(
+        "ALTER TABLE signaling_messages ADD COLUMN IF NOT EXISTS epoch BIGINT DEFAULT 0 NOT NULL"
+    )
+    org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(
+        "ALTER TABLE signaling_messages ADD COLUMN IF NOT EXISTS seq_no BIGINT DEFAULT 0 NOT NULL"
+    )
+    org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(
+        "ALTER TABLE signaling_messages ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(200) DEFAULT '' NOT NULL"
+    )
+}

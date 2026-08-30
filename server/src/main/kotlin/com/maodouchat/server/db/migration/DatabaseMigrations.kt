@@ -1,5 +1,6 @@
 package com.maodouchat.server.db.migration
 
+import com.maodouchat.server.db.addSignalingEpochSequenceColumns
 import com.maodouchat.server.db.applyBaselineSchemaMigration
 import com.maodouchat.server.db.backfillDirectChatPairs
 import com.maodouchat.server.db.retireLegacyMessagingTables
@@ -31,6 +32,14 @@ internal object DatabaseMigrations {
 
             override fun apply() {
                 backfillDirectChatPairs()
+            }
+        },
+        object : DatabaseMigration {
+            override val version = 4
+            override val description = "Add signaling epoch/seq_no/idempotency_key columns"
+
+            override fun apply() {
+                addSignalingEpochSequenceColumns()
             }
         },
     )

@@ -27,10 +27,13 @@ class SignalingRepository {
         callId: String,
         groupId: String = "",
         groupMemberIds: List<String> = emptyList(),
-        groupInvite: Boolean = false
+        groupInvite: Boolean = false,
+        epoch: Long = 0,
+        sequence: Long = 0,
+        idempotencyKey: String = "",
     ): String {
         return transaction {
-            storeInTx(fromUserId, toUserId, type, payload, callId, groupId, groupMemberIds, groupInvite)
+            storeInTx(fromUserId, toUserId, type, payload, callId, groupId, groupMemberIds, groupInvite, epoch, sequence, idempotencyKey)
         }
     }
 
@@ -46,7 +49,10 @@ class SignalingRepository {
         callId: String,
         groupId: String = "",
         groupMemberIds: List<String> = emptyList(),
-        groupInvite: Boolean = false
+        groupInvite: Boolean = false,
+        epoch: Long = 0,
+        sequence: Long = 0,
+        idempotencyKey: String = "",
     ): String {
         val normalizedType = type.lowercase()
         require(normalizedType in TERMINAL_SIGNAL_TYPES) { "not_terminal_signal:$type" }
@@ -59,7 +65,10 @@ class SignalingRepository {
                 callId,
                 groupId,
                 groupMemberIds,
-                groupInvite
+                groupInvite,
+                epoch,
+                sequence,
+                idempotencyKey,
             )
             if (callId.isNotBlank()) {
                 clearForCallExcludingInTx(fromUserId, toUserId, callId, id)
@@ -76,7 +85,10 @@ class SignalingRepository {
         callId: String,
         groupId: String,
         groupMemberIds: List<String>,
-        groupInvite: Boolean
+        groupInvite: Boolean,
+        epoch: Long,
+        sequence: Long,
+        idempotencyKey: String,
     ): String {
         purgeStaleInTx()
         val id = "sig_${UUID.randomUUID()}"
@@ -90,6 +102,9 @@ class SignalingRepository {
             it[SignalingMessages.groupInvite] = groupInvite
             it[SignalingMessages.type] = type
             it[SignalingMessages.payload] = payload
+            it[SignalingMessages.epoch] = epoch
+            it[SignalingMessages.sequence] = sequence
+            it[SignalingMessages.idempotencyKey] = idempotencyKey
             it[SignalingMessages.timestamp] = System.currentTimeMillis()
         }
         return id
@@ -158,6 +173,9 @@ class SignalingRepository {
         groupInvite = this[SignalingMessages.groupInvite],
         type = this[SignalingMessages.type],
         payload = this[SignalingMessages.payload],
+        epoch = this[SignalingMessages.epoch],
+        sequence = this[SignalingMessages.sequence],
+        idempotencyKey = this[SignalingMessages.idempotencyKey],
         timestamp = this[SignalingMessages.timestamp]
     )
 
@@ -208,6 +226,9 @@ class SignalingRepository {
         val groupInvite: Boolean,
         val type: String,
         val payload: String,
+        val epoch: Long,
+        val sequence: Long,
+        val idempotencyKey: String,
         val timestamp: Long
     )
 }

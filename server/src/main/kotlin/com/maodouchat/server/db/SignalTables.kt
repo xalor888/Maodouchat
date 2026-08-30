@@ -55,6 +55,9 @@ object SignalingMessages : Table("signaling_messages") {
     val groupInvite = bool("group_invite").default(false)
     val type = varchar("type", 30) // "offer", "answer", "ice-candidate", "hang-up"
     val payload = text("payload") // SDP 或 ICE 数据
+    val epoch = long("epoch").default(0L)
+    val sequence = long("seq_no").default(0L)
+    val idempotencyKey = varchar("idempotency_key", 200).default("")
     val timestamp = long("timestamp")
     override val primaryKey = PrimaryKey(id)
 

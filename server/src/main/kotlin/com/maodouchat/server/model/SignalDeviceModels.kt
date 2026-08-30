@@ -75,7 +75,10 @@ data class SendSignalRequest(
     val callId: String,
     val groupId: String = "",
     val groupMemberIds: List<String> = emptyList(),
-    val groupInvite: Boolean = false
+    val groupInvite: Boolean = false,
+    val epoch: Long = 0,
+    val sequence: Long = 0,
+    val idempotencyKey: String = ""
 )
 
 @Serializable
@@ -88,7 +91,10 @@ data class SignalMessageResponse(
     val callId: String = "",
     val groupId: String = "",
     val groupMemberIds: List<String> = emptyList(),
-    val groupInvite: Boolean = false
+    val groupInvite: Boolean = false,
+    val epoch: Long = 0,
+    val sequence: Long = 0,
+    val idempotencyKey: String = ""
 )
 
 @Serializable

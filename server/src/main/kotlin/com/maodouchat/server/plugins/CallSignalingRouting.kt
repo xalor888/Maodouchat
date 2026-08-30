@@ -82,6 +82,9 @@ internal fun Route.configureCallSignalingRoutes(
                     it.groupId,
                     it.groupMemberIds,
                     it.groupInvite,
+                    it.epoch,
+                    it.sequence,
+                    it.idempotencyKey,
                 )
             })
         }

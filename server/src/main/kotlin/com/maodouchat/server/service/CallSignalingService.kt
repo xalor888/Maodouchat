@@ -50,11 +50,13 @@ class CallSignalingService(
             signalingRepository.storeTerminalAndClearOthers(
                 fromUserId, request.toUserId, request.type, request.payload,
                 request.callId, request.groupId, request.groupMemberIds, request.groupInvite,
+                request.epoch, request.sequence, request.idempotencyKey,
             )
         } else {
             signalingRepository.store(
                 fromUserId, request.toUserId, request.type, request.payload,
                 request.callId, request.groupId, request.groupMemberIds, request.groupInvite,
+                request.epoch, request.sequence, request.idempotencyKey,
             )
         }
         return SendOutcome.Stored(request)
@@ -66,6 +68,7 @@ class CallSignalingService(
         signalingRepository.storeTerminalAndClearOthers(
             userId, request.toUserId, "hang-up", request.payload,
             request.callId, request.groupId, request.groupMemberIds, request.groupInvite,
+            request.epoch, request.sequence, request.idempotencyKey,
         )
         return SendOutcome.Stored(request.copy(type = "hang-up"))
     }
