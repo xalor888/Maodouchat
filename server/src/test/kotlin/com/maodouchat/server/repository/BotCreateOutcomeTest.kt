@@ -338,7 +338,7 @@ class BotCreateOutcomeTest {
             }
         }
 
-        val poll = GroupPlayRepository.createPoll(
+        val poll = PollRepository.createPoll(
             chatId = "g1",
             creatorId = botId,
             question = "Release scope?",
@@ -349,7 +349,7 @@ class BotCreateOutcomeTest {
             requireBotDeliverable = true
         )!!
         assertTrue(
-            GroupPlayRepository.vote(
+            PollRepository.vote(
                 pollId = poll.id,
                 userId = botId,
                 optionIndexes = listOf(0),
@@ -366,7 +366,7 @@ class BotCreateOutcomeTest {
 
         assertFalse(BotRepository.isBotDeliverable(botId))
         assertNull(
-            GroupPlayRepository.createPoll(
+            PollRepository.createPoll(
                 chatId = "g1",
                 creatorId = botId,
                 question = "Blocked?",
@@ -378,7 +378,7 @@ class BotCreateOutcomeTest {
             )
         )
         assertNull(
-            GroupPlayRepository.vote(
+            PollRepository.vote(
                 pollId = poll.id,
                 userId = botId,
                 optionIndexes = listOf(1),
@@ -386,7 +386,7 @@ class BotCreateOutcomeTest {
             )
         )
         assertNull(
-            GroupPlayRepository.closePoll(
+            PollRepository.closePoll(
                 pollId = poll.id,
                 userId = botId,
                 requireBotDeliverable = true

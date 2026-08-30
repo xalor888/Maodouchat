@@ -31,9 +31,11 @@ import java.util.UUID
  * 群签到 / 群接龙 / 群 PK 仓库（B3）。
  *
  * 全部为群内公开元数据，明文存储。所有写操作都校验「群聊 + 成员」身份，
- * 与 GroupPlayRepository 的校验口径保持一致。
+ * 与 PollRepository 的校验口径保持一致。
  */
 object GroupCheckinRepository {
+    private val chainRepository = GroupChainRepository()
+    private val pkRepository = GroupPkRepository()
 
     // ── DTO ──────────────────────────────────────────────
 
@@ -58,46 +60,7 @@ object GroupCheckinRepository {
         val lastCheckedAt: Long
     )
 
-    @Serializable
-    data class ChainEntryDto(
-        val id: String,
-        val userId: String,
-        val sequence: Int,
-        val content: String,
-        val createdAt: Long
-    )
 
-    @Serializable
-    data class ChainDto(
-        val id: String,
-        val chatId: String,
-        val creatorId: String,
-        val title: String,
-        val topic: String,
-        val maxEntries: Int,
-        val active: Boolean,
-        val createdAt: Long,
-        val closedAt: Long? = null,
-        val entryCount: Int = 0,
-        val myJoined: Boolean = false,
-        val entries: List<ChainEntryDto> = emptyList()
-    )
-
-    @Serializable
-    data class PkDto(
-        val id: String,
-        val chatId: String,
-        val creatorId: String,
-        val leftTitle: String,
-        val rightTitle: String,
-        val active: Boolean,
-        val createdAt: Long,
-        val closedAt: Long? = null,
-        val leftCount: Int = 0,
-        val rightCount: Int = 0,
-        val totalVoters: Int = 0,
-        val myChoice: String? = null
-    )
 
     // ── 群签到 ──────────────────────────────────────────
 
@@ -323,337 +286,6 @@ object GroupCheckinRepository {
 
     // ── 群接龙 ──────────────────────────────────────────
 
-    fun createChain(chatId: String, creatorId: String, title: String, topic: String, maxEntries: Int): ChainDto? {
-        if (!isValidId(chatId) || !isValidId(creatorId)) return null
-        val t = title.trim()
-        val tp = topic.trim()
-        if (t.isBlank() || t.length > MAX_CHAIN_TITLE_LENGTH) return null
-        if (tp.length > MAX_CHAIN_TOPIC_LENGTH) return null
-        val cap = maxEntries.coerceIn(MIN_CHAIN_ENTRIES, MAX_CHAIN_ENTRIES)
-        val id = "chain_" + UUID.randomUUID().toString().replace("-", "").take(16)
-        return transaction {
-            val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
-                ?: return@transaction null
-            if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, creatorId)) return@transaction null
-            GroupChains.insert {
-                it[GroupChains.id] = id
-                it[GroupChains.chatId] = chatId
-                it[GroupChains.creatorId] = creatorId
-                it[GroupChains.title] = t
-                it[GroupChains.topic] = tp
-                it[GroupChains.maxEntries] = cap
-                it[GroupChains.active] = true
-                it[GroupChains.createdAt] = System.currentTimeMillis()
-            }
-            getChainInTransaction(id, creatorId)
-        }
-    }
-
-    fun listChains(chatId: String, viewerId: String, limit: Int = 30): List<ChainDto> {
-        if (!isValidId(chatId) || !isValidId(viewerId)) return emptyList()
-        return transaction {
-            val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
-                ?: return@transaction emptyList()
-            if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, viewerId)) return@transaction emptyList()
-            val blocked = blockedUserIdsInTx(viewerId)
-            val chainBase = GroupChains.selectAll().where { GroupChains.chatId eq chatId }
-            val chainQuery = if (blocked.isEmpty()) chainBase
-            else chainBase.andWhere { GroupChains.creatorId notInList blocked.toList() }
-            val chains = chainQuery
-                .orderBy(GroupChains.createdAt to SortOrder.DESC, GroupChains.id to SortOrder.DESC)
-                .limit(limit.coerceIn(1, 100))
-                .toList()
-            // 8.48 修复 H2：批量取全部条目（此前 toChainDto 逐条查 → N+1）
-            val chainIds = chains.map { it[GroupChains.id] }
-            val entriesByChain = if (chainIds.isEmpty()) emptyMap() else
-                GroupChainEntries.selectAll()
-                    .where { GroupChainEntries.chainId inList chainIds }
-                    .orderBy(GroupChainEntries.sequence to SortOrder.ASC)
-                    .toList()
-                    .groupBy { it[GroupChainEntries.chainId] }
-            chains.mapNotNull {
-                toChainDto(it, viewerId, entriesByChain[it[GroupChains.id]].orEmpty(), blocked)
-            }
-        }
-    }
-
-    fun getChain(chainId: String, viewerId: String): ChainDto? {
-        if (!isValidId(chainId) || !isValidId(viewerId)) return null
-        return transaction {
-            val chain = GroupChains.selectAll().where { GroupChains.id eq chainId }.firstOrNull()
-                ?: return@transaction null
-            if (!isMemberInTransaction(chain[GroupChains.chatId], viewerId)) return@transaction null
-            if (chain[GroupChains.creatorId] in blockedUserIdsInTx(viewerId)) return@transaction null
-            toChainDto(chain, viewerId)
-        }
-    }
-
-    fun joinChain(chainId: String, userId: String, content: String): ChainDto? {
-        if (!isValidId(chainId) || !isValidId(userId)) return null
-        val c = content.trim()
-        if (c.isBlank() || c.length > MAX_CHAIN_CONTENT_LENGTH) return null
-        return transaction {
-            // 8.50 修复 H1：先锁 chat 再锁 chain——原「先锁 chain 再锁 chat」与 leaveChat/
-            // ConversationStateDeletion's chat -> chain lock order can otherwise form an AB-BA cycle.
-            val chatId = GroupChains.select(GroupChains.chatId)
-                .where { GroupChains.id eq chainId }
-                .firstOrNull()?.get(GroupChains.chatId) ?: return@transaction null
-            val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
-                ?: return@transaction null
-            val chain = GroupChains.selectAll().where { GroupChains.id eq chainId }.forUpdate().firstOrNull()
-                ?: return@transaction null
-            if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, userId)) return@transaction null
-            val closed = !chain[GroupChains.active] || (chain[GroupChains.closedAt] != null)
-            if (closed) return@transaction null
-            val already = GroupChainEntries.selectAll().where {
-                (GroupChainEntries.chainId eq chainId) and (GroupChainEntries.userId eq userId)
-            }.count() > 0
-            if (already) return@transaction toChainDto(chain, userId)
-            val currentCount = GroupChainEntries.selectAll().where { GroupChainEntries.chainId eq chainId }.count()
-            val currentMaxSequence = GroupChainEntries.select(GroupChainEntries.sequence)
-                .where { GroupChainEntries.chainId eq chainId }
-                .orderBy(GroupChainEntries.sequence to SortOrder.DESC)
-                .limit(1)
-                .firstOrNull()
-                ?.get(GroupChainEntries.sequence) ?: 0
-            // 满员不是「成功但未加入」：返回 null，路由按「接龙已结束或人数已满」回 400，
-            // 否则客户端会把失败响应当成功刷新成未加入状态。
-            if (currentCount >= chain[GroupChains.maxEntries]) return@transaction null
-
-            val id = "ce_" + UUID.randomUUID().toString().replace("-", "").take(16)
-            GroupChainEntries.insert {
-                it[GroupChainEntries.id] = id
-                it[GroupChainEntries.chainId] = chainId
-                it[GroupChainEntries.userId] = userId
-                it[GroupChainEntries.sequence] = currentMaxSequence + 1
-                it[GroupChainEntries.content] = c
-                it[GroupChainEntries.createdAt] = System.currentTimeMillis()
-            }
-            toChainDto(chain, userId)
-        }
-    }
-
-    private fun getChainInTransaction(chainId: String, viewerId: String): ChainDto? {
-        val chain = GroupChains.selectAll().where { GroupChains.id eq chainId }.firstOrNull()
-            ?: return null
-        return toChainDto(chain, viewerId)
-    }
-
-    private fun toChainDto(
-        chain: ResultRow,
-        viewerId: String,
-        preloadedEntries: List<ResultRow> = emptyList(),
-        blocked: Set<String>? = null
-    ): ChainDto? {
-        val chainId = chain[GroupChains.id]
-        val blocked = blocked ?: blockedUserIdsInTx(viewerId)
-        // 8.48：列表路径由调用方批量预取；单条路径（空）此处回查
-        val entryRows = if (preloadedEntries.isNotEmpty()) preloadedEntries else
-            GroupChainEntries.selectAll().where { GroupChainEntries.chainId eq chainId }
-                .orderBy(GroupChainEntries.sequence to SortOrder.ASC)
-                .toList()
-        val entries = entryRows.filter { it[GroupChainEntries.userId] !in blocked }.map {
-            ChainEntryDto(
-                id = it[GroupChainEntries.id],
-                userId = it[GroupChainEntries.userId],
-                sequence = it[GroupChainEntries.sequence],
-                content = it[GroupChainEntries.content],
-                createdAt = it[GroupChainEntries.createdAt]
-            )
-        }
-        return ChainDto(
-            id = chainId,
-            chatId = chain[GroupChains.chatId],
-            creatorId = chain[GroupChains.creatorId],
-            title = chain[GroupChains.title],
-            topic = chain[GroupChains.topic],
-            maxEntries = chain[GroupChains.maxEntries],
-            active = chain[GroupChains.active] && chain[GroupChains.closedAt] == null,
-            createdAt = chain[GroupChains.createdAt],
-            closedAt = chain[GroupChains.closedAt],
-            entryCount = entries.size,
-            myJoined = entries.any { it.userId == viewerId },
-            entries = entries
-        )
-    }
-
-    // ── 群 PK ──────────────────────────────────────────
-
-    fun createPk(chatId: String, creatorId: String, leftTitle: String, rightTitle: String): PkDto? {
-        if (!isValidId(chatId) || !isValidId(creatorId)) return null
-        val lt = leftTitle.trim()
-        val rt = rightTitle.trim()
-        if (lt.isBlank() || rt.isBlank() || lt.length > MAX_PK_TITLE_LENGTH || rt.length > MAX_PK_TITLE_LENGTH) return null
-        val id = "pk_" + UUID.randomUUID().toString().replace("-", "").take(16)
-        return transaction {
-            val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
-                ?: return@transaction null
-            if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, creatorId)) return@transaction null
-            GroupPkRounds.insert {
-                it[GroupPkRounds.id] = id
-                it[GroupPkRounds.chatId] = chatId
-                it[GroupPkRounds.creatorId] = creatorId
-                it[GroupPkRounds.leftTitle] = lt
-                it[GroupPkRounds.rightTitle] = rt
-                it[GroupPkRounds.active] = true
-                it[GroupPkRounds.createdAt] = System.currentTimeMillis()
-            }
-            getPkInTransaction(id, creatorId)
-        }
-    }
-
-    fun listChatPks(chatId: String, viewerId: String, limit: Int = 30): List<PkDto> {
-        if (!isValidId(chatId) || !isValidId(viewerId)) return emptyList()
-        return transaction {
-            val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
-                ?: return@transaction emptyList()
-            if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, viewerId)) return@transaction emptyList()
-            val blocked = blockedUserIdsInTx(viewerId)
-            val pkBase = GroupPkRounds.selectAll().where { GroupPkRounds.chatId eq chatId }
-            val pkQuery = if (blocked.isEmpty()) pkBase
-            else pkBase.andWhere { GroupPkRounds.creatorId notInList blocked.toList() }
-            val pks = pkQuery
-                .orderBy(GroupPkRounds.createdAt to SortOrder.DESC, GroupPkRounds.id to SortOrder.DESC)
-                .limit(limit.coerceIn(1, 100))
-                .toList()
-            // 8.48 修复 H3：批量取投票（此前 toPkDto 逐个 PK 全量载入 → N+1）
-            val pkIds = pks.map { it[GroupPkRounds.id] }
-            val votesByPk = if (pkIds.isEmpty()) emptyMap() else
-                GroupPkVotes.selectAll()
-                    .where { GroupPkVotes.pkId inList pkIds }
-                    .toList()
-                    .groupBy { it[GroupPkVotes.pkId] }
-            pks.mapNotNull {
-                toPkDto(it, viewerId, votesByPk[it[GroupPkRounds.id]].orEmpty(), blocked)
-            }
-        }
-    }
-
-    fun getPk(pkId: String, viewerId: String): PkDto? {
-        if (!isValidId(pkId) || !isValidId(viewerId)) return null
-        return transaction {
-            val pk = GroupPkRounds.selectAll().where { GroupPkRounds.id eq pkId }.firstOrNull()
-                ?: return@transaction null
-            if (!isMemberInTransaction(pk[GroupPkRounds.chatId], viewerId)) return@transaction null
-            if (pk[GroupPkRounds.creatorId] in blockedUserIdsInTx(viewerId)) return@transaction null
-            toPkDto(pk, viewerId)
-        }
-    }
-
-    fun votePk(pkId: String, userId: String, choice: String): PkDto? {
-        if (!isValidId(pkId) || !isValidId(userId)) return null
-        val c = choice.trim().lowercase()
-        if (c != "left" && c != "right") return null
-        return try {
-            votePkInTransaction(pkId, userId, c)
-        } catch (error: Exception) {
-            // 与签到双签同口径：并发首次投票可能同时 INSERT 撞 (pkId, userId) 主键，
-            // PG 会 abort 事务。捕获必须在事务外，回滚后重试一次改票。
-            if (!isUniqueViolation(error)) throw error
-            votePkInTransaction(pkId, userId, c)
-        }
-    }
-
-    private fun votePkInTransaction(pkId: String, userId: String, choice: String): PkDto? = transaction {
-        // 8.50 修复 H1：先锁 chat 再锁 pk（原「先 pk 后 chat」与删除路径构成死锁环）
-        val chatId = GroupPkRounds.select(GroupPkRounds.chatId)
-            .where { GroupPkRounds.id eq pkId }
-            .firstOrNull()?.get(GroupPkRounds.chatId) ?: return@transaction null
-        val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
-            ?: return@transaction null
-        val pk = GroupPkRounds.selectAll().where { GroupPkRounds.id eq pkId }.forUpdate().firstOrNull()
-            ?: return@transaction null
-        if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, userId)) return@transaction null
-        if (!pk[GroupPkRounds.active] || pk[GroupPkRounds.closedAt] != null) return@transaction null
-        val now = System.currentTimeMillis()
-        val existing = GroupPkVotes.selectAll().where {
-            (GroupPkVotes.pkId eq pkId) and (GroupPkVotes.userId eq userId)
-        }.firstOrNull()
-        if (existing != null) {
-            GroupPkVotes.update({
-                (GroupPkVotes.pkId eq pkId) and (GroupPkVotes.userId eq userId)
-            }) {
-                it[GroupPkVotes.choice] = choice
-                it[GroupPkVotes.votedAt] = now
-            }
-        } else {
-            GroupPkVotes.insert {
-                it[GroupPkVotes.pkId] = pkId
-                it[GroupPkVotes.userId] = userId
-                it[GroupPkVotes.choice] = choice
-                it[GroupPkVotes.votedAt] = now
-            }
-        }
-        toPkDto(pk, userId)
-    }
-
-    fun closePk(pkId: String, userId: String): PkDto? {
-        if (!isValidId(pkId) || !isValidId(userId)) return null
-        return transaction {
-            // 8.50 H1 同序：先锁 chat 再锁 pk，并校验创建者仍是群成员，
-            // 否则退群/被移出后仍可关闭自己创建的 PK。
-            val chatId = GroupPkRounds.select(GroupPkRounds.chatId)
-                .where { GroupPkRounds.id eq pkId }
-                .firstOrNull()
-                ?.get(GroupPkRounds.chatId) ?: return@transaction null
-            val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
-                ?: return@transaction null
-            if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, userId)) return@transaction null
-            val pk = GroupPkRounds.selectAll().where { GroupPkRounds.id eq pkId }.forUpdate().firstOrNull()
-                ?: return@transaction null
-            if (pk[GroupPkRounds.creatorId] != userId) return@transaction null
-            val closedAt = System.currentTimeMillis()
-            GroupPkRounds.update({ GroupPkRounds.id eq pkId }) {
-                it[active] = false
-                it[GroupPkRounds.closedAt] = closedAt
-            }
-            // Exposed ResultRow 不会随 UPDATE 刷新。closePoll 用 forceClosed；这里重读行，
-            // 避免关闭接口把 active=true / closedAt=null 回给客户端（像没关上）。
-            val updated = GroupPkRounds.selectAll().where { GroupPkRounds.id eq pkId }.first()
-            toPkDto(updated, userId)
-        }
-    }
-
-    private fun getPkInTransaction(pkId: String, viewerId: String): PkDto? {
-        val pk = GroupPkRounds.selectAll().where { GroupPkRounds.id eq pkId }.firstOrNull()
-            ?: return null
-        return toPkDto(pk, viewerId)
-    }
-
-    private fun toPkDto(
-        pk: ResultRow,
-        viewerId: String,
-        preloadedVotes: List<ResultRow> = emptyList(),
-        blocked: Set<String>? = null
-    ): PkDto? {
-        val pkId = pk[GroupPkRounds.id]
-        val blocked = blocked ?: blockedUserIdsInTx(viewerId)
-        // 8.48：列表路径由调用方批量预取；单条路径（空）此处回查
-        val votes = (if (preloadedVotes.isNotEmpty()) preloadedVotes else
-            GroupPkVotes.selectAll().where { GroupPkVotes.pkId eq pkId }.toList()
-            ).filter { it[GroupPkVotes.userId] !in blocked }
-        var left = 0
-        var right = 0
-        var myChoice: String? = null
-        for (v in votes) {
-            if (v[GroupPkVotes.choice] == "left") left++ else right++
-            if (v[GroupPkVotes.userId] == viewerId) myChoice = v[GroupPkVotes.choice]
-        }
-        return PkDto(
-            id = pkId,
-            chatId = pk[GroupPkRounds.chatId],
-            creatorId = pk[GroupPkRounds.creatorId],
-            leftTitle = pk[GroupPkRounds.leftTitle],
-            rightTitle = pk[GroupPkRounds.rightTitle],
-            active = pk[GroupPkRounds.active] && pk[GroupPkRounds.closedAt] == null,
-            createdAt = pk[GroupPkRounds.createdAt],
-            closedAt = pk[GroupPkRounds.closedAt],
-            leftCount = left,
-            rightCount = right,
-            totalVoters = votes.size,
-            myChoice = myChoice
-        )
-    }
 
     // ── 通用 ──────────────────────────────────────────
 
@@ -738,10 +370,18 @@ object GroupCheckinRepository {
     private fun isValidId(value: String): Boolean =
         value.isNotBlank() && value.length <= 64 && value.all { it.isLetterOrDigit() || it == '_' || it == '-' }
 
-    private const val MIN_CHAIN_ENTRIES = 2
-    private const val MAX_CHAIN_ENTRIES = 1_000
-    private const val MAX_CHAIN_TITLE_LENGTH = 200
-    private const val MAX_CHAIN_TOPIC_LENGTH = 500
-    private const val MAX_CHAIN_CONTENT_LENGTH = 500
-    private const val MAX_PK_TITLE_LENGTH = 120
+    // ── 群接龙（委托 GroupChainRepository）────────────────
+
+    fun createChain(chatId: String, creatorId: String, title: String, topic: String, maxEntries: Int): GroupChainRepository.ChainDto? = chainRepository.createChain(chatId, creatorId, title, topic, maxEntries)
+    fun listChains(chatId: String, viewerId: String, limit: Int = 30): List<GroupChainRepository.ChainDto> = chainRepository.listChains(chatId, viewerId, limit)
+    fun getChain(chainId: String, viewerId: String): GroupChainRepository.ChainDto? = chainRepository.getChain(chainId, viewerId)
+    fun joinChain(chainId: String, userId: String, content: String): GroupChainRepository.ChainDto? = chainRepository.joinChain(chainId, userId, content)
+
+    // ── 群 PK（委托 GroupPkRepository）────────────────────
+
+    fun createPk(chatId: String, creatorId: String, leftTitle: String, rightTitle: String): GroupPkRepository.PkDto? = pkRepository.createPk(chatId, creatorId, leftTitle, rightTitle)
+    fun listChatPks(chatId: String, viewerId: String, limit: Int = 30): List<GroupPkRepository.PkDto> = pkRepository.listChatPks(chatId, viewerId, limit)
+    fun getPk(pkId: String, viewerId: String): GroupPkRepository.PkDto? = pkRepository.getPk(pkId, viewerId)
+    fun votePk(pkId: String, userId: String, choice: String): GroupPkRepository.PkDto? = pkRepository.votePk(pkId, userId, choice)
+    fun closePk(pkId: String, userId: String): GroupPkRepository.PkDto? = pkRepository.closePk(pkId, userId)
 }

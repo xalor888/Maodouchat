@@ -63,7 +63,7 @@ internal fun Route.configurePollLegacyRoutes(
                 if (com.maodouchat.server.repository.PollRepository.isMuted(chatId, userId)) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("你已被禁言，暂时无法参与群玩法"))
                 }
-                val poll = com.maodouchat.server.repository.GroupPlayRepository.createPoll(
+                val poll = com.maodouchat.server.repository.PollRepository.createPoll(
                     chatId, userId, question, options, multi, anonymous, closesAt
                 ) ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法创建投票"))
                 call.respond(poll)
@@ -75,12 +75,12 @@ internal fun Route.configurePollLegacyRoutes(
                 if (!com.maodouchat.server.repository.PollRepository.isMember(chatId, userId)) {
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
                 }
-                call.respond(com.maodouchat.server.repository.GroupPlayRepository.listChatPolls(chatId, userId))
+                call.respond(com.maodouchat.server.repository.PollRepository.listChatPolls(chatId, userId))
             }
             get("/api/polls/{pollId}") {
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
                 val pollId = call.parameters["pollId"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pollId"))
-                val poll = com.maodouchat.server.repository.GroupPlayRepository.getPoll(pollId, userId)
+                val poll = com.maodouchat.server.repository.PollRepository.getPoll(pollId, userId)
                     ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("poll not found"))
                 call.respond(poll)
             }
@@ -116,12 +116,12 @@ internal fun Route.configurePollLegacyRoutes(
                         add(single)
                     }
                 }
-                com.maodouchat.server.repository.GroupPlayRepository.getPoll(pollId, userId)?.let { existing ->
+                com.maodouchat.server.repository.PollRepository.getPoll(pollId, userId)?.let { existing ->
                     if (com.maodouchat.server.repository.PollRepository.isMuted(existing.chatId, userId)) {
                         return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("你已被禁言，暂时无法参与群玩法"))
                     }
                 }
-                val poll = com.maodouchat.server.repository.GroupPlayRepository.vote(pollId, userId, indexes)
+                val poll = com.maodouchat.server.repository.PollRepository.vote(pollId, userId, indexes)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("投票失败"))
                 call.respond(poll)
             }
@@ -134,7 +134,7 @@ internal fun Route.configurePollLegacyRoutes(
                 // 9.145：封禁用户不得关闭投票（同 polls 创建口径）
                 if (call.rejectIfSuspended(userRepo, userId)) return@post
                 val pollId = call.parameters["pollId"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pollId"))
-                val poll = com.maodouchat.server.repository.GroupPlayRepository.closePoll(pollId, userId)
+                val poll = com.maodouchat.server.repository.PollRepository.closePoll(pollId, userId)
                     ?: return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无法关闭投票"))
                 call.respond(poll)
             }

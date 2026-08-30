@@ -68,7 +68,7 @@ put("mediaUploadEnabled", com.maodouchat.server.service.RuntimeConfigService.isM
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val pollId = obj["pollId"]?.jsonPrimitive?.content.orEmpty()
         if (pollId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId required"))
-        val poll = com.maodouchat.server.repository.GroupPlayRepository.closePoll(
+        val poll = com.maodouchat.server.repository.PollRepository.closePoll(
             pollId = pollId,
             userId = bot.id,
             requireBotDeliverable = true

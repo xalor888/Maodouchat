@@ -92,7 +92,7 @@ put("longitude", lon)
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val polls = com.maodouchat.server.repository.GroupPlayRepository.listChatPolls(chatId, bot.id)
+        val polls = com.maodouchat.server.repository.PollRepository.listChatPolls(chatId, bot.id)
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "listChatPolls")
         call.respond(
         buildJsonObject {

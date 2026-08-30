@@ -23,7 +23,6 @@ import com.maodouchat.server.repository.ConversationCreationRepository
 import com.maodouchat.server.repository.LeaveConversationResult
 import com.maodouchat.server.repository.GroupCheckinRepository
 import com.maodouchat.server.repository.GroupInvitationRepository
-import com.maodouchat.server.repository.GroupPlayRepository
 import com.maodouchat.server.repository.PollRepository
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -251,11 +250,11 @@ class GroupPlayBlockedVisibilityTest {
         assertEquals(1, pkForU1.rightCount)
         assertEquals(1, pkForU1.totalVoters)
 
-        val polls = GroupPlayRepository.listChatPolls("g1", "u1", 100)
+        val polls = PollRepository.listChatPolls("g1", "u1", 100)
         assertEquals(listOf("poll_1"), polls.map { it.id })
         assertEquals(listOf(0, 1), polls.single().counts)
         assertEquals(1, polls.single().totalVoters)
-        assertNull(GroupPlayRepository.getPoll("poll_2", "u1"))
+        assertNull(PollRepository.getPoll("poll_2", "u1"))
 
         val snapshots = PollRepository.listChatPollSnapshots("g1", 100, viewerId = "u1")
         assertEquals(listOf("poll_1"), snapshots.map { it.id })

@@ -55,7 +55,7 @@ internal fun Route.configureBotPollRoutes(
         if (!com.maodouchat.server.service.RuntimeConfigService.isGroupPlayEnabled()) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("group play disabled"))
         }
-        val poll = com.maodouchat.server.repository.GroupPlayRepository.createPoll(
+        val poll = com.maodouchat.server.repository.PollRepository.createPoll(
             chatId = chatId,
             creatorId = bot.id,
             question = question,
@@ -176,7 +176,7 @@ put("sides", sides)
         if (pollId.isBlank() || indexes.isEmpty()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId/optionIndexes required"))
         }
-        val poll = com.maodouchat.server.repository.GroupPlayRepository.vote(
+        val poll = com.maodouchat.server.repository.PollRepository.vote(
             pollId = pollId,
             userId = bot.id,
             optionIndexes = indexes,
@@ -202,7 +202,7 @@ put("poll", Json.parseToJsonElement(Json.encodeToString(poll)))
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val pollId = obj["pollId"]?.jsonPrimitive?.content.orEmpty()
         if (pollId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId required"))
-        val poll = com.maodouchat.server.repository.GroupPlayRepository.closePoll(
+        val poll = com.maodouchat.server.repository.PollRepository.closePoll(
             pollId = pollId,
             userId = bot.id,
             requireBotDeliverable = true
@@ -221,7 +221,7 @@ put("poll", Json.parseToJsonElement(Json.encodeToString(poll)))
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
         val pollId = call.request.queryParameters["pollId"].orEmpty()
         if (pollId.isBlank()) return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId required"))
-        val poll = com.maodouchat.server.repository.GroupPlayRepository.getPoll(pollId, bot.id)
+        val poll = com.maodouchat.server.repository.PollRepository.getPoll(pollId, bot.id)
             ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("poll not found"))
         if (!conversationParticipantRepo.isParticipant(poll.chatId, bot.id)) {
             return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
