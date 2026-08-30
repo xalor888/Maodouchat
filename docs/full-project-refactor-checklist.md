@@ -228,11 +228,11 @@ Gate：重复/乱序 event、延迟 DATA、删除与附件 finalize、删除与�
 
 当前状态：`[~]`。准备、上传、finalize、下载已有模块，ViewModel 和全局 object 仍参与业务流程。
 
-- [ ] 建立 `AttachmentIntentController`、`PreparationService`、`TransferRepository`。
+- [~] 建立 `AttachmentIntentController`、`PreparationService`、`TransferRepository`（`AttachmentIntentController` 契约 + `TransferStatus`/状态机已冻结到 `:domain:messaging`，其余待做）。
 - [ ] Worker 只调用 `AttachmentFinalizeUseCase`，不读取全局 Application/API。
 - [ ] UI 只提交 URI intent、观察 transfer projection。
 - [ ] 统一图片、视频、文件、语音、GIF、贴纸、位置和联系人附件入口。
-- [ ] 处理 pause/resume/cancel、进程恢复、revision 改变、tombstone 和本地清理。
+- [~] 处理 pause/resume/cancel、进程恢复、revision 改变、tombstone 和本地清理（pause/resume/cancel 状态机已建并测试）。
 - [ ] 删除 ViewModel 内加密、finalize、cleanup 和附件 metadata 拼装。
 
 Gate：每个上传边界杀进程、分片恢复、账号切换、转发、密聊、阅后即焚测试通过。
