@@ -167,6 +167,12 @@ class RouteRegistrySplitTest {
             "BotPresentationCardsRouting.kt",
             "BotChatInviteRouting.kt",
             "BotMediaRouting.kt",
+            "BotGeoRouting.kt",
+            "BotMessagingVariantsRouting.kt",
+            "BotPollEditRouting.kt",
+            "BotReactionRouting.kt",
+            "BotChatMiscRouting.kt",
+            "BotPollQuizRouting.kt",
         )
     }
 }
