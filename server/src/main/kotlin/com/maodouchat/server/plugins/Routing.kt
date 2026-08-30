@@ -543,6 +543,7 @@ configureEncryptedAttachmentRoutes(
         )
         configureAuthenticatedSessionRoutes(
             userRepo = userRepo,
+            mfaService = com.maodouchat.server.service.MfaService(),
             authTokenRepo = authTokenRepo,
             pushTokenRepo = pushTokenRepo,
             totpManageRateLimiter = totpManageRateLimiter,

@@ -4,6 +4,7 @@ import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
+import com.maodouchat.server.service.MfaService
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -444,6 +445,7 @@ put("status", "ok")
 
 internal fun Route.configureAuthenticatedSessionRoutes(
     userRepo: UserRepository,
+    mfaService: MfaService,
     authTokenRepo: AuthTokenRepository,
     pushTokenRepo: PushTokenRepository,
     totpManageRateLimiter: BoundedRateLimiter,
@@ -464,7 +466,7 @@ put("status", "ok")
 
             get("/api/auth/totp/status") {
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
-                call.respond(TotpStatusResponse(enabled = userRepo.isTotpEnabled(userId)))
+                call.respond(TotpStatusResponse(enabled = mfaService.isTotpEnabled(userId)))
             }
 
             // 0.77：重新生成恢复码（验证当前 TOTP；旧码全部作废）
@@ -477,7 +479,7 @@ put("status", "ok")
                 val code = runCatching {
                     Json.parseToJsonElement(body).jsonObject["code"]?.jsonPrimitive?.content
                 }.getOrNull().orEmpty()
-                val codes = userRepo.regenerateBackupCodes(userId, code)
+                val codes = mfaService.regenerateBackupCodes(userId, code)
                 if (codes == null) {
                     return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid totp code", code = "TOTP_INVALID"))
                 }
@@ -486,7 +488,7 @@ put("status", "ok")
 
             post("/api/auth/totp/setup") {
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
-                val setup = userRepo.beginTotpSetup(userId)
+                val setup = mfaService.beginTotpSetup(userId)
                     ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("user not found"))
                 call.respond(
                     TotpSetupResponse(
@@ -507,7 +509,7 @@ put("status", "ok")
                 val code = runCatching {
                     Json.parseToJsonElement(body).jsonObject["code"]?.jsonPrimitive?.content
                 }.getOrNull().orEmpty()
-                val backupCodes = userRepo.confirmTotpSetup(userId, code)
+                val backupCodes = mfaService.confirmTotpSetup(userId, code)
                 if (backupCodes == null) {
                     return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid totp code", code = "TOTP_INVALID"))
                 }
@@ -525,7 +527,7 @@ put("status", "ok")
                 val code = runCatching {
                     Json.parseToJsonElement(body).jsonObject["code"]?.jsonPrimitive?.content
                 }.getOrNull().orEmpty()
-                if (!userRepo.disableTotp(userId, code)) {
+                if (!mfaService.disableTotp(userId, code)) {
                     return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid totp code", code = "TOTP_INVALID"))
                 }
                 call.respond(TotpStatusResponse(enabled = false))

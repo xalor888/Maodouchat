@@ -4,6 +4,7 @@ import com.maodouchat.server.db.AuthSessions
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.model.ClientPrefsUpdateRequest
+import com.maodouchat.server.service.MfaService
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
@@ -105,17 +106,17 @@ class AuthTokenAndProfileFixTest {
     @Test
     fun `beginTotpSetup refuses to disable already enabled totp`() {
         setupDb()
-        val userRepo = UserRepository()
-        val setup = userRepo.beginTotpSetup("u1")
+        val mfaService = MfaService()
+        val setup = mfaService.beginTotpSetup("u1")
         assertNotNull(setup)
         val secret = setup.first
         val now = System.currentTimeMillis()
-        val codes = userRepo.confirmTotpSetup("u1", testTotpCode(secret, now))
+        val codes = mfaService.confirmTotpSetup("u1", testTotpCode(secret, now))
         assertNotNull(codes)
-        assertTrue(userRepo.isTotpEnabled("u1"))
+        assertTrue(mfaService.isTotpEnabled("u1"))
 
-        assertFailsWith<IllegalArgumentException> { userRepo.beginTotpSetup("u1") }
-        assertTrue(userRepo.isTotpEnabled("u1"))
+        assertFailsWith<IllegalArgumentException> { mfaService.beginTotpSetup("u1") }
+        assertTrue(mfaService.isTotpEnabled("u1"))
     }
 
     @Test
