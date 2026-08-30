@@ -190,7 +190,7 @@ object GroupCheckinRepository {
                 !isMemberInTransaction(chatId, userId) ||
                 !isMemberInTransaction(chatId, viewerId)
             ) return@transaction null
-            if (userId in blockedUserIdsInTx(viewerId)) return@transaction null
+            if (userId in ConversationVisibility.blockedUserIdsInTx(viewerId)) return@transaction null
             val row = GroupCheckins.selectAll().where {
                 (GroupCheckins.chatId eq chatId) and
                     (GroupCheckins.userId eq userId) and
@@ -203,7 +203,7 @@ object GroupCheckinRepository {
     fun checkinRanking(chatId: String, limit: Int = 20, viewerId: String? = null): List<CheckinRankEntry> {
         if (chatId.isBlank()) return emptyList()
         return transaction {
-            val blocked = blockedUserIdsInTx(viewerId)
+            val blocked = ConversationVisibility.blockedUserIdsInTx(viewerId)
             // 8.46 修复：原先把全群签到历史载入内存（500 人×365 天≈18 万行）+ groupBy；
             // 改为一条 ROW_NUMBER 窗口函数 SQL 只取每个用户「最新一行」的 streak/totalCount/checkedAt。
             val safeLimit = limit.coerceIn(1, 100)
@@ -256,7 +256,7 @@ object GroupCheckinRepository {
         viewerId: String = userId
     ): CheckinDto {
         val date = row[GroupCheckins.checkinDate]
-        val blocked = blockedUserIdsInTx(viewerId)
+        val blocked = ConversationVisibility.blockedUserIdsInTx(viewerId)
         // 8.48 修复 M14：rank/count 用 COUNT 聚合——此前全量载入当日签到行（活跃大群上万行）
         val myCheckedAt = row[GroupCheckins.checkedAt]
         val visibleBase = visibleTodayPredicate(chatId, date, blocked)
@@ -343,23 +343,10 @@ object GroupCheckinRepository {
         }
 
     private fun visibleTodayCount(chatId: String, date: String, viewerId: String): Int {
-        val blocked = blockedUserIdsInTx(viewerId)
+        val blocked = ConversationVisibility.blockedUserIdsInTx(viewerId)
         return GroupCheckins.selectAll()
             .where { visibleTodayPredicate(chatId, date, blocked) }
             .count().toInt()
-    }
-
-    private fun blockedUserIdsInTx(viewerId: String?): Set<String> {
-        if (viewerId.isNullOrBlank()) return emptySet()
-        return BlockedUsers.selectAll()
-            .where {
-                (BlockedUsers.blockerId eq viewerId) or (BlockedUsers.blockedId eq viewerId)
-            }
-            .map { row ->
-                if (row[BlockedUsers.blockerId] == viewerId) row[BlockedUsers.blockedId]
-                else row[BlockedUsers.blockerId]
-            }
-            .toSet()
     }
 
     private fun isMemberInTransaction(chatId: String, userId: String): Boolean =

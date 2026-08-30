@@ -69,7 +69,7 @@ class GroupPkRepository {
             val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
                 ?: return@transaction emptyList()
             if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, viewerId)) return@transaction emptyList()
-            val blocked = blockedUserIdsInTx(viewerId)
+            val blocked = ConversationVisibility.blockedUserIdsInTx(viewerId)
             val pkBase = GroupPkRounds.selectAll().where { GroupPkRounds.chatId eq chatId }
             val pkQuery = if (blocked.isEmpty()) pkBase
             else pkBase.andWhere { GroupPkRounds.creatorId notInList blocked.toList() }
@@ -96,7 +96,7 @@ class GroupPkRepository {
             val pk = GroupPkRounds.selectAll().where { GroupPkRounds.id eq pkId }.firstOrNull()
                 ?: return@transaction null
             if (!isMemberInTransaction(pk[GroupPkRounds.chatId], viewerId)) return@transaction null
-            if (pk[GroupPkRounds.creatorId] in blockedUserIdsInTx(viewerId)) return@transaction null
+            if (pk[GroupPkRounds.creatorId] in ConversationVisibility.blockedUserIdsInTx(viewerId)) return@transaction null
             toPkDto(pk, viewerId)
         }
     }
@@ -188,7 +188,7 @@ class GroupPkRepository {
         blocked: Set<String>? = null
     ): PkDto? {
         val pkId = pk[GroupPkRounds.id]
-        val blocked = blocked ?: blockedUserIdsInTx(viewerId)
+        val blocked = blocked ?: ConversationVisibility.blockedUserIdsInTx(viewerId)
         // 8.48：列表路径由调用方批量预取；单条路径（空）此处回查
         val votes = (if (preloadedVotes.isNotEmpty()) preloadedVotes else
             GroupPkVotes.selectAll().where { GroupPkVotes.pkId eq pkId }.toList()
@@ -226,19 +226,6 @@ class GroupPkRepository {
             current = current.cause
         }
         return false
-    }
-
-    private fun blockedUserIdsInTx(viewerId: String?): Set<String> {
-        if (viewerId.isNullOrBlank()) return emptySet()
-        return BlockedUsers.selectAll()
-            .where {
-                (BlockedUsers.blockerId eq viewerId) or (BlockedUsers.blockedId eq viewerId)
-            }
-            .map { row ->
-                if (row[BlockedUsers.blockerId] == viewerId) row[BlockedUsers.blockedId]
-                else row[BlockedUsers.blockerId]
-            }
-            .toSet()
     }
 
     private fun isMemberInTransaction(chatId: String, userId: String): Boolean =

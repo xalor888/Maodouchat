@@ -79,7 +79,7 @@ class GroupChainRepository {
             val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
                 ?: return@transaction emptyList()
             if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, viewerId)) return@transaction emptyList()
-            val blocked = blockedUserIdsInTx(viewerId)
+            val blocked = ConversationVisibility.blockedUserIdsInTx(viewerId)
             val chainBase = GroupChains.selectAll().where { GroupChains.chatId eq chatId }
             val chainQuery = if (blocked.isEmpty()) chainBase
             else chainBase.andWhere { GroupChains.creatorId notInList blocked.toList() }
@@ -107,7 +107,7 @@ class GroupChainRepository {
             val chain = GroupChains.selectAll().where { GroupChains.id eq chainId }.firstOrNull()
                 ?: return@transaction null
             if (!isMemberInTransaction(chain[GroupChains.chatId], viewerId)) return@transaction null
-            if (chain[GroupChains.creatorId] in blockedUserIdsInTx(viewerId)) return@transaction null
+            if (chain[GroupChains.creatorId] in ConversationVisibility.blockedUserIdsInTx(viewerId)) return@transaction null
             toChainDto(chain, viewerId)
         }
     }
@@ -170,7 +170,7 @@ class GroupChainRepository {
         blocked: Set<String>? = null
     ): ChainDto? {
         val chainId = chain[GroupChains.id]
-        val blocked = blocked ?: blockedUserIdsInTx(viewerId)
+        val blocked = blocked ?: ConversationVisibility.blockedUserIdsInTx(viewerId)
         // 8.48：列表路径由调用方批量预取；单条路径（空）此处回查
         val entryRows = if (preloadedEntries.isNotEmpty()) preloadedEntries else
             GroupChainEntries.selectAll().where { GroupChainEntries.chainId eq chainId }
@@ -199,19 +199,6 @@ class GroupChainRepository {
             myJoined = entries.any { it.userId == viewerId },
             entries = entries
         )
-    }
-
-    private fun blockedUserIdsInTx(viewerId: String?): Set<String> {
-        if (viewerId.isNullOrBlank()) return emptySet()
-        return BlockedUsers.selectAll()
-            .where {
-                (BlockedUsers.blockerId eq viewerId) or (BlockedUsers.blockedId eq viewerId)
-            }
-            .map { row ->
-                if (row[BlockedUsers.blockerId] == viewerId) row[BlockedUsers.blockedId]
-                else row[BlockedUsers.blockerId]
-            }
-            .toSet()
     }
 
     private fun isMemberInTransaction(chatId: String, userId: String): Boolean =

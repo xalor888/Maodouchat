@@ -70,7 +70,7 @@ object PollRepository {
     fun listChatPollSnapshots(chatId: String, limit: Int = 30, viewerId: String? = null): List<PollSnapshot> {
         if (chatId.isBlank()) return emptyList()
         return transaction {
-            val blocked = blockedUserIdsInTx(viewerId)
+            val blocked = ConversationVisibility.blockedUserIdsInTx(viewerId)
             val pollBase = GroupPolls.selectAll().where { GroupPolls.chatId eq chatId }
             val pollQuery = if (blocked.isEmpty()) pollBase
             else pollBase.andWhere { GroupPolls.creatorId notInList blocked.toList() }
@@ -238,7 +238,7 @@ object PollRepository {
             val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
                 ?: return@transaction emptyList()
             if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, userId)) return@transaction emptyList()
-            val blocked = blockedUserIdsInTx(userId)
+            val blocked = ConversationVisibility.blockedUserIdsInTx(userId)
             val pollBase = GroupPolls.selectAll().where { GroupPolls.chatId eq chatId }
             val pollQuery = if (blocked.isEmpty()) pollBase
             else pollBase.andWhere { GroupPolls.creatorId notInList blocked.toList() }
@@ -266,7 +266,7 @@ object PollRepository {
         val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
             ?: return@transaction null
         if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, viewerId)) return@transaction null
-        if (row[GroupPolls.creatorId] in blockedUserIdsInTx(viewerId)) return@transaction null
+        if (row[GroupPolls.creatorId] in ConversationVisibility.blockedUserIdsInTx(viewerId)) return@transaction null
         toPollDto(row, viewerId)
     }
 
@@ -279,7 +279,7 @@ object PollRepository {
     ): PollDto {
         val pollId = row[GroupPolls.id]
         val options = decodeOptions(row)
-        val blocked = blocked ?: blockedUserIdsInTx(viewerId)
+        val blocked = blocked ?: ConversationVisibility.blockedUserIdsInTx(viewerId)
         // 8.48：列表路径由调用方批量预取；单条路径（空）此处回查
         val votes = (if (preloadedVotes.isNotEmpty()) preloadedVotes else
             GroupPollVotes.selectAll().where { GroupPollVotes.pollId eq pollId }.toList()
@@ -309,19 +309,6 @@ object PollRepository {
             myVotes = my.distinct().sorted(),
             totalVoters = voters.size
         )
-    }
-
-    private fun blockedUserIdsInTx(viewerId: String?): Set<String> {
-        if (viewerId.isNullOrBlank()) return emptySet()
-        return BlockedUsers.selectAll()
-            .where {
-                (BlockedUsers.blockerId eq viewerId) or (BlockedUsers.blockedId eq viewerId)
-            }
-            .map { row ->
-                if (row[BlockedUsers.blockerId] == viewerId) row[BlockedUsers.blockedId]
-                else row[BlockedUsers.blockerId]
-            }
-            .toSet()
     }
 
     /**
