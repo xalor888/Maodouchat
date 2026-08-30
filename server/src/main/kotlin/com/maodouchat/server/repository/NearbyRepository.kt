@@ -141,11 +141,7 @@ class NearbyRepository {
             else ->
                 (UserLocations.longitude greaterEq minLongitude) and (UserLocations.longitude lessEq maxLongitude)
         }
-        val blockedIds = BlockedUsers.selectAll().where {
-            (BlockedUsers.blockerId eq userId) or (BlockedUsers.blockedId eq userId)
-        }.map { row ->
-            if (row[BlockedUsers.blockerId] == userId) row[BlockedUsers.blockedId] else row[BlockedUsers.blockerId]
-        }.toSet()
+        val blockedIds = ConversationVisibility.blockedUserIdsInTx(userId)
 
         val boundedLimit = limit.coerceIn(1, 100)
         val visible = mutableListOf<Pair<ResultRow, Double>>()

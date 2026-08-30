@@ -628,10 +628,10 @@ Gate：乱序/重复信令、TTL、伪造群成员、邀请限流、TURN 过期�
 
 - [x] 建立 `SocialGraphService` 和统一 `VisibilityPolicy`。
 - [ ] 拆 `PostCommandService`、`FeedQueryService`、`PostInteractionService`。
-- [ ] 公开/联系人/私有、拉黑、注销在资料、动态、附近、搜索、presence 中共享规则。
-- [ ] 点赞/评论计数使用数据库约束和事务，不靠 JVM 同步。
-- [ ] 动态图片删除进入 durable cleanup job。
-- [ ] 社交路由全部迁出 `Routing.kt`。
+- [~] 公开/联系人/私有、拉黑、注销在资料、动态、附近、搜索、presence 中共享规则。
+- [x] 点赞/评论计数使用数据库约束和事务，不靠 JVM 同步。
+- [x] 动态图片删除进入 durable cleanup job。
+- [x] 社交路由全部迁出 `Routing.kt`。
 
 Gate：完整可见性矩阵、并发计数、分页、删除和双实例测试通过。
 
