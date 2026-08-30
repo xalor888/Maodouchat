@@ -249,14 +249,5 @@ internal suspend fun disconnectUserSessionsByAccessJti(
  * 状态锁 + 锁外二次确认避免新连接注册后被旧清理路径误标离线。
  */
 internal suspend fun markOfflineAndBroadcastIfNoSessions(userId: String) {
-    userStatusLock(userId).withLock {
-        if (!ConnectionRegistry.onlineUsers.containsKey(userId)) {
-            runCatching {
-                UserRepository().setOnline(userId, false)
-            }
-        }
-    }
-    if (!ConnectionRegistry.onlineUsers.containsKey(userId)) {
-        broadcastUserStatus(userId, false, Json { ignoreUnknownKeys = true }, UserRepository())
-    }
+    PresenceService.markOffline(userId, Json { ignoreUnknownKeys = true }, UserRepository())
 }

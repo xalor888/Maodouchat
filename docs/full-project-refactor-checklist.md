@@ -600,7 +600,7 @@ Gate：乱序块、重复 finalize、文件系统故障、quota、访问控制�
 
 当前状态：`[ ]`。`Sockets.kt` 仍集中连接、鉴权、presence、限流、signaling 和 fanout；在线 map 为单进程。
 
-- [ ] 拆 `ConnectionRegistry`、`RealtimePublisher`、`PresenceService`、`TypingService`。
+- [x] 拆 `ConnectionRegistry`、`RealtimePublisher`、`PresenceService`、`TypingService`。
 - [ ] 使用 Redis/pub-sub 或等价总线支持跨节点 fanout。
 - [ ] mailbox 是消息真相源，wake 丢失后 pull 仍可收敛。
 - [ ] 认证撤销立即关闭对应连接。

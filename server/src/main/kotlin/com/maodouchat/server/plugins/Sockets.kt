@@ -54,14 +54,6 @@ private const val MAX_WS_PER_USER = 8
 private val wsLogger = LoggerFactory.getLogger("Sockets")
 
 /**
- * 每用户在线状态迁移锁（分片）：把「containsKey 检查 + setOnline + 广播」串行化。
- * 否则旧连接 finally 的 check-then-act 与新连接的上线标记交错，会把刚重连的用户覆盖为离线。
- */
-private val userStatusLocks = Array(64) { Mutex() }
-internal fun userStatusLock(userId: String): Mutex =
-    userStatusLocks[(userId.hashCode() and Int.MAX_VALUE) % userStatusLocks.size]
-
-/**
  * presence(上线/下线) 广播频控：防重连风暴放大。
  * 单用户反复 connect/disconnect 会每次触发 O(N) 全量广播；若无频控，1 个用户的重连速率会被
  * 放大为 N 倍出站消息（廉价 DoS）。限每用户 20 次/分钟——超过部分直接丢弃，由客户端定期轮询
@@ -204,13 +196,8 @@ fun Application.configureSockets(
                     close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "会话已失效"))
                     return@webSocket
                 }
-                // 状态锁内仅做 DB 上线标记；广播是挂起 I/O（逐个 sendToUser，O(N)），
-                // 必须移到锁外，否则持锁期间阻塞该用户的状态迁移。
-                userStatusLock(userId).withLock {
-                    userRepo.setOnline(userId, true)
-                }
-                // 广播上线状态（锁外执行）
-                broadcastUserStatus(userId, true, json, userRepo)
+                // 状态锁内仅做 DB 上线标记；广播是挂起 I/O，移到锁外（见 PresenceService）。
+                PresenceService.markOnline(userId, json, userRepo)
 
                 // access token 过期/吊销后不能无限使用长连接；含 JWT exp + 空闲周期复检
                 val accessExpiresAtMs = decodedJwt.expiresAt?.time ?: 0L
@@ -344,17 +331,7 @@ fun Application.configureSockets(
                     // 协程被取消（停机/engine 取消）时 finally 里的挂起调用会立刻抛
                     // CancellationException，离线标记与广播必须在 NonCancellable 下完成。
                     withContext(NonCancellable) {
-                        // 状态锁内仅做 DB 离线标记；广播是挂起 I/O，移到锁外。
-                        userStatusLock(userId).withLock {
-                            if (!ConnectionRegistry.onlineUsers.containsKey(userId)) {
-                                userRepo.setOnline(userId, false)
-                            }
-                        }
-                        // 广播离线：锁外执行；释放锁后再次确认仍无会话，
-                        // 避免新连接在锁释放后加入导致 online→offline 闪烁。
-                        if (!ConnectionRegistry.onlineUsers.containsKey(userId)) {
-                            broadcastUserStatus(userId, false, json, userRepo)
-                        }
+                        PresenceService.markOffline(userId, json, userRepo)
                     }
                 }
             }
@@ -403,22 +380,14 @@ private suspend fun WebSocketSession.handleWsMessage(
         "PRESENCE" -> {
             val foreground = wsMsg.payload.equals("true", ignoreCase = true) ||
                 wsMsg.payload.contains("\"foreground\":true", ignoreCase = true)
-            userStatusLock(senderId).withLock {
-                userRepo.setOnline(senderId, foreground)
-            }
-            broadcastUserStatus(senderId, foreground, json, userRepo)
+            PresenceService.setForeground(senderId, foreground, json, userRepo)
         }
         "TYPING" -> {
                 // 打字指示：每用户每分钟 120 次。30/min 会被正常连打 + 3s debounce 打满，
                 // 表现为「正在输入」丢失；丢弃即可，不回 ERROR（避免客户端 toast 频繁）。
                 if (!wsTypingRateLimiter.acquire(senderId, maxPerMinute = 120)) return
                 val payload = json.decodeFromString<TypingPayload>(wsMsg.payload)
-                if (!participantRepository.isParticipant(payload.chatId, senderId)) return
-                // 双向拉黑过滤：被对方拉黑或拉黑对方都不再收到 typing 侧信道
-                val participants = participantRepository.participantIds(payload.chatId)
-                val blockedIds = userRepo.blockedEitherWayIdsInTx(senderId, participants)
-                participants.filter { it != senderId && it !in blockedIds }
-                    .forEach { sendToUser(it, json.encodeToString(WsMessage("USER_TYPING", json.encodeToString(TypingPayload(senderId, payload.chatId, payload.isTyping))))) }
+                TypingService.fanout(senderId, payload, json, userRepo, participantRepository)
             }
 
             "SIGNALING" -> {
