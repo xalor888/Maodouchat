@@ -83,15 +83,11 @@ put("kicked", true)
         }
         val chat = conversationQueryRepo.getById(chatId)
             ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("chat not found"))
-        val inviteRow = org.jetbrains.exposed.sql.transactions.transaction {
-            com.maodouchat.server.db.Chats.selectAll()
-                .where { com.maodouchat.server.db.Chats.id eq chatId }
-                .firstOrNull()
-        }
-        val invite = inviteRow?.get(com.maodouchat.server.db.Chats.groupInviteToken).orEmpty()
-        val expiresAt = inviteRow?.get(com.maodouchat.server.db.Chats.groupInviteExpiresAt) ?: 0L
-        val maxUses = inviteRow?.get(com.maodouchat.server.db.Chats.groupInviteMaxUses) ?: 0
-        val used = inviteRow?.get(com.maodouchat.server.db.Chats.groupInviteUseCount) ?: 0
+        val tokenState = conversationQueryRepo.getGroupInviteTokenState(chatId)
+        val invite = tokenState?.token.orEmpty()
+        val expiresAt = tokenState?.expiresAt ?: 0L
+        val maxUses = tokenState?.maxUses ?: 0
+        val used = tokenState?.usedCount ?: 0
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "getChatInviteLink")
         call.respond(
         buildJsonObject {

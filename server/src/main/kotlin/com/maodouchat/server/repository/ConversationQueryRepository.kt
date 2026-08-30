@@ -23,6 +23,19 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 /** Builds conversation read models without owning membership or mutation policy. */
 class ConversationQueryRepository {
+    /** B12：群邀请链接 token 快照（替代 Bot 路由内联 Chats.selectAll 事务）。 */
+    fun getGroupInviteTokenState(chatId: String): GroupInviteState? = transaction {
+        Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()?.let { row ->
+            GroupInviteState(
+                token = row[Chats.groupInviteToken].orEmpty(),
+                expiresAt = row[Chats.groupInviteExpiresAt],
+                maxUses = row[Chats.groupInviteMaxUses],
+                usedCount = row[Chats.groupInviteUseCount],
+                changed = false,
+            )
+        }
+    }
+
     fun getById(chatId: String, viewerId: String = ""): ChatResponse? = transaction {
         val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
             ?: return@transaction null

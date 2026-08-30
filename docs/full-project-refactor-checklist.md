@@ -658,7 +658,7 @@ Gate：并发举报、重复 disposition、权限矩阵、审计不可缺失和�
 - [x] Bot 内容通过 ServiceMessagePublisher 投递到所有离线设备。
 - [ ] Telegram alias 只保留一份业务实现和契约映射。
 - [x] secret 必须安全持久化或删除虚假参数。
-- [~] 删除静态 repository、route 内事务和 `Routing.kt` 重复 Bot 接口。
+- [x] 删除静态 repository、route 内事务和 `Routing.kt` 重复 Bot 接口。
 
 Gate：token rotate、webhook 重启/死信、顺序幂等、群权限和 Telegram 契约快照通过。
 
