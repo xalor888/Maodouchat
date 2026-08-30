@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory
  * 动态/评论：关键词规则先跑，再可选 AI 分类。
  * 上游失败 / 未配置 / 开关关 → 不拦（失败开放）。聊天密文不进这里。
  */
-object ContentModerationService {
+object ModerationEngine {
     private val log = LoggerFactory.getLogger("ContentModeration")
 
     suspend fun combine(

@@ -6,7 +6,7 @@ import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.*
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
-import com.maodouchat.server.service.AdminDispositionPolicy
+import com.maodouchat.server.service.DispositionService
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpHeaders
@@ -128,7 +128,7 @@ put("count", okIds.size)
             }
             else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
         }.map { it.take(64) }.distinct().take(100)
-        val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1).coerceIn(1, AdminDispositionPolicy.MAX_BAN_DAYS)
+        val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1).coerceIn(1, DispositionService.MAX_BAN_DAYS)
         val reasonCode = obj["reasonCode"]?.jsonPrimitive?.content.orEmpty().ifBlank { "BULK_BAN" }
         if (ids.isEmpty()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
@@ -314,7 +314,7 @@ post("/users/bulk-message-restrict") {
             else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
         }.map { it.take(64) }.distinct().take(100)
         val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1)
-            .coerceIn(0, AdminDispositionPolicy.MAX_MESSAGE_RESTRICT_DAYS)
+            .coerceIn(0, DispositionService.MAX_MESSAGE_RESTRICT_DAYS)
         if (ids.isEmpty()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         }
@@ -488,7 +488,7 @@ get("/ai-usage-export") {
             else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
         }.map { it.take(64) }.distinct().take(100)
         val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1)
-            .coerceIn(0, AdminDispositionPolicy.MAX_POST_RESTRICT_DAYS)
+            .coerceIn(0, DispositionService.MAX_POST_RESTRICT_DAYS)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         val until = if (days <= 0) 0L else System.currentTimeMillis() + days * 86_400_000L
         val updated = mutableListOf<String>()
@@ -601,7 +601,7 @@ post("/users/bulk-set-message-restrict-until") {
         // 8.37：与单用户端点一致的时间合法性校验（此前只 coerceAtLeast(0)，
         // 过去时间戳被静默写成已过期限制，Long.MAX_VALUE 绕过 10 年上限）
         val now = System.currentTimeMillis()
-        if (until > now + com.maodouchat.server.service.AdminDispositionPolicy.MAX_MESSAGE_RESTRICT_DAYS * 86_400_000L ||
+        if (until > now + com.maodouchat.server.service.DispositionService.MAX_MESSAGE_RESTRICT_DAYS * 86_400_000L ||
             (until in 1..now)
         ) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("禁发消息截止时间无效"))
@@ -1262,9 +1262,9 @@ post("/users/bulk-message-restrict-days") {
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val rawIds = obj["userIds"]
         // 9.131：上限改用策略常量——此前硬编码 3650 天（10 年）绕过
-        // AdminDispositionPolicy.MAX_MESSAGE_RESTRICT_DAYS(90) 的处置上限
+        // DispositionService.MAX_MESSAGE_RESTRICT_DAYS(90) 的处置上限
         val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1)
-            .coerceIn(1, AdminDispositionPolicy.MAX_MESSAGE_RESTRICT_DAYS)
+            .coerceIn(1, DispositionService.MAX_MESSAGE_RESTRICT_DAYS)
         val ids = when {
             rawIds == null -> emptyList()
             rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {

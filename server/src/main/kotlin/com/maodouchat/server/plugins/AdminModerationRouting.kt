@@ -12,7 +12,7 @@ import com.maodouchat.server.repository.AuthTokenRepository
 import com.maodouchat.server.repository.ModerationRuleRepository
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.PushTokenRepository
-import com.maodouchat.server.repository.ReportRepository
+import com.maodouchat.server.repository.ReportWorkflow
 import com.maodouchat.server.repository.UserRepository
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
@@ -38,7 +38,7 @@ import org.jetbrains.exposed.sql.update
  * 事务与业务规则由各 repository 拥有（不在此处散写领域逻辑）。
  */
 internal fun Route.configureAdminModerationRoutes(
-    reportRepo: ReportRepository,
+    reportRepo: ReportWorkflow,
     postRepo: PostRepository,
     userRepo: UserRepository,
     moderationRuleRepo: ModerationRuleRepository,
@@ -60,8 +60,8 @@ internal fun Route.configureAdminModerationRoutes(
         val req = call.receiveAdminJson<UpdateReportStatusRequest>()
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
         when (val result = reportRepo.updateReportStatus(reportId, actorId, req.status, req.resolutionNote)) {
-            is ReportRepository.UpdateResult.Success -> call.respond(result.report)
-            is ReportRepository.UpdateResult.Failure -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+            is ReportWorkflow.UpdateResult.Success -> call.respond(result.report)
+            is ReportWorkflow.UpdateResult.Failure -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
         }
     }
 
@@ -137,20 +137,20 @@ internal fun Route.configureAdminModerationRoutes(
                 },
             )
         ) {
-            is ReportRepository.ExecuteActionResult.Failure -> {
+            is ReportWorkflow.ExecuteActionResult.Failure -> {
                 val status = if (mark.message == "举报不存在") HttpStatusCode.NotFound else HttpStatusCode.BadRequest
                 return@post call.respond(status, ErrorResponse(mark.message))
             }
-            is ReportRepository.ExecuteActionResult.AlreadyDone ->
+            is ReportWorkflow.ExecuteActionResult.AlreadyDone ->
                 return@post call.respond(
                     buildJsonObject {
                         put("status", "resolved")
                         put("action", (mark.report.actionTaken ?: "NO_ACTION"))
                     }
                 )
-            is ReportRepository.ExecuteActionResult.BusinessActionFailed ->
+            is ReportWorkflow.ExecuteActionResult.BusinessActionFailed ->
                 return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("处置执行失败，请稍后重试"))
-            is ReportRepository.ExecuteActionResult.Completed -> {
+            is ReportWorkflow.ExecuteActionResult.Completed -> {
                 if (action == "SUSPEND_24H") {
                     frozenRestrictionTargetUserId?.let { targetUserId ->
                         authTokenRepo.rotateAccessTokenVersion(targetUserId)

@@ -3,7 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.AiGateway
-import com.maodouchat.server.service.ContentModerationService
+import com.maodouchat.server.service.ModerationEngine
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.*
@@ -211,7 +211,7 @@ internal fun Route.configureSocialPostRoutes(
                     source = "POST",
                     content = postPlain
                 )
-                val moderation = ContentModerationService.combine(
+                val moderation = ModerationEngine.combine(
                     userId = userId,
                     source = "POST",
                     content = postPlain,
@@ -335,7 +335,7 @@ put("status", "ok")
                     source = "POST",
                     content = newContent
                 )
-                val moderation = ContentModerationService.combine(
+                val moderation = ModerationEngine.combine(
                     userId = userId,
                     source = "POST",
                     content = newContent,
@@ -448,7 +448,7 @@ put("status", "ok")
                 }
                 val commentPlain = req.content.trim()
                 val keywordModeration = moderationRuleRepo.evaluate(userId, "COMMENT", commentPlain)
-                val moderation = ContentModerationService.combine(
+                val moderation = ModerationEngine.combine(
                     userId = userId,
                     source = "COMMENT",
                     content = commentPlain,
@@ -502,7 +502,7 @@ put("status", "ok")
                 }
                 val commentPlain = req.content.trim()
                 val keywordModeration = moderationRuleRepo.evaluate(userId, "COMMENT", commentPlain)
-                val moderation = ContentModerationService.combine(
+                val moderation = ModerationEngine.combine(
                     userId = userId,
                     source = "COMMENT",
                     content = commentPlain,

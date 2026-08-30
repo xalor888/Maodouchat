@@ -639,7 +639,7 @@ Gate：完整可见性矩阵、并发计数、分页、删除和双实例测试�
 
 当前状态：`[ ]`。普通、moderator 和 admin 存在多套入口。
 
-- [ ] 建立 `ReportWorkflow`、`ModerationEngine`、`DispositionService`。
+- [x] 建立 `ReportWorkflow`、`ModerationEngine`、`DispositionService`。
 - [ ] 举报去重、审核状态、限制、内容删除、通知和审计在统一命令内协调。
 - [ ] 管理员/版主权限和数据可见范围明确。
 - [ ] 审核动作幂等，必须保存 actor、reason、before/after。

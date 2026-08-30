@@ -24,7 +24,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
 
-class ReportRepository {
+class ReportWorkflow {
 
     sealed class CreateResult {
         data class Success(val report: ReportResponse) : CreateResult()

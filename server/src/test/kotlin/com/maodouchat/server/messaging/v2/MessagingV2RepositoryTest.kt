@@ -16,7 +16,7 @@ import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.CreateReportRequest
 import com.maodouchat.server.model.MessageResponse
 import com.maodouchat.server.db.initDatabase
-import com.maodouchat.server.repository.ReportRepository
+import com.maodouchat.server.repository.ReportWorkflow
 import com.maodouchat.server.repository.ServiceMessageRepository
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -396,7 +396,7 @@ class MessagingV2RepositoryTest {
         repository.send(groupCommand())
         repository.send(groupCommand().copy(id = "receipt-report", kind = "RECEIPT"))
 
-        val reported = ReportRepository().createReport(
+        val reported = ReportWorkflow().createReport(
             reporterId = "bob",
             request = CreateReportRequest(
                 targetType = "MESSAGE",
@@ -404,7 +404,7 @@ class MessagingV2RepositoryTest {
                 reason = "spam",
             ),
         )
-        val internal = ReportRepository().createReport(
+        val internal = ReportWorkflow().createReport(
             reporterId = "bob",
             request = CreateReportRequest(
                 targetType = "MESSAGE",
@@ -413,9 +413,9 @@ class MessagingV2RepositoryTest {
             ),
         )
 
-        assertTrue(reported is ReportRepository.CreateResult.Success)
-        assertEquals("group-1", (reported as ReportRepository.CreateResult.Success).report.chatId)
-        assertTrue(internal is ReportRepository.CreateResult.Failure)
+        assertTrue(reported is ReportWorkflow.CreateResult.Success)
+        assertEquals("group-1", (reported as ReportWorkflow.CreateResult.Success).report.chatId)
+        assertTrue(internal is ReportWorkflow.CreateResult.Failure)
     }
 
     @Test

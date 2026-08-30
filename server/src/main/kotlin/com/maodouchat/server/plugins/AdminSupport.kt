@@ -6,7 +6,7 @@ import com.maodouchat.server.db.Posts
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.PostAdminResponse
 import com.maodouchat.server.model.UserAdminResponse
-import com.maodouchat.server.service.AdminDispositionPolicy
+import com.maodouchat.server.service.DispositionService
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.auth.principal
@@ -118,8 +118,8 @@ data class DispositionTemplatesResponse(
     val unrestrictMessagesReasonCode: String = "unrestrict_messages",
     val appealNoticeZh: String,
     val maxBanDays: Int,
-    val maxPostRestrictDays: Int = AdminDispositionPolicy.MAX_POST_RESTRICT_DAYS,
-    val maxMessageRestrictDays: Int = AdminDispositionPolicy.MAX_MESSAGE_RESTRICT_DAYS
+    val maxPostRestrictDays: Int = DispositionService.MAX_POST_RESTRICT_DAYS,
+    val maxMessageRestrictDays: Int = DispositionService.MAX_MESSAGE_RESTRICT_DAYS
 )
 
 @Serializable

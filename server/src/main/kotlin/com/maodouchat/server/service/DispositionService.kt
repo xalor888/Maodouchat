@@ -5,7 +5,7 @@ package com.maodouchat.server.service
  * Reason codes are operational metadata only — no chat content.
  * Appeal notice is read-only copy for operators / future user-facing surfaces.
  */
-object AdminDispositionPolicy {
+object DispositionService {
     const val MAX_NOTE_CHARS = 500
     const val MAX_REASON_CODE_CHARS = 40
     const val MAX_BAN_DAYS = 3650

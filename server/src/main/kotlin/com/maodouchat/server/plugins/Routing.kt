@@ -8,7 +8,7 @@ import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.AiGatewayService
-import com.maodouchat.server.service.ContentModerationService
+import com.maodouchat.server.service.ModerationEngine
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.BlobStore
 import com.maodouchat.server.service.TurnCredentialService
@@ -190,7 +190,7 @@ fun Application.configureRouting(
     val aiRepo = AiRepository()
     val encryptedAttachmentRepo = EncryptedAttachmentRepository()
     val senderKeyDistributionRepo = SenderKeyDistributionRepository()
-    val reportRepo = ReportRepository()
+    val reportRepo = ReportWorkflow()
     val groupMembershipRepo = GroupMembershipRepository()
     val groupMembershipService = GroupMembershipService(groupMembershipRepo)
     val groupProfileRepo = GroupProfileRepository()

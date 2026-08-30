@@ -453,7 +453,7 @@ object Reports : Table("reports") {
     val targetId = varchar("target_id", 100)
     val chatId = varchar("chat_id", 50).nullable()
     val messageId = varchar("message_id", 100).nullable()
-    // 9.144：列宽与 ReportRepository 常量对齐（80/800）——此前 60/500 窄于仓库截断上限，
+    // 9.144：列宽与 ReportWorkflow 常量对齐（80/800）——此前 60/500 窄于仓库截断上限，
     // PG 严格 VARCHAR(n) 下 61-80/501-800 字符直接 22001 → 500（H2 宽松模式不暴露）
     val reason = varchar("reason", 80)
     val description = varchar("description", 800).nullable()

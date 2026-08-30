@@ -16,7 +16,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class ReportRepositoryDispositionTest {
+class ReportWorkflowDispositionTest {
     private var database: Database? = null
 
     @AfterEach
@@ -28,7 +28,7 @@ class ReportRepositoryDispositionTest {
     @Test
     fun `actionTaken is committed only after business action succeeds`() {
         setupDatabase()
-        val repository = ReportRepository()
+        val repository = ReportWorkflow()
 
         val failed = repository.executeActionAfterBusinessSuccess(
             reportId = "report-1",
@@ -37,7 +37,7 @@ class ReportRepositoryDispositionTest {
             resolutionNote = "reviewed",
         ) { false }
 
-        assertTrue(failed is ReportRepository.ExecuteActionResult.BusinessActionFailed)
+        assertTrue(failed is ReportWorkflow.ExecuteActionResult.BusinessActionFailed)
         transaction {
             val report = Reports.selectAll().where { Reports.id eq "report-1" }.single()
             assertEquals("OPEN", report[Reports.status])
@@ -51,7 +51,7 @@ class ReportRepositoryDispositionTest {
             resolutionNote = "reviewed",
         ) { true }
 
-        assertTrue(completed is ReportRepository.ExecuteActionResult.Completed)
+        assertTrue(completed is ReportWorkflow.ExecuteActionResult.Completed)
         transaction {
             val report = Reports.selectAll().where { Reports.id eq "report-1" }.single()
             assertEquals("RESOLVED", report[Reports.status])

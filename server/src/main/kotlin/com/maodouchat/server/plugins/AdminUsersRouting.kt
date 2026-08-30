@@ -10,7 +10,7 @@ import com.maodouchat.server.repository.GroupMediaReferenceRepository
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.PushTokenRepository
 import com.maodouchat.server.repository.UserRepository
-import com.maodouchat.server.service.AdminDispositionPolicy
+import com.maodouchat.server.service.DispositionService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.jwt.JWTPrincipal
@@ -31,7 +31,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 /**
  * 管理后台「用户治理」子域路由：用户查询、封禁/禁动态/禁消息、处置模板与注销。
- * 事务与处置校验由 repository / AdminDispositionPolicy 拥有；注销后的磁盘清理是
+ * 事务与处置校验由 repository / DispositionService 拥有；注销后的磁盘清理是
  * 逐项容错的提交后副作用，任一失败不回滚已提交的注销事实。
  */
 internal fun Route.configureAdminUsersRoutes(
@@ -116,7 +116,7 @@ internal fun Route.configureAdminUsersRoutes(
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         call.respond(
             DispositionTemplatesResponse(
-                banReasons = AdminDispositionPolicy.banReasonTemplates.map {
+                banReasons = DispositionService.banReasonTemplates.map {
                     DispositionReasonDto(
                         code = it.code,
                         labelZh = it.labelZh,
@@ -124,7 +124,7 @@ internal fun Route.configureAdminUsersRoutes(
                         requiresCustomNote = it.requiresCustomNote
                     )
                 },
-                muteReasons = AdminDispositionPolicy.muteReasonTemplates.map {
+                muteReasons = DispositionService.muteReasonTemplates.map {
                     MuteReasonDto(
                         code = it.code,
                         labelZh = it.labelZh,
@@ -132,7 +132,7 @@ internal fun Route.configureAdminUsersRoutes(
                         requiresCustomNote = it.requiresCustomNote
                     )
                 },
-                postRestrictReasons = AdminDispositionPolicy.postRestrictReasonTemplates.map {
+                postRestrictReasons = DispositionService.postRestrictReasonTemplates.map {
                     DispositionReasonDto(
                         code = it.code,
                         labelZh = it.labelZh,
@@ -140,7 +140,7 @@ internal fun Route.configureAdminUsersRoutes(
                         requiresCustomNote = it.requiresCustomNote
                     )
                 },
-                messageRestrictReasons = AdminDispositionPolicy.messageRestrictReasonTemplates.map {
+                messageRestrictReasons = DispositionService.messageRestrictReasonTemplates.map {
                     DispositionReasonDto(
                         code = it.code,
                         labelZh = it.labelZh,
@@ -148,14 +148,14 @@ internal fun Route.configureAdminUsersRoutes(
                         requiresCustomNote = it.requiresCustomNote
                     )
                 },
-                unbanReasonCode = AdminDispositionPolicy.unbanReasonCode,
-                unmuteReasonCode = AdminDispositionPolicy.unmuteReasonCode,
-                unrestrictPostsReasonCode = AdminDispositionPolicy.unrestrictPostsReasonCode,
-                unrestrictMessagesReasonCode = AdminDispositionPolicy.unrestrictMessagesReasonCode,
-                appealNoticeZh = AdminDispositionPolicy.APPEAL_NOTICE_ZH,
-                maxBanDays = AdminDispositionPolicy.MAX_BAN_DAYS,
-                maxPostRestrictDays = AdminDispositionPolicy.MAX_POST_RESTRICT_DAYS,
-                maxMessageRestrictDays = AdminDispositionPolicy.MAX_MESSAGE_RESTRICT_DAYS
+                unbanReasonCode = DispositionService.unbanReasonCode,
+                unmuteReasonCode = DispositionService.unmuteReasonCode,
+                unrestrictPostsReasonCode = DispositionService.unrestrictPostsReasonCode,
+                unrestrictMessagesReasonCode = DispositionService.unrestrictMessagesReasonCode,
+                appealNoticeZh = DispositionService.APPEAL_NOTICE_ZH,
+                maxBanDays = DispositionService.MAX_BAN_DAYS,
+                maxPostRestrictDays = DispositionService.MAX_POST_RESTRICT_DAYS,
+                maxMessageRestrictDays = DispositionService.MAX_MESSAGE_RESTRICT_DAYS
             )
         )
     }
@@ -177,17 +177,17 @@ internal fun Route.configureAdminUsersRoutes(
             0
         } else {
             // ceil days for template validation; exact until still stored from client/server clock
-            (((bannedUntil - now) + 86_399_999L) / 86_400_000L).toInt().coerceIn(1, AdminDispositionPolicy.MAX_BAN_DAYS)
+            (((bannedUntil - now) + 86_399_999L) / 86_400_000L).toInt().coerceIn(1, DispositionService.MAX_BAN_DAYS)
         }
-        val disposition = AdminDispositionPolicy.validateDisposition(
+        val disposition = DispositionService.validateDisposition(
             banDays = banDays,
             reasonCode = req.reasonCode,
             note = req.note
         )
         val okDisposition = when (disposition) {
-            is AdminDispositionPolicy.DispositionValidation.Invalid ->
+            is DispositionService.DispositionValidation.Invalid ->
                 return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(disposition.message))
-            is AdminDispositionPolicy.DispositionValidation.Ok -> disposition
+            is DispositionService.DispositionValidation.Ok -> disposition
         }
         val updated = transaction {
             // 9.154：以 update 影响行数为准——firstOrNull 与 update 之间并发删除会
@@ -197,7 +197,7 @@ internal fun Route.configureAdminUsersRoutes(
             ModerationAuditLog.insert {
                 it[userId] = id
                 it[action] = "ADMIN_STATUS_UPDATE"
-                it[detail] = AdminDispositionPolicy.auditDetail(
+                it[detail] = DispositionService.auditDetail(
                     bannedUntil = bannedUntil,
                     reasonCode = okDisposition.reasonCode,
                     note = okDisposition.note
@@ -219,7 +219,7 @@ internal fun Route.configureAdminUsersRoutes(
         buildJsonObject {
 put("status", "ok")
 put("reasonCode", okDisposition.reasonCode)
-put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
+put("appealNoticeZh", DispositionService.APPEAL_NOTICE_ZH)
         }
     )
     }
@@ -235,7 +235,7 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
         val now = System.currentTimeMillis()
         val postRestrictedUntil = req.postRestrictedUntil ?: 0L
         if (postRestrictedUntil < 0 ||
-            postRestrictedUntil > now + AdminDispositionPolicy.MAX_POST_RESTRICT_DAYS * 86_400_000L ||
+            postRestrictedUntil > now + DispositionService.MAX_POST_RESTRICT_DAYS * 86_400_000L ||
             (postRestrictedUntil in 1..now)
         ) {
             return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("禁动态截止时间无效"))
@@ -245,17 +245,17 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
         } else {
             (((postRestrictedUntil - now) + 86_399_999L) / 86_400_000L)
                 .toInt()
-                .coerceIn(1, AdminDispositionPolicy.MAX_POST_RESTRICT_DAYS)
+                .coerceIn(1, DispositionService.MAX_POST_RESTRICT_DAYS)
         }
-        val disposition = AdminDispositionPolicy.validatePostRestrict(
+        val disposition = DispositionService.validatePostRestrict(
             durationDays = durationDays,
             reasonCode = req.reasonCode,
             note = req.note
         )
         val okDisposition = when (disposition) {
-            is AdminDispositionPolicy.DispositionValidation.Invalid ->
+            is DispositionService.DispositionValidation.Invalid ->
                 return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(disposition.message))
-            is AdminDispositionPolicy.DispositionValidation.Ok -> disposition
+            is DispositionService.DispositionValidation.Ok -> disposition
         }
         val updated = transaction {
             // 9.154：同封禁端点——以 update 影响行数为准
@@ -264,7 +264,7 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
             ModerationAuditLog.insert {
                 it[userId] = id
                 it[action] = "ADMIN_POST_RESTRICT"
-                it[detail] = AdminDispositionPolicy.auditPostRestrictDetail(
+                it[detail] = DispositionService.auditPostRestrictDetail(
                     postRestrictedUntil = postRestrictedUntil,
                     reasonCode = okDisposition.reasonCode,
                     note = okDisposition.note
@@ -280,7 +280,7 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
                 put("status", "ok")
                 put("postRestrictedUntil", postRestrictedUntil)
                 put("reasonCode", okDisposition.reasonCode)
-                put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
+                put("appealNoticeZh", DispositionService.APPEAL_NOTICE_ZH)
             }
         )
     }
@@ -296,7 +296,7 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
         val now = System.currentTimeMillis()
         val messageRestrictedUntil = req.messageRestrictedUntil ?: 0L
         if (messageRestrictedUntil < 0 ||
-            messageRestrictedUntil > now + AdminDispositionPolicy.MAX_MESSAGE_RESTRICT_DAYS * 86_400_000L ||
+            messageRestrictedUntil > now + DispositionService.MAX_MESSAGE_RESTRICT_DAYS * 86_400_000L ||
             (messageRestrictedUntil in 1..now)
         ) {
             return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("禁消息截止时间无效"))
@@ -306,17 +306,17 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
         } else {
             (((messageRestrictedUntil - now) + 86_399_999L) / 86_400_000L)
                 .toInt()
-                .coerceIn(1, AdminDispositionPolicy.MAX_MESSAGE_RESTRICT_DAYS)
+                .coerceIn(1, DispositionService.MAX_MESSAGE_RESTRICT_DAYS)
         }
-        val disposition = AdminDispositionPolicy.validateMessageRestrict(
+        val disposition = DispositionService.validateMessageRestrict(
             durationDays = durationDays,
             reasonCode = req.reasonCode,
             note = req.note
         )
         val okDisposition = when (disposition) {
-            is AdminDispositionPolicy.DispositionValidation.Invalid ->
+            is DispositionService.DispositionValidation.Invalid ->
                 return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(disposition.message))
-            is AdminDispositionPolicy.DispositionValidation.Ok -> disposition
+            is DispositionService.DispositionValidation.Ok -> disposition
         }
         val updated = transaction {
             // 9.154：同封禁端点——以 update 影响行数为准
@@ -325,7 +325,7 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
             ModerationAuditLog.insert {
                 it[userId] = id
                 it[action] = "ADMIN_MESSAGE_RESTRICT"
-                it[detail] = AdminDispositionPolicy.auditMessageRestrictDetail(
+                it[detail] = DispositionService.auditMessageRestrictDetail(
                     messageRestrictedUntil = messageRestrictedUntil,
                     reasonCode = okDisposition.reasonCode,
                     note = okDisposition.note
@@ -340,7 +340,7 @@ put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
             buildJsonObject {
                 put("status", "ok")
                 put("reasonCode", okDisposition.reasonCode)
-                put("appealNoticeZh", AdminDispositionPolicy.APPEAL_NOTICE_ZH)
+                put("appealNoticeZh", DispositionService.APPEAL_NOTICE_ZH)
                 put("messageRestrictedUntil", messageRestrictedUntil)
             }
         )

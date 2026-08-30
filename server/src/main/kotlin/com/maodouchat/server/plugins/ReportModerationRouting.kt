@@ -16,7 +16,7 @@ import kotlinx.serialization.json.*
 internal fun Route.configureReportModerationRoutes(
     userRepo: UserRepository,
     postRepo: PostRepository,
-    reportRepo: ReportRepository,
+    reportRepo: ReportWorkflow,
     moderationRuleRepo: ModerationRuleRepository,
     authTokenRepo: AuthTokenRepository,
     pushTokenRepo: PushTokenRepository,
@@ -66,8 +66,8 @@ put("status", "ok")
                     return@post
                 }
                 when (val result = reportRepo.createReport(uid, req)) {
-                    is ReportRepository.CreateResult.Success -> call.respond(HttpStatusCode.Created, result.report)
-                    is ReportRepository.CreateResult.Failure -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+                    is ReportWorkflow.CreateResult.Success -> call.respond(HttpStatusCode.Created, result.report)
+                    is ReportWorkflow.CreateResult.Failure -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
                 }
             }
 
@@ -103,8 +103,8 @@ put("status", "ok")
                     return@put
                 }
                 when (val result = reportRepo.updateReportStatus(reportId, uid, req.status, req.resolutionNote)) {
-                    is ReportRepository.UpdateResult.Success -> call.respond(result.report)
-                    is ReportRepository.UpdateResult.Failure -> {
+                    is ReportWorkflow.UpdateResult.Success -> call.respond(result.report)
+                    is ReportWorkflow.UpdateResult.Failure -> {
                         // 8.42：资源不存在 404、状态冲突 409 与参数错误 400 分离
                         val status = when (result.message) {
                             "举报不存在" -> HttpStatusCode.NotFound
@@ -221,20 +221,20 @@ put("status", "ok")
                         },
                     )
                 ) {
-                    is ReportRepository.ExecuteActionResult.Failure -> {
+                    is ReportWorkflow.ExecuteActionResult.Failure -> {
                         val status = if (mark.message == "举报不存在") HttpStatusCode.NotFound else HttpStatusCode.BadRequest
                         call.respond(status, ErrorResponse(mark.message))
                         return@post
                     }
-                    is ReportRepository.ExecuteActionResult.AlreadyDone -> {
+                    is ReportWorkflow.ExecuteActionResult.AlreadyDone -> {
                         call.respond(mark.report)
                         return@post
                     }
-                    is ReportRepository.ExecuteActionResult.BusinessActionFailed -> {
+                    is ReportWorkflow.ExecuteActionResult.BusinessActionFailed -> {
                         call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("处置执行失败，请稍后重试"))
                         return@post
                     }
-                    is ReportRepository.ExecuteActionResult.Completed -> {
+                    is ReportWorkflow.ExecuteActionResult.Completed -> {
                         val report = mark.report
                         when (action) {
                             "DELETE_CONTENT" -> {

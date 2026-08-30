@@ -18,7 +18,7 @@ import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.GroupAuditRepository
 import com.maodouchat.server.repository.FriendRepository
 import com.maodouchat.server.repository.GroupCheckinRepository
-import com.maodouchat.server.repository.ReportRepository
+import com.maodouchat.server.repository.ReportWorkflow
 import com.maodouchat.server.repository.SenderKeyDistributionRepository
 import com.maodouchat.server.repository.SignalKeyRepository
 import org.jetbrains.exposed.sql.Database
