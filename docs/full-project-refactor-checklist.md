@@ -520,9 +520,9 @@ Gate：空库、旧库升级、重复/中断 migration、备份恢复、滚动�
 
 ### B02 认证、账户、Session、设备与隐私
 
-当前状态：`[ ]`。`UserRepository.kt` 1,281 行，认证、资料、TOTP、限制、拉黑、注销混杂。
+当前状态：`[~]`。`MfaService`（TOTP+恢复码）已从 `UserRepository` 抽出（1281→~1198 行）；CredentialService/ProfileService/PrivacyService/BlockService/AccountLifecycleService 尚未拆。
 
-- [ ] 拆 `CredentialService`、`MfaService`、`SessionService`、`ProfileService`。
+- [~] 拆 `CredentialService`、`MfaService`、`SessionService`、`ProfileService`（`MfaService` 已拆并注入 AuthRouting；其余待做）。
 - [ ] 拆 `PrivacyService`、`BlockService`、`AccountLifecycleService`。
 - [ ] 登录失败、验证码和 limiter 使用可共享 store，支持多实例。
 - [ ] `DeviceSession` 明确绑定 auth session、Signal device 和 push token。
