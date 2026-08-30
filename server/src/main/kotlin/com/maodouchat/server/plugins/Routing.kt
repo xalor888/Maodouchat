@@ -196,11 +196,12 @@ fun Application.configureRouting(
     val groupProfileRepo = GroupProfileRepository()
     val groupModerationRepo = GroupModerationRepository()
     val groupInvitationRepo = GroupInvitationRepository()
+    val groupInvitationService = GroupInvitationService(groupInvitationRepo)
     val conversationLifecycleRepo = ConversationLifecycleRepository()
     val conversationCreationRepo = ConversationCreationRepository()
     val conversationCreationService = ConversationCreationService(
         conversationCreationRepo,
-        groupInvitationRepo,
+        groupInvitationService,
     )
     val conversationSettingsRepo = ConversationSettingsRepository()
     val conversationParticipantRepo = ConversationParticipantRepository()
@@ -431,7 +432,7 @@ fun Application.configureRouting(
             userRepo = userRepo,
             creationService = conversationCreationService,
             queryRepository = conversationQueryRepo,
-            invitationRepository = groupInvitationRepo,
+            invitationService = groupInvitationService,
             lifecycleRepository = conversationLifecycleRepo,
             pushService = pushService,
             createRateLimiter = createChatRateLimiter,
@@ -440,7 +441,7 @@ fun Application.configureRouting(
         configureGroupInvitationRoutes(
             userRepo = userRepo,
             membershipService = groupMembershipService,
-            invitationRepository = groupInvitationRepo,
+            invitationService = groupInvitationService,
             queryRepository = conversationQueryRepo,
             participantRepository = conversationParticipantRepo,
             pushService = pushService,
@@ -462,7 +463,7 @@ fun Application.configureRouting(
             membershipService = groupMembershipService,
             profileRepository = groupProfileRepo,
             moderationRepository = groupModerationRepo,
-            invitationRepository = groupInvitationRepo,
+            invitationService = groupInvitationService,
             queryRepository = conversationQueryRepo,
             participantRepository = conversationParticipantRepo,
             auditRepository = groupAuditRepo,
@@ -502,7 +503,7 @@ fun Application.configureRouting(
             groupMembershipService = groupMembershipService,
             groupProfileRepo = groupProfileRepo,
             groupModerationRepo = groupModerationRepo,
-            groupInvitationRepo = groupInvitationRepo,
+            groupInvitationService = groupInvitationService,
             conversationLifecycleRepo = conversationLifecycleRepo,
             conversationParticipantRepo = conversationParticipantRepo,
             conversationQueryRepo = conversationQueryRepo,

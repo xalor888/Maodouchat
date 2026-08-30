@@ -37,7 +37,7 @@ data class CreateConversationOutcome(
 /** Coordinates validated, atomic conversation creation and initial group invitations. */
 class ConversationCreationService(
     private val creationRepository: ConversationCreationRepository,
-    private val invitationRepository: GroupInvitationRepository,
+    private val invitationService: GroupInvitationService,
 ) {
     fun create(
         actorId: String,
@@ -113,7 +113,7 @@ class ConversationCreationService(
             chatType = ChatType.GROUP,
         )
         if (command.inviteeIds.isNotEmpty()) {
-            val invitations = invitationRepository.inviteMembers(
+            val invitations = invitationService.inviteMembers(
                 created.id,
                 actorId,
                 command.inviteeIds,

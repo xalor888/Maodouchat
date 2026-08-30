@@ -10,7 +10,7 @@ import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.CreateConversationCommand
 import com.maodouchat.server.repository.CreateConversationOutcome
 import com.maodouchat.server.repository.CreateConversationResult
-import com.maodouchat.server.repository.GroupInvitationRepository
+import com.maodouchat.server.repository.GroupInvitationService
 import com.maodouchat.server.repository.LeaveConversationResult
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.EncryptedAttachmentStorage
@@ -36,7 +36,7 @@ internal fun Route.configureConversationRoutes(
     userRepo: UserRepository,
     creationService: ConversationCreationService,
     queryRepository: ConversationQueryRepository,
-    invitationRepository: GroupInvitationRepository,
+    invitationService: GroupInvitationService,
     lifecycleRepository: ConversationLifecycleRepository,
     pushService: FcmPushService,
     createRateLimiter: BoundedRateLimiter,
@@ -90,7 +90,7 @@ internal fun Route.configureConversationRoutes(
             }
             if (outcome.invitedUserIds.isNotEmpty()) {
                 val invitedIds = outcome.invitedUserIds.toSet()
-                invitationRepository.listForChat(conversationId)
+                invitationService.listForChat(conversationId)
                     .filter { it.userId in invitedIds }
                     .forEach { invitation ->
                         notifyGroupInvite(json, invitation, "CREATED", pushService)
@@ -119,7 +119,7 @@ internal fun Route.configureConversationRoutes(
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("邀请二维码无效"))
                 return@post
             }
-            val consumed = invitationRepository.consumeToken(token, userId, maxGroupMembers()) ?: run {
+            val consumed = invitationService.consumeToken(token, userId, maxGroupMembers()) ?: run {
                 call.respond(HttpStatusCode.NotFound, ErrorResponse("群邀请不存在或已失效"))
                 return@post
             }

@@ -27,7 +27,7 @@ internal fun Route.configureBotCoreRoutes(
     groupMembershipService: GroupMembershipService,
     groupProfileRepo: GroupProfileRepository,
     groupModerationRepo: GroupModerationRepository,
-    groupInvitationRepo: GroupInvitationRepository,
+    groupInvitationService: GroupInvitationService,
     conversationLifecycleRepo: ConversationLifecycleRepository,
     conversationParticipantRepo: ConversationParticipantRepository,
     conversationQueryRepo: ConversationQueryRepository,
@@ -334,7 +334,7 @@ put("messageId", messageId)
 
     configureBotMemberPromotionRoutes(
         groupMembershipService = groupMembershipService,
-        groupInvitationRepo = groupInvitationRepo,
+        groupInvitationService = groupInvitationService,
         conversationParticipantRepo = conversationParticipantRepo,
         conversationQueryRepo = conversationQueryRepo,
         botSendRateLimiter = botSendRateLimiter,
@@ -346,7 +346,7 @@ put("messageId", messageId)
         pinnedMessageRepo = pinnedMessageRepo,
         serviceMessageRepo = serviceMessageRepo,
         groupProfileRepo = groupProfileRepo,
-        groupInvitationRepo = groupInvitationRepo,
+        groupInvitationService = groupInvitationService,
         conversationParticipantRepo = conversationParticipantRepo,
         conversationQueryRepo = conversationQueryRepo,
         botSendRateLimiter = botSendRateLimiter,

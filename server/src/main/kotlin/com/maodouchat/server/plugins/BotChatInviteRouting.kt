@@ -18,7 +18,7 @@ internal fun Route.configureBotChatInviteRoutes(
     pinnedMessageRepo: PinnedMessageRepository,
     serviceMessageRepo: ServiceMessageRepository,
     groupProfileRepo: GroupProfileRepository,
-    groupInvitationRepo: GroupInvitationRepository,
+    groupInvitationService: GroupInvitationService,
     conversationParticipantRepo: ConversationParticipantRepository,
     conversationQueryRepo: ConversationQueryRepository,
     botSendRateLimiter: BoundedRateLimiter,
@@ -108,7 +108,7 @@ put("count", 0)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("频道不支持邀请加入"))
         }
         val expiresAt = System.currentTimeMillis() + expiresIn * 1000L
-        val mutation = groupInvitationRepo.configureToken(
+        val mutation = groupInvitationService.configureToken(
             chatId = chatId,
             actorId = bot.id,
             rotate = rotate,
@@ -196,7 +196,7 @@ put("avatarUrl", avatarUrl)
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val mutation = groupInvitationRepo.revokeToken(
+        val mutation = groupInvitationService.revokeToken(
             chatId = chatId,
             actorId = bot.id,
             requireBotDeliverable = true

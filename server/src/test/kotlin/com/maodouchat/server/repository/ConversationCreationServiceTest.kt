@@ -130,7 +130,7 @@ class ConversationCreationServiceTest {
 
     private fun service() = ConversationCreationService(
         ConversationCreationRepository(),
-        GroupInvitationRepository(),
+        GroupInvitationService(GroupInvitationRepository()),
     )
 
     private companion object {

@@ -12,7 +12,7 @@ import kotlinx.serialization.json.*
 /** Bot 成员解封与角色调整（unbanChatMember / promoteChatMember）。 */
 internal fun Route.configureBotMemberPromotionRoutes(
     groupMembershipService: GroupMembershipService,
-    groupInvitationRepo: GroupInvitationRepository,
+    groupInvitationService: GroupInvitationService,
     conversationParticipantRepo: ConversationParticipantRepository,
     conversationQueryRepo: ConversationQueryRepository,
     botSendRateLimiter: BoundedRateLimiter,
@@ -49,7 +49,7 @@ internal fun Route.configureBotMemberPromotionRoutes(
             mutation = addCommit.result.result
             addedUserIds = addCommit.result.addedUserIds
         } else {
-            val inviteResult = groupInvitationRepo.inviteMembers(
+            val inviteResult = groupInvitationService.inviteMembers(
                 chatId = chatId,
                 actorId = bot.id,
                 requestedUserIds = listOf(userId),

@@ -5,7 +5,7 @@ import com.maodouchat.server.model.CreateChatRequest
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
-import com.maodouchat.server.repository.GroupInvitationRepository
+import com.maodouchat.server.repository.GroupInvitationService
 import com.maodouchat.server.repository.GroupInviteAcceptResult
 import com.maodouchat.server.repository.GroupMemberMutationResult
 import com.maodouchat.server.repository.GroupMembershipService
@@ -29,7 +29,7 @@ import kotlinx.serialization.json.put
 internal fun Route.configureGroupInvitationRoutes(
     userRepo: UserRepository,
     membershipService: GroupMembershipService,
-    invitationRepository: GroupInvitationRepository,
+    invitationService: GroupInvitationService,
     queryRepository: ConversationQueryRepository,
     participantRepository: ConversationParticipantRepository,
     pushService: FcmPushService,
@@ -103,7 +103,7 @@ internal fun Route.configureGroupInvitationRoutes(
                     )
                 }
             } else {
-                val result = invitationRepository.inviteMembers(
+                val result = invitationService.inviteMembers(
                     chatId,
                     userId,
                     requestedIds,
@@ -130,7 +130,7 @@ internal fun Route.configureGroupInvitationRoutes(
                     else -> if (call.respondGroupMemberMutationFailure(result.result)) return@post
                 }
                 val invitedIds = result.invitedUserIds.toSet()
-                invitationRepository.listForChat(chatId)
+                invitationService.listForChat(chatId)
                     .filter { it.userId in invitedIds }
                     .forEach { invitation ->
                         notifyGroupInvite(json, invitation, "CREATED", pushService)
@@ -145,7 +145,7 @@ internal fun Route.configureGroupInvitationRoutes(
 
         get("/api/group-invitations") {
             val userId = call.principal<JWTPrincipal>()!!.payload.subject
-            call.respond(invitationRepository.listIncoming(userId))
+            call.respond(invitationService.listIncoming(userId))
         }
 
         get("/api/chats/{chatId}/invitations") {
@@ -155,14 +155,14 @@ internal fun Route.configureGroupInvitationRoutes(
                 call.respond(HttpStatusCode.NotFound, ErrorResponse("群聊不存在"))
                 return@get
             }
-            call.respond(invitationRepository.listForChat(chatId))
+            call.respond(invitationService.listForChat(chatId))
         }
 
         post("/api/group-invitations/{inviteId}/accept") {
             val userId = call.principal<JWTPrincipal>()!!.payload.subject
             val inviteId = call.parameters["inviteId"].orEmpty()
             if (call.rejectIfSuspended(userRepo, userId)) return@post
-            val outcome = invitationRepository.accept(inviteId, userId, maxGroupMembers())
+            val outcome = invitationService.accept(inviteId, userId, maxGroupMembers())
             val chat = outcome.chatId?.let { queryRepository.getById(it, userId) }
             when (outcome.result) {
                 GroupInviteAcceptResult.ACCEPTED -> {
@@ -177,7 +177,7 @@ internal fun Route.configureGroupInvitationRoutes(
                             recipientIds = outcome.recipientsAfter,
                         )
                     }
-                    invitationRepository.get(inviteId)?.let { invitation ->
+                    invitationService.get(inviteId)?.let { invitation ->
                         notifyGroupInvite(json, invitation, "ACCEPTED", pushService)
                     }
                     call.respond(buildJsonObject {
@@ -215,11 +215,11 @@ internal fun Route.configureGroupInvitationRoutes(
         post("/api/group-invitations/{inviteId}/decline") {
             val userId = call.principal<JWTPrincipal>()!!.payload.subject
             val inviteId = call.parameters["inviteId"].orEmpty()
-            if (!invitationRepository.decline(inviteId, userId)) {
+            if (!invitationService.decline(inviteId, userId)) {
                 call.respond(HttpStatusCode.NotFound, ErrorResponse("邀请不存在或已处理"))
                 return@post
             }
-            invitationRepository.get(inviteId)?.let { invitation ->
+            invitationService.get(inviteId)?.let { invitation ->
                 notifyGroupInvite(json, invitation, "DECLINED", pushService)
             }
             call.respond(buildJsonObject { put("status", "declined") })
@@ -228,11 +228,11 @@ internal fun Route.configureGroupInvitationRoutes(
         delete("/api/group-invitations/{inviteId}") {
             val userId = call.principal<JWTPrincipal>()!!.payload.subject
             val inviteId = call.parameters["inviteId"].orEmpty()
-            if (!invitationRepository.cancel(inviteId, userId)) {
+            if (!invitationService.cancel(inviteId, userId)) {
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权撤销该邀请"))
                 return@delete
             }
-            invitationRepository.get(inviteId)?.let { invitation ->
+            invitationService.get(inviteId)?.let { invitation ->
                 notifyGroupInvite(json, invitation, "CANCELLED", pushService)
             }
             call.respond(buildJsonObject { put("status", "cancelled") })

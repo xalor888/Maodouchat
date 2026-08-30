@@ -15,7 +15,7 @@ import com.maodouchat.server.model.UploadAvatarRequest
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.GroupAuditRepository
-import com.maodouchat.server.repository.GroupInvitationRepository
+import com.maodouchat.server.repository.GroupInvitationService
 import com.maodouchat.server.repository.GroupMembershipService
 import com.maodouchat.server.repository.GroupMemberMutationResult
 import com.maodouchat.server.repository.GroupModerationRepository
@@ -49,7 +49,7 @@ internal fun Route.configureGroupAdministrationRoutes(
     membershipService: GroupMembershipService,
     profileRepository: GroupProfileRepository,
     moderationRepository: GroupModerationRepository,
-    invitationRepository: GroupInvitationRepository,
+    invitationService: GroupInvitationService,
     queryRepository: ConversationQueryRepository,
     participantRepository: ConversationParticipantRepository,
     auditRepository: GroupAuditRepository,
@@ -121,7 +121,7 @@ internal fun Route.configureGroupAdministrationRoutes(
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("邀请有效期或使用次数无效"))
                 return@post
             }
-            val result = invitationRepository.configureToken(
+            val result = invitationService.configureToken(
                 chatId,
                 userId,
                 request.rotate,
