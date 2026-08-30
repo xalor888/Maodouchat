@@ -654,8 +654,8 @@ Gate：并发举报、重复 disposition、权限矩阵、审计不可缺失和�
 - [x] 按 bot-auth、management、updates、messaging、group-admin、media 拆模块（BotCore 3454→430 行 + BotPresentation 1988→153 行，31 个子模块，端点计数 961 由 RouteRegistrySplitTest 锁定）。
 - [ ] Developer Console 与公开 Bot API 分离。
 - [ ] webhook 使用数据库 outbox、worker lease、退避、死信和重放。
-- [ ] Bot 群操作调用统一 GroupMembershipService。
-- [ ] Bot 内容通过 ServiceMessagePublisher 投递到所有离线设备。
+- [x] Bot 群操作调用统一 GroupMembershipService。
+- [x] Bot 内容通过 ServiceMessagePublisher 投递到所有离线设备。
 - [ ] Telegram alias 只保留一份业务实现和契约映射。
 - [ ] secret 必须安全持久化或删除虚假参数。
 - [ ] 删除静态 repository、route 内事务和 `Routing.kt` 重复 Bot 接口。
