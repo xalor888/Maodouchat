@@ -77,6 +77,12 @@ fun Application.configureSockets(
 ) {
     val participantRepository = ConversationParticipantRepository()
     val conversationQueryRepository = ConversationQueryRepository()
+    val callSignalingService = com.maodouchat.server.service.CallSignalingService(
+        signalingRepo,
+        userRepo,
+        conversationQueryRepository,
+        callInviteRateLimiter,
+    )
     // Tests and standalone plugin installs may use the default FCM service instead of the
     // Routing-owned instance. shutdown() is idempotent when production shares one instance.
     environment.monitor.subscribe(ApplicationStopped) {
@@ -281,9 +287,8 @@ fun Application.configureSockets(
                                 userRepo,
                                 participantRepository,
                                 conversationQueryRepository,
-                                signalingRepo,
+                                callSignalingService,
                                 pushService,
-                                callInviteRateLimiter,
                                 wsMessageRateLimiter,
                                 wsTypingRateLimiter,
                                 wsSignalingRateLimiter,
@@ -362,9 +367,8 @@ private suspend fun WebSocketSession.handleWsMessage(
     userRepo: UserRepository,
     participantRepository: ConversationParticipantRepository,
     conversationQueryRepository: ConversationQueryRepository,
-    signalingRepo: com.maodouchat.server.repository.SignalingRepository,
+    callSignalingService: com.maodouchat.server.service.CallSignalingService,
     pushService: FcmPushService,
-    callInviteRateLimiter: CallInviteRateLimiter,
     wsMessageRateLimiter: BoundedRateLimiter,
     wsTypingRateLimiter: BoundedRateLimiter,
     wsSignalingRateLimiter: BoundedRateLimiter
@@ -402,79 +406,40 @@ private suspend fun WebSocketSession.handleWsMessage(
             }
             // WebRTC 信令：只允许转发给真实用户，避免无效目标和自发自收
             val payload = json.decodeFromString<OutgoingSignalingPayload>(wsMsg.payload)
-            if (!isValidSignalPayload(payload.type, payload.payload) || !isValidCallId(payload.callId)) {
-                sendError("信令内容无效", json)
-                return
-            }
-            if (payload.toUserId == senderId) {
-                sendError("不能向自己发送信令", json)
-                return
-            }
             val restriction = userRepo.getMessageRestrictionUntil(senderId).takeIf { it > 0L }
                 ?: userRepo.getSuspendedUntil(senderId).takeIf { it > 0L }
             if (restriction != null) {
                 sendError(wsRestrictionMessage(restriction, "你已被限制发起通话"), json)
                 return
             }
-            if (userRepo.getById(payload.toUserId) == null) {
-                sendError("信令目标用户不存在", json)
-                return
-            }
-            if (!isValidGroupSignalMetadata(payload.groupId, payload.groupMemberIds, payload.groupInvite, payload.callId, senderId, payload.toUserId, conversationQueryRepository)) {
-                sendError("群通话元数据无效", json)
-                return
-            }
-            if (userRepo.isBlockedEitherWay(senderId, payload.toUserId)) {
-                sendError("无法与已屏蔽的用户发起通话", json)
-                return
-            }
-            if (payload.groupId.isBlank() && !conversationQueryRepository.shareConversation(senderId, payload.toUserId)) {
-                sendError("双方无共同会话，无法发起通话", json)
-                return
-            }
-            if (CallInviteRateLimiter.isInitialInvite(payload.type, payload.groupId, payload.groupInvite)) {
-                val key = CallInviteRateLimiter.sessionKey(payload.callId, payload.groupId, payload.toUserId)
-                val decision = callInviteRateLimiter.tryAcquire(senderId, key)
-                if (!decision.allowed) {
-                    sendError(
-                        "发起通话过于频繁，请稍后重试",
-                        json,
-                        code = "CALL_INVITE_RATE_LIMITED",
-                        retryAfterSeconds = decision.retryAfterSeconds
-                    )
-                    return
-                }
-            } else if (!wsSignalingRateLimiter.acquire(senderId, maxPerMinute = 120)) {
-                // 初次 offer 走 CallInviteRateLimiter；后续 ice-candidate/answer 等信令每用户限流，
-                // 防止持合法 JWT 的客户端高频信令对目标用户做存储 + fanout 放大（8.35 修复）
+            // 初次 offer 走 CallInviteRateLimiter（service 内）；后续信令每用户限流（WS 特有）
+            if (!CallInviteRateLimiter.isInitialInvite(payload.type, payload.groupId, payload.groupInvite) &&
+                !wsSignalingRateLimiter.acquire(senderId, maxPerMinute = 120)
+            ) {
                 sendError("信令发送过于频繁，请稍后重试", json)
                 return
             }
-            // 先持久化再实时推送：弱网断连时对端仍可通过 REST 轮询获取信令
-            // 终端信令与清理同事务，避免 store 已提交、clear 未执行的窗口
-            val terminalTypes = setOf("hang-up", "busy", "reject")
-            if (payload.type.lowercase() in terminalTypes) {
-                signalingRepo.storeTerminalAndClearOthers(
-                    senderId, payload.toUserId, payload.type, payload.payload,
-                    payload.callId, payload.groupId, payload.groupMemberIds, payload.groupInvite
-                )
-            } else {
-                signalingRepo.store(
-                    senderId, payload.toUserId, payload.type, payload.payload,
-                    payload.callId, payload.groupId, payload.groupMemberIds, payload.groupInvite
-                )
-            }
-            val signalMsg = json.encodeToString(WsMessage("SIGNALING", json.encodeToString(
-                IncomingSignalingPayload(senderId, payload.type, payload.payload, payload.callId, payload.groupId, payload.groupMemberIds, payload.groupInvite)
-            )))
-            LocalRealtimeBus.publish(payload.toUserId, signalMsg)
-            if (payload.type.equals("offer", ignoreCase = true) && (payload.groupId.isBlank() || payload.groupInvite)) {
-                pushService.enqueueIncomingCall(
-                    recipientId = payload.toUserId,
-                    senderId = senderId,
-                    isVideo = sdpHasActiveVideo(payload.payload),
-                    callId = payload.callId
-                )
+            val request = SendSignalRequest(
+                payload.toUserId, payload.type, payload.payload,
+                payload.callId, payload.groupId, payload.groupMemberIds, payload.groupInvite,
+            )
+            when (val outcome = callSignalingService.send(request, senderId)) {
+                is com.maodouchat.server.service.CallSignalingService.SendOutcome.Rejected ->
+                    sendError(outcome.message, json, outcome.code, outcome.retryAfterSeconds)
+                is com.maodouchat.server.service.CallSignalingService.SendOutcome.Stored -> {
+                    val signalMsg = json.encodeToString(WsMessage("SIGNALING", json.encodeToString(
+                        IncomingSignalingPayload(senderId, payload.type, payload.payload, payload.callId, payload.groupId, payload.groupMemberIds, payload.groupInvite)
+                    )))
+                    LocalRealtimeBus.publish(payload.toUserId, signalMsg)
+                    if (payload.type.equals("offer", ignoreCase = true) && (payload.groupId.isBlank() || payload.groupInvite)) {
+                        pushService.enqueueIncomingCall(
+                            recipientId = payload.toUserId,
+                            senderId = senderId,
+                            isVideo = sdpHasActiveVideo(payload.payload),
+                            callId = payload.callId
+                        )
+                    }
+                }
             }
         }
 

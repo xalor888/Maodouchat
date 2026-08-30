@@ -468,9 +468,12 @@ fun Application.configureRouting(
         )
         configureCallSignalingRoutes(
             userRepository = userRepo,
-            conversationQueryRepository = conversationQueryRepo,
-            signalingRepository = signalingRepo,
-            callInviteRateLimiter = callInviteRateLimiter,
+            callSignalingService = com.maodouchat.server.service.CallSignalingService(
+                signalingRepo,
+                userRepo,
+                conversationQueryRepo,
+                callInviteRateLimiter,
+            ),
             turnCredentialService = turnCredentialService,
             pushService = pushService,
             json = json,
