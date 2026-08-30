@@ -571,14 +571,14 @@ Gate：邀请/撤销、退群/发送、踢人/转让并发和完整权限矩阵�
 
 ### B06 Messaging V2 admission、metadata 与设备邮箱
 
-当前状态：`[~]`。发送、pull、ACK 和事务已有完整基础，但 repository 仍较宽且留存未闭环。
+当前状态：`[x]`。准入/设备快照/邮箱/元数据/服务发布五个子域拆分完成，保留期与幂等语义落地，路由瘦身为 auth/DTO/错误映射/wake，无临时实例化。
 
 - [x] 拆 `MessageAdmissionPolicy`、`ConversationDeviceSnapshotStore`。
 - [x] 拆 `EnvelopeMailboxStore`、`MessageMetadataStore`、`ServiceMessagePublisher`。
 - [x] 保持 metadata + envelopes 单事务和幂等重试。
 - [x] 明确 ACK 后保留期、未 ACK 最大保留期、审核删除和退群清理语义。
 - [x] 建立 `MailboxRetentionJob`，绝不删除未 ACK 有效信封。
-- [ ] 路由只做 auth、DTO、错误映射和 wake。
+- [x] 路由只做 auth、DTO、错误映射和 wake。
 - [x] 删除 Routing/Bot 中临时实例化 Messaging repository 的路径。
 
 Gate：两账号各两设备、离线数小时、ACK 崩溃点、revision 并发、PostgreSQL 事务和 retention 通过。
