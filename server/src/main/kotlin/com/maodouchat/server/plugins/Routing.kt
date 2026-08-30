@@ -166,7 +166,8 @@ fun Application.configureRouting(
     pushTokenRepo: PushTokenRepository = PushTokenRepository(),
     pushService: FcmPushService = FcmPushService(pushTokenRepo, notificationPreferenceRepo),
     signalingRepo: SignalingRepository = SignalingRepository(),
-    callInviteRateLimiter: CallInviteRateLimiter = CallInviteRateLimiter()
+    callInviteRateLimiter: CallInviteRateLimiter = CallInviteRateLimiter(),
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository = com.maodouchat.server.messaging.v2.MessagingV2Repository(),
 ) {
     if (attributes.contains(RoutingInstalledKey)) {
         if (attributes[RoutingPushServiceKey] !== pushService) pushService.shutdown()
@@ -182,7 +183,7 @@ fun Application.configureRouting(
     )
     val starMessageRepo = StarMessageRepository()
     val pinnedMessageRepo = PinnedMessageRepository()
-    val serviceMessageRepo = ServiceMessageRepository()
+    val serviceMessageRepo = ServiceMessageRepository(messagingV2Repository)
     val authTokenRepo = AuthTokenRepository()
     val friendRepo = FriendRepository()
     val chatFolderRepo = ChatFolderRepository()
@@ -540,6 +541,7 @@ configureEncryptedAttachmentRoutes(
             conversationParticipantRepo = conversationParticipantRepo,
             conversationQueryRepo = conversationQueryRepo,
             rateLimiter = aiRateLimiter,
+            messagingV2Repository = messagingV2Repository,
         )
         configureAuthenticatedSessionRoutes(
             userRepo = userRepo,
@@ -603,6 +605,7 @@ configureEncryptedAttachmentRoutes(
             conversationParticipantRepo = conversationParticipantRepo,
             reportRateLimiter = reportRateLimiter,
             json = json,
+            messagingV2Repository = messagingV2Repository,
         )
         configureSocialPostRoutes(
             userRepo = userRepo,

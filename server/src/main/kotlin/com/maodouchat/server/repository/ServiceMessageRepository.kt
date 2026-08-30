@@ -28,7 +28,9 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 
 /** Dedicated plaintext store for server-authored bot messages. */
-class ServiceMessageRepository {
+class ServiceMessageRepository(
+    private val messagingV2Repository: MessagingV2Repository = MessagingV2Repository(),
+) {
 
     /**
      * Legacy content-only adapter for routes that have not yet switched to
@@ -95,7 +97,7 @@ class ServiceMessageRepository {
     ): PublishResult = transaction {
         val message = insertServiceMessageInTransaction(id, chatId, botUserId, content, timestamp, type)
             ?: return@transaction PublishResult.Rejected
-        val mailbox = MessagingV2Repository().enqueueServiceMessageInTransaction(message, recipientUserIds)
+        val mailbox = messagingV2Repository.enqueueServiceMessageInTransaction(message, recipientUserIds)
         PublishResult.Published(message, mailbox)
     }
 

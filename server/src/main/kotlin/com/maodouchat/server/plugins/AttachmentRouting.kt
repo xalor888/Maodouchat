@@ -22,6 +22,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
     conversationParticipantRepo: ConversationParticipantRepository,
     conversationQueryRepo: ConversationQueryRepository,
     rateLimiter: BoundedRateLimiter,
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
     authenticate("auth-jwt") {
             post("/api/attachment-uploads") {
@@ -357,7 +358,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                 // 或发送者拉黑了 viewer，都不可下载其附件密文。
                 val boundMessageId = record.messageId
                 if (!boundMessageId.isNullOrBlank()) {
-                    val senderId = com.maodouchat.server.messaging.v2.MessagingV2Repository()
+                    val senderId = messagingV2Repository
                         .messageMetadata(boundMessageId)
                         ?.senderUserId
                     if (senderId != null && senderId != userId && userRepo.isBlockedEitherWay(userId, senderId)) {

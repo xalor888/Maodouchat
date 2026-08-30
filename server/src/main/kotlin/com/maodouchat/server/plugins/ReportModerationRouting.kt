@@ -23,6 +23,7 @@ internal fun Route.configureReportModerationRoutes(
     conversationParticipantRepo: ConversationParticipantRepository,
     reportRateLimiter: BoundedRateLimiter,
     json: Json,
+    messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
     authenticate("auth-jwt") {
             post("/api/users/block/{uid}") {
@@ -144,7 +145,7 @@ put("status", "ok")
                     "RESTRICT_MESSAGES_24H", "RESTRICT_POSTS_7D", "SUSPEND_24H" -> {
                         val targetUserId = when (existingReport.targetType) {
                             "USER" -> existingReport.targetId
-                            "MESSAGE" -> com.maodouchat.server.messaging.v2.MessagingV2Repository()
+                            "MESSAGE" -> messagingV2Repository
                                 .messageMetadata(existingReport.messageId ?: existingReport.targetId)
                                 ?.senderUserId
                             "POST" -> postRepo.getPostAuthorId(existingReport.targetId)
@@ -186,7 +187,7 @@ put("status", "ok")
                                 "DELETE_CONTENT" -> when (pending.targetType) {
                                     "MESSAGE" -> {
                                         val messageId = pending.messageId ?: pending.targetId
-                                        val repository = com.maodouchat.server.messaging.v2.MessagingV2Repository()
+                                        val repository = messagingV2Repository
                                         val deleted = repository.deleteMessageForModeration(messageId)
                                         if (deleted != null) {
                                             deletedModeration = deleted

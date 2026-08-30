@@ -150,7 +150,8 @@ fun main() {
             pushTokenRepo = pushTokenRepo,
             pushService = pushService,
             signalingRepo = signalingRepo,
-            callInviteRateLimiter = callInviteRateLimiter
+            callInviteRateLimiter = callInviteRateLimiter,
+            messagingV2Repository = messagingV2Repository
         )
         configureMessagingV2Routing(messagingV2Repository)
         // 群玩法 B3：群签到+排行 / 群接龙 / 群 PK / 投票同步（REST + WS 推送）
