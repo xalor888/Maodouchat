@@ -370,7 +370,7 @@ post("/broadcast") {
                 )
                 // Fanout to all currently online sessions (best-effort live notice).
                 val onlineIds = try {
-                    com.maodouchat.server.plugins.onlineUserIds()
+                    com.maodouchat.server.plugins.ConnectionRegistry.onlineUserIds()
                 } catch (_: Exception) {
                     emptyList()
                 }

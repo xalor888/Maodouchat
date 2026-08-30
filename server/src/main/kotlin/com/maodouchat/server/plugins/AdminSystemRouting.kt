@@ -47,7 +47,7 @@ internal fun Route.configureAdminSystemRoutes() {
         val ipBlocks = RuntimeConfigService.ipBlocklist().size
         val msgRate = RuntimeConfigService.maxMessagePerMinute()
         val online = try {
-            com.maodouchat.server.plugins.onlineUserIds().size
+            com.maodouchat.server.plugins.ConnectionRegistry.onlineUserIds().size
         } catch (_: Exception) {
             0
         }
@@ -65,7 +65,7 @@ internal fun Route.configureAdminSystemRoutes() {
         call.respond(
         buildJsonObject {
 put("generatedAt", now)
-put("onlineUsers", online)
+put("ConnectionRegistry.onlineUsers", online)
 put("usersTotal", users)
 put("openRiskEvents", riskOpen)
 put("flags", buildJsonObject {

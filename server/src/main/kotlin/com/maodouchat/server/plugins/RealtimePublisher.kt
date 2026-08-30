@@ -12,7 +12,7 @@ import kotlinx.serialization.json.Json
 
 // 实时发布 / 断连（自 Sockets.kt 拆分，checklist B08）。
 // 在线状态广播、动态删除广播、可见性撤回、定向/全量推送与按会话断开集中于此，
-// 复用 Sockets.kt 的连接注册表（onlineUsers / session* 锁 / 限流器）。
+// 复用 Sockets.kt 的连接注册表（ConnectionRegistry.onlineUsers / session* 锁 / 限流器）。
 
 internal suspend fun broadcastUserStatus(userId: String, isOnline: Boolean, json: Json, userRepo: UserRepository) {
     // 隐私保护：nobody / showOnline=false 不广播在线状态
@@ -22,13 +22,13 @@ internal suspend fun broadcastUserStatus(userId: String, isOnline: Boolean, json
     if (!presenceBroadcastRateLimiter.acquire(userId, maxPerMinute = 20)) return
     // 防广播风暴：在线用户过多时跳过全量 fanout（O(N) 每条事件 → O(N²) 放大攻击面），
     // 由客户端定期轮询在线状态兜底。
-    if (onlineUsers.size > PRESENCE_FANOUT_CAP) return
+    if (ConnectionRegistry.onlineUsers.size > PRESENCE_FANOUT_CAP) return
     val status = UserStatusPayload(userId, isOnline, System.currentTimeMillis())
     val msg = json.encodeToString(WsMessage("USER_STATUS", json.encodeToString(status)))
     // 广播给所有在线用户（除自己）；双向拉黑不泄露在线状态
     // 8.48 修复 H7：一次批量查 viewer 与全体在线用户的双向拉黑（此前逐在线用户
     // isBlockedEitherWay → 每人 2 次 BlockedUsers 查询，PRESENCE_FANOUT_CAP=500 → 1000 次）
-    val onlineIds = onlineUsers.keys.filter { it != userId }
+    val onlineIds = ConnectionRegistry.onlineUsers.keys.filter { it != userId }
     val blockedIds = try { userRepo.blockedEitherWayIdsInTx(userId, onlineIds) } catch (_: Exception) { emptySet() }
     onlineIds.forEach { uid ->
         if (uid !in blockedIds && userRepo.shouldShowOnlineTo(userId, uid)) {
@@ -44,13 +44,13 @@ internal suspend fun broadcastPostDeleted(postId: String, actorId: String? = nul
     // 9.136：与 presence 广播同构的防护——频控（普通用户路径）+ 在线规模上限，
     // 防反复建/删动态把单事件放大为 O(N) 全量 fanout
     if (actorId != null && !postDeleteBroadcastLimiter.acquire(actorId, maxPerMinute = 30)) return
-    if (onlineUsers.size > PRESENCE_FANOUT_CAP) return
+    if (ConnectionRegistry.onlineUsers.size > PRESENCE_FANOUT_CAP) return
     val json = Json { ignoreUnknownKeys = true }
     val message = json.encodeToString(
         WsMessage.serializer(),
         WsMessage("POST_DELETED", json.encodeToString(PostDeletedPayload.serializer(), PostDeletedPayload(postId)))
     )
-    onlineUserIds().forEach { sendToUser(it, message) }
+    ConnectionRegistry.onlineUserIds().forEach { sendToUser(it, message) }
 }
 
 internal suspend fun broadcastUserVisibilityRevoked(
@@ -71,16 +71,16 @@ internal suspend fun broadcastUserVisibilityRevoked(
     val message = json.encodeToString(WsMessage("USER_STATUS", json.encodeToString(payload)))
     // 本人其他设备也需清缓存；双向拉黑关系不得借撤回事件感知对方活动。
     // 8.48 修复 H7（同构）：批量查双向拉黑（此前逐在线用户 isBlockedEitherWay → 2 次查询/人）
-    val onlineIds = onlineUsers.keys.filter { it != userId }
+    val onlineIds = ConnectionRegistry.onlineUsers.keys.filter { it != userId }
     val blockedIds = try { userRepo.blockedEitherWayIdsInTx(userId, onlineIds) } catch (_: Exception) { emptySet() }
-    onlineUsers.keys
+    ConnectionRegistry.onlineUsers.keys
         .filter { viewerId -> viewerId == userId || viewerId !in blockedIds }
         .forEach { viewerId -> sendToUser(viewerId, message) }
 }
 
 /**
  * 并发安全地向单个 session 发送文本帧。Ktor 的 [WebSocketSession.send] 不保证并发安全，
- * 用 [sessionSendLocks] 中按 session 的互斥锁串行化，避免同收件人的多路 fanout 帧交错。
+ * 用 [ConnectionRegistry.sessionSendLocks] 中按 session 的互斥锁串行化，避免同收件人的多路 fanout 帧交错。
  */
 internal suspend fun runWithWsSendTimeout(
     timeoutMs: Long = WS_SEND_TIMEOUT_MS,
@@ -100,8 +100,8 @@ internal suspend fun runWithWsSendTimeout(
 }
 
 internal suspend fun sendSafe(session: WebSocketSession, text: String) {
-    val lock = sessionSendLocks.compute(session) { _, existing ->
-        val current = existing ?: SessionSendLock()
+    val lock = ConnectionRegistry.sessionSendLocks.compute(session) { _, existing ->
+        val current = existing ?: ConnectionRegistry.SessionSendLock()
         current.users++
         current
     }!!
@@ -115,7 +115,7 @@ internal suspend fun sendSafe(session: WebSocketSession, text: String) {
             }
         }
     } finally {
-        sessionSendLocks.computeIfPresent(session) { _, current ->
+        ConnectionRegistry.sessionSendLocks.computeIfPresent(session) { _, current ->
             if (current === lock) {
                 if (current.users > 1) {
                     current.users--
@@ -131,7 +131,7 @@ internal suspend fun sendSafe(session: WebSocketSession, text: String) {
 }
 
 internal suspend fun sendToUser(userId: String, message: String) {
-    val sessions = onlineUsers[userId] ?: return
+    val sessions = ConnectionRegistry.onlineUsers[userId] ?: return
     val failedSessions = mutableListOf<WebSocketSession>()
     sessions.forEach { session ->
         try {
@@ -149,14 +149,14 @@ internal suspend fun sendToUser(userId: String, message: String) {
             throw e
         } catch (_: Exception) {
         }
-        sessionAccessJtis.remove(session)
-        sessionAuthSessionIds.remove(session)
-        removeSessionSendLock(session)
+        ConnectionRegistry.sessionAccessJtis.remove(session)
+        ConnectionRegistry.sessionAuthSessionIds.remove(session)
+        ConnectionRegistry.removeSessionSendLock(session)
         sessions.remove(session)
     }
     // 用 compute 原子地检查并移除空列表，避免 check-then-remove 竞态：
     // 旧实现先 isEmpty() 再 remove()，两步之间新 session 可能被加入列表却被误删。
-    onlineUsers.compute(userId) { _, existing ->
+    ConnectionRegistry.onlineUsers.compute(userId) { _, existing ->
         if (existing === sessions && sessions.isEmpty()) null else existing
     }
 }
@@ -168,11 +168,11 @@ internal suspend fun sendToUser(userId: String, message: String) {
  */
 internal suspend fun disconnectUserSessions(userId: String, reason: String = "会话已失效") {
     if (userId.isBlank()) return
-    val sessions = onlineUsers.remove(userId) ?: return
+    val sessions = ConnectionRegistry.onlineUsers.remove(userId) ?: return
     sessions.forEach { session ->
-        sessionAccessJtis.remove(session)
-        sessionAuthSessionIds.remove(session)
-        removeSessionSendLock(session)
+        ConnectionRegistry.sessionAccessJtis.remove(session)
+        ConnectionRegistry.sessionAuthSessionIds.remove(session)
+        ConnectionRegistry.removeSessionSendLock(session)
         try {
             session.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, reason.take(120)))
         } catch (e: CancellationException) {
@@ -189,12 +189,12 @@ internal suspend fun disconnectUserSessionsByAuthSessionIds(
     reason: String = "会话已失效"
 ) {
     if (userId.isBlank() || authSessionIds.isEmpty()) return
-    val sessions = onlineUsers[userId] ?: return
-    val toClose = sessions.filter { session -> sessionAuthSessionIds[session] in authSessionIds }
+    val sessions = ConnectionRegistry.onlineUsers[userId] ?: return
+    val toClose = sessions.filter { session -> ConnectionRegistry.sessionAuthSessionIds[session] in authSessionIds }
     toClose.forEach { session ->
-        sessionAccessJtis.remove(session)
-        sessionAuthSessionIds.remove(session)
-        removeSessionSendLock(session)
+        ConnectionRegistry.sessionAccessJtis.remove(session)
+        ConnectionRegistry.sessionAuthSessionIds.remove(session)
+        ConnectionRegistry.removeSessionSendLock(session)
         try {
             session.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, reason.take(120)))
         } catch (e: CancellationException) {
@@ -203,7 +203,7 @@ internal suspend fun disconnectUserSessionsByAuthSessionIds(
         }
         sessions.remove(session)
     }
-    onlineUsers.compute(userId) { _, existing ->
+    ConnectionRegistry.onlineUsers.compute(userId) { _, existing ->
         if (existing === sessions && sessions.isEmpty()) null else existing
     }
     markOfflineAndBroadcastIfNoSessions(userId)
@@ -224,12 +224,12 @@ internal suspend fun disconnectUserSessionsByAccessJti(
     if (accessJti.isNullOrBlank()) {
         return
     }
-    val sessions = onlineUsers[userId] ?: return
-    val toClose = sessions.filter { session -> sessionAccessJtis[session] == accessJti }
+    val sessions = ConnectionRegistry.onlineUsers[userId] ?: return
+    val toClose = sessions.filter { session -> ConnectionRegistry.sessionAccessJtis[session] == accessJti }
     toClose.forEach { session ->
-        sessionAccessJtis.remove(session)
-        sessionAuthSessionIds.remove(session)
-        removeSessionSendLock(session)
+        ConnectionRegistry.sessionAccessJtis.remove(session)
+        ConnectionRegistry.sessionAuthSessionIds.remove(session)
+        ConnectionRegistry.removeSessionSendLock(session)
         try {
             session.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, reason.take(120)))
         } catch (e: CancellationException) {
@@ -238,7 +238,7 @@ internal suspend fun disconnectUserSessionsByAccessJti(
         }
         sessions.remove(session)
     }
-    onlineUsers.compute(userId) { _, existing ->
+    ConnectionRegistry.onlineUsers.compute(userId) { _, existing ->
         if (existing === sessions && sessions.isEmpty()) null else existing
     }
     markOfflineAndBroadcastIfNoSessions(userId)
@@ -250,13 +250,13 @@ internal suspend fun disconnectUserSessionsByAccessJti(
  */
 internal suspend fun markOfflineAndBroadcastIfNoSessions(userId: String) {
     userStatusLock(userId).withLock {
-        if (!onlineUsers.containsKey(userId)) {
+        if (!ConnectionRegistry.onlineUsers.containsKey(userId)) {
             runCatching {
                 UserRepository().setOnline(userId, false)
             }
         }
     }
-    if (!onlineUsers.containsKey(userId)) {
+    if (!ConnectionRegistry.onlineUsers.containsKey(userId)) {
         broadcastUserStatus(userId, false, Json { ignoreUnknownKeys = true }, UserRepository())
     }
 }

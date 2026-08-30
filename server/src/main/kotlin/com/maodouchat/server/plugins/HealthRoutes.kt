@@ -93,7 +93,7 @@ fun Route.configureHealthRoutes() {
             }
         }
         val gauges = buildJsonObject {
-            put("onlineUsers", onlineUserIds().size)
+            put("ConnectionRegistry.onlineUsers", ConnectionRegistry.onlineUserIds().size)
         }
         val body = buildJsonObject {
             put("timestamp", System.currentTimeMillis())

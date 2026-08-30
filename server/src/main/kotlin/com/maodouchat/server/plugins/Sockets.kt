@@ -51,30 +51,7 @@ internal const val PRESENCE_FANOUT_CAP = 5000
  * 超过即拒绝新连接。
  */
 private const val MAX_WS_PER_USER = 8
-internal val onlineUsers = ConcurrentHashMap<String, CopyOnWriteArrayList<WebSocketSession>>()
-
 private val wsLogger = LoggerFactory.getLogger("Sockets")
-
-/** Snapshot of user ids with at least one live WS session (admin ops / metrics). */
-internal fun onlineUserIds(): List<String> = onlineUsers.keys.toList()
-
-/** session -> access token jti；单设备 logout 只踢匹配 jti 的连接 */
-internal val sessionAccessJtis = ConcurrentHashMap<WebSocketSession, String>()
-internal val sessionAuthSessionIds = ConcurrentHashMap<WebSocketSession, String>()
-/**
- * 单 session 发送互斥锁。Ktor 的 [WebSocketSession.send] 不保证并发安全：
- * 同一收件人的多条 fanout / 状态回执 / 打字指示可能来自不同发送者协程并发调用，
- * 若不加锁会导致帧交错损坏（半截帧、协议失配）。按 session 串行化发送。
- */
-internal class SessionSendLock(val mutex: Mutex = Mutex(), var users: Int = 0)
-internal val sessionSendLocks = ConcurrentHashMap<WebSocketSession, SessionSendLock>()
-
-/** 仅在无发送者使用时删除锁，避免等待中的发送者与新建锁并发写同一 session。 */
-internal fun removeSessionSendLock(session: WebSocketSession) {
-    sessionSendLocks.computeIfPresent(session) { _, current ->
-        if (current.users == 0) null else current
-    }
-}
 
 /**
  * 每用户在线状态迁移锁（分片）：把「containsKey 检查 + setOnline + 广播」串行化。
@@ -187,7 +164,7 @@ fun Application.configureSockets(
             }
             var authWatchdog: Job? = null
             // 注册及其后的全部工作都在 try 内：任何异常（含 DB 复检抛错）都走 finally 幂等清理，
-            // 不会把死 session 永久留在 onlineUsers / sessionAccessJtis / sessionAuthSessionIds。
+            // 不会把死 session 永久留在 ConnectionRegistry.onlineUsers / ConnectionRegistry.sessionAccessJtis / ConnectionRegistry.sessionAuthSessionIds。
             try {
                 // 注册在线用户；绑定 access jti 供单设备 logout 精准踢线。
                 // add 必须在 compute 锁内完成：computeIfAbsent{}.add 的 add 发生在 bin 锁外，
@@ -197,7 +174,7 @@ fun Application.configureSockets(
                 // 原子判读：把「计数检查 + 加入」放进 compute 内，避免并发 connect 时
                 // check-then-act 竞态导致连接数短暂超过 MAX_WS_PER_USER（持合法 JWT 的客户端可借此放大连接）。
                 var wsPerUserRejected = false
-                onlineUsers.compute(userId) { _, sessions ->
+                ConnectionRegistry.onlineUsers.compute(userId) { _, sessions ->
                     val list = (sessions ?: CopyOnWriteArrayList())
                     if (list.size >= MAX_WS_PER_USER) {
                         wsPerUserRejected = true
@@ -212,9 +189,9 @@ fun Application.configureSockets(
                     return@webSocket
                 }
                 if (!tokenId.isNullOrBlank()) {
-                    sessionAccessJtis[this] = tokenId
+                    ConnectionRegistry.sessionAccessJtis[this] = tokenId
                 }
-                sessionAuthSessionIds[this] = authSessionId
+                ConnectionRegistry.sessionAuthSessionIds[this] = authSessionId
                 // 首检与注册之间存在吊销窗口：注册完成后立即复检一次（失败走 finally 清理）
                 if (!authTokenRepo.isAccessTokenAllowed(
                         userId,
@@ -352,10 +329,10 @@ fun Application.configureSockets(
                 // 原子清理：compute 内部不能调挂起函数，改用 boolean holder
                 val cleared = booleanArrayOf(false)
                 val currentSession = this
-                sessionAccessJtis.remove(currentSession)
-                sessionAuthSessionIds.remove(currentSession)
-                removeSessionSendLock(currentSession)
-                onlineUsers.compute(userId) { _, existing ->
+                ConnectionRegistry.sessionAccessJtis.remove(currentSession)
+                ConnectionRegistry.sessionAuthSessionIds.remove(currentSession)
+                ConnectionRegistry.removeSessionSendLock(currentSession)
+                ConnectionRegistry.onlineUsers.compute(userId) { _, existing ->
                     val list = if (existing != null) existing else CopyOnWriteArrayList<WebSocketSession>()
                     list.remove(currentSession)
                     if (list.isEmpty()) {
@@ -369,13 +346,13 @@ fun Application.configureSockets(
                     withContext(NonCancellable) {
                         // 状态锁内仅做 DB 离线标记；广播是挂起 I/O，移到锁外。
                         userStatusLock(userId).withLock {
-                            if (!onlineUsers.containsKey(userId)) {
+                            if (!ConnectionRegistry.onlineUsers.containsKey(userId)) {
                                 userRepo.setOnline(userId, false)
                             }
                         }
                         // 广播离线：锁外执行；释放锁后再次确认仍无会话，
                         // 避免新连接在锁释放后加入导致 online→offline 闪烁。
-                        if (!onlineUsers.containsKey(userId)) {
+                        if (!ConnectionRegistry.onlineUsers.containsKey(userId)) {
                             broadcastUserStatus(userId, false, json, userRepo)
                         }
                     }

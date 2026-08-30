@@ -278,7 +278,7 @@ internal fun Route.configureAdminExportsRoutes(authTokenRepo: AuthTokenRepositor
         val adminId = call.principal<JWTPrincipal>()!!.payload.subject
         // Privacy-safe: ids + presence only, no message bodies
         val online = try {
-            com.maodouchat.server.plugins.onlineUserIds()
+            com.maodouchat.server.plugins.ConnectionRegistry.onlineUserIds()
         } catch (_: Exception) {
             emptyList<String>()
         }
