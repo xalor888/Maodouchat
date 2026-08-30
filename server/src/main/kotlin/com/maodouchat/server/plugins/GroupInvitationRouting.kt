@@ -8,7 +8,7 @@ import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.GroupInvitationRepository
 import com.maodouchat.server.repository.GroupInviteAcceptResult
 import com.maodouchat.server.repository.GroupMemberMutationResult
-import com.maodouchat.server.repository.GroupMembershipRepository
+import com.maodouchat.server.repository.GroupMembershipService
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.FcmPushService
 import io.ktor.http.HttpStatusCode
@@ -28,7 +28,7 @@ import kotlinx.serialization.json.put
 /** HTTP adapter for channel member addition and durable group invitation approval. */
 internal fun Route.configureGroupInvitationRoutes(
     userRepo: UserRepository,
-    membershipRepository: GroupMembershipRepository,
+    membershipService: GroupMembershipService,
     invitationRepository: GroupInvitationRepository,
     queryRepository: ConversationQueryRepository,
     participantRepository: ConversationParticipantRepository,
@@ -61,12 +61,13 @@ internal fun Route.configureGroupInvitationRoutes(
                 return@post
             }
             if (chatType == ChatType.CHANNEL) {
-                val result = membershipRepository.addMembers(
+                val addCommit = membershipService.addMembers(
                     chatId,
                     userId,
                     requestedIds,
                     MAX_CHANNEL_SUBSCRIBERS,
                 )
+                val result = addCommit.result
                 when (result.result) {
                     GroupMemberMutationResult.USER_NOT_FOUND -> {
                         call.respond(

@@ -17,7 +17,7 @@ internal fun Route.configureBotGeoRoutes(
     userRepo: UserRepository,
     pinnedMessageRepo: PinnedMessageRepository,
     serviceMessageRepo: ServiceMessageRepository,
-    groupLifecycleService: GroupLifecycleService,
+    groupMembershipService: GroupMembershipService,
     groupModerationRepo: GroupModerationRepository,
     conversationParticipantRepo: ConversationParticipantRepository,
     conversationQueryRepo: ConversationQueryRepository,

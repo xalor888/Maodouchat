@@ -10,7 +10,7 @@ import kotlinx.serialization.json.*
 
 /** Bot 群成员管理（getChatMember / restrictChatMember / banChatMember）。 */
 internal fun Route.configureBotMemberRoutes(
-    groupLifecycleService: GroupLifecycleService,
+    groupMembershipService: GroupMembershipService,
     groupModerationRepo: GroupModerationRepository,
     conversationParticipantRepo: ConversationParticipantRepository,
     conversationQueryRepo: ConversationQueryRepository,
@@ -115,7 +115,7 @@ put("mutedUntil", until)
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val commit = groupLifecycleService.removeMember(
+        val commit = groupMembershipService.removeMember(
             chatId = chatId,
             actorId = bot.id,
             targetUserId = userId,

@@ -16,7 +16,7 @@ import org.jetbrains.exposed.sql.*
 internal fun Route.configureBotMessagingVariantsRoutes(
     userRepo: UserRepository,
     serviceMessageRepo: ServiceMessageRepository,
-    groupLifecycleService: GroupLifecycleService,
+    groupMembershipService: GroupMembershipService,
     conversationParticipantRepo: ConversationParticipantRepository,
     conversationQueryRepo: ConversationQueryRepository,
     botSendRateLimiter: BoundedRateLimiter,
@@ -37,7 +37,7 @@ internal fun Route.configureBotMessagingVariantsRoutes(
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val commit = groupLifecycleService.removeMember(
+        val commit = groupMembershipService.removeMember(
             chatId = chatId,
             actorId = bot.id,
             targetUserId = userId,

@@ -5,7 +5,7 @@ import com.maodouchat.server.repository.AddOwnedBotResult
 import com.maodouchat.server.repository.ConversationCreationRepository
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
-import com.maodouchat.server.repository.GroupMembershipRepository
+import com.maodouchat.server.repository.GroupMembershipService
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
@@ -28,14 +28,14 @@ import kotlinx.serialization.json.putJsonArray
 
 /**
  * Bot 交互（用户侧）子域路由：会话内 bot 命令/收件箱、私聊 bot、回调、加 bot 进群。
- * 从 configureRouting 抽出，只做鉴权/DTO/校验/调用 BotRepository/GroupMembershipRepository。
+ * 从 configureRouting 抽出，只做鉴权/DTO/校验/调用 BotRepository/GroupMembershipService。
  */
 internal fun Route.configureBotInteractionRoutes(
     userRepo: UserRepository,
     conversationParticipantRepo: ConversationParticipantRepository,
     conversationCreationRepo: ConversationCreationRepository,
     conversationQueryRepo: ConversationQueryRepository,
-    groupMembershipRepo: GroupMembershipRepository,
+    groupMembershipService: GroupMembershipService,
     botCreateRateLimiter: BoundedRateLimiter,
     createChatRateLimiter: BoundedRateLimiter,
     json: Json,
@@ -249,7 +249,8 @@ post("/api/chats/{chatId}/bots") {
         if (botId.isBlank() || botId.length > 80) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("botId required"))
         }
-        val addResult = groupMembershipRepo.addOwnedBot(chatId, userId, botId, maxGroupMembers())
+        val addCommit = groupMembershipService.addOwnedBot(chatId, userId, botId, maxGroupMembers())
+        val addResult = addCommit.result
         when (addResult) {
             AddOwnedBotResult.ADDED ->
                 notifyGroupRevisionChanged(conversationQueryRepo, conversationParticipantRepo, json, chatId, "BOT_ADDED", userId, botId)

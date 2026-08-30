@@ -16,7 +16,7 @@ import org.jetbrains.exposed.sql.*
 internal fun Route.configureBotMediaRoutes(
     userRepo: UserRepository,
     serviceMessageRepo: ServiceMessageRepository,
-    groupLifecycleService: GroupLifecycleService,
+    groupMembershipService: GroupMembershipService,
     groupModerationRepo: GroupModerationRepository,
     conversationParticipantRepo: ConversationParticipantRepository,
     conversationQueryRepo: ConversationQueryRepository,
@@ -199,7 +199,7 @@ put("hasInvite", invite.isNotBlank())
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val commit = groupLifecycleService.updateRole(
+        val commit = groupMembershipService.updateRole(
             chatId = chatId,
             ownerId = bot.id,
             targetUserId = userId,

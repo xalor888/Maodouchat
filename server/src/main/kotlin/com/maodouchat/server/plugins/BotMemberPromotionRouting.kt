@@ -11,8 +11,7 @@ import kotlinx.serialization.json.*
 
 /** Bot 成员解封与角色调整（unbanChatMember / promoteChatMember）。 */
 internal fun Route.configureBotMemberPromotionRoutes(
-    groupLifecycleService: GroupLifecycleService,
-    groupMembershipRepo: GroupMembershipRepository,
+    groupMembershipService: GroupMembershipService,
     groupInvitationRepo: GroupInvitationRepository,
     conversationParticipantRepo: ConversationParticipantRepository,
     conversationQueryRepo: ConversationQueryRepository,
@@ -40,15 +39,15 @@ internal fun Route.configureBotMemberPromotionRoutes(
         val addedUserIds: List<String>
         val mutation: com.maodouchat.server.repository.GroupMemberMutationResult
         if (chatType == ChatType.CHANNEL) {
-            val addResult = groupMembershipRepo.addMembers(
+            val addCommit = groupMembershipService.addMembers(
                 chatId = chatId,
                 actorId = bot.id,
                 requestedUserIds = listOf(userId),
                 maxMembers = maxMembers,
                 requireBotDeliverable = true
             )
-            mutation = addResult.result
-            addedUserIds = addResult.addedUserIds
+            mutation = addCommit.result.result
+            addedUserIds = addCommit.result.addedUserIds
         } else {
             val inviteResult = groupInvitationRepo.inviteMembers(
                 chatId = chatId,
@@ -101,7 +100,7 @@ put("added", Json.parseToJsonElement(Json.encodeToString(addedUserIds)))
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
         // Only OWNER can change roles; bots invited as ADMIN cannot promote — require owner bot or use updateGroupMemberRoleAsOwner
-        val commit = groupLifecycleService.updateRole(
+        val commit = groupMembershipService.updateRole(
             chatId = chatId,
             ownerId = bot.id,
             targetUserId = userId,

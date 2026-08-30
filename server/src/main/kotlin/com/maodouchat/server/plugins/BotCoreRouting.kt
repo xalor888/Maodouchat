@@ -24,8 +24,7 @@ internal fun Route.configureBotCoreRoutes(
     starMessageRepo: StarMessageRepository,
     pinnedMessageRepo: PinnedMessageRepository,
     serviceMessageRepo: ServiceMessageRepository,
-    groupMembershipRepo: GroupMembershipRepository,
-    groupLifecycleService: GroupLifecycleService,
+    groupMembershipService: GroupMembershipService,
     groupProfileRepo: GroupProfileRepository,
     groupModerationRepo: GroupModerationRepository,
     groupInvitationRepo: GroupInvitationRepository,
@@ -173,7 +172,7 @@ put("messageId", msgId)
     configureBotWebhookRoutes(botSendRateLimiter)
 
     configureBotMemberRoutes(
-        groupLifecycleService = groupLifecycleService,
+        groupMembershipService = groupMembershipService,
         groupModerationRepo = groupModerationRepo,
         conversationParticipantRepo = conversationParticipantRepo,
         conversationQueryRepo = conversationQueryRepo,
@@ -334,8 +333,7 @@ put("messageId", messageId)
     )
 
     configureBotMemberPromotionRoutes(
-        groupLifecycleService = groupLifecycleService,
-        groupMembershipRepo = groupMembershipRepo,
+        groupMembershipService = groupMembershipService,
         groupInvitationRepo = groupInvitationRepo,
         conversationParticipantRepo = conversationParticipantRepo,
         conversationQueryRepo = conversationQueryRepo,
@@ -359,7 +357,7 @@ put("messageId", messageId)
         userRepo = userRepo,
         pinnedMessageRepo = pinnedMessageRepo,
         serviceMessageRepo = serviceMessageRepo,
-        groupLifecycleService = groupLifecycleService,
+        groupMembershipService = groupMembershipService,
         groupModerationRepo = groupModerationRepo,
         conversationParticipantRepo = conversationParticipantRepo,
         conversationQueryRepo = conversationQueryRepo,
@@ -370,7 +368,7 @@ put("messageId", messageId)
     configureBotMediaRoutes(
         userRepo = userRepo,
         serviceMessageRepo = serviceMessageRepo,
-        groupLifecycleService = groupLifecycleService,
+        groupMembershipService = groupMembershipService,
         groupModerationRepo = groupModerationRepo,
         conversationParticipantRepo = conversationParticipantRepo,
         conversationQueryRepo = conversationQueryRepo,
@@ -381,7 +379,7 @@ put("messageId", messageId)
     configureBotMessagingVariantsRoutes(
         userRepo = userRepo,
         serviceMessageRepo = serviceMessageRepo,
-        groupLifecycleService = groupLifecycleService,
+        groupMembershipService = groupMembershipService,
         conversationParticipantRepo = conversationParticipantRepo,
         conversationQueryRepo = conversationQueryRepo,
         botSendRateLimiter = botSendRateLimiter,

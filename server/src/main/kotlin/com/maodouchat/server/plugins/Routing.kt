@@ -192,7 +192,7 @@ fun Application.configureRouting(
     val senderKeyDistributionRepo = SenderKeyDistributionRepository()
     val reportRepo = ReportRepository()
     val groupMembershipRepo = GroupMembershipRepository()
-    val groupLifecycleService = GroupLifecycleService(groupMembershipRepo)
+    val groupMembershipService = GroupMembershipService(groupMembershipRepo)
     val groupProfileRepo = GroupProfileRepository()
     val groupModerationRepo = GroupModerationRepository()
     val groupInvitationRepo = GroupInvitationRepository()
@@ -439,7 +439,7 @@ fun Application.configureRouting(
         )
         configureGroupInvitationRoutes(
             userRepo = userRepo,
-            membershipRepository = groupMembershipRepo,
+            membershipService = groupMembershipService,
             invitationRepository = groupInvitationRepo,
             queryRepository = conversationQueryRepo,
             participantRepository = conversationParticipantRepo,
@@ -459,7 +459,7 @@ fun Application.configureRouting(
         )
         configureGroupAdministrationRoutes(
             userRepo = userRepo,
-            lifecycleService = groupLifecycleService,
+            membershipService = groupMembershipService,
             profileRepository = groupProfileRepo,
             moderationRepository = groupModerationRepo,
             invitationRepository = groupInvitationRepo,
@@ -499,8 +499,7 @@ fun Application.configureRouting(
             starMessageRepo = starMessageRepo,
             pinnedMessageRepo = pinnedMessageRepo,
             serviceMessageRepo = serviceMessageRepo,
-            groupMembershipRepo = groupMembershipRepo,
-            groupLifecycleService = groupLifecycleService,
+            groupMembershipService = groupMembershipService,
             groupProfileRepo = groupProfileRepo,
             groupModerationRepo = groupModerationRepo,
             groupInvitationRepo = groupInvitationRepo,
@@ -578,7 +577,7 @@ configureEncryptedAttachmentRoutes(
                 conversationParticipantRepo = conversationParticipantRepo,
                 conversationCreationRepo = conversationCreationRepo,
                 conversationQueryRepo = conversationQueryRepo,
-                groupMembershipRepo = groupMembershipRepo,
+                groupMembershipService = groupMembershipService,
                 botCreateRateLimiter = botCreateRateLimiter,
                 createChatRateLimiter = createChatRateLimiter,
                 json = json,

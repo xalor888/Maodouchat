@@ -7,7 +7,7 @@ import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.ConversationCreationRepository
-import com.maodouchat.server.repository.GroupLifecycleService
+import com.maodouchat.server.repository.GroupMembershipService
 import com.maodouchat.server.repository.GroupMembershipRepository
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -114,7 +114,7 @@ class GroupOwnershipTransferTargetTest {
             creatorId = "u1"
         )
         val beforeRevision = queries.getById(group.id)!!.memberRevision
-        val commit = GroupLifecycleService(GroupMembershipRepository()).removeMember(group.id, "u1", "u3")
+        val commit = GroupMembershipService(GroupMembershipRepository()).removeMember(group.id, "u1", "u3")
 
         assertEquals(com.maodouchat.server.repository.GroupMemberMutationResult.UPDATED, commit.result)
         assertEquals(setOf("u1", "u2", "u3"), commit.recipientsBefore.toSet())
@@ -158,7 +158,7 @@ class GroupOwnershipTransferTargetTest {
             }
         }
 
-        val commit = GroupLifecycleService(GroupMembershipRepository())
+        val commit = GroupMembershipService(GroupMembershipRepository())
             .removeMember(group.id, "u1", "u3")
 
         assertEquals(com.maodouchat.server.repository.GroupMemberMutationResult.UPDATED, commit.result)

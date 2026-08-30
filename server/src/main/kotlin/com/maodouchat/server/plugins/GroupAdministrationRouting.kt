@@ -16,7 +16,7 @@ import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.GroupAuditRepository
 import com.maodouchat.server.repository.GroupInvitationRepository
-import com.maodouchat.server.repository.GroupLifecycleService
+import com.maodouchat.server.repository.GroupMembershipService
 import com.maodouchat.server.repository.GroupMemberMutationResult
 import com.maodouchat.server.repository.GroupModerationRepository
 import com.maodouchat.server.repository.GroupProfileRepository
@@ -46,7 +46,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 /** Authenticated group profile, role, moderation, audit and key-coverage adapter. */
 internal fun Route.configureGroupAdministrationRoutes(
     userRepo: UserRepository,
-    lifecycleService: GroupLifecycleService,
+    membershipService: GroupMembershipService,
     profileRepository: GroupProfileRepository,
     moderationRepository: GroupModerationRepository,
     invitationRepository: GroupInvitationRepository,
@@ -60,7 +60,7 @@ internal fun Route.configureGroupAdministrationRoutes(
 ) {
     authenticate("auth-jwt") {
         delete("/api/chats/{chatId}/members/{memberId}") {
-            call.handleRemoveGroupMember(userRepo, lifecycleService, json)
+            call.handleRemoveGroupMember(userRepo, membershipService, json)
         }
 
         put("/api/chats/{chatId}/name") {
@@ -256,11 +256,11 @@ internal fun Route.configureGroupAdministrationRoutes(
         }
 
         put("/api/chats/{chatId}/members/{memberId}/role") {
-            call.handleUpdateGroupMemberRole(userRepo, lifecycleService, json)
+            call.handleUpdateGroupMemberRole(userRepo, membershipService, json)
         }
 
         put("/api/chats/{chatId}/members/{memberId}/ownership") {
-            call.handleTransferGroupOwnership(userRepo, lifecycleService, json)
+            call.handleTransferGroupOwnership(userRepo, membershipService, json)
         }
 
         put("/api/chats/{chatId}/members/me/nickname") {

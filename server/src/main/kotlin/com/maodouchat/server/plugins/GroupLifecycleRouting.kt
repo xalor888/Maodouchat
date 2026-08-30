@@ -2,7 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.UpdateMemberRoleRequest
-import com.maodouchat.server.repository.GroupLifecycleService
+import com.maodouchat.server.repository.GroupMembershipService
 import com.maodouchat.server.repository.UserRepository
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -13,10 +13,10 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-/** HTTP adapters for membership mutations. Domain work lives in GroupLifecycleService. */
+/** HTTP adapters for membership mutations. Domain work lives in GroupMembershipService. */
 internal suspend fun ApplicationCall.handleRemoveGroupMember(
     userRepo: UserRepository,
-    groupLifecycleService: GroupLifecycleService,
+    groupMembershipService: GroupMembershipService,
     json: Json,
 ) {
     val actorId = principal<JWTPrincipal>()!!.payload.subject
@@ -24,7 +24,7 @@ internal suspend fun ApplicationCall.handleRemoveGroupMember(
     val targetUserId = parameters["memberId"].orEmpty()
     if (rejectIfSuspended(userRepo, actorId)) return
 
-    val commit = groupLifecycleService.removeMember(chatId, actorId, targetUserId)
+    val commit = groupMembershipService.removeMember(chatId, actorId, targetUserId)
     if (respondGroupMemberMutationFailure(commit.result)) return
     notifyGroupRevisionChangedWithData(
         json = json,
@@ -40,7 +40,7 @@ internal suspend fun ApplicationCall.handleRemoveGroupMember(
 
 internal suspend fun ApplicationCall.handleUpdateGroupMemberRole(
     userRepo: UserRepository,
-    groupLifecycleService: GroupLifecycleService,
+    groupMembershipService: GroupMembershipService,
     json: Json,
 ) {
     val actorId = principal<JWTPrincipal>()!!.payload.subject
@@ -56,7 +56,7 @@ internal suspend fun ApplicationCall.handleUpdateGroupMemberRole(
         respond(HttpStatusCode.BadRequest, ErrorResponse("角色只能是 ADMIN 或 MEMBER"))
         return
     }
-    val commit = groupLifecycleService.updateRole(chatId, actorId, targetUserId, request.role)
+    val commit = groupMembershipService.updateRole(chatId, actorId, targetUserId, request.role)
     if (respondGroupMemberMutationFailure(commit.result)) return
     notifyGroupRevisionChangedWithData(
         json = json,
@@ -72,7 +72,7 @@ internal suspend fun ApplicationCall.handleUpdateGroupMemberRole(
 
 internal suspend fun ApplicationCall.handleTransferGroupOwnership(
     userRepo: UserRepository,
-    groupLifecycleService: GroupLifecycleService,
+    groupMembershipService: GroupMembershipService,
     json: Json,
 ) {
     val actorId = principal<JWTPrincipal>()!!.payload.subject
@@ -80,7 +80,7 @@ internal suspend fun ApplicationCall.handleTransferGroupOwnership(
     val targetUserId = parameters["memberId"].orEmpty()
     if (rejectIfSuspended(userRepo, actorId)) return
 
-    val commit = groupLifecycleService.transferOwnership(chatId, actorId, targetUserId)
+    val commit = groupMembershipService.transferOwnership(chatId, actorId, targetUserId)
     when (commit.result) {
         com.maodouchat.server.repository.TransferOwnershipResult.TRANSFERRED -> {
             notifyGroupRevisionChangedWithData(

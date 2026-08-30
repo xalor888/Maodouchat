@@ -560,7 +560,7 @@ Gate：并发建直聊、退出/删除、拉黑、账号注销和权限矩阵通
 
 当前状态：`[~]`。生命周期 service 已有基础，但 HTTP/Bot/Admin/玩法仍可能重复写表。
 
-- [ ] `GroupMembershipService` 是所有成员/角色/转让操作唯一入口。
+- [x] `GroupMembershipService` 是所有成员/角色/转让操作唯一入口。
 - [ ] `GroupInvitationService` 统一创建、轮换、接受、拒绝、撤销和过期。
 - [ ] 每个成员事务恰好增加一次 revision，并产生领域事件与审计。
 - [ ] WS、Push、Sender Key 修复是提交后订阅者。
