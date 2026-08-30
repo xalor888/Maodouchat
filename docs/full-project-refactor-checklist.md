@@ -618,7 +618,7 @@ Gate：双节点、慢连接、重连、fanout、拉黑侧信道、鉴权撤销�
 - [x] REST durable fallback 与 WS 共享同一校验和 repository。
 - [~] TURN 凭据短期、限用户/会话、可撤销。
 - [x] Push 只唤醒来电，不包含敏感 SDP/消息正文。
-- [ ] 协议升级后删除空 callId 兼容。
+- [x] 协议升级后删除空 callId 兼容。
 
 Gate：乱序/重复信令、TTL、伪造群成员、邀请限流、TURN 过期和两节点通话通过。
 

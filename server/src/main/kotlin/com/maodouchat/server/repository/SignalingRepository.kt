@@ -24,7 +24,7 @@ class SignalingRepository {
         toUserId: String,
         type: String,
         payload: String,
-        callId: String = "",
+        callId: String,
         groupId: String = "",
         groupMemberIds: List<String> = emptyList(),
         groupInvite: Boolean = false

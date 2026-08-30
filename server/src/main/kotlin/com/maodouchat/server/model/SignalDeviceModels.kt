@@ -72,7 +72,7 @@ data class SendSignalRequest(
     val toUserId: String,
     val type: String,
     val payload: String,
-    val callId: String = "",
+    val callId: String,
     val groupId: String = "",
     val groupMemberIds: List<String> = emptyList(),
     val groupInvite: Boolean = false
