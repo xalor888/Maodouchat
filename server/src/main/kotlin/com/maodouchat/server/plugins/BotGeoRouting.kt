@@ -336,7 +336,7 @@ put("alreadyUnpinned", true)
         val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
         fanoutPids.forEach { pid ->
             if (pid in botBlockedIds) return@forEach
-            sendToUser(pid, pinJson)
+            LocalRealtimeBus.publish(pid, pinJson)
         }
                 call.respond(
         buildJsonObject {

@@ -101,7 +101,7 @@ internal fun Route.configureConversationSettingsRoutes(
                 ),
             )
             participantRepository.participantIds(chatId).forEach { participantId ->
-                sendToUser(participantId, event)
+                LocalRealtimeBus.publish(participantId, event)
             }
             call.respond(settings)
         }

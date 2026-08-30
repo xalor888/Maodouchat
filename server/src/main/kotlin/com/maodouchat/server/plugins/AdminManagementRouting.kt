@@ -377,7 +377,7 @@ post("/broadcast") {
                 var delivered = 0
                 for (uid in onlineIds) {
                     try {
-                        com.maodouchat.server.plugins.sendToUser(uid, envelope)
+                        com.maodouchat.server.plugins.LocalRealtimeBus.publish(uid, envelope)
                         delivered++
                     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Exception) {
                     }

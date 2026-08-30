@@ -32,7 +32,7 @@ internal suspend fun broadcastUserStatus(userId: String, isOnline: Boolean, json
     val blockedIds = try { userRepo.blockedEitherWayIdsInTx(userId, onlineIds) } catch (_: Exception) { emptySet() }
     onlineIds.forEach { uid ->
         if (uid !in blockedIds && userRepo.shouldShowOnlineTo(userId, uid)) {
-            sendToUser(uid, msg)
+            LocalRealtimeBus.publish(uid, msg)
         }
     }
 }
@@ -50,7 +50,7 @@ internal suspend fun broadcastPostDeleted(postId: String, actorId: String? = nul
         WsMessage.serializer(),
         WsMessage("POST_DELETED", json.encodeToString(PostDeletedPayload.serializer(), PostDeletedPayload(postId)))
     )
-    ConnectionRegistry.onlineUserIds().forEach { sendToUser(it, message) }
+    ConnectionRegistry.onlineUserIds().forEach { LocalRealtimeBus.publish(it, message) }
 }
 
 internal suspend fun broadcastUserVisibilityRevoked(
@@ -75,7 +75,7 @@ internal suspend fun broadcastUserVisibilityRevoked(
     val blockedIds = try { userRepo.blockedEitherWayIdsInTx(userId, onlineIds) } catch (_: Exception) { emptySet() }
     ConnectionRegistry.onlineUsers.keys
         .filter { viewerId -> viewerId == userId || viewerId !in blockedIds }
-        .forEach { viewerId -> sendToUser(viewerId, message) }
+        .forEach { viewerId -> LocalRealtimeBus.publish(viewerId, message) }
 }
 
 /**
@@ -130,36 +130,6 @@ internal suspend fun sendSafe(session: WebSocketSession, text: String) {
     }
 }
 
-internal suspend fun sendToUser(userId: String, message: String) {
-    val sessions = ConnectionRegistry.onlineUsers[userId] ?: return
-    val failedSessions = mutableListOf<WebSocketSession>()
-    sessions.forEach { session ->
-        try {
-            sendSafe(session, message)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            failedSessions.add(session)
-        }
-    }
-    failedSessions.forEach { session ->
-        try {
-            session.close(CloseReason(CloseReason.Codes.GOING_AWAY, "send failed"))
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-        }
-        ConnectionRegistry.sessionAccessJtis.remove(session)
-        ConnectionRegistry.sessionAuthSessionIds.remove(session)
-        ConnectionRegistry.removeSessionSendLock(session)
-        sessions.remove(session)
-    }
-    // 用 compute 原子地检查并移除空列表，避免 check-then-remove 竞态：
-    // 旧实现先 isEmpty() 再 remove()，两步之间新 session 可能被加入列表却被误删。
-    ConnectionRegistry.onlineUsers.compute(userId) { _, existing ->
-        if (existing === sessions && sessions.isEmpty()) null else existing
-    }
-}
 
 /**
  * Force-close all live WebSocket sessions for [userId].

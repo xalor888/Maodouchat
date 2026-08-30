@@ -96,7 +96,7 @@ internal suspend fun fanoutBotMessage(
     )
     val wakeup = json.encodeToString(WsMessage("INBOX_AVAILABLE_V2", "{}"))
     result.recipientUserIds.forEach { pid ->
-        sendToUser(pid, wakeup)
+        LocalRealtimeBus.publish(pid, wakeup)
     }
 }
 
@@ -129,7 +129,7 @@ internal suspend fun fanoutBotEvent(
     )
     val wakeup = json.encodeToString(WsMessage("INBOX_AVAILABLE_V2", "{}"))
     result.recipientUserIds.forEach { recipientId ->
-        sendToUser(recipientId, wakeup)
+        LocalRealtimeBus.publish(recipientId, wakeup)
     }
 }
 
@@ -155,6 +155,6 @@ internal suspend fun fanoutSystemDelete(
     )
     val wakeup = json.encodeToString(WsMessage("INBOX_AVAILABLE_V2", "{}"))
     result.recipientUserIds.forEach { recipientId ->
-        sendToUser(recipientId, wakeup)
+        LocalRealtimeBus.publish(recipientId, wakeup)
     }
 }

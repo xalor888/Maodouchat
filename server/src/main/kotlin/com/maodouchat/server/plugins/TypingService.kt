@@ -24,6 +24,6 @@ internal object TypingService {
         val typing = json.encodeToString(
             WsMessage("USER_TYPING", json.encodeToString(TypingPayload(senderId, payload.chatId, payload.isTyping)))
         )
-        participants.filter { it != senderId && it !in blockedIds }.forEach { sendToUser(it, typing) }
+        participants.filter { it != senderId && it !in blockedIds }.forEach { LocalRealtimeBus.publish(it, typing) }
     }
 }

@@ -50,8 +50,8 @@ internal fun Route.configureFriendRoutes(
         val blockedFromSender = blockedEitherWay(request.fromUser.id, request.toUser.id)
         val blockedFromRecipient = blockedEitherWay(request.toUser.id, request.fromUser.id)
 
-        if (request.toUser.id !in blockedFromSender) sendToUser(request.fromUser.id, envelope)
-        if (request.fromUser.id !in blockedFromRecipient) sendToUser(request.toUser.id, envelope)
+        if (request.toUser.id !in blockedFromSender) LocalRealtimeBus.publish(request.fromUser.id, envelope)
+        if (request.fromUser.id !in blockedFromRecipient) LocalRealtimeBus.publish(request.toUser.id, envelope)
         when (action) {
             "CREATED" -> if (request.fromUser.id !in blockedFromRecipient) {
                 pushService.enqueueFriendRequest(

@@ -45,6 +45,6 @@ internal suspend fun publishBotServiceMessage(
     )
     val published = result as? ServiceMessageRepository.PublishResult.Published ?: return null
     val wakeup = json.encodeToString(WsMessage("INBOX_AVAILABLE_V2", "{}"))
-    published.mailbox.recipientUserIds.forEach { sendToUser(it, wakeup) }
+    published.mailbox.recipientUserIds.forEach { LocalRealtimeBus.publish(it, wakeup) }
     return published.message
 }

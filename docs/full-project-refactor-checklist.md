@@ -605,7 +605,7 @@ Gate：乱序块、重复 finalize、文件系统故障、quota、访问控制�
 - [x] mailbox 是消息真相源，wake 丢失后 pull 仍可收敛。
 - [x] 认证撤销立即关闭对应连接。
 - [x] presence 隐私、拉黑和 last seen 规则统一。
-- [ ] 删除全局 `sendToUser` 和 route 内 presence 写库。
+- [x] 删除全局 `sendToUser` 和 route 内 presence 写库。
 
 Gate：双节点、慢连接、重连、fanout、拉黑侧信道、鉴权撤销和 wake 丢失通过。
 

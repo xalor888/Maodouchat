@@ -121,7 +121,7 @@ internal fun Route.configureSocialPostRoutes(
                             )
                         )
                         conversationParticipantRepo.participantIds(chatId).forEach { participantId ->
-                            sendToUser(participantId, pinJson)
+                            LocalRealtimeBus.publish(participantId, pinJson)
                         }
                         call.respond(
                             TogglePinResponse(

@@ -332,7 +332,7 @@ private suspend inline fun <reified T> broadcastGroupPlayUpdate(
         members.map { uid ->
             async {
                 val payload = payloadForViewer(uid) ?: return@async
-                runCatching { sendToUser(uid, groupPlayWsMessage(event, payload)) }
+                runCatching { LocalRealtimeBus.publish(uid, groupPlayWsMessage(event, payload)) }
                     .onFailure { pollLogger.debug("GROUP_PLAY_UPDATE push failed user={}: {}", uid, it.message) }
             }
         }.forEach { it.await() }

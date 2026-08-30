@@ -44,7 +44,7 @@ internal fun Route.configureBotChatActionRoutes(
             val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, typingPids) } catch (_: Exception) { emptySet() }
             typingPids.forEach { pid ->
                 if (pid in botBlockedIds) return@forEach
-                sendToUser(pid, payload)
+                LocalRealtimeBus.publish(pid, payload)
             }
         } catch (e: CancellationException) { throw e } catch (_: Exception) { }
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendChatAction:$action")
@@ -111,7 +111,7 @@ put("action", action)
         val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
         fanoutPids.forEach { pid ->
             if (pid in botBlockedIds) return@forEach
-            sendToUser(pid, pinJson)
+            LocalRealtimeBus.publish(pid, pinJson)
         }
                 call.respond(
         buildJsonObject {

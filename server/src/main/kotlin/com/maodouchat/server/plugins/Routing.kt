@@ -122,7 +122,7 @@ internal suspend fun notifyGroupRevisionChangedWithData(
         WsMessage("GROUP_REVISION_CHANGED", json.encodeToString(GroupRevisionChangedPayload.serializer(), payload))
     )
     val recipients = recipientIds.distinct()
-    recipients.forEach { sendToUser(it, message) }
+    recipients.forEach { LocalRealtimeBus.publish(it, message) }
 }
 
 internal suspend fun ApplicationCall.respondBotUnavailable() {
@@ -142,9 +142,9 @@ internal suspend fun notifyGroupInvite(
     )
     val envelope = json.encodeToString(WsMessage.serializer(), WsMessage("GROUP_INVITE", payload))
     // 目标用户实时感知邀请；邀请人/管理员侧同步状态（撤销/拒绝）
-    sendToUser(invite.userId, envelope)
+    LocalRealtimeBus.publish(invite.userId, envelope)
     if (invite.inviterId.isNotBlank() && invite.inviterId != invite.userId) {
-        sendToUser(invite.inviterId, envelope)
+        LocalRealtimeBus.publish(invite.inviterId, envelope)
     }
     if (action == "CREATED") {
         pushService.enqueueGroupInvite(

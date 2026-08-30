@@ -190,7 +190,7 @@ private suspend fun io.ktor.server.application.ApplicationCall.validateSignalReq
 }
 
 private suspend fun sendSignalWakeup(json: Json, fromUserId: String, request: SendSignalRequest) {
-    sendToUser(
+    LocalRealtimeBus.publish(
         request.toUserId,
         json.encodeToString(
             WsMessage.serializer(),

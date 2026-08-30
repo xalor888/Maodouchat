@@ -467,7 +467,7 @@ private suspend fun WebSocketSession.handleWsMessage(
             val signalMsg = json.encodeToString(WsMessage("SIGNALING", json.encodeToString(
                 IncomingSignalingPayload(senderId, payload.type, payload.payload, payload.callId, payload.groupId, payload.groupMemberIds, payload.groupInvite)
             )))
-            sendToUser(payload.toUserId, signalMsg)
+            LocalRealtimeBus.publish(payload.toUserId, signalMsg)
             if (payload.type.equals("offer", ignoreCase = true) && (payload.groupId.isBlank() || payload.groupInvite)) {
                 pushService.enqueueIncomingCall(
                     recipientId = payload.toUserId,

@@ -225,7 +225,7 @@ fun Application.configureMessagingV2Routing(repository: MessagingV2Repository) {
                         return@post
                     }
                     val wakeup = messagingV2Json.encodeToString(WsMessage("INBOX_AVAILABLE_V2", "{}"))
-                    result.recipientUserIds.forEach { sendToUser(it, wakeup) }
+                    result.recipientUserIds.forEach { LocalRealtimeBus.publish(it, wakeup) }
                     call.respond(
                         HttpStatusCode.Accepted,
                         SendMessageV2Response(
