@@ -62,7 +62,6 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
-private const val MEDIA_ORPHAN_GRACE_MS = 7L * 24L * 60L * 60L * 1_000L
 private val RoutingInstalledKey = AttributeKey<Unit>("MaodouchatRoutingInstalled")
 private val RoutingPushServiceKey = AttributeKey<FcmPushService>("MaodouchatRoutingPushService")
 
@@ -209,31 +208,19 @@ fun Application.configureRouting(
     val conversationQueryRepo = ConversationQueryRepository()
     val groupAuditRepo = GroupAuditRepository()
     val groupMediaReferenceRepo = GroupMediaReferenceRepository()
+    val orphanGcJob = com.maodouchat.server.service.OrphanGcJob(
+        encryptedAttachmentRepo,
+        postRepo,
+        groupMediaReferenceRepo,
+    )
     val aiSummaryCleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     aiSummaryCleanupScope.launch {
         while (isActive) {
-            runCatching {
-                val now = System.currentTimeMillis()
-                encryptedAttachmentRepo.deleteExpired(now).forEach(BlobStore::delete)
-                BlobStore.deleteStaleFiles(
-                    validIds = encryptedAttachmentRepo.allIds(),
-                    olderThan = now - ATTACHMENT_UPLOAD_TTL_MS
-                )
-            }.onFailure { error ->
-                if (error is CancellationException) throw error
-                log.warn("Encrypted attachment cleanup failed", error)
-            }
-            runCatching {
-                val olderThan = System.currentTimeMillis() - MEDIA_ORPHAN_GRACE_MS
-                postRepo.deleteStaleUnreferencedImages(olderThan)
-                com.maodouchat.server.service.FileStorageService.deleteStaleGroupAvatars(
-                    validFilenames = groupMediaReferenceRepo.allReferencedAvatarFilenames(),
-                    olderThan = olderThan
-                )
-            }.onFailure { error ->
-                if (error is CancellationException) throw error
-                log.warn("Media orphan cleanup failed", error)
-            }
+            runCatching { orphanGcJob.run() }
+                .onFailure { error ->
+                    if (error is CancellationException) throw error
+                    log.warn("Orphan blob/media GC failed", error)
+                }
             runCatching { aiRepo.purgeOldAuditLogs() }
                 .onFailure { error ->
                     if (error is CancellationException) throw error

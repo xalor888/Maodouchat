@@ -58,6 +58,7 @@ internal const val MAX_ATTACHMENT_CHUNK_BYTES = 4L * 1024L * 1024L
 /** Per-user encrypted-attachment quota; env-tunable via USER_STORAGE_QUOTA_BYTES (20 GB default). */
 internal val maxAttachmentUserBytes: Long get() = ServerConfig.userStorageQuotaBytes
 internal const val ATTACHMENT_UPLOAD_TTL_MS = 24L * 60L * 60L * 1_000L
+internal const val MEDIA_ORPHAN_GRACE_MS = 7L * 24L * 60L * 60L * 1_000L
 internal const val ATTACHMENT_HASH_HEADER = "X-Content-SHA256"
 internal const val ATTACHMENT_CHUNK_HASH_HEADER = "X-Chunk-SHA256"
 internal val ATTACHMENT_TOO_LARGE_STATUS = HttpStatusCode(413, "Payload Too Large")
