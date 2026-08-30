@@ -189,24 +189,13 @@ internal fun Route.configureAdminUsersRoutes(
                 return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(disposition.message))
             is DispositionService.DispositionValidation.Ok -> disposition
         }
-        val updated = transaction {
-            // 9.154：以 update 影响行数为准——firstOrNull 与 update 之间并发删除会
-            // 让封禁落空却仍写审计行、回 200 并轮换会话
-            val changed = Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[suspendedUntil] = bannedUntil }
-            if (changed == 0) return@transaction false
-            ModerationAuditLog.insert {
-                it[userId] = id
-                it[action] = "ADMIN_STATUS_UPDATE"
-                it[detail] = DispositionService.auditDetail(
-                    bannedUntil = bannedUntil,
-                    reasonCode = okDisposition.reasonCode,
-                    note = okDisposition.note
-                ).take(com.maodouchat.server.db.MODERATION_AUDIT_DETAIL_MAX_CHARS)
-                it[ModerationAuditLog.actorId] = actorId
-                it[createdAt] = now
-            }
-            true
-        }
+        val auditDetail = DispositionService.auditDetail(
+            bannedUntil = bannedUntil,
+            reasonCode = okDisposition.reasonCode,
+            note = okDisposition.note,
+        )
+        // 9.154：以 update 影响行数为准——写字段 + 审计同一事务，替代裸 Users.update + 审计分离
+        val updated = userRepo.applyUserSuspension(actorId, id, bannedUntil, auditDetail)
         if (!updated) return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
         // 生效中的封禁需立刻废掉已签发会话，避免仅靠写路径的 suspended 检查被绕过
         if (bannedUntil > now) {
@@ -257,23 +246,12 @@ put("appealNoticeZh", DispositionService.APPEAL_NOTICE_ZH)
                 return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(disposition.message))
             is DispositionService.DispositionValidation.Ok -> disposition
         }
-        val updated = transaction {
-            // 9.154：同封禁端点——以 update 影响行数为准
-            val changed = Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.postRestrictedUntil] = postRestrictedUntil }
-            if (changed == 0) return@transaction false
-            ModerationAuditLog.insert {
-                it[userId] = id
-                it[action] = "ADMIN_POST_RESTRICT"
-                it[detail] = DispositionService.auditPostRestrictDetail(
-                    postRestrictedUntil = postRestrictedUntil,
-                    reasonCode = okDisposition.reasonCode,
-                    note = okDisposition.note
-                ).take(com.maodouchat.server.db.MODERATION_AUDIT_DETAIL_MAX_CHARS)
-                it[ModerationAuditLog.actorId] = actorId
-                it[createdAt] = now
-            }
-            true
-        }
+        val auditDetail = DispositionService.auditPostRestrictDetail(
+            postRestrictedUntil = postRestrictedUntil,
+            reasonCode = okDisposition.reasonCode,
+            note = okDisposition.note,
+        )
+        val updated = userRepo.applyUserPostRestriction(actorId, id, postRestrictedUntil, auditDetail)
         if (!updated) return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
         call.respond(
             buildJsonObject {
@@ -318,23 +296,12 @@ put("appealNoticeZh", DispositionService.APPEAL_NOTICE_ZH)
                 return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(disposition.message))
             is DispositionService.DispositionValidation.Ok -> disposition
         }
-        val updated = transaction {
-            // 9.154：同封禁端点——以 update 影响行数为准
-            val changed = Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.messageRestrictedUntil] = messageRestrictedUntil }
-            if (changed == 0) return@transaction false
-            ModerationAuditLog.insert {
-                it[userId] = id
-                it[action] = "ADMIN_MESSAGE_RESTRICT"
-                it[detail] = DispositionService.auditMessageRestrictDetail(
-                    messageRestrictedUntil = messageRestrictedUntil,
-                    reasonCode = okDisposition.reasonCode,
-                    note = okDisposition.note
-                ).take(com.maodouchat.server.db.MODERATION_AUDIT_DETAIL_MAX_CHARS)
-                it[ModerationAuditLog.actorId] = actorId
-                it[createdAt] = now
-            }
-            true
-        }
+        val auditDetail = DispositionService.auditMessageRestrictDetail(
+            messageRestrictedUntil = messageRestrictedUntil,
+            reasonCode = okDisposition.reasonCode,
+            note = okDisposition.note,
+        )
+        val updated = userRepo.applyUserMessageRestriction(actorId, id, messageRestrictedUntil, auditDetail)
         if (!updated) return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
         call.respond(
             buildJsonObject {

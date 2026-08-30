@@ -341,6 +341,55 @@ class UserRepository {
         }
     }
 
+    /**
+     * B11：管理员处置统一入口——写字段 + 审计同一事务（actor/reason/before-after 入 audit detail）。
+     * 替代路由层散落的裸 Users.update + ModerationAuditLog.insert。
+     */
+    fun applyUserSuspension(actorId: String, userId: String, until: Long, auditDetail: String): Boolean = transaction {
+        val changed = Users.update({ (Users.id eq userId) and Users.deletedAt.isNull() }) {
+            it[suspendedUntil] = until
+        }
+        if (changed == 0) return@transaction false
+        ModerationAuditLog.insert {
+            it[ModerationAuditLog.userId] = userId
+            it[ModerationAuditLog.action] = "ADMIN_STATUS_UPDATE"
+            it[ModerationAuditLog.detail] = auditDetail.take(MODERATION_AUDIT_DETAIL_MAX_CHARS)
+            it[ModerationAuditLog.actorId] = actorId
+            it[createdAt] = System.currentTimeMillis()
+        }
+        true
+    }
+
+    fun applyUserPostRestriction(actorId: String, userId: String, until: Long, auditDetail: String): Boolean = transaction {
+        val changed = Users.update({ (Users.id eq userId) and Users.deletedAt.isNull() }) {
+            it[postRestrictedUntil] = until
+        }
+        if (changed == 0) return@transaction false
+        ModerationAuditLog.insert {
+            it[ModerationAuditLog.userId] = userId
+            it[ModerationAuditLog.action] = "ADMIN_POST_RESTRICT"
+            it[ModerationAuditLog.detail] = auditDetail.take(MODERATION_AUDIT_DETAIL_MAX_CHARS)
+            it[ModerationAuditLog.actorId] = actorId
+            it[createdAt] = System.currentTimeMillis()
+        }
+        true
+    }
+
+    fun applyUserMessageRestriction(actorId: String, userId: String, until: Long, auditDetail: String): Boolean = transaction {
+        val changed = Users.update({ (Users.id eq userId) and Users.deletedAt.isNull() }) {
+            it[messageRestrictedUntil] = until
+        }
+        if (changed == 0) return@transaction false
+        ModerationAuditLog.insert {
+            it[ModerationAuditLog.userId] = userId
+            it[ModerationAuditLog.action] = "ADMIN_MESSAGE_RESTRICT"
+            it[ModerationAuditLog.detail] = auditDetail.take(MODERATION_AUDIT_DETAIL_MAX_CHARS)
+            it[ModerationAuditLog.actorId] = actorId
+            it[createdAt] = System.currentTimeMillis()
+        }
+        true
+    }
+
     fun updateProfile(userId: String, name: String? = null, status: String? = null) {
         transaction {
             val row = Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
