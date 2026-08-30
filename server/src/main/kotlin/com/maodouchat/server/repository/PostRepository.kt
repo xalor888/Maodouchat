@@ -51,6 +51,26 @@ class PostRepository {
     private val imageClaimLock = Any()
     private val imageMetaCapacityLock = Any()
     private val MAX_IMAGE_META_SIZE = 10_000
+    private val postInteractionService = PostInteractionService()
+
+    fun likePost(postId: String, userId: String): Boolean = postInteractionService.likePost(postId, userId)
+    fun hasLiked(postId: String, userId: String): Boolean = postInteractionService.hasLiked(postId, userId)
+    fun unlikePost(postId: String, userId: String): Boolean = postInteractionService.unlikePost(postId, userId)
+    fun likeComment(postId: String, commentId: String, userId: String): Pair<Int, Boolean> = postInteractionService.likeComment(postId, commentId, userId)
+    fun unlikeComment(postId: String, commentId: String, userId: String): Int = postInteractionService.unlikeComment(postId, commentId, userId)
+    fun commentLikeCount(commentId: String): Int = postInteractionService.commentLikeCount(commentId)
+    fun purgeOrphanedCommentLikes(): Int = postInteractionService.purgeOrphanedCommentLikes()
+
+    private fun isUniqueViolation(e: Throwable): Boolean {
+        var cur: Throwable? = e
+        while (cur != null) {
+            val msg = (cur.message ?: "").lowercase()
+            if (cur is java.sql.SQLException && cur.sqlState == "23505") return true
+            if (msg.contains("unique") || msg.contains("duplicate key")) return true
+            cur = cur.cause
+        }
+        return false
+    }
 
     fun createPost(authorId: String, content: String, imageUrls: List<String>, visibility: String): PostResponse {
         val created = synchronized(imageClaimLock) {
@@ -541,66 +561,17 @@ class PostRepository {
 
     fun canView(postId: String, userId: String): Boolean {
         return transaction {
-            canViewInTransaction(postId, userId, lockPost = false)
+            PostVisibility.canViewInTransaction(postId, userId, lockPost = false)
         }
     }
 
-    fun likePost(postId: String, userId: String): Boolean {
-        // PG/H2：同事务 catch unique 后继续会 abort 整事务；冲突时外层 re-read
-        return try {
-            transaction {
-                if (!canViewInTransaction(postId, userId, lockPost = true)) return@transaction false
-                val exists = !PostLikes.selectAll()
-                    .where { (PostLikes.postId eq postId) and (PostLikes.userId eq userId) }
-                    .empty()
-                if (!exists) {
-                    PostLikes.insert {
-                        it[PostLikes.postId] = postId
-                        it[PostLikes.userId] = userId
-                        it[createdAt] = System.currentTimeMillis()
-                    }
-                }
-                true
-            }
-        } catch (e: Exception) {
-            if (!isUniqueViolation(e)) throw e
-            transaction {
-                if (!canViewInTransaction(postId, userId, lockPost = true)) return@transaction false
-                !PostLikes.selectAll()
-                    .where { (PostLikes.postId eq postId) and (PostLikes.userId eq userId) }
-                    .empty()
-            }
-        }
-    }
 
-    private fun isUniqueViolation(e: Throwable): Boolean {
-        var cur: Throwable? = e
-        while (cur != null) {
-            val msg = (cur.message ?: "").lowercase()
-            if (cur is java.sql.SQLException && cur.sqlState == "23505") return true
-            if (msg.contains("unique") || msg.contains("duplicate key")) return true
-            cur = cur.cause
-        }
-        return false
-    }
 
-    fun hasLiked(postId: String, userId: String): Boolean = transaction {
-        !PostLikes.selectAll()
-            .where { (PostLikes.postId eq postId) and (PostLikes.userId eq userId) }
-            .empty()
-    }
 
-    fun unlikePost(postId: String, userId: String): Boolean {
-        return transaction {
-            val postExists = Posts.select(Posts.id).where { Posts.id eq postId }.limit(1).any()
-            PostLikes.deleteWhere { (PostLikes.postId eq postId) and (PostLikes.userId eq userId) }
-            postExists
-        }
-    }
 
     fun addComment(postId: String, authorId: String, content: String, replyToId: String? = null): PostCommentResponse? {
         return transaction {
-            if (!canViewInTransaction(postId, authorId, lockPost = true)) return@transaction null
+            if (!PostVisibility.canViewInTransaction(postId, authorId, lockPost = true)) return@transaction null
             // 1.76：回复目标必须存在；1.125：且必须属于同一动态（防跨帖引用）
             val parentExists = replyToId.isNullOrBlank() ||
                 PostComments.selectAll()
@@ -630,7 +601,7 @@ class PostRepository {
     ): List<PostCommentResponse>? {
         val boundedLimit = limit.coerceIn(1, 100)
         return transaction {
-            if (!canViewInTransaction(postId, currentUserId, lockPost = false)) return@transaction null
+            if (!PostVisibility.canViewInTransaction(postId, currentUserId, lockPost = false)) return@transaction null
             val blockedUserIds = SocialGraphService.blockedEitherWayUserIds(currentUserId)
             val result = mutableListOf<PostCommentResponse>()
             var cursorTime = before
@@ -689,7 +660,7 @@ class PostRepository {
     fun listPostLikers(postId: String, currentUserId: String, limit: Int = 50): List<UserResponse>? {
         val boundedLimit = limit.coerceIn(1, 100)
         return transaction {
-            if (!canViewInTransaction(postId, currentUserId, lockPost = false)) return@transaction null
+            if (!PostVisibility.canViewInTransaction(postId, currentUserId, lockPost = false)) return@transaction null
             val blockedUserIds = SocialGraphService.blockedEitherWayUserIds(currentUserId)
             val result = mutableListOf<UserResponse>()
             var cursorTime: Long? = null
@@ -801,77 +772,10 @@ class PostRepository {
     }
 
     /** 1.52：评论点赞数（内联查询，供外层事务内调用；端点响应复用）。 */
-    fun commentLikeCount(commentId: String): Int =
-        CommentLikes.select(CommentLikes.commentId)
-            .where { CommentLikes.commentId eq commentId }
-            .count()
-            .toInt()
-
-    /** 1.81：清理已删除评论的残留点赞（孤儿行）。 */
-    fun purgeOrphanedCommentLikes(): Int = transaction {
-        CommentLikes.deleteWhere {
-            CommentLikes.commentId notInSubQuery PostComments.select(PostComments.id)
-        }
-    }
 
     /** 1.52：点赞评论（幂等；返回 (新点赞数, 是否新点赞)）。 */
-    fun likeComment(postId: String, commentId: String, userId: String): Pair<Int, Boolean> {
-        // PG：并发点赞撞 (commentId, userId) 唯一约束会 abort 当前事务，同事务再查计数必 500；
-        // catch 必须在事务外（Exposed 已回滚归还连接），冲突即「已被并发请求点赞成功」。
-        return try {
-            transaction {
-                val comment = PostComments.selectAll().where { PostComments.id eq commentId }.limit(1).firstOrNull()
-                    ?: return@transaction (-1 to false)
-                if (comment[PostComments.postId] != postId) return@transaction (-1 to false)
-                // 与 likePost 一致：评论所属动态对当前用户不可见（PRIVATE/CONTACTS/双向拉黑）时禁止点赞，
-                // 避免越权交互与“评论是否存在”的探测 oracle
-                if (!canViewInTransaction(comment[PostComments.postId], userId, lockPost = false)) {
-                    return@transaction (-1 to false)
-                }
-                val alreadyLiked = !CommentLikes.selectAll()
-                    .where { (CommentLikes.commentId eq commentId) and (CommentLikes.userId eq userId) }
-                    .limit(1)
-                    .empty()
-                var newLike = false
-                if (!alreadyLiked) {
-                    newLike = true
-                    CommentLikes.insert {
-                        it[CommentLikes.commentId] = commentId
-                        it[CommentLikes.userId] = userId
-                        it[CommentLikes.createdAt] = System.currentTimeMillis()
-                    }
-                }
-                commentLikeCount(commentId) to newLike
-            }
-        } catch (e: Exception) {
-            if (!isUniqueViolation(e)) throw e
-            transaction {
-                // 胜者已提交点赞；本请求视为「已有赞」，返回最新计数
-                val comment = PostComments.selectAll().where { PostComments.id eq commentId }.limit(1).firstOrNull()
-                    ?: return@transaction (-1 to false)
-                if (comment[PostComments.postId] != postId ||
-                    !canViewInTransaction(comment[PostComments.postId], userId, lockPost = false)
-                ) {
-                    return@transaction (-1 to false)
-                }
-                commentLikeCount(commentId) to false
-            }
-        }
-    }
 
     /** 1.52：取消点赞评论（幂等；返回新点赞数）。 */
-    fun unlikeComment(postId: String, commentId: String, userId: String): Int = transaction {
-        val comment = PostComments.selectAll().where { PostComments.id eq commentId }.limit(1).firstOrNull()
-            ?: return@transaction -1
-        if (comment[PostComments.postId] != postId) return@transaction -1
-        if (!canViewInTransaction(comment[PostComments.postId], userId, lockPost = false)) {
-            return@transaction -1
-        }
-        CommentLikes.deleteWhere {
-            (CommentLikes.commentId eq commentId) and (CommentLikes.userId eq userId)
-        }
-        commentLikeCount(commentId)
-    }
 
     private fun ResultRow.toPublicUser(): UserResponse {
         return UserResponse(
@@ -891,14 +795,6 @@ class PostRepository {
     ): Boolean = VisibilityPolicy.isVisible(
         this[Posts.visibility], this[Posts.authorId], currentUserId, contactIds, blockedUserIds,
     )
-
-    private fun canViewInTransaction(postId: String, userId: String, lockPost: Boolean): Boolean {
-        val contactIds = SocialGraphService.contactIds(userId)
-        val blockedUserIds = SocialGraphService.blockedEitherWayUserIds(userId)
-        val query = Posts.selectAll().where { Posts.id eq postId }
-        val row = if (lockPost) query.forUpdate().firstOrNull() else query.firstOrNull()
-        return row?.isPostVisibleTo(userId, contactIds, blockedUserIds) == true
-    }
 
     private fun decodeImageUrls(value: String): List<String> {
         return try {
