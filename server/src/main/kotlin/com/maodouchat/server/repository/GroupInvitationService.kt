@@ -56,4 +56,7 @@ class GroupInvitationService(
 
     fun consumeToken(token: String, userId: String, maxMembers: Int): JoinGroupInviteResult? =
         invitationRepository.consumeToken(token, userId, maxMembers)
+
+    fun adminRevokeTokens(chatIds: List<String>): List<String> =
+        invitationRepository.adminRevokeTokens(chatIds)
 }

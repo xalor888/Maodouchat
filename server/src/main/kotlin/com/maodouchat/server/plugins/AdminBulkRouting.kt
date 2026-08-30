@@ -57,7 +57,10 @@ import java.util.UUID
 
 
 /** 管理后台子域路由（从 AdminManagementRouting.kt 拆出）。 */
-internal fun Route.configureAdminBulkRoutes(authTokenRepo: AuthTokenRepository) {
+internal fun Route.configureAdminBulkRoutes(
+    authTokenRepo: AuthTokenRepository,
+    groupInvitationService: GroupInvitationService,
+) {
     post("/users/bulk-force-logout") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.principal<JWTPrincipal>()!!.payload.subject
@@ -920,26 +923,8 @@ put("count", updated.size)
             else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
         }.map { it.take(64) }.distinct().take(100)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Chats.select(Chats.id).where { Chats.id inList ids }.map { it[Chats.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Chats.update({ Chats.id eq id }) {
-                    it[Chats.groupInviteToken] = null
-                    it[Chats.groupInviteExpiresAt] = 0L
-                    it[Chats.groupInviteMaxUses] = 0
-                    it[Chats.groupInviteUseCount] = 0
-                }
-                updated += id
-            }
-        }
+        val updated = groupInvitationService.adminRevokeTokens(ids)
+        val skipped = ids.filter { it !in updated }
         recordAdminAudit(actorId = actorId, action = "bulk_clear_invite_tokens", detail = "count=${updated.size}")
         call.respond(
         buildJsonObject {

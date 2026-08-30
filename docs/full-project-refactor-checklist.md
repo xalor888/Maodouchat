@@ -564,7 +564,7 @@ Gate：并发建直聊、退出/删除、拉黑、账号注销和权限矩阵通
 - [x] `GroupInvitationService` 统一创建、轮换、接受、拒绝、撤销和过期。
 - [ ] 每个成员事务恰好增加一次 revision，并产生领域事件与审计。
 - [ ] WS、Push、Sender Key 修复是提交后订阅者。
-- [ ] Bot/Admin 不得直接写 Chats/Participants。
+- [x] Bot/Admin 不得直接写 Chats/Participants。
 - [x] 签到、接龙、PK、Poll 分为独立子域。
 
 Gate：邀请/撤销、退群/发送、踢人/转让并发和完整权限矩阵通过。

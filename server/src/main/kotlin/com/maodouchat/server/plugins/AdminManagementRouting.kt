@@ -66,6 +66,7 @@ internal fun Application.configureAdminManagementRouting(
 ) {
     val authTokenRepo = AuthTokenRepository()
     val groupMediaReferenceRepo = GroupMediaReferenceRepository()
+    val groupInvitationService = GroupInvitationService(GroupInvitationRepository())
     // 管理后台 SPA 静态资产与页面服务（HTML/CSS/JS/logo，见 AdminAssets.kt）
     configureAdminAssets()
     routing {
@@ -152,7 +153,7 @@ internal fun Application.configureAdminManagementRouting(
             // ─── 系统安全快照 + 运营配置（见 AdminSystemRouting.kt） ───
             configureAdminSystemRoutes()
             configureAdminExportsRoutes(authTokenRepo)
-            configureAdminBulkRoutes(authTokenRepo)
+            configureAdminBulkRoutes(authTokenRepo, groupInvitationService)
 
             get("/users/{id}/sessions") {
                 if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))

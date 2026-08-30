@@ -389,6 +389,19 @@ class GroupInvitationRepository {
         GroupMemberMutationResult.UPDATED
     }
 
+    /** 平台管理员批量清空群邀请链接 token（不校验群成员身份、不递增 memberRevision）。 */
+    fun adminRevokeTokens(chatIds: List<String>): List<String> = transaction {
+        chatIds.mapNotNull { id ->
+            val updatedRows = Chats.update({ Chats.id eq id }) {
+                it[groupInviteToken] = null
+                it[groupInviteExpiresAt] = 0L
+                it[groupInviteMaxUses] = 0
+                it[groupInviteUseCount] = 0
+            }
+            if (updatedRows > 0) id else null
+        }
+    }
+
     fun consumeToken(token: String, userId: String, maxMembers: Int): JoinGroupInviteResult? {
         val normalized = token.trim()
         if (!INVITE_TOKEN_REGEX.matches(normalized)) return null

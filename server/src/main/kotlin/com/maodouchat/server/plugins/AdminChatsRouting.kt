@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.db.*
 import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import com.maodouchat.server.model.*
+import com.maodouchat.server.repository.ConversationStateDeletion
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.jwt.JWTPrincipal
@@ -85,38 +86,9 @@ internal fun Route.configureAdminChatsRoutes() {
             if (!chat[Chats.isGroup] || chat[Chats.chatType] == ChatType.SECRET) {
                 return@transaction Triple("forbidden", emptyList<String>(), null)
             }
-            // 清理关联表（外键约束要求先删除引用表）
-            deleteMessagingV2ConversationInTx(id)
-            val attachmentIds = EncryptedAttachments
-                .select(EncryptedAttachments.id)
-                .where { EncryptedAttachments.chatId eq id }
-                .map { it[EncryptedAttachments.id] }
-            if (attachmentIds.isNotEmpty()) {
-                EncryptedAttachments.deleteWhere { EncryptedAttachments.id inList attachmentIds }
-            }
-            // FK: direct_chat_pairs / secret_chat_pairs -> chats
-            DirectChatPairs.deleteWhere { DirectChatPairs.chatId eq id }
-            SecretChatPairs.deleteWhere { SecretChatPairs.chatId eq id }
-            ChatUserSettings.deleteWhere { ChatUserSettings.chatId eq id }
-            GroupAuditLogs.deleteWhere { GroupAuditLogs.chatId eq id }
-            val chainIds = GroupChains.select(GroupChains.id)
-                .where { GroupChains.chatId eq id }
-                .map { it[GroupChains.id] }
-            if (chainIds.isNotEmpty()) {
-                GroupChainEntries.deleteWhere { GroupChainEntries.chainId inList chainIds }
-                GroupChains.deleteWhere { GroupChains.chatId eq id }
-            }
-            val pkIds = GroupPkRounds.select(GroupPkRounds.id)
-                .where { GroupPkRounds.chatId eq id }
-                .map { it[GroupPkRounds.id] }
-            if (pkIds.isNotEmpty()) {
-                GroupPkVotes.deleteWhere { GroupPkVotes.pkId inList pkIds }
-                GroupPkRounds.deleteWhere { GroupPkRounds.chatId eq id }
-            }
-            GroupCheckins.deleteWhere { GroupCheckins.chatId eq id }
-            BotCommandLogs.deleteWhere { BotCommandLogs.chatId eq id }
-            ChatParticipants.deleteWhere { ChatParticipants.chatId eq id }
-            Chats.deleteWhere { Chats.id eq id }
+            // 统一走 ConversationStateDeletion 级联清理（含邀请、投票、Messaging V2 等全部关联表），
+            // 避免管理端绕过领域删除规则、漏删 GroupInvitations/GroupPolls 造成孤儿数据。
+            val attachmentIds = ConversationStateDeletion.deleteConversation(id)
             Triple("ok", attachmentIds, chat[Chats.groupAvatar])
         }
         if (status == "missing") return@delete call.respond(HttpStatusCode.NotFound, ErrorResponse("聊天不存在"))
