@@ -1,7 +1,5 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.config.AdminAccess
-import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.AnnouncementAcks
 import com.maodouchat.server.db.AuditExportRecords
 import com.maodouchat.server.db.DeviceEventConsistencyLog
@@ -12,7 +10,13 @@ import com.maodouchat.server.db.RiskEvents
 import com.maodouchat.server.db.SystemAnnouncements
 import com.maodouchat.server.db.UserTagAssignments
 import com.maodouchat.server.db.UserTags
+import com.maodouchat.server.model.ActiveAnnouncementsResponse
+import com.maodouchat.server.model.AnnouncementAckResponse
+import com.maodouchat.server.model.AnnouncementDto
+import com.maodouchat.server.model.AnnouncementStatsResponse
+import com.maodouchat.server.model.CreateAnnouncementRequest
 import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.model.UpdateAnnouncementRequest
 import com.maodouchat.server.repository.AnnouncementRepository
 import com.maodouchat.server.repository.RateLimitStatsRepository
 import com.maodouchat.server.repository.UserTagRepository
@@ -34,7 +38,6 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.jetbrains.exposed.sql.SortOrder
@@ -150,7 +153,7 @@ fun Application.configureAdminEnhanceRouting(
                 post("/announcements") {
                     if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val actorId = call.principal<JWTPrincipal>()!!.payload.subject
-                    val req = call.receiveEnhanceJson<CreateAnnouncementRequest>()
+                    val req = call.receiveAdminJson<CreateAnnouncementRequest>()
                         ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
                     if (req.title.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("公告标题不能为空"))
                     if (req.content.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("公告内容不能为空"))
@@ -199,7 +202,7 @@ fun Application.configureAdminEnhanceRouting(
                     if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val actorId = call.principal<JWTPrincipal>()!!.payload.subject
                     val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少公告 ID"))
-                    val req = call.receiveEnhanceJson<UpdateAnnouncementRequest>()
+                    val req = call.receiveAdminJson<UpdateAnnouncementRequest>()
                         ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
                     val current = announcementRepo.get(id)
                         ?: return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("公告不存在"))
@@ -336,7 +339,7 @@ fun Application.configureAdminEnhanceRouting(
                 post("/user-tags") {
                     if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val actorId = call.principal<JWTPrincipal>()!!.payload.subject
-                    val req = call.receiveEnhanceJson<CreateUserTagRequest>()
+                    val req = call.receiveAdminJson<CreateUserTagRequest>()
                         ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
                     if (req.name.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("标签名称不能为空"))
                     val riskLevel = req.riskLevel.uppercase().take(20)
@@ -357,7 +360,7 @@ fun Application.configureAdminEnhanceRouting(
                     if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val actorId = call.principal<JWTPrincipal>()!!.payload.subject
                     val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少标签 ID"))
-                    val req = call.receiveEnhanceJson<UpdateUserTagRequest>()
+                    val req = call.receiveAdminJson<UpdateUserTagRequest>()
                         ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
                     val riskLevel = req.riskLevel?.uppercase()?.take(20)
                     if (riskLevel != null && riskLevel !in setOf("NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL")) {
@@ -411,7 +414,7 @@ fun Application.configureAdminEnhanceRouting(
                     if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val actorId = call.principal<JWTPrincipal>()!!.payload.subject
                     val userId = call.parameters["userId"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
-                    val req = call.receiveEnhanceJson<AssignUserTagsRequest>()
+                    val req = call.receiveAdminJson<AssignUserTagsRequest>()
                         ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
                     if (req.tagIds.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("标签列表不能为空"))
                     if (req.tagIds.size > MAX_TAGS_PER_ASSIGNMENT) {
@@ -642,69 +645,6 @@ fun startRateLimitStatsSampler(rateLimitStatsRepo: RateLimitStatsRepository): Sc
 // DTO
 // ─────────────────────────────────────────────
 
-@Serializable
-data class CreateAnnouncementRequest(
-    val title: String,
-    val content: String,
-    val level: String = "INFO",
-    val audience: String = "ALL",
-    val tagId: String? = null,
-    val startsAt: Long? = null,
-    val expiresAt: Long? = null,
-    /** true 时入库 DRAFT（可删除、须 publish 才对用户可见）。缺省保持立即 ACTIVE/SCHEDULED。 */
-    val draft: Boolean = false
-)
-
-@Serializable
-data class UpdateAnnouncementRequest(
-    val title: String? = null,
-    val content: String? = null,
-    val level: String? = null,
-    val audience: String? = null,
-    val tagId: String? = null,
-    val startsAt: Long? = null,
-    val expiresAt: Long? = null
-)
-
-@Serializable
-data class AnnouncementDto(
-    val id: String,
-    val title: String,
-    val content: String,
-    val level: String,
-    val audience: String,
-    val tagId: String?,
-    val startsAt: Long,
-    val expiresAt: Long,
-    val status: String,
-    val createdBy: String?,
-    val createdAt: Long,
-    val updatedAt: Long,
-    val publishedAt: Long?,
-    val cancelledAt: Long?,
-    val acked: Boolean = false
-)
-
-@Serializable
-data class ActiveAnnouncementsResponse(
-    val announcements: List<AnnouncementDto>,
-    val serverTime: Long
-)
-
-@Serializable
-data class AnnouncementAckResponse(val ok: Boolean, val announcementId: String)
-
-@Serializable
-data class AnnouncementStatsResponse(
-    val id: String,
-    val recipientCount: Long,
-    val audience: String,
-    val targetTagId: String?,
-    val ackedCount: Long,
-    val createdAt: Long,
-    val publishedAt: Long?,
-    val cancelledAt: Long?
-)
 
 @Serializable
 data class CreateUserTagRequest(
@@ -940,13 +880,6 @@ object DeviceEventConsistencyGuard {
 // ─────────────────────────────────────────────
 // isAdminUser / recordAdminAudit / csvCell 已统一到 AdminSupport.kt（内部共享版本）。
 
-private val enhanceJson = Json { ignoreUnknownKeys = true }
-
-private suspend inline fun <reified T> ApplicationCall.receiveEnhanceJson(): T? {
-    val body = receiveBoundedText(MAX_ENHANCE_JSON_BODY_CHARS) ?: return null
-    return runCatching { enhanceJson.decodeFromString<T>(body) }.getOrNull()
-}
-
 /** 时间范围导出：仅导出元数据/平台明文公告，绝不导出 E2EE 消息密文。返回 CSV 与实际行数。 */
 private fun buildAuditExportCsv(scope: String, fromMs: Long, toMs: Long, limit: Int): Pair<String, Int> {
     val rows = when (scope) {
@@ -1067,7 +1000,6 @@ private object RateLimitSamplerThreadFactory : ThreadFactory {
 
 private val samplerLogger = LoggerFactory.getLogger("RateLimitStatsSampler")
 
-private const val MAX_ENHANCE_JSON_BODY_CHARS = 80 * 1024
 private const val MAX_ANNOUNCEMENT_CONTENT_CHARS = 4_000
 private const val MAX_TAGS_PER_ASSIGNMENT = 20
 private const val MAX_EXPORT_RANGE_MS = 90L * 24L * 60L * 60L * 1_000L
