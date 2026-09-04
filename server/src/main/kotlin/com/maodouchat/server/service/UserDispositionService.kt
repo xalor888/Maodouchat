@@ -67,4 +67,35 @@ class UserDispositionService(private val users: UserRepository) {
             Result.Applied(ok.reasonCode, until)
         } else Result.NotFound
     }
+
+    // ─── B13：批量处置（收敛 AdminBulkRouting 的重复「skip+update+audit」）───
+
+    fun bulkExtend(
+        actorId: String,
+        ids: List<String>,
+        field: UserRepository.UserDispositionField,
+        until: Long,
+        action: String,
+        detailFor: (Long) -> String,
+    ): UserRepository.BulkDispositionResult =
+        users.applyBulkDisposition(actorId, ids, field, UserRepository.UserDispositionMode.EXTEND, until, action, detailFor)
+
+    fun bulkSet(
+        actorId: String,
+        ids: List<String>,
+        field: UserRepository.UserDispositionField,
+        until: Long,
+        action: String,
+        detailFor: (Long) -> String,
+    ): UserRepository.BulkDispositionResult =
+        users.applyBulkDisposition(actorId, ids, field, UserRepository.UserDispositionMode.SET, until, action, detailFor)
+
+    fun bulkClear(
+        actorId: String,
+        ids: List<String>,
+        field: UserRepository.UserDispositionField,
+        action: String,
+        detail: String,
+    ): UserRepository.BulkDispositionResult =
+        users.applyBulkDisposition(actorId, ids, field, UserRepository.UserDispositionMode.CLEAR, 0L, action, { detail })
 }

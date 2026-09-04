@@ -12,6 +12,9 @@ import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.auth.principal
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -151,6 +154,21 @@ internal suspend inline fun <reified T> ApplicationCall.receiveAdminJson(): T? {
 /** Escape LIKE pattern special characters (%, _, \) so user input is treated literally. */
 internal fun escapeLikePattern(input: String): String =
     input.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+/** 解析批量操作的 id 列表（JSON 数组或逗号/空白分隔字符串），去重并截断到 100。 */
+internal fun parseAdminIds(obj: JsonObject, key: String = "userIds"): List<String> {
+    val raw = obj[key] ?: return emptyList()
+    val values = when (raw) {
+        is JsonArray -> raw.mapNotNull { runCatching { it.jsonPrimitive.content }.getOrNull() }
+        else -> runCatching { raw.jsonPrimitive.content }
+            .getOrNull()
+            ?.split(',', ' ', '\n', '\t')
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
+    }
+    return values.map { it.take(64) }.distinct().take(100)
+}
 
 internal fun csvCell(value: Any?): String {
     val raw = value?.toString() ?: ""

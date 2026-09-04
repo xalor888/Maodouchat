@@ -1,6 +1,7 @@
 package com.maodouchat.server.repository
 
 import at.favre.lib.crypto.bcrypt.BCrypt
+import com.maodouchat.server.config.AdminAccess
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.*
 import com.maodouchat.server.model.UserPrivacyResponse
@@ -20,6 +21,7 @@ import org.jetbrains.exposed.sql.lowerCase
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.security.SecureRandom
@@ -388,6 +390,85 @@ class UserRepository {
             it[createdAt] = System.currentTimeMillis()
         }
         true
+    }
+
+    /** B13：批量处置字段（SUSPEND/POST/MESSAGE 单项，或组合清除）。 */
+    enum class UserDispositionField { SUSPEND, POST, MESSAGE, MESSAGE_AND_POST, ALL }
+
+    /** B13：批量处置语义——EXTEND 保长（maxOf）、SET 直接覆盖、CLEAR 置零。 */
+    enum class UserDispositionMode { EXTEND, SET, CLEAR }
+
+    data class BulkDispositionResult(val updated: List<String>, val skipped: List<String>)
+
+    /**
+     * B13：批量处置统一命令——批量存在性检查 + 单事务逐 id 写入 + 逐 id 审计。
+     * 收敛 AdminBulkRouting 里 ~15 段「skip 自己/主管理员/不存在 → update → audit」重复实现。
+     */
+    fun applyBulkDisposition(
+        actorId: String,
+        ids: List<String>,
+        field: UserDispositionField,
+        mode: UserDispositionMode,
+        until: Long,
+        action: String,
+        detailFor: (effective: Long) -> String,
+    ): BulkDispositionResult {
+        val existing = transaction {
+            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
+        }
+        val updated = mutableListOf<String>()
+        val skipped = mutableListOf<String>()
+        transaction {
+            ids.forEach { id ->
+                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
+                    skipped += id
+                    return@forEach
+                }
+                val row = Users.selectAll().where { Users.id eq id }.firstOrNull()
+                if (row == null) {
+                    skipped += id
+                    return@forEach
+                }
+                val effective = when (mode) {
+                    UserDispositionMode.CLEAR -> 0L
+                    UserDispositionMode.SET -> until
+                    UserDispositionMode.EXTEND -> if (until <= 0L) 0L else maxOf(currentDisposition(row, field), until)
+                }
+                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
+                    when (field) {
+                        UserDispositionField.SUSPEND -> it[Users.suspendedUntil] = effective
+                        UserDispositionField.POST -> it[Users.postRestrictedUntil] = effective
+                        UserDispositionField.MESSAGE -> it[Users.messageRestrictedUntil] = effective
+                        UserDispositionField.MESSAGE_AND_POST -> {
+                            it[Users.messageRestrictedUntil] = effective
+                            it[Users.postRestrictedUntil] = effective
+                        }
+                        UserDispositionField.ALL -> {
+                            it[Users.messageRestrictedUntil] = effective
+                            it[Users.postRestrictedUntil] = effective
+                            it[Users.suspendedUntil] = effective
+                        }
+                    }
+                }
+                ModerationAuditLog.insert {
+                    it[ModerationAuditLog.userId] = id
+                    it[ModerationAuditLog.action] = action
+                    it[ModerationAuditLog.detail] = detailFor(effective).take(200)
+                    it[ModerationAuditLog.actorId] = actorId
+                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
+                }
+                updated += id
+            }
+        }
+        return BulkDispositionResult(updated, skipped)
+    }
+
+    private fun currentDisposition(row: ResultRow, field: UserDispositionField): Long = when (field) {
+        UserDispositionField.SUSPEND -> row[Users.suspendedUntil]
+        UserDispositionField.POST -> row[Users.postRestrictedUntil]
+        UserDispositionField.MESSAGE -> row[Users.messageRestrictedUntil]
+        UserDispositionField.MESSAGE_AND_POST -> maxOf(row[Users.messageRestrictedUntil], row[Users.postRestrictedUntil])
+        UserDispositionField.ALL -> maxOf(row[Users.suspendedUntil], row[Users.postRestrictedUntil], row[Users.messageRestrictedUntil])
     }
 
     fun updateProfile(userId: String, name: String? = null, status: String? = null) {

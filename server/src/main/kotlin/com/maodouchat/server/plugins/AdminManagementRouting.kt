@@ -155,7 +155,11 @@ internal fun Application.configureAdminManagementRouting(
             // ─── 系统安全快照 + 运营配置（见 AdminSystemRouting.kt） ───
             configureAdminSystemRoutes()
             configureAdminExportsRoutes(authTokenRepo)
-            configureAdminBulkRoutes(authTokenRepo, groupInvitationService)
+            configureAdminBulkRoutes(
+                authTokenRepo = authTokenRepo,
+                groupInvitationService = groupInvitationService,
+                userDispositionService = UserDispositionService(userRepo),
+            )
 
             get("/users/{id}/sessions") {
                 if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))

@@ -40,13 +40,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
 import org.jetbrains.exposed.sql.lowerCase
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -60,6 +54,7 @@ import java.util.UUID
 internal fun Route.configureAdminBulkRoutes(
     authTokenRepo: AuthTokenRepository,
     groupInvitationService: GroupInvitationService,
+    userDispositionService: com.maodouchat.server.service.UserDispositionService,
 ) {
     post("/users/bulk-force-logout") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
@@ -120,53 +115,16 @@ put("count", okIds.size)
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1).coerceIn(1, DispositionService.MAX_BAN_DAYS)
         val reasonCode = obj["reasonCode"]?.jsonPrimitive?.content.orEmpty().ifBlank { "BULK_BAN" }
         if (ids.isEmpty()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         }
         val until = System.currentTimeMillis() + days * 86_400_000L
-        val skipped = mutableListOf<String>()
-        val banned = mutableListOf<String>()
-        // 8.48 修复 M3（bulk-ban）：批量存在性检查 + 单事务批量处置（此前逐 id 独立
-        // 事务做「存在检查+UPDATE+审计」，最多 100 个事务）
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                // 9.128：已有更长封禁时保长——批量封禁按「追加 N 天」语义取 maxOf，
-                // 直接覆盖会把 30 天封禁缩成 1 天（此前与单用户 applyModerationRestriction 的
-                // maxOf 语义不一致）
-                val row = Users.selectAll().where { Users.id eq id }.firstOrNull()
-                if (row == null) {
-                    skipped += id
-                    return@forEach
-                }
-                val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.suspendedUntil], until)
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.suspendedUntil] = effectiveUntil }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_BAN"
-                    it[ModerationAuditLog.detail] = "days=$days;reason=$reasonCode".take(200)
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                banned += id
-            }
-        }
+        val result = userDispositionService.bulkExtend(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.SUSPEND, until, "ADMIN_BULK_BAN", { _ -> "days=$days;reason=$reasonCode" })
+        val banned = result.updated
+        val skipped = result.skipped
         banned.forEach { id ->
             authTokenRepo.rotateAccessTokenVersion(id)
             bestEffortAdminDisconnect { disconnectUserSessions(id, "admin bulk ban") }
@@ -190,40 +148,13 @@ put("count", banned.size)
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         }
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        // 8.48 修复 M3（bulk-unban）：批量存在性检查 + 单事务
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.suspendedUntil] = 0L }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_UNBAN"
-                    it[ModerationAuditLog.detail] = "cleared suspension"
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkClear(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.SUSPEND, "ADMIN_BULK_UNBAN", "cleared suspension")
+        val updated = result.updated
+        val skipped = result.skipped
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -242,47 +173,13 @@ put("count", updated.size)
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1).coerceIn(1, 365)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         val until = System.currentTimeMillis() + days * 86_400_000L
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        // 8.48 修复 M3（bulk-suspend-days）：批量存在性检查 + 单事务
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                // 9.128：保长语义——不缩短既有更长封禁
-                val row = Users.selectAll().where { Users.id eq id }.firstOrNull()
-                if (row == null) {
-                    skipped += id
-                    return@forEach
-                }
-                val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.suspendedUntil], until)
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.suspendedUntil] = effectiveUntil }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_SUSPEND_DAYS"
-                    it[ModerationAuditLog.detail] = "days=$days;until=$effectiveUntil".take(200)
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkExtend(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.SUSPEND, until, "ADMIN_BULK_SUSPEND_DAYS", { e -> "days=$days;until=$e" })
+        val updated = result.updated
+        val skipped = result.skipped
         updated.forEach { id ->
             authTokenRepo.rotateAccessTokenVersion(id)
             bestEffortAdminDisconnect { disconnectUserSessions(id, "admin bulk suspend days") }
@@ -305,49 +202,16 @@ post("/users/bulk-message-restrict") {
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1)
             .coerceIn(0, DispositionService.MAX_MESSAGE_RESTRICT_DAYS)
         if (ids.isEmpty()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         }
         val until = if (days <= 0) 0L else System.currentTimeMillis() + days * 86_400_000L
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                // 9.128：保长语义——不缩短既有更长限制（days<=0 仍为解除）
-                val row = Users.selectAll().where { Users.id eq id }.firstOrNull()
-                if (row == null) {
-                    skipped += id
-                    return@forEach
-                }
-                val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.messageRestrictedUntil], until)
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.messageRestrictedUntil] = effectiveUntil }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_MESSAGE_RESTRICT"
-                    it[ModerationAuditLog.detail] = "days=$days;until=$effectiveUntil".take(200)
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkExtend(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.MESSAGE, until, "ADMIN_BULK_MESSAGE_RESTRICT", { e -> "days=$days;until=$e" })
+        val updated = result.updated
+        val skipped = result.skipped
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -367,39 +231,13 @@ put("count", updated.size)
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         }
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.messageRestrictedUntil] = 0L }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_MESSAGE_UNRESTRICT"
-                    it[ModerationAuditLog.detail] = "cleared"
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkClear(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.MESSAGE, "ADMIN_BULK_MESSAGE_UNRESTRICT", "cleared")
+        val updated = result.updated
+        val skipped = result.skipped
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -479,47 +317,14 @@ get("/ai-usage-export") {
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1)
             .coerceIn(0, DispositionService.MAX_POST_RESTRICT_DAYS)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         val until = if (days <= 0) 0L else System.currentTimeMillis() + days * 86_400_000L
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                // 9.128：保长语义——不缩短既有更长限制（days<=0 仍为解除）
-                val row = Users.selectAll().where { Users.id eq id }.firstOrNull()
-                if (row == null) {
-                    skipped += id
-                    return@forEach
-                }
-                val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.postRestrictedUntil], until)
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.postRestrictedUntil] = effectiveUntil }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_POST_RESTRICT"
-                    it[ModerationAuditLog.detail] = "days=$days;until=$effectiveUntil".take(200)
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkExtend(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.POST, until, "ADMIN_BULK_POST_RESTRICT", { e -> "days=$days;until=$e" })
+        val updated = result.updated
+        val skipped = result.skipped
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -540,37 +345,11 @@ put("count", updated.size)
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.postRestrictedUntil] = 0L }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_POST_UNRESTRICT"
-                    it[ModerationAuditLog.detail] = "cleared"
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkClear(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.POST, "ADMIN_BULK_POST_UNRESTRICT", "cleared")
+        val updated = result.updated
+        val skipped = result.skipped
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -587,14 +366,7 @@ post("/users/bulk-set-message-restrict-until") {
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         val until = (obj["until"]?.jsonPrimitive?.content?.toLongOrNull()
             ?: obj["untilMs"]?.jsonPrimitive?.content?.toLongOrNull()
             ?: 0L).coerceAtLeast(0L)
@@ -607,28 +379,9 @@ post("/users/bulk-set-message-restrict-until") {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("禁发消息截止时间无效"))
         }
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.messageRestrictedUntil] = until }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_SET_MSG_RESTRICT_UNTIL"
-                    it[ModerationAuditLog.detail] = "until=$until".take(200)
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkSet(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.MESSAGE, until, "ADMIN_BULK_SET_MSG_RESTRICT_UNTIL", { _ -> "until=$until" })
+        val updated = result.updated
+        val skipped = result.skipped
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -949,41 +702,12 @@ post("/users/bulk-set-suspend-until") {
         if (until < 0 || until > now + MAX_ADMIN_SUSPEND_MS || (until in 1..now)) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("suspendedUntil invalid"))
         }
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '	').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val shouldInvalidate = until > now
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
-                    it[Users.suspendedUntil] = until
-                }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_SET_SUSPEND_UNTIL"
-                    it[ModerationAuditLog.detail] = "until=$until"
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
-        if (shouldInvalidate) {
+        val result = userDispositionService.bulkSet(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.SUSPEND, until, "ADMIN_BULK_SET_SUSPEND_UNTIL", { _ -> "until=$until" })
+        val updated = result.updated
+        val skipped = result.skipped
+        if (until > now) {
             updated.forEach { id ->
                 authTokenRepo.rotateAccessTokenVersion(id)
                 bestEffortAdminDisconnect { disconnectUserSessions(id, "admin bulk suspend until") }
@@ -1006,41 +730,11 @@ post("/users/bulk-clear-all-restrictions") {
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
-                    it[Users.messageRestrictedUntil] = 0L
-                    it[Users.postRestrictedUntil] = 0L
-                    it[Users.suspendedUntil] = 0L
-                }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_CLEAR_ALL_RESTRICTIONS"
-                    it[ModerationAuditLog.detail] = "cleared msg+post+suspend"
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkClear(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.ALL, "ADMIN_BULK_CLEAR_ALL_RESTRICTIONS", "cleared msg+post+suspend")
+        val updated = result.updated
+        val skipped = result.skipped
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1057,40 +751,11 @@ post("/users/bulk-clear-message-and-post-restrict") {
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
-                    it[Users.messageRestrictedUntil] = 0L
-                    it[Users.postRestrictedUntil] = 0L
-                }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_CLEAR_MSG_AND_POST_RESTRICT"
-                    it[ModerationAuditLog.detail] = "cleared"
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkClear(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.MESSAGE_AND_POST, "ADMIN_BULK_CLEAR_MSG_AND_POST_RESTRICT", "cleared")
+        val updated = result.updated
+        val skipped = result.skipped
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1107,14 +772,7 @@ post("/users/bulk-force-token-bump") {
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         val updated = mutableListOf<String>()
         val skipped = mutableListOf<String>()
@@ -1166,37 +824,11 @@ post("/users/bulk-clear-suspend") {
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.suspendedUntil] = 0L }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_CLEAR_SUSPEND"
-                    it[ModerationAuditLog.detail] = "cleared"
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkClear(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.SUSPEND, "ADMIN_BULK_CLEAR_SUSPEND", "cleared")
+        val updated = result.updated
+        val skipped = result.skipped
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1213,37 +845,11 @@ post("/users/bulk-clear-message-restrict") {
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.messageRestrictedUntil] = 0L }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_CLEAR_MSG_RESTRICT"
-                    it[ModerationAuditLog.detail] = "cleared"
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkClear(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.MESSAGE, "ADMIN_BULK_CLEAR_MSG_RESTRICT", "cleared")
+        val updated = result.updated
+        val skipped = result.skipped
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1260,49 +866,16 @@ post("/users/bulk-message-restrict-days") {
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
         // 9.131：上限改用策略常量——此前硬编码 3650 天（10 年）绕过
         // DispositionService.MAX_MESSAGE_RESTRICT_DAYS(90) 的处置上限
         val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1)
             .coerceIn(1, DispositionService.MAX_MESSAGE_RESTRICT_DAYS)
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         val until = System.currentTimeMillis() + days * 24L * 60L * 60L * 1000L
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                // 9.128：保长语义——不缩短既有更长限制
-                val row = Users.selectAll().where { Users.id eq id }.firstOrNull()
-                if (row == null) {
-                    skipped += id
-                    return@forEach
-                }
-                val effectiveUntil = if (until <= 0L) 0L else maxOf(row[Users.messageRestrictedUntil], until)
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.messageRestrictedUntil] = effectiveUntil }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_MSG_RESTRICT_DAYS"
-                    it[ModerationAuditLog.detail] = "days=$days until=$effectiveUntil".take(200)
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkExtend(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.MESSAGE, until, "ADMIN_BULK_MSG_RESTRICT_DAYS", { e -> "days=$days until=$e" })
+        val updated = result.updated
+        val skipped = result.skipped
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -1321,37 +894,11 @@ post("/users/bulk-clear-post-restrict") {
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.postRestrictedUntil] = 0L }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = "ADMIN_BULK_CLEAR_POST_RESTRICT"
-                    it[ModerationAuditLog.detail] = "cleared"
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkClear(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.POST, "ADMIN_BULK_CLEAR_POST_RESTRICT", "cleared")
+        val updated = result.updated
+        val skipped = result.skipped
         call.respond(
         buildJsonObject {
 put("ok", true)
