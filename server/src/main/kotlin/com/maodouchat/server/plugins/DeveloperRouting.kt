@@ -5,6 +5,7 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.BotCommandLogs
+import com.maodouchat.server.db.dayBucketExpression
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AuthTokenRepository
 import com.maodouchat.server.repository.BotRepository

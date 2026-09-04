@@ -12,9 +12,6 @@ import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.auth.principal
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.sql.Column
-import org.jetbrains.exposed.sql.Expression
-import org.jetbrains.exposed.sql.QueryBuilder
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -122,16 +119,6 @@ data class DispositionTemplatesResponse(
     val maxMessageRestrictDays: Int = DispositionService.MAX_MESSAGE_RESTRICT_DAYS
 )
 
-@Serializable
-data class AdminAuditLogResponse(
-    val id: String,
-    val actorId: String? = null,
-    val targetUserId: String? = null,
-    val action: String,
-    val detail: String? = null,
-    val createdAt: Long
-)
-
 internal const val MAX_ADMIN_SUSPEND_MS = 10L * 365L * 24L * 60L * 60L * 1_000L
 internal const val MAX_ADMIN_JSON_BODY_CHARS = 80 * 1024
 internal const val MAX_ADMIN_WATERMARK_BODY_CHARS = 4 * 1024 * 1024
@@ -206,17 +193,3 @@ data class OpsSnapshotResponse(
     val pollVotes: Long,
     val generatedAt: Long
 )
-
-/**
- * 把时间列按「Unix 天编号」（timestamp / 86400000）分组的 Exposed 表达式，
- * 供趋势统计 SQL GROUP BY 聚合（管理仪表盘 /trends、/rich-trends）。
- * 用 column.toQueryBuilder 输出正确的「表名.列名」，CAST 用跨库 BIGINT。
- */
-internal fun dayBucketExpression(column: Column<Long>): Expression<Long> =
-    object : Expression<Long>() {
-        override fun toQueryBuilder(queryBuilder: QueryBuilder) {
-            queryBuilder.append("CAST(")
-            column.toQueryBuilder(queryBuilder)
-            queryBuilder.append(" / 86400000 AS BIGINT)")
-        }
-    }

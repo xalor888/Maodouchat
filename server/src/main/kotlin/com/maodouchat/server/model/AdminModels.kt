@@ -224,3 +224,13 @@ data class AdminRichTrendsResponse(
     val newAttachments: List<TrendPointResponse>,
     val activeUsers: List<TrendPointResponse>
 )
+
+@Serializable
+data class AdminAuditLogResponse(
+    val id: String,
+    val actorId: String? = null,
+    val targetUserId: String? = null,
+    val action: String,
+    val detail: String? = null,
+    val createdAt: Long
+)
