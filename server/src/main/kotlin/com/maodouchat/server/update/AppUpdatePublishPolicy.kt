@@ -28,6 +28,13 @@ object AppUpdatePublishPolicy {
         return value
     }
 
+    /**
+     * B14：不可降级策略——新 versionCode 必须严格大于当前已发布版本；
+     * 相等（重复发布同一版本）或更小（降级）都视为非法。
+     */
+    fun isDowngrade(newVersionCode: Int, currentVersionCode: Int): Boolean =
+        newVersionCode <= currentVersionCode
+
     fun parseVersionName(raw: String?): String? {
         val value = raw?.trim().orEmpty()
         if (value.isEmpty() || value.length > 32) return null

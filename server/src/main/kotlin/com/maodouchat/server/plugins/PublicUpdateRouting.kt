@@ -74,6 +74,12 @@ internal fun Route.configurePublicUpdateRoutes(cacheService: CacheService) {
             call.respond(HttpStatusCode.BadRequest, ErrorResponse("版本号无效"))
             return@put
         }
+        // B14：不可降级——拒绝等于或低于当前已发布版本的发布。
+        val currentVersionCode = RuntimeConfigService.getInt(RuntimeConfigService.KEY_UPDATE_VERSION_CODE, 0)
+        if (com.maodouchat.server.update.AppUpdatePublishPolicy.isDowngrade(versionCode, currentVersionCode)) {
+            call.respond(HttpStatusCode.Conflict, ErrorResponse("版本号不能低于或等于当前已发布版本"))
+            return@put
+        }
         val notes = com.maodouchat.server.update.AppUpdatePublishPolicy.sanitizeNotes(call.request.header("X-Update-Notes"))
         val saved = runCatching {
             withContext(Dispatchers.IO) {

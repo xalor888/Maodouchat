@@ -29,6 +29,14 @@ class AppUpdatePublishPolicyTest {
     }
 
     @Test
+    fun `downgrade and equal version are rejected`() {
+        assertTrue(AppUpdatePublishPolicy.isDowngrade(5, 5), "equal version is a downgrade")
+        assertTrue(AppUpdatePublishPolicy.isDowngrade(4, 5), "lower version is a downgrade")
+        assertFalse(AppUpdatePublishPolicy.isDowngrade(6, 5), "higher version is allowed")
+        assertFalse(AppUpdatePublishPolicy.isDowngrade(1, 0), "first publish (current 0) is allowed")
+    }
+
+    @Test
     fun zipMagicAndPublicUrl() {
         assertTrue(AppUpdatePublishPolicy.isZipMagic(byteArrayOf(0x50, 0x4B, 0x03, 0x04)))
         assertFalse(AppUpdatePublishPolicy.isZipMagic(byteArrayOf(0x00, 0x00, 0x00, 0x00)))
