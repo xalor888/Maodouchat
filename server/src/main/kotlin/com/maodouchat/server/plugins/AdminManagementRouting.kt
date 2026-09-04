@@ -419,21 +419,7 @@ put("delivered", delivered)
                     el?.booleanOrNull ?: el?.content?.toBooleanStrictOrNull()
                 }.getOrNull()
                 if (enabled == null) return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("enabled bool required"))
-                val ok = transaction {
-                    if (Users.selectAll().where { Users.id eq id }.firstOrNull() == null) return@transaction false
-                    Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
-                        it[Users.isModerator] = enabled
-                    }
-                    ModerationAuditLog.insert {
-                        it[ModerationAuditLog.actorId] = actorId
-                        it[ModerationAuditLog.userId] = id
-                        it[ModerationAuditLog.action] = if (enabled) "ADMIN_GRANT_MODERATOR" else "ADMIN_REVOKE_MODERATOR"
-                        it[ModerationAuditLog.detail] = "enabled=$enabled"
-                        it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                    }
-                    true
-                }
-                if (!ok) return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("user not found"))
+                if (!userRepo.setModerator(actorId, id, enabled)) return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("user not found"))
                 call.respond(
                 buildJsonObject {
 put("status", "ok")
@@ -478,22 +464,7 @@ put("userId", id)
                 if (AdminAccess.isAdmin(id) && id != actorId) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("cannot disable TOTP for another master admin"))
                 }
-                val updated = transaction {
-                    val changed = Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
-                        it[Users.totpSecret] = null
-                        it[Users.totpEnabled] = false
-                    }
-                    if (changed == 0) return@transaction false
-                    ModerationAuditLog.insert {
-                        it[ModerationAuditLog.actorId] = actorId
-                        it[ModerationAuditLog.userId] = id
-                        it[ModerationAuditLog.action] = "ADMIN_DISABLE_TOTP"
-                        it[ModerationAuditLog.detail] = "admin disabled totp"
-                        it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                    }
-                    true
-                }
-                if (!updated) return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("user not found"))
+                if (!userRepo.disableTotp(actorId, id)) return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("user not found"))
                 call.respond(
                 buildJsonObject {
 put("status", "ok")
