@@ -143,251 +143,9 @@ object RuntimeConfigService {
     const val KEY_SECRET_DEVICE_VERIFY_ENABLED = "secret_device_verify_enabled"
     const val KEY_SECRET_SESSION_NOTICE_ENABLED = "secret_session_notice_enabled"
 
-    private val knownKeys = setOf(
-        KEY_ALLOW_REGISTRATION,
-        KEY_MAINTENANCE_MODE,
-        KEY_MAINTENANCE_MESSAGE,
-        KEY_GLOBAL_BANNER,
-        KEY_INVITE_ONLY_HINT,
-        KEY_MAX_GROUP_SIZE,
-        KEY_SEALED_SENDER_ENABLED,
-        KEY_ALLOW_BOTS,
-        KEY_FORCE_E2EE_BANNER,
-        KEY_MAX_MESSAGE_PER_MIN,
-        KEY_IP_BLOCKLIST,
-        KEY_AI_ENABLED,
-        KEY_AI_CONTENT_MODERATION_ENABLED,
-        KEY_PUBLIC_ANNOUNCEMENT,
-        KEY_PQXDH_PREVIEW,
-        KEY_MIN_APP_VERSION,
-        KEY_UPDATE_VERSION_CODE,
-        KEY_UPDATE_VERSION_NAME,
-        KEY_UPDATE_APK_URL,
-        KEY_UPDATE_APK_SHA256,
-        KEY_UPDATE_SERVER_URL,
-        KEY_UPDATE_NOTES,
-        KEY_MAX_BOTS_PER_USER,
-        KEY_CAPTURE_ALERT_ENABLED,
-        KEY_MEDIA_UPLOAD_ENABLED,
-        KEY_GROUP_PLAY_ENABLED,
-        KEY_LINK_PREVIEW_ENABLED,
-        KEY_VOICE_MESSAGES_ENABLED,
-        KEY_REACTIONS_ENABLED,
-        KEY_STICKERS_ENABLED,
-        KEY_SILENT_SEND_ENABLED,
-        KEY_CALLS_ENABLED,
-        KEY_SCHEDULED_MESSAGES_ENABLED,
-        KEY_VIEW_ONCE_ENABLED,
-        KEY_LIVE_LOCATION_ENABLED,
-        KEY_MARKDOWN_ENABLED,
-        KEY_TYPING_INDICATORS_ENABLED,
-        KEY_READ_RECEIPTS_ENABLED,
-        KEY_PRESENCE_ENABLED,
-        KEY_MESSAGE_STARRING_ENABLED,
-        KEY_CHAT_EXPORT_ENABLED,
-        KEY_MESSAGE_FORWARDING_ENABLED,
-        KEY_GLOBAL_SEARCH_ENABLED,
-        KEY_FRIEND_REQUESTS_ENABLED,
-        KEY_CHAT_FOLDERS_ENABLED,
-        KEY_POSTS_ENABLED,
-        KEY_BLOCK_REPORT_ENABLED,
-        KEY_CHANNELS_ENABLED,
-        KEY_CHAT_ARCHIVE_ENABLED,
-        KEY_NEARBY_ENABLED,
-        KEY_CHAT_PIN_ENABLED,
-        KEY_MARKED_UNREAD_ENABLED,
-        KEY_CHAT_MUTE_ENABLED,
-        KEY_DISAPPEARING_MESSAGES_ENABLED,
-        KEY_CHAT_LOCK_ENABLED,
-        KEY_MESSAGE_EDIT_ENABLED,
-        KEY_MESSAGE_PIN_ENABLED,
-        KEY_MESSAGE_REVOKE_ENABLED,
-        KEY_POLLS_ENABLED,
-        KEY_APP_LOCK_ENABLED,
-        KEY_CHAT_DRAFTS_ENABLED,
-        KEY_GROUP_INVITES_ENABLED,
-        KEY_MENTIONS_ENABLED,
-        KEY_NUDGE_ENABLED,
-        KEY_SAFETY_CODE_ENABLED,
-        KEY_QR_CODE_ENABLED,
-        KEY_CONTACT_CARD_ENABLED,
-        KEY_SPOILER_MEDIA_ENABLED,
-        KEY_AUTO_DOWNLOAD_ENABLED,
-        KEY_STATIC_LOCATION_ENABLED,
-        KEY_FILE_SHARE_ENABLED,
-        KEY_SECRET_CHAT_ENABLED,
-        KEY_SCREEN_SECURE_RUNTIME_ENABLED,
-        KEY_IMAGE_SEND_ENABLED,
-        KEY_VIDEO_SEND_ENABLED,
-        KEY_AI_DAILY_TOKEN_BUDGET_PER_USER,
-        KEY_AI_RETRY_ENABLED,
-        KEY_GIF_SEND_ENABLED,
-        KEY_BLIND_WATERMARK_ENABLED,
-        KEY_VOICE_CALL_ENABLED,
-        KEY_VIDEO_CALL_ENABLED,
-        KEY_CHAT_WALLPAPER_ENABLED,
-        KEY_CHAT_FONT_SCALE_ENABLED,
-        KEY_UNREAD_PRIORITY_ENABLED,
-        KEY_RINGTONE_ENABLED,
-        KEY_NOTIFICATION_SOUND_ENABLED,
-        KEY_NOTIFICATION_PREVIEW_ENABLED,
-        KEY_PUSH_NOTIFICATIONS_ENABLED,
-        KEY_TASK_REMINDERS_ENABLED,
-        KEY_DND_ENABLED,
-        KEY_IN_APP_SOUNDS_ENABLED,
-        KEY_HAPTICS_ENABLED,
-        KEY_CHAT_ANIMATIONS_ENABLED,
-        KEY_NAV_TRANSITIONS_ENABLED,
-        KEY_SCREENSHOT_DETECT_ENABLED,
-        KEY_RECENTS_EXCLUSION_ENABLED,
-        KEY_SECRET_COPY_BLOCK_ENABLED,
-        KEY_SECRET_MEDIA_EXPORT_BLOCK_ENABLED,
-        KEY_SECRET_FORWARD_BLOCK_ENABLED,
-        KEY_SECRET_CHAT_EXPORT_BLOCK_ENABLED,
-        KEY_SECRET_AUTO_DISAPPEAR_ENABLED,
-        KEY_SECRET_LINK_PREVIEW_BLOCK_ENABLED,
-        KEY_SECRET_EXTERNAL_LINK_BLOCK_ENABLED,
-        KEY_SECRET_NOTIF_PREVIEW_BLOCK_ENABLED,
-        KEY_SECRET_LIST_PREVIEW_BLOCK_ENABLED,
-        KEY_SECRET_REACTION_BLOCK_ENABLED,
-        KEY_SECRET_STAR_BLOCK_ENABLED,
-        KEY_SECRET_TYPING_BLOCK_ENABLED,
-        KEY_SECRET_READ_RECEIPT_BLOCK_ENABLED,
-        KEY_SECRET_PRESENCE_BLOCK_ENABLED,
-        KEY_SECRET_LAST_SEEN_BLOCK_ENABLED,
-        // B2 密聊防泄漏扩展（Surface #71–#78）
-        KEY_SECRET_AUTO_DESTROY_ENABLED,
-        KEY_SECRET_SCREENSHOT_BURN_ENABLED,
-        KEY_SECRET_FORWARD_WHITELIST_ENABLED,
-        KEY_SECRET_SIM_CHANGE_PROTECTION_ENABLED,
-        KEY_SECRET_2FA_GATE_ENABLED,
-        KEY_SECRET_NEW_DEVICE_RISK_ENABLED,
-        KEY_SECRET_DEVICE_VERIFY_ENABLED,
-        KEY_SECRET_SESSION_NOTICE_ENABLED
-    )
-
-    fun defaults(): Map<String, String> = mapOf(
-        KEY_ALLOW_REGISTRATION to ServerConfig.allowRegistration.toString(),
-        KEY_MAINTENANCE_MODE to "false",
-        KEY_MAINTENANCE_MESSAGE to "System under maintenance. Please try again later.",
-        KEY_GLOBAL_BANNER to "",
-        KEY_INVITE_ONLY_HINT to "Registration is temporarily closed.",
-        KEY_MAX_GROUP_SIZE to "200",
-        KEY_SEALED_SENDER_ENABLED to "true",
-        KEY_ALLOW_BOTS to "true",
-        KEY_FORCE_E2EE_BANNER to "",
-        KEY_MAX_MESSAGE_PER_MIN to "180",
-        KEY_IP_BLOCKLIST to "",
-        KEY_AI_ENABLED to "true",
-        KEY_AI_CONTENT_MODERATION_ENABLED to "false",
-        KEY_PUBLIC_ANNOUNCEMENT to "",
-        KEY_PQXDH_PREVIEW to "false",
-        KEY_MIN_APP_VERSION to "0",
-        KEY_UPDATE_VERSION_CODE to "0",
-        KEY_UPDATE_VERSION_NAME to "",
-        KEY_UPDATE_APK_URL to "",
-        KEY_UPDATE_APK_SHA256 to "",
-        KEY_UPDATE_SERVER_URL to "",
-        KEY_UPDATE_NOTES to "",
-        KEY_MAX_BOTS_PER_USER to "20",
-        KEY_CAPTURE_ALERT_ENABLED to "true",
-        KEY_MEDIA_UPLOAD_ENABLED to "true",
-        KEY_GROUP_PLAY_ENABLED to "true",
-        KEY_LINK_PREVIEW_ENABLED to "true",
-        KEY_VOICE_MESSAGES_ENABLED to "true",
-        KEY_REACTIONS_ENABLED to "true",
-        KEY_STICKERS_ENABLED to "true",
-        KEY_SILENT_SEND_ENABLED to "true",
-        KEY_CALLS_ENABLED to "true",
-        KEY_SCHEDULED_MESSAGES_ENABLED to "true",
-        KEY_VIEW_ONCE_ENABLED to "true",
-        KEY_LIVE_LOCATION_ENABLED to "true",
-        KEY_MARKDOWN_ENABLED to "true",
-        KEY_TYPING_INDICATORS_ENABLED to "true",
-        KEY_READ_RECEIPTS_ENABLED to "true",
-        KEY_PRESENCE_ENABLED to "true",
-        KEY_MESSAGE_STARRING_ENABLED to "true",
-        KEY_CHAT_EXPORT_ENABLED to "false",
-        KEY_MESSAGE_FORWARDING_ENABLED to "true",
-        KEY_GLOBAL_SEARCH_ENABLED to "true",
-        KEY_FRIEND_REQUESTS_ENABLED to "true",
-        KEY_CHAT_FOLDERS_ENABLED to "true",
-        KEY_POSTS_ENABLED to "true",
-        KEY_BLOCK_REPORT_ENABLED to "true",
-        KEY_CHANNELS_ENABLED to "true",
-        KEY_CHAT_ARCHIVE_ENABLED to "true",
-        KEY_NEARBY_ENABLED to "false",
-        KEY_CHAT_PIN_ENABLED to "true",
-        KEY_MARKED_UNREAD_ENABLED to "true",
-        KEY_CHAT_MUTE_ENABLED to "true",
-        KEY_DISAPPEARING_MESSAGES_ENABLED to "true",
-        KEY_CHAT_LOCK_ENABLED to "true",
-        KEY_MESSAGE_EDIT_ENABLED to "true",
-        KEY_MESSAGE_PIN_ENABLED to "true",
-        KEY_MESSAGE_REVOKE_ENABLED to "true",
-        KEY_POLLS_ENABLED to "true",
-        KEY_APP_LOCK_ENABLED to "true",
-        KEY_CHAT_DRAFTS_ENABLED to "true",
-        KEY_GROUP_INVITES_ENABLED to "true",
-        KEY_MENTIONS_ENABLED to "true",
-        KEY_NUDGE_ENABLED to "true",
-        KEY_SAFETY_CODE_ENABLED to "true",
-        KEY_QR_CODE_ENABLED to "true",
-        KEY_CONTACT_CARD_ENABLED to "true",
-        KEY_SPOILER_MEDIA_ENABLED to "true",
-        KEY_AUTO_DOWNLOAD_ENABLED to "true",
-        KEY_STATIC_LOCATION_ENABLED to "true",
-        KEY_FILE_SHARE_ENABLED to "true",
-        KEY_SECRET_CHAT_ENABLED to "true",
-        KEY_SCREEN_SECURE_RUNTIME_ENABLED to "true",
-        KEY_IMAGE_SEND_ENABLED to "true",
-        KEY_VIDEO_SEND_ENABLED to "true",
-        KEY_AI_DAILY_TOKEN_BUDGET_PER_USER to "200000",
-        KEY_AI_RETRY_ENABLED to "true",
-        KEY_GIF_SEND_ENABLED to "true",
-        KEY_BLIND_WATERMARK_ENABLED to "true",
-        KEY_VOICE_CALL_ENABLED to "true",
-        KEY_VIDEO_CALL_ENABLED to "true",
-        KEY_CHAT_WALLPAPER_ENABLED to "true",
-        KEY_CHAT_FONT_SCALE_ENABLED to "true",
-        KEY_UNREAD_PRIORITY_ENABLED to "true",
-        KEY_RINGTONE_ENABLED to "true",
-        KEY_NOTIFICATION_SOUND_ENABLED to "true",
-        KEY_NOTIFICATION_PREVIEW_ENABLED to "true",
-        KEY_PUSH_NOTIFICATIONS_ENABLED to "true",
-        KEY_TASK_REMINDERS_ENABLED to "true",
-        KEY_DND_ENABLED to "true",
-        KEY_IN_APP_SOUNDS_ENABLED to "true",
-        KEY_HAPTICS_ENABLED to "true",
-        KEY_CHAT_ANIMATIONS_ENABLED to "true",
-        KEY_NAV_TRANSITIONS_ENABLED to "true",
-        KEY_SCREENSHOT_DETECT_ENABLED to "true",
-        KEY_RECENTS_EXCLUSION_ENABLED to "true",
-        KEY_SECRET_COPY_BLOCK_ENABLED to "true",
-        KEY_SECRET_MEDIA_EXPORT_BLOCK_ENABLED to "true",
-        KEY_SECRET_FORWARD_BLOCK_ENABLED to "true",
-        KEY_SECRET_CHAT_EXPORT_BLOCK_ENABLED to "true",
-        KEY_SECRET_AUTO_DISAPPEAR_ENABLED to "true",
-        KEY_SECRET_LINK_PREVIEW_BLOCK_ENABLED to "true",
-        KEY_SECRET_EXTERNAL_LINK_BLOCK_ENABLED to "false",
-        KEY_SECRET_NOTIF_PREVIEW_BLOCK_ENABLED to "true",
-        KEY_SECRET_LIST_PREVIEW_BLOCK_ENABLED to "true",
-        KEY_SECRET_REACTION_BLOCK_ENABLED to "true",
-        KEY_SECRET_STAR_BLOCK_ENABLED to "true",
-        KEY_SECRET_TYPING_BLOCK_ENABLED to "true",
-        KEY_SECRET_READ_RECEIPT_BLOCK_ENABLED to "true",
-        KEY_SECRET_PRESENCE_BLOCK_ENABLED to "true",
-        KEY_SECRET_LAST_SEEN_BLOCK_ENABLED to "true",
-        // B2 密聊防泄漏扩展（Surface #71–#78）
-        KEY_SECRET_AUTO_DESTROY_ENABLED to "true",
-        KEY_SECRET_SCREENSHOT_BURN_ENABLED to "true",
-        KEY_SECRET_FORWARD_WHITELIST_ENABLED to "true",
-        KEY_SECRET_SIM_CHANGE_PROTECTION_ENABLED to "true",
-        KEY_SECRET_2FA_GATE_ENABLED to "false",
-        KEY_SECRET_NEW_DEVICE_RISK_ENABLED to "true",
-        KEY_SECRET_DEVICE_VERIFY_ENABLED to "true",
-        KEY_SECRET_SESSION_NOTICE_ENABLED to "true"
-    )
+    /** B13：默认值由 typed registry 派生，单一事实源消除 knownKeys/defaults 三处重复。 */
+    fun defaults(): Map<String, String> =
+        RuntimeSettingsRegistry.specs.associate { it.key to it.default }
 
     fun all(): Map<String, String> {
         refreshIfStale()
@@ -787,8 +545,7 @@ object RuntimeConfigService {
     fun set(key: String, value: String, actorId: String?): Boolean {
         // 纵深防御：即便未来有其他调用方忘记在路由层鉴权，非主管理员（或匿名）也不得改写运行时配置。
         if (actorId == null || !AdminAccess.isAdmin(actorId)) return false
-        if (key !in knownKeys) return false
-        val cleaned = value.trim().take(4_000)
+        val cleaned = normalize(key, value) ?: return false
         val now = System.currentTimeMillis()
         transaction {
             writeSettingInTx(key, cleaned, actorId, now)
@@ -796,6 +553,26 @@ object RuntimeConfigService {
         cache[key] = cleaned
         loadedAt.set(now)
         return true
+    }
+
+    /** B13：按 typed registry 校验类型与范围；未知 key 或非法值返回 null，合法值规范化后返回。 */
+    internal fun normalize(key: String, value: String): String? {
+        val spec = RuntimeSettingsRegistry.spec(key) ?: return null
+        val raw = value.trim().take(4_000)
+        return when (spec.type) {
+            RuntimeSettingType.BOOLEAN -> when (raw.lowercase()) {
+                "1", "true", "yes", "on" -> "true"
+                "0", "false", "no", "off" -> "false"
+                else -> null
+            }
+            RuntimeSettingType.INT -> raw.toIntOrNull()
+                ?.takeIf { (spec.min == null || it >= spec.min) && (spec.max == null || it <= spec.max) }
+                ?.toString()
+            RuntimeSettingType.LONG -> raw.toLongOrNull()
+                ?.takeIf { (spec.min == null || it >= spec.min) && (spec.max == null || it <= spec.max) }
+                ?.toString()
+            RuntimeSettingType.STRING, RuntimeSettingType.STRING_SET -> raw
+        }
     }
 
     private fun writeSettingInTx(key: String, cleaned: String, actorId: String, now: Long) {
@@ -832,7 +609,7 @@ object RuntimeConfigService {
         if (actorId == null || !AdminAccess.isAdmin(actorId)) return all()
         val now = System.currentTimeMillis()
         val valid = values.mapNotNull { (key, value) ->
-            key.takeIf { it in knownKeys }?.let { it to value.trim().take(4_000) }
+            normalize(key, value)?.let { key to it }
         }.toMap()
         if (valid.isNotEmpty()) {
             transaction {

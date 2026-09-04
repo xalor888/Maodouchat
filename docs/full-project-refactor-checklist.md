@@ -664,10 +664,10 @@ Gate：token rotate、webhook 重启/死信、顺序幂等、群权限和 Telegr
 
 ### B13 Admin、运行配置、运营统计与审计
 
-当前状态：`[ ]`。`AdminRouting.kt` 4,575 行，Runtime config 拥有大量重复 getter。
+当前状态：`[~]`。`AdminRouting.kt` 已缩为 22 行注册门面（非 4,575 行）；`RuntimeConfigService` 引入 typed registry（`RuntimeSettingsRegistry`，119 个开关的类型/默认/范围/敏感性/重启元数据，`defaults()`/`knownKeys` 去重 + `set`/`setMany` 类型范围校验）；剩余 AdminIdentity/UserDispositionService/OperationsQueryService 三域、路由内事务清理与重复能力合并。
 
 - [ ] 建立 `AdminIdentity`、`UserDispositionService`、`OperationsQueryService`。
-- [ ] Runtime settings 使用 typed registry 描述类型、默认值、范围、敏感性和重启要求。
+- [x] Runtime settings 使用 typed registry 描述类型、默认值、范围、敏感性和重启要求（`RuntimeSettingsRegistry`：类型/默认/range/sensitive/restartRequired，`defaults()` 单一事实源派生 + `normalize` 校验）。
 - [ ] 管理 route 按用户治理、内容审核、配置、统计、公告拆分。
 - [ ] 管理写操作统一 command + audit；统计走只读 query model。
 - [ ] 合并 AdminRouting/AdminEnhanceRouting 重复能力。
