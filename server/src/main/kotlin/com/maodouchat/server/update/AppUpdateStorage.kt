@@ -1,6 +1,11 @@
 package com.maodouchat.server.update
 
 import com.maodouchat.server.config.ServerConfig
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import java.io.File
 import java.io.InputStream
 import java.nio.file.AtomicMoveNotSupportedException
@@ -11,6 +16,7 @@ import java.security.MessageDigest
 object AppUpdateStorage {
     private const val DIR = "app-updates"
     const val FILE_NAME = "latest.apk"
+    const val MANIFEST_NAME = "latest.manifest.json"
 
     fun latestFile(): File = File(typeRoot(), FILE_NAME)
 
@@ -90,4 +96,38 @@ object AppUpdateStorage {
         }
         return canonicalDir
     }
+
+    /** B14：不可变制品元数据——发布时原子写入 manifest 旁文件（与 APK 同目录，仅发布流程可写）。 */
+    fun writeManifest(versionCode: Int, versionName: String, apkSha256: String, bytes: Long) {
+        val json = buildJsonObject {
+            put("versionCode", versionCode)
+            put("versionName", versionName)
+            put("apkSha256", apkSha256)
+            put("bytes", bytes)
+            put("publishedAt", System.currentTimeMillis())
+        }.toString()
+        val tmp = File(typeRoot(), "$MANIFEST_NAME.tmp")
+        tmp.writeText(json)
+        try {
+            Files.move(
+                tmp.toPath(),
+                manifestFile().toPath(),
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE,
+            )
+        } catch (_: AtomicMoveNotSupportedException) {
+            Files.move(tmp.toPath(), manifestFile().toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
+    }
+
+    /** B14：读取已发布制品的不可变元数据（无发布时返回 null）。 */
+    fun readManifest(): Map<String, String>? {
+        val file = manifestFile()
+        if (!file.isFile) return null
+        return runCatching {
+            Json.parseToJsonElement(file.readText()).jsonObject.mapValues { (_, v) -> v.jsonPrimitive.content }
+        }.getOrNull()
+    }
+
+    private fun manifestFile(): File = File(typeRoot(), MANIFEST_NAME)
 }

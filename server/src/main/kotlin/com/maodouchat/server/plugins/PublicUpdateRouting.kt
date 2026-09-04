@@ -28,10 +28,16 @@ import kotlinx.serialization.json.put
 /** Public update, runtime status, and WebRTC binary delivery endpoints. */
 internal fun Route.configurePublicUpdateRoutes(cacheService: CacheService) {
     get("/api/public/updates") {
-        val versionCode = RuntimeConfigService.getInt(RuntimeConfigService.KEY_UPDATE_VERSION_CODE, 0)
-        val versionName = RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_VERSION_NAME).ifBlank { "0" }
+        // B14：制品完整性字段（versionCode/versionName/sha256）优先取不可变 manifest，
+        // 无 manifest（旧部署）回退到可编辑的运行时配置。
+        val manifest = com.maodouchat.server.update.AppUpdateStorage.readManifest()
+        val versionCode = manifest?.get("versionCode")?.toIntOrNull()
+            ?: RuntimeConfigService.getInt(RuntimeConfigService.KEY_UPDATE_VERSION_CODE, 0)
+        val versionName = manifest?.get("versionName")?.takeIf { it.isNotBlank() }
+            ?: RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_VERSION_NAME).ifBlank { "0" }
+        val apkSha256 = manifest?.get("apkSha256")?.takeIf { it.isNotBlank() }
+            ?: RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_APK_SHA256)
         val apkUrl = RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_APK_URL)
-        val apkSha256 = RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_APK_SHA256)
         val serverUrl = RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_SERVER_URL).ifBlank { ServerConfig.baseUrl }
         val notes = RuntimeConfigService.get(RuntimeConfigService.KEY_UPDATE_NOTES)
         call.respond(buildJsonObject {
@@ -99,6 +105,8 @@ internal fun Route.configurePublicUpdateRoutes(cacheService: CacheService) {
         val apkUrl = com.maodouchat.server.update.AppUpdatePublishPolicy.publicApkUrl(ServerConfig.baseUrl)
         val apkSha256 = com.maodouchat.server.update.AppUpdateStorage.latestSha256()
             ?: error("update APK checksum unavailable")
+        // B14：先写不可变制品 manifest（sha256 与 APK 字节绑定），再写可编辑的运行时配置。
+        com.maodouchat.server.update.AppUpdateStorage.writeManifest(versionCode, versionName, apkSha256, saved.length())
         RuntimeConfigService.applyPublishedUpdate(versionCode, versionName, apkUrl, apkSha256, notes)
         call.respond(buildJsonObject {
             put("ok", true)
