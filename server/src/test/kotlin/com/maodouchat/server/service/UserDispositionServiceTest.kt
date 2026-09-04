@@ -150,4 +150,58 @@ class UserDispositionServiceTest {
             assertEquals(0L, u1[Users.suspendedUntil])
         }
     }
+
+    @Test
+    fun `bulkSetUserSettings skips self and admins`() {
+        setupDb()
+        AdminAccess.grantAdmin("admin1")
+        try {
+            val result = UserDispositionService(UserRepository()).bulkSetUserSettings(
+                actorId = "actor",
+                ids = listOf("u1", "actor", "admin1", "missing"),
+                field = UserRepository.UserSettingsField.SEARCHABLE,
+                value = false,
+            )
+            assertEquals(listOf("u1"), result.updated)
+            assertEquals(setOf("actor", "admin1", "missing"), result.skipped.toSet())
+            transaction {
+                val u1 = Users.selectAll().where { Users.id eq "u1" }.single()
+                assertEquals(false, u1[Users.searchable])
+            }
+        } finally {
+            AdminAccess.revokeAdmin("admin1")
+        }
+    }
+
+    @Test
+    fun `bulkDisableTotp skips other admins but allows self-admin`() {
+        setupDb()
+        transaction {
+            Users.insert {
+                it[Users.id] = "admin1"
+                it[Users.name] = "admin1"
+                it[Users.email] = "admin1@test.local"
+                it[Users.passwordHash] = "x"
+            }
+            Users.insert {
+                it[Users.id] = "admin2"
+                it[Users.name] = "admin2"
+                it[Users.email] = "admin2@test.local"
+                it[Users.passwordHash] = "x"
+            }
+        }
+        AdminAccess.grantAdmin("admin1")
+        AdminAccess.grantAdmin("admin2")
+        try {
+            val result = UserDispositionService(UserRepository()).bulkDisableTotp(
+                actorId = "admin1",
+                ids = listOf("admin1", "admin2", "u1"),
+            )
+            assertEquals(setOf("admin1", "u1"), result.updated.toSet())
+            assertEquals(listOf("admin2"), result.skipped)
+        } finally {
+            AdminAccess.revokeAdmin("admin1")
+            AdminAccess.revokeAdmin("admin2")
+        }
+    }
 }

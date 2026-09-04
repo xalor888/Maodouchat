@@ -28,26 +28,15 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
-import org.jetbrains.exposed.sql.lowerCase
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.update
-import java.lang.management.ManagementFactory
-import java.util.UUID
 
 
 /** 管理后台子域路由（从 AdminManagementRouting.kt 拆出）。 */
@@ -401,28 +390,11 @@ put("count", updated.size)
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull { runCatching { it.jsonPrimitive.content }.getOrNull() }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.searchable] = false }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkSetUserSettings(actorId, ids, com.maodouchat.server.repository.UserRepository.UserSettingsField.SEARCHABLE, false)
+        val updated = result.updated
+        val skipped = result.skipped
         recordAdminAudit(actorId = actorId, action = "bulk_set_searchable_false", detail = "count=${updated.size}")
         call.respond(
         buildJsonObject {
@@ -441,28 +413,11 @@ put("count", updated.size)
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull { runCatching { it.jsonPrimitive.content }.getOrNull() }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.searchable] = true }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkSetUserSettings(actorId, ids, com.maodouchat.server.repository.UserRepository.UserSettingsField.SEARCHABLE, true)
+        val updated = result.updated
+        val skipped = result.skipped
         recordAdminAudit(actorId = actorId, action = "bulk_set_searchable_true", detail = "count=${updated.size}")
         call.respond(
         buildJsonObject {
@@ -487,28 +442,11 @@ put("count", updated.size)
             // 9.131：缺字段/拼写错误不得静默默认 true（隐私开关被反向打开）
             else -> return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("showStatus must be a boolean"))
         }
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull { runCatching { it.jsonPrimitive.content }.getOrNull() }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) { it[Users.showStatus] = showStatus }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkSetUserSettings(actorId, ids, com.maodouchat.server.repository.UserRepository.UserSettingsField.SHOW_STATUS, showStatus)
+        val updated = result.updated
+        val skipped = result.skipped
         recordAdminAudit(actorId = actorId, action = "bulk_set_show_status", detail = "count=${updated.size};showStatus=$showStatus")
         call.respond(
         buildJsonObject {
@@ -534,30 +472,11 @@ put("showStatus", showStatus)
             // 9.131：缺字段/拼写错误不得静默默认 true
             else -> return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("showOnline must be a boolean"))
         }
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull { runCatching { it.jsonPrimitive.content }.getOrNull() }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
-                    it[Users.showOnline] = showOnline
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkSetUserSettings(actorId, ids, com.maodouchat.server.repository.UserRepository.UserSettingsField.SHOW_ONLINE, showOnline)
+        val updated = result.updated
+        val skipped = result.skipped
         recordAdminAudit(actorId = actorId, action = "bulk_set_show_online", detail = "count=${updated.size};showOnline=$showOnline")
         call.respond(
         buildJsonObject {
@@ -583,30 +502,11 @@ put("showOnline", showOnline)
             // 9.131：缺字段/拼写错误不得静默默认 true（把用户批量设成可被搜索）
             else -> return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("searchable must be a boolean"))
         }
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull { runCatching { it.jsonPrimitive.content }.getOrNull() }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
-                    it[Users.searchable] = searchable
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkSetUserSettings(actorId, ids, com.maodouchat.server.repository.UserRepository.UserSettingsField.SEARCHABLE, searchable)
+        val updated = result.updated
+        val skipped = result.skipped
         recordAdminAudit(actorId = actorId, action = "bulk_set_searchable", detail = "count=${updated.size};searchable=$searchable")
         call.respond(
         buildJsonObject {
@@ -626,31 +526,11 @@ put("searchable", searchable)
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull { runCatching { it.jsonPrimitive.content }.getOrNull() }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        transaction {
-            ids.forEach { id ->
-                if ((AdminAccess.isAdmin(id) && id != actorId) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
-                    it[Users.totpSecret] = null
-                    it[Users.totpEnabled] = false
-                }
-                updated += id
-            }
-        }
+        val result = userDispositionService.bulkDisableTotp(actorId, ids)
+        val updated = result.updated
+        val skipped = result.skipped
         recordAdminAudit(actorId = actorId, action = "bulk_disable_totp", detail = "count=${updated.size}")
         call.respond(
         buildJsonObject {

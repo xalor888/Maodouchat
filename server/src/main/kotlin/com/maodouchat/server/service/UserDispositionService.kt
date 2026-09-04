@@ -98,4 +98,15 @@ class UserDispositionService(private val users: UserRepository) {
         detail: String,
     ): UserRepository.BulkDispositionResult =
         users.applyBulkDisposition(actorId, ids, field, UserRepository.UserDispositionMode.CLEAR, 0L, action, { detail })
+
+    fun bulkSetUserSettings(
+        actorId: String,
+        ids: List<String>,
+        field: UserRepository.UserSettingsField,
+        value: Boolean,
+    ): UserRepository.BulkDispositionResult =
+        users.applyBulkUserSettings(actorId, ids, field, value)
+
+    fun bulkDisableTotp(actorId: String, ids: List<String>): UserRepository.BulkDispositionResult =
+        users.applyBulkDisableTotp(actorId, ids)
 }
