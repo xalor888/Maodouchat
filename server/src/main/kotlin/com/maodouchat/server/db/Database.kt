@@ -24,7 +24,7 @@ internal fun createSchemaTables() {
             EncryptedAttachments, SignalKeys, SignalDevices, SignalingMessages, Posts, PostImageClaims, PostLikes, PostComments, CommentLikes,
             BlockedUsers, UserLocations, AuthSessions, RefreshTokens, RevokedAccessTokens, StarMessages, PinnedMessages,
             NotificationPreferences,
-            PushTokens, GroupPolls, GroupPollVotes, BotApps, BotCommandLogs, BotUpdateInbox, Reports, ModerationAuditLog, AiAuditLogs, ModerationRules,
+            PushTokens, GroupPolls, GroupPollVotes, BotApps, BotCommandLogs, BotUpdateInbox, BotWebhookOutbox, Reports, ModerationAuditLog, AiAuditLogs, ModerationRules,
             RiskEvents, DirectChatPairs, SecretChatPairs, FriendRequests, Friendships, ChatFolders, ClientPrefs, SystemSettings,
             // 9.3xx：群邀请同意流程（成员入群前须本人接受）
             GroupInvitations,

@@ -603,6 +603,23 @@ object BotCommandLogs : Table("bot_command_logs") {
     override val primaryKey = PrimaryKey(id)
 }
 
+/** B12：webhook 投递 outbox/死信（重启可重放 PENDING，失败入 DEAD 供审计/重放）。 */
+object BotWebhookOutbox : Table("bot_webhook_outbox") {
+    val id = varchar("id", 100)
+    val botId = varchar("bot_id", 64).index()
+    val url = varchar("url", 500)
+    val tokenHash = varchar("token_hash", 128)
+    val body = text("body")
+    val ts = long("ts")
+    val attempts = integer("attempts").default(0)
+    val status = varchar("status", 20).default("PENDING").index()
+    val leaseOwner = varchar("lease_owner", 100).nullable()
+    val leaseUntil = long("lease_until").default(0L).index()
+    val createdAt = long("created_at")
+    val updatedAt = long("updated_at")
+    override val primaryKey = PrimaryKey(id)
+}
+
 object SystemSettings : Table("system_settings") {
     val key = varchar("key", 64)
     val value = text("value")

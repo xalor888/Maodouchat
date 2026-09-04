@@ -649,11 +649,11 @@ Gate：并发举报、重复 disposition、权限矩阵、审计不可缺失和�
 
 ### B12 Bot、Developer API、Webhook 与 Service Message
 
-当前状态：`[~]`。BotCoreRouting（3454 行）与 BotPresentationRouting（1988 行）两个巨型单函数已拆成 **31 个薄子模块**（BotCore 只剩门面 + sendMessage/editMessage/getChat 三个核心端点，430 行）；webhook outbox/worker lease、GroupMembershipService 统一、Developer Console 分离等仍未做。
+当前状态：`[x]`。BotCoreRouting（3454 行）与 BotPresentationRouting（1988 行）两个巨型单函数已拆成 **31 个薄子模块**（BotCore 只剩门面 + sendMessage/editMessage/getChat 三个核心端点，430 行）；webhook 数据库 outbox + 原子 worker lease + 退避/死信/周期重放已落地（BotWebhookOutbox 表 + BotWebhookService 抢占式租约 + H2 并发测试）。
 
 - [x] 按 bot-auth、management、updates、messaging、group-admin、media 拆模块（BotCore 3454→430 行 + BotPresentation 1988→153 行，31 个子模块，端点计数 961 由 RouteRegistrySplitTest 锁定）。
 - [x] Developer Console 与公开 Bot API 分离。
-- [ ] webhook 使用数据库 outbox、worker lease、退避、死信和重放。
+- [x] webhook 使用数据库 outbox、worker lease、退避、死信和重放（BotWebhookOutbox：PENDING→DELIVERED/DEAD，`claimLease` 原子抢占 + 过期回收 + `replayStalePending` 启动/周期重放）。
 - [x] Bot 群操作调用统一 GroupMembershipService。
 - [x] Bot 内容通过 ServiceMessagePublisher 投递到所有离线设备。
 - [x] Telegram alias 只保留一份业务实现和契约映射。
