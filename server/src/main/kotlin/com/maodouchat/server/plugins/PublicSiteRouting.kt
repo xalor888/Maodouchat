@@ -16,6 +16,13 @@ private suspend fun ApplicationCall.respondPublicHtml(page: String, fallback: St
     respondText(loadPublicHtml(page) ?: fallback, ContentType.Text.Html)
 }
 
+/** B14：静态资源缓存策略——版本化 CSS/JS 走短时 public 缓存，避免跨部署脏缓存。 */
+private suspend fun ApplicationCall.respondPublicAsset(resource: String, contentType: ContentType, fallback: String = "") {
+    val content = object {}.javaClass.classLoader.getResource(resource)?.readText() ?: fallback
+    response.header(HttpHeaders.CacheControl, "public, max-age=3600")
+    respondText(content, contentType)
+}
+
 internal fun Route.configurePublicSiteRoutes() {
         get("/") {
             // 9.206：第三方部署可关闭官网（PUBLIC_SITE=false）——首页改为极简服务器名片
@@ -34,36 +41,12 @@ internal fun Route.configurePublicSiteRoutes() {
             }
             call.respondPublicHtml("index")
         }
-        get("/assets/site.css") {
-            val css = this::class.java.classLoader.getResource("public/assets/site.css")?.readText()
-                ?: "body{font-family:sans-serif}"
-            call.respondText(css, io.ktor.http.ContentType.Text.CSS)
-        }
-        get("/assets/home.css") {
-            val css = this::class.java.classLoader.getResource("public/assets/home.css")?.readText()
-                ?: ""
-            call.respondText(css, io.ktor.http.ContentType.Text.CSS)
-        }
-        get("/assets/profile.css") {
-            val css = this::class.java.classLoader.getResource("public/assets/profile.css")?.readText()
-                ?: ""
-            call.respondText(css, io.ktor.http.ContentType.Text.CSS)
-        }
-        get("/assets/style.css") {
-            val css = this::class.java.classLoader.getResource("public/assets/style.css")?.readText()
-                ?: ""
-            call.respondText(css, io.ktor.http.ContentType.Text.CSS)
-        }
-        get("/assets/developer.css") {
-            val css = this::class.java.classLoader.getResource("public/assets/developer.css")?.readText()
-                ?: ""
-            call.respondText(css, io.ktor.http.ContentType.Text.CSS)
-        }
-        get("/assets/developer.js") {
-            val js = this::class.java.classLoader.getResource("public/assets/developer.js")?.readText()
-                ?: ""
-            call.respondText(js, io.ktor.http.ContentType.Application.JavaScript)
-        }
+        get("/assets/site.css") { call.respondPublicAsset("public/assets/site.css", ContentType.Text.CSS, "body{font-family:sans-serif}") }
+        get("/assets/home.css") { call.respondPublicAsset("public/assets/home.css", ContentType.Text.CSS) }
+        get("/assets/profile.css") { call.respondPublicAsset("public/assets/profile.css", ContentType.Text.CSS) }
+        get("/assets/style.css") { call.respondPublicAsset("public/assets/style.css", ContentType.Text.CSS) }
+        get("/assets/developer.css") { call.respondPublicAsset("public/assets/developer.css", ContentType.Text.CSS) }
+        get("/assets/developer.js") { call.respondPublicAsset("public/assets/developer.js", ContentType.Application.JavaScript) }
         get("/developer") {
             call.respondPublicHtml("developer", "<h1>Developer Console</h1>")
         }
