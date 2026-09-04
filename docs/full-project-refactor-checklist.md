@@ -683,7 +683,7 @@ Gate：master/moderator/user 权限、审计、敏感配置和大数据查询性
 - [ ] 静态/官网资源与 API route 分离部署和缓存策略。
 - [ ] 水印提取任务异步化，限制文件、CPU、内存和执行时间。
 - [ ] 备份/恢复脚本纳入版本 migration 和定期恢复演练。
-- [ ] 健康检查拆 liveness/readiness，并覆盖数据库、迁移和后台任务状态。
+- [~] 健康检查拆 liveness/readiness，并覆盖数据库、迁移和后台任务状态（`/health/live` + `/health/ready` 已拆，ready 覆盖 database/migrations/storage；后台任务状态待加）。
 
 Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布测试通过。
 

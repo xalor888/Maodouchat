@@ -204,15 +204,22 @@ internal suspend fun ApplicationCall.respondReadiness() {
             exec("SELECT 1") { result -> result.next() && result.getInt(1) == 1 } ?: false
         }
     }.getOrDefault(false)
+    // B14：迁移状态——已应用版本需达到期望最新版本，否则判定未就绪（滚动发布期间暂停流量）。
+    // 表缺失（直接建表/测试环境）视为无待办迁移，仅当表存在但版本落后才判 pending。
+    val migrationsReady = runCatching {
+        val applied = com.maodouchat.server.db.migration.appliedMigrationVersion()
+        applied == null || applied >= com.maodouchat.server.db.migration.expectedMigrationVersion()
+    }.getOrDefault(false)
     val storageReady = runCatching {
         val path = Paths.get(ServerConfig.storageDir).toAbsolutePath().normalize()
         Files.isDirectory(path) && Files.isWritable(path)
     }.getOrDefault(false)
     val checks = linkedMapOf(
         "database" to if (databaseReady) "ok" else "unavailable",
+        "migrations" to if (migrationsReady) "ok" else "pending",
         "storage" to if (storageReady) "ok" else "unavailable"
     )
-    if (databaseReady && storageReady) {
+    if (databaseReady && migrationsReady && storageReady) {
         respond(HealthStatusResponse(status = "ready", checks = checks))
     } else {
         respond(HttpStatusCode.ServiceUnavailable, HealthStatusResponse(status = "not_ready", checks = checks))
