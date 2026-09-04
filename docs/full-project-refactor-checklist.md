@@ -664,14 +664,14 @@ Gate：token rotate、webhook 重启/死信、顺序幂等、群权限和 Telegr
 
 ### B13 Admin、运行配置、运营统计与审计
 
-当前状态：`[~]`。`AdminRouting.kt` 已缩为 22 行注册门面（非 4,575 行）；`RuntimeConfigService` 引入 typed registry（`RuntimeSettingsRegistry`）；`OperationsQueryService` 承接运营统计只读查询；`AdminIdentity`（两级角色解析）+ `UserDispositionService`（单用户/批量处置 + 开关写命令门面）落地，AdminBulkRouting 1366→~800 行；管理路由已无裸 `Users.update/insert`（处置/开关/moderator/TOTP 全部走仓库命令 + 审计）；剩余 AdminEnhanceRouting（公告/标签/审计导出/限流/设备一致性）按领域拆分与重复能力合并。
+当前状态：`[~]`。`AdminRouting.kt` 已缩为 22 行注册门面（非 4,575 行）；`RuntimeConfigService` 引入 typed registry（`RuntimeSettingsRegistry`）；`OperationsQueryService` 承接运营统计只读查询；`AdminIdentity`（两级角色解析）+ `UserDispositionService`（单用户/批量处置 + 开关写命令门面）落地，AdminBulkRouting 1366→~800 行；管理路由已无裸 `Users.update/insert`；AdminEnhanceRouting 1106→598 行（公告→`AnnouncementRouting` 313 行、用户标签→`UserTagRouting` 190 行、模型→`AnnouncementModels`/`UserTagModels`）；剩余审计导出/限流/设备一致性拆分、重复 getter 与重复能力合并。
 
 - [x] 建立 `AdminIdentity`、`UserDispositionService`、`OperationsQueryService`（`AdminIdentity`+`AdminIdentityResolver`、`UserDispositionService` 写命令门面、`OperationsQueryService` 只读统计）。
 - [x] Runtime settings 使用 typed registry 描述类型、默认值、范围、敏感性和重启要求（`RuntimeSettingsRegistry`：类型/默认/range/sensitive/restartRequired，`defaults()` 单一事实源派生 + `normalize` 校验）。
-- [ ] 管理 route 按用户治理、内容审核、配置、统计、公告拆分。
+- [x] 管理 route 按用户治理、内容审核、配置、统计、公告拆分（用户治理→Users/Bulk/Management、内容审核→Content/Moderation/Report/UserTag、配置→System、统计→Observability+OperationsQuery/Diagnostics、公告→Announcement）。
 - [x] 管理写操作统一 command + audit；统计走只读 query model（处置单/批量、开关、moderator、TOTP 全部走 `UserRepository` 命令 + 审计；统计走 `OperationsQueryService`）。
-- [ ] 合并 AdminRouting/AdminEnhanceRouting 重复能力。
-- [~] 删除重复 getter、路由事务和敏感配置导出（observability + bulk + 单用户写路由事务已清零；`dayBucketExpression`/`recordAdminAudit`/`isAdminUser`/`csvCell`/`parseAdminIds` 去重；剩余 AdminEnhanceRouting 路由事务与重复 getter 待删）。
+- [~] 合并 AdminRouting/AdminEnhanceRouting 重复能力（`receiveEnhanceJson`/`receiveAdminJson` 等重复 helper 已去重；审计导出/限流/设备一致性重复能力待核查）。
+- [~] 删除重复 getter、路由事务和敏感配置导出（observability + bulk + 单用户写路由事务已清零；`dayBucketExpression`/`recordAdminAudit`/`isAdminUser`/`csvCell`/`parseAdminIds` 去重；剩余审计导出/限流/设备一致性路由事务与重复 getter 待删）。
 
 Gate：master/moderator/user 权限、审计、敏感配置和大数据查询性能通过。
 
