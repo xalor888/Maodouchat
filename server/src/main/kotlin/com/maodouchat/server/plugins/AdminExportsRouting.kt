@@ -28,6 +28,9 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -55,6 +58,8 @@ import org.jetbrains.exposed.sql.update
 import java.lang.management.ManagementFactory
 import java.util.UUID
 
+/** B14：水印提取执行时间上限（毫秒），超时返回 504。 */
+private const val WATERMARK_EXTRACT_TIMEOUT_MS = 30_000L
 
 /** 管理后台子域路由（从 AdminManagementRouting.kt 拆出）。 */
 internal fun Route.configureAdminExportsRoutes(authTokenRepo: AuthTokenRepository) {
@@ -1075,7 +1080,16 @@ post("/watermark/extract") {
         if (imageB64.isBlank()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("imageBase64_required"))
         }
-        val result = com.maodouchat.server.watermark.AdminWatermarkExtractor.extractFromBase64(imageB64)
+        // B14：水印提取为 CPU 密集（DWT+SVD / DCT-QIM），异步到 Default 线程池，
+        // 并用超时兜底，避免阻塞 Ktor 事件循环、恶意大图拖垮请求线程。
+        val result = withContext(Dispatchers.Default) {
+            withTimeoutOrNull(WATERMARK_EXTRACT_TIMEOUT_MS) {
+                com.maodouchat.server.watermark.AdminWatermarkExtractor.extractFromBase64(imageB64)
+            }
+        }
+        if (result == null) {
+            return@post call.respond(HttpStatusCode.GatewayTimeout, ErrorResponse("水印提取超时，请重试"))
+        }
         recordAdminAudit(
             actorId = adminId,
             action = "watermark_extract",

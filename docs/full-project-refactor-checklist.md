@@ -681,7 +681,7 @@ Gate：master/moderator/user 权限、审计、敏感配置和大数据查询性
 
 - [~] 更新发布使用签名 manifest、不可降级策略和不可变制品元数据（不可降级策略已落地：发布拒绝 ≤ 当前 versionCode；签名 manifest 与制品不可变元数据待做）。
 - [ ] 静态/官网资源与 API route 分离部署和缓存策略。
-- [ ] 水印提取任务异步化，限制文件、CPU、内存和执行时间。
+- [x] 水印提取任务异步化，限制文件、CPU、内存和执行时间（`Dispatchers.Default` 异步 + 30s 超时兜底；请求体 4MB + 维度 ≤8192/像素 ≤16M 解压炸弹防御）。
 - [ ] 备份/恢复脚本纳入版本 migration 和定期恢复演练。
 - [~] 健康检查拆 liveness/readiness，并覆盖数据库、迁移和后台任务状态（`/health/live` + `/health/ready` 已拆，ready 覆盖 database/migrations/storage；后台任务状态待加）。
 
