@@ -8,10 +8,13 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.io.File
 import java.io.InputStream
+import java.nio.charset.StandardCharsets
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 
 object AppUpdateStorage {
     private const val DIR = "app-updates"
@@ -99,12 +102,16 @@ object AppUpdateStorage {
 
     /** B14：不可变制品元数据——发布时原子写入 manifest 旁文件（与 APK 同目录，仅发布流程可写）。 */
     fun writeManifest(versionCode: Int, versionName: String, apkSha256: String, bytes: Long) {
+        // B14：制品签名——对确定性字段行做 HMAC-SHA256（key=JWT_SECRET），客户端据此验签。
+        val canonical = "versionCode=$versionCode\nversionName=$versionName\napkSha256=$apkSha256\nbytes=$bytes"
+        val signature = hmacSha256Hex(ServerConfig.jwtSecret, canonical)
         val json = buildJsonObject {
             put("versionCode", versionCode)
             put("versionName", versionName)
             put("apkSha256", apkSha256)
             put("bytes", bytes)
             put("publishedAt", System.currentTimeMillis())
+            put("signature", signature)
         }.toString()
         val tmp = File(typeRoot(), "$MANIFEST_NAME.tmp")
         tmp.writeText(json)
@@ -118,6 +125,13 @@ object AppUpdateStorage {
         } catch (_: AtomicMoveNotSupportedException) {
             Files.move(tmp.toPath(), manifestFile().toPath(), StandardCopyOption.REPLACE_EXISTING)
         }
+    }
+
+    private fun hmacSha256Hex(secret: String, message: String): String {
+        val mac = Mac.getInstance("HmacSHA256")
+        mac.init(SecretKeySpec(secret.toByteArray(StandardCharsets.UTF_8), "HmacSHA256"))
+        val raw = mac.doFinal(message.toByteArray(StandardCharsets.UTF_8))
+        return raw.joinToString("") { "%02x".format(it.toInt() and 0xff) }
     }
 
     /** B14：读取已发布制品的不可变元数据（无发布时返回 null）。 */

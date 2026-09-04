@@ -679,7 +679,7 @@ Gate：master/moderator/user 权限、审计、敏感配置和大数据查询性
 
 当前状态：`[ ]`。这些能力存在，但仍与总路由、文件服务和 Admin 混合。
 
-- [~] 更新发布使用签名 manifest、不可降级策略和不可变制品元数据（不可降级策略 + 不可变 manifest 旁文件已落地：sha256/versionCode/versionName 与 APK 字节绑定、客户端读取优先 manifest；签名 manifest 的 HMAC 待做）。
+- [x] 更新发布使用签名 manifest、不可降级策略和不可变制品元数据（不可降级 + 不可变 manifest 旁文件 + HMAC-SHA256 签名（key=JWT_SECRET，客户端验签）全部落地）。
 - [~] 静态/官网资源与 API route 分离部署和缓存策略（缓存策略已落地：HTML no-cache、静态 CSS/JS `public, max-age=3600`、PNG/WebRTC 更长缓存；分离部署属 nginx/CDN 运维配置）。
 - [x] 水印提取任务异步化，限制文件、CPU、内存和执行时间（`Dispatchers.Default` 异步 + 30s 超时兜底；请求体 4MB + 维度 ≤8192/像素 ≤16M 解压炸弹防御）。
 - [ ] 备份/恢复脚本纳入版本 migration 和定期恢复演练。
