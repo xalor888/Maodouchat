@@ -617,7 +617,7 @@ internal fun isRegistrationEmailDomainBlocked(
 }
 
 internal fun hasContentModerationAccess(userRepo: com.maodouchat.server.repository.UserRepository, userId: String): Boolean =
-    AdminAccess.isAdmin(userId) || userRepo.isModerator(userId)
+    com.maodouchat.server.service.AdminIdentityResolver.resolve(userId, userRepo).hasContentModerationAccess
 
 internal fun restrictionMessage(until: Long, action: String): String {
     val remainingMinutes = ((until - System.currentTimeMillis()).coerceAtLeast(0) + 59_999L) / 60_000L

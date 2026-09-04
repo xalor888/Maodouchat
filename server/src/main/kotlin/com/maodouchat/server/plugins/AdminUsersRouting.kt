@@ -11,6 +11,7 @@ import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.PushTokenRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.DispositionService
+import com.maodouchat.server.service.UserDispositionService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.jwt.JWTPrincipal
@@ -39,6 +40,7 @@ internal fun Route.configureAdminUsersRoutes(
     postRepo: PostRepository,
     authTokenRepo: AuthTokenRepository,
     groupMediaReferenceRepo: GroupMediaReferenceRepository,
+    userDispositionService: UserDispositionService,
 ) {
 
     // ─── 用户管理 ─────────────────────
@@ -168,49 +170,29 @@ internal fun Route.configureAdminUsersRoutes(
         if (AdminAccess.isAdmin(id)) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("不能修改其他超级管理员"))
         val req = call.receiveAdminJson<UpdateUserStatusRequest>()
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
-        val now = System.currentTimeMillis()
         val bannedUntil = req.bannedUntil ?: 0L
-        if (bannedUntil < 0 || bannedUntil > now + MAX_ADMIN_SUSPEND_MS || (bannedUntil in 1..now)) {
-            return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("封禁截止时间无效"))
+        when (val result = userDispositionService.suspend(actorId, id, bannedUntil, req.reasonCode, req.note)) {
+            is UserDispositionService.Result.Invalid ->
+                return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+            UserDispositionService.Result.NotFound ->
+                return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
+            is UserDispositionService.Result.Applied -> {
+                // 生效中的封禁需立刻废掉已签发会话，避免仅靠写路径的 suspended 检查被绕过
+                if (bannedUntil > System.currentTimeMillis()) {
+                    authTokenRepo.rotateAccessTokenVersion(id)
+                    // 封禁后旧设备不得再收推送
+                    PushTokenRepository().removeAllForUser(id)
+                    disconnectUserSessions(id, "账号已被临时封禁")
+                }
+                call.respond(
+                    buildJsonObject {
+                        put("status", "ok")
+                        put("reasonCode", result.reasonCode)
+                        put("appealNoticeZh", DispositionService.APPEAL_NOTICE_ZH)
+                    }
+                )
+            }
         }
-        val banDays = if (bannedUntil <= 0L) {
-            0
-        } else {
-            // ceil days for template validation; exact until still stored from client/server clock
-            (((bannedUntil - now) + 86_399_999L) / 86_400_000L).toInt().coerceIn(1, DispositionService.MAX_BAN_DAYS)
-        }
-        val disposition = DispositionService.validateDisposition(
-            banDays = banDays,
-            reasonCode = req.reasonCode,
-            note = req.note
-        )
-        val okDisposition = when (disposition) {
-            is DispositionService.DispositionValidation.Invalid ->
-                return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(disposition.message))
-            is DispositionService.DispositionValidation.Ok -> disposition
-        }
-        val auditDetail = DispositionService.auditDetail(
-            bannedUntil = bannedUntil,
-            reasonCode = okDisposition.reasonCode,
-            note = okDisposition.note,
-        )
-        // 9.154：以 update 影响行数为准——写字段 + 审计同一事务，替代裸 Users.update + 审计分离
-        val updated = userRepo.applyUserSuspension(actorId, id, bannedUntil, auditDetail)
-        if (!updated) return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
-        // 生效中的封禁需立刻废掉已签发会话，避免仅靠写路径的 suspended 检查被绕过
-        if (bannedUntil > now) {
-            authTokenRepo.rotateAccessTokenVersion(id)
-            // 封禁后旧设备不得再收推送
-            PushTokenRepository().removeAllForUser(id)
-            disconnectUserSessions(id, "账号已被临时封禁")
-        }
-        call.respond(
-        buildJsonObject {
-put("status", "ok")
-put("reasonCode", okDisposition.reasonCode)
-put("appealNoticeZh", DispositionService.APPEAL_NOTICE_ZH)
-        }
-    )
     }
 
     put("/users/{id}/post-restriction") {
@@ -221,46 +203,21 @@ put("appealNoticeZh", DispositionService.APPEAL_NOTICE_ZH)
         if (AdminAccess.isAdmin(id)) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("不能限制其他超级管理员"))
         val req = call.receiveAdminJson<UpdatePostRestrictionRequest>()
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
-        val now = System.currentTimeMillis()
         val postRestrictedUntil = req.postRestrictedUntil ?: 0L
-        if (postRestrictedUntil < 0 ||
-            postRestrictedUntil > now + DispositionService.MAX_POST_RESTRICT_DAYS * 86_400_000L ||
-            (postRestrictedUntil in 1..now)
-        ) {
-            return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("禁动态截止时间无效"))
+        when (val result = userDispositionService.restrictPosts(actorId, id, postRestrictedUntil, req.reasonCode, req.note)) {
+            is UserDispositionService.Result.Invalid ->
+                return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+            UserDispositionService.Result.NotFound ->
+                return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
+            is UserDispositionService.Result.Applied -> call.respond(
+                buildJsonObject {
+                    put("status", "ok")
+                    put("postRestrictedUntil", postRestrictedUntil)
+                    put("reasonCode", result.reasonCode)
+                    put("appealNoticeZh", DispositionService.APPEAL_NOTICE_ZH)
+                }
+            )
         }
-        val durationDays = if (postRestrictedUntil <= 0L) {
-            0
-        } else {
-            (((postRestrictedUntil - now) + 86_399_999L) / 86_400_000L)
-                .toInt()
-                .coerceIn(1, DispositionService.MAX_POST_RESTRICT_DAYS)
-        }
-        val disposition = DispositionService.validatePostRestrict(
-            durationDays = durationDays,
-            reasonCode = req.reasonCode,
-            note = req.note
-        )
-        val okDisposition = when (disposition) {
-            is DispositionService.DispositionValidation.Invalid ->
-                return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(disposition.message))
-            is DispositionService.DispositionValidation.Ok -> disposition
-        }
-        val auditDetail = DispositionService.auditPostRestrictDetail(
-            postRestrictedUntil = postRestrictedUntil,
-            reasonCode = okDisposition.reasonCode,
-            note = okDisposition.note,
-        )
-        val updated = userRepo.applyUserPostRestriction(actorId, id, postRestrictedUntil, auditDetail)
-        if (!updated) return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
-        call.respond(
-            buildJsonObject {
-                put("status", "ok")
-                put("postRestrictedUntil", postRestrictedUntil)
-                put("reasonCode", okDisposition.reasonCode)
-                put("appealNoticeZh", DispositionService.APPEAL_NOTICE_ZH)
-            }
-        )
     }
 
     put("/users/{id}/message-restriction") {
@@ -271,46 +228,21 @@ put("appealNoticeZh", DispositionService.APPEAL_NOTICE_ZH)
         if (AdminAccess.isAdmin(id)) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("不能限制系统主管理员"))
         val req = call.receiveAdminJson<UpdateMessageRestrictionRequest>()
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
-        val now = System.currentTimeMillis()
         val messageRestrictedUntil = req.messageRestrictedUntil ?: 0L
-        if (messageRestrictedUntil < 0 ||
-            messageRestrictedUntil > now + DispositionService.MAX_MESSAGE_RESTRICT_DAYS * 86_400_000L ||
-            (messageRestrictedUntil in 1..now)
-        ) {
-            return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("禁消息截止时间无效"))
+        when (val result = userDispositionService.restrictMessages(actorId, id, messageRestrictedUntil, req.reasonCode, req.note)) {
+            is UserDispositionService.Result.Invalid ->
+                return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+            UserDispositionService.Result.NotFound ->
+                return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
+            is UserDispositionService.Result.Applied -> call.respond(
+                buildJsonObject {
+                    put("status", "ok")
+                    put("reasonCode", result.reasonCode)
+                    put("appealNoticeZh", DispositionService.APPEAL_NOTICE_ZH)
+                    put("messageRestrictedUntil", messageRestrictedUntil)
+                }
+            )
         }
-        val durationDays = if (messageRestrictedUntil <= 0L) {
-            0
-        } else {
-            (((messageRestrictedUntil - now) + 86_399_999L) / 86_400_000L)
-                .toInt()
-                .coerceIn(1, DispositionService.MAX_MESSAGE_RESTRICT_DAYS)
-        }
-        val disposition = DispositionService.validateMessageRestrict(
-            durationDays = durationDays,
-            reasonCode = req.reasonCode,
-            note = req.note
-        )
-        val okDisposition = when (disposition) {
-            is DispositionService.DispositionValidation.Invalid ->
-                return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(disposition.message))
-            is DispositionService.DispositionValidation.Ok -> disposition
-        }
-        val auditDetail = DispositionService.auditMessageRestrictDetail(
-            messageRestrictedUntil = messageRestrictedUntil,
-            reasonCode = okDisposition.reasonCode,
-            note = okDisposition.note,
-        )
-        val updated = userRepo.applyUserMessageRestriction(actorId, id, messageRestrictedUntil, auditDetail)
-        if (!updated) return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
-        call.respond(
-            buildJsonObject {
-                put("status", "ok")
-                put("reasonCode", okDisposition.reasonCode)
-                put("appealNoticeZh", DispositionService.APPEAL_NOTICE_ZH)
-                put("messageRestrictedUntil", messageRestrictedUntil)
-            }
-        )
     }
 
 

@@ -8,6 +8,7 @@ import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.DispositionService
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.UserDispositionService
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpHeaders
 import io.ktor.server.application.Application
@@ -130,6 +131,7 @@ internal fun Application.configureAdminManagementRouting(
                 postRepo = postRepo,
                 authTokenRepo = authTokenRepo,
                 groupMediaReferenceRepo = groupMediaReferenceRepo,
+                userDispositionService = UserDispositionService(userRepo),
             )
 
             // ─── 内容管理（动态 / 评论，见 AdminContentRouting.kt） ───

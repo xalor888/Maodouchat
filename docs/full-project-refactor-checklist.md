@@ -664,12 +664,12 @@ Gate：token rotate、webhook 重启/死信、顺序幂等、群权限和 Telegr
 
 ### B13 Admin、运行配置、运营统计与审计
 
-当前状态：`[~]`。`AdminRouting.kt` 已缩为 22 行注册门面（非 4,575 行）；`RuntimeConfigService` 引入 typed registry（`RuntimeSettingsRegistry`，119 个开关的类型/默认/范围/敏感性/重启元数据，`defaults()`/`knownKeys` 去重 + `set`/`setMany` 类型范围校验）；`OperationsQueryService` 已承接运营统计只读查询（dashboard/system-stats/trends/online/ranking/storage/rich-trends/audit-logs，AdminObservabilityRouting 470→~120 行纯路由，删 9 处路由内事务 + dayBucketExpression/审计 helper 重复）；剩余 AdminIdentity、UserDispositionService、AdminBulk/AdminEnhance 写事务统一与重复能力合并。
+当前状态：`[~]`。`AdminRouting.kt` 已缩为 22 行注册门面（非 4,575 行）；`RuntimeConfigService` 引入 typed registry（`RuntimeSettingsRegistry`）；`OperationsQueryService` 承接运营统计只读查询（AdminObservabilityRouting 470→~120 行纯路由）；`AdminIdentity`（master/moderator 两级角色解析）+ `UserDispositionService`（封禁/禁动态/禁消息写命令门面，单用户路由校验逻辑去重）落地；剩余 AdminBulk/AdminEnhance 写事务统一、重复 getter 删除与重复能力合并。
 
-- [~] 建立 `AdminIdentity`、`UserDispositionService`、`OperationsQueryService`（`OperationsQueryService` 已落地；AdminIdentity/UserDispositionService 待做）。
+- [x] 建立 `AdminIdentity`、`UserDispositionService`、`OperationsQueryService`（`AdminIdentity`+`AdminIdentityResolver`、`UserDispositionService` 写命令门面、`OperationsQueryService` 只读统计）。
 - [x] Runtime settings 使用 typed registry 描述类型、默认值、范围、敏感性和重启要求（`RuntimeSettingsRegistry`：类型/默认/range/sensitive/restartRequired，`defaults()` 单一事实源派生 + `normalize` 校验）。
 - [ ] 管理 route 按用户治理、内容审核、配置、统计、公告拆分。
-- [~] 管理写操作统一 command + audit；统计走只读 query model（统计 query model 已由 `OperationsQueryService` 承接；写 command + audit 待统一）。
+- [~] 管理写操作统一 command + audit；统计走只读 query model（统计 query model 已由 `OperationsQueryService` 承接；单用户处置写已由 `UserDispositionService` 统一；AdminBulk 批量写仍待统一）。
 - [ ] 合并 AdminRouting/AdminEnhanceRouting 重复能力。
 - [~] 删除重复 getter、路由事务和敏感配置导出（observability 路由事务已清零；`dayBucketExpression`/`recordAdminAudit`/`isAdminUser`/`csvCell` 去重；剩余 AdminBulk/AdminEnhance 路由事务与重复 getter 待删）。
 
