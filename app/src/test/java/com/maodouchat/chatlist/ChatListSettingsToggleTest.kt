@@ -1,7 +1,9 @@
 package com.maodouchat.chatlist
 
 import com.maodouchat.data.model.Chat
+import com.maodouchat.network.ChatSettingsResponse
 import com.maodouchat.ui.screen.chatlist.ChatSettingsToggle
+import com.maodouchat.ui.screen.chatlist.applyConfirmedSettings
 import com.maodouchat.ui.screen.chatlist.buildSettingsToggle
 import com.maodouchat.ui.screen.chatlist.bumpOptimisticSettingsClock
 import com.maodouchat.ui.screen.chatlist.selectUnreadBatchTargets
@@ -65,6 +67,29 @@ class ChatListSettingsToggleTest {
         val m = buildSettingsToggle(chat, ChatSettingsToggle.MARKED_UNREAD, nowMs = 1000)
         assertTrue(m.optimistic.markedUnread)
         assertEquals(true, m.request.markedUnread)
+    }
+
+    @Test
+    fun confirmedMergeTakesServerSnapshot() {
+        val optimistic = Chat(
+            id = "a", pinnedAt = 111, notificationsMuted = true,
+            archived = false, markedUnread = true, settingsUpdatedAt = 1000,
+            lastMessage = "local-preview",
+        )
+        val confirmed = applyConfirmedSettings(
+            optimistic,
+            ChatSettingsResponse(
+                chatId = "a", pinnedAt = 222, notificationsMuted = false,
+                archived = true, markedUnread = false, updatedAt = 2000,
+            ),
+        )
+        assertEquals(222, confirmed.pinnedAt)
+        assertEquals(false, confirmed.notificationsMuted)
+        assertEquals(true, confirmed.archived)
+        assertEquals(false, confirmed.markedUnread)
+        assertEquals(2000, confirmed.settingsUpdatedAt)
+        // 非设置字段保持乐观值。
+        assertEquals("local-preview", confirmed.lastMessage)
     }
 
     @Test

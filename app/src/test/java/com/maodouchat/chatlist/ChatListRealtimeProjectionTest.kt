@@ -5,6 +5,7 @@ import com.maodouchat.data.model.User
 import com.maodouchat.ui.screen.chatlist.applyPresenceProjection
 import com.maodouchat.ui.screen.chatlist.buildAdminBroadcastProjection
 import com.maodouchat.ui.screen.chatlist.zeroChatUnread
+import com.maodouchat.ui.screen.chatlist.zeroChatsUnread
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -29,6 +30,21 @@ class ChatListRealtimeProjectionTest {
         val chats = listOf(chat("a", unread = 3))
         val next = zeroChatUnread(chats, "  ")
         assertEquals(3, next[0].unreadCount)
+    }
+
+    @Test
+    fun zeroBatchOnlyTouchesSelected() {
+        val chats = listOf(chat("a", unread = 3, marked = true), chat("b", unread = 1))
+        val next = zeroChatsUnread(chats, setOf("b", "ghost"))
+        assertEquals(3, next[0].unreadCount)
+        assertEquals(true, next[0].markedUnread)
+        assertEquals(0, next[1].unreadCount)
+    }
+
+    @Test
+    fun zeroBatchEmptyIsNoop() {
+        val chats = listOf(chat("a", unread = 3))
+        assertEquals(chats, zeroChatsUnread(chats, emptySet()))
     }
 
     @Test

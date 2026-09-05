@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.data.model.Chat
+import com.maodouchat.network.ChatSettingsResponse
 import com.maodouchat.network.UpdateChatSettingsRequest
 
 /**
@@ -29,6 +30,19 @@ data class SettingsToggleMutation(
 
 fun bumpOptimisticSettingsClock(chat: Chat, nowMs: Long): Chat =
     chat.copy(settingsUpdatedAt = maxOf(nowMs, chat.settingsUpdatedAt + 1L))
+
+/**
+ * 服务端确认合并（`updateChatSettings` 成功分支逐字搬运）：以服务端快照覆盖
+ * 四个设置位与更新时钟，其余本地字段（预览/草稿等）保持乐观值。
+ */
+fun applyConfirmedSettings(optimistic: Chat, settings: ChatSettingsResponse): Chat =
+    optimistic.copy(
+        pinnedAt = settings.pinnedAt,
+        notificationsMuted = settings.notificationsMuted,
+        archived = settings.archived,
+        markedUnread = settings.markedUnread,
+        settingsUpdatedAt = settings.updatedAt,
+    )
 
 fun buildSettingsToggle(
     chat: Chat,

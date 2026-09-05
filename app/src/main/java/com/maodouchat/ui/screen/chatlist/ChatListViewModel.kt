@@ -1134,9 +1134,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         val secretUnread = targets.secret
         val session = ownerSession(ownerUserId)
         _uiState.update { state ->
-            state.copy(chats = state.chats.map { chat ->
-                if (unreadChats.any { it.id == chat.id }) chat.copy(unreadCount = 0, markedUnread = false) else chat
-            })
+            state.copy(chats = zeroChatsUnread(state.chats, unreadChats.map { it.id }.toSet()))
         }
         viewModelScope.launch {
             unreadChats.forEach { chat ->
@@ -1228,9 +1226,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         val session = ownerSession(ownerUserId)
         val allReadIds = toRead.map { it.id }.toSet()
         _uiState.update { state ->
-            state.copy(chats = state.chats.map { chat ->
-                if (chat.id in allReadIds) chat.copy(unreadCount = 0, markedUnread = false) else chat
-            })
+            state.copy(chats = zeroChatsUnread(state.chats, allReadIds))
         }
         viewModelScope.launch {
             if (!isOwnerSessionCurrent(session)) return@launch
@@ -1452,13 +1448,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                         ) {
                             return@fold
                         }
-                        val confirmed = optimistic.copy(
-                            pinnedAt = settings.pinnedAt,
-                            notificationsMuted = settings.notificationsMuted,
-                            archived = settings.archived,
-                            markedUnread = settings.markedUnread,
-                            settingsUpdatedAt = settings.updatedAt
-                        )
+                        val confirmed = applyConfirmedSettings(optimistic, settings)
                         chatRepo.cacheChats(listOf(confirmed))
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = settingsOwnerUserId,

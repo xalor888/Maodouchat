@@ -12,8 +12,14 @@ import com.maodouchat.data.repository.NotificationCenterItem
  */
 fun zeroChatUnread(chats: List<Chat>, chatId: String): List<Chat> {
     if (chatId.isBlank()) return chats
+    return zeroChatsUnread(chats, setOf(chatId))
+}
+
+/** 批量归零（`batchMarkReadSelected` 与 `markAllUnreadChatsRead` 的公共投影）。 */
+fun zeroChatsUnread(chats: List<Chat>, chatIds: Set<String>): List<Chat> {
+    if (chatIds.isEmpty()) return chats
     return chats.map { chat ->
-        if (chat.id == chatId) chat.copy(unreadCount = 0, markedUnread = false) else chat
+        if (chat.id in chatIds) chat.copy(unreadCount = 0, markedUnread = false) else chat
     }
 }
 
