@@ -635,6 +635,22 @@ internal object DatabaseMigrations {
         }
     }
 
+    val MIGRATION_38_39 = object : Migration(38, 39) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS voice_played (
+                    ownerUserId TEXT NOT NULL,
+                    messageId TEXT NOT NULL,
+                    playedAtMillis INTEGER NOT NULL,
+                    PRIMARY KEY(ownerUserId, messageId)
+                )
+                """.trimIndent(),
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_voice_played_ownerUserId ON voice_played(ownerUserId)")
+        }
+    }
+
     val ALL: List<Migration> = listOf(
         MIGRATION_5_6,
         MIGRATION_6_7,
@@ -669,6 +685,7 @@ internal object DatabaseMigrations {
         MIGRATION_35_36,
         MIGRATION_36_37,
         MIGRATION_37_38,
+        MIGRATION_38_39,
     )
 }
 

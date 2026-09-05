@@ -1,46 +1,49 @@
 package com.maodouchat.util
 
 import android.content.Context
-import android.content.SharedPreferences
+import com.maodouchat.data.local.AppDatabase
+import com.maodouchat.data.local.entity.VoicePlayedEntity
 import com.maodouchat.network.TokenManager
 
-/** 1.176：语音消息「已播放」标记（账号隔离；用于气泡未读红点）。 */
+/**
+ * 1.176：语音消息「已播放」标记（账号隔离；用于气泡未读红点）。
+ * Room 表承载（退役 `voice_played` SharedPreferences 存储）；调用方签名不变。
+ */
 object VoicePlayedStore {
-
-    private const val PREFS_NAME = "voice_played"
-    private const val KEY_PLAYED_IDS = "played_ids"
-
-    private fun scopedKey(base: String, userId: String): String = "$base:$userId"
 
     /** 指定语音消息是否已播放过。 */
     fun isPlayed(context: Context, messageId: String): Boolean {
         if (messageId.isBlank()) return true
-        val ids = playedIds(context) ?: return false
-        return ids.contains(messageId)
+        val userId = userId(context) ?: return false
+        return runCatching {
+            db(context).voicePlayedDao().isPlayedBlocking(userId, messageId) > 0
+        }.getOrDefault(false)
     }
 
     /** 标记语音消息已播放（自然播放完成时调用）。 */
     fun markPlayed(context: Context, messageId: String) {
         if (messageId.isBlank()) return
-        val account = accountPreferences(context) ?: return
-        val key = scopedKey(KEY_PLAYED_IDS, account.userId)
-        val current = account.prefs.getStringSet(key, null) ?: emptySet()
-        if (current.contains(messageId)) return
-        val updated = LinkedHashSet(current).apply { add(messageId) }
-        account.prefs.edit().putStringSet(key, updated).apply()
+        val userId = userId(context) ?: return
+        runCatching {
+            db(context).voicePlayedDao().markPlayedBlocking(
+                VoicePlayedEntity(
+                    ownerUserId = userId,
+                    messageId = messageId,
+                    playedAtMillis = System.currentTimeMillis(),
+                )
+            )
+        }
     }
 
-    private fun playedIds(context: Context): Set<String>? {
-        val account = accountPreferences(context) ?: return null
-        return account.prefs.getStringSet(scopedKey(KEY_PLAYED_IDS, account.userId), null)
+    /** 登出/销户清理该账号的已播标记。 */
+    fun clearForUser(context: Context, userId: String) {
+        if (userId.isBlank()) return
+        runCatching { db(context).voicePlayedDao().deleteForUserBlocking(userId) }
     }
 
-    private fun accountPreferences(context: Context): AccountPreferences? {
-        val appContext = context.applicationContext
-        val userId = TokenManager.getInstance(appContext).getUserId()?.takeIf(String::isNotBlank) ?: return null
-        val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return AccountPreferences(prefs, userId)
-    }
+    private fun db(ctx: Context): AppDatabase =
+        AppDatabase.getInstance(ctx.applicationContext)
 
-    private data class AccountPreferences(val prefs: SharedPreferences, val userId: String)
+    private fun userId(ctx: Context): String? =
+        TokenManager.getInstance(ctx.applicationContext).getUserId()?.takeIf(String::isNotBlank)
 }

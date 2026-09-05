@@ -23,6 +23,7 @@ import com.maodouchat.data.local.dao.ScheduledMessageDao
 import com.maodouchat.data.local.dao.SenderKeyRetryDao
 import com.maodouchat.data.local.dao.SignalKeyDao
 import com.maodouchat.data.local.dao.UserDao
+import com.maodouchat.data.local.dao.VoicePlayedDao
 import com.maodouchat.data.local.entity.AiSummaryCacheEntity
 import com.maodouchat.data.local.entity.ArchiveSuggestionDismissalEntity
 import com.maodouchat.data.local.entity.AiTaskEntity
@@ -46,6 +47,7 @@ import com.maodouchat.data.local.entity.SecretChatEntity
 import com.maodouchat.data.local.entity.SenderKeyRetryEntity
 import com.maodouchat.data.local.entity.SignalKeyEntity
 import com.maodouchat.data.local.entity.UserEntity
+import com.maodouchat.data.local.entity.VoicePlayedEntity
 
 @Database(
     entities = [
@@ -72,8 +74,9 @@ import com.maodouchat.data.local.entity.UserEntity
         ScheduledMessageEntity::class,
         MessageReminderEntity::class,
         ArchiveSuggestionDismissalEntity::class,
+        VoicePlayedEntity::class,
     ],
-    version = 38,
+    version = 39,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -97,6 +100,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun scheduledMessageDao(): ScheduledMessageDao
     abstract fun messageReminderDao(): MessageReminderDao
     abstract fun archiveDismissalDao(): ArchiveDismissalDao
+    abstract fun voicePlayedDao(): VoicePlayedDao
 
 
     companion object {

@@ -230,6 +230,7 @@ class SecureSessionManager(
                 accountUserId?.takeIf { it.isNotBlank() }?.let { uid ->
                     database.messageReminderDao().deleteForUserBlocking(uid)
                     com.maodouchat.util.MessageReminderStore.clearForUser(context, uid)
+                    database.voicePlayedDao().deleteForUserBlocking(uid)
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
