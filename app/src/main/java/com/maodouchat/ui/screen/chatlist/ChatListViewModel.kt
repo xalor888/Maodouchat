@@ -1194,24 +1194,34 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
 
     /** 1.368：进入会话列表多选模式（长按任一会话） */
     fun enterSelectionMode() {
-        _uiState.update { it.copy(selectionMode = true) }
+        _uiState.update { state ->
+            val next = reduceSelection(
+                ChatListSelection(state.selectionMode, state.selectedChatIds),
+                ChatListSelectionEvent.Enter,
+            )
+            state.copy(selectionMode = next.selectionMode, selectedChatIds = next.selectedChatIds)
+        }
     }
 
     /** 1.368：退出多选模式并清空勾选 */
     fun exitSelectionMode() {
-        _uiState.update { it.copy(selectionMode = false, selectedChatIds = emptySet()) }
+        _uiState.update { state ->
+            val next = reduceSelection(
+                ChatListSelection(state.selectionMode, state.selectedChatIds),
+                ChatListSelectionEvent.Exit,
+            )
+            state.copy(selectionMode = next.selectionMode, selectedChatIds = next.selectedChatIds)
+        }
     }
 
     /** 1.368：勾选/取消勾选一个会话（最后一个取消时自动退出多选） */
     fun toggleSelectChat(chatId: String) {
         _uiState.update { state ->
-            val selected = state.selectedChatIds
-            val next = if (chatId in selected) selected - chatId else selected + chatId
-            if (next.isEmpty()) {
-                state.copy(selectionMode = false, selectedChatIds = emptySet())
-            } else {
-                state.copy(selectedChatIds = next)
-            }
+            val next = reduceSelection(
+                ChatListSelection(state.selectionMode, state.selectedChatIds),
+                ChatListSelectionEvent.Toggle(chatId),
+            )
+            state.copy(selectionMode = next.selectionMode, selectedChatIds = next.selectedChatIds)
         }
     }
 
@@ -1228,12 +1238,11 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         if (selected.isEmpty()) return
         val ownerUserId = currentUserIdStr
         if (ownerUserId.isBlank()) return
-        val chatsById = _uiState.value.chats.associateBy { it.id }
-        val toRead = selected.mapNotNull { chatsById[it] }
-            .filter { com.maodouchat.util.ChatFolderPolicy.isUnreadChat(it.unreadCount, it.markedUnread) }
-        if (toRead.isEmpty()) return
-        val ordinary = toRead.filter { !it.isSecret }
-        val secret = toRead.filter { it.isSecret }
+        val targets = selectUnreadBatchTargets(_uiState.value.chats, selected)
+        if (targets.ordinary.isEmpty() && targets.secret.isEmpty()) return
+        val toRead = targets.ordinary + targets.secret
+        val ordinary = targets.ordinary
+        val secret = targets.secret
         val session = ownerSession(ownerUserId)
         val allReadIds = toRead.map { it.id }.toSet()
         _uiState.update { state ->
