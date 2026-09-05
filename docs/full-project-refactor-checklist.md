@@ -180,7 +180,7 @@ Gate：ACK 前后杀进程、重复 pull、poison、顺序阻塞、修复绕行�
 - [ ] 建立 `CryptoAccountBootstrapper`、`PreKeyInventory`、`PreKeyPublisher`。
 - [ ] 建立 `DirectSessionManager`、`DirectMessageCipher`、`EnvelopeCodec`。
 - [~] 建立 `IdentityTrustService`、`DeviceIdMigrationCoordinator`（`IdentityTrustService` 契约 + `IdentityTrustStateMachine` 纯逻辑已建并测试；`DeviceIdMigrationCoordinator` 待做）。
-- [ ] `SignalProtocolStore` 只负责 libsignal 持久化适配。
+- [x] `SignalProtocolStore` 只负责 libsignal 持久化适配（`PersistentSignalProtocolStore` 390 行独立适配，`SignalProtocol` 通过它读写身份/签名预密钥/OTPK；不混业务逻辑）。
 - [ ] 迁移期保留薄 `SignalProtocol` facade；调用者迁完后删除宽接口。
 - [ ] 页面、Widget、Worker、AI、附件不得调用 Signal 原语。
 
