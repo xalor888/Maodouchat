@@ -463,8 +463,8 @@ Gate：prompt injection、伪造 tool call、重复写、流中断、账号切�
 - [ ] 定义统一 `PushTransport`；前台 WS 与后台推送渠道职责分开。
 - [ ] 推送只唤醒 inbox/sync，不携带聊天敏感正文。
 - [ ] 替换语义模糊的守护/假来电/媒体保活实现，遵守 Android 后台限制。
-- [~] 拆分 Message、Call、Social、Reminder notification service（3/4 完成：+`SocialNotificationService`（公告/好友/群邀请 3 show+2 cancelAll），`AppNotifier` 保留同签名薄委托 1057→709 行；共享渠道/门禁/post 能力暂为 `AppNotifier.internal`，随 Message 拆分下沉）。
-- [ ] 通知 intent、隐私、账号隔离和去重保持纯策略。
+- [x] 拆分 Message、Call、Social、Reminder notification service（4/4 完成：+`MessageNotificationService`（showMessage/reminder/test/scheduledFailed/cancelMessage，M11 动作/前台静音/群渠道逐行搬运）与 Post 归位 Social（showPostInteraction/cancelPostInteraction）；`AppNotifier` 1057→434 行，仅剩 ensureChannels/薄委托/internal 共享能力/EXTRA 常量/cancelAll）。
+- [x] 通知去重保持纯策略（`NotificationSlotPolicy` 为 tag/id/分组/data-URI/requestCode 唯一事实源；账号隔离仍由 `notificationOwnerMatches` + `NotificationIntentPolicy` 双门禁执行）。
 - [ ] 删除巨型 `AppNotifier` 静态入口。
 
 Gate：Doze、强杀、重启、Token 轮换、Android 13-16 权限、密聊脱敏和重复推送通过。

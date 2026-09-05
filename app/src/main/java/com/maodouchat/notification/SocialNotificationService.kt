@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
@@ -183,8 +184,91 @@ object SocialNotificationService {
         }
     }
 
-    fun cancelAllFriendRequests(context: Context) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    fun showPostInteraction(
+        context: Context,
+        postId: String,
+        isComment: Boolean,
+        soundEnabled: Boolean = true,
+        expectedUserId: String,
+        // 1.113：互动类型（LIKE / COMMENT / COMMENT_LIKE），用于文案区分
+        interaction: String = if (isComment) "COMMENT" else "LIKE",
+        // 1.130：评论/回复/评论赞内容预览（非空时用于通知文本与中心 preview）
+        preview: String? = null,
+        // 1.132：评论 id（打开动态时跳转到该评论）
+        commentId: String? = null,
+    ) {
+        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return
+        AppNotifier.ensureChannels(context)
+        if (!AppNotifier.canPostNotifications(context)) return
+        val tapIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(AppNotifier.EXTRA_OPEN_POST_ID, postId)
+            data = Uri.parse(NotificationSlotPolicy.postDataUri(postId))
+        }
+        with(AppNotifier) { tapIntent.putNotificationOwner(expectedUserId) }
+        val pi = PendingIntent.getActivity(
+            context, NotificationSlotPolicy.postRequestCode(postId), tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        // 1.113：评论被赞 → 独立文案；1.122：回复 → 独立文案
+        val textRes = when (interaction) {
+            "COMMENT_LIKE" -> R.string.notification_post_comment_like
+            "REPLY" -> R.string.notification_post_reply
+            "COMMENT" -> R.string.notification_post_comment
+            else -> R.string.notification_post_like
+        }
+        val baseText = context.getString(textRes)
+        // 9.137：互动通知预览与 showMessage 同口径脱敏——App 锁/隐藏通知内容开启时，
+        // 锁屏与通知中心不得明文展示评论/回复正文（此前是唯一漏掉该检查的消息类通知路径）
+        val hideDetails = AppNotifier.shouldHideSensitiveDetails(context)
+        // 1.130：有内容预览时追加到文案（通知栏一行）
+        val contentText = if (hideDetails) baseText
+        else preview?.takeIf(String::isNotBlank)?.let { "$baseText：$it" } ?: baseText
+        val notification = NotificationCompat.Builder(context, AppNotifier.CHANNEL_MESSAGES)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.notification_post_interaction))
+            .setContentText(contentText)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(AppNotifier.genericNotification(context, AppNotifier.CHANNEL_MESSAGES, R.string.notification_post_interaction))
+            .setAutoCancel(true)
+            .setContentIntent(pi)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setSilent(!AppNotifier.effectiveSoundEnabled(context, soundEnabled))
+            .build()
+        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return
+        // 8.44：动态互动通知独立 tag
+        AppNotifier.safeNotify(context, NotificationSlotPolicy.POST_TAG, NotificationSlotPolicy.postNotifyId(postId), notification, expectedUserId)
+        // 同步到通知中心
+        runCatching {
+            com.maodouchat.MaodouchatApp.emitNotificationCenterItem(
+                NotificationCenterItem(
+                    id = "post_${postId}_${if (interaction == "COMMENT_LIKE") "cl" else if (isComment) "c" else "l"}",
+                    type = NotificationCenterType.POST_INTERACTION,
+                    mergeKey = "post_$postId",
+                    title = context.getString(R.string.notification_post_interaction),
+                    subtitle = context.getString(textRes),
+                    // 9.137：脱敏时通知中心同样不存评论/回复明文
+                    preview = if (hideDetails) null else preview?.takeIf(String::isNotBlank),
+                    // 1.132：评论 id 供详情页跳转
+                    deeplink = if (commentId.isNullOrBlank()) "maodouchat:post:$postId" else "maodouchat:post:$postId?comment=${java.net.URLEncoder.encode(commentId, Charsets.UTF_8.name())}",
+                    extra = mapOf(
+                        "postId" to postId,
+                        "kind" to if (interaction == "COMMENT_LIKE") "comment_like" else if (isComment) "comment" else "like",
+                        "commentId" to (commentId ?: "")
+                    )
+                ),
+                expectedUserId = expectedUserId,
+            )
+        }
+    }
+
+    /** Clear post interaction tray (id = `post_{postId}`.hashCode()). */
+    fun cancelPostInteraction(context: Context, postId: String) {
+        if (postId.isBlank()) return
+        NotificationManagerCompat.from(context).cancel(NotificationSlotPolicy.POST_TAG, NotificationSlotPolicy.postNotifyId(postId))
+    }
+
+    fun cancelAllFriendRequests(context: Context) {        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.activeNotifications
             .filter { it.tag == NotificationSlotPolicy.FRIEND_REQUEST_TAG }
             .forEach { manager.cancel(it.tag, it.id) }
