@@ -350,7 +350,11 @@ fun ChatDetailViewModel.shareGroupAiAnswer() {
             aiAssistantMode = com.maodouchat.ai.GroupAiSharePolicy.shareAssistantMode(state.groupAiMode)
         )
         // Always send as the current user with AI-assisted meta — never a system identity.
-        sendGroupTextMessage(decision.body, meta)
+        sendMessage(
+            forceText = decision.body,
+            silent = meta.silent,
+            forcedMeta = meta.copy(markdown = meta.markdown),
+        )
         clearGroupAiAnswer()
 }
 

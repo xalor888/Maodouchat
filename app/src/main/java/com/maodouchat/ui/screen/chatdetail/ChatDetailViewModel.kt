@@ -2766,18 +2766,6 @@ class ChatDetailViewModel(
         }
     }
 
-    internal fun sendGroupTextMessage(
-        text: String,
-        meta: com.maodouchat.data.model.MessageMeta = com.maodouchat.data.model.MessageMeta(),
-        messageType: MessageType = MessageType.TEXT,
-    ) {
-        sendMessage(
-            forceText = text,
-            silent = meta.silent,
-            forcedMeta = meta.copy(markdown = meta.markdown || messageType == MessageType.MARKDOWN),
-        )
-    }
-
     private fun maybeShowNewDeviceHistoryBanner(messages: List<Message>) {
         if (!DecryptHistoryPolicy.newDeviceHistoryCannotDecrypt(signalProtocol.wasIdentityRestoredFromStore())) {
             return
