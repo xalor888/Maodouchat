@@ -204,6 +204,7 @@ class SecureSessionManager(
                     }
                     database.scheduledMessageDao().deleteForUserBlocking(ownerUserId)
                     com.maodouchat.util.ScheduledMessageStore.clearForUser(context, ownerUserId)
+                    database.archiveDismissalDao().deleteForUserBlocking(ownerUserId)
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error

@@ -218,28 +218,29 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /** 8.48 修复：忽略集合按账号持久化（此前仅内存，进程重启后已忽略建议重现）。 */
-    private val dismissedArchiveSuggestions = loadDismissedArchiveSuggestions()
+    /** 8.48 修复：忽略集合按账号持久化（此前仅内存，进程重启后已忽略建议重现）。Room 表承载（M09 之后），init 时异步加载。 */
+    private val dismissedArchiveSuggestions = mutableSetOf<String>()
 
-    private fun archiveDismissPrefs(): android.content.SharedPreferences =
-        getApplication<Application>().getSharedPreferences("archive_suggestion_dismiss", android.content.Context.MODE_PRIVATE)
+    private fun dismissalDao() = app.database.archiveDismissalDao()
 
-    private fun loadDismissedArchiveSuggestions(): MutableSet<String> {
-        val userId = tokenManager.getUserId().orEmpty()
-        if (userId.isBlank()) return mutableSetOf()
-        return archiveDismissPrefs()
-            .getStringSet("dismissed_$userId", emptySet())
-            .orEmpty()
-            .toMutableSet()
-    }
-
-    private fun persistDismissedArchiveSuggestions() {
-        val userId = tokenManager.getUserId().orEmpty()
-        if (userId.isBlank()) return
-        archiveDismissPrefs()
-            .edit()
-            .putStringSet("dismissed_$userId", dismissedArchiveSuggestions)
-            .apply()
+    init {
+        viewModelScope.launch {
+            val userId = tokenManager.getUserId().orEmpty()
+            if (userId.isBlank()) return@launch
+            val ids = try {
+                withContext(Dispatchers.IO) { dismissalDao().dismissedIds(userId) }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                return@launch
+            }
+            if (ids.isEmpty()) return@launch
+            dismissedArchiveSuggestions += ids
+            // 加载完成前已展示的建议里可能混入已忽略项，重新过滤一次。
+            _uiState.update { state ->
+                state.copy(archiveSuggestions = state.archiveSuggestions.filter { s -> s.chatId !in dismissedArchiveSuggestions })
+            }
+        }
     }
 
     /** 重算智能归档建议（纯本地 SQLCipher 打分，无服务端调用）。 */
@@ -264,16 +265,64 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
 
     /** 忽略单条归档建议（持久化，进程重启后不重现）。 */
     fun dismissArchiveSuggestion(chatId: String) {
+        if (chatId.isBlank()) return
         dismissedArchiveSuggestions += chatId
-        persistDismissedArchiveSuggestions()
+        persistDismissal(chatId)
         _uiState.update { it.copy(archiveSuggestions = it.archiveSuggestions.filter { s -> s.chatId != chatId }) }
     }
 
     /** 忽略全部归档建议（持久化）。 */
     fun dismissAllArchiveSuggestions() {
-        _uiState.value.archiveSuggestions.forEach { dismissedArchiveSuggestions += it.chatId }
-        persistDismissedArchiveSuggestions()
+        val ids = _uiState.value.archiveSuggestions.map { it.chatId }.filter { it.isNotBlank() }
+        if (ids.isEmpty()) return
+        dismissedArchiveSuggestions += ids
+        persistDismissals(ids)
         _uiState.update { it.copy(archiveSuggestions = emptyList()) }
+    }
+
+    private fun dismissalOwnerId(): String = tokenManager.getUserId().orEmpty()
+
+    private fun persistDismissal(chatId: String) {
+        val userId = dismissalOwnerId()
+        if (userId.isBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                dismissalDao().add(
+                    com.maodouchat.data.local.entity.ArchiveSuggestionDismissalEntity(
+                        ownerUserId = userId,
+                        chatId = chatId,
+                        dismissedAtMillis = System.currentTimeMillis(),
+                    )
+                )
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                android.util.Log.w("ChatListViewModel", "persist archive dismissal failed for $chatId")
+            }
+        }
+    }
+
+    private fun persistDismissals(chatIds: List<String>) {
+        val userId = dismissalOwnerId()
+        if (userId.isBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val now = System.currentTimeMillis()
+                chatIds.forEach { chatId ->
+                    dismissalDao().add(
+                        com.maodouchat.data.local.entity.ArchiveSuggestionDismissalEntity(
+                            ownerUserId = userId,
+                            chatId = chatId,
+                            dismissedAtMillis = now,
+                        )
+                    )
+                }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                android.util.Log.w("ChatListViewModel", "persist archive dismissals failed")
+            }
+        }
     }
 
     /** 采纳智能归档建议：归档会话（复用 toggleArchived 服务端同步）并移除建议。 */

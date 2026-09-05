@@ -17,10 +17,14 @@ import com.maodouchat.data.local.dao.MessageSearchDao
 import com.maodouchat.data.local.dao.MissedCallDao
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.dao.SecretChatDao
+import com.maodouchat.data.local.dao.MessageReminderDao
+import com.maodouchat.data.local.dao.ArchiveDismissalDao
+import com.maodouchat.data.local.dao.ScheduledMessageDao
 import com.maodouchat.data.local.dao.SenderKeyRetryDao
 import com.maodouchat.data.local.dao.SignalKeyDao
 import com.maodouchat.data.local.dao.UserDao
 import com.maodouchat.data.local.entity.AiSummaryCacheEntity
+import com.maodouchat.data.local.entity.ArchiveSuggestionDismissalEntity
 import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.data.local.entity.AiOperationEntity
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
@@ -30,22 +34,49 @@ import com.maodouchat.data.local.entity.ChatLockEntity
 import com.maodouchat.data.local.entity.IdentityTrustEntity
 import com.maodouchat.data.local.entity.MessageEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
+import com.maodouchat.data.local.entity.MessageReminderEntity
 import com.maodouchat.data.local.entity.MessageSearchDocumentEntity
 import com.maodouchat.data.local.entity.MessageSearchTokenEntity
 import com.maodouchat.data.local.entity.MissedCallEntity
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2ReceiptEntity
+import com.maodouchat.data.local.entity.ScheduledMessageEntity
 import com.maodouchat.data.local.entity.SecretChatEntity
 import com.maodouchat.data.local.entity.SenderKeyRetryEntity
 import com.maodouchat.data.local.entity.SignalKeyEntity
 import com.maodouchat.data.local.entity.UserEntity
 
 @Database(
-    entities = [UserEntity::class, ChatEntity::class, ChatDraftEntity::class, MessageEntity::class, SignalKeyEntity::class, IdentityTrustEntity::class, MissedCallEntity::class, ChatLockEntity::class, SecretChatEntity::class, AiSummaryCacheEntity::class, SenderKeyRetryEntity::class, AiTaskEntity::class, MessageSearchDocumentEntity::class, MessageSearchTokenEntity::class, AttachmentTransferEntity::class, AiOperationEntity::class, MessagingV2InboxEntity::class, MessagingV2OutboxEntity::class, MessagingV2ReceiptEntity::class, MessageMutationTombstoneEntity::class],
-    version = 35,
+    entities = [
+        UserEntity::class,
+        ChatEntity::class,
+        ChatDraftEntity::class,
+        MessageEntity::class,
+        SignalKeyEntity::class,
+        IdentityTrustEntity::class,
+        MissedCallEntity::class,
+        ChatLockEntity::class,
+        SecretChatEntity::class,
+        AiSummaryCacheEntity::class,
+        SenderKeyRetryEntity::class,
+        AiTaskEntity::class,
+        MessageSearchDocumentEntity::class,
+        MessageSearchTokenEntity::class,
+        AttachmentTransferEntity::class,
+        AiOperationEntity::class,
+        MessagingV2InboxEntity::class,
+        MessagingV2OutboxEntity::class,
+        MessagingV2ReceiptEntity::class,
+        MessageMutationTombstoneEntity::class,
+        ScheduledMessageEntity::class,
+        MessageReminderEntity::class,
+        ArchiveSuggestionDismissalEntity::class,
+    ],
+    version = 38,
     exportSchema = true
-)abstract class AppDatabase : RoomDatabase() {
+)
+abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
     abstract fun chatDao(): ChatDao
@@ -63,6 +94,10 @@ import com.maodouchat.data.local.entity.UserEntity
     abstract fun senderKeyRetryDao(): SenderKeyRetryDao
     abstract fun attachmentTransferDao(): AttachmentTransferDao
     abstract fun messagingV2Dao(): MessagingV2Dao
+    abstract fun scheduledMessageDao(): ScheduledMessageDao
+    abstract fun messageReminderDao(): MessageReminderDao
+    abstract fun archiveDismissalDao(): ArchiveDismissalDao
+
 
     companion object {
         @Volatile
