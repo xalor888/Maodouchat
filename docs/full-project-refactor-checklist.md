@@ -192,8 +192,8 @@ Gate：ratchet 重启连续性、pre-key 并发、身份变化、设备迁移和
 
 - [~] `GroupSenderKeyManager` 和 `GroupMessageCipher` 与 UI/Room/HTTP 解耦（契约已冻结到 `:core:crypto`，实现接线待做）。
 - [~] `GroupEncryptionHealthService` 唯一管理 coverage、epoch、repair 和错误状态（端口 + `GroupEncryptionHealth` 状态机已建并测试；实现待做）。
-- [ ] 新设备确认、成员 revision 变化和设备撤销都触发确定性的覆盖重算。
-- [ ] 保证旧 prepared ciphertext 不得跨 revision 发送。
+- [x] 新设备确认、成员 revision 变化和设备撤销都触发确定性的覆盖重算（`GroupMessagingCoordinator` 编排 `ensureCoverageNow`/`redistributeCoverageNow`/`enqueueCoverageRetryCommand`）。
+- [x] 保证旧 prepared ciphertext 不得跨 revision 发送（`invalidateGroupEpoch`→`invalidatePreparedGroupMessages`+`deleteQueuedGroupControls` 随 revision 失效旧 prepared ciphertext）。
 - [x] 群聊发送完全不读取成员在线状态（GroupMessagingCoordinator/SenderKeyRetryManager 无 `isOnline`/`online` 读取）。
 - [x] 删除旧 WS `REQUEST_SENDER_KEY`、inactive-chat decrypt 和重复 retry 路径（已无 `REQUEST_SENDER_KEY` 与 inactive-decrypt 遗留）。
 
