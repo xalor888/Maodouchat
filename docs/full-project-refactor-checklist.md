@@ -165,7 +165,7 @@ Gate：新旧客户端兼容矩阵确定；历史数据迁移可逆演练通过�
 当前状态：`[~]`。Inbox、Outbox、ACK、retry、timeline projector 已有新基础。
 
 - [x] 拆分 outbox 事务写入、claim、加密、发送和状态迁移（事务写入=`MessagingV2Outbox`、claim/发送=`MessagingV2OutboxCoordinator`、加密=`MessagingV2EnvelopePreparer`→`SignalMessagingV2Adapter`、状态迁移=`MessagingV2OutboxState`）。
-- [~] 拆分 DATA、EVENT、RECEIPT、GROUP_CONTROL projector（RECEIPT→`MessageReceiptProjector`、DATA 内容投影→`MessageContentProjector`、GROUP_CONTROL→`GroupMessagingCoordinator` 均已拆出；EVENT 编辑/撤回/删除/回应仍在 `MessagingV2TimelineProjector` 待继续拆）。
+- [x] 拆分 DATA、EVENT、RECEIPT、GROUP_CONTROL projector（DATA→`MessageContentProjector`、EVENT→`MessageEventProjector`、RECEIPT→`MessageReceiptProjector`、GROUP_CONTROL→`GroupMessagingCoordinator`；`MessagingV2TimelineProjector` 只剩 DATA 分派 + 到达策略）。
 - [~] Runtime 通过接口注入，不由页面或功能模块自行构造（`MessagingV2Runtime` 端口 + `OutboxState` 已冻结，实现接线待做）。
 - [x] 所有发送来源统一经过 tombstone、owner-session、outbox 事务（`ConversationCommandFacade.stage`→`MessagingV2MessageGateway`→`MessagingV2Outbox`（tombstone+owner+单事务）；`sendMessageV2` 唯一调用者为 OutboxCoordinator）。
 - [ ] 完成 poison envelope、dead letter、stale claim 和 repair bypass 的观测与操作入口。
