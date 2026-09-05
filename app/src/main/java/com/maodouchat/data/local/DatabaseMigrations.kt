@@ -651,6 +651,33 @@ internal object DatabaseMigrations {
         }
     }
 
+    val MIGRATION_39_40 = object : Migration(39, 40) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS notification_center_items (
+                    ownerUserId TEXT NOT NULL,
+                    id TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    mergeKey TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    subtitle TEXT,
+                    preview TEXT,
+                    deeplink TEXT,
+                    extraJson TEXT NOT NULL,
+                    read INTEGER NOT NULL,
+                    count INTEGER NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL,
+                    PRIMARY KEY(ownerUserId, id)
+                )
+                """.trimIndent(),
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_notification_center_items_ownerUserId ON notification_center_items(ownerUserId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_notification_center_items_ownerUserId_updatedAt ON notification_center_items(ownerUserId, updatedAt)")
+        }
+    }
+
     val ALL: List<Migration> = listOf(
         MIGRATION_5_6,
         MIGRATION_6_7,
@@ -686,6 +713,7 @@ internal object DatabaseMigrations {
         MIGRATION_36_37,
         MIGRATION_37_38,
         MIGRATION_38_39,
+        MIGRATION_39_40,
     )
 }
 

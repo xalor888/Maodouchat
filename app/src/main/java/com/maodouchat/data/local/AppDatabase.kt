@@ -16,6 +16,7 @@ import com.maodouchat.data.local.dao.MessageDao
 import com.maodouchat.data.local.dao.MessageSearchDao
 import com.maodouchat.data.local.dao.MissedCallDao
 import com.maodouchat.data.local.dao.MessagingV2Dao
+import com.maodouchat.data.local.dao.NotificationCenterDao
 import com.maodouchat.data.local.dao.SecretChatDao
 import com.maodouchat.data.local.dao.MessageReminderDao
 import com.maodouchat.data.local.dao.ArchiveDismissalDao
@@ -39,6 +40,7 @@ import com.maodouchat.data.local.entity.MessageReminderEntity
 import com.maodouchat.data.local.entity.MessageSearchDocumentEntity
 import com.maodouchat.data.local.entity.MessageSearchTokenEntity
 import com.maodouchat.data.local.entity.MissedCallEntity
+import com.maodouchat.data.local.entity.NotificationCenterItemEntity
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2ReceiptEntity
@@ -75,8 +77,9 @@ import com.maodouchat.data.local.entity.VoicePlayedEntity
         MessageReminderEntity::class,
         ArchiveSuggestionDismissalEntity::class,
         VoicePlayedEntity::class,
+        NotificationCenterItemEntity::class,
     ],
-    version = 39,
+    version = 40,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -101,6 +104,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun messageReminderDao(): MessageReminderDao
     abstract fun archiveDismissalDao(): ArchiveDismissalDao
     abstract fun voicePlayedDao(): VoicePlayedDao
+    abstract fun notificationCenterDao(): NotificationCenterDao
 
 
     companion object {

@@ -1,12 +1,20 @@
 package com.maodouchat.data.repository
 
 import android.content.Context
-import android.content.SharedPreferences
+import android.util.Log
+import com.maodouchat.data.local.AppDatabase
+import com.maodouchat.data.local.entity.NotificationCenterItemEntity
+import com.maodouchat.data.local.entity.toEntity
+import com.maodouchat.data.local.entity.toModel
 import com.maodouchat.network.TokenManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import org.json.JSONArray
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 
 /**
@@ -20,14 +28,16 @@ import org.json.JSONObject
  * - 群系统事件（被邀请入群 / 角色变化）
  * - 审核 / 风控提醒
  *
- * 持久化策略：本地 SharedPreferences，超过上限会滚动覆盖；条目保留 180 天后 GC。
+ * 持久化策略：Room `notification_center_items` 表（内存 StateFlow 仍是读写真相源；
+ * 磁盘读写经 `runBlocking(Dispatchers.IO)`/后台协程桥接，保持同步 API 不变，
+ * 调用方横跨主线程与后台，直接换 suspend 会波及约 25 处）。
  */
 class NotificationCenterRepository(context: Context) {
 
     private val appContext = context.applicationContext
     private val tokenManager = TokenManager.getInstance(appContext)
-    private val prefs: SharedPreferences =
-        appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private val database: AppDatabase by lazy { AppDatabase.getInstance(appContext) }
+    private val persistScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val accountLock = Any()
     @Volatile private var loadedUserId: String? = null
 
@@ -113,7 +123,11 @@ class NotificationCenterRepository(context: Context) {
                 ?: tokenManager.getUserId()?.takeIf(String::isNotBlank)
             _items.value = emptyList()
             if (target != null) {
-                prefs.edit().remove(accountItemsKey(target)).apply()
+                runCatching {
+                    kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                        database.notificationCenterDao().deleteForUserBlocking(target)
+                    }
+                }
             }
             // Force next ensureCurrentAccount to re-bind after login.
             if (userId.isNullOrBlank() || userId == loadedUserId || target == loadedUserId) {
@@ -368,22 +382,48 @@ class NotificationCenterRepository(context: Context) {
     }
 
     private fun migrateLegacy(userId: String) {
-        val accountKey = accountItemsKey(userId)
-        if (!prefs.contains(accountKey) && prefs.contains(KEY_ITEMS)) {
-            // 迁移只需写入一次，apply() 异步提交足够；commit() 在主线程调用会阻塞 UI
-            prefs.edit()
-                .putString(accountKey, prefs.getString(KEY_ITEMS, "[]"))
-                .remove(KEY_ITEMS)
-                .apply()
+        // 旧 SharedPreferences 快照一次性导入 Room：Room 为空且 prefs 有数据时搬运后删键。
+        // 此后 prefs 不再被读写（`notification_center` 键彻底退役）。
+        if (roomItems(userId).isNotEmpty()) return
+        val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        for (key in listOf(accountItemsKey(userId), KEY_ITEMS)) {
+            val raw = prefs.getString(key, null)?.takeIf { it.isNotBlank() } ?: continue
+            val items = runCatching {
+                val arr = org.json.JSONArray(raw)
+                (0 until arr.length()).mapNotNull { index ->
+                    runCatching { NotificationCenterItem.fromJson(arr.getJSONObject(index)) }.getOrNull()
+                }
+            }.getOrNull().orEmpty()
+            if (items.isNotEmpty()) {
+                runCatching {
+                    kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                        database.notificationCenterDao().replaceAllBlocking(userId, items.map { it.toEntity(userId) })
+                    }
+                }
+            }
+            runCatching { prefs.edit().remove(key).apply() }
+            if (key == accountItemsKey(userId)) break
         }
     }
 
+    private fun roomItems(userId: String): List<NotificationCenterItemEntity> = runCatching {
+        kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+            database.notificationCenterDao().itemsForOwnerBlocking(userId)
+        }
+    }.getOrDefault(emptyList())
+
     private fun loadFromDisk(userId: String): List<NotificationCenterItem> {
-        val raw = prefs.getString(accountItemsKey(userId), "[]").orEmpty().ifBlank { "[]" }
-        val arr = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
-        return (0 until arr.length()).mapNotNull { index ->
-            runCatching { NotificationCenterItem.fromJson(arr.getJSONObject(index)) }.getOrNull()
-        }.filter { System.currentTimeMillis() - it.updatedAt <= MAX_AGE_MS }
+        // 注意：调用方含主线程，Room 禁止主线程查询，此处经 runBlocking(Dispatchers.IO)
+        // 桥接（库内 MediaCache/SecretChatSession 同模式）；仅账号切换时触发一次。
+        // 180 天过期行在加载时 GC（与旧 JSON 版语义一致）。
+        return runCatching {
+            kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                val dao = database.notificationCenterDao()
+                val cutoff = System.currentTimeMillis() - MAX_AGE_MS
+                dao.deleteOlderThanBlocking(userId, cutoff)
+                dao.itemsForOwnerBlocking(userId).map { it.toModel() }
+            }
+        }.getOrDefault(emptyList())
     }
 
     private fun saveToDisk(userId: String, items: List<NotificationCenterItem>) {
@@ -393,9 +433,15 @@ class NotificationCenterRepository(context: Context) {
         val liveUserId = tokenManager.getUserId().orEmpty()
         if (liveUserId.isNotBlank() && liveUserId != userId) return
         if (loadedUserId != null && loadedUserId != userId) return
-        val arr = JSONArray()
-        items.forEach { arr.put(NotificationCenterItem.toJson(it)) }
-        prefs.edit().putString(accountItemsKey(userId), arr.toString()).apply()
+        // prefs apply() 语义的 Room 等价：后台协程写 behind，主线程不阻塞。
+        val snapshot = items.map { it.toEntity(userId) }
+        persistScope.launch {
+            runCatching {
+                database.notificationCenterDao().replaceAllBlocking(userId, snapshot)
+            }.onFailure { error ->
+                Log.w("NotificationCenter", "persist snapshot failed for $userId", error)
+            }
+        }
     }
 
     private fun accountItemsKey(userId: String): String = "$KEY_ITEMS:$userId"
@@ -423,23 +469,8 @@ data class NotificationCenterItem(
     val updatedAt: Long = System.currentTimeMillis()
 ) {
     companion object {
-        fun toJson(item: NotificationCenterItem): JSONObject = JSONObject().apply {
-            put("id", item.id)
-            put("type", item.type)
-            put("mergeKey", item.mergeKey)
-            put("title", item.title)
-            item.subtitle?.let { put("subtitle", it) }
-            item.preview?.let { put("preview", it) }
-            item.deeplink?.let { put("deeplink", it) }
-            val extraJson = JSONObject()
-            item.extra.forEach { (k, v) -> extraJson.put(k, v) }
-            put("extra", extraJson)
-            put("read", item.read)
-            put("count", item.count)
-            put("createdAt", item.createdAt)
-            put("updatedAt", item.updatedAt)
-        }
-
+        // 注：旧 JSON 读写（toJson/fromJson）已随 Room 迁移删除；
+        // 一次性 prefs 导入仍复用 fromJson（见 migrateLegacy）。
         fun fromJson(json: JSONObject): NotificationCenterItem {
             val extraJson = json.optJSONObject("extra")
             val extraMap = if (extraJson == null) emptyMap()
