@@ -229,7 +229,7 @@ Gate：重复/乱序 event、延迟 DATA、删除与附件 finalize、删除与�
 当前状态：`[~]`。准备、上传、finalize、下载已有模块（`AttachmentTransferWorker`/`AttachmentTransferFinalizer`/`AttachmentTransferScheduler`）；但 `AttachmentFinalizeUseCase`/`PreparationService`/`TransferRepository` 实现层未建（仅 domain 契约/状态机），Worker 仍直读全局 `MaodouchatApp` + `ApiService`，ViewModel 仍参与附件业务流程。
 
 - [~] 建立 `AttachmentIntentController`、`PreparationService`、`TransferRepository`（`AttachmentIntentController` 契约 + `TransferStatus`/状态机已冻结到 `:domain:messaging`，其余待做）。
-- [~] Worker 只调用 `AttachmentFinalizeUseCase`，不读取全局 Application/API（`AttachmentFinalizeUseCase` 已建（构造注入 app）；Worker 仍直读 `MaodouchatApp`/`TokenManager`/`ApiService` 做 terminal/token/upload/dispatch，待迁入 use case）。
+- [x] Worker 只调用 `AttachmentFinalizeUseCase`，不读取全局 Application/API（`AttachmentTransferUseCase` 封装 terminal/token/upload/dispatch 全编排；Worker 只剩取参 + 委托 + 结果映射）。
 - [ ] UI 只提交 URI intent、观察 transfer projection。
 - [ ] 统一图片、视频、文件、语音、GIF、贴纸、位置和联系人附件入口。
 - [x] 处理 pause/resume/cancel、进程恢复、revision 改变、tombstone 和本地清理（pause/resume/cancel 状态机已建并测试；tombstone→`discardTerminal`；revision 改变→`reconcileAttachments` 清 wire + 重调度；进程恢复→WorkManager）。
