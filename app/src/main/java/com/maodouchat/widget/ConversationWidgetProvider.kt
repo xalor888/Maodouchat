@@ -100,7 +100,10 @@ class ConversationWidgetProvider : AppWidgetProvider() {
     private fun handleOpenOrSync(context: Context, intent: Intent) {
         val chatId = intent.getStringExtra(ConversationWidgetContract.EXTRA_CHAT_ID).orEmpty()
         val ownerUserId = intent.getStringExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID).orEmpty()
-        if (chatId.isNotBlank()) {
+        // P08：生产侧清洗——非法 ID 直接走刷新分支，不构造 tap intent
+        //（消费侧 MainActivity 同样会拒收；此处前置失败，避免坏 data URI 进 PendingIntent）。
+        val cleanChatId = com.maodouchat.ui.navigation.AppLinkRouter.sanitizeChatIdStrict(chatId)
+        if (cleanChatId != null) {
             // 账号归属校验（与通知点击同一套策略）
             if (!com.maodouchat.notification.NotificationIntentPolicy.belongsToCurrentAccount(
                     notificationOwnerUserId = ownerUserId,
@@ -114,13 +117,13 @@ class ConversationWidgetProvider : AppWidgetProvider() {
                 // 8.40：补 FLAG_ACTIVITY_NEW_TASK——无前台 Activity 的广播/后台进程上下文下，
                 // 缺 NEW_TASK 会抛 AndroidRuntimeException 被 runCatching 吞掉，点击小组件无反应
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra(NotificationIntents.EXTRA_OPEN_CHAT_ID, chatId)
+                putExtra(NotificationIntents.EXTRA_OPEN_CHAT_ID, cleanChatId)
                 putExtra(NotificationIntents.EXTRA_NOTIFICATION_OWNER_USER_ID, ownerUserId)
-                data = Uri.parse("maodouchat-widget://open/$chatId")
+                data = Uri.parse("maodouchat-widget://open/$cleanChatId")
             }
             val pi = PendingIntent.getActivity(
                 context,
-                intent.getStringExtra(ConversationWidgetContract.EXTRA_CHAT_ID)?.hashCode() ?: 0,
+                cleanChatId.hashCode(),
                 open,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
@@ -135,10 +138,12 @@ class ConversationWidgetProvider : AppWidgetProvider() {
     private fun handleMarkRead(context: Context, intent: Intent) {
         val chatId = intent.getStringExtra(ConversationWidgetContract.EXTRA_CHAT_ID).orEmpty()
         val ownerUserId = intent.getStringExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID).orEmpty()
-        if (chatId.isBlank()) return
+        // P08：生产侧清洗与打开路径同口径。
+        val cleanChatId = com.maodouchat.ui.navigation.AppLinkRouter.sanitizeChatIdStrict(chatId)
+            ?: return
         val app = context.applicationContext as? MaodouchatApp ?: return
         app.applicationScope.launchSafe {
-            app.conversationReadReceiptCoordinator.markRead(chatId, ownerUserId.ifBlank { null })
+            app.conversationReadReceiptCoordinator.markRead(cleanChatId, ownerUserId.ifBlank { null })
         }
     }
 
