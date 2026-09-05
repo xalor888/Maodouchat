@@ -7,7 +7,6 @@ import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
@@ -53,11 +52,11 @@ internal class MessagingV2TimelineProjector(
             id = envelope.messageId,
             chatId = envelope.conversationId,
             senderId = envelope.senderUserId,
-            content = projectContent(payload),
+            content = MessageContentProjector.projectContent(payload),
             type = payload.type,
             timestamp = envelope.clientTimestamp,
             status = if (envelope.senderUserId == owner) MessageStatus.SENT else MessageStatus.DELIVERED,
-            meta = projectMetadata(payload),
+            meta = MessageContentProjector.projectMetadata(payload),
         )
         val arrival = MessagingV2ArrivalPolicy.evaluate(
             isNew = true,
@@ -94,29 +93,6 @@ internal class MessagingV2TimelineProjector(
         MaodouchatApp.emitChatListPreviewRefresh(envelope.conversationId)
         if (arrival.shouldAttemptNotification) notifier.notify(projected)
         if (arrival.shouldSendDeliveryReceipt) sendDeliveryReceipt(envelope)
-    }
-
-    private fun projectContent(payload: DecodedContentPayload): String {
-        if (payload.type !in ATTACHMENT_TYPES) return payload.body
-        val reference = MediaCache.decodeEncryptedAttachmentReference(payload.body) ?: return payload.body
-        return MediaCache.attachmentUri(reference.attachmentId)
-    }
-
-    private fun projectMetadata(payload: DecodedContentPayload): MessageMeta {
-        if (payload.type !in ATTACHMENT_TYPES) return payload.metadata
-        val reference = MediaCache.decodeEncryptedAttachmentReference(payload.body) ?: return payload.metadata
-        return payload.metadata.copy(
-            fileName = reference.fileName,
-            fileMimeType = reference.mimeType,
-            fileSizeBytes = reference.plainSize,
-            attachmentId = reference.attachmentId,
-            attachmentKeyBase64 = reference.keyBase64,
-            attachmentIvBase64 = reference.ivBase64,
-            attachmentCipherSha256 = reference.cipherSha256,
-            attachmentPlainSha256 = reference.plainSha256,
-            attachmentCipherSize = reference.cipherSize,
-            voiceDurationMs = reference.durationMs,
-        )
     }
 
     private suspend fun projectEvent(envelope: MessagingV2InboxEntity, event: MessagingV2Event) {
@@ -316,13 +292,6 @@ internal class MessagingV2TimelineProjector(
         )
         const val TYPE_SENDER_KEY_REQUEST = "SENDER_KEY_REQUEST"
         const val ATTRIBUTE_REQUESTED_SENDER = "requestedSenderUserId"
-        val ATTACHMENT_TYPES = setOf(
-            MessageType.IMAGE,
-            MessageType.GIF,
-            MessageType.VIDEO,
-            MessageType.VOICE,
-            MessageType.FILE,
-        )
         val MISSING_TARGET_NO_OP_ACTIONS = setOf(
             MessagingV2EventAction.DELETE,
             MessagingV2EventAction.DELIVERY_RECEIPT,
