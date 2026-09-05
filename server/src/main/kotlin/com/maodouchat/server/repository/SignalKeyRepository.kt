@@ -19,8 +19,12 @@ import java.util.UUID
  *
  * 管理用户的加密公钥（身份密钥、签名预密钥、一次性预密钥），按设备隔离。
  */
-class SignalKeyRepository {
-
+class SignalKeyRepository(
+    val deviceRegistry: DeviceRegistry = DeviceRegistry(),
+    val identityKeyStore: IdentityKeyStore = IdentityKeyStore(),
+    val signedPreKeyStore: SignedPreKeyStore = SignedPreKeyStore(),
+    val preKeyStore: PreKeyStore = PreKeyStore()
+) : EncryptableDeviceDirectory by deviceRegistry {
 
     /** Must run inside an open transaction. */
     private fun lockUserRow(userId: String) {
@@ -30,297 +34,32 @@ class SignalKeyRepository {
             .firstOrNull()
     }
 
-    fun touchDevice(userId: String, deviceId: Int, deviceName: String? = null) {
-        val normalizedName = deviceName?.trim()?.take(50)?.takeIf { it.isNotBlank() }
-        transaction {
-            // 串行化同一用户的设备注册，避免双设备同时 initialDeviceStatus → 双 CONFIRMED
-            com.maodouchat.server.db.Users.selectAll()
-                .where { com.maodouchat.server.db.Users.id eq userId }
-                .forUpdate()
-                .firstOrNull()
-            val existing = SignalDevices.selectAll().where {
-                (SignalDevices.userId eq userId) and (SignalDevices.deviceId eq deviceId)
-            }.forUpdate().firstOrNull()
-            val now = System.currentTimeMillis()
-            if (existing == null) {
-                val status = initialDeviceStatus(userId, deviceId)
-                // 已持有用户行锁，同 user 设备注册串行；禁止 catch 唯一冲突后同事务继续写（PG abort）
-                SignalDevices.insert {
-                    it[SignalDevices.userId] = userId
-                    it[SignalDevices.deviceId] = deviceId
-                    it[SignalDevices.deviceName] = normalizedName ?: "我的设备"
-                    it[SignalDevices.status] = status
-                    if (status == DEVICE_STATUS_CONFIRMED) {
-                        it[SignalDevices.confirmedAt] = now
-                        it[SignalDevices.confirmedByDeviceId] = deviceId
-                    }
-                    it[SignalDevices.createdAt] = now
-                    it[SignalDevices.lastSeenAt] = now
-                }
-            } else {
-                SignalDevices.update({
-                    (SignalDevices.userId eq userId) and (SignalDevices.deviceId eq deviceId)
-                }) {
-                    normalizedName?.let { name -> it[SignalDevices.deviceName] = name }
-                    it[SignalDevices.lastSeenAt] = now
-                }
-            }
-        }
-    }
+    fun touchDevice(userId: String, deviceId: Int, deviceName: String? = null) =
+        deviceRegistry.touchDevice(userId, deviceId, deviceName)
 
-    fun confirmDevice(userId: String, deviceId: Int, approverDeviceId: Int, signatureBase64: String): ConfirmDeviceResult {
-        val normalizedSignature = signatureBase64.trim()
-        if (deviceId !in 1..255 || approverDeviceId !in 1..255) return ConfirmDeviceResult.INVALID
-        if (normalizedSignature.isBlank() || normalizedSignature.length > 256) return ConfirmDeviceResult.INVALID_PROOF
-        return transaction {
-            // Serialize with touchDevice / deleteDeviceGuarded on the same user row
-            com.maodouchat.server.db.Users.selectAll()
-                .where { com.maodouchat.server.db.Users.id eq userId }
-                .forUpdate()
-                .firstOrNull()
+    fun confirmDevice(userId: String, deviceId: Int, approverDeviceId: Int, signatureBase64: String): ConfirmDeviceResult =
+        deviceRegistry.confirmDevice(userId, deviceId, approverDeviceId, signatureBase64)
 
-            val target = SignalDevices.selectAll().where {
-                (SignalDevices.userId eq userId) and (SignalDevices.deviceId eq deviceId)
-            }.forUpdate().firstOrNull() ?: return@transaction ConfirmDeviceResult.NOT_FOUND
+    fun updateDeviceName(userId: String, deviceId: Int, deviceName: String): Boolean =
+        deviceRegistry.updateDeviceName(userId, deviceId, deviceName)
 
-            if (target[SignalDevices.status] == DEVICE_STATUS_CONFIRMED) {
-                return@transaction ConfirmDeviceResult.ALREADY_CONFIRMED
-            }
+    fun getIdentityKey(userId: String, deviceId: Int): String? =
+        identityKeyStore.getIdentityKey(userId, deviceId)
 
-            val approver = SignalDevices.selectAll().where {
-                (SignalDevices.userId eq userId) and (SignalDevices.deviceId eq approverDeviceId)
-            }.forUpdate().firstOrNull() ?: return@transaction ConfirmDeviceResult.APPROVER_NOT_TRUSTED
-            if (approver[SignalDevices.status] != DEVICE_STATUS_CONFIRMED) {
-                return@transaction ConfirmDeviceResult.APPROVER_NOT_TRUSTED
-            }
-            if (deviceId == approverDeviceId) {
-                return@transaction ConfirmDeviceResult.APPROVER_NOT_TRUSTED
-            }
-            val targetIdentityKey = getSingleKeyInternal(userId, deviceId, "identity_key")
-                ?: return@transaction ConfirmDeviceResult.NOT_FOUND
-            val approverIdentityKey = getSingleKeyInternal(userId, approverDeviceId, "identity_key")
-                ?: return@transaction ConfirmDeviceResult.APPROVER_NOT_TRUSTED
-            if (!verifyDeviceConfirmationProof(
-                    userId = userId,
-                    approverDeviceId = approverDeviceId,
-                    targetDeviceId = deviceId,
-                    targetIdentityKeyBase64 = targetIdentityKey,
-                    approverIdentityKeyBase64 = approverIdentityKey,
-                    signatureBase64 = normalizedSignature
-                )
-            ) {
-                return@transaction ConfirmDeviceResult.INVALID_PROOF
-            }
+    fun getDeviceId(userId: String, deviceId: Int): Int? =
+        identityKeyStore.getDeviceId(userId, deviceId)
 
-            val now = System.currentTimeMillis()
-            SignalDevices.update({
-                (SignalDevices.userId eq userId) and (SignalDevices.deviceId eq deviceId)
-            }) {
-                it[SignalDevices.status] = DEVICE_STATUS_CONFIRMED
-                it[SignalDevices.confirmedAt] = now
-                it[SignalDevices.confirmedByDeviceId] = approverDeviceId
-                it[SignalDevices.lastSeenAt] = now
-            }
-            ConfirmDeviceResult.CONFIRMED
-        }
-    }
+    fun isAuthSessionBoundToDevice(userId: String, authSessionId: String, deviceId: Int): Boolean =
+        deviceRegistry.isAuthSessionBoundToDevice(userId, authSessionId, deviceId)
 
-    fun updateDeviceName(userId: String, deviceId: Int, deviceName: String): Boolean {
-        val normalizedName = deviceName.trim().take(50).takeIf { it.isNotBlank() } ?: return false
-        return transaction {
-            com.maodouchat.server.db.Users.selectAll()
-                .where { com.maodouchat.server.db.Users.id eq userId }
-                .forUpdate()
-                .firstOrNull()
-                ?: return@transaction false
-            val hasIdentityKey = SignalKeys.selectAll().where {
-                (SignalKeys.userId eq userId) and
-                    (SignalKeys.deviceId eq deviceId) and
-                    (SignalKeys.keyType eq "identity_key")
-            }.firstOrNull() != null
-            if (!hasIdentityKey) return@transaction false
-            SignalDevices.update({
-                (SignalDevices.userId eq userId) and (SignalDevices.deviceId eq deviceId)
-            }) {
-                it[SignalDevices.deviceName] = normalizedName
-                it[SignalDevices.lastSeenAt] = System.currentTimeMillis()
-            } > 0
-        }
-    }
+    fun getDeviceInfos(userId: String, currentDeviceId: Int? = null, includePending: Boolean = false): List<DeviceInfo> =
+        deviceRegistry.getDeviceInfos(userId, currentDeviceId, includePending)
 
-    fun getIdentityKey(userId: String, deviceId: Int): String? = getSingleKey(userId, deviceId, "identity_key")
-
-
-    fun getDeviceId(userId: String, deviceId: Int): Int? = getSingleKey(userId, deviceId, "device_id")?.toIntOrNull()
-
-
-
-    fun isDeviceConfirmed(userId: String, deviceId: Int): Boolean = transaction {
-        SignalDevices.selectAll().where {
-            (SignalDevices.userId eq userId) and
-                (SignalDevices.deviceId eq deviceId) and
-                (SignalDevices.status eq DEVICE_STATUS_CONFIRMED)
-        }.firstOrNull() != null
-    }
-
-    /** Whether the active JWT auth session is the session bound to this Signal device. */
-    fun isAuthSessionBoundToDevice(userId: String, authSessionId: String, deviceId: Int): Boolean {
-        if (userId.isBlank() || authSessionId.isBlank() || deviceId !in 1..255) return false
-        return transaction {
-            AuthSessions.selectAll().where {
-                (AuthSessions.id eq authSessionId) and
-                    (AuthSessions.userId eq userId) and
-                    (AuthSessions.signalDeviceId eq deviceId) and
-                    AuthSessions.revokedAt.isNull()
-            }.firstOrNull() != null
-        }
-    }
-
-    fun getDeviceIds(userId: String, confirmedOnly: Boolean = true): List<Int> {
-        val keyDeviceIds = transaction {
-            SignalKeys.select(SignalKeys.deviceId)
-            .where { SignalKeys.userId eq userId }
-            .withDistinct()
-            .map { it[SignalKeys.deviceId] }
-            .distinct()
-            .sorted()
-        }
-        if (!confirmedOnly) return keyDeviceIds
-        val confirmed = transaction {
-            SignalDevices.selectAll().where {
-                (SignalDevices.userId eq userId) and (SignalDevices.status eq DEVICE_STATUS_CONFIRMED)
-            }.map { it[SignalDevices.deviceId] }.toSet()
-        }
-        return keyDeviceIds.filter { it in confirmed }
-    }
-
-    /** Confirmed devices that have uploaded key material, fetched in one transaction for group fanout. */
-    fun getConfirmedDeviceTargets(userIds: Collection<String>): Set<Pair<String, Int>> {
-        val normalizedIds = userIds.filter(String::isNotBlank).distinct()
-        if (normalizedIds.isEmpty()) return emptySet()
-        return transaction {
-            val confirmed = SignalDevices.select(SignalDevices.userId, SignalDevices.deviceId)
-                .where {
-                    (SignalDevices.userId inList normalizedIds) and
-                        (SignalDevices.status eq DEVICE_STATUS_CONFIRMED)
-                }
-                .map { it[SignalDevices.userId] to it[SignalDevices.deviceId] }
-                .toSet()
-            val devicesWithKeys = SignalKeys.select(SignalKeys.userId, SignalKeys.deviceId, SignalKeys.keyType)
-                .where { SignalKeys.userId inList normalizedIds }
-                .groupBy { it[SignalKeys.userId] to it[SignalKeys.deviceId] }
-                .filterValues { rows ->
-                    val types = rows.map { it[SignalKeys.keyType] }.toSet()
-                    REQUIRED_BUNDLE_KEY_TYPES.all(types::contains)
-                }
-                .keys
-                .toSet()
-            confirmed intersect devicesWithKeys
-        }
-    }
-
-    fun getDeviceInfos(userId: String, currentDeviceId: Int? = null, includePending: Boolean = false): List<DeviceInfo> {
-        val metadata = transaction {
-            SignalDevices.selectAll()
-                .where { SignalDevices.userId eq userId }
-                .associate { row ->
-                    row[SignalDevices.deviceId] to DeviceMetadata(
-                        deviceName = row[SignalDevices.deviceName],
-                        status = row[SignalDevices.status],
-                        confirmedAt = row[SignalDevices.confirmedAt],
-                        confirmedByDeviceId = row[SignalDevices.confirmedByDeviceId],
-                        lastSeenAt = row[SignalDevices.lastSeenAt]
-                    )
-                }
-        }
-        return getDeviceIds(userId, confirmedOnly = false).mapNotNull { deviceId ->
-            val identityKey = getIdentityKey(userId, deviceId) ?: return@mapNotNull null
-            val meta = metadata[deviceId]
-            // 无 SignalDevices 行的设备视为 PENDING，避免对端向未确认设备 fan-out
-            val status = meta?.status ?: DEVICE_STATUS_PENDING
-            if (!includePending && status != DEVICE_STATUS_CONFIRMED) return@mapNotNull null
-            DeviceInfo(
-                userId = userId,
-                deviceId = deviceId,
-                deviceName = meta?.deviceName ?: "设备 #$deviceId",
-                identityKey = identityKey,
-                lastSeenAt = meta?.lastSeenAt,
-                isCurrent = currentDeviceId == deviceId,
-                status = status,
-                confirmedAt = meta?.confirmedAt,
-                confirmedByDeviceId = meta?.confirmedByDeviceId
-            )
-        }
-    }
-
-    /**
-     * 删除设备。与「至少保留一个已确认设备」在同一事务内、用户行锁下判定，
-     * 避免双设备并发删除把最后一个 CONFIRMED 清光。
-     */
-
-    fun deleteDeviceAndRevokeSessionsGuarded(userId: String, deviceId: Int): DeleteDeviceOutcome = transaction {
-        com.maodouchat.server.db.Users.selectAll()
-            .where { com.maodouchat.server.db.Users.id eq userId }
-            .forUpdate()
-            .firstOrNull()
-            ?: return@transaction DeleteDeviceOutcome(DeleteDeviceResult.NOT_FOUND)
-
-        val hasKeys = SignalKeys.selectAll().where {
-            (SignalKeys.userId eq userId) and (SignalKeys.deviceId eq deviceId)
-        }.firstOrNull() != null
-        val hasDeviceRow = SignalDevices.selectAll().where {
-            (SignalDevices.userId eq userId) and (SignalDevices.deviceId eq deviceId)
-        }.firstOrNull() != null
-        if (!hasKeys && !hasDeviceRow) return@transaction DeleteDeviceOutcome(DeleteDeviceResult.NOT_FOUND)
-
-        val confirmedIds = SignalDevices.selectAll().where {
-            (SignalDevices.userId eq userId) and (SignalDevices.status eq DEVICE_STATUS_CONFIRMED)
-        }.map { it[SignalDevices.deviceId] }.toSet()
-        val targetConfirmed = deviceId in confirmedIds
-        // 只保护最后一个已确认设备；无密钥的 PENDING 残行不能因此变得不可删除。
-        if (targetConfirmed && confirmedIds.size <= 1) {
-            return@transaction DeleteDeviceOutcome(DeleteDeviceResult.LAST_CONFIRMED)
-        }
-
-        val now = System.currentTimeMillis()
-        // 8.39：只吊销「明确绑定该设备」的会话——此前 `signalDeviceId IS NULL` 分支会把
-        // 该用户所有未绑定设备（新登录尚未上传密钥包 / 历史遗留）的会话一起吊销，连带登出其他设备
-        val revokedSessionIds = AuthSessions.selectAll().where {
-            (AuthSessions.userId eq userId) and
-                (AuthSessions.signalDeviceId eq deviceId) and
-                AuthSessions.revokedAt.isNull()
-        }.forUpdate().map { it[AuthSessions.id] }.toSet()
-        revokedSessionIds.forEach { sessionId ->
-            AuthSessions.update({
-                (AuthSessions.id eq sessionId) and AuthSessions.revokedAt.isNull()
-            }) {
-                it[revokedAt] = now
-                it[updatedAt] = now
-            }
-            RefreshTokens.update({
-                (RefreshTokens.userId eq userId) and
-                    (RefreshTokens.sessionId eq sessionId) and
-                    RefreshTokens.revokedAt.isNull()
-            }) {
-                it[revokedAt] = now
-            }
-            PushTokens.deleteWhere {
-                (PushTokens.userId eq userId) and (PushTokens.authSessionId eq sessionId)
-            }
-        }
-        SignalDevices.deleteWhere {
-            (SignalDevices.userId eq userId) and (SignalDevices.deviceId eq deviceId)
-        }
-        SignalKeys.deleteWhere {
-            (SignalKeys.userId eq userId) and (SignalKeys.deviceId eq deviceId)
-        }
-        // B06：设备退役立即清理其未投递邮箱，避免删除设备的信封等待周期任务。
-        com.maodouchat.server.messaging.retention.MailboxRetentionService().purgeRetiredDevice(userId, deviceId)
-        DeleteDeviceOutcome(DeleteDeviceResult.DELETED, revokedSessionIds)
-    }
+    fun deleteDeviceAndRevokeSessionsGuarded(userId: String, deviceId: Int): DeleteDeviceOutcome =
+        deviceRegistry.deleteDeviceAndRevokeSessionsGuarded(userId, deviceId)
 
     fun deleteDeviceGuarded(userId: String, deviceId: Int): DeleteDeviceResult =
-        deleteDeviceAndRevokeSessionsGuarded(userId, deviceId).result
+        deviceRegistry.deleteDeviceGuarded(userId, deviceId)
 
     fun getBundle(
         userId: String,
@@ -339,15 +78,15 @@ class SignalKeyRepository {
             }.forUpdate().firstOrNull() != null
             if (!confirmed) return@transaction null
 
-            val identityKey = getSingleKeyInternal(userId, deviceId, "identity_key") ?: return@transaction null
+            val identityKey = identityKeyStore.getIdentityKey(userId, deviceId) ?: return@transaction null
             val registrationId = getSingleKeyInternal(userId, deviceId, "registration_id")?.toIntOrNull() ?: return@transaction null
-            val actualDeviceId = getSingleKeyInternal(userId, deviceId, "device_id")?.toIntOrNull() ?: deviceId
-            val signedPreKey = getSignedPreKeyInternal(userId, deviceId) ?: return@transaction null
+            val actualDeviceId = identityKeyStore.getDeviceId(userId, deviceId) ?: deviceId
+            val signedPreKey = signedPreKeyStore.getSignedPreKey(userId, deviceId) ?: return@transaction null
             val signedPreKeySignature = getSingleKeyInternal(userId, deviceId, "signed_pre_key_signature") ?: return@transaction null
             val preKey = when {
                 !includeOneTimePreKey -> null
-                consumeOneTimePreKey -> consumePreKeyInternal(userId, deviceId)
-                else -> peekPreKeyInternal(userId, deviceId)
+                consumeOneTimePreKey -> preKeyStore.consumePreKey(userId, deviceId)
+                else -> preKeyStore.peekPreKey(userId, deviceId)
             }
             DeviceBundle(
                 userId = userId,
@@ -370,76 +109,6 @@ class SignalKeyRepository {
                 (SignalKeys.deviceId eq deviceId) and
                 (SignalKeys.keyType eq type)
         }.firstOrNull()?.get(SignalKeys.keyData)
-    }
-
-    /** Internal helper — must be called within an existing transaction. */
-    private fun getSignedPreKeyInternal(userId: String, deviceId: Int): KeyData? {
-        return SignalKeys.selectAll().where {
-            (SignalKeys.userId eq userId) and
-                (SignalKeys.deviceId eq deviceId) and
-                (SignalKeys.keyType eq "signed_pre_key")
-        }.firstOrNull()?.let {
-            val keyId = it[SignalKeys.keyId] ?: return@let null
-            KeyData(keyId, it[SignalKeys.keyData])
-        }
-    }
-
-    /** Internal helper — must be called within an existing transaction. */
-    private fun consumePreKeyInternal(userId: String, deviceId: Int): KeyData? {
-        val key = SignalKeys.selectAll().where {
-            (SignalKeys.userId eq userId) and
-                (SignalKeys.deviceId eq deviceId) and
-                (SignalKeys.keyType eq "pre_key")
-        }
-            .orderBy(SignalKeys.createdAt to SortOrder.ASC)
-            .limit(1)
-            .forUpdate()
-            .firstOrNull() ?: return null
-
-        val keyId = key[SignalKeys.keyId] ?: return null
-        val keyData = key[SignalKeys.keyData]
-        SignalKeys.update({
-            (SignalKeys.id eq key[SignalKeys.id]) and
-                (SignalKeys.keyType eq PRE_KEY_TYPE)
-        }) {
-            it[keyType] = CONSUMED_PRE_KEY_TYPE
-            // createdAt doubles as the retention timestamp for consumed rows. Refresh it at
-            // consumption time so an old uploaded batch still remains protected from key-id
-            // revival during the post-consumption reordering window.
-            it[createdAt] = System.currentTimeMillis()
-        }
-        return KeyData(keyId, keyData)
-    }
-
-    /** Internal helper — must be called within an existing transaction. */
-    private fun peekPreKeyInternal(userId: String, deviceId: Int): KeyData? {
-        return SignalKeys.selectAll().where {
-            (SignalKeys.userId eq userId) and
-                (SignalKeys.deviceId eq deviceId) and
-                (SignalKeys.keyType eq "pre_key")
-        }
-            .orderBy(SignalKeys.createdAt to SortOrder.ASC)
-            .limit(1)
-            .firstOrNull()?.let {
-                val keyId = it[SignalKeys.keyId] ?: return@let null
-                KeyData(keyId, it[SignalKeys.keyData])
-            }
-    }
-
-    private fun peekPreKey(userId: String, deviceId: Int): KeyData? {
-        return transaction {
-            SignalKeys.selectAll().where {
-                (SignalKeys.userId eq userId) and
-                    (SignalKeys.deviceId eq deviceId) and
-                    (SignalKeys.keyType eq "pre_key")
-            }
-                .orderBy(SignalKeys.createdAt to SortOrder.ASC)
-                .limit(1)
-                .firstOrNull()?.let {
-                    val keyId = it[SignalKeys.keyId] ?: return@let null
-                    KeyData(keyId, it[SignalKeys.keyData])
-                }
-        }
     }
 
     /**
@@ -551,7 +220,7 @@ class SignalKeyRepository {
             }
             upsertSingleKeyInTx(userId, deviceId, "signed_pre_key_signature", signedPreKeySignature)
 
-            preKeys.forEach { uploadPreKeyInTx(userId, deviceId, it) }
+            preKeys.forEach { preKeyStore.uploadPreKeyInTx(userId, deviceId, it) }
 
             touchDeviceInTx(userId, deviceId, deviceName)
             UploadKeyPackageResult.UPLOADED
@@ -571,53 +240,6 @@ class SignalKeyRepository {
             it[SignalKeys.deviceId] = deviceId
             it[keyType] = type
             it[keyData] = data
-            it[createdAt] = System.currentTimeMillis()
-        }
-    }
-
-    /**
-     * Must run inside an open transaction that already holds the user row lock.
-     *
-     * A live `pre_key` has not been handed out yet: `getBundle` changes it to
-     * `consumed_pre_key` in the same transaction before returning it.  Re-publishing a
-     * different public key for a live id is therefore safe and repairs a local key-store
-     * regeneration/ID-wrap collision.  A consumed id, however, may already have an
-     * encrypted message in flight and must remain byte-for-byte untouched; the incoming
-     * row is simply treated as an idempotent no-op (it will never be served again).
-     */
-    private fun uploadPreKeyInTx(userId: String, deviceId: Int, preKey: PreKeyUpload) {
-        val existingRows = SignalKeys.selectAll().where {
-            (SignalKeys.userId eq userId) and
-                (SignalKeys.deviceId eq deviceId) and
-                (SignalKeys.keyId eq preKey.keyId) and
-                (SignalKeys.keyType inList PRE_KEY_STATES)
-        }.forUpdate().toList()
-
-        // Once an id has been consumed, never revive it and never overwrite the original
-        // public key, even if a restored client presents a different key under the same id.
-        if (existingRows.any { it[SignalKeys.keyType] == CONSUMED_PRE_KEY_TYPE }) return
-
-        val liveRows = existingRows.filter { it[SignalKeys.keyType] == PRE_KEY_TYPE }
-        if (liveRows.isNotEmpty()) {
-            // There should be one live row per id.  Updating all historical duplicate rows
-            // keeps the key material coherent without deleting an already-consumed row.
-            liveRows.forEach { row ->
-                if (row[SignalKeys.keyData] != preKey.publicKeyBase64) {
-                    SignalKeys.update({ SignalKeys.id eq row[SignalKeys.id] }) {
-                        it[keyData] = preKey.publicKeyBase64
-                    }
-                }
-            }
-            return
-        }
-
-        SignalKeys.insert {
-            it[SignalKeys.id] = "sk_${UUID.randomUUID()}"
-            it[SignalKeys.userId] = userId
-            it[SignalKeys.deviceId] = deviceId
-            it[keyType] = PRE_KEY_TYPE
-            it[keyData] = preKey.publicKeyBase64
-            it[SignalKeys.keyId] = preKey.keyId
             it[createdAt] = System.currentTimeMillis()
         }
     }
@@ -742,14 +364,8 @@ class SignalKeyRepository {
      * 消费后保留一小段窗口以容忍乱序/重放，超期后删除防止无限累积。
      * 由 Routing.kt 的周期清理循环调用；默认保留 30 天。
      */
-    fun purgeConsumedPreKeys(retentionDays: Int = 30): Int {
-        val cutoff = System.currentTimeMillis() - retentionDays * 86_400_000L
-        return transaction {
-            SignalKeys.deleteWhere {
-                (SignalKeys.keyType eq CONSUMED_PRE_KEY_TYPE) and (SignalKeys.createdAt less cutoff)
-            }
-        }
-    }
+    fun purgeConsumedPreKeys(retentionDays: Int = 30): Int =
+        preKeyStore.purgeConsumedPreKeys(retentionDays)
 
     private data class DeviceMetadata(
         val deviceName: String,
@@ -758,17 +374,4 @@ class SignalKeyRepository {
         val confirmedByDeviceId: Int?,
         val lastSeenAt: Long?
     )
-
-
-    companion object {
-        private const val PRE_KEY_TYPE = "pre_key"
-        private const val CONSUMED_PRE_KEY_TYPE = "consumed_pre_key"
-        private val PRE_KEY_STATES = listOf(PRE_KEY_TYPE, CONSUMED_PRE_KEY_TYPE)
-        private val REQUIRED_BUNDLE_KEY_TYPES = setOf(
-            "identity_key",
-            "registration_id",
-            "signed_pre_key",
-            "signed_pre_key_signature"
-        )
-    }
 }

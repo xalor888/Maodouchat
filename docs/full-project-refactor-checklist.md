@@ -540,11 +540,11 @@ Gate：refresh rotation/replay、多设备登出、TOTP、两节点限流、注�
 
 ### B03 Signal Key 与设备注册
 
-当前状态：`[~]`。领域模型（DeviceInfo/DeviceBundle/KeyData/PreKeyUpload/…）已从 `SignalKeyRepository` 抽到 `SignalKeyModels.kt`；DeviceRegistry/KeyStore 类拆分尚未开始。
+当前状态：`[~]`。领域模型已抽到 `SignalKeyModels.kt`；`DeviceRegistry`/`IdentityKeyStore`/`SignedPreKeyStore`/`PreKeyStore` 类拆分已落地；`SignalKeyRepository` 内重复的 key 读写实现已删除（`getBundle`/上传/清理改走 Store，`consume/peek/getSignedPreKey/upload/purge` 私有重复 + 私有 key 常量清零，`PreKeyStore` 补 FIFO 取键）；`PreKeyStoreTest` 7 例锁定原子消费/并发恰好一次/消费 id 永不复活/过期清理。
 
-- [~] 拆 `DeviceRegistry`、`IdentityKeyStore`、`PreKeyStore`、`SignedPreKeyStore`（模型已分离，类拆分待做）。
+- [x] 拆 `DeviceRegistry`、`IdentityKeyStore`、`PreKeyStore`、`SignedPreKeyStore`（`SignalKeyRepository` 只剩组合门面 + 上传编排 + 通用单键读取，存储逻辑在各 Store）。
 - [ ] 设备状态明确为 pending/confirmed/revoked。
-- [ ] one-time pre-key 消费使用数据库原子操作。
+- [x] one-time pre-key 消费使用数据库原子操作（`forUpdate` 行锁 + 条件更新 + FIFO；8 线程并发恰好一人成功，H2 验证）。
 - [ ] 身份密钥变化产生安全事件并触发会话风险处理。
 - [ ] V2 只依赖只读 `EncryptableDeviceDirectory`。
 - [ ] backfill 迁入版本 migration，删除缺 device id/status 的长期兼容。
