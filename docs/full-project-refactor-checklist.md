@@ -164,7 +164,7 @@ Gate：新旧客户端兼容矩阵确定；历史数据迁移可逆演练通过�
 
 当前状态：`[~]`。Inbox、Outbox、ACK、retry、timeline projector 已有新基础。
 
-- [ ] 拆分 outbox 事务写入、claim、加密、发送和状态迁移。
+- [x] 拆分 outbox 事务写入、claim、加密、发送和状态迁移（事务写入=`MessagingV2Outbox`、claim/发送=`MessagingV2OutboxCoordinator`、加密=`MessagingV2EnvelopePreparer`→`SignalMessagingV2Adapter`、状态迁移=`MessagingV2OutboxState`）。
 - [ ] 拆分 DATA、EVENT、RECEIPT、GROUP_CONTROL projector。
 - [~] Runtime 通过接口注入，不由页面或功能模块自行构造（`MessagingV2Runtime` 端口 + `OutboxState` 已冻结，实现接线待做）。
 - [ ] 所有发送来源统一经过 tombstone、owner-session、outbox 事务。
