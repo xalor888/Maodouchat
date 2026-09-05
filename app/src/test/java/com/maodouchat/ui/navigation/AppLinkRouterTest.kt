@@ -156,4 +156,24 @@ class AppLinkRouterTest {
         assertEquals("alice", publicUsernameOf("MAODOUCHAT://u/alice"))
         assertEquals("bob", publicUsernameOf("HTTPS://CHAT.MDOU.ME/u/bob"))
     }
+
+    @Test
+    fun strictSanitizersAcceptLegitIds() {
+        // 合法形态：UUID / pairKey / 服务端 ID / 本地 m_ 前缀消息 ID。
+        assertEquals(
+            "550e8400-e29b-41d4-a716-446655440000",
+            AppLinkRouter.sanitizeChatIdStrict("550e8400-e29b-41d4-a716-446655440000")
+        )
+        assertEquals("m_9f2c1a", AppLinkRouter.sanitizeMessageIdStrict("m_9f2c1a"))
+        assertEquals("123456789", AppLinkRouter.sanitizePostIdStrict("123456789"))
+    }
+
+    @Test
+    fun strictSanitizersRejectDelimiters() {
+        assertNull(AppLinkRouter.sanitizeChatIdStrict("c1/evil"))
+        assertNull(AppLinkRouter.sanitizeChatIdStrict("c1?x=1"))
+        assertNull(AppLinkRouter.sanitizeMessageIdStrict("m1#frag"))
+        assertNull(AppLinkRouter.sanitizePostIdStrict("p1/p2"))
+        assertNull(AppLinkRouter.sanitizeChatIdStrict("   "))
+    }
 }

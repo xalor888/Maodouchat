@@ -473,7 +473,7 @@ Gate：Doze、强杀、重启、Token 轮换、Android 13-16 权限、密聊脱�
 当前状态：`[~]`。`NavGraph.kt` 1,046 行，Activity 承担较多全局状态。纯决策层已先行冻结：`AppLinkDestination` typed 目标 + `AppLinkRouter` 纯解析/清洗器（13 单测，含遍历/非法字符/危险 scheme/斜杠注入拒绝），零行为变更，待调用方渐进接入。
 
 - [x] 冻结纯决策契约：typed `AppLinkDestination`（ChatDetail/PublicProfile/PostDetail/GroupInvite/NotificationCenter/CallHistory，`requiresAuth` + `toRoute()`）与 `AppLinkRouter`（深链白名单 scheme/host、通知 extras 映射、严格/宽松两档清洗器）。
-- [~] MainActivity 外部深链分支已迁移到 `AppLinkRouter.parseDeepLink`（手写 scheme/host/path 截取删除；parity 单测锁定旧接受/忽略语义；多余路径段从截断改为拒绝，见 8.34 注释意图）。通知 extras、Telecom、Widget、二维码、邀请、网页链接尚未统一接入。
+- [~] MainActivity 外部深链分支已迁移到 `AppLinkRouter.parseDeepLink`（手写 scheme/host/path 截取删除；parity 单测锁定旧接受/忽略语义；多余路径段从截断改为拒绝，见 8.34 注释意图）。通知 extras 四 ID（chat/message/aiTasks/post）已改走严格清洗（含 /?# 拒收；非法 messageId 仅丢高亮、仍开会话）。Telecom、Widget 直跳、二维码、邀请、网页链接尚未统一接入。
 - [ ] 每个 feature 提供 destination contract 并由 NavGraph 统一注册（`Routes` 字符串常量仍在使用中）。
 - [ ] 通知、来电、Widget、二维码、邀请和网页链接统一经过 `AppLinkRouter`（MainActivity 手写解析与 navDeepLink pattern 尚未迁移）。
 - [ ] Deep link 参数在执行业务前完成认证、权限和数据校验。

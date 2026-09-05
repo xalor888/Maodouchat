@@ -407,11 +407,17 @@ class MainActivity : FragmentActivity() {
             clearTelecomExtras(intent)
             clearNotificationExtras(intent)
         }
-        val chatId = intent.getStringExtra(AppNotifier.EXTRA_OPEN_CHAT_ID)?.takeIf(String::isNotBlank)
+        val rawChatId = intent.getStringExtra(AppNotifier.EXTRA_OPEN_CHAT_ID)?.takeIf(String::isNotBlank)
         // 8.41：消息「稍后提醒」点击 → 打开聊天后高亮原消息
-        val messageId = intent.getStringExtra(AppNotifier.EXTRA_OPEN_MESSAGE_ID)?.takeIf(String::isNotBlank)
-        val aiTasksChatId = intent.getStringExtra(AppNotifier.EXTRA_OPEN_AI_TASKS_CHAT_ID)?.takeIf(String::isNotBlank)
-        val postId = intent.getStringExtra(AppNotifier.EXTRA_OPEN_POST_ID)?.takeIf(String::isNotBlank)
+        val rawMessageId = intent.getStringExtra(AppNotifier.EXTRA_OPEN_MESSAGE_ID)?.takeIf(String::isNotBlank)
+        val rawAiTasksChatId = intent.getStringExtra(AppNotifier.EXTRA_OPEN_AI_TASKS_CHAT_ID)?.takeIf(String::isNotBlank)
+        val rawPostId = intent.getStringExtra(AppNotifier.EXTRA_OPEN_POST_ID)?.takeIf(String::isNotBlank)
+        // P08：通知/Widget 入口 ID 经 AppLinkRouter 严格清洗（含 /?# 直接拒收；
+        // 合法 UUID/服务端 ID 不受影响）。messageId 非法时仅丢弃高亮、仍打开会话。
+        val chatId = rawChatId?.let { AppLinkRouter.sanitizeChatIdStrict(it) }
+        val messageId = rawMessageId?.let { AppLinkRouter.sanitizeMessageIdStrict(it) }
+        val aiTasksChatId = rawAiTasksChatId?.let { AppLinkRouter.sanitizeChatIdStrict(it) }
+        val postId = rawPostId?.let { AppLinkRouter.sanitizePostIdStrict(it) }
         val openIncomingCall = intent.getBooleanExtra(AppNotifier.EXTRA_OPEN_INCOMING_CALL, false)
         val openMissedCalls = intent.getBooleanExtra(AppNotifier.EXTRA_OPEN_MISSED_CALL, false)
         val openContacts = intent.getBooleanExtra(AppNotifier.EXTRA_OPEN_CONTACTS, false)

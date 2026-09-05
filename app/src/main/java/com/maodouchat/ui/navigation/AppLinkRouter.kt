@@ -156,16 +156,16 @@ object AppLinkRouter {
     }
 
     /**
-     * 通知 extras 用严格清洗：含路径分隔/查询符的值直接拒绝（而非静默截断），
-     * 避免 "c1/evil" 被截成 "c1" 后误导航。
+     * 通知/Widget extras 用严格清洗：含路径分隔/查询符的值直接拒绝（而非静默截断），
+     * 避免 "c1/evil" 被截成 "c1" 后误导航。合法 ID（UUID/pairKey/服务端雪花）不含这些字符。
      */
-    private fun sanitizeChatIdStrict(raw: String): String? =
+    fun sanitizeChatIdStrict(raw: String): String? =
         if (raw.any { it == '/' || it == '?' || it == '#' }) null else sanitizeChatId(raw)
 
-    private fun sanitizeMessageIdStrict(raw: String): String? =
+    fun sanitizeMessageIdStrict(raw: String): String? =
         if (raw.any { it == '/' || it == '?' || it == '#' }) null else sanitizeMessageId(raw)
 
-    private fun sanitizePostIdStrict(raw: String): String? =
+    fun sanitizePostIdStrict(raw: String): String? =
         if (raw.any { it == '/' || it == '?' || it == '#' }) null else sanitizePostId(raw)
 
     // ---- 内部解析 ----
