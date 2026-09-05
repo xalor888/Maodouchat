@@ -31,6 +31,10 @@ class ConversationCommandService(
         requireBotDeliverable: Boolean = false
     ): LeaveConversationOutcome = lifecycleRepository.leave(chatId, userId, requireBotDeliverable)
 
+    /** 幂等打开或创建 1:1 会话（机器人私聊等人机直达入口；重复调用返回同一会话）。 */
+    fun getOrCreateDirect(userId1: String, userId2: String): CreatedConversation =
+        creationService.getOrCreateDirect(userId1, userId2)
+
     /** 更新用户在指定会话中的个性化配置（置顶、静音、文件夹、草稿等）。 */
     fun updateSettings(
         chatId: String,

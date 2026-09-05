@@ -2,7 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AddOwnedBotResult
-import com.maodouchat.server.repository.ConversationCreationRepository
+import com.maodouchat.server.repository.ConversationCommandService
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.GroupMembershipService
@@ -33,7 +33,7 @@ import kotlinx.serialization.json.putJsonArray
 internal fun Route.configureBotInteractionRoutes(
     userRepo: UserRepository,
     conversationParticipantRepo: ConversationParticipantRepository,
-    conversationCreationRepo: ConversationCreationRepository,
+    commandService: ConversationCommandService,
     conversationQueryRepo: ConversationQueryRepository,
     groupMembershipService: GroupMembershipService,
     botCreateRateLimiter: BoundedRateLimiter,
@@ -159,7 +159,7 @@ internal fun Route.configureBotInteractionRoutes(
             return@post
         }
         val created = try {
-            conversationCreationRepo.getOrCreateDirect(userId, botId)
+            commandService.getOrCreateDirect(userId, botId)
         } catch (_: IllegalArgumentException) {
             call.respond(HttpStatusCode.Forbidden, ErrorResponse("无法与该机器人创建私聊"))
             return@post

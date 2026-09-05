@@ -69,6 +69,13 @@ class ConversationCreationService(
         }
     }
 
+    /**
+     * 幂等打开或创建 1:1 会话（与校验型 [create] 不同：重复调用返回同一会话，
+     * 用于机器人私聊等人机直达入口）。pairKey 唯一约束 + 唯一冲突回读保证并发安全。
+     */
+    fun getOrCreateDirect(userId1: String, userId2: String): CreatedConversation =
+        creationRepository.getOrCreateDirect(userId1, userId2)
+
     private fun createPaired(command: NormalizedCommand.Valid): CreateConversationOutcome {
         val created = if (command.chatType == ChatType.SECRET) {
             creationRepository.getOrCreateSecret(command.allParticipantIds[0], command.allParticipantIds[1])

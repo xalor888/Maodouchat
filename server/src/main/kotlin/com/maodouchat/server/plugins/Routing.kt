@@ -539,7 +539,7 @@ configureEncryptedAttachmentRoutes(
             configureBotInteractionRoutes(
                 userRepo = userRepo,
                 conversationParticipantRepo = conversationParticipantRepo,
-                conversationCreationRepo = conversationCreationRepo,
+                commandService = conversationCommandService,
                 conversationQueryRepo = conversationQueryRepo,
                 groupMembershipService = groupMembershipService,
                 botCreateRateLimiter = botCreateRateLimiter,

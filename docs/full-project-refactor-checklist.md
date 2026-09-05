@@ -553,7 +553,7 @@ Gate：并发 pre-key、设备批准防重放、被撤销设备、新设备群 k
 
 ### B04 会话创建、查询、设置与生命周期
 
-当前状态：`[~]`。会话域已拆为 9 个 repository 文件；旧 direct 热路径扫描已删除（回填迁移 v3 替代）。`ConversationCommandService` 统一命令入口已建并完成全部路由接线：创建/退出（`ConversationRouting`）、设置/阅后即焚（`ConversationSettingsRouting`）、机器人退出（`BotChatModerationRouting`，经 BotApi→BotCore 转发）；路由层不再直连三件套（`CreationService/LifecycleRepository/SettingsRepository` 仅由命令服务组合持有）。
+当前状态：`[~]`。会话域已拆为 9 个 repository 文件；旧 direct 热路径扫描已删除（回填迁移 v3 替代）。`ConversationCommandService` 统一命令入口已建并完成全部路由接线：创建/退出（`ConversationRouting`）、设置/阅后即焚（`ConversationSettingsRouting`）、机器人退出（`BotChatModerationRouting`，经 BotApi→BotCore 转发）、机器人私聊幂等直达（`getOrCreateDirect` 显式命令，经 `CreationService` 透传，`create` 校验语义不受影响）；路由层不再直连三件套。
 
 - [x] `ConversationCommandService` 统一 direct/group/channel 创建、退出、删除和归档语义（四命令门面；全部路由改走命令服务，全量服务端测试通过）。
 - [~] `ConversationQueryService` 只做授权后的 metadata 查询（`ConversationQueryRepository` 已存在）。
