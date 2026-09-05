@@ -127,16 +127,5 @@ class StarMessageRepository {
 
     companion object {
         const val MAX_STARRED_RETURN = 1000
-
-        private fun isUniqueViolation(error: Throwable): Boolean {
-            var current: Throwable? = error
-            while (current != null) {
-                val message = current.message.orEmpty().lowercase()
-                if (current is SQLException && current.sqlState == "23505") return true
-                if (message.contains("unique") || message.contains("duplicate key")) return true
-                current = current.cause
-            }
-            return false
-        }
     }
 }

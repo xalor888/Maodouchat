@@ -322,16 +322,6 @@ object GroupCheckinRepository {
     }
 
     /** 9.152：唯一约束冲突检测（与 StarMessageRepository 同口径）。 */
-    private fun isUniqueViolation(error: Throwable): Boolean {
-        var current: Throwable? = error
-        while (current != null) {
-            if (current is java.sql.SQLException && current.sqlState == "23505") return true
-            val message = current.message.orEmpty().lowercase()
-            if (message.contains("unique") || message.contains("duplicate key")) return true
-            current = current.cause
-        }
-        return false
-    }
 
     private fun visibleTodayPredicate(chatId: String, date: String, blocked: Set<String>) =
         if (blocked.isEmpty()) {

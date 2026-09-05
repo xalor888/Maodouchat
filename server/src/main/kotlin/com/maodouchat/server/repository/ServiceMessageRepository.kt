@@ -320,16 +320,5 @@ class ServiceMessageRepository(
     companion object {
         private const val MAX_CONTENT_LENGTH = 8_000
         private val NON_STORABLE_TYPES = setOf("SK_DIST", "REVOKED")
-
-        private fun isUniqueViolation(error: Throwable): Boolean {
-            var current: Throwable? = error
-            while (current != null) {
-                if (current is SQLException && current.sqlState == "23505") return true
-                val message = current.message.orEmpty().lowercase()
-                if (message.contains("unique") || message.contains("duplicate key")) return true
-                current = current.cause
-            }
-            return false
-        }
     }
 }

@@ -203,17 +203,6 @@ class NearbyRepository {
             }
     }
 
-    private fun isUniqueViolation(error: Throwable): Boolean {
-        var current: Throwable? = error
-        while (current != null) {
-            val message = current.message.orEmpty().lowercase()
-            if (current is java.sql.SQLException && current.sqlState == "23505") return true
-            if (message.contains("unique") || message.contains("duplicate key")) return true
-            current = current.cause
-        }
-        return false
-    }
-
     private fun ResultRow.toPublicUser() = UserResponse(
         id = this[Users.id],
         name = this[Users.name],

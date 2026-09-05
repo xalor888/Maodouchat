@@ -403,17 +403,6 @@ class FriendRepository {
         }
     }
 
-    private fun isUniqueViolation(error: Throwable): Boolean {
-        var current: Throwable? = error
-        while (current != null) {
-            val message = current.message.orEmpty().lowercase()
-            if (current is java.sql.SQLException && current.sqlState == "23505") return true
-            if (message.contains("unique") || message.contains("duplicate key")) return true
-            current = current.cause
-        }
-        return false
-    }
-
     companion object {
         private const val MAX_MESSAGE_LEN = 300
         /** 单用户好友数上限（防超大好友集 fanout 资源耗尽）。 */

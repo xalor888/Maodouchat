@@ -529,7 +529,7 @@ Gate：空库、旧库升级、重复/中断 migration、备份恢复、滚动�
 
 当前状态：`[~]`。`MfaService`（TOTP）、`BlockService`（拉黑）、`AccountLifecycleService`（注销）、`PrivacyService`（隐私）、`CredentialService`（注册/登录/改密/重置/校验）已从 `UserRepository` 抽出（1281→720 行）；登录失败锁定状态机已抽为可注时钟的 `LoginAttemptGate`（`Routing.kt` 局部函数 + `AuthRouting` 内联检查收敛，`LoginAttemptGateTest` 5 例 + 路由级 `LoginLockoutPrivacyRouteTest` 4 例）；ProfileService/SessionService 尚未拆。
 
-- [~] 拆 `CredentialService`、`MfaService`、`SessionService`、`ProfileService`（`MfaService` 已拆并注入 AuthRouting；TOTP 防重放/恢复码消费重复实现已收敛到 `MfaService`；`CredentialService` 已拆（register/login/loginWithFactors/changePassword/resetPasswordByEmail/verifyPassword + LoginResult，共享 normalizedEmail/toPrivateUser/isUniqueViolation/MAX_NAME_LENGTH 提升为包内共享），`UserRepository` 保留薄委托；SessionService/ProfileService 待做）。
+- [~] 拆 `CredentialService`、`MfaService`、`SessionService`、`ProfileService`（`MfaService` 已拆并注入 AuthRouting；TOTP 防重放/恢复码消费重复实现已收敛到 `MfaService`；`CredentialService` 已拆（register/login/loginWithFactors/changePassword/resetPasswordByEmail/verifyPassword + LoginResult，共享 normalizedEmail/toPrivateUser/isUniqueViolation/MAX_NAME_LENGTH 提升为包内共享），`UserRepository` 保留薄委托；14 个仓储的 `isUniqueViolation` 私有拷贝已删除，统一走包内共享实现；SessionService/ProfileService 待做）。
 - [~] 拆 `PrivacyService`、`BlockService`、`AccountLifecycleService`（三个均已拆；UserRepository 保留薄委托）。
 - [ ] 登录失败、验证码和 limiter 使用可共享 store，支持多实例。
 - [ ] `DeviceSession` 明确绑定 auth session、Signal device 和 push token。

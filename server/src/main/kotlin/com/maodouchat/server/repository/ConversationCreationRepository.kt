@@ -318,17 +318,6 @@ class ConversationCreationRepository {
     private fun pairKey(userId1: String, userId2: String): String =
         listOf(userId1, userId2).sorted().joinToString(":")
 
-    private fun isUniqueViolation(error: Throwable): Boolean {
-        var current: Throwable? = error
-        while (current != null) {
-            val message = current.message.orEmpty().lowercase()
-            if (current is java.sql.SQLException && current.sqlState == "23505") return true
-            if ("unique" in message || "duplicate key" in message) return true
-            current = current.cause
-        }
-        return false
-    }
-
     private companion object {
         const val ROLE_OWNER = "OWNER"
         const val ROLE_MEMBER = "MEMBER"

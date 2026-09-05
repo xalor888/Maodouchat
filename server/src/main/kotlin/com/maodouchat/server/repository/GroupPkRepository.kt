@@ -217,16 +217,6 @@ class GroupPkRepository {
     }
 
     /** 9.152：唯一约束冲突检测。 */
-    private fun isUniqueViolation(error: Throwable): Boolean {
-        var current: Throwable? = error
-        while (current != null) {
-            if (current is java.sql.SQLException && current.sqlState == "23505") return true
-            val message = current.message.orEmpty().lowercase()
-            if (message.contains("unique") || message.contains("duplicate key")) return true
-            current = current.cause
-        }
-        return false
-    }
 
     private fun isMemberInTransaction(chatId: String, userId: String): Boolean =
         ChatParticipants.selectAll().where {

@@ -95,17 +95,6 @@ class PushTokenRepository {
         return true
     }
 
-    private fun isUniqueViolation(error: Throwable): Boolean {
-        var current: Throwable? = error
-        while (current != null) {
-            val message = current.message.orEmpty().lowercase()
-            if (current is java.sql.SQLException && current.sqlState == "23505") return true
-            if (message.contains("unique") || message.contains("duplicate key")) return true
-            current = current.cause
-        }
-        return false
-    }
-
     fun getForUser(userId: String): List<PushTokenRecord> = transaction {
         val activeSessionIds = AuthSessions.select(AuthSessions.id).where {
             (AuthSessions.userId eq userId) and AuthSessions.revokedAt.isNull()

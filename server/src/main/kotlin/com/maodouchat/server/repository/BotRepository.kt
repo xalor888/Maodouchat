@@ -652,18 +652,6 @@ object BotRepository {
         updatedAt = this[BotApps.updatedAt]
     )
 
-    private fun isUniqueViolation(error: Throwable): Boolean {
-        var current: Throwable? = error
-        while (current != null) {
-            val sqlState = (current as? java.sql.SQLException)?.sqlState
-            if (sqlState == "23505") return true
-            val message = current.message.orEmpty().lowercase()
-            if (message.contains("duplicate key") || message.contains("unique constraint")) return true
-            current = current.cause
-        }
-        return false
-    }
-
     private fun normalizeUsername(raw: String): String? {
         val u = raw.trim().lowercase().removePrefix("@")
         if (!Regex("^[a-z][a-z0-9_]{2,31}$").matches(u)) return null

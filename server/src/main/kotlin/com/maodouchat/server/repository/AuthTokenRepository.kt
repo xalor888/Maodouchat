@@ -539,17 +539,6 @@ class AuthTokenRepository {
         }
     }
 
-    private fun isUniqueViolation(e: Throwable): Boolean {
-        var cur: Throwable? = e
-        while (cur != null) {
-            val msg = (cur.message ?: "").lowercase()
-            if (cur is java.sql.SQLException && cur.sqlState == "23505") return true
-            if (msg.contains("unique") || msg.contains("duplicate key")) return true
-            cur = cur.cause
-        }
-        return false
-    }
-
     fun revokeAccessTokenFromAuthorizationHeader(authorizationHeader: String?): Boolean {
         val token = authorizationHeader
             ?.trim()

@@ -340,17 +340,6 @@ class ReportWorkflow {
         )
     }
 
-    private fun isUniqueViolation(error: Throwable): Boolean {
-        var current: Throwable? = error
-        while (current != null) {
-            val message = current.message.orEmpty().lowercase()
-            if (current is java.sql.SQLException && current.sqlState == "23505") return true
-            if (message.contains("unique") || message.contains("duplicate key")) return true
-            current = current.cause
-        }
-        return false
-    }
-
     private companion object {
         val ALLOWED_TARGET_TYPES = setOf("USER", "MESSAGE", "POST", "COMMENT")
         val ALLOWED_STATUSES = setOf("OPEN", "IN_REVIEW", "RESOLVED", "REJECTED")
