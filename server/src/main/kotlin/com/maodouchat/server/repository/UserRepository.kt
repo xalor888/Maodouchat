@@ -144,10 +144,10 @@ class UserRepository {
             val secret = user[Users.totpSecret].orEmpty()
             val totpOk = if (!enabled) true else {
                 val totpAccepted = com.maodouchat.server.service.TotpService.verify(secret, totpCode.orEmpty()) { candidate ->
-                    acceptTotpCounter(user, candidate)
+                    mfaService.acceptTotpCounter(user, candidate)
                 }
                 // 0.75：TOTP 校验失败时尝试恢复码（单次使用；丢失验证器可恢复登录）
-                if (totpAccepted) true else consumeBackupCode(user, totpCode.orEmpty())
+                if (totpAccepted) true else mfaService.consumeBackupCode(user, totpCode.orEmpty())
             }
             if (passwordOk && totpOk) {
                 Users.update({ Users.email eq normalizedEmail }) {
@@ -162,37 +162,6 @@ class UserRepository {
             )
         }
     }
-
-    /**
-     * 8.51 修复 M2：TOTP counter DB 原子 CAS——仅当候选 counter 严格大于已持久化值才接受并落库。
-     * 调用方须在同一事务内持该用户行锁（forUpdate），杜绝重启/多实例后重放同一步 code。
-     */
-    private fun acceptTotpCounter(row: org.jetbrains.exposed.sql.ResultRow, candidate: Long): Boolean {
-        val persisted = row[Users.totpLastCounter]
-        if (candidate <= persisted) return false
-        Users.update({ Users.id eq row[Users.id] }) {
-            it[Users.totpLastCounter] = candidate
-        }
-        return true
-    }
-
-    /** 0.75：校验并单次消费恢复码（匹配即删除该码）。调用方须持用户行锁在同一事务内。 */
-    private fun consumeBackupCode(row: org.jetbrains.exposed.sql.ResultRow, code: String): Boolean {
-        val raw = row[Users.totpBackupCodes] ?: return false
-        if (raw.isBlank()) return false
-        val hashes = raw.split(',')
-        val normalized = code.trim()
-        val idx = hashes.indexOfFirst { hash ->
-            hash.isNotBlank() && BCrypt.verifyer().verify(normalized.toCharArray(), hash).verified
-        }
-        if (idx < 0) return false
-        val remaining = hashes.filterIndexed { i, _ -> i != idx }.filter { it.isNotBlank() }
-        Users.update({ Users.id eq row[Users.id] }) {
-            it[Users.totpBackupCodes] = if (remaining.isEmpty()) null else remaining.joinToString(",")
-        }
-        return true
-    }
-
 
     fun getById(userId: String): UserResponse? {
         return transaction {
@@ -646,6 +615,7 @@ class UserRepository {
     }
 
     private val accountLifecycleService = AccountLifecycleService()
+    private val mfaService = com.maodouchat.server.service.MfaService()
 
     fun deleteAccount(userId: String, password: String): AccountDeactivationResult? = accountLifecycleService.deleteAccount(userId, password)
     fun adminDeactivateAccount(userId: String, actorId: String): AccountDeactivationResult? = accountLifecycleService.adminDeactivateAccount(userId, actorId)

@@ -92,7 +92,7 @@ class MfaService {
      * 8.51 修复 M2：TOTP counter DB 原子 CAS——仅当候选 counter 严格大于已持久化值才接受并落库。
      * 调用方须在同一事务内持该用户行锁（forUpdate），杜绝重启/多实例后重放同一步 code。
      */
-    private fun acceptTotpCounter(row: org.jetbrains.exposed.sql.ResultRow, candidate: Long): Boolean {
+    fun acceptTotpCounter(row: org.jetbrains.exposed.sql.ResultRow, candidate: Long): Boolean {
         val persisted = row[Users.totpLastCounter]
         if (candidate <= persisted) return false
         Users.update({ Users.id eq row[Users.id] }) {
@@ -102,7 +102,7 @@ class MfaService {
     }
 
     /** 0.75：校验并单次消费恢复码（匹配即删除该码）。调用方须持用户行锁在同一事务内。 */
-    private fun consumeBackupCode(row: org.jetbrains.exposed.sql.ResultRow, code: String): Boolean {
+    fun consumeBackupCode(row: org.jetbrains.exposed.sql.ResultRow, code: String): Boolean {
         val raw = row[Users.totpBackupCodes] ?: return false
         if (raw.isBlank()) return false
         val hashes = raw.split(',')
