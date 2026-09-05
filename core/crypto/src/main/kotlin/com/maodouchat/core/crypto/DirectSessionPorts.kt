@@ -40,3 +40,11 @@ interface EnvelopeCodec {
     fun isEncryptedEnvelope(content: String): Boolean
     fun isSenderKeyEnvelope(content: String): Boolean
 }
+
+/** 设备 id 迁移协调（M03）：检测 DEVICE_ID_CONFLICT → 分配新设备 id → 标记会话迁移 → 重新注册。 */
+interface DeviceIdMigrationCoordinator {
+    /** 检测设备 id 冲突并触发迁移/重注册；返回 true 表示已处理。 */
+    suspend fun recoverFromConflict(token: String?): Boolean
+    /** 是否存在未完成的设备 id 迁移标记。 */
+    fun isMigrationPending(): Boolean
+}
