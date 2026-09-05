@@ -46,7 +46,12 @@ import java.util.UUID
 class SignalProtocol(
     private val signalKeyDao: SignalKeyDao,
     private val identityTrustDao: IdentityTrustDao
-) : com.maodouchat.core.crypto.DirectSessionManager, com.maodouchat.core.crypto.EnvelopeCodec, com.maodouchat.core.crypto.DirectMessageCipher {
+) : com.maodouchat.core.crypto.DirectSessionManager,
+    com.maodouchat.core.crypto.EnvelopeCodec,
+    com.maodouchat.core.crypto.DirectMessageCipher,
+    com.maodouchat.core.crypto.CryptoAccountBootstrapper,
+    com.maodouchat.core.crypto.PreKeyInventory,
+    com.maodouchat.core.crypto.PreKeyPublisher {
     private val initializationMutex = Mutex()
     /**
      * Serializes SessionCipher / GroupCipher / store mutations across ViewModels and workers.
@@ -131,7 +136,7 @@ class SignalProtocol(
      *
      * @param token JWT Token（用于上传公钥到服务器）
      */
-    suspend fun initialize(token: String? = null, userId: String? = null): Boolean = initializationMutex.withLock {
+    override suspend fun initialize(token: String?, userId: String?): Boolean = initializationMutex.withLock {
         try {
             val accountId = userId?.takeIf { it.isNotBlank() }
             // Login and Application cold-start restoration can race to initialize the same
@@ -269,7 +274,7 @@ class SignalProtocol(
      * Server publication is deliberately not part of this contract: [initialize] leaves the
      * local store usable when upload fails and retries publication separately on a later call.
      */
-    suspend fun ensureLocalCryptoReady(token: String?, userId: String): Boolean {
+    override suspend fun ensureLocalCryptoReady(token: String?, userId: String): Boolean {
         if (userId.isBlank()) return false
         if (isLocalCryptoReadyFor(userId)) return true
         initialize(token?.takeIf(String::isNotBlank), userId)
@@ -414,7 +419,7 @@ class SignalProtocol(
      * 生成新批次并上传到服务端。应在登录后和定期调用。
      * 返回 true 表示新批次或此前待确认的批次已收到上传成功响应。
      */
-    suspend fun replenishPreKeysIfNeeded(token: String?, expectedUserId: String): Boolean {
+    override suspend fun replenishPreKeysIfNeeded(token: String?, expectedUserId: String): Boolean {
         if (token.isNullOrBlank() || expectedUserId.isBlank()) return false
         return initializationMutex.withLock {
             if (currentUserId != expectedUserId || !localCryptoReady) return@withLock false
@@ -474,7 +479,7 @@ class SignalProtocol(
      * 生成新 SPK 并上传。旧 SPK 保留在 store 中以解密在途消息（libsignal 自动处理）。
      * 返回 true 表示轮换了 SPK。
      */
-    suspend fun rotateSignedPreKeyIfNeeded(token: String?, expectedUserId: String): Boolean {
+    override suspend fun rotateSignedPreKeyIfNeeded(token: String?, expectedUserId: String): Boolean {
         if (token.isNullOrBlank() || expectedUserId.isBlank()) return false
         return initializationMutex.withLock {
             if (currentUserId != expectedUserId || !localCryptoReady) return@withLock false

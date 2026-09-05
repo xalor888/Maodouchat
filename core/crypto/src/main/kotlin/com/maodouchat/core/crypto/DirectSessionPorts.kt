@@ -8,19 +8,18 @@ package com.maodouchat.core.crypto
 
 /** 加密账户引导：初始化/恢复身份密钥、签名预密钥、设备 id 与账号注册。 */
 interface CryptoAccountBootstrapper {
-    suspend fun ensureReady(token: String?, userId: String): Boolean
-    fun localCryptoReady(): Boolean
+    suspend fun initialize(token: String? = null, userId: String? = null): Boolean
+    suspend fun ensureLocalCryptoReady(token: String?, userId: String): Boolean
 }
 
-/** 一次性预密钥清单：本地未消费 PreKey 的生成与计数。 */
+/** 一次性预密钥清单：本地未消费 PreKey 的生成与补充。 */
 interface PreKeyInventory {
-    suspend fun remainingCount(): Int
-    suspend fun replenishToThreshold(): Boolean
+    suspend fun replenishPreKeysIfNeeded(token: String?, expectedUserId: String): Boolean
 }
 
-/** 预密钥发布：把签名预密钥 + OTPK 上传到服务端（幂等，失败保留私钥待重试）。 */
+/** 预密钥发布：轮换并上传签名预密钥（幂等，失败保留私钥待重试）。 */
 interface PreKeyPublisher {
-    suspend fun publish(token: String, expectedUserId: String): Boolean
+    suspend fun rotateSignedPreKeyIfNeeded(token: String?, expectedUserId: String): Boolean
 }
 
 /** 直接会话管理：1:1 Signal 会话的建立与清理。 */
