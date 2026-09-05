@@ -16,9 +16,7 @@ import io.ktor.server.routing.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
-import java.util.concurrent.ConcurrentHashMap
-
-internal data class LoginLockout(var fails: Int, var lockUntil: Long, var lastFailureAt: Long = 0L)
+import com.maodouchat.server.service.LoginAttemptGate
 
 private val loginAuditLogger = org.slf4j.LoggerFactory.getLogger("LoginAudit")
 
@@ -30,9 +28,7 @@ internal fun Route.configureAuthRoutes(
     loginEmailRateLimiter: BoundedRateLimiter,
     sendCodeRateLimiter: BoundedRateLimiter,
     sendCodeIpRateLimiter: BoundedRateLimiter,
-    loginLockouts: ConcurrentHashMap<String, LoginLockout>,
-    sweepLoginLockouts: () -> Unit,
-    recordLoginFailure: (String, String) -> Unit,
+    loginGate: LoginAttemptGate,
 ) {
  post("/api/auth/register") {
             if (ServerConfig.isProduction) {
@@ -101,10 +97,9 @@ internal fun Route.configureAuthRoutes(
             // 单账号失败锁定检查：锁定期间直接拒绝，不泄露密码正误（与失败提示一致）
             // 8.51 修复 M1：锁定按「账号|源 IP」隔离，远程失败不影响受害者自身 IP 登录
             val ip = call.remoteHost()
-            sweepLoginLockouts()
-            val accountLockKey = "$emailKey|$ip"
-            val lock = loginLockouts[accountLockKey]
-            if (lock != null && lock.lockUntil > System.currentTimeMillis()) {
+            loginGate.sweep()
+            val accountLockKey = loginGate.key(emailKey, ip)
+            if (loginGate.isLocked(accountLockKey)) {
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("该账号已被临时锁定，请稍后再试", code = "ACCOUNT_LOCKED"))
                 return@post
             }
@@ -112,9 +107,7 @@ internal fun Route.configureAuthRoutes(
             // 失败会立即重新锁定 15 分钟，攻击者只需周期性错 1 次即可无限期锁死账号（可用性 DoS）。
             // 仅清除「确实锁定过且已过期」的条目：lockUntil=0 表示从未锁定，不得移除，
             // 否则每次失败后计数被清空、锁定永远不会触发。
-            if (lock != null && lock.lockUntil > 0L && lock.lockUntil <= System.currentTimeMillis()) {
-                loginLockouts.remove(accountLockKey)
-            }
+            loginGate.clearIfExpired(accountLockKey)
             val loginResult = userRepo.loginWithFactors(req.email, req.password, req.totpCode)
             val authed = loginResult.user != null
             // 9.5xx：登录全链路日志——管理后台「登不进」排障：每次尝试记录账号/来源/结果
@@ -129,7 +122,7 @@ internal fun Route.configureAuthRoutes(
             )
             if (!authed) {
                 // 密码错误 / TOTP 失败均计入连续失败，达阈值即锁定（按 IP 隔离）
-                recordLoginFailure(emailKey, ip)
+                loginGate.recordFailure(emailKey, ip)
             }
             when {
                 !loginResult.passwordOk -> {
@@ -143,7 +136,7 @@ internal fun Route.configureAuthRoutes(
                 }
                 authed -> {
                     // 登录成功：清除失败计数（按 IP 隔离），避免历史失败触发误锁
-                    loginLockouts.remove(accountLockKey)
+                    loginGate.clear(accountLockKey)
                     authTokenRepo.deleteExpired()
                     call.respond(issueAuthResponse(checkNotNull(loginResult.user), authTokenRepo).copy(totpEnabled = loginResult.totpEnabled))
                 }

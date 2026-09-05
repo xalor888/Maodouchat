@@ -35,7 +35,6 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.security.MessageDigest
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -311,40 +310,8 @@ fun Application.configureRouting(
     val loginIpRateLimiter = BoundedRateLimiter()
     // 登录/注册/重置 按账号(email)限制：关闭「多源 IP 分布式爆破同一账号」的绕过路径
     val loginEmailRateLimiter = BoundedRateLimiter()
-    // Single-account consecutive login failure lockout: 5 failures lock the account for 15 minutes.
-    val loginLockouts = ConcurrentHashMap<String, LoginLockout>()
-    val loginLockoutSweepAt = java.util.concurrent.atomic.AtomicLong(0L)
-    val LOGIN_MAX_FAILS = 5
-    val LOGIN_LOCK_MS = 15L * 60L * 1000L
-
-    /** 周期清理过期锁定条目，避免内存无界增长。 */
-    fun sweepLoginLockouts(now: Long = System.currentTimeMillis()) {
-        val lastSweep = loginLockoutSweepAt.get()
-        if (now - lastSweep > 60_000L && loginLockoutSweepAt.compareAndSet(lastSweep, now)) {
-            val staleCutoff = now - LOGIN_LOCK_MS - 60_000L
-            loginLockouts.entries.removeIf { it.value.lastFailureAt <= staleCutoff }
-        }
-    }
-
-    /** 记录一次登录失败；达到阈值则锁定「该账号 + 该源 IP」15 分钟。成功登录后由调用方 remove。
-     *  8.51 修复 M1：锁定 key 加入源 IP——攻击者源 IP 的失败只锁该 IP 与账号的组合，
-     *  受害者从自己 IP 登录不受远程锁定影响（可用性 DoS 缓解）。 */
-    fun recordLoginFailure(emailKey: String, ip: String) {
-        val now = System.currentTimeMillis()
-        sweepLoginLockouts(now)
-        loginLockouts.compute("$emailKey|$ip") { _, existing ->
-            val lock = existing ?: LoginLockout(0, 0L, now)
-            lock.lastFailureAt = now
-            lock.fails += 1
-            if (lock.fails >= LOGIN_MAX_FAILS) {
-                lock.lockUntil = now + LOGIN_LOCK_MS
-                // 8.31 运维修复 HIGH：账号锁定是安全事件，必须留应用日志（此前仅内存计数）
-                org.slf4j.LoggerFactory.getLogger("LoginSecurity")
-                    .warn("Login account locked [emailKey={} ip={}] after {} failures for {}ms", emailKey, ip, LOGIN_MAX_FAILS, LOGIN_LOCK_MS)
-            }
-            lock
-        }
-    }
+    // Single-account consecutive login failure lockout (B02 LoginAttemptGate).
+    val loginGate = com.maodouchat.server.service.LoginAttemptGate()
     // 好友申请按发起用户限流：防止单用户向同/多目标狂发申请（通知轰炸/骚扰）
     val friendRequestRateLimiter = BoundedRateLimiter()
     // 用户目录查询按用户限流：防止整库抓取/枚举（/api/users 空 q 返回全量、/api/users/search 可遍历）
@@ -523,9 +490,7 @@ fun Application.configureRouting(
             loginEmailRateLimiter = loginEmailRateLimiter,
             sendCodeRateLimiter = sendCodeRateLimiter,
             sendCodeIpRateLimiter = sendCodeIpRateLimiter,
-            loginLockouts = loginLockouts,
-            sweepLoginLockouts = ::sweepLoginLockouts,
-            recordLoginFailure = ::recordLoginFailure,
+            loginGate = loginGate,
         )
 
         // ─── 官网静态页面（无需认证） ─────────────
