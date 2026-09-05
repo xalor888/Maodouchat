@@ -45,7 +45,7 @@ import java.util.UUID
 class SignalProtocol(
     private val signalKeyDao: SignalKeyDao,
     private val identityTrustDao: IdentityTrustDao
-) : com.maodouchat.core.crypto.DirectSessionManager {
+) : com.maodouchat.core.crypto.DirectSessionManager, com.maodouchat.core.crypto.EnvelopeCodec {
     private val initializationMutex = Mutex()
     /**
      * Serializes SessionCipher / GroupCipher / store mutations across ViewModels and workers.
@@ -1246,18 +1246,18 @@ class SignalProtocol(
         )
     }
 
-    fun envelopePayloadType(content: String): String? {
+    override fun envelopePayloadType(content: String): String? {
         return MultiDeviceEnvelopePolicy.parse(content)?.payloadType
             ?: runCatching { json.decodeFromString(EncryptedMessageEnvelope.serializer(), content).payloadType }.getOrNull()
     }
 
-    fun isEncryptedEnvelope(content: String): Boolean {
+    override fun isEncryptedEnvelope(content: String): Boolean {
         if (MultiDeviceEnvelopePolicy.parse(content) != null) return true
         return runCatching { json.decodeFromString(EncryptedMessageEnvelope.serializer(), content) }
             .getOrNull()?.version?.let { it >= 1 } == true
     }
 
-    fun isSenderKeyEnvelope(content: String): Boolean {
+    override fun isSenderKeyEnvelope(content: String): Boolean {
         return runCatching { json.decodeFromString(SenderKeyMessageEnvelope.serializer(), content) }
             .getOrNull()?.let { envelope ->
                 envelope.version == SENDER_KEY_ENVELOPE_VERSION && envelope.algorithm == ALGORITHM_SENDER_KEY

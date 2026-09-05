@@ -37,7 +37,7 @@ interface DirectMessageCipher {
 
 /** 信封编解码：wire 信封格式的结构解析与生成（不含加密，只负责结构分派）。 */
 interface EnvelopeCodec {
-    fun payloadType(content: String): String?
+    fun envelopePayloadType(content: String): String?
     fun isEncryptedEnvelope(content: String): Boolean
     fun isSenderKeyEnvelope(content: String): Boolean
 }
