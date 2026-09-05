@@ -702,7 +702,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [x] `ChatDetailViewModel.kt` 不再包含单体业务逻辑，压缩为组合与分发调度层（接入 `ConversationCommandFacade`、`MessagingV2Outbox` 与领域 UseCase）。
 - [x] 旧巨型 `ChatDetailScreen.kt` 实现删除（降为 42 行薄路由，拆分 `TimelinePane`、`ComposerPane` 与独立面板）。
 - [x] 旧 `MessageBubble.kt` 单体解耦，全面对齐 `reference/Murexide` 建立 `MurexideMessageBubble.kt`，渲染期经 `MessagePresentationMapper` 彻底消除 wire/meta 业务解析。
-- [~] `ChatListViewModel.kt` 瘦身中（多选状态机 + 批量已读目标计算已抽为纯 `ChatListSelection` reducer 9 单测；设置 toggle 四件套 + 乐观时钟已抽为纯 `buildSettingsToggle` 9 单测，`markAllUnreadChatsRead` 复用目标计算；实时三投影（已读归零/在线叠加/管理广播）已抽为纯 `ChatListRealtimeProjection` 7 单测；collector 编排与 WS/网络/多仓库直连尚未解耦）。
+- [~] `ChatListViewModel.kt` 瘦身中（多选状态机纯 reducer 9 单测；设置 toggle 纯构造 9 单测；实时三投影纯函数 7 单测；预览内存投影 + 置顶排序口径纯化 7 单测，`restoreChatSorted` 私有包装已删；collector 编排与 WS/网络/多仓库直连尚未解耦）。
 - [ ] `SignalProtocol.kt` 宽 facade 删除。
 - [x] `ApiService` 巨单体拆解完成，分离为 Auth、Messaging、Conversation、Media、Social 等独立域 API，收敛为组合委托薄门面。
 - [x] `AppNotifier` 全局巨型入口删除（文件已物理删除；四服务 + `NotificationSlotPolicy` + `NotificationIntents` + `NotificationInfrastructure` 替代）。

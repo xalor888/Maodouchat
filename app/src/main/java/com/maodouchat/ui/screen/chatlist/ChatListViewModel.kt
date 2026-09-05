@@ -804,22 +804,17 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         val session = OwnerSessionSnapshot(ownerUserId, sessionGeneration)
         if (chatId.isBlank() || !isOwnerSessionCurrent(session)) return
         _uiState.update { state ->
-            val target = state.chats.find { it.id == chatId } ?: return@update state
-            val others = state.chats.filterNot { it.id == chatId }
-            val nextTime = if (forceTimestamp) timestamp else maxOf(target.lastMessageTime, timestamp)
-            val updatedTarget = target.copy(
-                lastMessage = previewText,
-                lastMessageType = messageType,
-                lastMessageTime = nextTime,
-                unreadCount = (target.unreadCount + unreadDelta).coerceAtLeast(0)
+            state.copy(
+                chats = applyPreviewToChats(
+                    chats = state.chats,
+                    chatId = chatId,
+                    previewText = previewText,
+                    messageType = messageType,
+                    timestamp = timestamp,
+                    unreadDelta = unreadDelta,
+                    forceTimestamp = forceTimestamp,
+                )
             )
-            // 保持置顶优先排序：新消息把未置顶会话顶到“未置顶区”最前，而非越过所有置顶会话。
-            val reordered = (others + updatedTarget).sortedWith(
-                compareByDescending<Chat> { it.pinnedAt > 0 }
-                    .thenByDescending { it.pinnedAt }
-                    .thenByDescending { it.lastMessageTime }
-            )
-            state.copy(chats = reordered)
         }
         viewModelScope.launch {
             try {
@@ -1570,7 +1565,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                         // 8.49 修复：按置顶/活跃度重排插入——此前无条件插到第 0 位，
                         // 会把置顶会话压下去、破坏列表排序直到下次 loadChats
                         _uiState.update { st ->
-                            if (st.chats.none { it.id == chatId }) st.copy(chats = restoreChatSorted(st.chats, previous)) else st
+                            if (st.chats.none { it.id == chatId }) st.copy(chats = com.maodouchat.ui.screen.chatlist.restoreChatSorted(st.chats, previous)) else st
                         }
                     }
                     if (requiresGroupOwnershipTransfer(error)) {
@@ -1597,7 +1592,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     ) &&
                     _uiState.value.chats.none { it.id == chatId }
                 ) {
-                    _uiState.update { st -> st.copy(chats = restoreChatSorted(st.chats, previous)) }
+                    _uiState.update { st -> st.copy(chats = com.maodouchat.ui.screen.chatlist.restoreChatSorted(st.chats, previous)) }
                 }
                 throw error
             }
@@ -1613,14 +1608,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             }
         }
     }
-
-    /** 8.49：删除失败回滚时按置顶/最近活跃把会话插回列表（filteredChats 主排序的简化版，最终由下次 loadChats 收敛）。 */
-    private fun restoreChatSorted(existing: List<Chat>, chat: Chat): List<Chat> =
-        (existing + chat).sortedWith(
-            compareByDescending<Chat> { it.pinnedAt > 0 }
-                .thenByDescending { it.pinnedAt }
-                .thenByDescending { it.lastMessageTime }
-        )
 
     private suspend fun cleanupLocalChat(
         chatId: String,
