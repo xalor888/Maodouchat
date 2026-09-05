@@ -457,8 +457,9 @@ Gate：prompt injection、伪造 tool call、重复写、流中断、账号切�
 
 ### P07 Push、后台保活与本地通知
 
-当前状态：`[ ]`。Push 注册语义与实际 WS 保活混杂，`AppNotifier.kt` 超过 1,000 行。
+当前状态：`[~]`。Push 注册语义与实际 WS 保活混杂，`AppNotifier.kt` 超过 1,000 行。去重纯策略已先行冻结：`NotificationSlotPolicy` 为全部通知 tag/id/分组/data-URI/requestCode 唯一事实源，`AppNotifier` 内 40+ 处手写字面量已改走 policy（8 单测锁定槽位字符串与 8.44 来电/未接隔离）。
 
+- [x] 冻结通知槽位纯策略：`NotificationSlotPolicy`（消息/reminder/来电/未接/动态/AI任务/好友/群邀请/公告/测试 tag+id+分组+dataURI+requestCode，表达式与历史行为逐字等价；`AppNotifier` 私有槽位常量与 `incomingCallNotifyId/missedCallNotifyId/aiTaskGroupSummaryId` 私有函数已删除）。
 - [ ] 定义统一 `PushTransport`；前台 WS 与后台推送渠道职责分开。
 - [ ] 推送只唤醒 inbox/sync，不携带聊天敏感正文。
 - [ ] 替换语义模糊的守护/假来电/媒体保活实现，遵守 Android 后台限制。

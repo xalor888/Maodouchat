@@ -15,6 +15,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.maodouchat.MainActivity
 import com.maodouchat.R
+import com.maodouchat.notification.NotificationSlotPolicy
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.notification.NotificationPreferences
 import com.maodouchat.notification.NotificationSoundPolicy
@@ -35,14 +36,7 @@ object AppNotifier {
     private const val CHANNEL_CALLS = "calls_v4"
     private const val CHANNEL_AI_TASKS = "ai_tasks_v4"
     private val LEGACY_CHANNEL_IDS = listOf("messages", "group_messages", "calls", "ai_tasks")
-    private const val NOTIFICATION_TAG_PREFIX = "maodouchat_"
-    private const val AI_TASK_NOTIFICATION_TAG = "maodouchat_ai_task"
-    private const val FRIEND_REQUEST_NOTIFICATION_TAG = "maodouchat_friend_request"
-    private const val GROUP_INVITE_NOTIFICATION_TAG = "maodouchat_group_invite"
-    private const val ANNOUNCEMENT_NOTIFICATION_TAG = "maodouchat_announcement"
     private val notificationMutationLock = Any()
-    /** Distinct from [incomingCallNotifyId] so cancelIncoming never wipes a missed tray. */
-    private const val MISSED_CALL_NOTIFY_SALT = 0x4D495353 // "MISS"
 
     fun ensureChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -139,13 +133,13 @@ object AppNotifier {
             // Unique data URI so two chatIds whose hashCode() collides still yield distinct
             // PendingIntents (extras are NOT part of PendingIntent identity); without this,
             // FLAG_UPDATE_CURRENT would overwrite one chat's tap target with the other's.
-            data = Uri.parse("maodouchat-notify://chat/$chatId")
+            data = Uri.parse(NotificationSlotPolicy.chatDataUri(chatId))
         }
         // notify 用真实 chatId 作 tag、id=0，使每个会话有独立通知槽位；PendingIntent 的唯一性
         // 则由上方 tapIntent 的 data URI 保证（requestCode=chatId.hashCode() 仍可能因碰撞复用同一
         // PendingIntent，故不能以 hashCode 单独区分会话）。
         val pi = PendingIntent.getActivity(
-            context, chatId.hashCode(), tapIntent,
+            context, NotificationSlotPolicy.chatRequestCode(chatId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val chatLocked = isChatPinLocked(context, chatId)
@@ -187,11 +181,67 @@ object AppNotifier {
                 ?.takeIf(String::isNotBlank)
                 ?.let { builder.setSubText(it) }
         }
+
+        // M11: 标记已读通知动作（仅非 PIN 锁定会话）
+        if (!chatLocked) {
+            val markReadIntent = Intent(context, com.maodouchat.quickreply.NotificationQuickReplyReceiver::class.java).apply {
+                action = com.maodouchat.quickreply.NotificationQuickReplyReceiver.ACTION_MARK_READ
+                putExtra(com.maodouchat.quickreply.NotificationQuickReplyReceiver.EXTRA_CHAT_ID, chatId)
+                putNotificationOwner(expectedUserId)
+                data = Uri.parse(NotificationSlotPolicy.markReadDataUri(chatId))
+            }
+            val markReadPendingIntent = PendingIntent.getBroadcast(
+                context,
+                NotificationSlotPolicy.markReadRequestCode(chatId),
+                markReadIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            val markReadAction = NotificationCompat.Action.Builder(
+                R.drawable.ic_notification,
+                context.getString(R.string.chat_mark_read),
+                markReadPendingIntent,
+            ).build()
+            builder.addAction(markReadAction)
+        }
+
+        // M11: 行内快捷回复 RemoteInput（非脱敏且开启快捷回复时）
+        if (!hideDetails && com.maodouchat.quickreply.QuickReplyPolicy.isEnabled(context)) {
+            val remoteInput = androidx.core.app.RemoteInput.Builder(com.maodouchat.quickreply.NotificationQuickReplyReceiver.KEY_TEXT_REPLY)
+                .setLabel(context.getString(R.string.quick_reply_hint))
+                .build()
+
+            val replyIntent = Intent(context, com.maodouchat.quickreply.NotificationQuickReplyReceiver::class.java).apply {
+                action = com.maodouchat.quickreply.NotificationQuickReplyReceiver.ACTION_REPLY
+                putExtra(com.maodouchat.quickreply.NotificationQuickReplyReceiver.EXTRA_CHAT_ID, chatId)
+                putNotificationOwner(expectedUserId)
+                data = Uri.parse(NotificationSlotPolicy.quickReplyDataUri(chatId))
+            }
+
+            val replyFlags = PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0)
+            val replyPendingIntent = PendingIntent.getBroadcast(
+                context,
+                NotificationSlotPolicy.quickReplyRequestCode(chatId),
+                replyIntent,
+                replyFlags,
+            )
+
+            val replyAction = NotificationCompat.Action.Builder(
+                R.drawable.ic_notification,
+                context.getString(R.string.quick_reply_action),
+                replyPendingIntent,
+            )
+                .addRemoteInput(remoteInput)
+                .setAllowGeneratedReplies(true)
+                .build()
+
+            builder.addAction(replyAction)
+        }
+
         val notification = builder.build()
         if (!notificationOwnerMatches(context, expectedUserId)) return
         // tag 用真实 chatId（而非其 hashCode），id 固定 0：每个会话独立通知槽位，彻底避免
         // (maodouchat_<chatId>).hashCode() 跨会话碰撞导致后到通知覆盖先到、点击跳错会话。
-        safeNotify(context, NOTIFICATION_TAG_PREFIX + chatId, 0, notification, expectedUserId)
+        safeNotify(context, NotificationSlotPolicy.messageTag(chatId), 0, notification, expectedUserId)
         // 同步到通知中心：App 锁开启时与系统通知同样脱敏，避免中心里仍显示发送者/预览
         runCatching {
             com.maodouchat.MaodouchatApp.emitNotificationCenterItem(
@@ -229,11 +279,11 @@ object AppNotifier {
             putExtra(EXTRA_OPEN_CHAT_ID, chatId)
             putExtra(EXTRA_OPEN_MESSAGE_ID, messageId)
             putNotificationOwner(expectedUserId)
-            data = Uri.parse("maodouchat-notify://reminder/$chatId/$messageId")
+            data = Uri.parse(NotificationSlotPolicy.reminderDataUri(chatId, messageId))
         }
         val pi = PendingIntent.getActivity(
             context,
-            ("reminder_$chatId").hashCode(),
+            NotificationSlotPolicy.reminderRequestCode(chatId),
             tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -261,7 +311,7 @@ object AppNotifier {
             .setSilent(!effectiveSoundEnabled(context, NotificationPreferences.soundEnabled(context)))
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return false
-        safeNotify(context, NOTIFICATION_TAG_PREFIX + "reminder_$chatId", messageId.hashCode(), notification, expectedUserId)
+        safeNotify(context, NotificationSlotPolicy.reminderTag(chatId), NotificationSlotPolicy.reminderNotifyId(messageId), notification, expectedUserId)
         return true
     }
 
@@ -282,10 +332,10 @@ object AppNotifier {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(EXTRA_OPEN_MISSED_CALL, true)
             putNotificationOwner(expectedUserId)
-            data = Uri.parse("maodouchat-notify://missed/$callId")
+            data = Uri.parse(NotificationSlotPolicy.missedCallDataUri(callId))
         }
         val pi = PendingIntent.getActivity(
-            context, missedCallNotifyId(callId), tapIntent,
+            context, NotificationSlotPolicy.missedCallNotifyId(callId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val title = context.getString(if (isVideo) R.string.notification_missed_video_call else R.string.notification_missed_audio_call)
@@ -306,7 +356,7 @@ object AppNotifier {
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return
         // 8.44：未接来电通知用独立 tag，避免与来电/动态互动在 null-tag id 空间哈希碰撞互相顶掉
-        safeNotify(context, NOTIFY_TAG_MISSED, missedCallNotifyId(callId), notification, expectedUserId)
+        safeNotify(context, NotificationSlotPolicy.MISSED_CALL_TAG, NotificationSlotPolicy.missedCallNotifyId(callId), notification, expectedUserId)
         // 同步到通知中心：App 锁开启时隐藏联系人姓名
         runCatching {
             val hideDetails = shouldHideSensitiveDetails(context)
@@ -351,10 +401,10 @@ object AppNotifier {
             putExtra(EXTRA_INCOMING_CALL_VIDEO, isVideo)
             if (senderId.isNotBlank()) putExtra(EXTRA_INCOMING_CALL_SENDER_ID, senderId)
             putNotificationOwner(expectedUserId)
-            data = Uri.parse("maodouchat-notify://incoming/$callId")
+            data = Uri.parse(NotificationSlotPolicy.incomingCallDataUri(callId))
         }
         val pi = PendingIntent.getActivity(
-            context, incomingCallNotifyId(callId), tapIntent,
+            context, NotificationSlotPolicy.incomingCallNotifyId(callId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val builder = NotificationCompat.Builder(context, CHANNEL_CALLS)
@@ -376,33 +426,31 @@ object AppNotifier {
         }
         if (!notificationOwnerMatches(context, expectedUserId)) return
         // 8.44：来电通知独立 tag（与前台服务 9001 / 动态互动隔离）
-        safeNotify(context, NOTIFY_TAG_CALL, incomingCallNotifyId(callId), builder.build(), expectedUserId)
+        safeNotify(context, NotificationSlotPolicy.CALL_TAG, NotificationSlotPolicy.incomingCallNotifyId(callId), builder.build(), expectedUserId)
     }
 
     /** 对端已挂断 / 本地已接听或拒绝后清掉系统来电通知，避免幽灵响铃 */
     fun cancelIncomingCall(context: Context, callId: String) {
         if (callId.isBlank()) return
-        NotificationManagerCompat.from(context).cancel(NOTIFY_TAG_CALL, incomingCallNotifyId(callId))
+        NotificationManagerCompat.from(context).cancel(NotificationSlotPolicy.CALL_TAG, NotificationSlotPolicy.incomingCallNotifyId(callId))
         // Also clear legacy same-as-callId slot from older builds that shared the id
         // with missed calls (harmless if empty).
         NotificationManagerCompat.from(context).cancel(callId.hashCode())
     }
 
     /**
-     * Missed-call tray uses [missedCallNotifyId] — independent of [incomingCallNotifyId]
-     * so endCall / cancelIncoming never erase a just-posted missed entry.
+     * Missed-call tray uses [NotificationSlotPolicy.missedCallNotifyId] — independent of
+     * [NotificationSlotPolicy.incomingCallNotifyId] so endCall / cancelIncoming never
+     * erase a just-posted missed entry.
      */
     fun cancelMissedCall(context: Context, callId: String) {
         if (callId.isBlank()) return
-        NotificationManagerCompat.from(context).cancel(NOTIFY_TAG_MISSED, missedCallNotifyId(callId))
+        NotificationManagerCompat.from(context).cancel(NotificationSlotPolicy.MISSED_CALL_TAG, NotificationSlotPolicy.missedCallNotifyId(callId))
         // Legacy slot (pre-split notify ids).
         NotificationManagerCompat.from(context).cancel(callId.hashCode())
     }
 
-    private fun incomingCallNotifyId(callId: String): Int = callId.hashCode()
-
-    private fun missedCallNotifyId(callId: String): Int =
-        callId.hashCode() xor MISSED_CALL_NOTIFY_SALT
+    // 槽位分配见 [NotificationSlotPolicy]（来电/未接 id 盐隔离）。
 
     fun showPostInteraction(
         context: Context,
@@ -424,10 +472,10 @@ object AppNotifier {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(EXTRA_OPEN_POST_ID, postId)
             putNotificationOwner(expectedUserId)
-            data = Uri.parse("maodouchat-notify://post/$postId")
+            data = Uri.parse(NotificationSlotPolicy.postDataUri(postId))
         }
         val pi = PendingIntent.getActivity(
-            context, postId.hashCode(), tapIntent,
+            context, NotificationSlotPolicy.postRequestCode(postId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         // 1.113：评论被赞 → 独立文案；1.122：回复 → 独立文案
@@ -457,7 +505,7 @@ object AppNotifier {
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return
         // 8.44：动态互动通知独立 tag
-        safeNotify(context, NOTIFY_TAG_POST, ("post_$postId").hashCode(), notification, expectedUserId)
+        safeNotify(context, NotificationSlotPolicy.POST_TAG, NotificationSlotPolicy.postNotifyId(postId), notification, expectedUserId)
         // 同步到通知中心
         runCatching {
             com.maodouchat.MaodouchatApp.emitNotificationCenterItem(
@@ -485,7 +533,7 @@ object AppNotifier {
     /** Clear post interaction tray (id = `post_{postId}`.hashCode()). */
     fun cancelPostInteraction(context: Context, postId: String) {
         if (postId.isBlank()) return
-        NotificationManagerCompat.from(context).cancel(NOTIFY_TAG_POST, ("post_$postId").hashCode())
+        NotificationManagerCompat.from(context).cancel(NotificationSlotPolicy.POST_TAG, NotificationSlotPolicy.postNotifyId(postId))
     }
 
     /** 1.119：设置页「发送测试通知」——用当前通知偏好发一条本地通知验证铃声/震动。 */
@@ -501,7 +549,7 @@ object AppNotifier {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setSilent(!effectiveSoundEnabled(context, NotificationPreferences.soundEnabled(context)))
             .build()
-        safeNotify(context, NOTIFY_TAG_TEST, System.currentTimeMillis().toInt(), notification, expectedUserId)
+        safeNotify(context, NotificationSlotPolicy.TEST_TAG, System.currentTimeMillis().toInt(), notification, expectedUserId)
     }
 
     /**
@@ -523,10 +571,10 @@ object AppNotifier {
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putNotificationOwner(expectedUserId)
-            data = Uri.parse("maodouchat-notify://announcement/$announcementId")
+            data = Uri.parse(NotificationSlotPolicy.announcementDataUri(announcementId))
         }
         val pi = PendingIntent.getActivity(
-            context, ("announcement_$announcementId").hashCode(), tapIntent,
+            context, NotificationSlotPolicy.announcementRequestCode(announcementId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val levelLabel = when (level) {
@@ -548,7 +596,7 @@ object AppNotifier {
             .setSilent(!effectiveSoundEnabled(context, soundEnabled))
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return
-        safeNotify(context, ANNOUNCEMENT_NOTIFICATION_TAG, announcementId.hashCode(), notification, expectedUserId)
+        safeNotify(context, NotificationSlotPolicy.ANNOUNCEMENT_TAG, NotificationSlotPolicy.announcementNotifyId(announcementId), notification, expectedUserId)
     }
 
     fun showFriendRequest(
@@ -565,10 +613,10 @@ object AppNotifier {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(EXTRA_OPEN_CONTACTS, true)
             putNotificationOwner(expectedUserId)
-            data = Uri.parse("maodouchat-notify://friend/$requestId")
+            data = Uri.parse(NotificationSlotPolicy.friendRequestDataUri(requestId))
         }
         val pi = PendingIntent.getActivity(
-            context, ("friend_$requestId").hashCode(), tapIntent,
+            context, NotificationSlotPolicy.friendRequestRequestCode(requestId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val titleRes = if (action == "ACCEPTED") {
@@ -593,7 +641,7 @@ object AppNotifier {
             .setSilent(!effectiveSoundEnabled(context, soundEnabled))
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return
-        safeNotify(context, FRIEND_REQUEST_NOTIFICATION_TAG, requestId.hashCode(), notification, expectedUserId)
+        safeNotify(context, NotificationSlotPolicy.FRIEND_REQUEST_TAG, NotificationSlotPolicy.friendRequestNotifyId(requestId), notification, expectedUserId)
         runCatching {
             com.maodouchat.MaodouchatApp.emitNotificationCenterItem(
                 NotificationCenterItem(
@@ -631,10 +679,10 @@ object AppNotifier {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(EXTRA_OPEN_CONTACTS, true)
             putNotificationOwner(expectedUserId)
-            data = Uri.parse("maodouchat-notify://group-invite/$inviteId")
+            data = Uri.parse(NotificationSlotPolicy.groupInviteDataUri(inviteId))
         }
         val pi = PendingIntent.getActivity(
-            context, ("group_invite_$inviteId").hashCode(), tapIntent,
+            context, NotificationSlotPolicy.groupInviteRequestCode(inviteId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val titleRes = R.string.notification_group_invite
@@ -651,7 +699,7 @@ object AppNotifier {
             .setSilent(!effectiveSoundEnabled(context, soundEnabled))
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return
-        safeNotify(context, GROUP_INVITE_NOTIFICATION_TAG, inviteId.hashCode(), notification, expectedUserId)
+        safeNotify(context, NotificationSlotPolicy.GROUP_INVITE_TAG, NotificationSlotPolicy.groupInviteNotifyId(inviteId), notification, expectedUserId)
         runCatching {
             com.maodouchat.MaodouchatApp.emitNotificationCenterItem(
                 NotificationCenterItem(
@@ -686,11 +734,11 @@ object AppNotifier {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(EXTRA_OPEN_AI_TASKS_CHAT_ID, chatId)
             putNotificationOwner(expectedUserId)
-            data = Uri.parse("maodouchat-notify://aitask/$taskId")
+            data = Uri.parse(NotificationSlotPolicy.aiTaskDataUri(taskId))
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
-            taskId.hashCode(),
+            NotificationSlotPolicy.aiTaskRequestCode(taskId),
             tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -718,14 +766,14 @@ object AppNotifier {
             .setAutoCancel(true)
             .setWhen(dueAt)
             .setShowWhen(true)
-            .setGroup("ai_tasks_$chatId")
+            .setGroup(NotificationSlotPolicy.aiTaskGroupKey(chatId))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setSilent(!effectiveSoundEnabled(context, soundEnabled))
             .build()
         if (!notificationOwnerMatches(context, expectedUserId)) return false
-        safeNotify(context, AI_TASK_NOTIFICATION_TAG, taskId.hashCode(), notification, expectedUserId)
+        safeNotify(context, NotificationSlotPolicy.AI_TASK_TAG, NotificationSlotPolicy.aiTaskNotifyId(taskId), notification, expectedUserId)
         // 分组需要一条 summary 通知才能在所有 Android 版本（尤其 7.0+）正确折叠展示；
-        // 与子通知共用 AI_TASK_NOTIFICATION_TAG，现有 cancel* 方法会一并清理。
+        // 与子通知共用 AI 任务 tag（见 NotificationSlotPolicy），现有 cancel* 方法会一并清理。
         showAiTaskGroupSummary(context, chatId, expectedUserId)
         // 同步到通知中心
         runCatching {
@@ -748,11 +796,11 @@ object AppNotifier {
 
     fun cancelMessage(context: Context, chatId: String) {
         // 与 showMessage 的 tag 化 notify 保持一致：按 (tag, id=0) 取消，而非旧的 hashCode id。
-        NotificationManagerCompat.from(context).cancel(NOTIFICATION_TAG_PREFIX + chatId, 0)
+        NotificationManagerCompat.from(context).cancel(NotificationSlotPolicy.messageTag(chatId), 0)
         // 8.51：打开聊天一并清掉该会话已触发的「稍后提醒」通知（与 cancelAiTaskRemindersForChat 打开即清对齐）。
         // 提醒通知 id = messageId.hashCode()，无法预知，需遍历 activeNotifications 按 tag 过滤。
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val reminderTag = NOTIFICATION_TAG_PREFIX + "reminder_$chatId"
+            val reminderTag = NotificationSlotPolicy.reminderTag(chatId)
             runCatching {
                 val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 manager.activeNotifications
@@ -763,7 +811,7 @@ object AppNotifier {
     }
 
     fun cancelAiTaskReminder(context: Context, taskId: String) {
-        NotificationManagerCompat.from(context).cancel(AI_TASK_NOTIFICATION_TAG, taskId.hashCode())
+        NotificationManagerCompat.from(context).cancel(NotificationSlotPolicy.AI_TASK_TAG, NotificationSlotPolicy.aiTaskNotifyId(taskId))
     }
 
     /**
@@ -785,11 +833,8 @@ object AppNotifier {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setSilent(true)
             .build()
-        safeNotify(context, AI_TASK_NOTIFICATION_TAG, aiTaskGroupSummaryId(chatId), summary, expectedUserId)
+        safeNotify(context, NotificationSlotPolicy.AI_TASK_TAG, NotificationSlotPolicy.aiTaskSummaryId(chatId), summary, expectedUserId)
     }
-
-    private fun aiTaskGroupSummaryId(chatId: String): Int =
-        ("ai_summary_$chatId").hashCode()
 
     /**
      * Drop tray reminders for one chat when the AI tasks screen (or center row) is opened.
@@ -797,10 +842,10 @@ object AppNotifier {
      */
     fun cancelAiTaskRemindersForChat(context: Context, chatId: String) {
         if (chatId.isBlank() || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        val groupKey = "ai_tasks_$chatId"
+        val groupKey = NotificationSlotPolicy.aiTaskGroupKey(chatId)
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.activeNotifications
-            .filter { it.tag == AI_TASK_NOTIFICATION_TAG && it.notification.group == groupKey }
+            .filter { it.tag == NotificationSlotPolicy.AI_TASK_TAG && it.notification.group == groupKey }
             .forEach { manager.cancel(it.tag, it.id) }
     }
 
@@ -808,14 +853,14 @@ object AppNotifier {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.activeNotifications
-            .filter { it.tag == AI_TASK_NOTIFICATION_TAG }
+            .filter { it.tag == NotificationSlotPolicy.AI_TASK_TAG }
             .forEach { manager.cancel(it.tag, it.id) }
     }
 
     fun cancelAllFriendRequests(context: Context) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.activeNotifications
-            .filter { it.tag == FRIEND_REQUEST_NOTIFICATION_TAG }
+            .filter { it.tag == NotificationSlotPolicy.FRIEND_REQUEST_TAG }
             .forEach { manager.cancel(it.tag, it.id) }
     }
 
@@ -823,7 +868,7 @@ object AppNotifier {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.activeNotifications
-            .filter { it.tag == GROUP_INVITE_NOTIFICATION_TAG }
+            .filter { it.tag == NotificationSlotPolicy.GROUP_INVITE_TAG }
             .forEach { manager.cancel(it.tag, it.id) }
     }
 
@@ -928,10 +973,7 @@ object AppNotifier {
         if (chatId.isBlank()) return false
         val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return false
         return try {
-            // Process-unlocked chats may still keep lock on disk; tray still hides body until user opens chat.
-            kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
-                app.database.chatLockDao().get(chatId) != null
-            }
+            app.secretConversationController.capabilities(chatId).isLocked
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (_: Exception) {
@@ -944,9 +986,11 @@ object AppNotifier {
         if (chatId.isBlank()) return false
         val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return false
         return try {
-            kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
-                app.database.chatDao().isSecretChat(chatId)
-            }
+            val caps = app.secretConversationController.capabilities(chatId)
+            !com.maodouchat.domain.messaging.ConversationPrivacyPolicy.allows(
+                caps,
+                com.maodouchat.domain.messaging.PrivacyAction.NOTIFICATION_PREVIEW
+            )
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (_: Exception) {
@@ -976,12 +1020,8 @@ object AppNotifier {
     const val EXTRA_INCOMING_CALL_VIDEO = "maodouchat_incoming_call_video"
     const val EXTRA_INCOMING_CALL_SENDER_ID = "maodouchat_incoming_call_sender_id"
 
-    /** 8.44：来电/未接/动态互动通知独立 tag——三者此前共用 null-tag id 空间，
-     * 哈希碰撞时响应来电会被动态互动通知顶掉。消息通知已用 NOTIFICATION_TAG_PREFIX 隔离。 */
-    private const val NOTIFY_TAG_CALL = "maodouchat_call"
-    private const val NOTIFY_TAG_MISSED = "maodouchat_missed"
-    private const val NOTIFY_TAG_POST = "maodouchat_post"
-    private const val NOTIFY_TAG_TEST = "maodouchat_test"
+    /** 8.44：来电/未接/动态互动/测试通知独立 tag——槽位分配见 [NotificationSlotPolicy]，
+     * 三者此前共用 null-tag id 空间，哈希碰撞时响应来电会被动态互动通知顶掉。 */
 
     /**
      * 8.48：定时消息发送失败通知（达重试上限后移除待发条目时提示，避免静默丢失）。
@@ -996,7 +1036,7 @@ object AppNotifier {
             .build()
         runCatching {
             (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-                .notify("scheduled_message_failed".hashCode(), notification)
+                .notify(NotificationSlotPolicy.scheduledMessageFailedNotifyId(), notification)
         }
     }
 }
