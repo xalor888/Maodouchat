@@ -116,7 +116,12 @@ object ContentPayloadCodec {
     private fun decodeLegacyBody(rawBody: String): LegacyBody {
         val index = rawBody.lastIndexOf(META_PREFIX)
         if (index < 0) return LegacyBody(ChatTextDisplayPolicy.unescapeHtmlEntities(rawBody), MessageMeta())
-        val encoded = rawBody.substring(index + META_PREFIX.length).substringBefore(META_SUFFIX)
+        // M01 子项 5：字面 `<meta>` 文本（无闭合 `</meta>`）不得被当作 metadata 标记而截断正文。
+        val suffixIndex = rawBody.indexOf(META_SUFFIX, index + META_PREFIX.length)
+        if (suffixIndex < 0) {
+            return LegacyBody(ChatTextDisplayPolicy.unescapeHtmlEntities(rawBody), MessageMeta())
+        }
+        val encoded = rawBody.substring(index + META_PREFIX.length, suffixIndex)
         val metadata = runCatching { JsonFormat.fromJsonString(encoded) }.getOrDefault(MessageMeta())
         return LegacyBody(
             body = ChatTextDisplayPolicy.unescapeHtmlEntities(rawBody.substring(0, index)),

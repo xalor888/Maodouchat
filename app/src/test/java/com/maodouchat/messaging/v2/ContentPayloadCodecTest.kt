@@ -54,4 +54,31 @@ class ContentPayloadCodecTest {
         assertEquals("source-1", normalized.meta.replyToId)
         assertTrue(!normalized.content.contains(Message.META_TAG_PREFIX))
     }
+
+    @Test
+    fun `literal meta text without closing tag is preserved as display text`() {
+        val legacy = MessagingV2Content(
+            type = "TEXT",
+            body = "note <meta> literal without close",
+        )
+
+        val decoded = ContentPayloadCodec.decode(legacy)
+
+        // 字面 `<meta>` 无闭合 `</meta>`：整体按纯文本，不得截断后续内容，也不解析出 metadata。
+        assertEquals("note <meta> literal without close", decoded.body)
+        assertEquals(MessageMeta(), decoded.metadata)
+    }
+
+    @Test
+    fun `literal meta with both tags parses metadata after last marker`() {
+        val legacy = MessagingV2Content(
+            type = "TEXT",
+            body = "see <meta> then <meta>{\"forwardedFrom\":\"Bob\"}</meta>",
+        )
+
+        val decoded = ContentPayloadCodec.decode(legacy)
+
+        assertEquals("see <meta> then ", decoded.body)
+        assertEquals("Bob", decoded.metadata.forwardedFrom)
+    }
 }
