@@ -5,9 +5,9 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.UpdateChatSettingsRequest
 import com.maodouchat.server.model.UpdateDisappearingMessagesRequest
 import com.maodouchat.server.model.WsMessage
+import com.maodouchat.server.repository.ConversationCommandService
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationSettingsMutationResult
-import com.maodouchat.server.repository.ConversationSettingsRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
@@ -24,7 +24,7 @@ import kotlinx.serialization.json.Json
 /** Authenticated HTTP adapter for per-user preferences and shared 1:1 expiry policy. */
 internal fun Route.configureConversationSettingsRoutes(
     userRepo: UserRepository,
-    settingsRepository: ConversationSettingsRepository,
+    commandService: ConversationCommandService,
     participantRepository: ConversationParticipantRepository,
     json: Json,
 ) {
@@ -49,7 +49,7 @@ internal fun Route.configureConversationSettingsRoutes(
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse(disabledFeature))
                 return@put
             }
-            val outcome = settingsRepository.updateUserSettings(chatId, userId, request)
+            val outcome = commandService.updateSettings(chatId, userId, request)
             when (outcome.result) {
                 ConversationSettingsMutationResult.UPDATED -> call.respond(outcome.settings!!)
                 ConversationSettingsMutationResult.CHAT_NOT_FOUND,
@@ -76,7 +76,7 @@ internal fun Route.configureConversationSettingsRoutes(
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求体无效"))
                     return@put
                 }
-            val outcome = settingsRepository.setDisappearingMessages(chatId, userId, request.seconds)
+            val outcome = commandService.setDisappearingMessages(chatId, userId, request.seconds)
             val settings = when (outcome.result) {
                 ConversationSettingsMutationResult.UPDATED -> outcome.settings!!
                 ConversationSettingsMutationResult.GROUP_NOT_SUPPORTED -> {

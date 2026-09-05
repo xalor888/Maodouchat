@@ -204,6 +204,11 @@ fun Application.configureRouting(
         groupInvitationService,
     )
     val conversationSettingsRepo = ConversationSettingsRepository()
+    val conversationCommandService = ConversationCommandService(
+        creationService = conversationCreationService,
+        lifecycleRepository = conversationLifecycleRepo,
+        settingsRepository = conversationSettingsRepo,
+    )
     val conversationParticipantRepo = ConversationParticipantRepository()
     val conversationQueryRepo = ConversationQueryRepository()
     val groupAuditRepo = GroupAuditRepository()
@@ -413,7 +418,7 @@ fun Application.configureRouting(
         configureHealthRoutes()
         configureConversationSettingsRoutes(
             userRepo = userRepo,
-            settingsRepository = conversationSettingsRepo,
+            commandService = conversationCommandService,
             participantRepository = conversationParticipantRepo,
             json = json,
         )

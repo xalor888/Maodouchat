@@ -553,9 +553,9 @@ Gate：并发 pre-key、设备批准防重放、被撤销设备、新设备群 k
 
 ### B04 会话创建、查询、设置与生命周期
 
-当前状态：`[~]`。会话域已拆为 9 个 repository 文件；旧 direct 热路径扫描已删除（回填迁移 v3 替代）。`ConversationCommandService` 统一命令入口仍未建。
+当前状态：`[~]`。会话域已拆为 9 个 repository 文件；旧 direct 热路径扫描已删除（回填迁移 v3 替代）。`ConversationCommandService` 统一命令入口已建（create/leave/updateSettings/setDisappearingMessages 四命令，组合既有三件套实例）；设置路由已改走命令服务（`configureConversationSettingsRoutes` 不再直连 `ConversationSettingsRepository`）；创建/退出路由迁移待续。
 
-- [~] `ConversationCommandService` 统一 direct/group/channel 创建、退出、删除和归档语义（CreationService/LifecycleRepository 已分，统一 CommandService 待建）。
+- [~] `ConversationCommandService` 统一 direct/group/channel 创建、退出、删除和归档语义（门面已建并接入设置路由；创建/退出路由仍直连旧服务）。
 - [~] `ConversationQueryService` 只做授权后的 metadata 查询（`ConversationQueryRepository` 已存在）。
 - [x] DirectChatPairs 唯一约束保证并发创建只有一个会话（`pairKey` 主键）。
 - [x] 设置、可见性和参与者查询拥有独立 repository（SettingsRepository/Visibility/ParticipantRepository 已分）。
