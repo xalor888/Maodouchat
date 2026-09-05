@@ -20,7 +20,7 @@ class AttachmentSendAfterUploadPolicyTest {
         assertTrue(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err))
         assertFalse(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(err))
         assertTrue(AttachmentSendAfterUploadPolicy.isRetryable(err))
-        assertTrue(AttachmentTransferFinalizer.isRetryable(err))
+        assertTrue(AttachmentSendAfterUploadPolicy.isRetryable(err))
     }
 
     @Test
@@ -76,7 +76,7 @@ class AttachmentSendAfterUploadPolicyTest {
                 IllegalStateException("signal_initialization_failed"),
             ),
         )
-        assertTrue(AttachmentTransferFinalizer.isRetryable(NoRecipientDevicesException()))
+        assertTrue(AttachmentSendAfterUploadPolicy.isRetryable(NoRecipientDevicesException()))
     }
 
     @Test

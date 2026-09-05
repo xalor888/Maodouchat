@@ -1,6 +1,5 @@
 package com.maodouchat.attachment
 
-import android.content.Context
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.entity.hasCompletedUpload
 import com.maodouchat.data.model.Chat
@@ -35,9 +34,8 @@ sealed interface AttachmentFinalizeOutcome {
 }
 
 /** Completes the encrypted-reference send independently from any visible chat screen. */
-object AttachmentTransferFinalizer {
-    suspend fun finalize(context: Context, messageId: String, expectedOwnerUserId: String): AttachmentFinalizeOutcome {
-        val app = context.applicationContext as MaodouchatApp
+class AttachmentFinalizeUseCase(private val app: MaodouchatApp) {
+    suspend fun finalize(messageId: String, expectedOwnerUserId: String): AttachmentFinalizeOutcome {
         val dao = app.database.attachmentTransferDao()
         val tokenManager = TokenManager.getInstance(app)
         if (app.database.messagingV2Dao().isMessageTerminal(expectedOwnerUserId, messageId)) {

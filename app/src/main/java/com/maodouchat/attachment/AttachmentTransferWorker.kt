@@ -178,7 +178,7 @@ class AttachmentTransferWorker(
         messageId: String,
         ownerUserId: String
     ): Result = when (
-        val outcome = AttachmentTransferFinalizer.finalize(applicationContext, messageId, ownerUserId)
+        val outcome = AttachmentFinalizeUseCase(applicationContext as MaodouchatApp).finalize(messageId, ownerUserId)
     ) {
         is AttachmentFinalizeOutcome.Sent,
         AttachmentFinalizeOutcome.AlreadyClaimed,

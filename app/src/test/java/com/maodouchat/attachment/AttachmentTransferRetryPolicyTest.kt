@@ -12,22 +12,22 @@ class AttachmentTransferRetryPolicyTest {
     @Test
     fun networkAndTimeoutAreRetryable() {
         assertTrue(
-            AttachmentTransferFinalizer.isRetryable(
+            AttachmentSendAfterUploadPolicy.isRetryable(
                 ApiException(ApiFailureKind.NETWORK, serverMessage = "down")
             )
         )
         assertTrue(
-            AttachmentTransferFinalizer.isRetryable(
+            AttachmentSendAfterUploadPolicy.isRetryable(
                 ApiException(ApiFailureKind.TIMEOUT, serverMessage = "slow")
             )
         )
-        assertTrue(AttachmentTransferFinalizer.isRetryable(IOException("eof")))
+        assertTrue(AttachmentSendAfterUploadPolicy.isRetryable(IOException("eof")))
     }
 
     @Test
     fun server5xxIsRetryable() {
         assertTrue(
-            AttachmentTransferFinalizer.isRetryable(
+            AttachmentSendAfterUploadPolicy.isRetryable(
                 ApiException(ApiFailureKind.HTTP, statusCode = 503, serverMessage = "busy")
             )
         )
@@ -36,12 +36,12 @@ class AttachmentTransferRetryPolicyTest {
     @Test
     fun client4xxIsDefinitive() {
         assertFalse(
-            AttachmentTransferFinalizer.isRetryable(
+            AttachmentSendAfterUploadPolicy.isRetryable(
                 ApiException(ApiFailureKind.HTTP, statusCode = 403, serverMessage = "forbidden")
             )
         )
         assertFalse(
-            AttachmentTransferFinalizer.isRetryable(
+            AttachmentSendAfterUploadPolicy.isRetryable(
                 IllegalStateException("attachment_transfer_invalid")
             )
         )
@@ -50,17 +50,17 @@ class AttachmentTransferRetryPolicyTest {
     @Test
     fun missingPeerPrekeysAndSignalInitAreRetryable() {
         assertTrue(
-            AttachmentTransferFinalizer.isRetryable(
+            AttachmentSendAfterUploadPolicy.isRetryable(
                 com.maodouchat.crypto.NoRecipientDevicesException()
             )
         )
         assertTrue(
-            AttachmentTransferFinalizer.isRetryable(
+            AttachmentSendAfterUploadPolicy.isRetryable(
                 IllegalStateException("signal_initialization_failed")
             )
         )
         assertTrue(
-            AttachmentTransferFinalizer.isRetryable(
+            AttachmentSendAfterUploadPolicy.isRetryable(
                 RuntimeException("wrap", com.maodouchat.crypto.NoRecipientDevicesException())
             )
         )
