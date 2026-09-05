@@ -90,7 +90,7 @@
 - [~] 建立模块级测试任务、Lint 和 API visibility 规则：JVM 模块 `useJUnitPlatform` 已接（`:core:testing`）；Android 模块 lint 由 AGP 自带；逐模块 Lint/visibility 规则待后续补全。
 - [~] 所有共享接口先冻结再并行实施：clock/id/dispatcher/SessionContext/领域错误(NetworkResult)/JSON(MaodouJson) 已冻结；typed payload 待 M01 定义。
 
-Gate：空壳模块可编译；旧 app 仍能运行；禁止依赖检查进入 CI。
+Gate：空壳模块可编译；旧 app 仍能运行；禁止依赖检查进入 CI（`checkArchitecture` 已接入 CI android 作业，本地验证通过）。
 
 ### A02 账号、登录、认证与会话
 

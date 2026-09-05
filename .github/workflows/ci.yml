@@ -144,6 +144,9 @@ jobs:
       - name: Compile and test Android
         run: ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest --no-daemon --console=plain
 
+      - name: Architecture check (A01 module dependency gate)
+        run: ./gradlew checkArchitecture --no-daemon --console=plain
+
       - name: Lint check (catch common bugs)
         run: ./gradlew :app:lintDebug --no-daemon --console=plain
 
