@@ -31,7 +31,7 @@ import com.maodouchat.ui.screen.chatlist.NotificationCenterType
  */
 object AppNotifier {
 
-    private const val CHANNEL_MESSAGES = "messages_v4"
+    internal const val CHANNEL_MESSAGES = "messages_v4"
     private const val CHANNEL_GROUP_MESSAGES = "group_messages_v4"
     internal const val CHANNEL_CALLS = "calls_v4"
     internal const val CHANNEL_AI_TASKS = "ai_tasks_v4"
@@ -462,40 +462,9 @@ object AppNotifier {
         level: String,
         soundEnabled: Boolean = true,
         expectedUserId: String,
-    ) {
-        if (!notificationOwnerMatches(context, expectedUserId)) return
-        ensureChannels(context)
-        if (!canPostNotifications(context)) return
-        val tapIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putNotificationOwner(expectedUserId)
-            data = Uri.parse(NotificationSlotPolicy.announcementDataUri(announcementId))
-        }
-        val pi = PendingIntent.getActivity(
-            context, NotificationSlotPolicy.announcementRequestCode(announcementId), tapIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val levelLabel = when (level) {
-            "EMERGENCY" -> context.getString(R.string.announcement_level_emergency)
-            "MAINTENANCE" -> context.getString(R.string.announcement_level_maintenance)
-            else -> context.getString(R.string.announcement_level_info)
-        }
-        val body = "$levelLabel · $title"
-        val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(R.string.notification_announcement_title))
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(genericNotification(context, CHANNEL_MESSAGES, R.string.notification_announcement_title))
-            .setAutoCancel(true)
-            .setContentIntent(pi)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!effectiveSoundEnabled(context, soundEnabled))
-            .build()
-        if (!notificationOwnerMatches(context, expectedUserId)) return
-        safeNotify(context, NotificationSlotPolicy.ANNOUNCEMENT_TAG, NotificationSlotPolicy.announcementNotifyId(announcementId), notification, expectedUserId)
-    }
+    ) = com.maodouchat.notification.SocialNotificationService.showAnnouncement(
+        context, announcementId, title, level, soundEnabled, expectedUserId
+    )
 
     fun showFriendRequest(
         context: Context,
@@ -503,59 +472,9 @@ object AppNotifier {
         action: String,
         soundEnabled: Boolean = true,
         expectedUserId: String,
-    ) {
-        if (!notificationOwnerMatches(context, expectedUserId)) return
-        ensureChannels(context)
-        if (!canPostNotifications(context)) return
-        val tapIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(EXTRA_OPEN_CONTACTS, true)
-            putNotificationOwner(expectedUserId)
-            data = Uri.parse(NotificationSlotPolicy.friendRequestDataUri(requestId))
-        }
-        val pi = PendingIntent.getActivity(
-            context, NotificationSlotPolicy.friendRequestRequestCode(requestId), tapIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val titleRes = if (action == "ACCEPTED") {
-            R.string.notification_friend_accepted
-        } else {
-            R.string.notification_friend_request
-        }
-        val bodyRes = if (action == "ACCEPTED") {
-            R.string.notification_friend_accepted_body
-        } else {
-            R.string.notification_friend_request_body
-        }
-        val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(titleRes))
-            .setContentText(context.getString(bodyRes))
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(genericNotification(context, CHANNEL_MESSAGES, bodyRes))
-            .setAutoCancel(true)
-            .setContentIntent(pi)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!effectiveSoundEnabled(context, soundEnabled))
-            .build()
-        if (!notificationOwnerMatches(context, expectedUserId)) return
-        safeNotify(context, NotificationSlotPolicy.FRIEND_REQUEST_TAG, NotificationSlotPolicy.friendRequestNotifyId(requestId), notification, expectedUserId)
-        runCatching {
-            com.maodouchat.MaodouchatApp.emitNotificationCenterItem(
-                NotificationCenterItem(
-                    id = "friend_push_${requestId}_$action",
-                    type = NotificationCenterType.FRIEND_REQUEST,
-                    mergeKey = "friend_request",
-                    title = context.getString(titleRes),
-                    subtitle = context.getString(bodyRes),
-                    preview = null,
-                    deeplink = "maodouchat:contacts",
-                    extra = mapOf("requestId" to requestId, "action" to action)
-                ),
-                expectedUserId = expectedUserId,
-            )
-        }
-    }
+    ) = com.maodouchat.notification.SocialNotificationService.showFriendRequest(
+        context, requestId, action, soundEnabled, expectedUserId
+    )
 
     /**
      * Group-invite tray (routing metadata only).
@@ -568,52 +487,9 @@ object AppNotifier {
         action: String,
         soundEnabled: Boolean = true,
         expectedUserId: String,
-    ) {
-        if (action != "CREATED") return
-        if (!notificationOwnerMatches(context, expectedUserId)) return
-        ensureChannels(context)
-        if (!canPostNotifications(context)) return
-        val tapIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(EXTRA_OPEN_CONTACTS, true)
-            putNotificationOwner(expectedUserId)
-            data = Uri.parse(NotificationSlotPolicy.groupInviteDataUri(inviteId))
-        }
-        val pi = PendingIntent.getActivity(
-            context, NotificationSlotPolicy.groupInviteRequestCode(inviteId), tapIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val titleRes = R.string.notification_group_invite
-        val bodyRes = R.string.notification_group_invite_body
-        val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(titleRes))
-            .setContentText(context.getString(bodyRes))
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(genericNotification(context, CHANNEL_MESSAGES, bodyRes))
-            .setAutoCancel(true)
-            .setContentIntent(pi)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!effectiveSoundEnabled(context, soundEnabled))
-            .build()
-        if (!notificationOwnerMatches(context, expectedUserId)) return
-        safeNotify(context, NotificationSlotPolicy.GROUP_INVITE_TAG, NotificationSlotPolicy.groupInviteNotifyId(inviteId), notification, expectedUserId)
-        runCatching {
-            com.maodouchat.MaodouchatApp.emitNotificationCenterItem(
-                NotificationCenterItem(
-                    id = "group_invite_push_${inviteId}_$action",
-                    type = NotificationCenterType.GROUP_INVITE,
-                    mergeKey = "group_invite",
-                    title = context.getString(titleRes),
-                    subtitle = context.getString(bodyRes),
-                    preview = null,
-                    deeplink = "maodouchat:group_invites",
-                    extra = mapOf("inviteId" to inviteId, "chatId" to chatId, "action" to action)
-                ),
-                expectedUserId = expectedUserId,
-            )
-        }
-    }
+    ) = com.maodouchat.notification.SocialNotificationService.showGroupInvite(
+        context, inviteId, chatId, action, soundEnabled, expectedUserId
+    )
 
     fun showAiTaskReminder(
         context: Context,
@@ -657,20 +533,11 @@ object AppNotifier {
     fun cancelAllAiTaskReminders(context: Context) =
         com.maodouchat.notification.ReminderNotificationService.cancelAllAiTaskReminders(context)
 
-    fun cancelAllFriendRequests(context: Context) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.activeNotifications
-            .filter { it.tag == NotificationSlotPolicy.FRIEND_REQUEST_TAG }
-            .forEach { manager.cancel(it.tag, it.id) }
-    }
+    fun cancelAllFriendRequests(context: Context) =
+        com.maodouchat.notification.SocialNotificationService.cancelAllFriendRequests(context)
 
-    fun cancelAllGroupInvites(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.activeNotifications
-            .filter { it.tag == NotificationSlotPolicy.GROUP_INVITE_TAG }
-            .forEach { manager.cancel(it.tag, it.id) }
-    }
+    fun cancelAllGroupInvites(context: Context) =
+        com.maodouchat.notification.SocialNotificationService.cancelAllGroupInvites(context)
 
     /** Logout / account switch: drop every posted tray notification for this app. */
     fun cancelAll(context: Context) {

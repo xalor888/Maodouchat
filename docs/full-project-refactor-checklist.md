@@ -463,7 +463,7 @@ Gate：prompt injection、伪造 tool call、重复写、流中断、账号切�
 - [ ] 定义统一 `PushTransport`；前台 WS 与后台推送渠道职责分开。
 - [ ] 推送只唤醒 inbox/sync，不携带聊天敏感正文。
 - [ ] 替换语义模糊的守护/假来电/媒体保活实现，遵守 Android 后台限制。
-- [~] 拆分 Message、Call、Social、Reminder notification service（2/4 完成：`ReminderNotificationService` + `CallNotificationService`（来电/未接 show+2 cancel，35s 超时/全屏/ongoing 逐行搬运），`AppNotifier` 保留同签名薄委托 1057→842 行；共享渠道/门禁/post 能力暂为 `AppNotifier.internal`，随后续拆分下沉）。
+- [~] 拆分 Message、Call、Social、Reminder notification service（3/4 完成：+`SocialNotificationService`（公告/好友/群邀请 3 show+2 cancelAll），`AppNotifier` 保留同签名薄委托 1057→709 行；共享渠道/门禁/post 能力暂为 `AppNotifier.internal`，随 Message 拆分下沉）。
 - [ ] 通知 intent、隐私、账号隔离和去重保持纯策略。
 - [ ] 删除巨型 `AppNotifier` 静态入口。
 
