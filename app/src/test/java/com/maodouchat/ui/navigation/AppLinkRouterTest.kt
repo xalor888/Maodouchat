@@ -191,6 +191,29 @@ class AppLinkRouterTest {
     }
 
     @Test
+    fun deepLinkPatternsAreSingleSourced() {
+        // NavGraph/Manifest 与此逐项对应；增删模式必须同步三处。
+        assertEquals(
+            listOf(
+                "https://chat.mdou.me/u/{username}",
+                "https://chat.mdou.me/u/{username}?embed={embed}",
+                "maodouchat://u/{username}",
+            ),
+            AppLinkRouter.publicProfileDeepLinkPatterns,
+        )
+        // 每个模式都有对应的解析覆盖。
+        assertTrue(
+            AppLinkRouter.parseDeepLink("https://chat.mdou.me/u/alice") is AppLinkParseResult.Accepted
+        )
+        assertTrue(
+            AppLinkRouter.parseDeepLink("https://chat.mdou.me/u/alice?embed=1") is AppLinkParseResult.Accepted
+        )
+        assertTrue(
+            AppLinkRouter.parseDeepLink("maodouchat://u/alice") is AppLinkParseResult.Accepted
+        )
+    }
+
+    @Test
     fun schemeAndHostCaseInsensitive() {
         assertEquals("alice", publicUsernameOf("MAODOUCHAT://u/alice"))
         assertEquals("bob", publicUsernameOf("HTTPS://CHAT.MDOU.ME/u/bob"))

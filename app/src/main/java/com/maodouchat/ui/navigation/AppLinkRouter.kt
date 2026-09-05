@@ -75,6 +75,22 @@ object AppLinkRouter {
     const val MAX_INVITE_CODE_LENGTH = 64
 
     /**
+     * 对外深链模式唯一事实源（公开资料页）。
+     * - `NavGraph` 的 `navDeepLink` 列表直接由此生成；
+     * - `AndroidManifest.xml` 的两个 intent-filter 与此逐项对应（XML 无法引用代码，
+     *   改动时必须同步三处，见下注释）；
+     * - `parseDeepLink` 只接受落在此白名单内的 scheme/host。
+     */
+    // Manifest 镜像：
+    //   https + chat.mdou.me + pathPrefix /u/
+    //   maodouchat + host u
+    val publicProfileDeepLinkPatterns: List<String> = listOf(
+        "https://chat.mdou.me/u/{username}",
+        "https://chat.mdou.me/u/{username}?embed={embed}",
+        "maodouchat://u/{username}",
+    )
+
+    /**
      * 解析外部深链。大小写规则：scheme/host 按 ASCII 小写归一化后匹配白名单
      *（与 Android Uri 行为对齐，浏览器实际发出的均为小写）；path 与参数值保持原样、
      * 走各清洗器校验。

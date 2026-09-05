@@ -1021,11 +1021,10 @@ fun MaodouchatNavGraph(
         composable(
             route = Routes.PUBLIC_PROFILE,
             arguments = listOf(navArgument("username") { type = NavType.StringType }),
-            deepLinks = listOf(
-                navDeepLink { uriPattern = "https://chat.mdou.me/u/{username}" },
-                navDeepLink { uriPattern = "https://chat.mdou.me/u/{username}?embed={embed}" },
-                navDeepLink { uriPattern = "maodouchat://u/{username}" }
-            )
+            // P08：深链模式唯一事实源见 AppLinkRouter.publicProfileDeepLinkPatterns。
+            deepLinks = AppLinkRouter.publicProfileDeepLinkPatterns.map { pattern ->
+                navDeepLink { uriPattern = pattern }
+            }
         ) { entry ->
             val username = Uri.decode(entry.arguments?.getString("username") ?: "")
             if (username.isNotBlank()) {
