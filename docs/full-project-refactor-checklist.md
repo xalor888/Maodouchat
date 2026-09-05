@@ -206,7 +206,7 @@ Gate：所有成员离线、单成员群、新设备、踢人、连续 revision�
 - [~] `ConversationCommandFacade` 成为文本、内联消息和重试的唯一 UI 入口（契约已冻结，实现与接线待做）。
 - [~] `OutgoingConversationResolver` 唯一负责本地会话 ID、首次直聊创建和 crypto readiness（契约已冻结）。
 - [~] 一次 intent 只允许生成一个 local message 和一个 outbox command（`SendMessageCommand.idempotencyKey` 契约已定义）。
-- [ ] 发送提交后的索引、通知、唤醒失败只记录 convergence warning。
+- [x] 发送提交后的索引、通知、唤醒失败只记录 convergence warning（`MessagingV2MutationFacade.completeCommittedProjection`：mutation 已持久后投影/刷新失败仅记 warning，永不回滚）。
 - [ ] 删除 `sendMessage`、`sendGroupTextMessage`、页面内 encrypt/enqueue 等重复实现。
 
 Gate：离线新建直聊、重复点击、取消、重试、账号切换和首条消息竞态通过。
