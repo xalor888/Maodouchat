@@ -39,6 +39,7 @@ internal fun Route.configureAdminUsersRoutes(
     userRepo: UserRepository,
     postRepo: PostRepository,
     authTokenRepo: AuthTokenRepository,
+    sessionService: com.maodouchat.server.service.SessionService,
     groupMediaReferenceRepo: GroupMediaReferenceRepository,
     userDispositionService: UserDispositionService,
 ) {
@@ -179,9 +180,8 @@ internal fun Route.configureAdminUsersRoutes(
             is UserDispositionService.Result.Applied -> {
                 // 生效中的封禁需立刻废掉已签发会话，避免仅靠写路径的 suspended 检查被绕过
                 if (bannedUntil > System.currentTimeMillis()) {
-                    authTokenRepo.rotateAccessTokenVersion(id)
+                    sessionService.revokeAllUserSessions(id)
                     // 封禁后旧设备不得再收推送
-                    PushTokenRepository().removeAllForUser(id)
                     disconnectUserSessions(id, "账号已被临时封禁")
                 }
                 call.respond(

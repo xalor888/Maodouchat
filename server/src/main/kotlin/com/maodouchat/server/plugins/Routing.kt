@@ -183,6 +183,7 @@ fun Application.configureRouting(
     val pinnedMessageRepo = PinnedMessageRepository()
     val serviceMessageRepo = ServiceMessageRepository(messagingV2Repository)
     val authTokenRepo = AuthTokenRepository()
+    val sessionService = com.maodouchat.server.service.SessionService(authTokenRepo, pushTokenRepo)
     val friendRepo = FriendRepository()
     val chatFolderRepo = ChatFolderRepository()
     val clientPrefsRepo = ClientPrefsRepository()
@@ -491,6 +492,7 @@ fun Application.configureRouting(
             sendCodeRateLimiter = sendCodeRateLimiter,
             sendCodeIpRateLimiter = sendCodeIpRateLimiter,
             loginGate = loginGate,
+            sessionService = sessionService,
         )
 
         // ─── 官网静态页面（无需认证） ─────────────
@@ -509,6 +511,7 @@ configureEncryptedAttachmentRoutes(
             mfaService = com.maodouchat.server.service.MfaService(),
             authTokenRepo = authTokenRepo,
             pushTokenRepo = pushTokenRepo,
+            sessionService = sessionService,
             totpManageRateLimiter = totpManageRateLimiter,
         )
         configureAccountRoutes(
@@ -516,6 +519,7 @@ configureEncryptedAttachmentRoutes(
             postRepo = postRepo,
             authTokenRepo = authTokenRepo,
             pushTokenRepo = pushTokenRepo,
+            sessionService = sessionService,
             notificationPreferenceRepo = notificationPreferenceRepo,
             nearbyRepo = nearbyRepo,
             cacheService = cacheService,
@@ -563,6 +567,7 @@ configureEncryptedAttachmentRoutes(
             moderationRuleRepo = moderationRuleRepo,
             authTokenRepo = authTokenRepo,
             pushTokenRepo = pushTokenRepo,
+            sessionService = sessionService,
             conversationParticipantRepo = conversationParticipantRepo,
             reportRateLimiter = reportRateLimiter,
             json = json,

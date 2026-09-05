@@ -29,6 +29,7 @@ internal fun Route.configureAuthRoutes(
     sendCodeRateLimiter: BoundedRateLimiter,
     sendCodeIpRateLimiter: BoundedRateLimiter,
     loginGate: LoginAttemptGate,
+    sessionService: com.maodouchat.server.service.SessionService,
 ) {
  post("/api/auth/register") {
             if (ServerConfig.isProduction) {
@@ -309,8 +310,7 @@ return@post
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法重置密码，请确认邮箱后重试"))
                 return@post
             }
-            authTokenRepo.rotateAccessTokenVersion(userId)
-            pushTokenRepo.removeAllForUser(userId)
+            sessionService.revokeAllUserSessions(userId)
             disconnectUserSessions(userId, "密码已重置，请重新登录")
             call.respond(
                 buildJsonObject {
@@ -412,8 +412,7 @@ put("message", "密码已重置，请使用新密码登录")
             }
             sessionsByUser.forEach { (userId, sessionIds) ->
                 sessionIds.forEach { sessionId ->
-                    authTokenRepo.revokeSession(userId, sessionId)
-                    pushTokenRepo.removeForAuthSession(userId, sessionId)
+                    sessionService.endSession(userId, sessionId)
                 }
                 disconnectUserSessionsByAuthSessionIds(userId, sessionIds, "已退出登录")
             }
@@ -441,14 +440,14 @@ internal fun Route.configureAuthenticatedSessionRoutes(
     mfaService: MfaService,
     authTokenRepo: AuthTokenRepository,
     pushTokenRepo: PushTokenRepository,
+    sessionService: com.maodouchat.server.service.SessionService,
     totpManageRateLimiter: BoundedRateLimiter,
 ) {
     authenticate("auth-jwt") {
             post("/api/auth/logout-all") {
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject
-                authTokenRepo.rotateAccessTokenVersion(userId)
+                sessionService.revokeAllUserSessions(userId)
                 // 全设备登出后必须清掉推送 token，否则已退出设备仍可能收到来电唤醒。
-                pushTokenRepo.removeAllForUser(userId)
                 disconnectUserSessions(userId, "已在其他设备退出全部会话")
                 call.respond(
                 buildJsonObject {

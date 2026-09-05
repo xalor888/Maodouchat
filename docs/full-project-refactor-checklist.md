@@ -527,9 +527,9 @@ Gate：空库、旧库升级、重复/中断 migration、备份恢复、滚动�
 
 ### B02 认证、账户、Session、设备与隐私
 
-当前状态：`[~]`。`MfaService`（TOTP）、`BlockService`（拉黑）、`AccountLifecycleService`（注销）、`PrivacyService`（隐私）、`CredentialService`（注册/登录/改密/重置/校验）、`ProfileService`（昵称/状态/头像/用户名）已从 `UserRepository` 抽出（1281→633 行）；登录失败锁定状态机已抽为可注时钟的 `LoginAttemptGate`（`Routing.kt` 局部函数 + `AuthRouting` 内联检查收敛，`LoginAttemptGateTest` 5 例 + 路由级 `LoginLockoutPrivacyRouteTest` 4 例）；SessionService 尚未拆。
+当前状态：`[~]`。`MfaService`（TOTP）、`BlockService`（拉黑）、`AccountLifecycleService`（注销）、`PrivacyService`（隐私）、`CredentialService`（注册/登录/改密/重置/校验）、`ProfileService`（昵称/状态/头像/用户名）、`SessionService`（全设备登出/单会话结束：access 版本 + 推送 token 收尾）已从 `UserRepository`/路由抽出（UserRepository 1281→633 行）；登录失败锁定状态机已抽为可注时钟的 `LoginAttemptGate`（`Routing.kt` 局部函数 + `AuthRouting` 内联检查收敛，`LoginAttemptGateTest` 5 例 + 路由级 `LoginLockoutPrivacyRouteTest` 4 例）。
 
-- [~] 拆 `CredentialService`、`MfaService`、`SessionService`、`ProfileService`（`MfaService` 已拆并注入 AuthRouting；TOTP 防重放/恢复码消费重复实现已收敛到 `MfaService`；`CredentialService` 已拆（register/login/loginWithFactors/changePassword/resetPasswordByEmail/verifyPassword + LoginResult，共享 normalizedEmail/toPrivateUser/isUniqueViolation/MAX_NAME_LENGTH 提升为包内共享），`UserRepository` 保留薄委托；14 个仓储的 `isUniqueViolation` 私有拷贝已删除，统一走包内共享实现；`ProfileService` 已拆（updateProfile/replaceAvatar/isCurrentAvatarUrl/findByUsername/setUsername/clearUsername，共享 toPublicUser/DELETED_USER_NAME 提升为包内共享）；SessionService 待做）。
+- [x] 拆 `CredentialService`、`MfaService`、`SessionService`、`ProfileService`（`SessionService` 收敛 7 处「废会话 + 清推送」组合：改密/重置/全设备登出/删号/三处封禁，WS 断开仍归路由；`ProfileService`/`CredentialService` 同构拆分；14 个仓储的 `isUniqueViolation` 私有拷贝已删除）。
 - [~] 拆 `PrivacyService`、`BlockService`、`AccountLifecycleService`（三个均已拆；UserRepository 保留薄委托）。
 - [ ] 登录失败、验证码和 limiter 使用可共享 store，支持多实例。
 - [ ] `DeviceSession` 明确绑定 auth session、Signal device 和 push token。

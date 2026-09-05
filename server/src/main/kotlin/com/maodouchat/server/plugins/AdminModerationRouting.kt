@@ -43,6 +43,7 @@ internal fun Route.configureAdminModerationRoutes(
     userRepo: UserRepository,
     moderationRuleRepo: ModerationRuleRepository,
     authTokenRepo: AuthTokenRepository,
+    sessionService: com.maodouchat.server.service.SessionService,
 ) {
     // ─── 举报管理（admin-jwt 代理） ────
     get("/reports") {
@@ -153,8 +154,7 @@ internal fun Route.configureAdminModerationRoutes(
             is ReportWorkflow.ExecuteActionResult.Completed -> {
                 if (action == "SUSPEND_24H") {
                     frozenRestrictionTargetUserId?.let { targetUserId ->
-                        authTokenRepo.rotateAccessTokenVersion(targetUserId)
-                        PushTokenRepository().removeAllForUser(targetUserId)
+                        sessionService.revokeAllUserSessions(targetUserId)
                         disconnectUserSessions(targetUserId, "账号已被临时封禁")
                     }
                 }

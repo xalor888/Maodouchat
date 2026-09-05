@@ -22,6 +22,7 @@ internal fun Route.configureAccountRoutes(
     postRepo: PostRepository,
     authTokenRepo: AuthTokenRepository,
     pushTokenRepo: PushTokenRepository,
+    sessionService: com.maodouchat.server.service.SessionService,
     notificationPreferenceRepo: NotificationPreferenceRepository,
     nearbyRepo: NearbyRepository,
     cacheService: CacheService,
@@ -418,9 +419,8 @@ put("publicProfileUrl", publicProfileUrl)
                 }
                 val ok = userRepo.changePassword(userId, req.oldPassword, req.newPassword)
                 if (ok) {
-                    authTokenRepo.rotateAccessTokenVersion(userId)
+                    sessionService.revokeAllUserSessions(userId)
                     // 与 logout-all 一致：旧设备会话已废，推送 token 必须清掉，否则仍收消息/来电推送
-                    pushTokenRepo.removeAllForUser(userId)
                     disconnectUserSessions(userId, "密码已修改，请重新登录")
                     call.respond(
                 buildJsonObject {
@@ -464,8 +464,7 @@ put("status", "ok")
                     com.maodouchat.server.service.FileStorageService.deleteAvatarUrl(deactivation.avatarUrl, userId)
                     // 与 logout-all / 改密码一致：吊销已签发的 access token（版本号）并清推送 token，
                     // 否则注销后旧 JWT 在 TTL 内仍可调用 API；推送 token 不清则已注销设备仍收消息/来电。
-                    authTokenRepo.rotateAccessTokenVersion(userId)
-                    pushTokenRepo.removeAllForUser(userId)
+                    sessionService.revokeAllUserSessions(userId)
                     disconnectUserSessions(userId, "账号已注销")
                     // 8.33：注销后向各群剩余成员广播成员变更（含自动群主转让），客户端即时刷新成员列表
                     groupSnapshots.forEach { (chatId, recipients) ->

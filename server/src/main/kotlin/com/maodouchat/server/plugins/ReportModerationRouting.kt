@@ -20,6 +20,7 @@ internal fun Route.configureReportModerationRoutes(
     moderationRuleRepo: ModerationRuleRepository,
     authTokenRepo: AuthTokenRepository,
     pushTokenRepo: PushTokenRepository,
+    sessionService: com.maodouchat.server.service.SessionService,
     conversationParticipantRepo: ConversationParticipantRepository,
     reportRateLimiter: BoundedRateLimiter,
     json: Json,
@@ -253,8 +254,7 @@ put("status", "ok")
                             "RESTRICT_MESSAGES_24H", "RESTRICT_POSTS_7D", "SUSPEND_24H" -> {
                                 val targetUserId = frozenRestrictionTargetUserId
                                 if (action == "SUSPEND_24H" && !targetUserId.isNullOrBlank()) {
-                                    authTokenRepo.rotateAccessTokenVersion(targetUserId)
-                                    pushTokenRepo.removeAllForUser(targetUserId)
+                                    sessionService.revokeAllUserSessions(targetUserId)
                                     disconnectUserSessions(targetUserId, "账号已被临时封禁")
                                 }
                             }

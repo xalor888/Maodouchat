@@ -66,6 +66,7 @@ internal fun Application.configureAdminManagementRouting(
     reportRepo: ReportWorkflow = ReportWorkflow()
 ) {
     val authTokenRepo = AuthTokenRepository()
+    val adminSessionService = com.maodouchat.server.service.SessionService(authTokenRepo)
     val groupMediaReferenceRepo = GroupMediaReferenceRepository()
     val groupInvitationService = GroupInvitationService(GroupInvitationRepository())
     // 管理后台 SPA 静态资产与页面服务（HTML/CSS/JS/logo，见 AdminAssets.kt）
@@ -130,6 +131,7 @@ internal fun Application.configureAdminManagementRouting(
                 userRepo = userRepo,
                 postRepo = postRepo,
                 authTokenRepo = authTokenRepo,
+                sessionService = adminSessionService,
                 groupMediaReferenceRepo = groupMediaReferenceRepo,
                 userDispositionService = UserDispositionService(userRepo),
             )
@@ -147,6 +149,7 @@ internal fun Application.configureAdminManagementRouting(
                 userRepo = userRepo,
                 moderationRuleRepo = moderationRuleRepo,
                 authTokenRepo = authTokenRepo,
+                sessionService = adminSessionService,
             )
 
             // ─── 诊断（AI 审计 / 推送令牌 / Bot / Ops 快照，见 AdminDiagnosticsRouting.kt） ───
