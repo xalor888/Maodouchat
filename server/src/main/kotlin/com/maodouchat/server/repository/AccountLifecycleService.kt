@@ -71,6 +71,16 @@ class AccountLifecycleService {
             Friendships.deleteWhere {
                 (Friendships.userLowId eq userId) or (Friendships.userHighId eq userId)
             }
+            // 待处理的好友申请（双向）与群邀请：账号注销后永无接受者，残留会污染对方列表。
+            FriendRequests.deleteWhere {
+                (FriendRequests.fromUserId eq userId) or (FriendRequests.toUserId eq userId)
+            }
+            GroupInvitations.deleteWhere {
+                (GroupInvitations.userId eq userId) or (GroupInvitations.inviterId eq userId)
+            }
+            // 有意保留：ModerationAuditLog/Reports/RiskEvents（审计追溯）、
+            // ModerationRules/UserTags/SystemAnnouncements/PinnedMessages（系统/运营数据）、
+            // RateLimitStatsSnapshots/AuditExportRecords（运维快照）。
             PushTokens.deleteWhere { PushTokens.userId eq userId }
             UserLocations.deleteWhere { UserLocations.userId eq userId }
             SignalKeys.deleteWhere { SignalKeys.userId eq userId }

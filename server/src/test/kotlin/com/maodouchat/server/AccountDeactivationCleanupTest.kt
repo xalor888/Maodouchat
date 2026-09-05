@@ -16,12 +16,16 @@ import com.maodouchat.server.db.Posts
 import com.maodouchat.server.db.SystemAnnouncements
 import com.maodouchat.server.db.UserTagAssignments
 import com.maodouchat.server.db.UserTags
+import com.maodouchat.server.db.Chats
+import com.maodouchat.server.db.FriendRequests
+import com.maodouchat.server.db.GroupInvitations
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.UserRepository
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.concurrent.atomic.AtomicInteger
@@ -43,6 +47,64 @@ class AccountDeactivationCleanupTest {
         transaction {
             insertUser("u_del", password)
             insertUser("u_other", password)
+            insertUser("u_third", password)
+            Chats.insert {
+                it[Chats.id] = "g_inv"
+            }
+            FriendRequests.insert {
+                it[FriendRequests.id] = "fr_1"
+                it[FriendRequests.fromUserId] = "u_del"
+                it[FriendRequests.toUserId] = "u_other"
+                it[FriendRequests.message] = "hi"
+                it[FriendRequests.status] = "PENDING"
+                it[FriendRequests.createdAt] = now
+                it[FriendRequests.updatedAt] = now
+            }
+            FriendRequests.insert {
+                it[FriendRequests.id] = "fr_2"
+                it[FriendRequests.fromUserId] = "u_other"
+                it[FriendRequests.toUserId] = "u_del"
+                it[FriendRequests.message] = "hello"
+                it[FriendRequests.status] = "PENDING"
+                it[FriendRequests.createdAt] = now
+                it[FriendRequests.updatedAt] = now
+            }
+            FriendRequests.insert {
+                it[FriendRequests.id] = "fr_3"
+                it[FriendRequests.fromUserId] = "u_other"
+                it[FriendRequests.toUserId] = "u_third"
+                it[FriendRequests.message] = "keep"
+                it[FriendRequests.status] = "PENDING"
+                it[FriendRequests.createdAt] = now
+                it[FriendRequests.updatedAt] = now
+            }
+            GroupInvitations.insert {
+                it[GroupInvitations.id] = "gi_1"
+                it[GroupInvitations.chatId] = "g_inv"
+                it[GroupInvitations.userId] = "u_del"
+                it[GroupInvitations.inviterId] = "u_other"
+                it[GroupInvitations.status] = "PENDING"
+                it[GroupInvitations.createdAt] = now
+                it[GroupInvitations.updatedAt] = now
+            }
+            GroupInvitations.insert {
+                it[GroupInvitations.id] = "gi_2"
+                it[GroupInvitations.chatId] = "g_inv"
+                it[GroupInvitations.userId] = "u_other"
+                it[GroupInvitations.inviterId] = "u_del"
+                it[GroupInvitations.status] = "PENDING"
+                it[GroupInvitations.createdAt] = now
+                it[GroupInvitations.updatedAt] = now
+            }
+            GroupInvitations.insert {
+                it[GroupInvitations.id] = "gi_3"
+                it[GroupInvitations.chatId] = "g_inv"
+                it[GroupInvitations.userId] = "u_third"
+                it[GroupInvitations.inviterId] = "u_other"
+                it[GroupInvitations.status] = "PENDING"
+                it[GroupInvitations.createdAt] = now
+                it[GroupInvitations.updatedAt] = now
+            }
             UserTags.insert {
                 it[UserTags.id] = "tag_1"
                 it[UserTags.name] = "Test"
@@ -247,6 +309,20 @@ class AccountDeactivationCleanupTest {
             assertTrue(GroupChainEntries.selectAll().where { GroupChainEntries.chainId eq "chain_2" }.empty())
             assertTrue(GroupPkRounds.selectAll().where { GroupPkRounds.id eq "pk_2" }.empty())
             assertTrue(GroupPkVotes.selectAll().where { GroupPkVotes.pkId eq "pk_2" }.empty())
+            // 注销账号相关的好友申请（双向）与群邀请（被邀/邀请）必须清掉。
+            assertTrue(
+                FriendRequests.selectAll().where {
+                    (FriendRequests.fromUserId eq "u_del") or (FriendRequests.toUserId eq "u_del")
+                }.empty()
+            )
+            assertTrue(
+                GroupInvitations.selectAll().where {
+                    (GroupInvitations.userId eq "u_del") or (GroupInvitations.inviterId eq "u_del")
+                }.empty()
+            )
+            // 无关账号的行保留。
+            assertTrue(FriendRequests.selectAll().where { FriendRequests.id eq "fr_3" }.count() == 1L)
+            assertTrue(GroupInvitations.selectAll().where { GroupInvitations.id eq "gi_3" }.count() == 1L)
 
             assertTrue(AnnouncementAcks.selectAll().where { AnnouncementAcks.userId eq "u_other" }.count() == 1L)
             assertTrue(UserTagAssignments.selectAll().where { UserTagAssignments.userId eq "u_other" }.count() == 1L)
