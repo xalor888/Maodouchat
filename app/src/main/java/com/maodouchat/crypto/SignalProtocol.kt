@@ -45,7 +45,7 @@ import java.util.UUID
 class SignalProtocol(
     private val signalKeyDao: SignalKeyDao,
     private val identityTrustDao: IdentityTrustDao
-) {
+) : com.maodouchat.core.crypto.DirectSessionManager {
     private val initializationMutex = Mutex()
     /**
      * Serializes SessionCipher / GroupCipher / store mutations across ViewModels and workers.
@@ -535,7 +535,7 @@ class SignalProtocol(
      * Signal session 清理（C2）：删除不在 [activeContactIds] 中的远程用户 session，
      * 防止已删除联系人/旧设备的 session 无限累积。
      */
-    fun cleanupStaleSessions(activeContactIds: Set<String>) {
+    override fun cleanupStaleSessions(activeContactIds: Set<String>) {
         val store = protocolStore as? PersistentSignalProtocolStore ?: return
         cryptoLock.withLock {
             val allAddresses = store.getSessionAddresses()
@@ -586,7 +586,7 @@ class SignalProtocol(
         )
     }
 
-    suspend fun ensureSession(token: String, recipientId: String, deviceId: Int = DEFAULT_DEVICE_ID): Result<Unit> {
+    override suspend fun ensureSession(token: String, recipientId: String, deviceId: Int): Result<Unit> {
             val resolvedDeviceId = resolveSessionDeviceId(token, recipientId, deviceId)
             ?: return Result.failure(NoRecipientDevicesException())
         if (!SignalSessionPolicy.shouldEstablishSession(recipientId, resolvedDeviceId, currentUserId, getDeviceId())) {
