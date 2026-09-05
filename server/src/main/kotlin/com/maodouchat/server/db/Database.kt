@@ -34,6 +34,8 @@ internal fun createSchemaTables() {
             UserTags, UserTagAssignments, SystemAnnouncements, AnnouncementAcks, AuditExportRecords,
             RateLimitStatsSnapshots, DeviceEventSequences, DeviceEventConsistencyLog,
             // V2 messaging owns durable per-device delivery. WebSocket is notification only.
-            MessagingV2Messages, MessagingV2Envelopes, ServiceMessages, ServiceMessageReactions
+            MessagingV2Messages, MessagingV2Envelopes, ServiceMessages, ServiceMessageReactions,
+            // B01 后台周期任务租约（双实例下同一任务同时只跑一份）。
+            JobLeases,
     )
 }
