@@ -4,10 +4,8 @@ import androidx.room.withTransaction
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.crypto.SessionCipherOccupancy
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
-import com.maodouchat.data.local.entity.MessagingV2ReceiptEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
-import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageStatus
@@ -27,6 +25,7 @@ internal class MessagingV2TimelineProjector(
     private val onAuthoritativeMutation: suspend (MessagingV2AuthoritativeMutation) -> Unit = {},
     private val onSenderKeyRequest: suspend (conversationId: String, epoch: Long, requesterUserId: String) -> Unit = { _, _, _ -> },
     private val clock: () -> Long = System::currentTimeMillis,
+    private val receiptProjector: MessageReceiptProjector = MessageReceiptProjector(app, messageStore, clock),
 ) {
     suspend fun project(envelope: MessagingV2InboxEntity, content: MessagingV2Content) {
         if (content.type == TYPE_SENDER_KEY_REQUEST) {
@@ -192,8 +191,8 @@ internal class MessagingV2TimelineProjector(
             }
             MessagingV2EventAction.REACTION_SET -> applyReactionSet(existing, envelope, event)
             MessagingV2EventAction.REACTION_SNAPSHOT -> applyReactionSnapshot(existing, envelope, event)
-            MessagingV2EventAction.DELIVERY_RECEIPT -> applyDeliveryReceipt(owner, existing, envelope)
-            MessagingV2EventAction.READ_RECEIPT -> applyReadReceipt(owner, existing, envelope, event)
+            MessagingV2EventAction.DELIVERY_RECEIPT -> receiptProjector.applyDeliveryReceipt(owner, existing, envelope)
+            MessagingV2EventAction.READ_RECEIPT -> receiptProjector.applyReadReceipt(owner, existing, envelope, event)
         }
     }
 
@@ -308,86 +307,6 @@ internal class MessagingV2TimelineProjector(
         ) {
             MaodouchatApp.emitChatListPreviewRefresh(existing.chatId)
         }
-    }
-
-    private suspend fun applyDeliveryReceipt(
-        owner: String,
-        existing: Message,
-        envelope: MessagingV2InboxEntity,
-    ) {
-        if (existing.senderId != owner || envelope.senderUserId == owner) return
-        persistReceipt(
-            ownerUserId = owner,
-            message = existing,
-            recipientUserId = envelope.senderUserId,
-            deliveredAt = envelope.serverTimestamp,
-        )
-        messageStore.updateMessageStatus(existing.id, MessageStatus.DELIVERED)
-    }
-
-    private suspend fun applyReadReceipt(
-        owner: String,
-        existing: Message,
-        envelope: MessagingV2InboxEntity,
-        event: MessagingV2Event,
-    ) {
-        val through = event.throughMessageId ?: event.targetMessageId
-        val boundary = messageStore.getMessageById(through) ?: return
-        if (envelope.senderUserId == owner) {
-            app.database.messageDao().markIncomingReadThrough(
-                chatId = envelope.conversationId,
-                ownerUserId = owner,
-                throughTimestamp = boundary.timestamp,
-                throughMessageId = boundary.id,
-            )
-            app.database.chatDao().markAllRead(envelope.conversationId)
-            MaodouchatApp.emitChatRead(envelope.conversationId)
-            return
-        }
-        if (boundary.senderId != owner) return
-
-        val outgoing = app.database.messageDao().getOutgoingMessagesThrough(
-            chatId = envelope.conversationId,
-            senderId = owner,
-            throughTimestamp = boundary.timestamp,
-            throughMessageId = boundary.id,
-        ).map { it.toDomain() }
-        val isGroup = app.database.chatDao().getChatById(envelope.conversationId)?.isGroup == true
-        outgoing.forEach { message ->
-            persistReceipt(
-                ownerUserId = owner,
-                message = message,
-                recipientUserId = envelope.senderUserId,
-                deliveredAt = envelope.serverTimestamp,
-                readAt = envelope.serverTimestamp,
-            )
-            messageStore.updateMessageStatus(
-                message.id,
-                if (isGroup) MessageStatus.DELIVERED else MessageStatus.READ,
-            )
-        }
-    }
-
-    private suspend fun persistReceipt(
-        ownerUserId: String,
-        message: Message,
-        recipientUserId: String,
-        deliveredAt: Long?,
-        readAt: Long? = null,
-    ) {
-        val dao = app.database.messagingV2Dao()
-        val previous = dao.getReceipt(ownerUserId, message.id, recipientUserId)
-        dao.upsertReceipt(
-            MessagingV2ReceiptEntity(
-                ownerUserId = ownerUserId,
-                messageId = message.id,
-                conversationId = message.chatId,
-                recipientUserId = recipientUserId,
-                deliveredAt = maxOf(previous?.deliveredAt ?: 0L, deliveredAt ?: 0L).takeIf { it > 0L },
-                readAt = maxOf(previous?.readAt ?: 0L, readAt ?: 0L).takeIf { it > 0L },
-                updatedAt = clock(),
-            ),
-        )
     }
 
     private companion object {
