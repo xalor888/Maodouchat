@@ -49,4 +49,15 @@ class ContentPayloadTest {
         val encoded = json.encodeToString<ContentPayload>(ContentPayload.Poll("p1", "q?", listOf("a", "b")))
         assertTrue("\"type\":\"poll\"" in encoded)
     }
+
+    @Test
+    fun `unknown type degrades to Unknown fallback instead of throwing`() {
+        val raw = """{"version":1,"content":{"type":"futureType_v9","someField":42}}"""
+        val decoded = decodeContentEnvelopeFailSafe(json, raw)
+        val content = decoded.content
+        assertTrue(content is ContentPayload.Unknown, "expected Unknown, got $content")
+        content as ContentPayload.Unknown
+        assertEquals("futureType_v9", content.rawType)
+        assertTrue(content.rawPayload.contains("someField"), content.rawPayload)
+    }
 }
