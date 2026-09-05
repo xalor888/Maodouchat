@@ -26,7 +26,7 @@ class MessagingV2Runtime(
 ) {
     private val tokenManager = TokenManager.getInstance(app)
     private val messageStore = LocalMessageStore(app.database.messageDao(), app.database)
-    val outbox = MessagingV2Outbox(
+    val outboxWriter = MessagingV2Outbox(
         database = app.database,
         dao = app.database.messagingV2Dao(),
         ownerUserId = { tokenManager.getUserId().orEmpty() },
@@ -45,7 +45,7 @@ class MessagingV2Runtime(
             messageStore = messageStore,
             ownerUserId = { tokenManager.getUserId().orEmpty() },
             notifier = notifier,
-            sendDeliveryReceipt = outbox::enqueueDeliveryReceipt,
+            sendDeliveryReceipt = outboxWriter::enqueueDeliveryReceipt,
             onAuthoritativeMutation = app.messagingV2MutationEvents::publish,
             onSenderKeyRequest = { conversationId, epoch, requesterUserId ->
                 app.senderKeyRetryManager.enqueue(
@@ -71,7 +71,7 @@ class MessagingV2Runtime(
                     app.database.chatDao().getChatById(chatId)?.memberRevision
                 },
                 onSenderKeyMissing = { envelope, epoch ->
-                    outbox.enqueueSenderKeyRequest(
+                    outboxWriter.enqueueSenderKeyRequest(
                         conversationId = envelope.conversationId,
                         requestedSenderUserId = envelope.senderUserId,
                         groupRevision = epoch,
@@ -154,7 +154,7 @@ class MessagingV2Runtime(
 
     /**
      * Pauses both receive and send convergence while destructive conversation state is removed.
-     * This prevents an already-claimed envelope or outbox row from projecting after cleanup.
+     * This prevents an already-claimed envelope or outboxWriter row from projecting after cleanup.
      */
     internal suspend fun clearConversationState(
         ownerUserId: String,

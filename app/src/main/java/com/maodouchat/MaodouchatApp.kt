@@ -131,7 +131,7 @@ class MaodouchatApp : Application() {
         }
 
     val messagingV2Outbox: com.maodouchat.messaging.v2.MessagingV2Outbox
-        get() = messagingV2Runtime.outbox
+        get() = messagingV2Runtime.outboxWriter
 
     internal val messagingV2MutationEvents by lazy {
         com.maodouchat.messaging.v2.MessagingV2MutationEventBus()
@@ -235,7 +235,7 @@ class MaodouchatApp : Application() {
             AttachmentTransferCoordinator.reconcile(this@MaodouchatApp)
             // 9.239：用户可感知的收敛任务前置——进程被杀时卡 SENDING 的消息重发与
             // 偏好同步优先；自动 OCR 是纯后台索引增强（每张含网络往返），
-            // 此前排在最前会把 outbox flush 拖后数秒，重发消息迟迟不发
+            // 此前排在最前会把 outboxWriter flush 拖后数秒，重发消息迟迟不发
             if (!userId.isNullOrBlank() && tokenManager.isLoggedIn()) {
                 try {
                     messagingV2Runtime.syncNow()
