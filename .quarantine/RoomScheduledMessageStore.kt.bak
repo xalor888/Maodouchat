@@ -1,0 +1,90 @@
+package com.maodouchat.scheduling
+
+import com.maodouchat.data.local.dao.ScheduledMessageDao
+import com.maodouchat.data.local.entity.ScheduledMessageEntity
+import com.maodouchat.domain.messaging.ContentPayload
+import com.maodouchat.domain.messaging.RecurrenceRule
+import com.maodouchat.domain.messaging.RecurrenceType
+import com.maodouchat.domain.messaging.ScheduleStatus
+import com.maodouchat.domain.messaging.ScheduledMessage
+import com.maodouchat.domain.messaging.ScheduledMessageStore
+import java.time.ZoneId
+
+/**
+ * Room-backed implementation of [ScheduledMessageStore] (M09).
+ * Preserves account isolation and maps between Room entities and domain models.
+ */
+class RoomScheduledMessageStore(
+    private val dao: ScheduledMessageDao,
+    private val defaultTimeZoneId: () -> String = { ZoneId.systemDefault().id },
+) : ScheduledMessageStore {
+
+    override suspend fun upsert(schedule: ScheduledMessage): Result<Unit> = runCatching {
+        val text = when (val c = schedule.content) {
+            is ContentPayload.Text -> c.text
+            else -> ""
+        }
+        val recurrence = schedule.recurrence
+        val (intervalMs, weekdaysOnly) = when (recurrence?.type) {
+            RecurrenceType.WEEKDAYS -> (recurrence.intervalDays.toLong().coerceAtLeast(1L) * 86_400_000L) to true
+            RecurrenceType.DAILY -> (recurrence.intervalDays.toLong().coerceAtLeast(1L) * 86_400_000L) to false
+            RecurrenceType.ONCE, null -> 0L to false
+        }
+        dao.upsert(
+            ScheduledMessageEntity(
+                id = schedule.id,
+                ownerUserId = schedule.ownerUserId,
+                chatId = schedule.conversationId,
+                peerUserId = "",
+                text = text,
+                sendAtMillis = schedule.sendAtMillis,
+                createdAtMillis = System.currentTimeMillis(),
+                isGroup = false,
+                status = schedule.status.name,
+                attempt = schedule.attempt,
+                repeatIntervalMs = intervalMs,
+                repeatCount = 0,
+                occurrencesSent = 0,
+                weekdaysOnly = weekdaysOnly,
+                timeZoneId = defaultTimeZoneId(),
+                idempotencyKey = schedule.idempotencyKey,
+            ),
+        )
+    }
+
+    override suspend fun delete(id: String, ownerUserId: String): Result<Unit> = runCatching {
+        dao.deleteById(id, ownerUserId)
+    }
+
+    override suspend fun dueMessages(ownerUserId: String, now: Long): List<ScheduledMessage> {
+        return dao.dueMessages(ownerUserId, now).map { it.toDomain() }
+    }
+
+    companion object {
+        fun ScheduledMessageEntity.toDomain(): ScheduledMessage {
+            val recurrence = when {
+                weekdaysOnly -> RecurrenceRule(
+                    RecurrenceType.WEEKDAYS,
+                    (repeatIntervalMs / 86_400_000L).toInt().coerceAtLeast(1),
+                )
+                repeatIntervalMs > 0L -> RecurrenceRule(
+                    RecurrenceType.DAILY,
+                    (repeatIntervalMs / 86_400_000L).toInt().coerceAtLeast(1),
+                )
+                else -> null
+            }
+            val statusEnum = runCatching { ScheduleStatus.valueOf(status) }.getOrDefault(ScheduleStatus.PENDING)
+            return ScheduledMessage(
+                id = id,
+                ownerUserId = ownerUserId,
+                conversationId = chatId,
+                content = ContentPayload.Text(text),
+                sendAtMillis = sendAtMillis,
+                status = statusEnum,
+                attempt = attempt,
+                recurrence = recurrence,
+                idempotencyKey = idempotencyKey,
+            )
+        }
+    }
+}

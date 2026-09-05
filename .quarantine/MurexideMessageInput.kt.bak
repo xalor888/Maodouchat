@@ -1,0 +1,397 @@
+package com.maodouchat.ui.component
+
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.EmojiEmotions
+import androidx.compose.material.icons.outlined.Keyboard
+import androidx.compose.material.icons.outlined.SentimentSatisfied
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.maodouchat.R
+import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
+import com.maodouchat.ui.theme.LocalLiquidGlassEnabled
+import com.maodouchat.ui.theme.LocalMotionSettings
+import com.maodouchat.ui.theme.MotionTokens
+import com.maodouchat.ui.theme.liquidGlass
+import com.maodouchat.util.HapticGate
+
+/**
+ * Murexide 纯正风格聊天输入栏：
+ * 1. 胶囊造型（Capsule Shape 26dp）或悬浮质感表面；
+ * 2. 左侧附件加号按钮，平滑展开更多面板；
+ * 3. 表情/键盘无缝切换微件；
+ * 4. 动态自适应多行文本输入（支持回车发送与字数越界警示）；
+ * 5. 线性动画弹性发送按钮，在无文字时平滑过渡至语音微标。
+ */
+@Composable
+fun MurexideMessageInput(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onAttachClick: () -> Unit,
+    onEmojiClick: () -> Unit,
+    onMicClick: () -> Unit = {},
+    isEmojiPanelVisible: Boolean = false,
+    isSending: Boolean = false,
+    replyingMessage: ReplyPreview? = null,
+    onCancelReply: () -> Unit = {},
+    editingMessageText: String? = null,
+    onCancelEdit: () -> Unit = {},
+    modifier: Modifier = Modifier,
+    placeholder: String = stringResource(R.string.chat_message_placeholder),
+    maxCharLength: Int = 4000,
+    enterToSend: Boolean = false,
+) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val motion = LocalMotionSettings.current
+    val liquidGlassEnabled = LocalLiquidGlassEnabled.current
+    val backdrop = LocalLiquidGlassBackdrop.current
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+    ) {
+        // Reply Preview Banner
+        AnimatedVisibility(
+            visible = replyingMessage != null,
+            enter = fadeIn(tween(180)),
+            exit = fadeOut(tween(140))
+        ) {
+            if (replyingMessage != null) {
+                Surface(
+                    shape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(3.dp)
+                                .height(26.dp)
+                                .clip(RoundedCornerShape(1.5.dp))
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = replyingMessage.senderName,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = replyingMessage.preview,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        IconButton(
+                            onClick = onCancelReply,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Cancel",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Edit Message Banner
+        AnimatedVisibility(
+            visible = editingMessageText != null,
+            enter = fadeIn(tween(180)),
+            exit = fadeOut(tween(140))
+        ) {
+            if (editingMessageText != null) {
+                Surface(
+                    shape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "编辑消息",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = editingMessageText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = onCancelEdit,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Cancel Edit",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Main Capsule Composer Bar
+        val capsuleShape = RoundedCornerShape(26.dp)
+        val capsuleSurfaceColor = MaterialTheme.colorScheme.surfaceContainerHigh
+
+        Surface(
+            shape = capsuleShape,
+            color = capsuleSurfaceColor,
+            shadowElevation = 1.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (liquidGlassEnabled && backdrop != null) {
+                        Modifier.liquidGlass(
+                            enabled = true,
+                            backdrop = backdrop,
+                            shape = capsuleShape,
+                            surfaceColor = capsuleSurfaceColor.copy(alpha = 0.85f),
+                            blurRadius = 6.dp
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                // Attach More Actions Button
+                IconButton(
+                    onClick = onAttachClick,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = stringResource(R.string.chat_attachment),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                // Emoji/Keyboard Switcher
+                IconButton(
+                    onClick = onEmojiClick,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isEmojiPanelVisible) {
+                            Icons.Outlined.Keyboard
+                        } else {
+                            Icons.Outlined.SentimentSatisfied
+                        },
+                        contentDescription = if (isEmojiPanelVisible) "Keyboard" else "Emoji",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                // Center Input Text Field
+                TextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    placeholder = {
+                        Text(
+                            text = placeholder,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+                        )
+                    },
+                    singleLine = enterToSend,
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = if (enterToSend) ImeAction.Send else ImeAction.Default
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSend = {
+                            if (enterToSend && !isSending && value.isNotBlank()) {
+                                onSend()
+                            }
+                        }
+                    ),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    textStyle = MaterialTheme.typography.bodyMedium,
+                    maxLines = 5,
+                    modifier = Modifier
+                        .weight(1f)
+                        .defaultMinSize(minHeight = 40.dp)
+                )
+
+                // Animated Send / Mic Button
+                val hasText = value.isNotBlank()
+
+                AnimatedContent(
+                    targetState = hasText,
+                    transitionSpec = {
+                        (fadeIn(tween(180)) + scaleIn(tween(180), initialScale = 0.8f)) togetherWith
+                            (fadeOut(tween(140)) + scaleOut(tween(140), targetScale = 0.8f))
+                    },
+                    label = "send_button_transition"
+                ) { showSend ->
+                    if (showSend) {
+                        val sendInteraction = remember { MutableInteractionSource() }
+                        val isPressed by sendInteraction.collectIsPressedAsState()
+                        val sendScale by animateFloatAsState(
+                            targetValue = if (isPressed) 0.90f else 1f,
+                            animationSpec = motion.springSpec(dampingRatio = 0.65f, stiffness = 550f),
+                            label = "murexide_send_scale"
+                        )
+
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(42.dp)
+                                .graphicsLayer {
+                                    scaleX = sendScale
+                                    scaleY = sendScale
+                                }
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                                .clickable(
+                                    interactionSource = sendInteraction,
+                                    indication = null,
+                                    enabled = !isSending
+                                ) {
+                                    HapticGate.perform(context, haptic, HapticFeedbackType.TextHandleMove)
+                                    onSend()
+                                }
+                        ) {
+                            if (isSending) {
+                                CircularProgressIndicator(
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Outlined.Send,
+                                    contentDescription = stringResource(R.string.chat_send),
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        IconButton(
+                            onClick = onMicClick,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = "Voice",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
