@@ -220,7 +220,7 @@ Gate：离线新建直聊、重复点击、取消、重试、账号切换和首�
 - [~] 已读、送达、播放回执走独立 typed event 和聚合投影（已读/送达已由 `MessageReceiptProjector` 走 `DELIVERY_RECEIPT`/`READ_RECEIPT` typed event + `MessagingV2ReceiptEntity` 聚合；播放回执未实现）。
 - [ ] optimistic rollback 只允许发生在 durable staging 失败之前。
 - [ ] 编辑/撤回/删除同步收敛搜索、媒体缓存、通知和附件状态。
-- [ ] 删除旧 REST mutation、旧 reaction snapshot 写路径和 UI 自行改状态逻辑。
+- [~] 删除旧 REST mutation、旧 reaction snapshot 写路径和 UI 自行改状态逻辑（revoke/edit 已走 `ConversationMessageMutationCoordinator` 非旧 REST；但 `ChatDetailViewModel` 仍自行 `updateMessageStatus`/`.copy(status=...)` 改 READ/SENDING/FAILED，未完全收敛到 mutation/receipt 投影）。
 
 Gate：重复/乱序 event、延迟 DATA、删除与附件 finalize、删除与定时发送竞态通过。
 
