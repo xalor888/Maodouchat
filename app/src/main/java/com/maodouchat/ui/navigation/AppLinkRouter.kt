@@ -69,7 +69,10 @@ object AppLinkRouter {
     const val MAX_INVITE_CODE_LENGTH = 64
 
     /**
-     * 解析外部深链。支持形态（大小写敏感）：
+     * 解析外部深链。大小写规则：scheme/host 按 ASCII 小写归一化后匹配白名单
+     *（与 Android Uri 行为对齐，浏览器实际发出的均为小写）；path 与参数值保持原样、
+     * 走各清洗器校验。
+     * 支持形态：
      * - maodouchat://u/{username}
      * - https://chat.mdou.me/u/{username}（容忍 ?embed= 查询）
      * - maodouchat://chat/{chatId}[?messageId=...]
@@ -83,12 +86,13 @@ object AppLinkRouter {
         // 仅允许白名单 scheme/host 组合，拒绝 javascript:/file:/content: 等。
         val schemeEnd = raw.indexOf("://")
         if (schemeEnd <= 0) return AppLinkParseResult.Rejected("unsupported")
-        val scheme = raw.substring(0, schemeEnd)
+        val scheme = raw.substring(0, schemeEnd).lowercase()
         val afterScheme = raw.substring(schemeEnd + 3)
         return when {
             scheme == "maodouchat" -> parseMaodouScheme(afterScheme)
-            scheme == "https" && afterScheme.startsWith("chat.mdou.me/") ->
-                parseHttpsChatMdou(afterScheme.removePrefix("chat.mdou.me/"))
+            scheme == "https" && afterScheme.substringBefore('/').lowercase() == "chat.mdou.me" &&
+                afterScheme.contains('/') ->
+                parseHttpsChatMdou(afterScheme.substringAfter('/'))
             else -> AppLinkParseResult.Rejected("unsupported")
         }
     }

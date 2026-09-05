@@ -124,4 +124,36 @@ class AppLinkRouterTest {
         assertEquals("abc-123_.~", AppLinkRouter.encodePathSegment("abc-123_.~"))
         assertEquals("a%2Fb", AppLinkRouter.encodePathSegment("a/b"))
     }
+
+    // ---- 与 MainActivity 旧手写分支的行为 parity（迁移安全网） ----
+
+    private fun publicUsernameOf(uri: String): String? {
+        val res = AppLinkRouter.parseDeepLink(uri)
+        return (res as? AppLinkParseResult.Accepted)
+            ?.destination?.let { it as? AppLinkDestination.PublicProfile }?.username
+    }
+
+    @Test
+    fun parityOldBranchAccepts() {
+        // 旧分支接受的形态必须继续接受且用户名一致。
+        assertEquals("alice", publicUsernameOf("maodouchat://u/alice"))
+        assertEquals("bob", publicUsernameOf("https://chat.mdou.me/u/bob"))
+        assertEquals("a.b-c_d", publicUsernameOf("maodouchat://u/a.b-c_d"))
+    }
+
+    @Test
+    fun parityOldBranchIgnores() {
+        // 旧分支忽略（不导航、继续常规流程）的形态必须继续为非 PublicProfile。
+        assertNull(publicUsernameOf("maodouchat://u/"))
+        assertNull(publicUsernameOf("https://chat.mdou.me/u/"))
+        assertNull(publicUsernameOf("maodouchat://x/alice"))
+        assertNull(publicUsernameOf("https://chat.mdou.me/x/alice"))
+        assertNull(publicUsernameOf("https://chat.mdou.me"))
+    }
+
+    @Test
+    fun schemeAndHostCaseInsensitive() {
+        assertEquals("alice", publicUsernameOf("MAODOUCHAT://u/alice"))
+        assertEquals("bob", publicUsernameOf("HTTPS://CHAT.MDOU.ME/u/bob"))
+    }
 }

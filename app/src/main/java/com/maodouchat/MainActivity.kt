@@ -27,6 +27,9 @@ import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.rememberNavController
 import com.maodouchat.ui.navigation.MaodouchatNavGraph
 import com.maodouchat.ui.navigation.Routes
+import com.maodouchat.ui.navigation.AppLinkDestination
+import com.maodouchat.ui.navigation.AppLinkParseResult
+import com.maodouchat.ui.navigation.AppLinkRouter
 import com.maodouchat.ui.theme.Background
 import com.maodouchat.ui.theme.MaodouchatTheme
 import com.maodouchat.network.TokenManager
@@ -223,15 +226,14 @@ class MainActivity : FragmentActivity() {
             onChatLockSurface = false
             refreshWindowPrivacy()
             val isSecret = if (chatId != null) {
-                withContext(Dispatchers.IO) {
-                    try {
-                        (application as MaodouchatApp).database.chatDao().isSecretChat(chatId)
-                    } catch (e: kotlinx.coroutines.CancellationException) {
-                        throw e
-                    } catch (_: Exception) {
-                        // 查库异常失败闭合：保持乐观 FLAG_SECURE，避免密聊内容在异常窗口被截。
-                        true
-                    }
+                try {
+                    val caps = (application as MaodouchatApp).secretConversationController.capabilities(chatId)
+                    !com.maodouchat.domain.messaging.ConversationPrivacyPolicy.allows(caps, com.maodouchat.domain.messaging.PrivacyAction.SCREENSHOT)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // 异常失败闭合：保持乐观 FLAG_SECURE，避免密聊内容在异常窗口被截。
+                    true
                 }
             } else false
             // 8.42：路由变化只清 surface 标记（FLAG_SECURE 释放依据），不删磁盘/索引。
@@ -351,33 +353,30 @@ class MainActivity : FragmentActivity() {
                 return
             }
         }
-        // 深链接：maodouchat://u/<username> 或 https://chat.mdou.me/u/<username> → 公开资料页
+        // 深链接统一走 AppLinkRouter（P08）：maodouchat://u/<username> 或
+        // https://chat.mdou.me/u/<username> → 公开资料页。白名单 scheme/host 与
+        // 用户名清洗规则收敛一处（见 AppLinkRouter 及 parity 单测）。
         val data = intent.data
         if (intent.action == android.content.Intent.ACTION_VIEW && data != null) {
-            val path = data.path.orEmpty()
-            val username = when {
-                data.scheme == "maodouchat" && data.host == "u" -> path.removePrefix("/").trim()
-                data.scheme == "https" && data.host == "chat.mdou.me" && path.startsWith("/u/") ->
-                    path.removePrefix("/u/").trim()
-                else -> ""
-            }
-            // 规范化：只接受单路径段（拒绝 a/b 这类含额外段的值），且仅字母数字与部分安全字符
-            val normalized = username
-                .substringBefore('/')
-                .substringBefore('?')
-                .take(64)
-                .takeIf { it.isNotBlank() && it.all { c -> c.isLetterOrDigit() || c == '_' || c == '-' || c == '.' } }
-            if (normalized != null) {
-                val ownerUserId = TokenManager.getInstance(this).getUserId().orEmpty()
-                notificationTarget.value = NotificationTarget.PublicProfile(
-                    // 8.34 修复：跳转用规范化后的用户名（此前用原始值，校验可被
-                    // maodouchat://u/alice/bob 这类值旁路，直达 404 请求）
-                    username = normalized,
-                    sessionGeneration = MaodouchatApp.currentSessionGeneration(),
-                    ownerUserId = ownerUserId,
-                )
-                intent.data = null
-                return
+            when (val parsed = AppLinkRouter.parseDeepLink(data.toString())) {
+                is AppLinkParseResult.Accepted -> {
+                    // 现阶段仅公开资料页经外部深链直达；其余 Accepted 目标
+                    //（chat/post/invite）保持 data 不动、落入常规应用内流程。
+                    val dest = parsed.destination
+                    if (dest is AppLinkDestination.PublicProfile) {
+                        val ownerUserId = TokenManager.getInstance(this).getUserId().orEmpty()
+                        notificationTarget.value = NotificationTarget.PublicProfile(
+                            // 8.34 意图延续：跳转用清洗后的用户名；多余路径段
+                            //（如 u/alice/bob）直接拒绝、不导航，而非截断后打开首段。
+                            username = dest.username,
+                            sessionGeneration = MaodouchatApp.currentSessionGeneration(),
+                            ownerUserId = ownerUserId,
+                        )
+                        intent.data = null
+                        return
+                    }
+                }
+                is AppLinkParseResult.Rejected -> Unit
             }
         }
         // ConnectionService transport actions have no reliable calling package on modern Android.
