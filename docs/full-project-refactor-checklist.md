@@ -169,7 +169,7 @@ Gate：新旧客户端兼容矩阵确定；历史数据迁移可逆演练通过�
 - [~] Runtime 通过接口注入，不由页面或功能模块自行构造（`MessagingV2Runtime` 端口 + `OutboxState` 已冻结，实现接线待做）。
 - [ ] 所有发送来源统一经过 tombstone、owner-session、outbox 事务。
 - [ ] 完成 poison envelope、dead letter、stale claim 和 repair bypass 的观测与操作入口。
-- [ ] 删除旧消息 pull、屏幕解密、扫描 `SENDING` 行和 WS message 命令。
+- [x] 删除旧消息 pull、屏幕解密、扫描 `SENDING` 行和 WS message 命令（旧 pull/WS 命令/SENDING 启动扫描已删除；`requiresDecryptPlaceholder` 为 v2 projector 解密占位，非旧屏幕解密）。
 
 Gate：ACK 前后杀进程、重复 pull、poison、顺序阻塞、修复绕行和终态竞态测试通过。
 
