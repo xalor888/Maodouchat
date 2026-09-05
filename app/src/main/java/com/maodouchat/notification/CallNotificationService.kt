@@ -29,9 +29,9 @@ object CallNotificationService {
         isVideo: Boolean,
         expectedUserId: String,
     ) {
-        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return
-        AppNotifier.ensureChannels(context)
-        if (!AppNotifier.canPostNotifications(context)) return
+        if (!NotificationInfrastructure.notificationOwnerMatches(context, expectedUserId)) return
+        NotificationInfrastructure.ensureChannels(context)
+        if (!NotificationInfrastructure.canPostNotifications(context)) return
         // Always drop the ringing tray first; ids are intentionally distinct so a later
         // cancelIncomingCall cannot erase this missed entry.
         cancelIncomingCall(context, callId)
@@ -40,33 +40,33 @@ object CallNotificationService {
             putExtra(AppNotifier.EXTRA_OPEN_MISSED_CALL, true)
             data = Uri.parse(NotificationSlotPolicy.missedCallDataUri(callId))
         }
-        with(AppNotifier) { tapIntent.putNotificationOwner(expectedUserId) }
+        with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pi = PendingIntent.getActivity(
             context, NotificationSlotPolicy.missedCallNotifyId(callId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val title = context.getString(if (isVideo) R.string.notification_missed_video_call else R.string.notification_missed_audio_call)
-        val body = if (AppNotifier.shouldHideSensitiveDetails(context)) {
+        val body = if (NotificationInfrastructure.shouldHideSensitiveDetails(context)) {
             context.getString(R.string.notification_missed_call_private)
         } else {
             context.getString(R.string.notification_missed_call_body, callerName)
         }
-        val notification = NotificationCompat.Builder(context, AppNotifier.CHANNEL_CALLS)
+        val notification = NotificationCompat.Builder(context, NotificationInfrastructure.CHANNEL_CALLS)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(body)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(AppNotifier.genericNotification(context, AppNotifier.CHANNEL_CALLS, R.string.notification_missed_call_private))
+            .setPublicVersion(NotificationInfrastructure.genericNotification(context, NotificationInfrastructure.CHANNEL_CALLS, R.string.notification_missed_call_private))
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
-        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return
+        if (!NotificationInfrastructure.notificationOwnerMatches(context, expectedUserId)) return
         // 8.44：未接来电通知用独立 tag，避免与来电/动态互动在 null-tag id 空间哈希碰撞互相顶掉
-        AppNotifier.safeNotify(context, NotificationSlotPolicy.MISSED_CALL_TAG, NotificationSlotPolicy.missedCallNotifyId(callId), notification, expectedUserId)
+        NotificationInfrastructure.safeNotify(context, NotificationSlotPolicy.MISSED_CALL_TAG, NotificationSlotPolicy.missedCallNotifyId(callId), notification, expectedUserId)
         // 同步到通知中心：App 锁开启时隐藏联系人姓名
         runCatching {
-            val hideDetails = AppNotifier.shouldHideSensitiveDetails(context)
+            val hideDetails = NotificationInfrastructure.shouldHideSensitiveDetails(context)
             com.maodouchat.MaodouchatApp.emitNotificationCenterItem(
                 NotificationCenterItem(
                     id = "missed_${callId}",
@@ -96,9 +96,9 @@ object CallNotificationService {
         senderId: String = "",
         expectedUserId: String,
     ) {
-        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return
-        AppNotifier.ensureChannels(context)
-        if (!AppNotifier.canPostNotifications(context)) return
+        if (!NotificationInfrastructure.notificationOwnerMatches(context, expectedUserId)) return
+        NotificationInfrastructure.ensureChannels(context)
+        if (!NotificationInfrastructure.canPostNotifications(context)) return
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or
                 Intent.FLAG_ACTIVITY_SINGLE_TOP or
@@ -109,17 +109,17 @@ object CallNotificationService {
             if (senderId.isNotBlank()) putExtra(AppNotifier.EXTRA_INCOMING_CALL_SENDER_ID, senderId)
             data = Uri.parse(NotificationSlotPolicy.incomingCallDataUri(callId))
         }
-        with(AppNotifier) { tapIntent.putNotificationOwner(expectedUserId) }
+        with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pi = PendingIntent.getActivity(
             context, NotificationSlotPolicy.incomingCallNotifyId(callId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val builder = NotificationCompat.Builder(context, AppNotifier.CHANNEL_CALLS)
+        val builder = NotificationCompat.Builder(context, NotificationInfrastructure.CHANNEL_CALLS)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(if (isVideo) R.string.notification_encrypted_video_call else R.string.notification_encrypted_audio_call))
             .setContentText(context.getString(R.string.notification_open_to_answer))
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(AppNotifier.genericNotification(context, AppNotifier.CHANNEL_CALLS, R.string.notification_open_to_answer))
+            .setPublicVersion(NotificationInfrastructure.genericNotification(context, NotificationInfrastructure.CHANNEL_CALLS, R.string.notification_open_to_answer))
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setAutoCancel(true)
             .setContentIntent(pi)
@@ -127,13 +127,13 @@ object CallNotificationService {
             .setOngoing(true)
             .setTimeoutAfter(35_000L)
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setSilent(!AppNotifier.effectiveRingtoneEnabled(context, soundEnabled))
+            .setSilent(!NotificationInfrastructure.effectiveRingtoneEnabled(context, soundEnabled))
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             builder.setDefaults(NotificationCompat.DEFAULT_ALL)
         }
-        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return
+        if (!NotificationInfrastructure.notificationOwnerMatches(context, expectedUserId)) return
         // 8.44：来电通知独立 tag（与前台服务 9001 / 动态互动隔离）
-        AppNotifier.safeNotify(context, NotificationSlotPolicy.CALL_TAG, NotificationSlotPolicy.incomingCallNotifyId(callId), builder.build(), expectedUserId)
+        NotificationInfrastructure.safeNotify(context, NotificationSlotPolicy.CALL_TAG, NotificationSlotPolicy.incomingCallNotifyId(callId), builder.build(), expectedUserId)
     }
 
     /** 对端已挂断 / 本地已接听或拒绝后清掉系统来电通知，避免幽灵响铃 */

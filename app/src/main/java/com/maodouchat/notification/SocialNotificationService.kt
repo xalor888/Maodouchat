@@ -32,14 +32,14 @@ object SocialNotificationService {
         soundEnabled: Boolean = true,
         expectedUserId: String,
     ) {
-        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return
-        AppNotifier.ensureChannels(context)
-        if (!AppNotifier.canPostNotifications(context)) return
+        if (!NotificationInfrastructure.notificationOwnerMatches(context, expectedUserId)) return
+        NotificationInfrastructure.ensureChannels(context)
+        if (!NotificationInfrastructure.canPostNotifications(context)) return
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             data = Uri.parse(NotificationSlotPolicy.announcementDataUri(announcementId))
         }
-        with(AppNotifier) { tapIntent.putNotificationOwner(expectedUserId) }
+        with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pi = PendingIntent.getActivity(
             context, NotificationSlotPolicy.announcementRequestCode(announcementId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -50,20 +50,20 @@ object SocialNotificationService {
             else -> context.getString(R.string.announcement_level_info)
         }
         val body = "$levelLabel · $title"
-        val notification = NotificationCompat.Builder(context, AppNotifier.CHANNEL_MESSAGES)
+        val notification = NotificationCompat.Builder(context, NotificationInfrastructure.CHANNEL_MESSAGES)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.notification_announcement_title))
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(AppNotifier.genericNotification(context, AppNotifier.CHANNEL_MESSAGES, R.string.notification_announcement_title))
+            .setPublicVersion(NotificationInfrastructure.genericNotification(context, NotificationInfrastructure.CHANNEL_MESSAGES, R.string.notification_announcement_title))
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!AppNotifier.effectiveSoundEnabled(context, soundEnabled))
+            .setSilent(!NotificationInfrastructure.effectiveSoundEnabled(context, soundEnabled))
             .build()
-        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return
-        AppNotifier.safeNotify(context, NotificationSlotPolicy.ANNOUNCEMENT_TAG, NotificationSlotPolicy.announcementNotifyId(announcementId), notification, expectedUserId)
+        if (!NotificationInfrastructure.notificationOwnerMatches(context, expectedUserId)) return
+        NotificationInfrastructure.safeNotify(context, NotificationSlotPolicy.ANNOUNCEMENT_TAG, NotificationSlotPolicy.announcementNotifyId(announcementId), notification, expectedUserId)
     }
 
     fun showFriendRequest(
@@ -73,15 +73,15 @@ object SocialNotificationService {
         soundEnabled: Boolean = true,
         expectedUserId: String,
     ) {
-        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return
-        AppNotifier.ensureChannels(context)
-        if (!AppNotifier.canPostNotifications(context)) return
+        if (!NotificationInfrastructure.notificationOwnerMatches(context, expectedUserId)) return
+        NotificationInfrastructure.ensureChannels(context)
+        if (!NotificationInfrastructure.canPostNotifications(context)) return
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(AppNotifier.EXTRA_OPEN_CONTACTS, true)
             data = Uri.parse(NotificationSlotPolicy.friendRequestDataUri(requestId))
         }
-        with(AppNotifier) { tapIntent.putNotificationOwner(expectedUserId) }
+        with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pi = PendingIntent.getActivity(
             context, NotificationSlotPolicy.friendRequestRequestCode(requestId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -96,19 +96,19 @@ object SocialNotificationService {
         } else {
             R.string.notification_friend_request_body
         }
-        val notification = NotificationCompat.Builder(context, AppNotifier.CHANNEL_MESSAGES)
+        val notification = NotificationCompat.Builder(context, NotificationInfrastructure.CHANNEL_MESSAGES)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(titleRes))
             .setContentText(context.getString(bodyRes))
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(AppNotifier.genericNotification(context, AppNotifier.CHANNEL_MESSAGES, bodyRes))
+            .setPublicVersion(NotificationInfrastructure.genericNotification(context, NotificationInfrastructure.CHANNEL_MESSAGES, bodyRes))
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!AppNotifier.effectiveSoundEnabled(context, soundEnabled))
+            .setSilent(!NotificationInfrastructure.effectiveSoundEnabled(context, soundEnabled))
             .build()
-        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return
-        AppNotifier.safeNotify(context, NotificationSlotPolicy.FRIEND_REQUEST_TAG, NotificationSlotPolicy.friendRequestNotifyId(requestId), notification, expectedUserId)
+        if (!NotificationInfrastructure.notificationOwnerMatches(context, expectedUserId)) return
+        NotificationInfrastructure.safeNotify(context, NotificationSlotPolicy.FRIEND_REQUEST_TAG, NotificationSlotPolicy.friendRequestNotifyId(requestId), notification, expectedUserId)
         runCatching {
             com.maodouchat.MaodouchatApp.emitNotificationCenterItem(
                 NotificationCenterItem(
@@ -139,34 +139,34 @@ object SocialNotificationService {
         expectedUserId: String,
     ) {
         if (action != "CREATED") return
-        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return
-        AppNotifier.ensureChannels(context)
-        if (!AppNotifier.canPostNotifications(context)) return
+        if (!NotificationInfrastructure.notificationOwnerMatches(context, expectedUserId)) return
+        NotificationInfrastructure.ensureChannels(context)
+        if (!NotificationInfrastructure.canPostNotifications(context)) return
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(AppNotifier.EXTRA_OPEN_CONTACTS, true)
             data = Uri.parse(NotificationSlotPolicy.groupInviteDataUri(inviteId))
         }
-        with(AppNotifier) { tapIntent.putNotificationOwner(expectedUserId) }
+        with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pi = PendingIntent.getActivity(
             context, NotificationSlotPolicy.groupInviteRequestCode(inviteId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val titleRes = R.string.notification_group_invite
         val bodyRes = R.string.notification_group_invite_body
-        val notification = NotificationCompat.Builder(context, AppNotifier.CHANNEL_MESSAGES)
+        val notification = NotificationCompat.Builder(context, NotificationInfrastructure.CHANNEL_MESSAGES)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(titleRes))
             .setContentText(context.getString(bodyRes))
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(AppNotifier.genericNotification(context, AppNotifier.CHANNEL_MESSAGES, bodyRes))
+            .setPublicVersion(NotificationInfrastructure.genericNotification(context, NotificationInfrastructure.CHANNEL_MESSAGES, bodyRes))
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!AppNotifier.effectiveSoundEnabled(context, soundEnabled))
+            .setSilent(!NotificationInfrastructure.effectiveSoundEnabled(context, soundEnabled))
             .build()
-        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return
-        AppNotifier.safeNotify(context, NotificationSlotPolicy.GROUP_INVITE_TAG, NotificationSlotPolicy.groupInviteNotifyId(inviteId), notification, expectedUserId)
+        if (!NotificationInfrastructure.notificationOwnerMatches(context, expectedUserId)) return
+        NotificationInfrastructure.safeNotify(context, NotificationSlotPolicy.GROUP_INVITE_TAG, NotificationSlotPolicy.groupInviteNotifyId(inviteId), notification, expectedUserId)
         runCatching {
             com.maodouchat.MaodouchatApp.emitNotificationCenterItem(
                 NotificationCenterItem(
@@ -197,15 +197,15 @@ object SocialNotificationService {
         // 1.132：评论 id（打开动态时跳转到该评论）
         commentId: String? = null,
     ) {
-        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return
-        AppNotifier.ensureChannels(context)
-        if (!AppNotifier.canPostNotifications(context)) return
+        if (!NotificationInfrastructure.notificationOwnerMatches(context, expectedUserId)) return
+        NotificationInfrastructure.ensureChannels(context)
+        if (!NotificationInfrastructure.canPostNotifications(context)) return
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(AppNotifier.EXTRA_OPEN_POST_ID, postId)
             data = Uri.parse(NotificationSlotPolicy.postDataUri(postId))
         }
-        with(AppNotifier) { tapIntent.putNotificationOwner(expectedUserId) }
+        with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pi = PendingIntent.getActivity(
             context, NotificationSlotPolicy.postRequestCode(postId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -220,24 +220,24 @@ object SocialNotificationService {
         val baseText = context.getString(textRes)
         // 9.137：互动通知预览与 showMessage 同口径脱敏——App 锁/隐藏通知内容开启时，
         // 锁屏与通知中心不得明文展示评论/回复正文（此前是唯一漏掉该检查的消息类通知路径）
-        val hideDetails = AppNotifier.shouldHideSensitiveDetails(context)
+        val hideDetails = NotificationInfrastructure.shouldHideSensitiveDetails(context)
         // 1.130：有内容预览时追加到文案（通知栏一行）
         val contentText = if (hideDetails) baseText
         else preview?.takeIf(String::isNotBlank)?.let { "$baseText：$it" } ?: baseText
-        val notification = NotificationCompat.Builder(context, AppNotifier.CHANNEL_MESSAGES)
+        val notification = NotificationCompat.Builder(context, NotificationInfrastructure.CHANNEL_MESSAGES)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.notification_post_interaction))
             .setContentText(contentText)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(AppNotifier.genericNotification(context, AppNotifier.CHANNEL_MESSAGES, R.string.notification_post_interaction))
+            .setPublicVersion(NotificationInfrastructure.genericNotification(context, NotificationInfrastructure.CHANNEL_MESSAGES, R.string.notification_post_interaction))
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!AppNotifier.effectiveSoundEnabled(context, soundEnabled))
+            .setSilent(!NotificationInfrastructure.effectiveSoundEnabled(context, soundEnabled))
             .build()
-        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return
+        if (!NotificationInfrastructure.notificationOwnerMatches(context, expectedUserId)) return
         // 8.44：动态互动通知独立 tag
-        AppNotifier.safeNotify(context, NotificationSlotPolicy.POST_TAG, NotificationSlotPolicy.postNotifyId(postId), notification, expectedUserId)
+        NotificationInfrastructure.safeNotify(context, NotificationSlotPolicy.POST_TAG, NotificationSlotPolicy.postNotifyId(postId), notification, expectedUserId)
         // 同步到通知中心
         runCatching {
             com.maodouchat.MaodouchatApp.emitNotificationCenterItem(

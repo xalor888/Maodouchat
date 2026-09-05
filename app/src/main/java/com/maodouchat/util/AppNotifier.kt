@@ -1,116 +1,20 @@
 package com.maodouchat.util
 
-import android.Manifest
-import android.annotation.SuppressLint
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
-import com.maodouchat.MainActivity
-import com.maodouchat.R
-import com.maodouchat.notification.NotificationSlotPolicy
-import com.maodouchat.data.repository.NotificationCenterItem
-import com.maodouchat.notification.NotificationPreferences
-import com.maodouchat.notification.NotificationSoundPolicy
-import com.maodouchat.security.AppLockManager
-import com.maodouchat.ui.screen.chatlist.NotificationCenterType
 
 /**
- * 应用系统通知工具。
+ * 应用系统通知兼容入口（P07 重构过渡态）。
  *
- * - Android 8+ 必须先注册 channel，否则通知不显示
- * - 13+ 需要 POST_NOTIFICATIONS 运行时权限
- * - 设计目标：低打扰、不重复轰炸；同一 chatId/相同 ID 会先 cancel 再发
+ * 实现已全部迁入 `com.maodouchat.notification` 下的垂直服务
+ *（Message/Call/Social/Reminder）与 [com.maodouchat.notification.NotificationInfrastructure]；
+ * 本对象仅保留同签名薄委托与 `EXTRA_*` 入口常量，保证 31 处调用方零改动。
+ * `EXTRA_*` 迁移完成后删除本文件（见退役清单）。
  */
 object AppNotifier {
 
-    internal const val CHANNEL_MESSAGES = "messages_v4"
-    internal const val CHANNEL_GROUP_MESSAGES = "group_messages_v4"
-    internal const val CHANNEL_CALLS = "calls_v4"
-    internal const val CHANNEL_AI_TASKS = "ai_tasks_v4"
-    private val LEGACY_CHANNEL_IDS = listOf("messages", "group_messages", "calls", "ai_tasks")
-    private val notificationMutationLock = Any()
-
-    fun ensureChannels(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        // 8.48：用户可选系统通知铃声（RingtoneManager picker）；未选时使用内置消息提示音
-        // （9.3xx：此前未选时依赖系统默认铃声，部分厂商渠道建好后无声——现在显式设置内置音效）
-        val builtinTick = android.net.Uri.parse("android.resource://${context.packageName}/raw/notify_message")
-        val ringtoneUri = com.maodouchat.notification.NotificationPreferences.ringtoneUri(context)
-            ?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() }
-            ?: builtinTick
-        // 0.72：群聊独立铃声（回退单聊铃声）
-        val groupRingtoneUri = com.maodouchat.notification.NotificationPreferences.groupRingtoneUri(context)
-            ?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() }
-            ?: ringtoneUri
-        val attrs = android.media.AudioAttributes.Builder()
-            .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
-            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
-        // 9.216：渠道配置指纹——Android 通知渠道的铃声/振动只在创建时生效，
-        // 用户改设置后必须删除重建渠道才能生效（重建会重置系统侧对渠道的手动调整，预期内）。
-        val vibrationOn = com.maodouchat.notification.NotificationPreferences.vibrationEnabled(context)
-        val fingerprint = listOf(ringtoneUri, groupRingtoneUri, vibrationOn, "tick-v7").joinToString("|")
-        val configPrefs = context.applicationContext.getSharedPreferences("notif_channel_config", Context.MODE_PRIVATE)
-        val storedFingerprint = configPrefs.getString("channel_fingerprint", null)
-        LEGACY_CHANNEL_IDS.forEach { nm.deleteNotificationChannel(it) }
-        if (storedFingerprint != fingerprint) {
-            nm.deleteNotificationChannel(CHANNEL_MESSAGES)
-            nm.deleteNotificationChannel(CHANNEL_GROUP_MESSAGES)
-            nm.deleteNotificationChannel(CHANNEL_CALLS)
-            nm.deleteNotificationChannel(CHANNEL_AI_TASKS)
-        }
-        if (storedFingerprint != fingerprint) {
-            configPrefs.edit().putString("channel_fingerprint", fingerprint).apply()
-        }
-        fun applySound(channel: NotificationChannel, uri: android.net.Uri?) {
-            if (uri != null) channel.setSound(uri, attrs)
-        }
-        // 1.133：震动开关（渠道级）
-        fun applyVibration(channel: NotificationChannel) {
-            channel.enableVibration(vibrationOn)
-        }
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_MESSAGES, context.getString(R.string.notification_channel_messages), NotificationManager.IMPORTANCE_HIGH)
-                .apply {
-                    description = context.getString(R.string.notification_channel_messages_description)
-                    applySound(this, ringtoneUri)
-                    applyVibration(this)
-                }
-        )
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_GROUP_MESSAGES, context.getString(R.string.notification_channel_group_messages), NotificationManager.IMPORTANCE_HIGH)
-                .apply {
-                    description = context.getString(R.string.notification_channel_group_messages_description)
-                    applySound(this, groupRingtoneUri)
-                    applyVibration(this)
-                }
-        )
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_CALLS, context.getString(R.string.notification_channel_calls), NotificationManager.IMPORTANCE_HIGH)
-                .apply {
-                    description = context.getString(R.string.notification_channel_calls_description)
-                    applySound(this, ringtoneUri)
-                    applyVibration(this)
-                }
-        )
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_AI_TASKS, context.getString(R.string.notification_channel_ai_tasks), NotificationManager.IMPORTANCE_DEFAULT)
-                .apply {
-                    description = context.getString(R.string.notification_channel_ai_tasks_description)
-                    applySound(this, ringtoneUri)
-                    applyVibration(this)
-                }
-        )
-    }
+    /** 兼容入口：渠道创建已收敛至通知基础设施。 */
+    fun ensureChannels(context: Context) =
+        com.maodouchat.notification.NotificationInfrastructure.ensureChannels(context)
 
     fun showMessage(
         context: Context,
@@ -276,137 +180,9 @@ object AppNotifier {
         com.maodouchat.notification.SocialNotificationService.cancelAllGroupInvites(context)
 
     /** Logout / account switch: drop every posted tray notification for this app. */
-    fun cancelAll(context: Context) {
-        synchronized(notificationMutationLock) {
-            NotificationManagerCompat.from(context).cancelAll()
-        }
-    }
+    fun cancelAll(context: Context) =
+        com.maodouchat.notification.NotificationInfrastructure.cancelAll(context)
 
-    internal fun effectiveSoundEnabled(context: Context, preferenceEnabled: Boolean): Boolean =
-        NotificationSoundPolicy.messageSoundEnabled(
-            runtimeFlagEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.NOTIFICATION_SOUND),
-            userPreferenceEnabled = preferenceEnabled,
-        )
-
-    internal fun effectiveRingtoneEnabled(context: Context, preferenceEnabled: Boolean): Boolean =
-        NotificationSoundPolicy.ringtoneEnabled(
-            runtimeFlagEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.RINGTONE),
-            userPreferenceEnabled = preferenceEnabled,
-        )
-
-    internal fun canPostNotifications(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        }
-        return NotificationManagerCompat.from(context).areNotificationsEnabled()
-    }
-
-    internal fun notificationOwnerMatches(context: Context, expectedUserId: String): Boolean {
-        if (com.maodouchat.security.SecureSessionManager.isPurgeInProgress()) return false
-        val tokenManager = com.maodouchat.network.TokenManager.getInstance(context.applicationContext)
-        val liveUserId = tokenManager.getUserId()
-        return com.maodouchat.security.BackgroundSessionGate.mayContinue(
-            expectedUserId = expectedUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = liveUserId,
-        )
-    }
-
-    internal fun Intent.putNotificationOwner(expectedUserId: String) {
-        putExtra(EXTRA_NOTIFICATION_OWNER_USER_ID, expectedUserId)
-    }
-
-    /**
-     * Lint cannot prove [canPostNotifications] gates every notify site; callers already return early.
-     * Catch SecurityException so a revoked runtime permission never crashes the process.
-     */
-    @SuppressLint("MissingPermission")
-    internal fun safeNotify(
-        context: Context,
-        id: Int,
-        notification: android.app.Notification,
-        expectedUserId: String,
-    ) {
-        synchronized(notificationMutationLock) {
-            if (!notificationOwnerMatches(context, expectedUserId) || !canPostNotifications(context)) {
-                return@synchronized
-            }
-            val manager = NotificationManagerCompat.from(context)
-            try {
-                manager.notify(id, notification)
-                if (!notificationOwnerMatches(context, expectedUserId)) manager.cancel(id)
-            } catch (_: SecurityException) {
-                // Permission revoked between check and post (Android 13+).
-            }
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    internal fun safeNotify(
-        context: Context,
-        tag: String,
-        id: Int,
-        notification: android.app.Notification,
-        expectedUserId: String,
-    ) {
-        synchronized(notificationMutationLock) {
-            if (!notificationOwnerMatches(context, expectedUserId) || !canPostNotifications(context)) {
-                return@synchronized
-            }
-            val manager = NotificationManagerCompat.from(context)
-            try {
-                manager.notify(tag, id, notification)
-                if (!notificationOwnerMatches(context, expectedUserId)) manager.cancel(tag, id)
-            } catch (_: SecurityException) {
-                // Permission revoked between check and post (Android 13+).
-            }
-        }
-    }
-
-    internal fun shouldHideSensitiveDetails(context: Context, explicitPreviewEnabled: Boolean = true): Boolean {
-        val userPreviewEnabled = NotificationPreferences.previewEnabled(context)
-        return NotificationPrivacyPolicy.hideSensitiveDetails(
-            appLockEnabled = AppLockManager.isEnabled(context),
-            previewEnabled = explicitPreviewEnabled && userPreviewEnabled
-        )
-    }
-
-    /** Local chat PIN: hide tray/notification-center body even when previews are enabled. */
-    internal fun isChatPinLocked(context: Context, chatId: String): Boolean {
-        if (chatId.isBlank()) return false
-        val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return false
-        return try {
-            app.secretConversationController.capabilities(chatId).isLocked
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    /** Local secret chat: hide tray/notification-center body like PIN lock. */
-    internal fun isSecretChat(context: Context, chatId: String): Boolean {
-        if (chatId.isBlank()) return false
-        val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return false
-        return try {
-            val caps = app.secretConversationController.capabilities(chatId)
-            !com.maodouchat.domain.messaging.ConversationPrivacyPolicy.allows(
-                caps,
-                com.maodouchat.domain.messaging.PrivacyAction.NOTIFICATION_PREVIEW
-            )
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    internal fun genericNotification(context: Context, channelId: String, bodyRes: Int) =
-        NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(R.string.app_name))
-            .setContentText(context.getString(bodyRes))
-            .build()
 
     const val EXTRA_OPEN_CHAT_ID = "maodouchat_open_chat_id"
     /** 消息「稍后提醒」点击：打开聊天后高亮指定消息。 */
@@ -422,9 +198,6 @@ object AppNotifier {
     const val EXTRA_INCOMING_CALL_ID = "maodouchat_incoming_call_id"
     const val EXTRA_INCOMING_CALL_VIDEO = "maodouchat_incoming_call_video"
     const val EXTRA_INCOMING_CALL_SENDER_ID = "maodouchat_incoming_call_sender_id"
-
-    /** 8.44：来电/未接/动态互动/测试通知独立 tag——槽位分配见 [NotificationSlotPolicy]，
-     * 三者此前共用 null-tag id 空间，哈希碰撞时响应来电会被动态互动通知顶掉。 */
 
     /**
      * 8.48：定时消息发送失败通知（达重试上限后移除待发条目时提示，避免静默丢失）。

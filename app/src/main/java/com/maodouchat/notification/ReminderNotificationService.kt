@@ -35,24 +35,24 @@ object ReminderNotificationService {
         soundEnabled: Boolean,
         expectedUserId: String,
     ): Boolean {
-        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return false
-        AppNotifier.ensureChannels(context)
-        if (!AppNotifier.canPostNotifications(context)) return false
+        if (!NotificationInfrastructure.notificationOwnerMatches(context, expectedUserId)) return false
+        NotificationInfrastructure.ensureChannels(context)
+        if (!NotificationInfrastructure.canPostNotifications(context)) return false
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(AppNotifier.EXTRA_OPEN_AI_TASKS_CHAT_ID, chatId)
             data = Uri.parse(NotificationSlotPolicy.aiTaskDataUri(taskId))
         }
-        with(AppNotifier) { tapIntent.putNotificationOwner(expectedUserId) }
+        with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pendingIntent = PendingIntent.getActivity(
             context,
             NotificationSlotPolicy.aiTaskRequestCode(taskId),
             tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val chatLocked = AppNotifier.isChatPinLocked(context, chatId)
-        val secretChat = AppNotifier.isSecretChat(context, chatId)
-        val hideTaskBody = AppNotifier.shouldHideSensitiveDetails(context, showPreview) || chatLocked || (secretChat && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_NOTIF_PREVIEW_BLOCK))
+        val chatLocked = NotificationInfrastructure.isChatPinLocked(context, chatId)
+        val secretChat = NotificationInfrastructure.isSecretChat(context, chatId)
+        val hideTaskBody = NotificationInfrastructure.shouldHideSensitiveDetails(context, showPreview) || chatLocked || (secretChat && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_NOTIF_PREVIEW_BLOCK))
         val body = if (!hideTaskBody) {
             taskTitle
         } else if (chatLocked) {
@@ -62,13 +62,13 @@ object ReminderNotificationService {
         } else {
             context.getString(R.string.notification_ai_task_due)
         }
-        val notification = NotificationCompat.Builder(context, AppNotifier.CHANNEL_AI_TASKS)
+        val notification = NotificationCompat.Builder(context, NotificationInfrastructure.CHANNEL_AI_TASKS)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.notification_ai_task_title))
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(AppNotifier.genericNotification(context, AppNotifier.CHANNEL_AI_TASKS, R.string.notification_ai_task_due))
+            .setPublicVersion(NotificationInfrastructure.genericNotification(context, NotificationInfrastructure.CHANNEL_AI_TASKS, R.string.notification_ai_task_due))
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
@@ -76,10 +76,10 @@ object ReminderNotificationService {
             .setShowWhen(true)
             .setGroup(NotificationSlotPolicy.aiTaskGroupKey(chatId))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setSilent(!AppNotifier.effectiveSoundEnabled(context, soundEnabled))
+            .setSilent(!NotificationInfrastructure.effectiveSoundEnabled(context, soundEnabled))
             .build()
-        if (!AppNotifier.notificationOwnerMatches(context, expectedUserId)) return false
-        AppNotifier.safeNotify(context, NotificationSlotPolicy.AI_TASK_TAG, NotificationSlotPolicy.aiTaskNotifyId(taskId), notification, expectedUserId)
+        if (!NotificationInfrastructure.notificationOwnerMatches(context, expectedUserId)) return false
+        NotificationInfrastructure.safeNotify(context, NotificationSlotPolicy.AI_TASK_TAG, NotificationSlotPolicy.aiTaskNotifyId(taskId), notification, expectedUserId)
         // 分组需要一条 summary 通知才能在所有 Android 版本（尤其 7.0+）正确折叠展示；
         // 与子通知共用 AI 任务 tag（见 NotificationSlotPolicy），现有 cancel* 方法会一并清理。
         showAiTaskGroupSummary(context, chatId, expectedUserId)
@@ -112,9 +112,9 @@ object ReminderNotificationService {
      * cancelAiTaskRemindersForChat / cancelAllAiTaskReminders 一并移除。
      */
     private fun showAiTaskGroupSummary(context: Context, chatId: String, expectedUserId: String) {
-        AppNotifier.ensureChannels(context)
+        NotificationInfrastructure.ensureChannels(context)
         val groupKey = NotificationSlotPolicy.aiTaskGroupKey(chatId)
-        val summary = NotificationCompat.Builder(context, AppNotifier.CHANNEL_AI_TASKS)
+        val summary = NotificationCompat.Builder(context, NotificationInfrastructure.CHANNEL_AI_TASKS)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.notification_ai_task_group_summary))
             .setContentText(context.getString(R.string.notification_ai_task_due))
@@ -125,7 +125,7 @@ object ReminderNotificationService {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setSilent(true)
             .build()
-        AppNotifier.safeNotify(context, NotificationSlotPolicy.AI_TASK_TAG, NotificationSlotPolicy.aiTaskSummaryId(chatId), summary, expectedUserId)
+        NotificationInfrastructure.safeNotify(context, NotificationSlotPolicy.AI_TASK_TAG, NotificationSlotPolicy.aiTaskSummaryId(chatId), summary, expectedUserId)
     }
 
     /**
