@@ -97,7 +97,7 @@
 | 导出聊天 | 完整 | 敏感 step-up；空/失败/成功；PIN 未解锁拒绝 | `ChatDetailViewModel.exportToUri` + SensitiveAction |
 | 清除本地消息 | 完整 | 菜单确认 + 敏感 step-up；清消息/索引/媒体/定时；保留会话与 PIN | `ChatDetailViewModel.clearLocalChatHistory` |
 | 媒体中心 | 完整 | 图/GIF/视频/贴纸/文件/语音/位置/链接；预览/保存/分享/跳原消息；文件长按导出；PIN 门闩；分类内按文件名/链接/位置搜索 | `MediaCenterScreen.kt` + `ChatLockSession` |
-| 会话 PIN 锁 | 完整 | 本地 PIN（单聊/群）；设置/关闭/忘记清本地；列表锁标+预览隐藏+系统「已锁」筛选；搜索/媒体/AI 任务/星标/通知脱敏；进程内解锁缓存；登出清缓存；新 PIN 为 PBKDF2-HMAC-SHA256，旧 SHA-256(pin+salt) 验证成功后升级 | `ChatLockGate` + `ChatLockSession` + ChatDetail/MediaCenter/AiTasks/ChatList/AppNotifier |
+| 会话 PIN 锁 | 完整 | 本地 PIN（单聊/群）；设置/关闭/忘记清本地；列表锁标+预览隐藏+系统「已锁」筛选；搜索/媒体/AI 任务/星标/通知脱敏；进程内解锁缓存；登出清缓存；新 PIN 为 PBKDF2-HMAC-SHA256，旧 SHA-256(pin+salt) 验证成功后升级 | `ChatLockGate` + `ChatLockSession` + ChatDetail/MediaCenter/AiTasks/ChatList + notification 服务（`NotificationSlotPolicy` 槽位 + `NotificationInfrastructure` 脱敏） |
 | 密聊 | 完整 | 钉钉同款独立 1:1 `ChatType.SECRET`（与同人 DIRECT 不同 chat id，双方同步）；群无密聊；已读销毁 30s；禁复制/转发/拍一拍/通话/导出/AI；列表显示「密聊」+ 无头像；强制 FLAG_SECURE；系统「密聊」筛选；通知脱敏；OCR/Agent/搜索/星标排除；`secret_chats` 仅 TTL 心跳 | `ChatType.SECRET` + `SecretChatPolicy` + `ScreenSecurePolicy` + `SessionCipherOccupancy` |
 
 > 实现密度极高：`ChatDetailScreen` / `ChatDetailViewModel` 体量巨大，维护风险在复杂度，而非功能空壳。
@@ -216,8 +216,8 @@
 | 功能 | 完整度 | 说明 | 关键路径 |
 |------|--------|------|----------|
 | 长连接保活 | 完整 | Ideaura 式：前台 KeepAlive + Daemon 互拉 + 可选假来电/媒体伪装；登录后 ensureForUser | `PushKeepAlive` + `PushKeepAliveService` |
-| 消息/来电/动态/好友申请推送 | 完整 | WS 实时投递 + 本机托盘；进程被杀后靠保活重连，无 Google FCM | `WebSocketClient` + `AppNotifier` |
-| 本地通知渠道 | 完整 | messages/calls/ai_tasks | `AppNotifier` |
+| 消息/来电/动态/好友申请推送 | 完整 | WS 实时投递 + 本机托盘；进程被杀后靠保活重连，无 Google FCM | `WebSocketClient` + notification 四服务（Message/Call/Social/Reminder） |
+| 本地通知渠道 | 完整 | messages_v4/group_messages_v4/calls_v4/ai_tasks_v4 | `NotificationSlotPolicy` + `NotificationInfrastructure` |
 | 厂商推送 / FCM | 已移除 | 不接 FCM，也不接国内厂商通道 | — |
 | ConnectionService 系统来电 | 完整 | self-managed PhoneAccount + TelecomManager.addNewIncomingCall；锁屏/后台展示系统原生通话界面（接听/拒接/挂断）；onAnswer→MainActivity→CallScreen；onReject→CallActionBus 挂断 | `MaodouchatConnectionService` + `TelecomHelper` + `NavGraph` |
 
@@ -422,7 +422,7 @@
 | 阅后即焚 / 消失消息 / view-once / spoiler | 完整 | 密聊默认 30s 已读销毁；普通单聊可选时长 |
 | 密聊复制 / 导出 / 转发 / 会话导出 | 完整 | 硬拒绝（不依赖 runtime 开关） |
 | 密聊链接预览 / 外链 | 完整 | 外链默认更松（false） |
-| 密聊通知 / 列表预览脱敏 | 完整 | AppNotifier + ChatList |
+| 密聊通知 / 列表预览脱敏 | 完整 | notification 脱敏 + ChatList |
 | 密聊反应 / 标星封堵 | 完整 | 防元数据侧信道 |
 | 密聊 typing 门控 | 完整 | 防在线状态侧信道（announceTypingStarted / stopTypingAnnouncement） |
 | 密聊 read-receipt 门控 | 完整 | 防已读观察侧信道（markReadJob / markAllAsRead / onCleared） |
