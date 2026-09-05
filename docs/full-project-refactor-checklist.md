@@ -226,7 +226,7 @@ Gate：重复/乱序 event、延迟 DATA、删除与附件 finalize、删除与�
 
 ### M07 附件、媒体上传与下载
 
-当前状态：`[~]`。准备、上传、finalize、下载已有模块，ViewModel 和全局 object 仍参与业务流程。
+当前状态：`[~]`。准备、上传、finalize、下载已有模块（`AttachmentTransferWorker`/`AttachmentTransferFinalizer`/`AttachmentTransferScheduler`）；但 `AttachmentFinalizeUseCase`/`PreparationService`/`TransferRepository` 实现层未建（仅 domain 契约/状态机），Worker 仍直读全局 `MaodouchatApp` + `ApiService`，ViewModel 仍参与附件业务流程。
 
 - [~] 建立 `AttachmentIntentController`、`PreparationService`、`TransferRepository`（`AttachmentIntentController` 契约 + `TransferStatus`/状态机已冻结到 `:domain:messaging`，其余待做）。
 - [ ] Worker 只调用 `AttachmentFinalizeUseCase`，不读取全局 Application/API。
