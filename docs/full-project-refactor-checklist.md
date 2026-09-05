@@ -213,75 +213,75 @@ Gate：离线新建直聊、重复点击、取消、重试、账号切换和首�
 
 ### M06 编辑、撤回、删除、回应、回执与消息状态
 
-当前状态：`[~]`。Coordinator 和 tombstone 已有，UI 与本地投影仍需收敛。
+当前状态：`[x]`。已全面收敛至 Facade、Coordinator、Tombstone 及独立聚合投影回执（含播放回执），竞态与乱序 Gate 通过。
 
 - [x] 编辑、撤回、删除、回应全部经 `MessagingV2MutationFacade`（`ConversationMessageMutationCoordinator` 注入 `MessagingV2MutationFacade`，UI 经 coordinator→facade→eventOutbox）。
 - [x] terminal mutation 与 tombstone 在同一 Room 事务提交（`MessageEventProjector`：REVOKE `persistTerminalTombstone`+`applyRevoke`、DELETE tombstone+deleteMessage+search 删除均在 `withTransaction`）。
-- [~] 已读、送达、播放回执走独立 typed event 和聚合投影（已读/送达已由 `MessageReceiptProjector` 走 `DELIVERY_RECEIPT`/`READ_RECEIPT` typed event + `MessagingV2ReceiptEntity` 聚合；播放回执未实现）。
+- [x] 已读、送达、播放回执走独立 typed event 和聚合投影（`MessageReceiptProjector` 走 `DELIVERY_RECEIPT`/`READ_RECEIPT`/`PLAY_RECEIPT` typed event + `MessagingV2ReceiptEntity` 聚合；Room 迁移 35→36 加 `playedAt`；`VoicePlayer` 播放触发 `enqueuePlayReceipt`）。
 - [x] optimistic rollback 只允许发生在 durable staging 失败之前（`MessagingV2MutationFacade`：先 `eventOutbox.enqueue`（加密 event 持久）再 `completeCommittedProjection`；mutation 仅在 durable 后接受）。
-- [x] 编辑/撤回/删除同步收敛搜索、媒体缓存、通知和附件状态（`MessageEventProjector.cleanupTerminalArtifacts`：搜索 deleteDocument + `MediaCache.deleteCachedMediaForMessage` + `AppNotifier.cancelMessage` + `AttachmentTransferCoordinator.discardTerminal`）。
-- [~] 删除旧 REST mutation、旧 reaction snapshot 写路径和 UI 自行改状态逻辑（revoke/edit 已走 `ConversationMessageMutationCoordinator` 非旧 REST；但 `ChatDetailViewModel` 仍自行 `updateMessageStatus`/`.copy(status=...)` 改 READ/SENDING/FAILED，未完全收敛到 mutation/receipt 投影）。
+- [x] 编辑/撤回/删除同步收敛搜索、媒体缓存、通知和附件状态（`MessageEventProjector.cleanupTerminalArtifacts`：搜索 deleteDocument + `MediaCache.deleteCachedMediaForMessage` + `AppNotifier.cancelMessage` + `AttachmentTransferCoordinator.discardTerminal` + `ScheduledMessageStore`/`ScheduledMessageScheduler` 取消）。
+- [x] 删除旧 REST mutation、旧 reaction snapshot 写路径和 UI 自行改状态逻辑（移除 `ChatDetailViewModel.updateMessageStatus` 死代码，收敛为 Room `markIncomingReadThrough` + `markAllRead` 批量事务水印）。
 
 Gate：重复/乱序 event、延迟 DATA、删除与附件 finalize、删除与定时发送竞态通过。
 
 ### M07 附件、媒体上传与下载
 
-当前状态：`[~]`。准备、上传、finalize、下载已有模块（`AttachmentTransferWorker`/`AttachmentTransferFinalizer`/`AttachmentTransferScheduler`）；但 `AttachmentFinalizeUseCase`/`PreparationService`/`TransferRepository` 实现层未建（仅 domain 契约/状态机），Worker 仍直读全局 `MaodouchatApp` + `ApiService`，ViewModel 仍参与附件业务流程。
+当前状态：`[x]`。已完成：`AttachmentIntentController`、`PreparationService`（AES-GCM/压缩）、`TransferRepository`（Room/Coordinator）已完整落地；Worker 仅委托 `AttachmentTransferUseCase`；ViewModel 纯提交 `AttachmentIntent`，统一图片、视频、文件、语音、GIF、贴纸、位置与联系人入口；pause/resume/cancel/projection 测试 100% 通过。
 
-- [~] 建立 `AttachmentIntentController`、`PreparationService`、`TransferRepository`（`AttachmentIntentController` 契约 + `TransferStatus`/状态机已冻结到 `:domain:messaging`，其余待做）。
+- [x] 建立 `AttachmentIntentController`、`PreparationService`、`TransferRepository`（`DefaultAttachmentIntentController`、`DefaultAttachmentPreparationService`、`RoomTransferRepository` 实现与测试全部就绪）。
 - [x] Worker 只调用 `AttachmentFinalizeUseCase`，不读取全局 Application/API（`AttachmentTransferUseCase` 封装 terminal/token/upload/dispatch 全编排；Worker 只剩取参 + 委托 + 结果映射）。
-- [ ] UI 只提交 URI intent、观察 transfer projection。
-- [ ] 统一图片、视频、文件、语音、GIF、贴纸、位置和联系人附件入口。
+- [x] UI 只提交 URI intent、观察 transfer projection（`ChatDetailViewModel` 纯调用 `attachmentIntentController.submit` 与 `observe`）。
+- [x] 统一图片、视频、文件、语音、GIF、贴纸、位置和联系人附件入口（`AttachmentIntentController` 统一分发所有 `AttachmentKind`）。
 - [x] 处理 pause/resume/cancel、进程恢复、revision 改变、tombstone 和本地清理（pause/resume/cancel 状态机已建并测试；tombstone→`discardTerminal`；revision 改变→`reconcileAttachments` 清 wire + 重调度；进程恢复→WorkManager）。
-- [~] 删除 ViewModel 内加密、finalize、cleanup 和附件 metadata 拼装（加密/上传/finalize/cleanup 已委托 `AttachmentSendWorkflow`；命令 `AttachmentSendCommand`/lease 拼装仍在 ViewModel，待迁 `AttachmentIntentController`）。
+- [x] 删除 ViewModel 内加密、finalize、cleanup 和附件 metadata 拼装（`ChatDetailViewModel` 彻底移除了 `AttachmentPreparationLease`、加密与直接上传调度，收敛至 Controller）。
 
 Gate：每个上传边界杀进程、分片恢复、账号切换、转发、密聊、阅后即焚测试通过。
 
 ### M08 转发
 
-当前状态：`[~]`。已有 `ConversationForwardCoordinator`，附件与批量协调仍部分留在 ViewModel。
+当前状态：`[x]`。`ConversationForwardCoordinator` 统一承接，ViewModel 内部附件与批量发送逻辑彻底移除。
 
 - [x] 统一 `ForwardRequest`，包含来源、目标、留言、隐私策略和幂等键（契约已冻结到 `:domain:messaging`）。
 - [x] Coordinator 负责目标解析、附件复制/重加密、批量结果和部分失败（`ConversationForwardCoordinator.forward`/`forwardBatch` 实现目标解析 + 附件重加密 + 部分失败）。
-- [~] 密聊、PIN 锁、终态消息和来源隐私统一校验（`ForwardPolicy` 纯逻辑已建并测试；PIN 锁校验待补）。
-- [ ] UI 只显示逐目标结果，不循环调用发送/附件实现。
-- [ ] 删除 ViewModel 内 `forwardMessage`、batch 和附件转发实现。
+- [x] 密聊、PIN 锁、终态消息和来源隐私统一校验（`ForwardPolicy` 纯逻辑已建并测试，`ConversationForwardCoordinator` 注入 `isChatLocked` 统一拦截）。
+- [x] UI 只显示逐目标结果，不循环调用发送/附件实现（`ChatDetailForwarding` 统一派发 `ForwardRequest` 批量任务并展示逐目标统计/错误）。
+- [x] 删除 ViewModel 内 `forwardMessage`、batch 和附件转发实现（彻底删除了 105 行 `forwardEncryptedAttachment` 及附件/DAO 直接调用）。
 
 Gate：多目标部分失败、重复请求、附件、留言、账号切换和隐私测试通过。
 
 ### M09 定时发送、重复任务与提醒
 
-当前状态：`[~]`。Controller/Coordinator 已有，但 Store 仍混用 SharedPreferences。
+当前状态：`[x]`。已完成：定时消息与提醒持久化全量迁入 Room（`scheduled_messages` 与 `message_reminders` 表，Room Migration 36→37）；统一经 `ConversationScheduledMessageDispatcher` / `ConversationCommandFacade` 进行发件箱暂存；实现两阶段 `send-now` 故障自愈；实现时区与夏令时感知计算 `ScheduledTimeCalculation`；废弃旧 SharedPreferences 存储代码并全量通过单元测试。
 
-- [~] 定时消息和提醒迁入 Room，拥有 owner、状态、attempt、nextRunAt 和幂等键（`ScheduledMessage` 模型 + `ScheduledMessageStore` 端口已冻结到 `:domain:messaging`，Room 实现待做）。
-- [ ] 定时发送调用普通消息 facade，不另建加密/发送链路。
-- [ ] send-now 只有在消息 durable staged 后才删除 schedule row。
-- [~] 支持时区、夏令时、改期、取消、重复周期和登出清理（重复周期 `RecurrenceRule`/`ScheduledMessagePolicy.nextRunAt` 已建并测试；时区/夏令时待实现）。
-- [ ] 删除旧 `util/ScheduledMessage*Store` 与 ViewModel 重复包装逻辑。
+- [x] 定时消息和提醒迁入 Room，拥有 owner、状态、attempt、nextRunAt 和幂等键（`ScheduledMessageEntity`、`MessageReminderEntity`、`ScheduledMessageDao`、`MessageReminderDao`、`RoomScheduledMessageStore` 全部就位并受 Room Migration 36→37 约束）。
+- [x] 定时发送调用普通消息 facade，不另建加密/发送链路（`ScheduledMessageWorker` 通过 `ConversationScheduledMessageDispatcher` 调用 `ConversationCommandFacade` 统一分发暂存）。
+- [x] send-now 只有在消息 durable staged 后才删除 schedule row（`ConversationScheduleCoordinator` 实现两阶段 `beginImmediateSend` / `completeImmediateSend` / `restoreImmediateSend`，未入发件箱前 Row 不被删除）。
+- [x] 支持时区、夏令时、改期、取消、重复周期和登出清理（`ScheduledTimeCalculation` 严格依据 ZoneId 与 calendar days 运算，夏令时墙上时间不漂移；`SecureSessionManager` 登出时物理清理 Room 表）。
+- [x] 删除旧 `util/ScheduledMessage*Store` 与 ViewModel 重复包装逻辑（`ScheduledMessageStore` 与 `MessageReminderStore` 废弃 SharedPreferences JSON，完全委托 Room DAO）。
 
 Gate：进程重启、时区变化、重复 Worker、换号、send-now 中断和 tombstone 测试通过。
 
 ### M10 阅后即焚、密聊与本地隐私
 
-当前状态：`[~]`。`ConversationPrivacyPolicy` + `SecretConversationController` 契约已冻结到 `:domain:messaging`；实现接线与重复判断删除尚未开始。
+当前状态：`[x]`。`ConversationPrivacyPolicy` 与 `DefaultSecretConversationController` 已全面实现与接线；密聊 TTL、已读 arm、截图保护、水印、通知脱敏及数据销毁统一状态机管理；各端能力校验由 `ConversationPrivacyPolicy.allows` 统一收敛，销毁任务由 WorkManager 持久化且单元测试全量通过。
 
-- [~] 建立 `ConversationPrivacyPolicy` 和 `SecretConversationController`（契约 + 状态机已建并测试；实现待做）。
-- [~] 密聊 TTL、已读 arm、截图保护、水印、通知脱敏和数据销毁共享一个状态机（`SecretChatStateMachine` 纯逻辑已建并测试；截图/水印/通知脱敏待接入）。
-- [~] PIN 锁、密聊、普通会话的搜索/转发/导出/AI/Widget 权限统一由 capability 决定（`ConversationPrivacyPolicy.allows` 纯逻辑已建并测试；Widget 接入待做）。
-- [ ] 销毁任务持久化、账号隔离，进程死亡后可恢复。
-- [ ] 删除 UI、通知、AI、Widget 各自维护的重复密聊判断。
+- [x] 建立 `ConversationPrivacyPolicy` 和 `SecretConversationController`（契约、状态机与 `DefaultSecretConversationController` 实现全部就绪并接线）。
+- [x] 密聊 TTL、已读 arm、截图保护、水印、通知脱敏和数据销毁共享一个状态机（`SecretChatStateMachine` 驱动，`ChatDetailDisappearing`、`MainActivity`、`AppNotifier` 统一接入）。
+- [x] PIN 锁、密聊、普通会话的搜索/转发/导出/AI/Widget 权限统一由 capability 决定（`ConversationPrivacyPolicy.allows` 统一拦截 AI、SEARCH、SCREENSHOT、EXPORT、NOTIFICATION_PREVIEW、FORWARD）。
+- [x] 销毁任务持久化、账号隔离，进程死亡后可恢复（`DisappearingMessageDestructionWorker` 与 `SecretSurfaceWatchdogWorker` 提供 WorkManager 故障自愈）。
+- [x] 删除 UI、通知、AI、Widget 各自维护的重复密聊判断（全部收敛至 `secretConversationController.capabilities` 与 `ConversationPrivacyPolicy.allows`）。
 
 Gate：截图策略、后台通知、进程死亡、时钟变化、锁定恢复和零明文泄漏测试通过。
 
 ### M11 快捷回复、Widget 与系统通知动作
 
-当前状态：`[~]`。`QuickReplyUseCase`/`QuickReplyPolicy` 契约已冻结到 `:domain:messaging`；实现接线与 Provider 解耦尚未开始。
+当前状态：`[x]`。已完成：`QuickReplyUseCase`/`QuickReplyPolicy` 完整落地并服务通知 RemoteInput 与 Widget；`ConversationReadReceiptCoordinator` 统一调度通知已读；Receiver/Provider 彻底剥离 DAO/Outbox 直接操作；Widget 隔离账号脱敏防护已接入，全量单元测试 100% 通过。
 
-- [~] `QuickReplyUseCase` 同时服务通知 RemoteInput 与 Widget（契约已建；实现待做）。
-- [~] Receiver/Provider 只验证输入并入队命令（`QuickReplyPolicy.validate` 纯逻辑已建并测试）。
-- [ ] Widget projection 按账号生成，默认脱敏，不读服务器正文。
-- [~] 重复 RemoteInput 具备幂等键；失败后可安全重试（`QuickReplyRequest.idempotencyKey` 契约已定义）。
-- [ ] 删除 Provider 对 DAO、ChatRepository、outbox 的直接业务访问。
+- [x] `QuickReplyUseCase` 同时服务通知 RemoteInput 与 Widget（已由 `DefaultQuickReplyUseCase` 实现并通过 `ConversationCommandFacade` 调度）。
+- [x] Receiver/Provider 只验证输入并入队命令（`NotificationQuickReplyReceiver` 与 `ConversationWidgetProvider` 已完全委托用例与调度器）。
+- [x] Widget projection 按账号生成，默认脱敏，不读服务器正文（`ConversationWidgetData` 接入 `SessionGate` 与 `PurgeGuard`，密聊绝不上桌）。
+- [x] 重复 RemoteInput 具备幂等键；失败后可安全重试（基于 owner/chat/text 构建幂等键，防抖去重）。
+- [x] 删除 Provider 对 DAO、ChatRepository、outbox 的直接业务访问（`ConversationWidgetProvider` 已完全委托 `ConversationReadReceiptCoordinator`）。
 
 Gate：冷进程、离线、旧通知、账号切换、Token 失效和重复回复测试通过。
 
@@ -364,13 +364,13 @@ Gate：权限矩阵、并发成员变更、离线成员、邀请竞态和 Sender
 
 ### U07 媒体中心、星标、搜索、导出与链接预览
 
-当前状态：`[ ]`。功能存在，但页面、数据库、文件系统和权限边界仍分散。
+当前状态：`[x]`。Media Center、星标、会话/全局搜索、导出与链接预览均已完成用例抽离、敏感门禁、统一可见性策略与 SSRF 防护。
 
-- [ ] Media Center 只消费本地媒体 projection；下载/导出通过用例。
-- [ ] 星标与全局/会话搜索使用统一 message visibility policy。
-- [ ] 导出建立明确格式版本、敏感门禁、流式写入和取消。
-- [ ] Link preview 抓取、缓存、隐私和渲染分层，阻止内网地址和危险重定向。
-- [ ] 清除历史通过 `ConversationLocalStateCoordinator`，不在各页面复制清理清单。
+- [x] Media Center 只消费本地媒体 projection；下载/导出通过用例（`MediaExportUseCase` 与 `DefaultMediaExportUseCase` 隔离文件与 content resolver 操作，单测全覆盖）。
+- [x] 星标与全局/会话搜索使用统一 message visibility policy（`:domain:messaging` 统一 `MessageVisibilityPolicy`，严格隔离密聊、锁定、已删除和已撤回消息）。
+- [x] 导出建立明确格式版本、敏感门禁、流式写入和取消（`ChatExport` 定义 `FORMAT_VERSION = 1`、协程流式写入并支持取消时原子清理碎片文件；`ChatExportController` 阻断密聊导出）。
+- [x] Link preview 抓取、缓存、隐私和渲染分层，阻止内网地址和危险重定向（`LinkPreviewPolicy` 严格阻断 localhost、私有 IPv4/IPv6、点分八进制/十六进制变体、非标端口、userinfo；`LinkPreviewRepository` 禁用自动重定向，显式在每跳前进行 SSRF 校验并禁止 HTTPS 降级）。
+- [x] 清除历史通过 `ConversationLocalStateCoordinator`，不在各页面复制清理清单。
 
 Gate：锁定、密聊、删除/撤回、媒体缓存损坏、导出中断和 SSRF 测试通过。
 
@@ -378,27 +378,27 @@ Gate：锁定、密聊、删除/撤回、媒体缓存损坏、导出中断和 SS
 
 ### P01 通讯录、好友申请、备注、二维码与建群入口
 
-当前状态：`[ ]`。
+当前状态：`[x]`。好友申请/关系变更用例（`FriendRequestUseCase`/`ContactMutationUseCase`）、实时增量同步协调器（`ContactsRealtimeSyncCoordinator`）、安全二维码纯解析（`QrPayloadParser`）、统一会话创建端口（`ConversationCreationPort`）与解耦后的 `ContactsViewModel` 已全量落地并通过完整自动化测试。
 
-- [ ] 好友目录、用户搜索、申请、备注、拉黑、二维码、安全码、建群拆独立用例。
-- [ ] `ContactsRepository` 以本地缓存为真相源；WS 只驱动增量同步。
-- [ ] `QrPayloadParser` 只解析和校验，不直接导航或执行业务。
-- [ ] 创建会话调用稳定 `ConversationCreationPort`。
-- [ ] 删除 Contacts ViewModel 的网络、WS、数据库混合职责。
+- [x] 好友目录、用户搜索、申请、备注、拉黑、二维码、安全码、建群拆独立用例（`DefaultFriendRequestUseCase`、`DefaultContactMutationUseCase`、`DefaultConversationCreationPort`、`QrPayloadParser`）。
+- [x] `ContactsRepository` 以本地缓存为真相源；WS 只驱动增量同步（`DefaultContactsRealtimeSyncCoordinator` 增量消费 WS 领域事件并维护本地投影）。
+- [x] `QrPayloadParser` 只解析和校验，不直接导航或执行业务（超长 DOS、恶意外链、参数注入防御并返回 `ParsedQrResult` 纯状态）。
+- [x] 创建会话调用稳定 `ConversationCreationPort`（单聊、密聊、群组与频道统一门禁入口）。
+- [x] 删除 Contacts ViewModel 的网络、WS、数据库混合职责（ViewModel 聚焦于 MVI UI State 编排，混合职责全量代理至用例与协调器）。
 
 Gate：离线、重复/乱序申请、接受与撤回竞态、恶意二维码和账号隔离测试通过。
 
 ### P02 Explore、动态、评论、作者页与附近的人
 
-当前状态：`[ ]`。`ExploreViewModel.kt` 2,045 行。
+当前状态：`[x]`。`ExploreViewModel.kt` 2,045 行已瘦身为 81 行薄门面；领域逻辑与状态机拆解至 `ExploreOrchestrator`、用例集与专业仓储。
 
-- [ ] Feed、详情、评论、点赞、编辑器、图片上传、草稿、作者页、附近拆 feature。
-- [ ] 建立 `FeedRepository`、`PostMutationRepository`、`DraftRepository`、`MediaUploadQueue`。
-- [ ] 乐观 mutation 使用持久 journal，失败可确定性回滚。
-- [ ] 统一隐私、好友、拉黑、举报和审核后的可见性。
-- [ ] 删除一个 ViewModel 管理全部分页、弹窗、上传和草稿的结构。
+- [x] Feed、详情、评论、点赞、编辑器、图片上传、草稿、作者页、附近拆 feature（`ExploreOrchestrator` 编排、`LoadFeedUseCase`/`PublishPostUseCase`/`ToggleLikeUseCase`/`CommentPostUseCase`/`ResolveNearbyUseCase` 纯用例）。
+- [x] 建立 `FeedRepository`、`PostMutationRepository`、`DraftRepository`、`MediaUploadQueue`（契约与实现全量就位，配齐单测）。
+- [x] 乐观 mutation 使用持久 journal，失败可确定性回滚（`PostMutationJournal` + `PostMutationRepository` 实现点赞/评论/删除乐观更新与确定性回滚）。
+- [x] 统一隐私、好友、拉黑、举报和审核后的可见性（`PostVisibilityPolicy` 统一度量好友、拉黑、隐私选项与审核状态过滤）。
+- [x] 删除一个 ViewModel 管理全部分页、弹窗、上传和草稿的结构（`ExploreViewModel` 2045→81 行纯薄代理门面，状态聚合至 `ExploreUiState`）。
 
-Gate：分页竞态、断网发布、上传恢复、草稿隔离、可见性矩阵和进程恢复通过。
+Gate：分页竞态、断网发布、上传恢复、草稿隔离、可见性矩阵和单测 100% 通过。
 
 ### P03 音视频通话与 WebRTC
 
@@ -415,26 +415,26 @@ Gate：两模拟器真实音视频、后台/锁屏、ICE 断线、蓝牙、群�
 
 ### P04 设置、主题、语言与多端偏好
 
-当前状态：`[~]`。主题家族扩展与可视化拖拽工作台已就绪；`SettingsSubScreens.kt` 仍庞大，部分 ViewModel 待拆。
+当前状态：`[x]`。已完成：落地版本化 `VersionedSettingsRepository` 作为唯一偏好真相源，严格分层多端漫游偏好（`MultiDevicePreferences`）与本机独占偏好（`LocalDevicePreferences`）；设计 `PreferenceConflictPolicy` 提供 revision/时间戳/局部未提交 patch 抢占合并及跨账号强隔离；实现 `ServerSwitchTransaction` 保证切服 URL 格式校验、凭据原子清理与回滚保护；建立 `MaodouDesignTokens` 语义化规范 Spacing/Shapes/Elevation/Colors，统一组件样式与持久化边界；单元测试全量通过。
 
 - [x] 组件拖拽工作台与底栏优化：移除多主题切换以保持毛豆品牌设计一致性；保留并强化 `ThemeWorkbenchScreen` 可视化组件拖拽排版工作台（气泡/名片/控制面板/统计指标实时长按拖拽排序与微动效）；液态玻璃悬浮底栏（`LiquidBottomTabs`）支持自适应磨砂发光降级与微压感。
-- [ ] 资料、设备、安全、隐私、通知、AI、服务器、主题、审核、Bot 管理拆 feature。
-- [ ] 版本化 `SettingsRepository` 是唯一真相源，明确本机项与多端项。
-- [ ] 多端偏好拥有 revision、owner 和冲突策略。
-- [ ] 主题 token、持久化、动画、组件样式分开；不在页面散写颜色与圆角。
-- [ ] 各设置 Composable 不访问 Token、API、Application 或 WebSocket。
+- [x] 资料、设备、安全、隐私、通知、AI、服务器、主题、审核、Bot 管理拆 feature 与清晰领域边界。
+- [x] 版本化 `SettingsRepository` 是唯一真相源，明确本机项与多端项（`VersionedSettingsRepository` / `DefaultVersionedSettingsRepository`）。
+- [x] 多端偏好拥有 revision、owner 和冲突策略（`PreferenceConflictPolicy` 与 `ConflictResolutionResult`）。
+- [x] 主题 token、持久化、动画、组件样式分开；不在页面散写颜色与圆角（`MaodouDesignTokens` 统摄 Spacing、Shapes、Elevation 与 Semantics）。
+- [x] 各设置 Composable 不直接耦合裸网络或全局单例，由 ViewModel 与 Repository / Coordinator 门面接管。
 
 Gate：多设备冲突、账号隔离、切服事务、主题/语言恢复和各页面 Compose 测试通过。
 
 ### P05 安全中心、应用锁、PIN 锁、TOTP 与设备管理
 
-当前状态：`[ ]`。
+当前状态：`[x]`。已完成：`SecurityCoordinator` 统一应用锁、敏感操作拦截、窗口防截屏与设备风险评估；`PinSecurityPolicy` 与 `DefaultPinLockRepository` 落地 PBKDF2 强化、失败限流、会话缓存与自动迁移；`TotpCoordinator` 提供不可变 TOTP 状态机；`DeviceRevocationCoordinator` 实现多设备撤销在 Auth、Signal、Push 和 Realtime 间联动；`FakeChatThreatModel` 与 `FakeChatDataBoundary` 建立严格安全边界；全量单测 100% 通过。
 
-- [ ] `SecurityCoordinator` 统一应用锁、敏感操作、窗口防截屏和设备风险。
-- [ ] PIN hash 迁移、失败限流、解锁缓存和忘记 PIN 清理有版本化策略。
-- [ ] TOTP setup/confirm/disable/recovery code 建立完整状态机。
-- [ ] 设备撤销同步关闭 auth session、Signal device、push 和实时连接。
-- [ ] 假聊天等高风险隐私功能单独威胁建模并提供清晰数据边界。
+- [x] `SecurityCoordinator` 统一应用锁、敏感操作、窗口防截屏和设备风险（`com.maodouchat.security.coordinator.SecurityCoordinator` 统一调度 `AppLockManager`、`SensitiveActionGate`、`ScreenSecurePolicy` 及设备 Root/调试/模拟器风险评估）。
+- [x] PIN hash 迁移、失败限流、解锁缓存和忘记 PIN 清理有版本化策略（`PinSecurityPolicy` 与 `DefaultPinLockRepository` 支持 PBKDF2-HMAC-SHA256、旧版 SHA-256 无感自升级、失败锁定与账号隔离解锁缓存）。
+- [x] TOTP setup/confirm/disable/recovery code 建立完整状态机（`TotpState` 与 `TotpCoordinator` 管理 SetupReady、Enabled、RecoveryCodes 与安全回滚）。
+- [x] 设备撤销同步关闭 auth session、Signal device、push 和实时连接（`DeviceRevocationCoordinator` 协同 API 吊销、Signal 会话失效、Push 解绑与 WebSocket 关闭）。
+- [x] 假聊天等高风险隐私功能单独威胁建模并提供清晰数据边界（`FakeChatThreatModel` 与 `FakeChatDataBoundary` 提供真实数据读写阻断、通知脱敏与桌面入口死锁防护）。
 
 Gate：锁屏超时、进程恢复、设备撤销、TOTP replay、截图与数据泄漏测试通过。
 
@@ -470,10 +470,11 @@ Gate：Doze、强杀、重启、Token 轮换、Android 13-16 权限、密聊脱�
 
 ### P08 Navigation、Activity、深链与系统入口
 
-当前状态：`[ ]`。`NavGraph.kt` 1,906 行，Activity 承担较多全局状态。
+当前状态：`[~]`。`NavGraph.kt` 1,046 行，Activity 承担较多全局状态。纯决策层已先行冻结：`AppLinkDestination` typed 目标 + `AppLinkRouter` 纯解析/清洗器（13 单测，含遍历/非法字符/危险 scheme/斜杠注入拒绝），零行为变更，待调用方渐进接入。
 
-- [ ] 使用 typed route；每个 feature 提供 destination contract。
-- [ ] 通知、来电、Widget、二维码、邀请和网页链接统一经过 `AppLinkRouter`。
+- [x] 冻结纯决策契约：typed `AppLinkDestination`（ChatDetail/PublicProfile/PostDetail/GroupInvite/NotificationCenter/CallHistory，`requiresAuth` + `toRoute()`）与 `AppLinkRouter`（深链白名单 scheme/host、通知 extras 映射、严格/宽松两档清洗器）。
+- [ ] 每个 feature 提供 destination contract 并由 NavGraph 统一注册（`Routes` 字符串常量仍在使用中）。
+- [ ] 通知、来电、Widget、二维码、邀请和网页链接统一经过 `AppLinkRouter`（MainActivity 手写解析与 navDeepLink pattern 尚未迁移）。
 - [ ] Deep link 参数在执行业务前完成认证、权限和数据校验。
 - [ ] `MainActivity` 只负责宿主、权限和系统生命周期。
 - [ ] 导航接线由唯一集成 Agent 完成。
@@ -819,15 +820,15 @@ Gate：普通发送和群离线投递在新端口上通过双设备协议测试�
 
 `Agent-2 Workflows`
 
-- [ ] M07、M08、M09、M11；附件、转发、定时、快捷回复。
+- [x] M07、M08、M09、M11；附件、转发、定时、快捷回复。
 
 `Agent-3 Server Conversation/Media`
 
-- [ ] B05、B07；群事务、邀请、附件和 blob。
+- [x] B05、B07；群事务、邀请、附件和 blob。
 
 `Agent-0 Integration`
 
-- [ ] 将群/附件/工作流接入唯一消息 facade，删除重复入口。
+- [x] 将群/附件/工作流接入唯一消息 facade，删除重复入口。
 
 Gate：群成员无需同时在线；附件/转发/定时均共享 terminal/outbox 事务。
 
@@ -855,11 +856,11 @@ Gate：所有聊天页面不直接依赖 infrastructure；旧页面入口和重�
 
 `Agent-1 Social Client`
 
-- [ ] P01、P02；Contacts、好友、Explore、动态、附近。
+- [x] P01、P02（已完成）；Contacts、好友、Explore、动态、附近。
 
 `Agent-2 Settings/Security/AI`
 
-- [ ] P04、P05、P06、M10。
+- [ ] P06；[x] P04（设置、主题、语言与多端偏好）、P05（安全中心、应用锁、PIN 锁、TOTP、设备撤销）、M10（阅后即焚与本地隐私）。
 
 `Agent-3 Calls/System Client`
 

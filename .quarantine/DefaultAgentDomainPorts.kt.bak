@@ -1,0 +1,737 @@
+package com.maodouchat.ai.agent.ports
+
+import com.maodouchat.MaodouchatApp
+import com.maodouchat.ai.agent.AgentToolPolicy
+import com.maodouchat.ai.prompt.AiPromptSafetyPolicy
+import com.maodouchat.data.TokenManager
+import com.maodouchat.network.ApiService
+import com.maodouchat.data.local.AiTaskEntity
+import com.maodouchat.data.local.LikeQueryPolicy
+import com.maodouchat.data.local.toDomain
+import com.maodouchat.data.model.Message
+import com.maodouchat.data.model.MessageMeta
+import com.maodouchat.data.model.MessageReaction
+import com.maodouchat.data.model.MessageStatus
+import com.maodouchat.data.model.MessageType
+import com.maodouchat.data.privacy.AgentSecretGatePolicy
+import com.maodouchat.data.privacy.ChatLockSession
+import com.maodouchat.data.privacy.ConversationPrivacyPolicy
+import com.maodouchat.data.privacy.PrivacyAction
+import com.maodouchat.data.repository.ChatRepository
+import com.maodouchat.data.repository.LocalMessageStore
+import com.maodouchat.messaging.v2.MessagingV2Event
+import com.maodouchat.messaging.v2.MessagingV2EventAction
+import com.maodouchat.messaging.v2.MessagingV2MessageGateway
+import com.maodouchat.util.JsonFormat
+import kotlinx.coroutines.flow.first
+import java.util.UUID
+
+class DefaultAgentPrivacyPort(private val app: MaodouchatApp) : AgentPrivacyPort {
+    override suspend fun checkReadableChat(chatId: String): String? {
+        if (chatId.isBlank()) return "Error: chatId required"
+        val caps = app.secretConversationController.capabilities(chatId)
+        if (!ConversationPrivacyPolicy.allows(caps, PrivacyAction.AI)) {
+            return "Error: chat $chatId does not permit AI operations"
+        }
+        val denyReason = AgentSecretGatePolicy.denyIfSecretOrLocked(
+            isSecret = caps.isSecretChat,
+            isLocked = caps.isLocked,
+            unlocked = ChatLockSession.isUnlocked(chatId)
+        )
+        return denyReason?.let { "Error: $it" }
+    }
+
+    override suspend fun isChatAllowedForAi(chatId: String): Boolean {
+        return checkReadableChat(chatId) == null
+    }
+
+    override suspend fun getLockedAndSecretChatIds(): Pair<Set<String>, Set<String>> {
+        val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
+        val secret = app.database.chatDao().listSecretChatIds().toHashSet()
+        return Pair(locked, secret)
+    }
+
+    override suspend fun getBlockedChatIds(): Set<String> {
+        val (locked, secret) = getLockedAndSecretChatIds()
+        val currentlyLocked = locked.filterNot { ChatLockSession.isUnlocked(it) }.toSet()
+        return secret + currentlyLocked
+    }
+
+    override suspend fun getSecretPeerIds(): Set<String> {
+        return app.database.chatDao().getAllChatsDirect()
+            .asSequence()
+            .filter { it.chatType == "SECRET" }
+            .flatMap { it.participantIds.split(",") }
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .toSet()
+    }
+}
+
+class DefaultAgentChatPort(
+    private val app: MaodouchatApp,
+    private val privacy: AgentPrivacyPort
+) : AgentChatPort {
+
+    private fun token(): String? =
+        TokenManager.getInstance(app).getToken()?.takeIf { it.isNotBlank() }
+
+    private fun fail(error: Throwable): String = "Error: ${error.message ?: error.javaClass.simpleName}"
+
+    private fun ids(raw: String): List<String> =
+        raw.split(',', ' ', ';', '\n').map { it.trim() }.filter { it.isNotBlank() }.distinct()
+
+    private fun parseBool(raw: String?): Boolean? = when (raw?.trim()?.lowercase()) {
+        "true", "1", "yes" -> true
+        "false", "0", "no" -> false
+        else -> null
+    }
+
+    override suspend fun listChats(query: String?): String {
+        val all = app.database.chatDao().getAllChatsDirect()
+        val (locked, secret) = privacy.getLockedAndSecretChatIds()
+        val filtered = all
+            .filter { chat ->
+                AgentSecretGatePolicy.includeInChatList(
+                    isSecret = chat.id in secret || chat.chatType == "SECRET",
+                    isLocked = chat.id in locked,
+                    unlocked = ChatLockSession.isUnlocked(chat.id)
+                )
+            }
+            .filter { chat ->
+                if (query.isNullOrBlank()) true
+                else {
+                    val name = chat.customName ?: chat.groupName ?: chat.id
+                    name.contains(query.trim(), ignoreCase = true)
+                }
+            }
+            .take(50)
+        if (filtered.isEmpty()) return "No chats found."
+        return filtered.joinToString("\n") { chat ->
+            val title = chat.customName ?: chat.groupName ?: chat.id
+            val flags = listOfNotNull(
+                "group".takeIf { chat.isGroup },
+                "pinned".takeIf { chat.isPinned },
+                "muted".takeIf { chat.isMuted },
+                "archived".takeIf { chat.isArchived },
+                "unread=${chat.unreadCount}".takeIf { chat.unreadCount > 0 },
+            ).joinToString(",")
+            "${chat.id}\t$title\t${chat.lastMessage.orEmpty().take(60)}\tflags=[$flags]"
+        }
+    }
+
+    override suspend fun getChat(chatId: String): String {
+        privacy.checkReadableChat(chatId)?.let { return it }
+        val chat = app.database.chatDao().getChatById(chatId) ?: return "Error: chat not found"
+        return buildString {
+            appendLine("id=${chat.id}")
+            appendLine("type=${if (chat.isGroup) "GROUP" else chat.chatType}")
+            appendLine("name=${chat.customName ?: chat.groupName ?: chat.id}")
+            appendLine("pinned=${chat.isPinned} muted=${chat.isMuted} archived=${chat.isArchived}")
+            appendLine("unread=${chat.unreadCount} markedUnread=${chat.markedUnread}")
+            appendLine("lastMessage=${chat.lastMessage.orEmpty()}")
+        }.trim()
+    }
+
+    override suspend fun updateChat(args: Map<String, String>): String {
+        val chatId = args["chatId"].orEmpty()
+        if (chatId.isBlank()) return "Error: chatId required"
+        if (app.database.chatDao().getChatById(chatId) == null) return "Error: chat not found"
+        privacy.checkReadableChat(chatId)?.let { return it }
+        val repo = ChatRepository(app.database.chatDao(), app.database.userDao())
+        val changed = mutableListOf<String>()
+        parseBool(args["pinned"])?.let {
+            if (it) repo.pinChat(chatId) else repo.unpinChat(chatId)
+            changed += "pinned=$it"
+        }
+        parseBool(args["muted"])?.let {
+            if (it) repo.muteChat(chatId) else repo.unmuteChat(chatId)
+            changed += "muted=$it"
+        }
+        parseBool(args["archived"])?.let {
+            if (it) repo.archiveChat(chatId) else repo.unarchiveChat(chatId)
+            changed += "archived=$it"
+        }
+        parseBool(args["markedUnread"])?.let {
+            repo.setMarkedUnread(chatId, it)
+            changed += "markedUnread=$it"
+        }
+        if (changed.isEmpty()) return "No changes requested for $chatId"
+        return "Updated $chatId: ${changed.joinToString(", ")}"
+    }
+
+    override suspend fun deleteChat(chatId: String): String {
+        privacy.checkReadableChat(chatId)?.let { return it }
+        if (chatId.isBlank()) return "Error: chatId required"
+        val tok = token() ?: return "Error: not signed in"
+        ApiService.deleteChat(tok, chatId).getOrElse { return fail(it) }
+        ChatRepository(app.database.chatDao(), app.database.userDao()).deleteChat(chatId)
+        return "Deleted chat $chatId"
+    }
+
+    override suspend fun createDirect(userId: String): String {
+        if (userId.isBlank()) return "Error: userId required"
+        val tok = token() ?: return "Error: not signed in"
+        val chat = ApiService.createChat(tok, listOf(userId), isGroup = false).getOrElse { return fail(it) }
+        return "Direct chat ${chat.id}"
+    }
+
+    override suspend fun createGroup(name: String, memberIds: String): String {
+        val groupName = name.trim().take(50)
+        val members = ids(memberIds)
+        if (groupName.isBlank() || members.isEmpty()) return "Error: name and memberIds required"
+        val tok = token() ?: return "Error: not signed in"
+        val chat = ApiService.createChat(tok, members, isGroup = true, groupName = groupName).getOrElse { return fail(it) }
+        return "Group ${chat.id} name=${chat.groupName.orEmpty()}"
+    }
+
+    override suspend fun renameGroup(chatId: String, name: String): String {
+        val groupName = name.trim().take(50)
+        if (chatId.isBlank() || groupName.isBlank()) return "Error: chatId and name required"
+        val tok = token() ?: return "Error: not signed in"
+        ApiService.renameGroup(tok, chatId, groupName).getOrElse { return fail(it) }
+        return "Renamed $chatId to $groupName"
+    }
+
+    override suspend fun updateAnnouncement(chatId: String, announcement: String): String {
+        if (chatId.isBlank()) return "Error: chatId required"
+        val tok = token() ?: return "Error: not signed in"
+        ApiService.updateGroupAnnouncement(tok, chatId, announcement.take(1_200)).getOrElse { return fail(it) }
+        return "Updated announcement for $chatId"
+    }
+
+    override suspend fun addMembers(chatId: String, memberIds: String): String {
+        val members = ids(memberIds)
+        if (chatId.isBlank() || members.isEmpty()) return "Error: chatId and memberIds required"
+        val tok = token() ?: return "Error: not signed in"
+        ApiService.addGroupMembers(tok, chatId, members).getOrElse { return fail(it) }
+        return "Added ${members.size} members to $chatId"
+    }
+
+    override suspend fun removeMember(chatId: String, memberId: String): String {
+        if (chatId.isBlank() || memberId.isBlank()) return "Error: chatId and memberId required"
+        val tok = token() ?: return "Error: not signed in"
+        ApiService.removeGroupMember(tok, chatId, memberId).getOrElse { return fail(it) }
+        return "Removed $memberId from $chatId"
+    }
+
+    override suspend fun muteMember(chatId: String, memberId: String, mutedUntil: Long): String {
+        if (chatId.isBlank() || memberId.isBlank()) return "Error: chatId and memberId required"
+        val tok = token() ?: return "Error: not signed in"
+        ApiService.updateMemberMute(tok, chatId, memberId, mutedUntil.coerceAtLeast(0L)).getOrElse { return fail(it) }
+        return "Muted $memberId until $mutedUntil"
+    }
+}
+
+class DefaultAgentMessagePort(
+    private val app: MaodouchatApp,
+    private val userId: String,
+    private val privacy: AgentPrivacyPort
+) : AgentMessagePort {
+
+    private fun token(): String? =
+        TokenManager.getInstance(app).getToken()?.takeIf { it.isNotBlank() }
+
+    private fun fail(error: Throwable): String = "Error: ${error.message ?: error.javaClass.simpleName}"
+
+    private fun formatMessage(message: Message): String {
+        val text = AiPromptSafetyPolicy.sanitizeContextText(message.parsedContent(), 500)
+        return "${message.timestamp}\t${message.senderId}\t${message.type.name}\t$text"
+    }
+
+    override suspend fun getChatHistory(chatId: String, limit: Int): String {
+        privacy.checkReadableChat(chatId)?.let { return it }
+        val messages = app.database.messageDao()
+            .getMessagesForChat(chatId, limit.coerceIn(1, AgentToolPolicy.MAX_MESSAGES_LIMIT))
+        if (messages.isEmpty()) return "No messages in $chatId"
+        return messages.asReversed().joinToString("\n") { formatMessage(it) }
+    }
+
+    override suspend fun searchMessages(query: String, limit: Int): String {
+        val q = query.trim()
+        if (q.isBlank()) return "Error: query required"
+        val (locked, secret) = privacy.getLockedAndSecretChatIds()
+        val allHits = app.database.messageDao()
+            .searchMessages(q, limit.coerceIn(1, 80))
+        if (allHits.isEmpty()) return "No matches."
+        return allHits
+            .filter { hit ->
+                AgentSecretGatePolicy.includeInChatList(
+                    isSecret = hit.chatId in secret,
+                    isLocked = hit.chatId in locked,
+                    unlocked = ChatLockSession.isUnlocked(hit.chatId)
+                )
+            }
+            .take(limit.coerceIn(1, 40))
+            .joinToString("\n") { hit ->
+                "${hit.chatId}\t${hit.messageId}\t${hit.searchableText.take(160)}"
+            }
+            .ifBlank { "No matches." }
+    }
+
+    override suspend fun sendText(chatId: String, text: String): String {
+        val body = text.trim().take(AgentToolPolicy.MAX_TEXT_SEND_CHARS)
+        if (chatId.isBlank() || body.isBlank()) return "Error: chatId and text required"
+        val chat = app.database.chatDao().getChatById(chatId) ?: return "Error: chat not found"
+        privacy.checkReadableChat(chatId)?.let { return it }
+        val meta = MessageMeta(aiAssisted = true, aiAssistantMode = "agent")
+        val content = JsonFormat.composeContentWithMeta(body, meta)
+        val message = Message(
+            id = "m_${UUID.randomUUID()}",
+            chatId = chatId,
+            senderId = userId,
+            content = content,
+            type = MessageType.TEXT,
+            timestamp = System.currentTimeMillis(),
+            status = MessageStatus.SENDING,
+            meta = meta
+        )
+        val messageStore = LocalMessageStore(app.database.messageDao(), app.database)
+        MessagingV2MessageGateway(
+            database = app.database,
+            messageStore = messageStore,
+            outbox = app.messagingV2Outbox,
+        ).stageAndEnqueue(
+            message = message,
+            groupRevision = chat.memberRevision.takeIf { chat.isGroup },
+            body = content,
+            type = MessageType.TEXT,
+        )
+        return "Queued ${message.id} to ${if (chat.isGroup) "group" else "direct"} $chatId via E2EE outbox"
+    }
+
+    override suspend fun listStarred(limit: Int): String {
+        val rows = app.database.messageDao().getStarredMessages(limit.coerceIn(1, 40))
+        if (rows.isEmpty()) return "No starred messages."
+        val (locked, secret) = privacy.getLockedAndSecretChatIds()
+        return rows
+            .filter { msg ->
+                AgentSecretGatePolicy.includeInChatList(
+                    isSecret = msg.chatId in secret,
+                    isLocked = msg.chatId in locked,
+                    unlocked = ChatLockSession.isUnlocked(msg.chatId)
+                )
+            }
+            .joinToString("\n") { msg ->
+                val text = AiPromptSafetyPolicy.sanitizeContextText(msg.content, 160)
+                "${msg.chatId}\t${msg.id}\t$text"
+            }
+            .ifBlank { "No starred messages." }
+    }
+
+    override suspend fun starMessage(messageId: String, starred: Boolean): String {
+        if (messageId.isBlank()) return "Error: messageId required"
+        val msg = app.database.messageDao().getMessageById(messageId)
+            ?: return "Error: message not found"
+        privacy.checkReadableChat(msg.chatId)?.let { return it }
+        app.database.messageDao().updateStarred(messageId, starred)
+        return "Message $messageId starred=$starred"
+    }
+
+    override suspend fun deleteLocalMessage(messageId: String): String {
+        if (messageId.isBlank()) return "Error: messageId required"
+        val msg = app.database.messageDao().getMessageById(messageId)
+            ?: return "Error: message not found"
+        privacy.checkReadableChat(msg.chatId)?.let { return it }
+        LocalMessageStore(app.database.messageDao(), app.database).deleteMessage(messageId)
+        return "Deleted local message $messageId"
+    }
+
+    override suspend fun listPinned(chatId: String): String {
+        privacy.checkReadableChat(chatId)?.let { return it }
+        if (chatId.isBlank()) return "Error: chatId required"
+        val tok = token() ?: return "Error: not signed in"
+        val result = ApiService.getPinnedMessages(tok, chatId).getOrElse { return fail(it) }
+        if (result.pins.isEmpty()) return "No pinned messages."
+        return result.pins.joinToString("\n") { "${it.messageId}\tby=${it.pinnedBy}\tat=${it.pinnedAt}" }
+    }
+
+    override suspend fun pinMessage(chatId: String, messageId: String): String {
+        privacy.checkReadableChat(chatId)?.let { return it }
+        if (chatId.isBlank() || messageId.isBlank()) return "Error: chatId and messageId required"
+        val tok = token() ?: return "Error: not signed in"
+        val result = ApiService.togglePinnedMessage(tok, chatId, messageId).getOrElse { return fail(it) }
+        return "Pinned=${result.pinned} for $messageId"
+    }
+
+    override suspend fun revokeMessage(messageId: String): String {
+        if (messageId.isBlank()) return "Error: messageId required"
+        token() ?: return "Error: not signed in"
+        val local = app.database.messageDao().getMessageById(messageId)
+            ?: return "Error: message not found"
+        privacy.checkReadableChat(local.chatId)?.let { return it }
+        val ownerUserId = TokenManager.getInstance(app).getUserId().orEmpty()
+        if (local.senderId != ownerUserId) return "Error: only the sender can revoke this message"
+        val chat = app.database.chatDao().getChatById(local.chatId)
+        val placeholder = app.getString(com.maodouchat.R.string.chat_message_revoked_placeholder)
+        app.messagingV2Outbox.enqueueEvent(
+            conversationId = local.chatId,
+            event = MessagingV2Event(
+                action = MessagingV2EventAction.REVOKE,
+                targetMessageId = messageId,
+                content = placeholder,
+                editedAt = System.currentTimeMillis(),
+            ),
+            groupRevision = chat?.memberRevision?.takeIf { chat.isGroup },
+        )
+        val revoked = local.toDomain().copy(
+            content = placeholder,
+            type = MessageType.REVOKED,
+            meta = MessageMeta(),
+        )
+        LocalMessageStore(app.database.messageDao(), app.database).insertMessage(revoked)
+        MaodouchatApp.emitChatListPreviewRefresh(local.chatId)
+        return "Revoked $messageId"
+    }
+
+    override suspend fun react(messageId: String, emoji: String): String {
+        if (messageId.isBlank() || emoji.isBlank()) return "Error: messageId and emoji required"
+        token() ?: return "Error: not signed in"
+        val local = app.database.messageDao().getMessageById(messageId)
+            ?: return "Error: message not found"
+        privacy.checkReadableChat(local.chatId)?.let { return it }
+        val ownerUserId = TokenManager.getInstance(app).getUserId().orEmpty()
+        val normalizedEmoji = emoji.trim().take(16)
+        val current = local.toDomain()
+        val nextEmoji = normalizedEmoji.takeUnless {
+            current.reactions.any { reaction ->
+                reaction.userId == ownerUserId && reaction.emoji == normalizedEmoji
+            }
+        }
+        val chat = app.database.chatDao().getChatById(local.chatId)
+        app.messagingV2Outbox.enqueueEvent(
+            conversationId = local.chatId,
+            event = MessagingV2Event(
+                action = MessagingV2EventAction.REACTION_SET,
+                targetMessageId = messageId,
+                reactionEmoji = nextEmoji,
+            ),
+            groupRevision = chat?.memberRevision?.takeIf { chat.isGroup },
+        )
+        val reactions = current.reactions.filterNot { it.userId == ownerUserId } +
+            listOfNotNull(nextEmoji?.let { MessageReaction(ownerUserId, it) })
+        LocalMessageStore(app.database.messageDao(), app.database)
+            .updateMessageReactions(messageId, reactions)
+        return "Reaction updated on $messageId count=${reactions.size}"
+    }
+}
+
+class DefaultAgentContactPort(
+    private val app: MaodouchatApp,
+    private val userId: String
+) : AgentContactPort {
+
+    private fun token(): String? =
+        TokenManager.getInstance(app).getToken()?.takeIf { it.isNotBlank() }
+
+    private fun fail(error: Throwable): String = "Error: ${error.message ?: error.javaClass.simpleName}"
+
+    override suspend fun getContacts(query: String?): String {
+        val q = query?.trim().orEmpty()
+        val all = if (q.isBlank()) {
+            app.database.userDao().getAllUsers().first()
+        } else {
+            val escaped = LikeQueryPolicy.escapeForContains(q.take(80))
+            if (escaped.isBlank()) emptyList() else app.database.userDao().searchUsers(escaped, 80)
+        }
+        val lines = all.take(80).map {
+            val display = it.nickname?.takeIf(String::isNotBlank) ?: it.name
+            "${it.id}\t$display\t${it.status.take(40)}"
+        }
+        return if (lines.isEmpty()) "No contacts." else lines.joinToString("\n")
+    }
+
+    override suspend fun getMe(): String {
+        val me = app.database.userDao().getUserById(userId)
+        return buildString {
+            appendLine("userId=$userId")
+            if (me != null) {
+                appendLine("name=${me.name}")
+                appendLine("nickname=${me.nickname.orEmpty()}")
+                appendLine("status=${me.status}")
+            }
+        }.trim()
+    }
+
+    override suspend fun setNickname(userId: String, nickname: String): String {
+        if (userId.isBlank()) return "Error: userId required"
+        val clean = nickname.trim().take(40).ifBlank { null }
+        app.database.userDao().updateNickname(userId, clean)
+        return "Updated nickname for $userId to '${clean.orEmpty()}'"
+    }
+
+    override suspend fun listFriends(): String {
+        val tok = token() ?: return "Error: not signed in"
+        val rows = ApiService.getFriends(tok).getOrElse { return fail(it) }
+        if (rows.isEmpty()) return "No friends."
+        return rows.take(80).joinToString("\n") { "${it.id}\t${it.name}\t${it.status.take(40)}" }
+    }
+
+    override suspend fun listFriendRequests(direction: String): String {
+        val tok = token() ?: return "Error: not signed in"
+        val incoming = !direction.equals("outgoing", ignoreCase = true)
+        val rows = if (incoming) {
+            ApiService.getIncomingFriendRequests(tok).getOrElse { return fail(it) }
+        } else {
+            ApiService.getOutgoingFriendRequests(tok).getOrElse { return fail(it) }
+        }
+        if (rows.isEmpty()) return "No friend requests."
+        return rows.take(50).joinToString("\n") { req ->
+            "${req.id}\t${req.status}\tfrom=${req.fromUser.id}/${req.fromUser.name}\tto=${req.toUser.id}/${req.toUser.name}\t${req.message.take(80)}"
+        }
+    }
+
+    override suspend fun sendFriend(userId: String, message: String): String {
+        if (userId.isBlank()) return "Error: userId required"
+        val tok = token() ?: return "Error: not signed in"
+        val result = ApiService.sendFriendRequest(tok, userId, message.take(300)).getOrElse { return fail(it) }
+        return "Friend request ${result.id} status=${result.status}"
+    }
+
+    override suspend fun acceptFriend(requestId: String): String {
+        if (requestId.isBlank()) return "Error: requestId required"
+        val tok = token() ?: return "Error: not signed in"
+        val result = ApiService.acceptFriendRequest(tok, requestId).getOrElse { return fail(it) }
+        return "Accepted ${result.id} status=${result.status}"
+    }
+
+    override suspend fun rejectFriend(requestId: String): String {
+        if (requestId.isBlank()) return "Error: requestId required"
+        val tok = token() ?: return "Error: not signed in"
+        val result = ApiService.rejectFriendRequest(tok, requestId).getOrElse { return fail(it) }
+        return "Rejected ${result.id} status=${result.status}"
+    }
+
+    override suspend fun cancelFriend(requestId: String): String {
+        if (requestId.isBlank()) return "Error: requestId required"
+        val tok = token() ?: return "Error: not signed in"
+        val result = ApiService.cancelFriendRequest(tok, requestId).getOrElse { return fail(it) }
+        return "Cancelled ${result.id} status=${result.status}"
+    }
+
+    override suspend fun removeFriend(userId: String): String {
+        if (userId.isBlank()) return "Error: userId required"
+        val tok = token() ?: return "Error: not signed in"
+        ApiService.removeFriend(tok, userId).getOrElse { return fail(it) }
+        return "Removed friend $userId"
+    }
+
+    override suspend fun blockUser(userId: String): String {
+        if (userId.isBlank()) return "Error: userId required"
+        val tok = token() ?: return "Error: not signed in"
+        ApiService.blockUser(tok, userId).getOrElse { return fail(it) }
+        return "Blocked $userId"
+    }
+
+    override suspend fun unblockUser(userId: String): String {
+        if (userId.isBlank()) return "Error: userId required"
+        val tok = token() ?: return "Error: not signed in"
+        ApiService.unblockUser(tok, userId).getOrElse { return fail(it) }
+        return "Unblocked $userId"
+    }
+
+    override suspend fun searchUsers(query: String, limit: Int): String {
+        val q = query.trim()
+        if (q.isBlank()) return "Error: query required"
+        val tok = token() ?: return "Error: not signed in"
+        val rows = ApiService.searchUsers(tok, q, limit.coerceIn(1, 30)).getOrElse { return fail(it) }
+        if (rows.isEmpty()) return "No users."
+        return rows.joinToString("\n") { "${it.id}\t${it.name}\t${it.status.take(40)}" }
+    }
+
+    override suspend fun listBlocked(): String {
+        val tok = token() ?: return "Error: not signed in"
+        val rows = ApiService.getBlockedUserDetails(tok).getOrElse { return fail(it) }
+        if (rows.isEmpty()) return "No blocked users."
+        return rows.joinToString("\n") { "${it.id}\t${it.name}" }
+    }
+}
+
+class DefaultAgentTaskPort(
+    private val app: MaodouchatApp,
+    private val userId: String,
+    private val privacy: AgentPrivacyPort
+) : AgentTaskPort {
+
+    override suspend fun listDrafts(): String {
+        val drafts = app.database.chatDraftDao().observeForOwner(userId).first()
+        if (drafts.isEmpty()) return "No drafts."
+        val (locked, secret) = privacy.getLockedAndSecretChatIds()
+        val visible = drafts.filter { draft ->
+            AgentSecretGatePolicy.includeInChatList(
+                isSecret = draft.chatId in secret,
+                isLocked = draft.chatId in locked,
+                unlocked = ChatLockSession.isUnlocked(draft.chatId)
+            )
+        }
+        if (visible.isEmpty()) return "No drafts."
+        return visible.take(40).joinToString("\n") { "${it.chatId}\t${it.text.take(160)}" }
+    }
+
+    override suspend fun getDraft(chatId: String): String {
+        privacy.checkReadableChat(chatId)?.let { return it }
+        if (chatId.isBlank()) return "Error: chatId required"
+        val draft = app.database.chatDraftDao().get(userId, chatId)
+        return if (draft == null || draft.text.isBlank()) "No draft." else draft.text.take(AgentToolPolicy.MAX_DRAFT_CHARS)
+    }
+
+    override suspend fun setDraft(chatId: String, text: String): String {
+        if (chatId.isBlank()) return "Error: chatId required"
+        privacy.checkReadableChat(chatId)?.let { return it }
+        val clean = text.take(AgentToolPolicy.MAX_DRAFT_CHARS)
+        app.database.chatDraftDao().set(userId, chatId, clean)
+        return if (clean.isBlank()) "Cleared draft for $chatId" else "Draft saved for $chatId (${clean.length} chars)"
+    }
+
+    override suspend fun listTasks(limit: Int): String {
+        val blocked = privacy.getBlockedChatIds()
+        val tasks = app.database.aiTaskDao().listRecent(limit.coerceIn(1, 80))
+            .filter { it.chatId.isBlank() || it.chatId !in blocked }
+            .take(limit.coerceIn(1, 40))
+        if (tasks.isEmpty()) return "No tasks."
+        return tasks.joinToString("\n") { task ->
+            "${task.id}\t${task.chatId}\t${task.title}\tcompleted=${task.isCompleted}\tdue=${task.dueText.orEmpty()}"
+        }
+    }
+
+    override suspend fun createTask(chatId: String, title: String, dueText: String?): String {
+        val cleanTitle = title.trim().take(300)
+        if (chatId.isBlank() || cleanTitle.isBlank()) return "Error: chatId and title required"
+        if (app.database.chatDao().getChatById(chatId) == null) return "Error: chat not found"
+        privacy.checkReadableChat(chatId)?.let { return it }
+        val now = System.currentTimeMillis()
+        val entity = AiTaskEntity(
+            id = "task_${UUID.randomUUID()}",
+            chatId = chatId,
+            sourceQuery = "agent",
+            title = cleanTitle,
+            dueText = dueText?.trim()?.take(120)?.takeIf { it.isNotBlank() },
+            createdAt = now,
+            updatedAt = now
+        )
+        app.database.aiTaskDao().upsertAll(listOf(entity))
+        return "Created task ${entity.id}"
+    }
+
+    override suspend fun completeTask(taskId: String, completed: Boolean): String {
+        if (taskId.isBlank()) return "Error: taskId required"
+        val existing = app.database.aiTaskDao().getById(taskId)
+            ?: return "Error: task not found"
+        privacy.checkReadableChat(existing.chatId)?.let { return it }
+        app.database.aiTaskDao().setCompleted(taskId, completed, System.currentTimeMillis())
+        return "Task $taskId completed=$completed"
+    }
+
+    override suspend fun deleteTask(taskId: String): String {
+        if (taskId.isBlank()) return "Error: taskId required"
+        val existing = app.database.aiTaskDao().getById(taskId)
+            ?: return "Error: task not found"
+        privacy.checkReadableChat(existing.chatId)?.let { return it }
+        app.database.aiTaskDao().deleteById(taskId)
+        return "Deleted task $taskId"
+    }
+
+    override suspend fun listMissedCalls(limit: Int): String {
+        val secretPeers = privacy.getSecretPeerIds()
+        val calls = app.database.missedCallDao().observeRecent().first()
+            .filter { it.callerId !in secretPeers }
+            .take(limit.coerceIn(1, 30))
+        if (calls.isEmpty()) return "No missed calls."
+        return calls.joinToString("\n") { call ->
+            "${call.id}\t${call.callerId}\t${call.callerName}\t${call.callType}\t${call.receivedAt}\tread=${call.isRead}"
+        }
+    }
+
+    override suspend fun listNotifications(limit: Int): String {
+        val blocked = privacy.getBlockedChatIds()
+        val secretPeers = privacy.getSecretPeerIds()
+        val items = app.notificationCenter.items.value
+            .filter { item ->
+                val chatId = item.extra["chatId"].orEmpty()
+                val callerId = item.extra["callerId"].orEmpty()
+                (chatId.isBlank() || chatId !in blocked) &&
+                    (callerId.isBlank() || callerId !in secretPeers) &&
+                    blocked.none { id -> item.mergeKey.contains(id) || item.deeplink.orEmpty().contains(id) }
+            }
+            .take(limit.coerceIn(1, 40))
+        if (items.isEmpty()) return "No notifications."
+        return items.joinToString("\n") { item ->
+            "${item.id}\t${item.type}\t${item.title}\t${item.preview.orEmpty().take(80)}\tread=${item.read}"
+        }
+    }
+
+    override suspend fun markNotificationRead(id: String): String {
+        if (id.isBlank()) return "Error: itemId required"
+        app.notificationCenter.markRead(id)
+        return "Marked read $id"
+    }
+}
+
+class DefaultAgentSocialPort(
+    private val app: MaodouchatApp
+) : AgentSocialPort {
+
+    private fun token(): String? =
+        TokenManager.getInstance(app).getToken()?.takeIf { it.isNotBlank() }
+
+    private fun fail(error: Throwable): String = "Error: ${error.message ?: error.javaClass.simpleName}"
+
+    override suspend fun listPosts(limit: Int): String {
+        val tok = token() ?: return "Error: not signed in"
+        val rows = ApiService.getPosts(tok, limit = limit.coerceIn(1, 40)).getOrElse { return fail(it) }
+        if (rows.isEmpty()) return "No posts."
+        return rows.joinToString("\n") { post ->
+            "${post.id}\t${post.author.name}\tlikes=${post.likeCount}\tcomments=${post.commentCount}\t${post.content.take(120)}"
+        }
+    }
+
+    override suspend fun getPost(postId: String): String {
+        if (postId.isBlank()) return "Error: postId required"
+        val tok = token() ?: return "Error: not signed in"
+        val post = ApiService.getPost(tok, postId).getOrElse { return fail(it) }
+        return "id=${post.id}\tauthor=${post.author.id}/${post.author.name}\tlikes=${post.likeCount}\tcomments=${post.commentCount}\tmine=${post.isMine}\n${post.content.take(1_000)}"
+    }
+
+    override suspend fun listPostComments(postId: String, limit: Int): String {
+        if (postId.isBlank()) return "Error: postId required"
+        val tok = token() ?: return "Error: not signed in"
+        val rows = ApiService.getPostComments(tok, postId, limit.coerceIn(1, 100)).getOrElse { return fail(it) }
+        if (rows.isEmpty()) return "No comments."
+        return rows.joinToString("\n") { "${it.id}\t${it.author.name}\t${it.content.take(160)}" }
+    }
+
+    override suspend fun createPost(text: String, visibility: String?): String {
+        val body = text.trim().take(2_000)
+        if (body.isBlank()) return "Error: text required"
+        val tok = token() ?: return "Error: not signed in"
+        val vis = visibility?.trim()?.uppercase()?.takeIf { it in setOf("PUBLIC", "CONTACTS", "PRIVATE") }
+        val post = ApiService.createPost(tok, body, emptyList(), vis).getOrElse { return fail(it) }
+        return "Created post ${post.id}"
+    }
+
+    override suspend fun likePost(postId: String, liked: Boolean): String {
+        if (postId.isBlank()) return "Error: postId required"
+        val tok = token() ?: return "Error: not signed in"
+        val post = if (liked) {
+            ApiService.likePost(tok, postId).getOrElse { return fail(it) }
+        } else {
+            ApiService.unlikePost(tok, postId).getOrElse { return fail(it) }
+        }
+        return "Post ${post.id} likedByMe=${post.likedByMe} likes=${post.likeCount}"
+    }
+
+    override suspend fun commentPost(postId: String, text: String): String {
+        val body = text.trim().take(800)
+        if (postId.isBlank() || body.isBlank()) return "Error: postId and text required"
+        val tok = token() ?: return "Error: not signed in"
+        val comment = ApiService.createPostComment(tok, postId, body).getOrElse { return fail(it) }
+        return "Commented ${comment.id} on $postId"
+    }
+
+    override suspend fun deletePost(postId: String): String {
+        if (postId.isBlank()) return "Error: postId required"
+        val tok = token() ?: return "Error: not signed in"
+        ApiService.deletePost(tok, postId).getOrElse { return fail(it) }
+        return "Deleted post $postId"
+    }
+}
