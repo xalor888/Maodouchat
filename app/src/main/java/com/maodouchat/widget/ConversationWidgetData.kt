@@ -91,7 +91,10 @@ object ConversationWidgetData {
         val tokenManager = TokenManager.getInstance(context)
         val ownerUserId = tokenManager.getUserId().orEmpty()
         val token = tokenManager.getToken()
-        if (ownerUserId.isBlank() || token.isNullOrBlank()) {
+        if (com.maodouchat.security.SecureSessionManager.isPurgeInProgress() ||
+            ownerUserId.isBlank() || token.isNullOrBlank() ||
+            !com.maodouchat.security.BackgroundSessionGate.mayContinue(ownerUserId, token, ownerUserId)
+        ) {
             return WidgetSnapshot(rows = emptyList(), totalUnread = 0, ownerUserId = "", signedOut = true, updatedAt = System.currentTimeMillis())
         }
         return withContext(Dispatchers.IO) {
@@ -99,40 +102,36 @@ object ConversationWidgetData {
                 val app = context.applicationContext as? MaodouchatApp
                     ?: return@withContext WidgetSnapshot(emptyList(), 0, ownerUserId, false, System.currentTimeMillis())
                 val chatRepo = ChatRepository(app.database.chatDao(), app.database.userDao())
-                val secretIds = app.database.chatDao().listSecretChatIds().toSet()
+                val secretController = app.secretConversationController
                 val appLockOn = AppLockManager.isEnabled(context)
                 val appName = context.getString(R.string.app_name)
                 val genericPreview = context.getString(R.string.notification_encrypted_message)
                 val lockedPreview = context.getString(R.string.chat_lock_list_preview)
                 val attachmentLabel = context.getString(R.string.widget_attachment_label)
-                val rows = mutableListOf<WidgetRow>()
-                var totalUnread = 0
                 val maxRows = if (config.compact) ConversationWidgetContract.MAX_ROWS_COMPACT else ConversationWidgetContract.MAX_ROWS
-                for (chatId in config.chatIds) {
-                    if (rows.size >= maxRows) break
-                    if (chatId.isBlank() || chatId in secretIds) continue // 密聊：永不显示
-                    val chat = chatRepo.getChatById(chatId) ?: continue
-                    val pinLocked = app.database.chatLockDao().get(chatId) != null
-                    val title = if (appLockOn || pinLocked) {
-                        appName
-                    } else {
-                        chatTitle(chat, ownerUserId) ?: chatId.take(12)
-                    }
-                    val subtitle = when {
-                        pinLocked -> lockedPreview
-                        appLockOn -> genericPreview
-                        else -> previewOf(chat.lastMessage, chat.lastMessageType, attachmentLabel)
-                    }
-                    val unread = if (appLockOn || !config.showUnreadBadge) 0 else chat.unreadCount
-                    totalUnread += unread
-                    rows += WidgetRow(
-                        chatId = chatId,
-                        title = title,
-                        subtitle = subtitle,
-                        timeLabel = relativeTime(chat.lastMessageTime),
-                        unread = unread,
-                    )
+                // 行组装决策收敛至 WidgetRowPolicy（隐私门禁/脱敏/角标/上限），此处只做 DB 查询与字符串供给。
+                val preloaded = config.chatIds.mapNotNull { chatId ->
+                    if (chatId.isBlank()) return@mapNotNull null
+                    val caps = secretController.capabilities(chatId)
+                    val chat = chatRepo.getChatById(chatId) ?: return@mapNotNull null
+                    WidgetChatInput(chat, caps)
                 }
+                val built = buildWidgetRows(
+                    inputs = preloaded,
+                    ownerUserId = ownerUserId,
+                    showUnreadBadge = config.showUnreadBadge,
+                    appLockOn = appLockOn,
+                    labels = WidgetRowLabels(
+                        appName = appName,
+                        genericPreview = genericPreview,
+                        lockedPreview = lockedPreview,
+                        attachmentLabel = attachmentLabel,
+                    ),
+                    maxRows = maxRows,
+                    timeLabel = ::relativeTime,
+                )
+                val rows = built.rows
+                var totalUnread = built.totalUnread
                 WidgetSnapshot(
                     rows = rows,
                     totalUnread = totalUnread,
@@ -315,20 +314,6 @@ object ConversationWidgetData {
             )
         }
         views.addView(R.id.widgetRowsContainer, row)
-    }
-
-    private fun chatTitle(chat: com.maodouchat.data.model.Chat, ownerUserId: String): String? {
-        if (chat.isGroup) return chat.groupName?.takeIf { it.isNotBlank() }
-        return chat.participants
-            .firstOrNull { it.id != ownerUserId }
-            ?.let { it.displayName.ifBlank { it.name } }
-            ?: chat.groupName?.takeIf { it.isNotBlank() }
-    }
-
-    private fun previewOf(raw: String, type: MessageType, attachmentLabel: String): String {
-        if (type != MessageType.TEXT && type != MessageType.MARKDOWN) return attachmentLabel
-        val text = raw.substringBefore(Message.META_TAG_PREFIX).trim()
-        return if (text.length <= 40) text else text.take(40) + "…"
     }
 
     private fun relativeTime(ts: Long): String {
