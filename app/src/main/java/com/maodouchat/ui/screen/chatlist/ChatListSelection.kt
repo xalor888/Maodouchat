@@ -49,6 +49,7 @@ fun reduceSelection(
 /**
  * 批量标已读目标计算（纯函数）：选中 id → 本地仍有未读的会话，
  * 按密聊/普通拆分（密聊不走出库已读回执，只清本地投影）。
+ * `excludeArchived = true` 时跳过已归档会话（未读文件夹「全部已读」用）。
  */
 data class UnreadBatchTargets(
     val ordinary: List<Chat> = emptyList(),
@@ -58,11 +59,12 @@ data class UnreadBatchTargets(
 fun selectUnreadBatchTargets(
     chats: List<Chat>,
     selectedIds: Set<String>,
+    excludeArchived: Boolean = false,
 ): UnreadBatchTargets {
     if (selectedIds.isEmpty()) return UnreadBatchTargets()
     val chatsById = chats.associateBy { it.id }
     val toRead = selectedIds.mapNotNull { chatsById[it] }
-        .filter { ChatFolderPolicy.isUnreadChat(it.unreadCount, it.markedUnread) }
+        .filter { (!excludeArchived || !it.archived) && ChatFolderPolicy.isUnreadChat(it.unreadCount, it.markedUnread) }
     return UnreadBatchTargets(
         ordinary = toRead.filter { !it.isSecret },
         secret = toRead.filter { it.isSecret },

@@ -1086,13 +1086,8 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             return
         }
         val chat = _uiState.value.chats.firstOrNull { it.id == chatId } ?: return
-        updateChatSettings(
-            chat,
-            withOptimisticSettingsClock(
-                chat.copy(pinnedAt = if (chat.pinnedAt > 0) 0 else System.currentTimeMillis())
-            ),
-            UpdateChatSettingsRequest(pinned = chat.pinnedAt <= 0)
-        )
+        val mutation = buildSettingsToggle(chat, ChatSettingsToggle.PIN)
+        updateChatSettings(chat, mutation.optimistic, mutation.request)
     }
 
     fun toggleNotificationsMuted(chatId: String) {
@@ -1101,11 +1096,8 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             return
         }
         val chat = _uiState.value.chats.firstOrNull { it.id == chatId } ?: return
-        updateChatSettings(
-            chat,
-            withOptimisticSettingsClock(chat.copy(notificationsMuted = !chat.notificationsMuted)),
-            UpdateChatSettingsRequest(notificationsMuted = !chat.notificationsMuted)
-        )
+        val mutation = buildSettingsToggle(chat, ChatSettingsToggle.MUTE)
+        updateChatSettings(chat, mutation.optimistic, mutation.request)
     }
 
     fun toggleArchived(chatId: String) {
@@ -1114,13 +1106,8 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             return
         }
         val chat = _uiState.value.chats.firstOrNull { it.id == chatId } ?: return
-        updateChatSettings(
-            chat,
-            withOptimisticSettingsClock(
-                chat.copy(archived = !chat.archived, pinnedAt = if (!chat.archived) 0 else chat.pinnedAt)
-            ),
-            UpdateChatSettingsRequest(archived = !chat.archived, pinned = if (!chat.archived) false else null)
-        )
+        val mutation = buildSettingsToggle(chat, ChatSettingsToggle.ARCHIVE)
+        updateChatSettings(chat, mutation.optimistic, mutation.request)
     }
 
     fun toggleMarkedUnread(chatId: String) {
@@ -1129,11 +1116,8 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             return
         }
         val chat = _uiState.value.chats.firstOrNull { it.id == chatId } ?: return
-        updateChatSettings(
-            chat,
-            withOptimisticSettingsClock(chat.copy(markedUnread = !chat.markedUnread)),
-            UpdateChatSettingsRequest(markedUnread = !chat.markedUnread)
-        )
+        val mutation = buildSettingsToggle(chat, ChatSettingsToggle.MARKED_UNREAD)
+        updateChatSettings(chat, mutation.optimistic, mutation.request)
     }
 
     /**
@@ -1143,13 +1127,16 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
     fun markAllUnreadChatsRead() {
         val ownerUserId = currentUserIdStr
         if (ownerUserId.isBlank()) return
-        val unreadChats = _uiState.value.chats.filter {
-            !it.archived &&
-                com.maodouchat.util.ChatFolderPolicy.isUnreadChat(it.unreadCount, it.markedUnread)
-        }
+        val chats = _uiState.value.chats
+        val targets = selectUnreadBatchTargets(
+            chats,
+            chats.map { it.id }.toSet(),
+            excludeArchived = true,
+        )
+        val unreadChats = targets.ordinary + targets.secret
         if (unreadChats.isEmpty()) return
-        val ordinaryUnread = unreadChats.filter { !it.isSecret }
-        val secretUnread = unreadChats.filter { it.isSecret }
+        val ordinaryUnread = targets.ordinary
+        val secretUnread = targets.secret
         val session = ownerSession(ownerUserId)
         _uiState.update { state ->
             state.copy(chats = state.chats.map { chat ->
@@ -1295,10 +1282,8 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
     }
 
     /** Bump settingsUpdatedAt so getChats merge keeps optimistic pin/mute/archive. */
-    private fun withOptimisticSettingsClock(chat: Chat): Chat {
-        val now = System.currentTimeMillis()
-        return chat.copy(settingsUpdatedAt = maxOf(now, chat.settingsUpdatedAt + 1L))
-    }
+    private fun withOptimisticSettingsClock(chat: Chat): Chat =
+        bumpOptimisticSettingsClock(chat, System.currentTimeMillis())
 
     /**
      * Open-chat path: force markedUnread=false on server.
