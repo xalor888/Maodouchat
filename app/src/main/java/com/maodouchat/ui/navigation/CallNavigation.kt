@@ -120,11 +120,8 @@ internal fun IncomingCallObserver(navController: NavHostController) {
             ) {
                 return@onSuccess
             }
-            val terminals = messages.filter {
-                val t = it.type.lowercase()
-                t == "hang-up" || t == "busy" || t == "reject"
-            }
-            val terminatedCallIds = terminals.map { it.callId }.filter { it.isNotBlank() }.toSet()
+            val terminals = messages.filter { com.maodouchat.call.CallOfferSelector.isTerminalType(it.type) }
+            val terminatedCallIds = com.maodouchat.call.CallOfferSelector.terminatedCallIds(messages)
             // 先处理终端信令：清 FCM/系统来电通知与本地 pending，避免幽灵来电
             // 若本机正有活跃通话，必须转发给 CallViewModel（offersOnly 已消费 hang-up 行）
             terminals.forEach { terminal ->
@@ -170,7 +167,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
             // 8.56：与 WS 路径守卫对齐——群 mesh 边 offer（groupInvite=false 且带 groupId）不得走来电路由，
             // 否则旋转/FCM 唤醒轮询会把群内边 offer 当新来电 RINGING（覆盖进行中的群通话）
             val offers = messages.filter {
-                (it.groupId.isBlank() || it.groupInvite) &&
+                com.maodouchat.call.CallOfferSelector.isDirectRingOffer(it.groupId, it.groupInvite) &&
                     com.maodouchat.call.SignalingOfferFreshnessPolicy.shouldKeepOffer(
                         type = it.type,
                         callId = it.callId,
@@ -185,9 +182,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
             }
             if (offers.isEmpty()) return@onSuccess
             // Prefer the offer matching the FCM callId when present
-            val primary = offers.firstOrNull { preferCallId.isNotBlank() && it.callId == preferCallId }
-                ?: offers.first()
-            val rest = offers.filterNot { it === primary }
+            val (primary, rest) = com.maodouchat.call.CallOfferSelector.selectPrimary(offers, preferCallId)
             // 双通道去重（8.35）：WS 已送达的同 callId offer（或空 callId 时同联系人）已 pending
             // 响铃时，轮询不再重复导航/派发系统来电，避免重复响铃与 30s 计时被重置
             val existingPending = IncomingCallCoordinator.peekPending()
@@ -262,7 +257,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
             }
             val t = event.type.lowercase()
             // 响铃中 hang-up/busy/reject：清 pending，避免 30s 内继续响
-            if (t == "hang-up" || t == "busy" || t == "reject") {
+            if (com.maodouchat.call.CallOfferSelector.isTerminalType(event.type)) {
                 if (event.callId.isNotBlank()) {
                     com.maodouchat.notification.CallNotificationService.cancelIncomingCall(context, event.callId)
                     val pending = IncomingCallCoordinator.peekPending()
@@ -314,7 +309,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
                 }
                 return@collect
             }
-            if (event.type == "offer" && (event.groupId.isBlank() || event.groupInvite)) {
+            if (event.type == "offer" && com.maodouchat.call.CallOfferSelector.isDirectRingOffer(event.groupId, event.groupInvite)) {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = signalOwnerUserId,
                         liveToken = tokenManager.getToken(),

@@ -402,9 +402,9 @@ Gate：分页竞态、断网发布、上传恢复、草稿隔离、可见性矩�
 
 ### P03 音视频通话与 WebRTC
 
-当前状态：`[ ]`。`CallViewModel.kt` 1,576 行，`WebRTCManager.kt` 1,431 行。
+当前状态：`[~]`。`CallSessionMachine`（状态机+单测）、`SignalingOfferFreshnessPolicy`、`MissedCallTimeoutPolicy`、`GroupCallPolicy`（6 人上限/网格/边协商）纯策略已落地；本轮收敛 REST 轮询与 WS 双路径共享的 `CallOfferSelector`（终端判定/mesh 边过滤/首选选择，6 单测）。ViewModel/系统集成/真实设备门仍待做。
 
-- [ ] 建立 `CallSessionMachine`、`SignalingTransport`、`RtcPeerFactory`。
+- [x] 建立 `CallSessionMachine`（`CallSessionMachineTest` 锁定生命周期）与 offer/超时/网格纯策略；`CallOfferSelector` 统一双路径来电选择语义。
 - [ ] Direct、Group Mesh、媒体采集、音频路由、ICE 恢复、系统集成分层。
 - [ ] 所有信令携带合法 `callId`、session epoch，并幂等处理。
 - [ ] ViewModel 只显示 call state 和发送 user intent。
