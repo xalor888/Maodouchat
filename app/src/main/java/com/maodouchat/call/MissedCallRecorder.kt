@@ -1,5 +1,6 @@
 package com.maodouchat.call
 
+import com.maodouchat.notification.CallNotificationService
 import android.content.Context
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.model.MissedCall
@@ -7,7 +8,7 @@ import com.maodouchat.data.repository.MissedCallRepository
 import com.maodouchat.network.TokenManager
 import com.maodouchat.notification.NotificationPreferences
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.util.AppNotifier
+
 
 /**
  * Shared local-timeout → missed-call write used by [IncomingCallObserver] and
@@ -32,7 +33,7 @@ object MissedCallRecorder {
         val token = tokenManager.getToken()
         if (!BackgroundSessionGate.mayContinue(userId, token, userId)) {
             if (signalingCallId.isNotBlank()) {
-                AppNotifier.cancelIncomingCall(appCtx, signalingCallId)
+                CallNotificationService.cancelIncomingCall(appCtx, signalingCallId)
             }
             return
         }
@@ -44,7 +45,7 @@ object MissedCallRecorder {
         // Incoming FCM uses callId.hashCode(); cancel before posting missed so shade
         // does not keep a ringing "encrypted call" next to missed.
         if (signalingCallId.isNotBlank()) {
-            AppNotifier.cancelIncomingCall(appCtx, signalingCallId)
+            CallNotificationService.cancelIncomingCall(appCtx, signalingCallId)
         }
         val repo = MissedCallRepository(
             (appCtx as? MaodouchatApp)?.database?.missedCallDao()
@@ -103,7 +104,7 @@ object MissedCallRecorder {
             ) {
                 return
             }
-            AppNotifier.showMissedCall(
+            CallNotificationService.showMissedCall(
                 appCtx,
                 missedId,
                 callerName.ifBlank { fromUserId },

@@ -14,14 +14,13 @@ import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.component.ChatMarkdown
 import com.maodouchat.ui.screen.chatlist.NotificationCenterType
-import com.maodouchat.util.AppNotifier
+
 import com.maodouchat.util.RuntimeFlags
 
 /**
  * P07 服务拆分 4/4：Message（会话消息/稍后提醒/测试/定时失败）通知服务。
  *
- * 从巨型 [AppNotifier] 静态入口迁出的最后一个垂直服务；`AppNotifier` 保留同签名
- * 薄委托。M11 快捷回复/mark-read 动作、前台静音（traySoundAllowed）、群独立渠道、
+ * 已删除的 `AppNotifier` 巨型静态入口迁出的最后一个垂直服务。M11 快捷回复/mark-read 动作、前台静音（traySoundAllowed）、群独立渠道、
  * 第三方服务器 subText 等行为逐行搬运。共享的渠道/门禁/post 能力由
  * [NotificationInfrastructure] 提供。
  */
@@ -43,7 +42,7 @@ object MessageNotificationService {
         if (!NotificationInfrastructure.canPostNotifications(context)) return
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(AppNotifier.EXTRA_OPEN_CHAT_ID, chatId)
+            putExtra(NotificationIntents.EXTRA_OPEN_CHAT_ID, chatId)
             // Unique data URI so two chatIds whose hashCode() collides still yield distinct
             // PendingIntents (extras are NOT part of PendingIntent identity); without this,
             // FLAG_UPDATE_CURRENT would overwrite one chat's tap target with the other's.
@@ -191,8 +190,8 @@ object MessageNotificationService {
         if (!NotificationInfrastructure.canPostNotifications(context)) return false
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(AppNotifier.EXTRA_OPEN_CHAT_ID, chatId)
-            putExtra(AppNotifier.EXTRA_OPEN_MESSAGE_ID, messageId)
+            putExtra(NotificationIntents.EXTRA_OPEN_CHAT_ID, chatId)
+            putExtra(NotificationIntents.EXTRA_OPEN_MESSAGE_ID, messageId)
             data = Uri.parse(NotificationSlotPolicy.reminderDataUri(chatId, messageId))
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }

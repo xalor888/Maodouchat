@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.settings
 
+import com.maodouchat.notification.ReminderNotificationService
+import com.maodouchat.notification.NotificationInfrastructure
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -303,6 +305,24 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
             )
         }
     }
+
+    fun enableAllDefaults() {
+        AiPrivacyPreferences.enableAllDefaults(getApplication())
+        val masterOn = com.maodouchat.util.RuntimeFlags.isEnabled(
+            getApplication(),
+            com.maodouchat.util.RuntimeFlags.AI_MASTER
+        )
+        _uiState.update {
+            it.copy(
+                userEnabled = true,
+                aiConsentAccepted = true,
+                effectiveEnabled = masterOn,
+                localSafetyEnabled = true,
+                infoMessage = text(R.string.ai_privacy_enable_all_active)
+            )
+        }
+    }
+
 
     fun setWritingStyleEnabled(enabled: Boolean) {
         if (_uiState.value.writingStyleEnabled == enabled) return
@@ -920,7 +940,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
         dndStartMinute = NotificationPreferences.dndStartMinute(application),
         dndEndMinute = NotificationPreferences.dndEndMinute(application),
         pushConfigured = !tokenManager.getToken().isNullOrBlank(),
-        pushReady = com.maodouchat.network.WebSocketClient.isConnected()
+        pushReady = (application as? com.maodouchat.MaodouchatApp)?.realtimeEventDispatcher?.connectionState?.value == com.maodouchat.core.realtime.RealtimeConnectionState.CONNECTED
     ))
     val uiState: StateFlow<NotificationSettingsUiState> = _uiState.asStateFlow()
 
@@ -928,6 +948,11 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
     val snackbar: SharedFlow<String> = _snackbar.asSharedFlow()
 
     private fun text(id: Int): String = getApplication<Application>().getString(id)
+
+    private fun isRealtimeConnected(): Boolean {
+        val app = getApplication<Application>() as? com.maodouchat.MaodouchatApp
+        return app?.realtimeEventDispatcher?.connectionState?.value == com.maodouchat.core.realtime.RealtimeConnectionState.CONNECTED
+    }
 
     private fun isCurrentOwner(expectedUserId: String): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -962,7 +987,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
         _uiState.update {
             it.copy(
                 pushConfigured = !tokenManager.getToken().isNullOrBlank(),
-                pushReady = com.maodouchat.network.WebSocketClient.isConnected()
+                pushReady = isRealtimeConnected()
             )
         }
     }
@@ -1007,7 +1032,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
                                     dndStartMinute = remote.dndStartMinute.coerceIn(0, 1439),
                                     dndEndMinute = remote.dndEndMinute.coerceIn(0, 1439),
                                     pushConfigured = !tokenManager.getToken().isNullOrBlank(),
-                                    pushReady = com.maodouchat.network.WebSocketClient.isConnected(),
+                                    pushReady = isRealtimeConnected(),
                                     infoMessage = text(R.string.notifications_synced)
                                 )
                             }
@@ -1086,7 +1111,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
         if (_uiState.value.vibrationEnabled == value) return
         updateLocal { it.copy(vibrationEnabled = value) }
         com.maodouchat.notification.NotificationPreferences.setVibrationEnabled(context, value)
-        com.maodouchat.util.AppNotifier.ensureChannels(context)
+        com.maodouchat.notification.NotificationInfrastructure.ensureChannels(context)
         sync()
     }
 
@@ -1122,7 +1147,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
         // alone leaves shade entries until user swipes). Center AI rows stay for history;
         // tray cancel matches open-AiTasks / leave-chat cleanup.
         if (!value) {
-            com.maodouchat.util.AppNotifier.cancelAllAiTaskReminders(app)
+            com.maodouchat.notification.ReminderNotificationService.cancelAllAiTaskReminders(app)
         }
         _uiState.update { it.copy(infoMessage = text(R.string.notifications_task_reminders_saved)) }
     }
@@ -1314,8 +1339,8 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
      * pull when another device / account settings disabled notifications.
      */
     private fun dismissPostedNotifications() {
-        com.maodouchat.util.AppNotifier.cancelAll(app)
-        com.maodouchat.util.AppNotifier.cancelAllAiTaskReminders(app)
+        com.maodouchat.notification.NotificationInfrastructure.cancelAll(app)
+        com.maodouchat.notification.ReminderNotificationService.cancelAllAiTaskReminders(app)
         (app as? com.maodouchat.MaodouchatApp)?.notificationCenter?.markAllRead()
     }
 
@@ -1771,7 +1796,6 @@ fun SettingsViewModel.changePassword(old: String, new: String, confirm: String, 
                         ) {
                             return@withContext false
                         }
-                        com.maodouchat.network.WebSocketClient.disconnect()
                         // 9.140：带账号归属校验 purge——此前无 expectedOwnerUserId，
                         // 断连窗口内换号会把新账号的会话一并清掉
                         (getApplication() as com.maodouchat.MaodouchatApp).secureSessionManager

@@ -3,10 +3,10 @@ package com.maodouchat.notification
 /**
  * P07 首切片：通知槽位纯策略（纯 Kotlin，无 Android 依赖）。
  *
- * 背景：[com.maodouchat.util.AppNotifier] 1057 行巨型静态入口内散落着各通知的
+ * 背景：已删除的 `AppNotifier` 1057 行巨型静态入口内曾散落着各通知的
  * tag/id/分组/data-URI/requestCode 分配——8.44 修过三类通知共用 null-tag id 空间
  * 导致来电被动态互动顶掉的碰撞 bug。本文件把"槽位分配与去重"冻结为唯一事实源：
- * AppNotifier 只调用、不再手写字面量；单测锁定槽位字符串与隔离性。
+ * 各通知服务只调用、不再手写字面量；单测锁定槽位字符串与隔离性。
  *
  * 约定（与历史行为逐字一致，改动即破坏已发 PendingIntent/已展示通知的取消路径）：
  * - 会话消息：tag = "maodouchat_<chatId>"，id 固定 0（8.44 前的 hashCode 槽位已废弃）。

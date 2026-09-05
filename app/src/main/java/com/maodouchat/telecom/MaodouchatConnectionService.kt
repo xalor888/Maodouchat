@@ -1,5 +1,6 @@
 package com.maodouchat.telecom
 
+import com.maodouchat.notification.CallNotificationService
 import android.app.PendingIntent
 import android.content.Intent
 import android.net.Uri
@@ -124,7 +125,7 @@ internal class MaodouchatConnection(
 
     /** 8.49：自毁兜底——NavGraph 的 30s 振铃超时协程可能随 Composition/进程回收一起消失，
      *  此时 finishConnection 永不被调用，系统 Telecom 无限期 RINGING（幽灵响铃）。对齐
-     *  AppNotifier.showIncomingCall 的 35s 通知超时，未接听即自毁并清 pending。 */
+     *  CallNotificationService.showIncomingCall 的 35s 通知超时，未接听即自毁并清 pending。 */
     private val ringTimeoutRunnable = Runnable {
         if (finished || ringTimeoutFired) return@Runnable
         ringTimeoutFired = true
@@ -254,7 +255,7 @@ internal class MaodouchatConnection(
     }
 
     private companion object {
-        /** 略大于 NavGraph 的 30s 振铃超时与 AppNotifier 35s 通知超时对齐。 */
+        /** 略大于 NavGraph 的 30s 振铃超时与 CallNotificationService 35s 通知超时对齐。 */
         private const val RING_TIMEOUT_MS = 35_000L
     }
 }

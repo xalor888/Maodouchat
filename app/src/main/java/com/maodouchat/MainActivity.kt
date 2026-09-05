@@ -1,5 +1,10 @@
 package com.maodouchat
 
+import com.maodouchat.notification.SocialNotificationService
+import com.maodouchat.notification.ReminderNotificationService
+import com.maodouchat.notification.NotificationIntents
+import com.maodouchat.notification.MessageNotificationService
+import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.util.RuntimeFlags
 import android.Manifest
 import android.content.Intent
@@ -33,7 +38,7 @@ import com.maodouchat.ui.navigation.AppLinkRouter
 import com.maodouchat.ui.theme.Background
 import com.maodouchat.ui.theme.MaodouchatTheme
 import com.maodouchat.network.TokenManager
-import com.maodouchat.util.AppNotifier
+
 import com.maodouchat.util.AppLocaleManager
 import com.maodouchat.security.AppLockManager
 import com.maodouchat.security.FakeChatManager
@@ -393,7 +398,7 @@ class MainActivity : FragmentActivity() {
         if (isTelecomAction) {
             applyCallLockScreenFlags(enabled = true)
             if (telecomCallId.isNotBlank()) {
-                AppNotifier.cancelIncomingCall(this, telecomCallId)
+                CallNotificationService.cancelIncomingCall(this, telecomCallId)
             }
             MaodouchatApp.emitIncomingCallWake(
                 IncomingCallWake(
@@ -407,22 +412,22 @@ class MainActivity : FragmentActivity() {
             clearTelecomExtras(intent)
             clearNotificationExtras(intent)
         }
-        val rawChatId = intent.getStringExtra(AppNotifier.EXTRA_OPEN_CHAT_ID)?.takeIf(String::isNotBlank)
+        val rawChatId = intent.getStringExtra(NotificationIntents.EXTRA_OPEN_CHAT_ID)?.takeIf(String::isNotBlank)
         // 8.41：消息「稍后提醒」点击 → 打开聊天后高亮原消息
-        val rawMessageId = intent.getStringExtra(AppNotifier.EXTRA_OPEN_MESSAGE_ID)?.takeIf(String::isNotBlank)
-        val rawAiTasksChatId = intent.getStringExtra(AppNotifier.EXTRA_OPEN_AI_TASKS_CHAT_ID)?.takeIf(String::isNotBlank)
-        val rawPostId = intent.getStringExtra(AppNotifier.EXTRA_OPEN_POST_ID)?.takeIf(String::isNotBlank)
+        val rawMessageId = intent.getStringExtra(NotificationIntents.EXTRA_OPEN_MESSAGE_ID)?.takeIf(String::isNotBlank)
+        val rawAiTasksChatId = intent.getStringExtra(NotificationIntents.EXTRA_OPEN_AI_TASKS_CHAT_ID)?.takeIf(String::isNotBlank)
+        val rawPostId = intent.getStringExtra(NotificationIntents.EXTRA_OPEN_POST_ID)?.takeIf(String::isNotBlank)
         // P08：通知/Widget 入口 ID 经 AppLinkRouter 严格清洗（含 /?# 直接拒收；
         // 合法 UUID/服务端 ID 不受影响）。messageId 非法时仅丢弃高亮、仍打开会话。
         val chatId = rawChatId?.let { AppLinkRouter.sanitizeChatIdStrict(it) }
         val messageId = rawMessageId?.let { AppLinkRouter.sanitizeMessageIdStrict(it) }
         val aiTasksChatId = rawAiTasksChatId?.let { AppLinkRouter.sanitizeChatIdStrict(it) }
         val postId = rawPostId?.let { AppLinkRouter.sanitizePostIdStrict(it) }
-        val openIncomingCall = intent.getBooleanExtra(AppNotifier.EXTRA_OPEN_INCOMING_CALL, false)
-        val openMissedCalls = intent.getBooleanExtra(AppNotifier.EXTRA_OPEN_MISSED_CALL, false)
-        val openContacts = intent.getBooleanExtra(AppNotifier.EXTRA_OPEN_CONTACTS, false)
+        val openIncomingCall = intent.getBooleanExtra(NotificationIntents.EXTRA_OPEN_INCOMING_CALL, false)
+        val openMissedCalls = intent.getBooleanExtra(NotificationIntents.EXTRA_OPEN_MISSED_CALL, false)
+        val openContacts = intent.getBooleanExtra(NotificationIntents.EXTRA_OPEN_CONTACTS, false)
         val notificationOwnerUserId = intent
-            .getStringExtra(AppNotifier.EXTRA_NOTIFICATION_OWNER_USER_ID)
+            .getStringExtra(NotificationIntents.EXTRA_NOTIFICATION_OWNER_USER_ID)
             ?.takeIf(String::isNotBlank)
         val hasNotificationTarget = chatId != null || aiTasksChatId != null || postId != null ||
             openIncomingCall || openMissedCalls || openContacts
@@ -443,17 +448,17 @@ class MainActivity : FragmentActivity() {
             // Lock-screen / full-screen intent: keep screen on while user answers.
             // Cleared when CallForegroundService stops (see observeCallLockScreenFlags).
             applyCallLockScreenFlags(enabled = true)
-            val wakeCallId = intent.getStringExtra(AppNotifier.EXTRA_INCOMING_CALL_ID).orEmpty()
+            val wakeCallId = intent.getStringExtra(NotificationIntents.EXTRA_INCOMING_CALL_ID).orEmpty()
             // Ongoing FCM call trays often ignore autoCancel; drop shade entry as soon as
             // the user opened the app for this call (poll / CallScreen still proceed).
             if (wakeCallId.isNotBlank()) {
-                AppNotifier.cancelIncomingCall(this, wakeCallId)
+                CallNotificationService.cancelIncomingCall(this, wakeCallId)
             }
             MaodouchatApp.emitIncomingCallWake(
                 IncomingCallWake(
                     callId = wakeCallId,
-                    senderId = intent.getStringExtra(AppNotifier.EXTRA_INCOMING_CALL_SENDER_ID).orEmpty(),
-                    isVideo = intent.getBooleanExtra(AppNotifier.EXTRA_INCOMING_CALL_VIDEO, false),
+                    senderId = intent.getStringExtra(NotificationIntents.EXTRA_INCOMING_CALL_SENDER_ID).orEmpty(),
+                    isVideo = intent.getBooleanExtra(NotificationIntents.EXTRA_INCOMING_CALL_VIDEO, false),
                 )
             )
         }
@@ -464,8 +469,8 @@ class MainActivity : FragmentActivity() {
             MaodouchatApp.emitOpenMissedCalls()
         }
         if (openContacts) {
-            AppNotifier.cancelAllFriendRequests(this)
-            AppNotifier.cancelAllGroupInvites(this)
+            SocialNotificationService.cancelAllFriendRequests(this)
+            SocialNotificationService.cancelAllGroupInvites(this)
             MaodouchatApp.emitOpenContacts()
         }
         // Drop tray immediately on tap so badge/shade clear before the target screen mounts.
@@ -473,15 +478,15 @@ class MainActivity : FragmentActivity() {
         val sessionGen = MaodouchatApp.currentSessionGeneration()
         when {
             aiTasksChatId != null -> {
-                AppNotifier.cancelAiTaskRemindersForChat(this, aiTasksChatId)
+                ReminderNotificationService.cancelAiTaskRemindersForChat(this, aiTasksChatId)
                 notificationTarget.value = NotificationTarget.AiTasks(aiTasksChatId, sessionGen, notificationOwnerUserId.orEmpty())
             }
             chatId != null -> {
-                AppNotifier.cancelMessage(this, chatId)
+                MessageNotificationService.cancelMessage(this, chatId)
                 notificationTarget.value = NotificationTarget.Chat(chatId, sessionGen, notificationOwnerUserId.orEmpty(), messageId)
             }
             postId != null -> {
-                AppNotifier.cancelPostInteraction(this, postId)
+                SocialNotificationService.cancelPostInteraction(this, postId)
                 notificationTarget.value = NotificationTarget.Post(postId, sessionGen, notificationOwnerUserId.orEmpty())
             }
             else -> notificationTarget.value = null
@@ -502,17 +507,17 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun clearNotificationExtras(intent: Intent?) {
-        intent?.removeExtra(AppNotifier.EXTRA_OPEN_CHAT_ID)
-        intent?.removeExtra(AppNotifier.EXTRA_OPEN_MESSAGE_ID)
-        intent?.removeExtra(AppNotifier.EXTRA_OPEN_AI_TASKS_CHAT_ID)
-        intent?.removeExtra(AppNotifier.EXTRA_OPEN_POST_ID)
-        intent?.removeExtra(AppNotifier.EXTRA_OPEN_INCOMING_CALL)
-        intent?.removeExtra(AppNotifier.EXTRA_INCOMING_CALL_ID)
-        intent?.removeExtra(AppNotifier.EXTRA_INCOMING_CALL_VIDEO)
-        intent?.removeExtra(AppNotifier.EXTRA_INCOMING_CALL_SENDER_ID)
-        intent?.removeExtra(AppNotifier.EXTRA_OPEN_MISSED_CALL)
-        intent?.removeExtra(AppNotifier.EXTRA_OPEN_CONTACTS)
-        intent?.removeExtra(AppNotifier.EXTRA_NOTIFICATION_OWNER_USER_ID)
+        intent?.removeExtra(NotificationIntents.EXTRA_OPEN_CHAT_ID)
+        intent?.removeExtra(NotificationIntents.EXTRA_OPEN_MESSAGE_ID)
+        intent?.removeExtra(NotificationIntents.EXTRA_OPEN_AI_TASKS_CHAT_ID)
+        intent?.removeExtra(NotificationIntents.EXTRA_OPEN_POST_ID)
+        intent?.removeExtra(NotificationIntents.EXTRA_OPEN_INCOMING_CALL)
+        intent?.removeExtra(NotificationIntents.EXTRA_INCOMING_CALL_ID)
+        intent?.removeExtra(NotificationIntents.EXTRA_INCOMING_CALL_VIDEO)
+        intent?.removeExtra(NotificationIntents.EXTRA_INCOMING_CALL_SENDER_ID)
+        intent?.removeExtra(NotificationIntents.EXTRA_OPEN_MISSED_CALL)
+        intent?.removeExtra(NotificationIntents.EXTRA_OPEN_CONTACTS)
+        intent?.removeExtra(NotificationIntents.EXTRA_NOTIFICATION_OWNER_USER_ID)
     }
 
     private fun requestPermissions() {

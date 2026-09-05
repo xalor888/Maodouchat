@@ -1,5 +1,6 @@
 package com.maodouchat.widget
 
+import com.maodouchat.notification.NotificationIntents
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -13,7 +14,7 @@ import com.maodouchat.MainActivity
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.quickreply.QuickReplyPolicy
 import com.maodouchat.quickreply.SyncVerdict
-import com.maodouchat.util.AppNotifier
+
 import kotlinx.coroutines.launch
 
 /**
@@ -113,8 +114,8 @@ class ConversationWidgetProvider : AppWidgetProvider() {
                 // 8.40：补 FLAG_ACTIVITY_NEW_TASK——无前台 Activity 的广播/后台进程上下文下，
                 // 缺 NEW_TASK 会抛 AndroidRuntimeException 被 runCatching 吞掉，点击小组件无反应
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra(AppNotifier.EXTRA_OPEN_CHAT_ID, chatId)
-                putExtra(AppNotifier.EXTRA_NOTIFICATION_OWNER_USER_ID, ownerUserId)
+                putExtra(NotificationIntents.EXTRA_OPEN_CHAT_ID, chatId)
+                putExtra(NotificationIntents.EXTRA_NOTIFICATION_OWNER_USER_ID, ownerUserId)
                 data = Uri.parse("maodouchat-widget://open/$chatId")
             }
             val pi = PendingIntent.getActivity(
@@ -135,64 +136,9 @@ class ConversationWidgetProvider : AppWidgetProvider() {
         val chatId = intent.getStringExtra(ConversationWidgetContract.EXTRA_CHAT_ID).orEmpty()
         val ownerUserId = intent.getStringExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID).orEmpty()
         if (chatId.isBlank()) return
-        // 账号归属校验：旧账号残留 widget 不得用当前账号 token 标记任意会话已读。
-        if (!com.maodouchat.notification.NotificationIntentPolicy.belongsToCurrentAccount(
-                notificationOwnerUserId = ownerUserId,
-                currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
-                sessionPurgeInProgress = com.maodouchat.security.SecureSessionManager.isPurgeInProgress(),
-            )
-        ) {
-            return
-        }
         val app = context.applicationContext as? MaodouchatApp ?: return
-        app.applicationScope.launch {
-            try {
-                // Persist the read watermark before clearing the local badge so another device
-                // converges through the same durable v2 inbox path.
-                val tokenManager = com.maodouchat.network.TokenManager.getInstance(app)
-                val ownerUserId = tokenManager.getUserId().orEmpty()
-                val token = tokenManager.getToken().orEmpty()
-                if (ownerUserId.isNotBlank() && token.isNotBlank() &&
-                    com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
-                ) {
-                    val chat = app.database.chatDao().getChatById(chatId)
-                    val serverResult = if (chat?.chatType == "SECRET") {
-                        Result.success(Unit)
-                    } else {
-                        val boundary = com.maodouchat.data.repository.LocalMessageStore(
-                            app.database.messageDao(),
-                            app.database,
-                        ).getLatestIncomingMessage(chatId, ownerUserId)
-                        if (boundary == null) {
-                            Result.success(Unit)
-                        } else {
-                            runCatching {
-                                app.messagingV2Outbox.enqueueReadReceipt(
-                                    conversationId = chatId,
-                                    throughMessageId = boundary.id,
-                                    groupRevision = chat?.memberRevision?.takeIf { chat.isGroup },
-                                )
-                            }
-                        }
-                    }
-                    if (serverResult.isFailure) {
-                        android.util.Log.w("ConversationWidgetProvider", "widget mark-read v2 enqueue failed", serverResult.exceptionOrNull())
-                    }
-                }
-                val chatRepo = com.maodouchat.data.repository.ChatRepository(app.database.chatDao(), app.database.userDao())
-                chatRepo.markChatRead(chatId)
-                MaodouchatApp.emitChatRead(chatId)
-                AppNotifier.cancelMessage(app, chatId)
-                ConversationWidgetData.refreshAll(app)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                // 静默失败
-            }
+        app.applicationScope.launchSafe {
+            app.conversationReadReceiptCoordinator.markRead(chatId, ownerUserId.ifBlank { null })
         }
     }
 

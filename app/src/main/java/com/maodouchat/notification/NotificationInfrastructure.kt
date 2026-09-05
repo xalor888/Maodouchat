@@ -13,7 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.maodouchat.R
 import com.maodouchat.security.AppLockManager
-import com.maodouchat.util.AppNotifier
+
 import com.maodouchat.util.NotificationPrivacyPolicy
 import com.maodouchat.util.RuntimeFlags
 
@@ -21,9 +21,7 @@ import com.maodouchat.util.RuntimeFlags
  * P07 共享通知基础设施（仅模块内可见）。
  *
  * 由 Message/Call/Social/Reminder 四个垂直服务共享：渠道创建、账号门禁、
- * 安全 post、脱敏判断。逐字搬运自旧 `AppNotifier` 私有实现；`AppNotifier`
- * 仅保留薄委托、`EXTRA_*` 常量与 `cancelAll`/`ensureChannels` 兼容入口。
- * `EXTRA_*` 常量迁移（调用方同步改引用）见下一步，届时删除 `AppNotifier`。
+ * 安全 post、脱敏判断。逐字搬运已删除的 `AppNotifier` 旧私有实现。
  */
 internal object NotificationInfrastructure {
 
@@ -147,8 +145,7 @@ internal object NotificationInfrastructure {
     }
 
     fun Intent.putNotificationOwner(expectedUserId: String) {
-        // EXTRA 常量仍暂居 AppNotifier（调用方迁移后随之一并搬迁）。
-        putExtra(AppNotifier.EXTRA_NOTIFICATION_OWNER_USER_ID, expectedUserId)
+        putExtra(NotificationIntents.EXTRA_NOTIFICATION_OWNER_USER_ID, expectedUserId)
     }
 
     /**

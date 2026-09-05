@@ -1,12 +1,13 @@
 package com.maodouchat.ai
 
+import com.maodouchat.notification.ReminderNotificationService
 import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.network.TokenManager
-import com.maodouchat.util.AppNotifier
+
 
 class AiTaskReminderWorker(
     appContext: Context,
@@ -52,7 +53,7 @@ class AiTaskReminderWorker(
             ) {
                 return Result.success()
             }
-            val posted = AppNotifier.showAiTaskReminder(
+            val posted = ReminderNotificationService.showAiTaskReminder(
                 context = applicationContext,
                 taskId = task.id,
                 chatId = task.chatId,

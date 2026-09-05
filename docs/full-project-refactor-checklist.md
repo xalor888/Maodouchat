@@ -457,7 +457,7 @@ Gate：prompt injection、伪造 tool call、重复写、流中断、账号切�
 
 ### P07 Push、后台保活与本地通知
 
-当前状态：`[~]`。Push 注册语义与实际 WS 保活混杂。`AppNotifier.kt` 1057→207 行：实现全部迁出，共享能力下沉为模块内 `NotificationInfrastructure`（渠道/门禁/post/脱敏），四服务直连基础设施。剩余工作：`EXTRA_*` 常量迁移 + 31 处调用方改直连服务 + 删除入口。
+当前状态：`[~]`。Push 注册语义与实际 WS 保活混杂。`AppNotifier.kt` 已删除（1057→0）：`EXTRA_*` 逐字迁入 `NotificationIntents`，35 文件调用方改直连四服务/基础设施（含 3 个 mockk 单测转 mock 新服务）。
 
 - [x] 冻结通知槽位纯策略：`NotificationSlotPolicy`（消息/reminder/来电/未接/动态/AI任务/好友/群邀请/公告/测试 tag+id+分组+dataURI+requestCode，表达式与历史行为逐字等价；`AppNotifier` 私有槽位常量与 `incomingCallNotifyId/missedCallNotifyId/aiTaskGroupSummaryId` 私有函数已删除）。
 - [ ] 定义统一 `PushTransport`；前台 WS 与后台推送渠道职责分开。
@@ -465,7 +465,7 @@ Gate：prompt injection、伪造 tool call、重复写、流中断、账号切�
 - [ ] 替换语义模糊的守护/假来电/媒体保活实现，遵守 Android 后台限制。
 - [x] 拆分 Message、Call、Social、Reminder notification service（4/4 完成：+`MessageNotificationService`（showMessage/reminder/test/scheduledFailed/cancelMessage，M11 动作/前台静音/群渠道逐行搬运）与 Post 归位 Social（showPostInteraction/cancelPostInteraction）；`AppNotifier` 1057→207 行，仅剩薄委托/`EXTRA_*` 常量/兼容入口）。
 - [x] 通知去重保持纯策略（`NotificationSlotPolicy` 为 tag/id/分组/data-URI/requestCode 唯一事实源；账号隔离仍由 `notificationOwnerMatches` + `NotificationIntentPolicy` 双门禁执行；共享实现下沉为模块内 `NotificationInfrastructure`，四服务直连）。
-- [ ] 删除巨型 `AppNotifier` 静态入口。
+- [x] 删除巨型 `AppNotifier` 静态入口（文件已删除；调用方直连四服务/`NotificationInfrastructure`/`NotificationIntents`，零 `AppNotifier` 代码引用残留）。
 
 Gate：Doze、强杀、重启、Token 轮换、Android 13-16 权限、密聊脱敏和重复推送通过。
 
@@ -705,7 +705,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [ ] `ChatListViewModel.kt` 不再连接 WS、网络补正文或直接操作多仓库。
 - [ ] `SignalProtocol.kt` 宽 facade 删除。
 - [x] `ApiService` 巨单体拆解完成，分离为 Auth、Messaging、Conversation、Media、Social 等独立域 API，收敛为组合委托薄门面。
-- [ ] `AppNotifier` 全局巨型入口删除。
+- [x] `AppNotifier` 全局巨型入口删除（文件已物理删除；四服务 + `NotificationSlotPolicy` + `NotificationIntents` + `NotificationInfrastructure` 替代）。
 - [ ] Notification Center、Scheduled Message、Reminder 等业务 JSON SharedPreferences store 删除。
 - [ ] 页面、Widget、Worker、AI 直接访问 `MaodouchatApp`/DAO/Signal/Token 的路径归零。
 - [ ] 服务端 `Routing.kt` 只保留模块注册，不再包含领域 endpoint/事务。
@@ -933,7 +933,6 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 - `app/src/main/java/com/maodouchat/ui/component/MessageBubble.kt`
 - `app/src/main/java/com/maodouchat/ui/screen/chatlist/ChatListViewModel.kt`
 - `app/src/main/java/com/maodouchat/ui/screen/chatlist/ChatListScreen.kt`
-- `app/src/main/java/com/maodouchat/util/AppNotifier.kt`
 - `app/src/main/AndroidManifest.xml`
 - `settings.gradle.kts`、`app/build.gradle.kts`、公共 strings/theme 资源。
 

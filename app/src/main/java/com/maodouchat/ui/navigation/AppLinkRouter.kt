@@ -98,7 +98,7 @@ object AppLinkRouter {
     }
 
     /**
-     * 解析通知/Widget/系统入口 extras（key 与 AppNotifier/MainActivity 对齐）。
+     * 解析通知/Widget/系统入口 extras（key 与 NotificationIntents 对齐）。
      * 所有值均经过与深链相同的清洗器；非法值返回 null（调用方忽略，不导航）。
      */
     fun parseNotificationExtras(extras: Map<String, String?>): AppLinkDestination? {

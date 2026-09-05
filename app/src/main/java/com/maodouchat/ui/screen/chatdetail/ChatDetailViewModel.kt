@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.util.DisappearingMessagePolicy
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
@@ -22,6 +23,12 @@ import com.maodouchat.attachment.AttachmentSendCommand
 import com.maodouchat.attachment.AttachmentSendWorkflow
 import com.maodouchat.attachment.AttachmentSendWorkflowResult
 import com.maodouchat.attachment.AttachmentDownloadCoordinator
+import com.maodouchat.attachment.DefaultAttachmentIntentController
+import com.maodouchat.attachment.DefaultAttachmentPreparationService
+import com.maodouchat.attachment.RoomTransferRepository
+import com.maodouchat.domain.messaging.AttachmentIntent
+import com.maodouchat.domain.messaging.AttachmentIntentController
+import com.maodouchat.domain.messaging.AttachmentKind
 import com.maodouchat.crypto.DecryptHistoryPolicy
 import com.maodouchat.crypto.DecryptPlaceholderPolicy
 import com.maodouchat.crypto.OwnSentMediaRestorePolicy
@@ -105,8 +112,11 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -142,7 +152,7 @@ class ChatDetailViewModel(
         messageStore = messageRepo,
         tokenManager = TokenManager.getInstance(application),
         isSecretChat = { message ->
-            _uiState.value.isSecretChat == true || app.database.chatDao().isSecretChat(message.chatId)
+            _uiState.value.isSecretChat == true || app.secretConversationController.capabilities(message.chatId).isSecretChat
         },
         onProgress = ::updateFileTransferProgress,
         onMessageUpdated = { updated ->
@@ -167,6 +177,20 @@ class ChatDetailViewModel(
             resolveChat = chatRepo::getChatById,
             getMessage = messageRepo::getMessageById,
             ownerUserId = { currentUserId },
+        )
+    }
+    internal val attachmentIntentController: AttachmentIntentController by lazy {
+        DefaultAttachmentIntentController(
+            context = getApplication(),
+            transferRepository = RoomTransferRepository(app),
+            preparationService = DefaultAttachmentPreparationService(getApplication()),
+            messageStore = messageRepo,
+            tokenManager = tokenManager,
+            commandFacade = commandFacade,
+            ownerUserId = { currentUserId },
+            onProgress = { id, completed, total ->
+                updateFileTransferProgress(id, completed, total, 0f, 0.35f)
+            },
         )
     }
     internal val chatLockRepo = com.maodouchat.data.repository.ChatLockRepository(app.database.chatLockDao())
@@ -210,7 +234,7 @@ class ChatDetailViewModel(
         },
         cleanupTerminalNotification = { message ->
             if (app.notificationCenter.removeMessageReferences(message.id)) {
-                com.maodouchat.util.AppNotifier.cancelMessage(getApplication(), message.chatId)
+                com.maodouchat.notification.MessageNotificationService.cancelMessage(getApplication(), message.chatId)
             }
         },
     )
@@ -354,16 +378,12 @@ class ChatDetailViewModel(
                     liveUserId = tokenManager.getUserId(),
                 )
             },
-            fetchTargets = { liveToken ->
-                ApiService.getChats(liveToken).map { chats -> chats.map { it.toDomainChat() } }
+            fetchTargets = { _ ->
+                val cached = chatRepo.getAllChats().first()
+                Result.success(cached)
             },
-            resolveTargets = { liveToken, targets ->
-                val requestedIds = targets.map(Chat::id).toSet()
-                ApiService.getChats(liveToken).getOrThrow()
-                    .asSequence()
-                    .filter { it.id in requestedIds }
-                    .map { it.toDomainChat() }
-                    .toList()
+            resolveTargets = { _, targets ->
+                targets.mapNotNull { chatRepo.getChatById(it.id) ?: it }
             },
             stageMessage = { message, groupRevision ->
                 messageGateway.stageAndEnqueue(
@@ -373,9 +393,10 @@ class ChatDetailViewModel(
                     type = message.type,
                 )
             },
-            forwardAttachment = { target, message, messageId, sourceName, ownerUserId ->
-                forwardEncryptedAttachment(target, message, messageId, sourceName, ownerUserId)
-            },
+            attachmentIntentController = attachmentIntentController,
+            getMessageById = { id -> messageRepo.getMessageById(id) },
+            getChatById = { id -> chatRepo.getChatById(id) },
+            isChatLocked = { id -> !com.maodouchat.security.ChatLockSession.isUnlocked(id) && (chatLockRepo.get(id) != null) },
             onDurableMessage = { message ->
                 if (message.chatId == activeChatId) {
                     _uiState.update { state ->
@@ -497,16 +518,10 @@ class ChatDetailViewModel(
     private suspend fun indexSearchableMessage(message: Message) {
         // 密聊消息不落搜索索引（与 ImageOcrAutoIndexer 一致）：即使本地 SQLCipher 已加密，
         // 密聊明文不应进入可搜索缓存，避免密聊内容在全局搜索中可被检索。
-        val isSecretChat = try {
-            _uiState.value.isSecretChat == true ||
-                _uiState.value.chat?.isSecret == true ||
-                app.database.chatDao().isSecretChat(message.chatId)
-        } catch (error: kotlinx.coroutines.CancellationException) {
-            throw error
-        } catch (_: Exception) {
-            false
+        val caps = app.secretConversationController.capabilities(message.chatId)
+        if (!com.maodouchat.domain.messaging.ConversationPrivacyPolicy.allows(caps, com.maodouchat.domain.messaging.PrivacyAction.SEARCH)) {
+            return
         }
-        if (isSecretChat) return
         try {
             com.maodouchat.data.repository.MessageSearchRepository(app.database)
                 .indexMessage(message)
@@ -695,7 +710,7 @@ class ChatDetailViewModel(
             com.maodouchat.MaodouchatApp.activeChatOpenedAtMs = System.currentTimeMillis()
             // Open chat: drop tray notification + mark in-app center rows for this chat.
             runCatching {
-                com.maodouchat.util.AppNotifier.cancelMessage(getApplication(), chatId)
+                com.maodouchat.notification.MessageNotificationService.cancelMessage(getApplication(), chatId)
             }
             try {
                 app.notificationCenter.markChatMessagesRead(chatId)
@@ -713,6 +728,7 @@ class ChatDetailViewModel(
             realtimeController.start()
             observeMessageStatus()
             readReceiptCoordinator.observe(activeChatId.ifBlank { chatId })
+            observeVoicePlayback()
             observeAttachmentTransfers()
             observeAttachmentFinalizedEvents()
             observeAiOperations()
@@ -827,10 +843,14 @@ class ChatDetailViewModel(
                         },
                     )
                 }
-                unread.forEach { message ->
-                    viewModelScope.launch(Dispatchers.IO) {
-                        messageRepo.updateMessageStatus(message.id, MessageStatus.READ)
-                    }
+                viewModelScope.launch(Dispatchers.IO) {
+                    app.database.messageDao().markIncomingReadThrough(
+                        chatId = effectiveChatId,
+                        ownerUserId = ownerUserId,
+                        throughTimestamp = watermark.timestamp,
+                        throughMessageId = watermark.id,
+                    )
+                    app.database.chatDao().markAllRead(effectiveChatId)
                 }
                 markReadJob?.cancel()
                 markReadJob = viewModelScope.launch {
@@ -898,31 +918,48 @@ class ChatDetailViewModel(
             .launchIn(viewModelScope)
     }
 
-    private fun updateMessageStatus(messageId: String, status: MessageStatus) {
-        val statusOwnerUserId = currentUserId
+    fun markVoiceMessagePlayed(messageId: String) {
+        val ownerUserId = currentUserId
         if (
-            statusOwnerUserId.isBlank() ||
-            statusOwnerUserId == "me" ||
+            ownerUserId.isBlank() ||
+            ownerUserId == "me" ||
             !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = statusOwnerUserId,
+                expectedUserId = ownerUserId,
                 liveToken = tokenManager.getToken(),
                 liveUserId = tokenManager.getUserId(),
             )
         ) {
             return
         }
-        _uiState.update { state -> timelineStateController.updateStatus(state, messageId, status) }
-        viewModelScope.launch {
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = statusOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
+        val target = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
+        if (target.senderId == ownerUserId) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val effectiveChatId = activeChatId.ifBlank { chatId }
+                val chat = _uiState.value.chat
+                app.messagingV2Outbox.enqueuePlayReceipt(
+                    conversationId = effectiveChatId,
+                    messageId = messageId,
+                    groupRevision = chat?.memberRevision.takeIf { chat?.isGroup == true },
                 )
-            ) {
-                return@launch
+            } catch (error: Exception) {
+                Log.w("ChatDetailViewModel", "v2 play receipt enqueue failed: " + error.message, error)
             }
-            messageRepo.updateMessageStatus(messageId, status)
         }
+    }
+
+    private fun observeVoicePlayback() {
+        val playedEnqueued = mutableSetOf<String>()
+        VoicePlayer.state
+            .filter { it.isPlaying && it.messageId != null }
+            .mapNotNull { it.messageId }
+            .distinctUntilChanged()
+            .onEach { messageId ->
+                if (playedEnqueued.add(messageId)) {
+                    markVoiceMessagePlayed(messageId)
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     /** 8.52 UX：初次加载失败后手动重试（UI 错误空态的重试按钮）。 */
@@ -1783,7 +1820,7 @@ class ChatDetailViewModel(
     fun pauseFileTransfer(messageId: String) {
         if (_uiState.value.fileTransferStates[messageId] !in setOf(AttachmentTransferState.QUEUED, AttachmentTransferState.UPLOADING)) return
         viewModelScope.launch(Dispatchers.IO) {
-            if (!AttachmentTransferCoordinator.pause(getApplication(), messageId)) {
+            if (!attachmentIntentController.pause(messageId)) {
                 _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_file_transfer_control_failed)) }
             }
         }
@@ -1802,7 +1839,7 @@ class ChatDetailViewModel(
         }
         viewModelScope.launch(Dispatchers.IO) {
             messageRepo.updateMessageStatus(messageId, MessageStatus.SENDING)
-            if (!AttachmentTransferCoordinator.resume(getApplication(), messageId)) {
+            if (!attachmentIntentController.resume(messageId)) {
                 messageRepo.updateMessageStatus(messageId, MessageStatus.FAILED)
                 _uiState.update { state ->
                     state.copy(
@@ -1827,7 +1864,7 @@ class ChatDetailViewModel(
                 )
             }
             com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
-                AttachmentTransferCoordinator.cancel(getApplication(), messageId)
+                attachmentIntentController.cancel(messageId)
                 sourceUri?.let { MediaCache.releasePersistableReadPermission(getApplication(), it) }
                 MediaCache.deleteCachedMediaForMessage(getApplication(), messageId)
                 messageRepo.deleteMessage(messageId)
@@ -1845,7 +1882,7 @@ class ChatDetailViewModel(
             )
         }
         viewModelScope.launch(Dispatchers.IO) {
-            AttachmentTransferCoordinator.cancel(getApplication(), messageId)
+            attachmentIntentController.cancel(messageId)
             MediaCache.deleteCachedMediaForMessage(getApplication(), messageId)
             messageRepo.deleteMessage(messageId)
         }
@@ -2402,113 +2439,109 @@ class ChatDetailViewModel(
             return
         }
         val messageId = fixedMessageId ?: "m_${UUID.randomUUID()}"
-        val preparationLease = AttachmentPreparationLease(
-            originalSourceUri = uri.toString(),
-            deleteEncryptedFile = { path -> runCatching { File(path).delete() } },
-            deletePreparedSource = { source ->
-                MediaCache.deletePreparedAttachmentSource(getApplication(), source)
-            },
-            releasePersistablePermission = { source ->
-                MediaCache.releasePersistableReadPermission(getApplication(), source)
-            }
+        val kind = when (type) {
+            MessageType.IMAGE -> AttachmentKind.IMAGE
+            MessageType.VIDEO -> AttachmentKind.VIDEO
+            MessageType.VOICE -> AttachmentKind.VOICE
+            MessageType.FILE -> AttachmentKind.FILE
+            MessageType.GIF -> AttachmentKind.GIF
+            else -> AttachmentKind.FILE
+        }
+        val isGroup = _uiState.value.chat?.isGroup == true
+        val intent = AttachmentIntent(
+            conversationId = activeChatId,
+            kind = kind,
+            uri = uri.toString(),
+            idempotencyKey = messageId,
+            durationMs = voiceDurationMs,
+            viewOnce = viewOnce && !isGroup,
+            spoilerMedia = spoilerMedia
         )
+
+        val optimistic = existingMessage?.copy(
+            chatId = activeChatId,
+            content = uri.toString(),
+            status = MessageStatus.SENDING,
+            meta = MessageMeta(
+                voiceDurationMs = voiceDurationMs,
+                viewOnce = viewOnce && !isGroup,
+                spoilerMedia = spoilerMedia
+            )
+        ) ?: Message(
+            id = messageId,
+            chatId = activeChatId,
+            senderId = attachOwnerUserId,
+            content = uri.toString(),
+            type = type,
+            timestamp = System.currentTimeMillis(),
+            status = MessageStatus.SENDING,
+            meta = MessageMeta(
+                voiceDurationMs = voiceDurationMs,
+                viewOnce = viewOnce && !isGroup,
+                spoilerMedia = spoilerMedia
+            )
+        )
+
+        _uiState.update {
+            it.copy(
+                messages = mergeMessages(it.messages, listOf(optimistic)),
+                isSending = true,
+                fileTransferProgress = it.fileTransferProgress + (messageId to 0f),
+                preparingAttachmentMessageIds = it.preparingAttachmentMessageIds + messageId,
+                groupEncryptionWarning = null,
+            )
+        }
+
         val preparationJob = viewModelScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
-            try {
-                val workflow = AttachmentSendWorkflow(
-                    context = getApplication(),
-                    messageStore = messageRepo,
-                    tokenManager = tokenManager,
-                    resolveChatId = outgoingFacade::resolveChatId,
-                    onEncryptionProgress = { id, completed, total ->
-                        updateFileTransferProgress(id, completed, total, 0f, 0.35f)
-                    },
-                )
-                val result = workflow.execute(
-                    command = AttachmentSendCommand(
-                        messageId = messageId,
-                        sourceUri = uri,
-                        type = type,
-                        chatId = activeChatId,
-                        senderId = attachOwnerUserId,
-                        existingMessage = existingMessage,
-                        voiceDurationMs = voiceDurationMs,
-                        viewOnce = viewOnce && _uiState.value.chat?.isGroup != true,
-                        spoilerMedia = spoilerMedia,
-                    ),
-                    lease = preparationLease,
-                    onOptimisticMessage = { optimistic ->
-                        _uiState.update {
-                            it.copy(
-                                messages = mergeMessages(it.messages, listOf(optimistic)),
-                                isSending = true,
-                                fileTransferProgress = it.fileTransferProgress + (messageId to 0f),
-                                preparingAttachmentMessageIds = it.preparingAttachmentMessageIds + messageId,
-                                groupEncryptionWarning = null,
-                            )
-                        }
-                    },
-                )
-                when (result) {
-                    is AttachmentSendWorkflowResult.Existing -> {
-                        _uiState.update { it.copy(isSending = false) }
+            val result = attachmentIntentController.submit(intent)
+            result.fold(
+                onSuccess = {
+                    val queued = withContext(Dispatchers.IO) { messageRepo.getMessageById(messageId) }
+                    _uiState.update { state ->
+                        state.copy(
+                            messages = if (queued != null) {
+                                state.messages.map { current -> if (current.id == messageId) queued else current }
+                            } else state.messages,
+                            isSending = false,
+                            preparingAttachmentMessageIds = state.preparingAttachmentMessageIds - messageId,
+                        )
+                    }
+                    if (existingMessage != null) {
                         resumeFileTransfer(messageId)
                     }
-                    is AttachmentSendWorkflowResult.Queued -> {
+                },
+                onFailure = { error ->
+                    if (error is kotlinx.coroutines.CancellationException) {
                         _uiState.update {
                             it.copy(
-                                messages = it.messages.map { current -> if (current.id == messageId) result.message else current },
                                 isSending = false,
-                                preparingAttachmentMessageIds = it.preparingAttachmentMessageIds - messageId,
+                                preparingAttachmentMessageIds = it.preparingAttachmentMessageIds - messageId
                             )
                         }
+                        throw error
                     }
+                    android.util.Log.w("ChatDetailViewModel", "Attachment preparation failed: $messageId", error)
+                    val failed = (withContext(Dispatchers.IO) { messageRepo.getMessageById(messageId) }
+                        ?: existingMessage
+                        ?: optimistic).copy(status = MessageStatus.FAILED)
+                    _uiState.update {
+                        it.copy(
+                            messages = it.messages.map { current -> if (current.id == messageId) failed else current },
+                            isSending = false,
+                            fileTransferProgress = it.fileTransferProgress - messageId,
+                            preparingAttachmentMessageIds = it.preparingAttachmentMessageIds - messageId,
+                            groupEncryptionWarning = attachmentErrorText(error, R.string.chat_attachment_upload_failed)
+                        )
+                    }
+                    withContext(Dispatchers.IO) { messageRepo.insertMessage(failed) }
                 }
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                preparationLease.cleanupIfOwned()
-                _uiState.update {
-                    it.copy(
-                        isSending = false,
-                        preparingAttachmentMessageIds = it.preparingAttachmentMessageIds - messageId
-                    )
-                }
-                throw error
-            } catch (error: Exception) {
-                android.util.Log.w("ChatDetailViewModel", "Attachment preparation failed: $messageId", error)
-                val persisted = withContext(Dispatchers.IO) {
-                    app.database.attachmentTransferDao().get(messageId, ownerUserId = attachOwnerUserId) != null
-                }
-                if (persisted) preparationLease.handOff() else preparationLease.cleanupIfOwned()
-                val failed = (withContext(Dispatchers.IO) { messageRepo.getMessageById(messageId) }
-                    ?: existingMessage
-                    ?: Message(
-                        id = messageId,
-                        chatId = activeChatId,
-                        senderId = attachOwnerUserId,
-                        content = uri.toString(),
-                        type = type,
-                        timestamp = System.currentTimeMillis(),
-                        status = MessageStatus.SENDING,
-                    )).copy(status = MessageStatus.FAILED)
-                _uiState.update {
-                    it.copy(
-                        messages = it.messages.map { current -> if (current.id == messageId) failed else current },
-                        isSending = false,
-                        fileTransferProgress = it.fileTransferProgress - messageId,
-                        preparingAttachmentMessageIds = it.preparingAttachmentMessageIds - messageId,
-                        groupEncryptionWarning = attachmentErrorText(error, R.string.chat_attachment_upload_failed)
-                    )
-                }
-                withContext(Dispatchers.IO) { messageRepo.insertMessage(failed) }
-            }
+            )
         }
         attachmentPreparationJobs[messageId] = preparationJob
         preparationJob.invokeOnCompletion { error ->
             attachmentPreparationJobs.remove(messageId, preparationJob)
             if (error != null) {
-                preparationLease.cleanupIfOwned()
                 if (tokenManager.getUserId() != attachOwnerUserId) return@invokeOnCompletion
-                // Cancel / crash mid-prepare must not leave the global spinner stuck
-                // (voice path sets isSending before enqueue; resume early-exit also relies on this).
                 _uiState.update {
                     it.copy(
                         isSending = false,

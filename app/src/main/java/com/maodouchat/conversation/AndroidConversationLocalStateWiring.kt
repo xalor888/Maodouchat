@@ -1,5 +1,7 @@
 package com.maodouchat.conversation
 
+import com.maodouchat.notification.ReminderNotificationService
+import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.data.model.MessageType
@@ -15,7 +17,7 @@ import com.maodouchat.scheduling.ConversationScheduleResult
 import com.maodouchat.security.ChatLockSession
 import com.maodouchat.security.SecretChatSession
 import com.maodouchat.security.SecureSessionManager
-import com.maodouchat.util.AppNotifier
+
 import com.maodouchat.util.MediaCache
 
 internal fun createAndroidConversationLocalStateCoordinator(
@@ -136,10 +138,10 @@ internal fun createAndroidConversationLocalStateCoordinator(
                 app.notificationCenter.removeChatItems(chatId)
 
             override suspend fun cancelMessageNotification(chatId: String) =
-                AppNotifier.cancelMessage(app, chatId)
+                MessageNotificationService.cancelMessage(app, chatId)
 
             override suspend fun cancelAiReminders(chatId: String) =
-                AppNotifier.cancelAiTaskRemindersForChat(app, chatId)
+                ReminderNotificationService.cancelAiTaskRemindersForChat(app, chatId)
 
             override suspend fun deleteMessages(chatId: String) =
                 messageStore.deleteMessagesByChatId(chatId)

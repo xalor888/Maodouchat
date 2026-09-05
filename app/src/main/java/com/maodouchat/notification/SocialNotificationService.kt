@@ -12,13 +12,12 @@ import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.ui.screen.chatlist.NotificationCenterType
-import com.maodouchat.util.AppNotifier
+
 
 /**
  * P07 服务拆分 3/4：Social（公告/好友申请/群邀请）通知服务。
  *
- * 从巨型 [AppNotifier] 静态入口迁出的第三个垂直服务；`AppNotifier` 保留同签名
- * 薄委托。社交类通知点击均进入联系人 Tab（[AppNotifier.EXTRA_OPEN_CONTACTS]），
+ * 已删除的 `AppNotifier` 巨型静态入口迁出的第三个垂直服务。社交类通知点击均进入联系人 Tab（[NotificationIntents.EXTRA_OPEN_CONTACTS]），
  * 正文均为固定文案、无隐私脱敏分支（与消息/通话类不同），行为逐行搬运。
  */
 object SocialNotificationService {
@@ -78,7 +77,7 @@ object SocialNotificationService {
         if (!NotificationInfrastructure.canPostNotifications(context)) return
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(AppNotifier.EXTRA_OPEN_CONTACTS, true)
+            putExtra(NotificationIntents.EXTRA_OPEN_CONTACTS, true)
             data = Uri.parse(NotificationSlotPolicy.friendRequestDataUri(requestId))
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
@@ -128,7 +127,7 @@ object SocialNotificationService {
 
     /**
      * Group-invite tray (routing metadata only).
-     * Tap → contacts tab via [AppNotifier.EXTRA_OPEN_CONTACTS] (same surface as friend requests).
+     * Tap → contacts tab via [NotificationIntents.EXTRA_OPEN_CONTACTS] (same surface as friend requests).
      */
     fun showGroupInvite(
         context: Context,
@@ -144,7 +143,7 @@ object SocialNotificationService {
         if (!NotificationInfrastructure.canPostNotifications(context)) return
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(AppNotifier.EXTRA_OPEN_CONTACTS, true)
+            putExtra(NotificationIntents.EXTRA_OPEN_CONTACTS, true)
             data = Uri.parse(NotificationSlotPolicy.groupInviteDataUri(inviteId))
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
@@ -202,7 +201,7 @@ object SocialNotificationService {
         if (!NotificationInfrastructure.canPostNotifications(context)) return
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(AppNotifier.EXTRA_OPEN_POST_ID, postId)
+            putExtra(NotificationIntents.EXTRA_OPEN_POST_ID, postId)
             data = Uri.parse(NotificationSlotPolicy.postDataUri(postId))
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }

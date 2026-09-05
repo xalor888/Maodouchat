@@ -11,13 +11,13 @@ import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.ui.screen.chatlist.NotificationCenterType
-import com.maodouchat.util.AppNotifier
+
 
 /**
  * P07 服务拆分 2/4：Call（来电/未接）通知服务。
  *
- * 从巨型 [AppNotifier] 静态入口迁出的第二个垂直服务；`AppNotifier` 保留同签名
- * 薄委托，现有调用方（通话信令、前台服务、Telecom 路径）零改动。来电 35s 超时、
+ * 已删除的 `AppNotifier` 巨型静态入口迁出的第二个垂直服务；调用方
+ *（通话信令、前台服务、Telecom 路径）直连本服务。来电 35s 超时、
  * 全屏 intent、ongoing 标记与未接盐隔离 id 等行为逐行搬运（见 NotificationSlotPolicy）。
  */
 object CallNotificationService {
@@ -37,7 +37,7 @@ object CallNotificationService {
         cancelIncomingCall(context, callId)
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(AppNotifier.EXTRA_OPEN_MISSED_CALL, true)
+            putExtra(NotificationIntents.EXTRA_OPEN_MISSED_CALL, true)
             data = Uri.parse(NotificationSlotPolicy.missedCallDataUri(callId))
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
@@ -103,10 +103,10 @@ object CallNotificationService {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or
                 Intent.FLAG_ACTIVITY_SINGLE_TOP or
                 Intent.FLAG_ACTIVITY_NEW_TASK
-            putExtra(AppNotifier.EXTRA_OPEN_INCOMING_CALL, true)
-            putExtra(AppNotifier.EXTRA_INCOMING_CALL_ID, callId)
-            putExtra(AppNotifier.EXTRA_INCOMING_CALL_VIDEO, isVideo)
-            if (senderId.isNotBlank()) putExtra(AppNotifier.EXTRA_INCOMING_CALL_SENDER_ID, senderId)
+            putExtra(NotificationIntents.EXTRA_OPEN_INCOMING_CALL, true)
+            putExtra(NotificationIntents.EXTRA_INCOMING_CALL_ID, callId)
+            putExtra(NotificationIntents.EXTRA_INCOMING_CALL_VIDEO, isVideo)
+            if (senderId.isNotBlank()) putExtra(NotificationIntents.EXTRA_INCOMING_CALL_SENDER_ID, senderId)
             data = Uri.parse(NotificationSlotPolicy.incomingCallDataUri(callId))
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }

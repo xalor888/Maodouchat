@@ -12,16 +12,15 @@ import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.ui.screen.chatlist.NotificationCenterType
-import com.maodouchat.util.AppNotifier
+
 import com.maodouchat.util.RuntimeFlags
 
 /**
  * P07 服务拆分 1/4：Reminder（AI 任务提醒）通知服务。
  *
- * 从巨型 [AppNotifier] 静态入口迁出的第一个垂直服务；`AppNotifier` 保留同签名
- * 薄委托，现有调用方零改动。共享的渠道/账号门禁/post 能力仍复用 `AppNotifier`
- * 的模块内构件（`internal`），随 Message/Call/Social 拆分继续收敛后再下沉为
- * 独立的通知基础设施；`PushTransport` 统一接入见 P07 后续步骤。
+ * 已删除的 `AppNotifier` 巨型静态入口迁出的第一个垂直服务；调用方直连本服务。
+ * 共享的渠道/账号门禁/post 能力由 [NotificationInfrastructure] 提供；
+ * `PushTransport` 统一接入见 P07 后续步骤。
  */
 object ReminderNotificationService {
 
@@ -40,7 +39,7 @@ object ReminderNotificationService {
         if (!NotificationInfrastructure.canPostNotifications(context)) return false
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(AppNotifier.EXTRA_OPEN_AI_TASKS_CHAT_ID, chatId)
+            putExtra(NotificationIntents.EXTRA_OPEN_AI_TASKS_CHAT_ID, chatId)
             data = Uri.parse(NotificationSlotPolicy.aiTaskDataUri(taskId))
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }

@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.call
 
+import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import android.os.SystemClock
@@ -8,8 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.WebSocketClient
-import com.maodouchat.network.WebSocketEvent
+import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.service.CallForegroundService
 import com.maodouchat.call.CallActionBus
 import com.maodouchat.call.IncomingCallCoordinator
@@ -634,7 +634,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         // In-app ring UI owns the call — drop FCM/full-screen incoming tray so shade
         // does not keep a second "encrypted call" while CallScreen is already open.
         if (callId.isNotBlank()) {
-            com.maodouchat.util.AppNotifier.cancelIncomingCall(app, callId)
+            com.maodouchat.notification.CallNotificationService.cancelIncomingCall(app, callId)
         }
         val selfUserId = tokenManager.getUserId().orEmpty()
         val normalizedMembers = groupMemberIds.filter(String::isNotBlank).distinct()
@@ -725,7 +725,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         callSessionMachine.markConnecting(activeDomainSession)
         // Accepting from in-app UI must clear any leftover FCM incoming tray.
         if (activeCallId.isNotBlank()) {
-            com.maodouchat.util.AppNotifier.cancelIncomingCall(app, activeCallId)
+            com.maodouchat.notification.CallNotificationService.cancelIncomingCall(app, activeCallId)
         }
         _uiState.update {
             it.copy(
@@ -810,7 +810,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         }
         // User declined — never leave FCM tray ringing after reject.
         if (callId.isNotBlank()) {
-            com.maodouchat.util.AppNotifier.cancelIncomingCall(app, callId)
+            com.maodouchat.notification.CallNotificationService.cancelIncomingCall(app, callId)
         }
         // 8.53：主动拒接非「未接」——不写 MISSED 通话记录（对端忙/拒接由呼出侧记未接通）
         endCall(notifyPeer = false, logMissed = false)
@@ -916,37 +916,45 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         // 独立管理两个 job：一个死掉不影响另一个；避免"WS  collector 死了但 polling 还活着导致永远不重连"
         if (webSocketJob?.isActive != true) {
             val signalOwnerUserId = tokenManager.getUserId().orEmpty()
-            webSocketJob = viewModelScope.launch {
-                WebSocketClient.events.collect { event ->
-                    if (
-                        signalOwnerUserId.isBlank() ||
-                        !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = signalOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
-                    ) {
-                        return@collect
-                    }
-                    if (event is WebSocketEvent.SignalingReceived) {
-                        handleSignalingMessage(
-                            event.type,
-                            event.payload,
-                            event.fromUserId,
-                            event.callId,
-                            event.groupId,
-                            event.groupMemberIds,
-                            event.groupInvite
-                        )
-                    } else if (
-                        event is WebSocketEvent.ServerError &&
-                        event.code == "CALL_INVITE_RATE_LIMITED" &&
-                        _uiState.value.callState == CallState.CALLING
-                    ) {
-                        endCall(
-                            notifyPeer = false,
-                            errorMessage = text(R.string.call_rate_limited, event.retryAfterSeconds ?: 60)
-                        )
+            val dispatcher = (app as? com.maodouchat.MaodouchatApp)?.realtimeEventDispatcher
+            if (dispatcher != null) {
+                webSocketJob = viewModelScope.launch {
+                    dispatcher.allEvents.collect { event ->
+                        if (
+                            signalOwnerUserId.isBlank() ||
+                            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                                expectedUserId = signalOwnerUserId,
+                                liveToken = tokenManager.getToken(),
+                                liveUserId = tokenManager.getUserId(),
+                            )
+                        ) {
+                            return@collect
+                        }
+                        when (event) {
+                            is RealtimeDomainEvent.CallSignaling -> {
+                                handleSignalingMessage(
+                                    event.type,
+                                    event.payload,
+                                    event.fromUserId,
+                                    event.callId,
+                                    event.groupId,
+                                    event.groupMemberIds,
+                                    event.groupInvite
+                                )
+                            }
+                            is RealtimeDomainEvent.RealtimeError -> {
+                                if (
+                                    event.code == "CALL_INVITE_RATE_LIMITED" &&
+                                    _uiState.value.callState == CallState.CALLING
+                                ) {
+                                    endCall(
+                                        notifyPeer = false,
+                                        errorMessage = text(R.string.call_rate_limited, event.retryAfterSeconds ?: 60)
+                                    )
+                                }
+                            }
+                            else -> Unit
+                        }
                     }
                 }
             }
@@ -1392,7 +1400,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         // missed entry after ring-timeout / peer-hang-up record.
         val hangupCallId = activeCallId
         if (hangupCallId.isNotBlank()) {
-            com.maodouchat.util.AppNotifier.cancelIncomingCall(app, hangupCallId)
+            com.maodouchat.notification.CallNotificationService.cancelIncomingCall(app, hangupCallId)
             // 销毁系统级 Telecom Connection，避免应用内挂断后系统残留「活跃通话」(幽灵来电)
             com.maodouchat.telecom.MaodouchatConnectionService.finishConnection(hangupCallId)
         }

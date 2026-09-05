@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
+import com.maodouchat.notification.MessageNotificationService
+import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -25,8 +27,8 @@ import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.UpdateChatSettingsRequest
 import com.maodouchat.network.TokenManager
-import com.maodouchat.network.WebSocketClient
-import com.maodouchat.network.WebSocketEvent
+import com.maodouchat.core.realtime.RealtimeConnectionState
+import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.scheduling.AndroidConversationScheduleBackend
 import com.maodouchat.scheduling.ConversationScheduleCoordinator
 import com.maodouchat.ui.OwnerSessionPolicy
@@ -620,14 +622,14 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             } catch (_: Exception) {
             }
             // 若该条已聚合在系统托盘，同步移除阴影
-            runCatching { com.maodouchat.util.AppNotifier.cancelMissedCall(getApplication(), callId) }
+            runCatching { com.maodouchat.notification.CallNotificationService.cancelMissedCall(getApplication(), callId) }
         }
     }
 
     private suspend fun dismissMissedCallNotifications(snapshot: List<com.maodouchat.data.model.MissedCall>) {
         for (call in snapshot) {
             try {
-                com.maodouchat.util.AppNotifier.cancelMissedCall(app, call.id)
+                com.maodouchat.notification.CallNotificationService.cancelMissedCall(app, call.id)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (_: Exception) {
@@ -1070,7 +1072,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         if (disconnectBannerJob?.isActive == true) return
         disconnectBannerJob = viewModelScope.launch {
             delay(com.maodouchat.network.RealtimeDisconnectPolicy.BANNER_DELAY_MS)
-            if (com.maodouchat.network.WebSocketClient.isConnected()) return@launch
+            if (app.realtimeEventDispatcher.connectionState.value == RealtimeConnectionState.CONNECTED) return@launch
             _uiState.update { it.copy(realtimeBanner = text(R.string.chat_ws_connection_failed)) }
         }
     }
@@ -1174,7 +1176,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     // 本地已读缓存失败不阻塞后续清理
                 }
                 // 已读后清理该会话的 tray 通知（与聊天页进入后的行为一致）
-                runCatching { com.maodouchat.util.AppNotifier.cancelMessage(getApplication(), chat.id) }
+                runCatching { com.maodouchat.notification.MessageNotificationService.cancelMessage(getApplication(), chat.id) }
             }
             if (ordinaryUnread.isNotEmpty() && isOwnerSessionCurrent(session)) {
                 ordinaryUnread.forEach { chat ->
@@ -1259,7 +1261,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 } catch (_: Exception) {
                     // 本地已读缓存失败不阻塞后续清理
                 }
-                runCatching { com.maodouchat.util.AppNotifier.cancelMessage(getApplication(), chat.id) }
+                runCatching { com.maodouchat.notification.MessageNotificationService.cancelMessage(getApplication(), chat.id) }
             }
             if (ordinary.isNotEmpty() && isOwnerSessionCurrent(session)) {
                 ordinary.forEach { chat ->
@@ -1412,7 +1414,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         // Mute on: drop existing tray + mark center message rows read immediately (don't wait for REST).
         if (optimistic.notificationsMuted && !chat.notificationsMuted) {
             try {
-                com.maodouchat.util.AppNotifier.cancelMessage(app, chat.id)
+                com.maodouchat.notification.MessageNotificationService.cancelMessage(app, chat.id)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (_: Exception) {
@@ -1672,7 +1674,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
         try {
             val removed = notificationRepo.removeMessageReferences(messageId)
             if (removed && chatId.isNotBlank() && isOwnerSessionCurrent(session)) {
-                com.maodouchat.util.AppNotifier.cancelMessage(app, chatId)
+                com.maodouchat.notification.MessageNotificationService.cancelMessage(app, chatId)
             }
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
@@ -1707,16 +1709,16 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
-     * Mirror AppNotifier write-time masking: a PIN-locked or secret (when blocked) chat must
+     * Mirror MessageNotificationService write-time masking: a PIN-locked or secret (when blocked) chat must
      * never leak message bodies into the in-app notification center, even when an edit refresh
      * rewrites the head preview (otherwise the lock/secret gate is bypassed via the center).
      */
     private suspend fun resolveNotificationPreview(chatId: String, preview: String): String {
         if (chatId.isBlank()) return preview
         return try {
-            val locked = RuntimeFlags.isEnabled(app, RuntimeFlags.CHAT_LOCK) &&
-                app.database.chatLockDao().get(chatId) != null
-            val secret = app.database.chatDao().isSecretChat(chatId) &&
+            val caps = app.secretConversationController.capabilities(chatId)
+            val locked = RuntimeFlags.isEnabled(app, RuntimeFlags.CHAT_LOCK) && caps.isLocked
+            val secret = caps.isSecretChat &&
                 RuntimeFlags.isEnabled(app, RuntimeFlags.SECRET_NOTIF_PREVIEW_BLOCK)
             when {
                 locked -> app.getString(R.string.chat_lock_list_preview)
@@ -1795,21 +1797,21 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
             }
         }
         viewModelScope.launch {
-            WebSocketClient.events.collect { event ->
+            app.realtimeEventDispatcher.allEvents.collect { event ->
                 // Logout disconnects WS but buffered events may still drain; drop if session gone.
                 if (!isOwnerSessionCurrent(realtimeSession)) return@collect
                 val liveUserId = realtimeOwnerUserId
                 when (event) {
-                    is WebSocketEvent.AdminBroadcast -> {
+                    is RealtimeDomainEvent.AdminNotice -> {
                         val title = event.title.ifBlank { text(R.string.notification_admin_broadcast_default_title) }
                         val body = event.text.trim()
                         if (body.isNotBlank()) {
                             try {
                                 app.notificationCenter.add(
                                     com.maodouchat.data.repository.NotificationCenterItem(
-                                        id = "admin_bc_${event.ts}_${body.hashCode()}",
+                                        id = "admin_bc_${event.timestamp}_${body.hashCode()}",
                                         type = "SECURITY",
-                                        mergeKey = "admin_broadcast_${event.ts}",
+                                        mergeKey = "admin_broadcast_${event.timestamp}",
                                         title = title,
                                         subtitle = text(R.string.notification_admin_broadcast_sender),
                                         preview = body.take(200),
@@ -1834,36 +1836,32 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                             }
                         }
                     }
-                    is WebSocketEvent.GroupRevisionChanged -> {
+                    is RealtimeDomainEvent.GroupRevision -> {
                         // Membership bursts (join/leave/kick) often arrive in clusters.
                         requestLoadChats(ChatListReloadPolicy.Trigger.GROUP_REVISION)
                     }
-                    is WebSocketEvent.Connected -> {
-                        if (event.success) {
-                            disconnectBannerJob?.cancel()
-                            disconnectBannerJob = null
-                            _uiState.update { it.copy(realtimeBanner = null) }
-                            // Immediate silent: keep previous rows, don't flash isLoading.
-                            requestLoadChats(ChatListReloadPolicy.Trigger.RECONNECT)
-                            // 9.3xx：断线窗口补拉（Ideaura 式）——重连后立即同步各会话增量，
-                            // 否则断线期间的消息要等 15 分钟周期任务或手动打开聊天才出现。
-                            runCatching {
-                                com.maodouchat.sync.BacklogSyncWorker.requestNow(getApplication())
+                    is RealtimeDomainEvent.ConnectionStateChanged -> {
+                        when (event.state) {
+                            RealtimeConnectionState.CONNECTED -> {
+                                disconnectBannerJob?.cancel()
+                                disconnectBannerJob = null
+                                _uiState.update { it.copy(realtimeBanner = null) }
+                                // Immediate silent: keep previous rows, don't flash isLoading.
+                                requestLoadChats(ChatListReloadPolicy.Trigger.RECONNECT)
+                                // 9.3xx：断线窗口补拉（Ideaura 式）——重连后立即同步各会话增量，
+                                // 否则断线期间的消息要等 15 分钟周期任务或手动打开聊天才出现。
+                                runCatching {
+                                    com.maodouchat.sync.BacklogSyncWorker.requestNow(getApplication())
+                                }
                             }
-                        } else {
-                            scheduleDisconnectBanner()
+                            RealtimeConnectionState.DISCONNECTED,
+                            RealtimeConnectionState.FAILED -> {
+                                scheduleDisconnectBanner()
+                            }
+                            else -> Unit
                         }
                     }
-                    is WebSocketEvent.Disconnected -> {
-                        scheduleDisconnectBanner()
-                    }
-                    is WebSocketEvent.Error -> {
-                        // Soft banner only — list remains usable offline from Room.
-                        if (event.kind == com.maodouchat.network.WebSocketErrorKind.CONNECTION) {
-                            scheduleDisconnectBanner()
-                        }
-                    }
-                    is WebSocketEvent.UserOnline -> {
+                    is RealtimeDomainEvent.Presence -> {
                         // Collector already blank-checks token/userId; re-check so buffered events
                         // after switch do not paint previous-owner online dots onto the new list.
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -2012,10 +2010,6 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                     return@launch
                 }
                 val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                // 首次进入：需要 WebSocket 未连接则连上，保证后续消息能实时接收
-                if (!WebSocketClient.isConnected()) {
-                    WebSocketClient.connect(ApiConfig.WS_URL, liveToken)
-                }
 
                 // 从 API 获取
                 val result = ApiService.getChats(liveToken)

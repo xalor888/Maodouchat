@@ -1,5 +1,6 @@
 package com.maodouchat.ui.navigation
 
+import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.util.RuntimeFlags
 import android.Manifest
 import android.content.Context
@@ -58,8 +59,6 @@ import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
-import com.maodouchat.network.WebSocketClient
-import com.maodouchat.network.WebSocketEvent
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.screen.chatdetail.ChatDetailScreen
@@ -109,7 +108,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
         // Capture epoch so logout/account switch mid-fetch cannot apply offers to the next owner.
         val pollGeneration = com.maodouchat.MaodouchatApp.currentSessionGeneration()
         val pollUserId = tokenManager.getUserId().orEmpty()
-        WebSocketClient.connect(ApiConfig.WS_URL, token)
+        (context.applicationContext as? com.maodouchat.MaodouchatApp)?.ensureRealtimeConnected()
         WebRTCSignaling.fetchPending(token, offersOnly = true).onSuccess { messages ->
             if (
                 pollGeneration != com.maodouchat.MaodouchatApp.currentSessionGeneration() ||
@@ -130,7 +129,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
             // 若本机正有活跃通话，必须转发给 CallViewModel（offersOnly 已消费 hang-up 行）
             terminals.forEach { terminal ->
                 if (terminal.callId.isNotBlank()) {
-                    com.maodouchat.util.AppNotifier.cancelIncomingCall(context, terminal.callId)
+                    com.maodouchat.notification.CallNotificationService.cancelIncomingCall(context, terminal.callId)
                     val pending = IncomingCallCoordinator.peekPending()
                     if (pending != null && pending.callId == terminal.callId) {
                         IncomingCallCoordinator.clear()
@@ -164,7 +163,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
             }
             // FCM 指定 callId 已被终端覆盖：不要再响铃
             if (preferCallId.isNotBlank() && preferCallId in terminatedCallIds) {
-                com.maodouchat.util.AppNotifier.cancelIncomingCall(context, preferCallId)
+                com.maodouchat.notification.CallNotificationService.cancelIncomingCall(context, preferCallId)
             }
             val nowMs = System.currentTimeMillis()
             // Drop offers older than coordinator STALE window (server also TTL-purges).
@@ -182,7 +181,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
             }
             // FCM 唤醒但库中已无该 call 的 offer（已挂断/已消费）：清系统通知，防幽灵响铃
             if (preferCallId.isNotBlank() && offers.none { it.callId == preferCallId }) {
-                com.maodouchat.util.AppNotifier.cancelIncomingCall(context, preferCallId)
+                com.maodouchat.notification.CallNotificationService.cancelIncomingCall(context, preferCallId)
             }
             if (offers.isEmpty()) return@onSuccess
             // Prefer the offer matching the FCM callId when present
@@ -248,7 +247,8 @@ internal fun IncomingCallObserver(navController: NavHostController) {
 
     LaunchedEffect(Unit) {
         val signalOwnerUserId = tokenManager.getUserId().orEmpty()
-        WebSocketClient.events.collect { event ->
+        val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return@LaunchedEffect
+        app.realtimeEventDispatcher.callSignalingEvents.collect { event ->
             // Drop buffered signaling after logout / account switch.
             if (
                 signalOwnerUserId.isBlank() ||
@@ -260,64 +260,61 @@ internal fun IncomingCallObserver(navController: NavHostController) {
             ) {
                 return@collect
             }
-            if (event is WebSocketEvent.SignalingReceived) {
-                val t = event.type.lowercase()
-                // 响铃中 hang-up/busy/reject：清 pending，避免 30s 内继续响
-                if (t == "hang-up" || t == "busy" || t == "reject") {
-                    if (event.callId.isNotBlank()) {
-                        com.maodouchat.util.AppNotifier.cancelIncomingCall(context, event.callId)
-                        val pending = IncomingCallCoordinator.peekPending()
-                        val matchedPending = pending?.takeIf {
-                            it.callId == event.callId ||
-                                (it.callId.isBlank() && it.contactId == event.fromUserId)
-                        }
-                        if (matchedPending != null) {
-                            IncomingCallCoordinator.clear()
-                            // Caller gave up while we still had the offer → missed row.
-                            // busy/reject as terminal for our pending is unusual as callee;
-                            // hang-up is the common cancel. Still record for hang-up only.
-                            if (t == "hang-up") {
-                                val app = context.applicationContext as com.maodouchat.MaodouchatApp
-                                val ring = matchedPending
-                                val hangupOwnerUserId = signalOwnerUserId
-                                launch {
-                                    try {
-                                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                                expectedUserId = hangupOwnerUserId,
-                                                liveToken = tokenManager.getToken(),
-                                                liveUserId = tokenManager.getUserId(),
-                                            )
-                                        ) {
-                                            return@launch
-                                        }
-                                        com.maodouchat.call.MissedCallRecorder.recordRingTimeout(
-                                            context = app,
-                                            signalingCallId = event.callId.ifBlank { ring.callId },
-                                            fromUserId = ring.contactId.ifBlank { event.fromUserId },
-                                            callerName = ring.contactName,
-                                            isVideo = ring.callType == CallType.VIDEO,
-                                            isGroup = ring.groupId.isNotBlank(),
+            val t = event.type.lowercase()
+            // 响铃中 hang-up/busy/reject：清 pending，避免 30s 内继续响
+            if (t == "hang-up" || t == "busy" || t == "reject") {
+                if (event.callId.isNotBlank()) {
+                    com.maodouchat.notification.CallNotificationService.cancelIncomingCall(context, event.callId)
+                    val pending = IncomingCallCoordinator.peekPending()
+                    val matchedPending = pending?.takeIf {
+                        it.callId == event.callId ||
+                            (it.callId.isBlank() && it.contactId == event.fromUserId)
+                    }
+                    if (matchedPending != null) {
+                        IncomingCallCoordinator.clear()
+                        // Caller gave up while we still had the offer → missed row.
+                        // busy/reject as terminal for our pending is unusual as callee;
+                        // hang-up is the common cancel. Still record for hang-up only.
+                        if (t == "hang-up") {
+                            val ring = matchedPending
+                            val hangupOwnerUserId = signalOwnerUserId
+                            launch {
+                                try {
+                                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                                            expectedUserId = hangupOwnerUserId,
+                                            liveToken = tokenManager.getToken(),
+                                            liveUserId = tokenManager.getUserId(),
                                         )
-                                    } catch (error: kotlinx.coroutines.CancellationException) {
-                                        throw error
-                                    } catch (error: Exception) {
-                                        android.util.Log.w(
-                                            "IncomingCallObserver",
-                                            "missed-call on peer hang-up failed",
-                                            error
-                                        )
+                                    ) {
+                                        return@launch
                                     }
+                                    com.maodouchat.call.MissedCallRecorder.recordRingTimeout(
+                                        context = app,
+                                        signalingCallId = event.callId.ifBlank { ring.callId },
+                                        fromUserId = ring.contactId.ifBlank { event.fromUserId },
+                                        callerName = ring.contactName,
+                                        isVideo = ring.callType == CallType.VIDEO,
+                                        isGroup = ring.groupId.isNotBlank(),
+                                    )
+                                } catch (error: kotlinx.coroutines.CancellationException) {
+                                    throw error
+                                } catch (error: Exception) {
+                                    android.util.Log.w(
+                                        "IncomingCallObserver",
+                                        "missed-call on peer hang-up failed",
+                                        error
+                                    )
                                 }
                             }
                         }
-                        // Ask CallViewModel to tear down if this call is prepared/active
-                        // (RINGING may not have started the foreground service yet).
-                        com.maodouchat.call.CallActionBus.requestHangUp(event.callId, notifyPeer = false)
                     }
-                    return@collect
+                    // Ask CallViewModel to tear down if this call is prepared/active
+                    // (RINGING may not have started the foreground service yet).
+                    com.maodouchat.call.CallActionBus.requestHangUp(event.callId, notifyPeer = false)
                 }
+                return@collect
             }
-            if (event is WebSocketEvent.SignalingReceived && event.type == "offer" && (event.groupId.isBlank() || event.groupInvite)) {
+            if (event.type == "offer" && (event.groupId.isBlank() || event.groupInvite)) {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = signalOwnerUserId,
                         liveToken = tokenManager.getToken(),

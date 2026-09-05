@@ -2,6 +2,8 @@
 
 package com.maodouchat.ui.screen.settings
 
+import com.maodouchat.notification.NotificationInfrastructure
+import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.security.findActivity
 import com.maodouchat.util.RuntimeFlags
 import android.app.Activity
@@ -58,6 +60,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -1599,6 +1602,7 @@ fun AiPrivacySettingsScreen(
     var providerHistoryLimit by remember { mutableStateOf((activeProvider?.historyMessageLimit ?: 24).toString()) }
     var providerTimeout by remember { mutableStateOf((activeProvider?.timeoutSeconds ?: 120).toString()) }
     var providerStream by remember { mutableStateOf(activeProvider?.stream ?: true) }
+    var providerSupportsVision by remember { mutableStateOf(activeProvider?.supportsVision ?: false) }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
@@ -1612,6 +1616,67 @@ fun AiPrivacySettingsScreen(
         )
 
         Column(modifier = Modifier.verticalScroll(rememberScrollState()).imePadding()) {
+            val allAiReady = state.userEnabled && state.aiConsentAccepted && autoTranslateEnabled && imageOcrEnabled
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = if (allAiReady) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
+                tonalElevation = 2.dp
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.ai_privacy_enable_all_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = stringResource(R.string.ai_privacy_enable_all_subtitle),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = LocalChatPalette.current.textSecondary
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            viewModel.enableAllDefaults()
+                            imageOcrEnabled = true
+                            com.maodouchat.ai.ImageOcrPreferences.setEnabled(context, true)
+                            autoTranslateEnabled = true
+                            com.maodouchat.ai.AiPrivacyPreferences.setAutoTranslateIncoming(context, true)
+                            com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
+                                runCatching {
+                                    com.maodouchat.MaodouchatApp.instance.imageOcrAutoIndexer.runOnce()
+                                }
+                            }
+                        },
+                        enabled = !state.isSaving,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = if (allAiReady) stringResource(R.string.ai_privacy_enable_all_active)
+                            else stringResource(R.string.ai_privacy_enable_all_btn)
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
             SecurityGroup {
                 // 总开关：与聊天内主入口 / 长按场景入口配套（M5-1）
@@ -1837,6 +1902,13 @@ fun AiPrivacySettingsScreen(
                         checked = providerStream,
                         onCheckedChange = { providerStream = it }
                     )
+                    HorizontalDividerLite()
+                    SwitchRow(
+                        title = stringResource(R.string.agent_provider_supports_vision),
+                        subtitle = stringResource(R.string.agent_provider_supports_vision_hint),
+                        checked = providerSupportsVision,
+                        onCheckedChange = { providerSupportsVision = it }
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     Row {
                         TextButton(
@@ -1860,7 +1932,8 @@ fun AiPrivacySettingsScreen(
                                         contextWindowTokens = providerContextWindow.toIntOrNull() ?: 128_000,
                                         historyMessageLimit = providerHistoryLimit.toIntOrNull() ?: 24,
                                         timeoutSeconds = providerTimeout.toIntOrNull() ?: 120,
-                                        stream = providerStream
+                                        stream = providerStream,
+                                        supportsVision = providerSupportsVision
                                     )
                                 )
                                 Toast.makeText(context, R.string.agent_provider_saved, Toast.LENGTH_SHORT).show()
@@ -2647,7 +2720,7 @@ fun NotificationSettingsScreen(
         val uri = result.data?.getParcelableExtra<android.net.Uri>(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI)?.toString()
         ringtoneUri = uri
         com.maodouchat.notification.NotificationPreferences.setRingtoneUri(context, uri)
-        com.maodouchat.util.AppNotifier.ensureChannels(context)
+        com.maodouchat.notification.NotificationInfrastructure.ensureChannels(context)
     }
 
     // 0.72：群聊独立通知铃声
@@ -2665,7 +2738,7 @@ fun NotificationSettingsScreen(
         val uri = result.data?.getParcelableExtra<android.net.Uri>(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI)?.toString()
         groupRingtoneUri = uri
         com.maodouchat.notification.NotificationPreferences.setGroupRingtoneUri(context, uri)
-        com.maodouchat.util.AppNotifier.ensureChannels(context)
+        com.maodouchat.notification.NotificationInfrastructure.ensureChannels(context)
     }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -2739,7 +2812,7 @@ fun NotificationSettingsScreen(
                     subtitle = stringResource(R.string.notifications_test_subtitle),
                     enabled = state.enableNotifications
                 ) {
-                    com.maodouchat.util.AppNotifier.showTestNotification(context)
+                    com.maodouchat.notification.MessageNotificationService.showTestNotification(context)
                     Toast.makeText(context, context.getString(R.string.notifications_test_sent), Toast.LENGTH_SHORT).show()
                 }
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
@@ -2967,6 +3040,7 @@ fun GeneralSettingsScreen(
     onOpenDeveloperBots: () -> Unit = {},
     // 9.253：主题编辑器入口（TG 式高自定义 + .attheme 导入导出）
     onOpenThemeEditor: () -> Unit = {},
+    onOpenThemeWorkbench: () -> Unit = {},
     viewModel: GeneralSettingsViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -3020,6 +3094,66 @@ fun GeneralSettingsScreen(
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
             ) {
                 ThemeRow(currentTheme = state.themeMode, onThemeChange = viewModel::setThemeMode)
+                androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
+
+                // 组件排版工作台（支持组件长按拖拽排序与预览）
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenThemeWorkbench)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "组件排版工作台",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "支持组件拖拽编排与顺序自定义",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LocalChatPalette.current.textSecondary
+                        )
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Outlined.ArrowForward,
+                        contentDescription = null,
+                        tint = LocalChatPalette.current.textHint,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
+
+                // TG 式高级调色编辑器入口
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenThemeEditor)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.theme_editor_title),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(R.string.theme_editor_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LocalChatPalette.current.textSecondary
+                        )
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Outlined.ArrowForward,
+                        contentDescription = null,
+                        tint = LocalChatPalette.current.textHint,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
                 androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
                 val floatingDockOn by com.maodouchat.util.ChromePreferences.floatingDock.collectAsState()
                 val isDefaultTheme = true
@@ -3861,7 +3995,7 @@ fun ServerSettingsScreen(
                                     com.maodouchat.network.ApiConfig.ServerChangeResult.Changed -> {
                                         result = serverSavedText
                                         com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
-                                        com.maodouchat.network.WebSocketClient.disconnect()
+                                        com.maodouchat.MaodouchatApp.instance.disconnectRealtime()
                                         com.maodouchat.slim.OnDemandStickerStore.invalidateServerState()
                                         com.maodouchat.network.ServerIdentity.refreshAsync()
                                         onServerChanged()
@@ -3924,7 +4058,7 @@ fun ServerSettingsScreen(
                                 input = com.maodouchat.network.ApiConfig.BASE_URL
                                 result = serverResetDoneText
                                 com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
-                                com.maodouchat.network.WebSocketClient.disconnect()
+                                com.maodouchat.MaodouchatApp.instance.disconnectRealtime()
                                 com.maodouchat.slim.OnDemandStickerStore.invalidateServerState()
                                 com.maodouchat.network.ServerIdentity.clear()
                                 onServerChanged()

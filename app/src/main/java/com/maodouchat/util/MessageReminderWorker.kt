@@ -1,9 +1,13 @@
 package com.maodouchat.util
 
+import com.maodouchat.notification.MessageNotificationService
 import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.maodouchat.MaodouchatApp
+import com.maodouchat.data.local.AppDatabase
+import com.maodouchat.data.local.entity.toModel
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 
@@ -13,7 +17,7 @@ import com.maodouchat.security.BackgroundSessionGate
  */
 class MessageReminderWorker(
     appContext: Context,
-    params: WorkerParameters
+    params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -21,6 +25,9 @@ class MessageReminderWorker(
             ?: return Result.success()
         val ownerUserId = inputData.getString(KEY_OWNER_USER_ID)?.takeIf { it.isNotBlank() }
             ?: return Result.success()
+        val app = applicationContext as? MaodouchatApp
+        val reminderDao = app?.database?.messageReminderDao()
+            ?: AppDatabase.getInstance(applicationContext).messageReminderDao()
         val tokenManager = TokenManager.getInstance(applicationContext)
         if (!BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
@@ -29,18 +36,19 @@ class MessageReminderWorker(
             )
         ) {
             // 账号已切换/登出：提醒作废
-            MessageReminderStore.remove(applicationContext, reminderId, ownerUserId)
+            reminderDao.deleteById(reminderId, ownerUserId)
             MessageReminderScheduler.cancel(applicationContext, reminderId)
             return Result.success()
         }
-        val reminder = MessageReminderStore.get(applicationContext, reminderId, ownerUserId)
+        val entity = reminderDao.getById(reminderId, ownerUserId)
             ?: return Result.success() // 已取消
+        val reminder = entity.toModel()
         if (reminder.remindAtMillis > System.currentTimeMillis()) {
             // 时间被拨回：重排到剩余时间
             MessageReminderScheduler.reschedule(applicationContext, reminder)
             return Result.success()
         }
-        val shown = AppNotifier.showMessageReminder(
+        val shown = MessageNotificationService.showMessageReminder(
             context = applicationContext,
             chatId = reminder.chatId,
             messageId = reminder.messageId,
@@ -48,12 +56,12 @@ class MessageReminderWorker(
             expectedUserId = ownerUserId,
         )
         if (shown) {
-            MessageReminderStore.remove(applicationContext, reminderId, ownerUserId)
+            reminderDao.deleteById(reminderId, ownerUserId)
         } else {
-            // 8.51：通知未展示（权限撤销/会话门禁/前台清理）时明确放弃——删除存储行并取消作业，
+            // 通知未展示（权限撤销/会话门禁/前台清理）时明确放弃——删除存储行并取消作业，
             // 否则提醒成为「列表里看得见、永不触发」的孤儿；权限恢复后由用户重新设置。
             Log.w(TAG, "message reminder notification not shown; abandoning $reminderId")
-            MessageReminderStore.remove(applicationContext, reminderId, ownerUserId)
+            reminderDao.deleteById(reminderId, ownerUserId)
             MessageReminderScheduler.cancel(applicationContext, reminderId)
         }
         return Result.success()
@@ -65,3 +73,4 @@ class MessageReminderWorker(
         private const val TAG = "MessageReminderWorker"
     }
 }
+

@@ -1,5 +1,9 @@
 package com.maodouchat.ui.navigation
 
+import com.maodouchat.notification.SocialNotificationService
+import com.maodouchat.notification.ReminderNotificationService
+import com.maodouchat.notification.MessageNotificationService
+import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.util.RuntimeFlags
 import android.Manifest
 import android.content.Context
@@ -58,8 +62,6 @@ import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
-import com.maodouchat.network.WebSocketClient
-import com.maodouchat.network.WebSocketEvent
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.screen.chatdetail.ChatDetailScreen
@@ -124,6 +126,7 @@ object Routes {
     const val SETTINGS_ABOUT = "settings/about"
     // 9.253：主题编辑器（TG 式高自定义 + .attheme 导入导出）
     const val SETTINGS_THEME_EDITOR = "settings/theme_editor"
+    const val SETTINGS_THEME_WORKBENCH = "settings/theme_workbench"
     const val SETTINGS_SERVER = "settings/server"
     const val WATERMARK_FORENSIC = "watermark_forensic"
     const val DEVELOPER_BOTS = "developer_bots"
@@ -211,8 +214,8 @@ fun MaodouchatNavGraph(
 
     LaunchedEffect(Unit) {
         val ownerUserId = TokenManager.getInstance(context).getUserId().orEmpty()
-        WebSocketClient.events.collect { event ->
-            if (event !is WebSocketEvent.AdminBroadcast) return@collect
+        val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return@LaunchedEffect
+        app.realtimeEventDispatcher.adminNoticeEvents.collect { event ->
             if (ownerUserId.isBlank() ||
                 !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
@@ -250,7 +253,7 @@ fun MaodouchatNavGraph(
                     if (appUpdateDownloading) {
                         stringResource(R.string.about_update_downloading, appUpdateProgress)
                     } else {
-                        offer.notes.ifBlank { stringResource(R.string.about_update_notes) }
+                        com.maodouchat.update.AppUpdatePolicy.formatNotes(offer.notes).ifBlank { stringResource(R.string.about_update_notes) }
                     }
                 )
             },
@@ -550,6 +553,7 @@ fun MaodouchatNavGraph(
                         launchSingleTop = true
                     }
                 },
+                onOpenAgent = { navController.navigate(Routes.AGENT) },
             )
         }
 
@@ -677,7 +681,7 @@ fun MaodouchatNavGraph(
                             item.deeplink == "maodouchat:missed_calls" -> {
                             val callId = item.extra["callId"].orEmpty()
                             if (callId.isNotBlank()) {
-                                com.maodouchat.util.AppNotifier.cancelMissedCall(
+                                com.maodouchat.notification.CallNotificationService.cancelMissedCall(
                                     context.applicationContext,
                                     callId
                                 )
@@ -688,7 +692,7 @@ fun MaodouchatNavGraph(
                         item.type == "MESSAGE" && item.deeplink == null -> {
                             val chatId = item.extra["chatId"].orEmpty()
                             if (chatId.isNotBlank()) {
-                                com.maodouchat.util.AppNotifier.cancelMessage(context.applicationContext, chatId)
+                                com.maodouchat.notification.MessageNotificationService.cancelMessage(context.applicationContext, chatId)
                                 navController.navigate(Routes.chatDetail(chatId)) { launchSingleTop = true }
                             }
                         }
@@ -696,7 +700,7 @@ fun MaodouchatNavGraph(
                             val chatId = item.deeplink.removePrefix("maodouchat:chat:")
                             if (chatId.isNotBlank()) {
                                 // Center open should match open-chat tray dismiss.
-                                com.maodouchat.util.AppNotifier.cancelMessage(
+                                com.maodouchat.notification.MessageNotificationService.cancelMessage(
                                     context.applicationContext,
                                     chatId
                                 )
@@ -706,7 +710,7 @@ fun MaodouchatNavGraph(
                         item.deeplink?.startsWith("maodouchat:ai_tasks:") == true -> {
                             val chatId = item.deeplink.removePrefix("maodouchat:ai_tasks:")
                             if (chatId.isNotBlank()) {
-                                com.maodouchat.util.AppNotifier.cancelAiTaskRemindersForChat(
+                                com.maodouchat.notification.ReminderNotificationService.cancelAiTaskRemindersForChat(
                                     context.applicationContext,
                                     chatId
                                 )
@@ -718,7 +722,7 @@ fun MaodouchatNavGraph(
                             val postId = raw.substringBefore("?").trim()
                             val commentId = raw.substringAfter("?comment=", "").trim().takeIf { it.isNotBlank() }
                             if (postId.isNotBlank()) {
-                                com.maodouchat.util.AppNotifier.cancelPostInteraction(
+                                com.maodouchat.notification.SocialNotificationService.cancelPostInteraction(
                                     context.applicationContext,
                                     postId
                                 )
@@ -917,11 +921,15 @@ fun MaodouchatNavGraph(
                 onOpenAbout = { navController.navigate(Routes.SETTINGS_ABOUT) },
                 onOpenWatermarkForensic = { navController.navigate(Routes.WATERMARK_FORENSIC) },
                 onOpenDeveloperBots = { navController.navigate(Routes.DEVELOPER_BOTS) },
-                onOpenThemeEditor = { navController.navigate(Routes.SETTINGS_THEME_EDITOR) }
+                onOpenThemeEditor = { navController.navigate(Routes.SETTINGS_THEME_EDITOR) },
+                onOpenThemeWorkbench = { navController.navigate(Routes.SETTINGS_THEME_WORKBENCH) }
             )
         }
         composable(Routes.SETTINGS_THEME_EDITOR) {
             com.maodouchat.ui.screen.settings.ThemeEditorScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.SETTINGS_THEME_WORKBENCH) {
+            com.maodouchat.ui.screen.settings.ThemeWorkbenchScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.SETTINGS_ABOUT) {
             com.maodouchat.ui.screen.settings.AboutScreen(onBack = { navController.popBackStack() })

@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.notification.ReminderNotificationService
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import android.content.Context
@@ -184,12 +185,11 @@ class AiTasksViewModel(
             }
             return
         }
-        val locked = try { chatLockRepo.get(chatId) != null }
+        val caps = try { app.secretConversationController.capabilities(chatId) }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (_: Exception) { false }
-        val secret = try { app.database.chatDao().isSecretChat(chatId) }
-            catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (_: Exception) { true }
+            catch (_: Exception) { com.maodouchat.domain.messaging.ConversationPrivacyCapabilities(isSecretChat = true, isLocked = false) }
+        val locked = caps.isLocked
+        val secret = caps.isSecretChat
         if (secret) {
             com.maodouchat.security.SecretChatSession.markSurfaceActive(chatId)
         } else {
@@ -380,7 +380,7 @@ fun AiTasksScreen(
     LaunchedEffect(Unit) {
         val chatId = viewModel.chatId
         if (chatId.isNotBlank()) {
-            com.maodouchat.util.AppNotifier.cancelAiTaskRemindersForChat(context.applicationContext, chatId)
+            com.maodouchat.notification.ReminderNotificationService.cancelAiTaskRemindersForChat(context.applicationContext, chatId)
             // 8.48 修复：连同 WorkManager 提醒作业一并取消——此前只清托盘，到点仍会弹新通知
             val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return@LaunchedEffect
             com.maodouchat.MaodouchatApp.instance.applicationScope.launch {

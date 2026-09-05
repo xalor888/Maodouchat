@@ -1,5 +1,9 @@
 package com.maodouchat.ui.screen.chatlist
 
+import com.maodouchat.notification.SocialNotificationService
+import com.maodouchat.notification.ReminderNotificationService
+import com.maodouchat.notification.MessageNotificationService
+import com.maodouchat.notification.CallNotificationService
 import android.annotation.SuppressLint
 import android.app.Application
 import androidx.compose.animation.core.spring
@@ -171,7 +175,7 @@ class NotificationCenterViewModel(application: Application) : AndroidViewModel(a
                     item.type == "MISSED_CALL" -> {
                         val callId = item.extra["callId"].orEmpty()
                         if (callId.isNotBlank()) {
-                            com.maodouchat.util.AppNotifier.cancelMissedCall(ctx, callId)
+                            com.maodouchat.notification.CallNotificationService.cancelMissedCall(ctx, callId)
                         }
                     }
                     item.type == "AI_TASK" -> {
@@ -181,9 +185,9 @@ class NotificationCenterViewModel(application: Application) : AndroidViewModel(a
                             // 8.44：优先按 chat 整组清理（含 group-summary）——cancelAiTaskReminder
                             // 单任务不清理 summary，会造成托盘残留
                             chatId.isNotBlank() ->
-                                com.maodouchat.util.AppNotifier.cancelAiTaskRemindersForChat(ctx, chatId)
+                                com.maodouchat.notification.ReminderNotificationService.cancelAiTaskRemindersForChat(ctx, chatId)
                             taskId.isNotBlank() ->
-                                com.maodouchat.util.AppNotifier.cancelAiTaskReminder(ctx, taskId)
+                                com.maodouchat.notification.ReminderNotificationService.cancelAiTaskReminder(ctx, taskId)
                         }
                     }
                     item.type == "MESSAGE" || item.deeplink?.startsWith("maodouchat:chat:") == true -> {
@@ -191,7 +195,7 @@ class NotificationCenterViewModel(application: Application) : AndroidViewModel(a
                             ?: item.deeplink?.removePrefix("maodouchat:chat:")
                             ?: item.mergeKey.removePrefix("msg_")
                         if (chatId.isNotBlank()) {
-                            com.maodouchat.util.AppNotifier.cancelMessage(ctx, chatId)
+                            com.maodouchat.notification.MessageNotificationService.cancelMessage(ctx, chatId)
                         }
                     }
                     item.type == "POST_INTERACTION" ||
@@ -200,14 +204,14 @@ class NotificationCenterViewModel(application: Application) : AndroidViewModel(a
                             ?: item.deeplink?.removePrefix("maodouchat:post:")
                             ?: item.mergeKey.removePrefix("post_")
                         if (postId.isNotBlank()) {
-                            com.maodouchat.util.AppNotifier.cancelPostInteraction(ctx, postId)
+                            com.maodouchat.notification.SocialNotificationService.cancelPostInteraction(ctx, postId)
                         }
                     }
                     item.type == "FRIEND_REQUEST" || item.deeplink == "maodouchat:contacts" -> {
-                        com.maodouchat.util.AppNotifier.cancelAllFriendRequests(ctx)
+                        com.maodouchat.notification.SocialNotificationService.cancelAllFriendRequests(ctx)
                     }
                     item.type == "GROUP_INVITE" || item.deeplink == "maodouchat:group_invites" -> {
-                        com.maodouchat.util.AppNotifier.cancelAllGroupInvites(ctx)
+                        com.maodouchat.notification.SocialNotificationService.cancelAllGroupInvites(ctx)
                     }
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {

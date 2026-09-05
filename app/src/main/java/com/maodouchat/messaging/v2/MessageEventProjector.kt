@@ -1,5 +1,6 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.notification.MessageNotificationService
 import androidx.room.withTransaction
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.attachment.AttachmentTransferCoordinator
@@ -9,8 +10,9 @@ import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
-import com.maodouchat.util.AppNotifier
+
 import com.maodouchat.util.MediaCache
+import com.maodouchat.util.ScheduledMessageScheduler
 
 /** M02：EVENT 投影——把加密域事件（编辑/撤回/删除/回应/回执）落到本地时间线，与 DATA 投影解耦。 */
 internal class MessageEventProjector(
@@ -22,18 +24,60 @@ internal class MessageEventProjector(
 ) {
     suspend fun projectEvent(envelope: MessagingV2InboxEntity, event: MessagingV2Event) {
         val owner = ownerUserId()
+        if (app.database.messagingV2Dao().isMessageTerminal(owner, event.targetMessageId)) {
+            cleanupTerminalArtifacts(
+                conversationId = envelope.conversationId,
+                messageId = event.targetMessageId,
+                ownerUserId = owner,
+            )
+            return
+        }
+
         val existing = messageStore.getMessageById(event.targetMessageId)
-            ?: if (event.action in TERMINAL_ACTIONS &&
-                app.database.messagingV2Dao().isMessageTerminal(owner, event.targetMessageId)
-            ) {
+        if (existing == null) {
+            if (event.action in TERMINAL_ACTIONS) {
+                val kind = when (event.action) {
+                    MessagingV2EventAction.REVOKE -> MessageMutationTombstoneKind.REVOKE
+                    else -> MessageMutationTombstoneKind.DELETE
+                }
+                app.database.withTransaction {
+                    app.database.messagingV2Dao().upsertMessageTombstone(
+                        MessageMutationTombstoneEntity(
+                            ownerUserId = owner,
+                            messageId = event.targetMessageId,
+                            conversationId = envelope.conversationId,
+                            kind = kind,
+                            terminalAt = envelope.serverTimestamp,
+                        ),
+                    )
+                }
                 cleanupTerminalArtifacts(
                     conversationId = envelope.conversationId,
                     messageId = event.targetMessageId,
                     ownerUserId = owner,
                 )
+                if (event.action == MessagingV2EventAction.DELETE) {
+                    MaodouchatApp.emitChatListPreviewRefresh(envelope.conversationId)
+                }
+                onAuthoritativeMutation(
+                    MessagingV2AuthoritativeMutation(
+                        conversationId = envelope.conversationId,
+                        messageId = event.targetMessageId,
+                        kind = if (event.action == MessagingV2EventAction.REVOKE) {
+                            MessageMutationKind.REVOKE
+                        } else {
+                            MessageMutationKind.DELETE
+                        },
+                    ),
+                )
                 return
-            } else if (event.action in MISSING_TARGET_NO_OP_ACTIONS) return
-            else error("messaging_v2_event_target_missing:${event.targetMessageId}")
+            } else if (event.action in MISSING_TARGET_NO_OP_ACTIONS) {
+                return
+            } else {
+                error("messaging_v2_event_target_missing:${event.targetMessageId}")
+            }
+        }
+
         if (
             !MessagingV2MutationAuthority.canApply(
                 action = event.action,
@@ -94,6 +138,7 @@ internal class MessageEventProjector(
             MessagingV2EventAction.REACTION_SNAPSHOT -> applyReactionSnapshot(existing, envelope, event)
             MessagingV2EventAction.DELIVERY_RECEIPT -> receiptProjector.applyDeliveryReceipt(owner, existing, envelope)
             MessagingV2EventAction.READ_RECEIPT -> receiptProjector.applyReadReceipt(owner, existing, envelope, event)
+            MessagingV2EventAction.PLAY_RECEIPT -> receiptProjector.applyPlayReceipt(owner, existing, envelope, event)
         }
     }
 
@@ -165,8 +210,12 @@ internal class MessageEventProjector(
         step { MediaCache.deleteCachedMediaForMessage(app, messageId) }
         step { app.database.messageSearchDao().deleteDocument(messageId) }
         step {
+            app.database.scheduledMessageDao().deleteById(messageId, ownerUserId)
+            ScheduledMessageScheduler.cancel(app, messageId)
+        }
+        step {
             if (app.notificationCenter.removeMessageReferences(messageId)) {
-                AppNotifier.cancelMessage(app, conversationId)
+                MessageNotificationService.cancelMessage(app, conversationId)
             }
         }
         firstFailure?.let { throw it }
@@ -219,6 +268,7 @@ internal class MessageEventProjector(
             MessagingV2EventAction.DELETE,
             MessagingV2EventAction.DELIVERY_RECEIPT,
             MessagingV2EventAction.READ_RECEIPT,
+            MessagingV2EventAction.PLAY_RECEIPT,
         )
     }
 }

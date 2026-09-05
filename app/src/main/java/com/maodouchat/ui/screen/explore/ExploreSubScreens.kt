@@ -2,6 +2,7 @@
 
 package com.maodouchat.ui.screen.explore
 
+import com.maodouchat.notification.SocialNotificationService
 import com.maodouchat.util.RuntimeFlags
 import android.annotation.SuppressLint
 import android.Manifest
@@ -978,7 +979,7 @@ fun PostDetailScreen(
     }
     androidx.compose.runtime.LaunchedEffect(postId) {
         if (postId.isNotBlank()) {
-            com.maodouchat.util.AppNotifier.cancelPostInteraction(context.applicationContext, postId)
+            com.maodouchat.notification.SocialNotificationService.cancelPostInteraction(context.applicationContext, postId)
         }
         viewModel.openPostDetail(postId)
     }

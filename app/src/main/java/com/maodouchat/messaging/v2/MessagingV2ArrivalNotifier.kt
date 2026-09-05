@@ -1,5 +1,6 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
@@ -8,7 +9,7 @@ import com.maodouchat.notification.ChatQuietHoursPolicy
 import com.maodouchat.notification.ChatQuietHoursStore
 import com.maodouchat.notification.LocalNotificationSuppressPolicy
 import com.maodouchat.notification.NotificationPreferences
-import com.maodouchat.util.AppNotifier
+
 import com.maodouchat.util.RuntimeFlags
 import java.util.Calendar
 
@@ -45,7 +46,7 @@ class MessagingV2ArrivalNotifier(
         val senderName = app.database.userDao().getUserById(message.senderId)?.name
             ?.takeIf(String::isNotBlank)
             ?: app.getString(R.string.app_name)
-        AppNotifier.showMessage(
+        MessageNotificationService.showMessage(
             context = app,
             chatId = message.chatId,
             senderName = senderName,

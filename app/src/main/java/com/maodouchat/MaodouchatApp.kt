@@ -1,5 +1,7 @@
 package com.maodouchat
 
+import com.maodouchat.notification.NotificationInfrastructure
+import com.maodouchat.notification.MessageNotificationService
 import android.app.Application
 import android.content.Context
 import android.os.Build
@@ -11,6 +13,7 @@ import com.maodouchat.attachment.AttachmentTransferScheduler
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.messaging.v2.MessagingV2Runtime
 import com.maodouchat.data.local.AppDatabase
+import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.network.ApiConfig
@@ -72,12 +75,38 @@ class MaodouchatApp : Application() {
     @Volatile private var _senderKeyRetryManager: SenderKeyRetryManager? = null
     @Volatile private var _imageOcrAutoIndexer: com.maodouchat.ai.ImageOcrAutoIndexer? = null
     @Volatile private var _messagingV2Runtime: MessagingV2Runtime? = null
+    @Volatile private var _secretConversationController: com.maodouchat.security.DefaultSecretConversationController? = null
+    val realtimeEventDispatcher: com.maodouchat.core.realtime.RealtimeEventDispatcher by lazy {
+        com.maodouchat.core.realtime.DefaultRealtimeEventDispatcher()
+    }
+
+    val webSocketEventBridge: com.maodouchat.realtime.WebSocketEventBridge by lazy {
+        com.maodouchat.realtime.WebSocketEventBridge(realtimeEventDispatcher)
+    }
+
     private val realtimeConnectionManager by lazy {
         AccountScopedRealtimeConnectionManager(
             sessionContextProvider = TokenManagerSessionContextProvider(TokenManager.getInstance(this)),
             transport = WebSocketTransport,
             scope = applicationScope,
         )
+    }
+
+    fun ensureRealtimeConnected() {
+        val token = TokenManager.getInstance(this).getToken()
+        val userId = TokenManager.getInstance(this).getUserId()
+        if (!token.isNullOrBlank() && !userId.isNullOrBlank()) {
+            realtimeConnectionManager.start(
+                serverUrl = ApiConfig.WS_URL,
+                accessToken = token,
+                owner = com.maodouchat.session.SessionContext(ownerUserId = userId, generation = currentSessionGeneration()),
+                reconnect = true
+            )
+        }
+    }
+
+    fun disconnectRealtime() {
+        realtimeConnectionManager.stopCurrent()
     }
 
     // 延迟初始化 + 双检锁：后台线程首次访问时创建，不阻塞 onCreate
@@ -125,7 +154,11 @@ class MaodouchatApp : Application() {
 
     val messagingV2Runtime: MessagingV2Runtime
         get() = _messagingV2Runtime ?: synchronized(this) {
-            _messagingV2Runtime ?: MessagingV2Runtime(this, applicationScope).also {
+            _messagingV2Runtime ?: MessagingV2Runtime(
+                app = this,
+                scope = applicationScope,
+                realtimeDispatcher = realtimeEventDispatcher,
+            ).also {
                 _messagingV2Runtime = it
             }
         }
@@ -133,12 +166,67 @@ class MaodouchatApp : Application() {
     val messagingV2Outbox: com.maodouchat.messaging.v2.MessagingV2Outbox
         get() = messagingV2Runtime.outboxWriter
 
+    val secretConversationController: com.maodouchat.security.DefaultSecretConversationController
+        get() = _secretConversationController ?: synchronized(this) {
+            _secretConversationController ?: com.maodouchat.security.DefaultSecretConversationController(
+                context = this,
+                database = database,
+                scope = applicationScope,
+            ).also {
+                _secretConversationController = it
+            }
+        }
+
+    val conversationCommandFacade: com.maodouchat.conversation.ConversationCommandFacade
+        get() = com.maodouchat.conversation.ConversationCommandFacade(
+            gateway = com.maodouchat.messaging.v2.MessagingV2MessageGateway(
+                database = database,
+                messageStore = com.maodouchat.data.repository.LocalMessageStore(database.messageDao(), database),
+                outbox = messagingV2Outbox,
+            ),
+            resolveChat = { chatId -> database.chatDao().getChatById(chatId)?.toDomain() },
+            getMessage = { messageId -> database.messageDao().getMessageById(messageId)?.toDomain() },
+            ownerUserId = { TokenManager.getInstance(this).getUserId().orEmpty() },
+        )
+
+    val quickReplyUseCase: com.maodouchat.domain.messaging.QuickReplyUseCase
+        get() = com.maodouchat.quickreply.DefaultQuickReplyUseCase(
+            context = this,
+            commandFacade = conversationCommandFacade,
+            secretConversationController = secretConversationController,
+            tokenManager = TokenManager.getInstance(this),
+        )
+
+    val conversationReadReceiptCoordinator: com.maodouchat.conversation.ConversationReadReceiptCoordinator
+        get() = com.maodouchat.conversation.DefaultConversationReadReceiptCoordinator(
+            context = this,
+            database = database,
+            outbox = messagingV2Outbox,
+            secretConversationController = secretConversationController,
+            tokenManager = TokenManager.getInstance(this),
+            chatRepository = chatRepository,
+        )
+
     internal val messagingV2MutationEvents by lazy {
         com.maodouchat.messaging.v2.MessagingV2MutationEventBus()
     }
 
+
     /** 通知中心聚合仓库：统一持久化所有的应用层通知事件 */
     val notificationCenter: NotificationCenterRepository by lazy { NotificationCenterRepository(this) }
+
+    /** 群成员状态与快照存储（U06） */
+    val groupMembershipStore: com.maodouchat.group.GroupMembershipStore by lazy {
+        com.maodouchat.group.InMemoryGroupMembershipStore()
+    }
+
+    val userRepository: com.maodouchat.data.repository.UserRepository by lazy {
+        com.maodouchat.data.repository.UserRepository(database.userDao())
+    }
+
+    val chatRepository: com.maodouchat.data.repository.ChatRepository by lazy {
+        com.maodouchat.data.repository.ChatRepository(database.chatDao(), database.userDao())
+    }
 
     // 全局应用作用域 — 用 SupervisorJob + CoroutineExceptionHandler 避免未捕获异常直接崩溃
     val applicationScope = CoroutineScope(
@@ -166,6 +254,7 @@ class MaodouchatApp : Application() {
         // TokenManager is a process singleton; initialize it before any network worker may read tokens.
         TokenManager.getInstance(this)
         WebSocketClient.install(realtimeConnectionManager)
+        webSocketEventBridge.start(WebSocketClient.events, applicationScope)
         PushRegistrationManager.initialize(this)
         runCatching {
             val uid = TokenManager.getInstance(this).getUserId().orEmpty()
@@ -185,7 +274,7 @@ class MaodouchatApp : Application() {
         rebuildImageLoader()
 
         // 通知渠道必须在主线程建（系统要求）
-        com.maodouchat.util.AppNotifier.ensureChannels(this)
+        com.maodouchat.notification.NotificationInfrastructure.ensureChannels(this)
 
         // 9.3xx：冷启动按设置恢复推送保活（登录态在 ensureForUser 内校验）
         com.maodouchat.push.PushKeepAlive.ensureForUser(this)
@@ -193,8 +282,8 @@ class MaodouchatApp : Application() {
         // ConnectionService：注册系统通话 PhoneAccount（用于来电时接管原生通话 UI）
         com.maodouchat.telecom.TelecomHelper.registerPhoneAccount(this)
 
-        // 1.103：会话列表「正在输入」presence——订阅全局 WS 事件流（进程级单例，随连接生灭自清理）
-        com.maodouchat.util.TypingPresenceStore.start(com.maodouchat.network.WebSocketClient.events)
+        // 1.103：会话列表「正在输入」presence——订阅领域事件流（进程级单例，随连接生灭自清理）
+        com.maodouchat.util.TypingPresenceStore.start(realtimeEventDispatcher)
 
         // 把加密数据库 + SignalProtocol 初始化移到后台线程，避免阻塞首帧
         applicationScope.launch {
@@ -314,7 +403,7 @@ class MaodouchatApp : Application() {
                         }
                         runCatching {
                             expiredChatIds.forEach { chatIdOfExpired ->
-                                com.maodouchat.util.AppNotifier.cancelMessage(this@MaodouchatApp, chatIdOfExpired)
+                                com.maodouchat.notification.MessageNotificationService.cancelMessage(this@MaodouchatApp, chatIdOfExpired)
                             }
                         }
                     }
@@ -426,6 +515,7 @@ class MaodouchatApp : Application() {
         _secureSessionManager = null
         _senderKeyRetryManager = null
         _imageOcrAutoIndexer = null
+        _secretConversationController = null
     }
 
     override fun onLowMemory() {

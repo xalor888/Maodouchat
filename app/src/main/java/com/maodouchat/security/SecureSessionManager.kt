@@ -1,5 +1,6 @@
 package com.maodouchat.security
 
+import com.maodouchat.notification.NotificationInfrastructure
 import android.content.Context
 import android.util.Log
 import androidx.room.withTransaction
@@ -198,11 +199,10 @@ class SecureSessionManager(
             }
             try {
                 accountUserId?.takeIf { it.isNotBlank() }?.let { ownerUserId ->
-                    com.maodouchat.util.ScheduledMessageStore
-                        .listForUser(context, ownerUserId)
-                        .forEach { item ->
-                            com.maodouchat.util.ScheduledMessageScheduler.cancel(context, item.id)
-                        }
+                    database.scheduledMessageDao().listForUserBlocking(ownerUserId).forEach { item ->
+                        com.maodouchat.util.ScheduledMessageScheduler.cancel(context, item.id)
+                    }
+                    database.scheduledMessageDao().deleteForUserBlocking(ownerUserId)
                     com.maodouchat.util.ScheduledMessageStore.clearForUser(context, ownerUserId)
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
@@ -227,6 +227,7 @@ class SecureSessionManager(
             try {
                 com.maodouchat.util.MessageReminderScheduler.cancelAll(context)
                 accountUserId?.takeIf { it.isNotBlank() }?.let { uid ->
+                    database.messageReminderDao().deleteForUserBlocking(uid)
                     com.maodouchat.util.MessageReminderStore.clearForUser(context, uid)
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
@@ -257,7 +258,7 @@ class SecureSessionManager(
                 Log.w(TAG, "Failed to clear call log during local purge", error)
             }
             try {
-                com.maodouchat.util.AppNotifier.cancelAll(context)
+                com.maodouchat.notification.NotificationInfrastructure.cancelAll(context)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (error: Exception) {

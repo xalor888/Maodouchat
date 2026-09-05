@@ -1,5 +1,6 @@
 package com.maodouchat.ai
 
+import com.maodouchat.notification.ReminderNotificationService
 import android.content.Context
 import androidx.work.BackoffPolicy
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -10,7 +11,7 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.network.TokenManager
-import com.maodouchat.util.AppNotifier
+
 import java.util.concurrent.TimeUnit
 
 object AiTaskReminderScheduler {
@@ -94,7 +95,7 @@ object AiTaskReminderScheduler {
     fun cancelTask(context: Context, taskId: String) {
         val appContext = context.applicationContext
         WorkManager.getInstance(appContext).cancelUniqueWork(taskWorkName(taskId))
-        AppNotifier.cancelAiTaskReminder(appContext, taskId)
+        ReminderNotificationService.cancelAiTaskReminder(appContext, taskId)
     }
 
     fun cancelAll(context: Context) {
@@ -103,7 +104,7 @@ object AiTaskReminderScheduler {
         manager.cancelAllWorkByTag(TAG_ALL)
         manager.cancelUniqueWork(UNIQUE_PERIODIC_WORK)
         manager.cancelUniqueWork(UNIQUE_RECONCILE_WORK)
-        AppNotifier.cancelAllAiTaskReminders(appContext)
+        ReminderNotificationService.cancelAllAiTaskReminders(appContext)
     }
 
     private fun enqueueTask(
