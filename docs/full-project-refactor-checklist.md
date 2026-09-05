@@ -194,8 +194,8 @@ Gate：ratchet 重启连续性、pre-key 并发、身份变化、设备迁移和
 - [~] `GroupEncryptionHealthService` 唯一管理 coverage、epoch、repair 和错误状态（端口 + `GroupEncryptionHealth` 状态机已建并测试；实现待做）。
 - [ ] 新设备确认、成员 revision 变化和设备撤销都触发确定性的覆盖重算。
 - [ ] 保证旧 prepared ciphertext 不得跨 revision 发送。
-- [ ] 群聊发送完全不读取成员在线状态。
-- [ ] 删除旧 WS `REQUEST_SENDER_KEY`、inactive-chat decrypt 和重复 retry 路径。
+- [x] 群聊发送完全不读取成员在线状态（GroupMessagingCoordinator/SenderKeyRetryManager 无 `isOnline`/`online` 读取）。
+- [x] 删除旧 WS `REQUEST_SENDER_KEY`、inactive-chat decrypt 和重复 retry 路径（已无 `REQUEST_SENDER_KEY` 与 inactive-decrypt 遗留）。
 
 Gate：所有成员离线、单成员群、新设备、踢人、连续 revision、缺钥和进程重启 E2E 通过。
 
