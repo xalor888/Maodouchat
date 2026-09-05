@@ -233,7 +233,7 @@ Gate：重复/乱序 event、延迟 DATA、删除与附件 finalize、删除与�
 - [ ] UI 只提交 URI intent、观察 transfer projection。
 - [ ] 统一图片、视频、文件、语音、GIF、贴纸、位置和联系人附件入口。
 - [x] 处理 pause/resume/cancel、进程恢复、revision 改变、tombstone 和本地清理（pause/resume/cancel 状态机已建并测试；tombstone→`discardTerminal`；revision 改变→`reconcileAttachments` 清 wire + 重调度；进程恢复→WorkManager）。
-- [ ] 删除 ViewModel 内加密、finalize、cleanup 和附件 metadata 拼装。
+- [~] 删除 ViewModel 内加密、finalize、cleanup 和附件 metadata 拼装（加密/上传/finalize/cleanup 已委托 `AttachmentSendWorkflow`；命令 `AttachmentSendCommand`/lease 拼装仍在 ViewModel，待迁 `AttachmentIntentController`）。
 
 Gate：每个上传边界杀进程、分片恢复、账号切换、转发、密聊、阅后即焚测试通过。
 
