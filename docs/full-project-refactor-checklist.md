@@ -177,8 +177,8 @@ Gate：ACK 前后杀进程、重复 pull、poison、顺序阻塞、修复绕行�
 
 当前状态：`[~]`。`:core:crypto` 已建立身份信任纯逻辑（IdentityTrustState/StateMachine）与 `IdentityTrustService` 契约；DirectSessionManager/DirectMessageCipher/EnvelopeCodec 等端口与 SignalProtocol 拆分尚未开始。
 
-- [ ] 建立 `CryptoAccountBootstrapper`、`PreKeyInventory`、`PreKeyPublisher`。
-- [ ] 建立 `DirectSessionManager`、`DirectMessageCipher`、`EnvelopeCodec`。
+- [~] 建立 `CryptoAccountBootstrapper`、`PreKeyInventory`、`PreKeyPublisher`（`core:crypto` 端口契约已建；实现迁移自 `SignalProtocol` 待接线）。
+- [~] 建立 `DirectSessionManager`、`DirectMessageCipher`、`EnvelopeCodec`（`core:crypto` 端口契约已建；实现迁移自 `SignalProtocol` 待接线）。
 - [~] 建立 `IdentityTrustService`、`DeviceIdMigrationCoordinator`（`IdentityTrustService` 契约 + `IdentityTrustStateMachine` 纯逻辑已建并测试；`DeviceIdMigrationCoordinator` 待做）。
 - [x] `SignalProtocolStore` 只负责 libsignal 持久化适配（`PersistentSignalProtocolStore` 390 行独立适配，`SignalProtocol` 通过它读写身份/签名预密钥/OTPK；不混业务逻辑）。
 - [ ] 迁移期保留薄 `SignalProtocol` facade；调用者迁完后删除宽接口。
