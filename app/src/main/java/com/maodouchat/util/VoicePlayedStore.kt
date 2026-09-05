@@ -35,12 +35,6 @@ object VoicePlayedStore {
         }
     }
 
-    /** 登出/销户清理该账号的已播标记。 */
-    fun clearForUser(context: Context, userId: String) {
-        if (userId.isBlank()) return
-        runCatching { db(context).voicePlayedDao().deleteForUserBlocking(userId) }
-    }
-
     private fun db(ctx: Context): AppDatabase =
         AppDatabase.getInstance(ctx.applicationContext)
 

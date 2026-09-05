@@ -114,6 +114,7 @@ Gate：并发 401、进程恢复、A-B-A 换号、切服、设备吊销、错误
 - [ ] 按领域拆 entity、DAO、transaction 和 migration ownership。
 - [x] `AppDatabase.kt` 只负责数据库创建、注册 migration 和 transaction boundary（35 个迁移已抽到 `DatabaseMigrations.kt` 并经 `DatabaseMigrationsChainTest` 锁定连续无断点；AppDatabase 723→171 行）。
 - [x] 建立 `DatabaseLifecycle`，覆盖创建、解锁、换号销毁、迁移失败和恢复（已抽为 `internal object DatabaseLifecycle`：open/close/destroy/backup-recreate）。
+- [x] 登出清理覆盖审计（`SecureSessionManager` 双路径：销毁整库 vs 同账号保留；14 张 owner 作用域表逐项核对——定时/提醒/归档忽略/语音/通知中心/附件/推送等短暂队列按账号清理，草稿/信任/墓碑/V2 收发箱/重试队列在保留路径有意保留以保证重登收敛；销毁路径整库删除兜底）。
 - [ ] 为每个受支持旧版本到当前版本保存 schema fixture 和真实数据 fixture。
 - [ ] 测试 SQLCipher 密钥错误、迁移中断、磁盘满、FTS、外键、墓碑和账号隔离。
 - [ ] 所有 SharedPreferences JSON 业务存储迁移到版本化 Room 表；偏好设置除外。

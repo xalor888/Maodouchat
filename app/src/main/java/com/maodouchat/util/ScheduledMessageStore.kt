@@ -1,9 +1,11 @@
 package com.maodouchat.util
 
 import android.content.Context
+import com.maodouchat.data.local.AppDatabase
+import com.maodouchat.data.local.entity.toEntity
+import com.maodouchat.data.local.entity.toModel
 import com.maodouchat.network.TokenManager
-import org.json.JSONArray
-import org.json.JSONObject
+import java.util.TimeZone
 import java.util.UUID
 
 data class ScheduledMessage(
@@ -22,16 +24,18 @@ data class ScheduledMessage(
     /** 1.21：本链已发送次数（每次重排 +1，用于判定是否继续）。 */
     val occurrencesSent: Int = 0,
     /** 1.62：仅工作日重复（周一至周五，跳过周末）。 */
-    val weekdaysOnly: Boolean = false
+    val weekdaysOnly: Boolean = false,
+    val status: String = "PENDING",
+    val attempt: Int = 0,
+    val timeZoneId: String = "",
+    val idempotencyKey: String = "",
 )
 
 /**
- * 账号隔离的定时消息本地队列（SharedPreferences JSON）。
+ * 账号隔离的定时消息本地队列（Room 数据库持久化）。
  * 不进服务端明文；发出前可改可删。
  */
 object ScheduledMessageStore {
-    private const val PREFS = "scheduled_messages"
-    private const val KEY_ITEMS = "items"
 
     @Synchronized
     fun list(context: Context): List<ScheduledMessage> {
@@ -42,39 +46,36 @@ object ScheduledMessageStore {
     @Synchronized
     fun listForUser(context: Context, ownerUserId: String): List<ScheduledMessage> {
         if (ownerUserId.isBlank()) return emptyList()
-        return readAll(context)
-            .filter { it.ownerUserId == ownerUserId }
-            .map { it.item }
+        return db(context).scheduledMessageDao().listForUserBlocking(ownerUserId).map { it.toModel() }
     }
 
     @Synchronized
     fun listForChat(context: Context, chatId: String): List<ScheduledMessage> =
-        list(context).filter { it.chatId == chatId }.sortedBy { it.sendAtMillis }
+        listForChatForUser(context, chatId, userId(context))
 
     @Synchronized
     fun listForChatForUser(
         context: Context,
         chatId: String,
         ownerUserId: String,
-    ): List<ScheduledMessage> = listForUser(context, ownerUserId)
-        .filter { it.chatId == chatId }
-        .sortedBy { it.sendAtMillis }
+    ): List<ScheduledMessage> {
+        if (ownerUserId.isBlank() || chatId.isBlank()) return emptyList()
+        return db(context).scheduledMessageDao().listForChatBlocking(ownerUserId, chatId).map { it.toModel() }
+    }
 
     @Synchronized
     fun get(context: Context, id: String): ScheduledMessage? =
-        list(context).firstOrNull { it.id == id }
+        db(context).scheduledMessageDao().getByIdWithoutOwnerBlocking(id)?.toModel()
 
     @Synchronized
     fun getForUser(context: Context, id: String, ownerUserId: String): ScheduledMessage? {
-        if (ownerUserId.isBlank()) return null
-        return readAll(context).firstOrNull {
-            it.ownerUserId == ownerUserId && it.item.id == id
-        }?.item
+        if (ownerUserId.isBlank() || id.isBlank()) return null
+        return db(context).scheduledMessageDao().getByIdBlocking(id, ownerUserId)?.toModel()
     }
 
     @Synchronized
     fun ownerOf(context: Context, id: String): String? =
-        readAll(context).firstOrNull { it.item.id == id }?.ownerUserId
+        db(context).scheduledMessageDao().getByIdWithoutOwnerBlocking(id)?.ownerUserId
 
     @Synchronized
     fun add(
@@ -124,8 +125,9 @@ object ScheduledMessageStore {
         val sendAt = ScheduledMessagePolicy.clampSendAt(sendAtMillis, now)
         val pending = listForChatForUser(context, chatId, userId)
         if (!ScheduledMessagePolicy.canAddMore(pending.size)) return null
+        val randomSuffix = UUID.randomUUID().toString().take(12)
         val item = ScheduledMessage(
-            id = "sch_${UUID.randomUUID().toString().take(12)}",
+            id = "sch_$randomSuffix",
             chatId = chatId,
             peerUserId = peerUserId,
             text = normalized,
@@ -136,11 +138,11 @@ object ScheduledMessageStore {
             repeatIntervalMs = repeatIntervalMs.coerceAtLeast(0L),
             repeatCount = repeatCount.coerceAtLeast(0),
             occurrencesSent = occurrencesSent.coerceAtLeast(0),
-            weekdaysOnly = weekdaysOnly
+            weekdaysOnly = weekdaysOnly,
+            timeZoneId = TimeZone.getDefault().id,
+            idempotencyKey = "sm_$randomSuffix"
         )
-        val all = readAll(context).toMutableList()
-        all.add(Owned(userId, item))
-        writeAll(context, all)
+        db(context).scheduledMessageDao().upsertBlocking(item.toEntity())
         return item
     }
 
@@ -167,18 +169,14 @@ object ScheduledMessageStore {
         sendAtMillis: Long? = null,
     ): ScheduledMessage? {
         val userId = ownerUserId.trim()
-        if (userId.isBlank()) return null
-        val all = readAll(context).toMutableList()
-        val idx = all.indexOfFirst { it.ownerUserId == userId && it.item.id == id }
-        if (idx < 0) return null
-        val current = all[idx].item
+        if (userId.isBlank() || id.isBlank()) return null
+        val current = db(context).scheduledMessageDao().getByIdBlocking(id, userId)?.toModel() ?: return null
         val now = System.currentTimeMillis()
         val nextText = text?.let { ScheduledMessagePolicy.normalizeText(it) } ?: current.text
         if (!ScheduledMessagePolicy.isValidText(nextText)) return null
         val nextSendAt = sendAtMillis?.let { ScheduledMessagePolicy.clampSendAt(it, now) } ?: current.sendAtMillis
         val updated = current.copy(text = nextText, sendAtMillis = nextSendAt)
-        all[idx] = Owned(userId, updated)
-        writeAll(context, all)
+        db(context).scheduledMessageDao().upsertBlocking(updated.toEntity())
         return updated
     }
 
@@ -190,22 +188,17 @@ object ScheduledMessageStore {
 
     @Synchronized
     fun removeForUser(context: Context, id: String, ownerUserId: String): Boolean {
-        if (ownerUserId.isBlank()) return false
-        val all = readAll(context)
-        val next = all.filterNot { it.ownerUserId == ownerUserId && it.item.id == id }
-        if (next.size == all.size) return false
-        writeAll(context, next)
-        return true
+        if (ownerUserId.isBlank() || id.isBlank()) return false
+        return db(context).scheduledMessageDao().deleteByIdBlocking(id, ownerUserId) > 0
     }
 
     @Synchronized
-    fun due(context: Context, nowMillis: Long = System.currentTimeMillis()): List<ScheduledMessage> =
-        list(context).filter { it.sendAtMillis <= nowMillis }
-
-    @Synchronized
-    fun clearForUser(context: Context, userId: String) {
-        if (userId.isBlank()) return
-        writeAll(context, readAll(context).filterNot { it.ownerUserId == userId })
+    fun due(context: Context, nowMillis: Long = System.currentTimeMillis()): List<ScheduledMessage> {
+        val uid = userId(context)
+        if (uid.isBlank()) return emptyList()
+        return db(context).scheduledMessageDao().listForUserBlocking(uid)
+            .filter { it.sendAtMillis <= nowMillis }
+            .map { it.toModel() }
     }
 
     /** Cancel-store rows for one chat (current owner). Returns removed item ids. */
@@ -221,78 +214,16 @@ object ScheduledMessageStore {
         ownerUserId: String,
     ): List<String> {
         if (chatId.isBlank() || ownerUserId.isBlank()) return emptyList()
-        val all = readAll(context)
-        val removedIds = all
-            .filter { it.ownerUserId == ownerUserId && it.item.chatId == chatId }
-            .map { it.item.id }
-        if (removedIds.isEmpty()) return emptyList()
-        writeAll(context, all.filterNot { it.ownerUserId == ownerUserId && it.item.chatId == chatId })
+        val items = db(context).scheduledMessageDao().listForChatBlocking(ownerUserId, chatId)
+        if (items.isEmpty()) return emptyList()
+        val removedIds = items.map { it.id }
+        db(context).scheduledMessageDao().deleteForChatBlocking(ownerUserId, chatId)
         return removedIds
     }
 
-    private data class Owned(val ownerUserId: String, val item: ScheduledMessage)
+    private fun db(ctx: Context): AppDatabase =
+        AppDatabase.getInstance(ctx.applicationContext)
 
     private fun userId(ctx: Context): String =
-        TokenManager.getInstance(ctx).getUserId().orEmpty()
-
-    private fun prefs(ctx: Context) =
-        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-
-    private fun readAll(context: Context): List<Owned> {
-        val raw = prefs(context).getString(KEY_ITEMS, "[]") ?: "[]"
-        return runCatching {
-            val arr = JSONArray(raw)
-            buildList {
-                for (i in 0 until arr.length()) {
-                    val o = arr.optJSONObject(i) ?: continue
-                    val owner = o.optString("ownerUserId")
-                    val id = o.optString("id")
-                    val chatId = o.optString("chatId")
-                    val text = o.optString("text")
-                    if (owner.isBlank() || id.isBlank() || chatId.isBlank() || text.isBlank()) continue
-                    add(
-                        Owned(
-                            owner,
-                            ScheduledMessage(
-                                id = id,
-                                chatId = chatId,
-                                peerUserId = o.optString("peerUserId"),
-                                text = text,
-                                sendAtMillis = o.optLong("sendAtMillis"),
-                                createdAtMillis = o.optLong("createdAtMillis"),
-                                isGroup = o.optBoolean("isGroup", false),
-                                ownerUserId = owner,
-                                repeatIntervalMs = o.optLong("repeatIntervalMs", 0L),
-                                repeatCount = o.optInt("repeatCount", 0),
-                                occurrencesSent = o.optInt("occurrencesSent", 0),
-                                weekdaysOnly = o.optBoolean("weekdaysOnly", false)
-                            )
-                        )
-                    )
-                }
-            }
-        }.getOrDefault(emptyList())
-    }
-
-    private fun writeAll(context: Context, items: List<Owned>) {
-        val arr = JSONArray()
-        items.forEach { owned ->
-            arr.put(
-                JSONObject()
-                    .put("ownerUserId", owned.ownerUserId)
-                    .put("id", owned.item.id)
-                    .put("chatId", owned.item.chatId)
-                    .put("peerUserId", owned.item.peerUserId)
-                    .put("text", owned.item.text)
-                    .put("sendAtMillis", owned.item.sendAtMillis)
-                    .put("createdAtMillis", owned.item.createdAtMillis)
-                    .put("isGroup", owned.item.isGroup)
-                    .put("repeatIntervalMs", owned.item.repeatIntervalMs)
-                    .put("repeatCount", owned.item.repeatCount)
-                    .put("occurrencesSent", owned.item.occurrencesSent)
-                    .put("weekdaysOnly", owned.item.weekdaysOnly)
-            )
-        }
-        prefs(context).edit().putString(KEY_ITEMS, arr.toString()).apply()
-    }
+        TokenManager.getInstance(ctx.applicationContext).getUserId().orEmpty()
 }
