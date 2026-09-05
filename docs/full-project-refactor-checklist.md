@@ -168,7 +168,7 @@ Gate：新旧客户端兼容矩阵确定；历史数据迁移可逆演练通过�
 - [x] 拆分 DATA、EVENT、RECEIPT、GROUP_CONTROL projector（DATA→`MessageContentProjector`、EVENT→`MessageEventProjector`、RECEIPT→`MessageReceiptProjector`、GROUP_CONTROL→`GroupMessagingCoordinator`；`MessagingV2TimelineProjector` 只剩 DATA 分派 + 到达策略）。
 - [x] Runtime 通过接口注入，不由页面或功能模块自行构造（app 已接入 `:domain:messaging`，`MessagingV2Runtime` 实现 domain 端口：`syncInbox`/`acknowledge`/`outbox: Flow<OutboxState>`（DAO 计数 Flow combine）；单一构造点在 `MaodouchatApp`）。
 - [x] 所有发送来源统一经过 tombstone、owner-session、outbox 事务（`ConversationCommandFacade.stage`→`MessagingV2MessageGateway`→`MessagingV2Outbox`（tombstone+owner+单事务）；`sendMessageV2` 唯一调用者为 OutboxCoordinator）。
-- [~] 完成 poison envelope、dead letter、stale claim 和 repair bypass 的观测与操作入口（基础设施已在：`recoverStaleInboxClaims`/`recoverStaleOutboxClaims`、`MessagingV2InboxFailurePolicy`、dead-letter 路径；面向管理端/日志的观测与手动 repair 操作入口待补）。
+- [~] 完成 poison envelope、dead letter、stale claim 和 repair bypass 的观测与操作入口（基础设施 + 观测已就位：`recoverStaleInbox/OutboxClaims`、`MessagingV2InboxFailurePolicy`、`runtime.deadLetterCount` 观测流；手动 repair 操作 UI 待随管理后台 UI 重写补充）。
 - [x] 删除旧消息 pull、屏幕解密、扫描 `SENDING` 行和 WS message 命令（旧 pull/WS 命令/SENDING 启动扫描已删除；`requiresDecryptPlaceholder` 为 v2 projector 解密占位，非旧屏幕解密）。
 
 Gate：ACK 前后杀进程、重复 pull、poison、顺序阻塞、修复绕行和终态竞态测试通过。

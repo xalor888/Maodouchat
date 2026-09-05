@@ -545,4 +545,8 @@ interface MessagingV2Dao {
         "SELECT COUNT(*) FROM messaging_v2_outbox WHERE ownerUserId = :ownerUserId AND state IN ('RETRY_PREPARE','RETRY_SEND')"
     )
     fun observeRetryingOutboxCount(ownerUserId: String): Flow<Int>
+
+    /** M02：死信信封计数流（观测入口——poison/dead-letter 排障）。 */
+    @Query("SELECT COUNT(*) FROM messaging_v2_inbox WHERE ownerUserId = :ownerUserId AND state = 'DEAD_LETTER'")
+    fun observeDeadLetterCount(ownerUserId: String): Flow<Int>
 }

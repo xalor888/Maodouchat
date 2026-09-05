@@ -171,6 +171,9 @@ class MessagingV2Runtime(
         syncNow()
     }
 
+    /** M02：死信计数观测流（poison/dead-letter 排障观测入口）。 */
+    val deadLetterCount = dao.observeDeadLetterCount(tokenManager.getUserId().orEmpty())
+
     /**
      * Pauses both receive and send convergence while destructive conversation state is removed.
      * This prevents an already-claimed envelope or outboxWriter row from projecting after cleanup.
