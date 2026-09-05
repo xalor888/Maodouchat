@@ -70,99 +70,6 @@ class UserRepository {
         }
     }
 
-    fun register(name: String, email: String, password: String): UserResponse? {
-        val normalizedEmail = email.normalizedEmail()
-        val safeName = name.trim().take(MAX_NAME_LENGTH)
-        val registerTx = {
-            transaction {
-                if (!Users.selectAll().where { Users.email eq normalizedEmail }.empty()) return@transaction null
-
-                // 完整 UUID，避免 take(8)（32-bit 熵）碰撞导致主键唯一冲突被 isUniqueViolation 吞掉、
-                // 误报"邮箱已存在"而注册静默失败。
-                val id = "u_${UUID.randomUUID()}"
-                val hash = BCrypt.withDefaults().hashToString(12, password.toCharArray())
-                Users.insert {
-                    it[Users.id] = id
-                    it[Users.name] = safeName
-                    it[Users.email] = normalizedEmail
-                    it[passwordHash] = hash
-                    it[isOnline] = false
-                    it[status] = "在线"
-                    it[showOnline] = true
-                    it[searchable] = true
-                    it[defaultPostVisibility] = "PUBLIC"
-                    it[isModerator] = normalizedEmail in ServerConfig.moderatorEmails
-                }
-                // 一次性引导：BOOTSTRAP_FIRST_USER_AS_ADMIN=true 时第一个注册账号自动成为
-                // 主管理员（调用方在 registrationLock 内串行执行，见 companion 注释）。
-                if (ServerConfig.bootstrapFirstUserAsAdmin &&
-                    Users.selectAll().where { Users.id neq id }.empty()
-                ) {
-                    com.maodouchat.server.config.AdminAccess.grantAdmin(id)
-                }
-                UserResponse(id, safeName, normalizedEmail, status = "在线", isModerator = normalizedEmail in ServerConfig.moderatorEmails)
-            }
-        }
-        return try {
-            if (ServerConfig.bootstrapFirstUserAsAdmin) {
-                synchronized(registrationLock) { registerTx() }
-            } else {
-                registerTx()
-            }
-        } catch (error: Exception) {
-            if (isUniqueViolation(error)) null else throw error
-        }
-    }
-
-    fun login(email: String, password: String): UserResponse? {
-        val result = loginWithFactors(email, password, totpCode = null)
-        // Legacy path: only succeed when TOTP is not enabled.
-        return if (result.passwordOk && !result.totpEnabled) result.user else null
-    }
-
-    
-    data class LoginResult(
-        val user: UserResponse?,
-        val passwordOk: Boolean,
-        val totpEnabled: Boolean,
-        val totpOk: Boolean
-    )
-
-    fun loginWithFactors(email: String, password: String, totpCode: String?): LoginResult {
-        return transaction {
-            val normalizedEmail = email.normalizedEmail()
-            val user = Users.selectAll().where { Users.email eq normalizedEmail }.forUpdate().firstOrNull()
-                ?: return@transaction LoginResult(null, false, false, false)
-            if (user[Users.deletedAt] != null) return@transaction LoginResult(null, false, false, false)
-            if (user[Users.suspendedUntil] > System.currentTimeMillis()) {
-                return@transaction LoginResult(null, false, false, false)
-            }
-            val hash = user[Users.passwordHash]
-            val passwordOk = BCrypt.verifyer().verify(password.toCharArray(), hash).verified
-            if (!passwordOk) return@transaction LoginResult(null, false, false, false)
-            val enabled = user[Users.totpEnabled] && !user[Users.totpSecret].isNullOrBlank()
-            val secret = user[Users.totpSecret].orEmpty()
-            val totpOk = if (!enabled) true else {
-                val totpAccepted = com.maodouchat.server.service.TotpService.verify(secret, totpCode.orEmpty()) { candidate ->
-                    mfaService.acceptTotpCounter(user, candidate)
-                }
-                // 0.75：TOTP 校验失败时尝试恢复码（单次使用；丢失验证器可恢复登录）
-                if (totpAccepted) true else mfaService.consumeBackupCode(user, totpCode.orEmpty())
-            }
-            if (passwordOk && totpOk) {
-                Users.update({ Users.email eq normalizedEmail }) {
-                    it[lastSeen] = System.currentTimeMillis()
-                }
-            }
-            LoginResult(
-                user = if (passwordOk && totpOk) user.toPrivateUser(isOnlineOverride = false) else null,
-                passwordOk = true,
-                totpEnabled = enabled,
-                totpOk = totpOk
-            )
-        }
-    }
-
     fun getById(userId: String): UserResponse? {
         return transaction {
             Users.selectAll().where { Users.id eq userId }.firstOrNull()
@@ -581,38 +488,25 @@ class UserRepository {
      * 修改密码：先校验旧密码，成功后用 BCrypt cost=12 重哈希
      * @return true 改密成功；false 用户不存在或旧密码错误
      */
-    fun changePassword(userId: String, oldPassword: String, newPassword: String): Boolean {
-        return transaction {
-            val row = Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull() ?: return@transaction false
-            if (row[Users.deletedAt] != null) return@transaction false
-            if (!BCrypt.verifyer().verify(oldPassword.toCharArray(), row[Users.passwordHash]).verified) return@transaction false
-            val newHash = BCrypt.withDefaults().hashToString(12, newPassword.toCharArray())
-            Users.update({ Users.id eq userId }) { it[passwordHash] = newHash }
-            true
-        }
-    }
+    private val credentialService = CredentialService()
 
-    /**
-     * 邮箱验证码重置密码（调用方已校验验证码）。
-     * @return 成功时返回 userId；邮箱不存在或已注销时返回 null（路由应对外统一文案，防枚举）
-     */
-    fun resetPasswordByEmail(email: String, newPassword: String): String? {
-        return transaction {
-            val normalizedEmail = email.normalizedEmail()
-            val row = Users.selectAll().where { Users.email eq normalizedEmail }.forUpdate().firstOrNull()
-                ?: return@transaction null
-            if (row[Users.deletedAt] != null) return@transaction null
-            val newHash = BCrypt.withDefaults().hashToString(12, newPassword.toCharArray())
-            Users.update({ Users.id eq row[Users.id] }) { it[passwordHash] = newHash }
-            row[Users.id]
-        }
-    }
+    fun register(name: String, email: String, password: String): UserResponse? =
+        credentialService.register(name, email, password)
 
-    fun verifyPassword(userId: String, password: String): Boolean = transaction {
-        val row = Users.selectAll().where { Users.id eq userId }.firstOrNull() ?: return@transaction false
-        if (row[Users.deletedAt] != null || row[Users.suspendedUntil] > System.currentTimeMillis()) return@transaction false
-        BCrypt.verifyer().verify(password.toCharArray(), row[Users.passwordHash]).verified
-    }
+    fun login(email: String, password: String): UserResponse? =
+        credentialService.login(email, password)
+
+    fun loginWithFactors(email: String, password: String, totpCode: String?): CredentialService.LoginResult =
+        credentialService.loginWithFactors(email, password, totpCode)
+
+    fun changePassword(userId: String, oldPassword: String, newPassword: String): Boolean =
+        credentialService.changePassword(userId, oldPassword, newPassword)
+
+    fun resetPasswordByEmail(email: String, newPassword: String): String? =
+        credentialService.resetPasswordByEmail(email, newPassword)
+
+    fun verifyPassword(userId: String, password: String): Boolean =
+        credentialService.verifyPassword(userId, password)
 
     private val accountLifecycleService = AccountLifecycleService()
     private val mfaService = com.maodouchat.server.service.MfaService()
@@ -633,20 +527,6 @@ class UserRepository {
         onlineVisibility: String? = null
     ): PrivacyUpdateResult? = privacyService.updatePrivacyWithTransitions(userId, showOnline, showStatus, searchable, defaultPostVisibility, onlineVisibility)
 
-
-    private fun ResultRow.toPrivateUser(isOnlineOverride: Boolean? = null): UserResponse {
-        return UserResponse(
-            id = this[Users.id],
-            name = this[Users.name],
-            email = this[Users.email],
-            avatar = this[Users.avatar],
-            status = this[Users.status],
-            isOnline = isOnlineOverride ?: this[Users.isOnline],
-            isModerator = this[Users.isModerator],
-            lastSeen = this[Users.lastSeen],
-            username = this[Users.username]
-        )
-    }
 
     private fun ResultRow.toPublicUser(lastSeenVisible: Boolean = false, anonymous: Boolean = false): UserResponse {
         if (this[Users.deletedAt] != null) {
@@ -677,7 +557,6 @@ class UserRepository {
         )
     }
 
-    /** 双向拉黑集合（viewer 拉黑的人 + 拉黑 viewer 的人）。 */
     private fun blockedUserIdsInTx(viewerId: String): Set<String> {
         val blockedByMe = BlockedUsers.selectAll()
             .where { BlockedUsers.blockerId eq viewerId }
@@ -764,8 +643,6 @@ class UserRepository {
     }
 
 
-    private fun String.normalizedEmail(): String = trim().lowercase()
-
     private fun isValidAvatarUrl(value: String): Boolean {
         if (value.length > MAX_AVATAR_LENGTH) return false
         val prefix = "/api/files/avatar/"
@@ -774,16 +651,8 @@ class UserRepository {
             value.startsWith(com.maodouchat.server.config.ServerConfig.baseUrl.trimEnd('/') + prefix)
     }
 
-    fun isUniqueViolation(error: Throwable): Boolean {
-        var current: Throwable? = error
-        while (current != null) {
-            if (current is java.sql.SQLException && current.sqlState == "23505") return true
-            val message = current.message.orEmpty().lowercase()
-            if (message.contains("unique") || message.contains("duplicate key")) return true
-            current = current.cause
-        }
-        return false
-    }
+    fun isUniqueViolation(error: Throwable): Boolean =
+        com.maodouchat.server.repository.isUniqueViolation(error)
 
     private companion object {
         private const val MAX_NAME_LENGTH = 50
@@ -825,8 +694,8 @@ class UserRepository {
          * 注册事务互看不到对方未提交的插入，双双判定自己是"第一个用户"→双主管理员。
          * 单实例部署（compose 固定单 server）下用进程锁把整个注册事务串行化：
          * 先提交者成为唯一"第一个"，后到者在锁内能看到已提交行。注册本身低频，锁开销可忽略。
+         * （锁本体随 register 迁入 CredentialService。）
          */
-        private val registrationLock = Any()
     }
 }
 
