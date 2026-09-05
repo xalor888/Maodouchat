@@ -34,7 +34,7 @@ object AppNotifier {
     private const val CHANNEL_MESSAGES = "messages_v4"
     private const val CHANNEL_GROUP_MESSAGES = "group_messages_v4"
     private const val CHANNEL_CALLS = "calls_v4"
-    private const val CHANNEL_AI_TASKS = "ai_tasks_v4"
+    internal const val CHANNEL_AI_TASKS = "ai_tasks_v4"
     private val LEGACY_CHANNEL_IDS = listOf("messages", "group_messages", "calls", "ai_tasks")
     private val notificationMutationLock = Any()
 
@@ -726,73 +726,9 @@ object AppNotifier {
         showPreview: Boolean,
         soundEnabled: Boolean,
         expectedUserId: String,
-    ): Boolean {
-        if (!notificationOwnerMatches(context, expectedUserId)) return false
-        ensureChannels(context)
-        if (!canPostNotifications(context)) return false
-        val tapIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(EXTRA_OPEN_AI_TASKS_CHAT_ID, chatId)
-            putNotificationOwner(expectedUserId)
-            data = Uri.parse(NotificationSlotPolicy.aiTaskDataUri(taskId))
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            NotificationSlotPolicy.aiTaskRequestCode(taskId),
-            tapIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val chatLocked = isChatPinLocked(context, chatId)
-        val secretChat = isSecretChat(context, chatId)
-        val hideTaskBody = shouldHideSensitiveDetails(context, showPreview) || chatLocked || (secretChat && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_NOTIF_PREVIEW_BLOCK))
-        val body = if (!hideTaskBody) {
-            taskTitle
-        } else if (chatLocked) {
-            context.getString(R.string.chat_lock_list_preview)
-        } else if (secretChat) {
-            context.getString(R.string.secret_chat_notification_preview)
-        } else {
-            context.getString(R.string.notification_ai_task_due)
-        }
-        val notification = NotificationCompat.Builder(context, CHANNEL_AI_TASKS)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(R.string.notification_ai_task_title))
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(genericNotification(context, CHANNEL_AI_TASKS, R.string.notification_ai_task_due))
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .setWhen(dueAt)
-            .setShowWhen(true)
-            .setGroup(NotificationSlotPolicy.aiTaskGroupKey(chatId))
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setSilent(!effectiveSoundEnabled(context, soundEnabled))
-            .build()
-        if (!notificationOwnerMatches(context, expectedUserId)) return false
-        safeNotify(context, NotificationSlotPolicy.AI_TASK_TAG, NotificationSlotPolicy.aiTaskNotifyId(taskId), notification, expectedUserId)
-        // 分组需要一条 summary 通知才能在所有 Android 版本（尤其 7.0+）正确折叠展示；
-        // 与子通知共用 AI 任务 tag（见 NotificationSlotPolicy），现有 cancel* 方法会一并清理。
-        showAiTaskGroupSummary(context, chatId, expectedUserId)
-        // 同步到通知中心
-        runCatching {
-            com.maodouchat.MaodouchatApp.emitNotificationCenterItem(
-                NotificationCenterItem(
-                    id = "ai_task_$taskId",
-                    type = NotificationCenterType.AI_TASK,
-                    mergeKey = "ai_tasks_$chatId",
-                    title = context.getString(R.string.notification_ai_task_title),
-                    subtitle = if (hideTaskBody) null else taskTitle,
-                    preview = body,
-                    deeplink = "maodouchat:ai_tasks:$chatId",
-                    extra = mapOf("taskId" to taskId, "chatId" to chatId, "dueAt" to dueAt.toString())
-                ),
-                expectedUserId = expectedUserId,
-            )
-        }
-        return true
-    }
+    ): Boolean = com.maodouchat.notification.ReminderNotificationService.showAiTaskReminder(
+        context, taskId, chatId, taskTitle, dueAt, showPreview, soundEnabled, expectedUserId
+    )
 
     fun cancelMessage(context: Context, chatId: String) {
         // 与 showMessage 的 tag 化 notify 保持一致：按 (tag, id=0) 取消，而非旧的 hashCode id。
@@ -810,52 +746,18 @@ object AppNotifier {
         }
     }
 
-    fun cancelAiTaskReminder(context: Context, taskId: String) {
-        NotificationManagerCompat.from(context).cancel(NotificationSlotPolicy.AI_TASK_TAG, NotificationSlotPolicy.aiTaskNotifyId(taskId))
-    }
-
-    /**
-     * 同一 chat 的所有 AI 任务提醒共享一个分组；Android 7.0+ 必须有一条 group-summary
-     * 通知，否则分组内的子通知可能不完整展示。summary 用固定 id，随最后一个子通知被
-     * cancelAiTaskRemindersForChat / cancelAllAiTaskReminders 一并移除。
-     */
-    private fun showAiTaskGroupSummary(context: Context, chatId: String, expectedUserId: String) {
-        ensureChannels(context)
-        val groupKey = "ai_tasks_$chatId"
-        val summary = NotificationCompat.Builder(context, CHANNEL_AI_TASKS)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(R.string.notification_ai_task_group_summary))
-            .setContentText(context.getString(R.string.notification_ai_task_due))
-            .setGroup(groupKey)
-            .setGroupSummary(true)
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setSilent(true)
-            .build()
-        safeNotify(context, NotificationSlotPolicy.AI_TASK_TAG, NotificationSlotPolicy.aiTaskSummaryId(chatId), summary, expectedUserId)
-    }
+    fun cancelAiTaskReminder(context: Context, taskId: String) =
+        com.maodouchat.notification.ReminderNotificationService.cancelAiTaskReminder(context, taskId)
 
     /**
      * Drop tray reminders for one chat when the AI tasks screen (or center row) is opened.
      * Notifications are grouped as `ai_tasks_{chatId}` in [showAiTaskReminder].
      */
-    fun cancelAiTaskRemindersForChat(context: Context, chatId: String) {
-        if (chatId.isBlank() || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        val groupKey = NotificationSlotPolicy.aiTaskGroupKey(chatId)
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.activeNotifications
-            .filter { it.tag == NotificationSlotPolicy.AI_TASK_TAG && it.notification.group == groupKey }
-            .forEach { manager.cancel(it.tag, it.id) }
-    }
+    fun cancelAiTaskRemindersForChat(context: Context, chatId: String) =
+        com.maodouchat.notification.ReminderNotificationService.cancelAiTaskRemindersForChat(context, chatId)
 
-    fun cancelAllAiTaskReminders(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.activeNotifications
-            .filter { it.tag == NotificationSlotPolicy.AI_TASK_TAG }
-            .forEach { manager.cancel(it.tag, it.id) }
-    }
+    fun cancelAllAiTaskReminders(context: Context) =
+        com.maodouchat.notification.ReminderNotificationService.cancelAllAiTaskReminders(context)
 
     fun cancelAllFriendRequests(context: Context) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -879,7 +781,7 @@ object AppNotifier {
         }
     }
 
-    private fun effectiveSoundEnabled(context: Context, preferenceEnabled: Boolean): Boolean =
+    internal fun effectiveSoundEnabled(context: Context, preferenceEnabled: Boolean): Boolean =
         NotificationSoundPolicy.messageSoundEnabled(
             runtimeFlagEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.NOTIFICATION_SOUND),
             userPreferenceEnabled = preferenceEnabled,
@@ -891,14 +793,14 @@ object AppNotifier {
             userPreferenceEnabled = preferenceEnabled,
         )
 
-    private fun canPostNotifications(context: Context): Boolean {
+    internal fun canPostNotifications(context: Context): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             return ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         }
         return NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 
-    private fun notificationOwnerMatches(context: Context, expectedUserId: String): Boolean {
+    internal fun notificationOwnerMatches(context: Context, expectedUserId: String): Boolean {
         if (com.maodouchat.security.SecureSessionManager.isPurgeInProgress()) return false
         val tokenManager = com.maodouchat.network.TokenManager.getInstance(context.applicationContext)
         val liveUserId = tokenManager.getUserId()
@@ -909,7 +811,7 @@ object AppNotifier {
         )
     }
 
-    private fun Intent.putNotificationOwner(expectedUserId: String) {
+    internal fun Intent.putNotificationOwner(expectedUserId: String) {
         putExtra(EXTRA_NOTIFICATION_OWNER_USER_ID, expectedUserId)
     }
 
@@ -918,7 +820,7 @@ object AppNotifier {
      * Catch SecurityException so a revoked runtime permission never crashes the process.
      */
     @SuppressLint("MissingPermission")
-    private fun safeNotify(
+    internal fun safeNotify(
         context: Context,
         id: Int,
         notification: android.app.Notification,
@@ -939,7 +841,7 @@ object AppNotifier {
     }
 
     @SuppressLint("MissingPermission")
-    private fun safeNotify(
+    internal fun safeNotify(
         context: Context,
         tag: String,
         id: Int,
@@ -960,7 +862,7 @@ object AppNotifier {
         }
     }
 
-    private fun shouldHideSensitiveDetails(context: Context, explicitPreviewEnabled: Boolean = true): Boolean {
+    internal fun shouldHideSensitiveDetails(context: Context, explicitPreviewEnabled: Boolean = true): Boolean {
         val userPreviewEnabled = NotificationPreferences.previewEnabled(context)
         return NotificationPrivacyPolicy.hideSensitiveDetails(
             appLockEnabled = AppLockManager.isEnabled(context),
@@ -969,7 +871,7 @@ object AppNotifier {
     }
 
     /** Local chat PIN: hide tray/notification-center body even when previews are enabled. */
-    private fun isChatPinLocked(context: Context, chatId: String): Boolean {
+    internal fun isChatPinLocked(context: Context, chatId: String): Boolean {
         if (chatId.isBlank()) return false
         val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return false
         return try {
@@ -982,7 +884,7 @@ object AppNotifier {
     }
 
     /** Local secret chat: hide tray/notification-center body like PIN lock. */
-    private fun isSecretChat(context: Context, chatId: String): Boolean {
+    internal fun isSecretChat(context: Context, chatId: String): Boolean {
         if (chatId.isBlank()) return false
         val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return false
         return try {
@@ -998,7 +900,7 @@ object AppNotifier {
         }
     }
 
-    private fun genericNotification(context: Context, channelId: String, bodyRes: Int) =
+    internal fun genericNotification(context: Context, channelId: String, bodyRes: Int) =
         NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.app_name))
