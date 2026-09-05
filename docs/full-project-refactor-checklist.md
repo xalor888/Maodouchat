@@ -531,7 +531,7 @@ Gate：空库、旧库升级、重复/中断 migration、备份恢复、滚动�
 
 - [x] 拆 `CredentialService`、`MfaService`、`SessionService`、`ProfileService`（`SessionService` 收敛 7 处「废会话 + 清推送」组合：改密/重置/全设备登出/删号/三处封禁，WS 断开仍归路由；`ProfileService`/`CredentialService` 同构拆分；14 个仓储的 `isUniqueViolation` 私有拷贝已删除）。
 - [~] 拆 `PrivacyService`、`BlockService`、`AccountLifecycleService`（三个均已拆；UserRepository 保留薄委托）。
-- [ ] 登录失败、验证码和 limiter 使用可共享 store，支持多实例。
+- [~] 登录失败、验证码和 limiter 使用可共享 store，支持多实例（`EmailVerificationCodeContractTest` 3 例锁定迁移门：用途隔离/5 次锁定/未知邮箱拒识；`EmailService` 进程内存储迁移本身需 Redis/DB + 部署配合，暂不动生产认证链）。
 - [ ] `DeviceSession` 明确绑定 auth session、Signal device 和 push token。
 - [ ] 注销使用可重试编排器和删除清单。
 - [ ] 认证/用户路由全部迁出 `Routing.kt`。
