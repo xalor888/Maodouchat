@@ -706,7 +706,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [ ] `SignalProtocol.kt` 宽 facade 删除。
 - [x] `ApiService` 巨单体拆解完成，分离为 Auth、Messaging、Conversation、Media、Social 等独立域 API，收敛为组合委托薄门面。
 - [x] `AppNotifier` 全局巨型入口删除（文件已物理删除；四服务 + `NotificationSlotPolicy` + `NotificationIntents` + `NotificationInfrastructure` 替代）。
-- [~] Notification Center、Scheduled Message、Reminder 等业务 JSON SharedPreferences store 删除（定时/提醒已迁 Room 36→37；归档忽略存储迁入 Room 37→38；语音已播 string-set 存储本轮迁入 Room 38→39：`voice_played` 表 + DAO + 登出清理，旧 prefs 键零引用；其余待续）。
+- [~] Notification Center、Scheduled Message、Reminder 等业务 JSON SharedPreferences store 删除（定时/提醒已迁 Room 36→37；归档忽略迁入 37→38；语音已播迁入 38→39；登出双删冗余已清。通知中心迁移前置审计完成：调用方横跨主线程与后台，StateFlow 同步 API 下直接换 Room 会主线程 crash，需 suspend 波及约 25 处或改写 behind-write + 异步加载，列为多轮专项，不做单表硬搬。）
 - [ ] 页面、Widget、Worker、AI 直接访问 `MaodouchatApp`/DAO/Signal/Token 的路径归零。
 - [ ] 服务端 `Routing.kt` 只保留模块注册，不再包含领域 endpoint/事务。
 - [x] `BotApiRouting.kt`、`AdminRouting.kt` 巨型实现删除并由子域 routes 替代。

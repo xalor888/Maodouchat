@@ -203,7 +203,7 @@ class SecureSessionManager(
                         com.maodouchat.util.ScheduledMessageScheduler.cancel(context, item.id)
                     }
                     database.scheduledMessageDao().deleteForUserBlocking(ownerUserId)
-                    com.maodouchat.util.ScheduledMessageStore.clearForUser(context, ownerUserId)
+                    // 注：ScheduledMessageStore.clearForUser 与上一行同一 DAO 删除，移除重复调用。
                     database.archiveDismissalDao().deleteForUserBlocking(ownerUserId)
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
@@ -229,7 +229,7 @@ class SecureSessionManager(
                 com.maodouchat.util.MessageReminderScheduler.cancelAll(context)
                 accountUserId?.takeIf { it.isNotBlank() }?.let { uid ->
                     database.messageReminderDao().deleteForUserBlocking(uid)
-                    com.maodouchat.util.MessageReminderStore.clearForUser(context, uid)
+                    // 注：MessageReminderStore.clearForUser 与上一行同一 DAO 删除，移除重复调用。
                     database.voicePlayedDao().deleteForUserBlocking(uid)
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
