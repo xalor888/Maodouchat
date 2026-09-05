@@ -38,7 +38,7 @@ class AppDatabaseMigrationTest {
             TEST_DB,
             17,
             true,
-            AppDatabase.MIGRATION_16_17
+            DatabaseMigrations.MIGRATION_16_17
         )
         try {
             database.query("SELECT id, unreadCount FROM chats WHERE id = 'c_migration'").use { cursor ->
@@ -75,7 +75,7 @@ class AppDatabaseMigrationTest {
             SETTINGS_TEST_DB,
             18,
             true,
-            AppDatabase.MIGRATION_17_18
+            DatabaseMigrations.MIGRATION_17_18
         )
         try {
             database.query(
@@ -96,7 +96,7 @@ class AppDatabaseMigrationTest {
             MEDIA_INDEX_TEST_DB,
             19,
             true,
-            AppDatabase.MIGRATION_18_19
+            DatabaseMigrations.MIGRATION_18_19
         )
         try {
             database.query("PRAGMA index_list(messages)").use { cursor ->
@@ -117,7 +117,7 @@ class AppDatabaseMigrationTest {
             GROUP_AVATAR_TEST_DB,
             20,
             true,
-            AppDatabase.MIGRATION_19_20
+            DatabaseMigrations.MIGRATION_19_20
         )
         try {
             database.query("PRAGMA table_info(chats)").use { cursor ->
@@ -157,10 +157,10 @@ class AppDatabaseMigrationTest {
             FULL_CHAIN_TEST_DB,
             20,
             true,
-            AppDatabase.MIGRATION_16_17,
-            AppDatabase.MIGRATION_17_18,
-            AppDatabase.MIGRATION_18_19,
-            AppDatabase.MIGRATION_19_20
+            DatabaseMigrations.MIGRATION_16_17,
+            DatabaseMigrations.MIGRATION_17_18,
+            DatabaseMigrations.MIGRATION_18_19,
+            DatabaseMigrations.MIGRATION_19_20
         )
         try {
             database.query(
@@ -226,7 +226,7 @@ class AppDatabaseMigrationTest {
             SEARCH_TYPE_TEST_DB,
             26,
             true,
-            AppDatabase.MIGRATION_25_26
+            DatabaseMigrations.MIGRATION_25_26
         )
         try {
             database.query("SELECT messageId, messageType FROM message_search_documents WHERE messageId = 'm_s1'").use { cursor ->
@@ -266,16 +266,16 @@ class AppDatabaseMigrationTest {
             FULL_CHAIN_TEST_DB,
             26,
             true,
-            AppDatabase.MIGRATION_16_17,
-            AppDatabase.MIGRATION_17_18,
-            AppDatabase.MIGRATION_18_19,
-            AppDatabase.MIGRATION_19_20,
-            AppDatabase.MIGRATION_20_21,
-            AppDatabase.MIGRATION_21_22,
-            AppDatabase.MIGRATION_22_23,
-            AppDatabase.MIGRATION_23_24,
-            AppDatabase.MIGRATION_24_25,
-            AppDatabase.MIGRATION_25_26
+            DatabaseMigrations.MIGRATION_16_17,
+            DatabaseMigrations.MIGRATION_17_18,
+            DatabaseMigrations.MIGRATION_18_19,
+            DatabaseMigrations.MIGRATION_19_20,
+            DatabaseMigrations.MIGRATION_20_21,
+            DatabaseMigrations.MIGRATION_21_22,
+            DatabaseMigrations.MIGRATION_22_23,
+            DatabaseMigrations.MIGRATION_23_24,
+            DatabaseMigrations.MIGRATION_24_25,
+            DatabaseMigrations.MIGRATION_25_26
         )
         try {
             database.query(
@@ -351,11 +351,11 @@ class AppDatabaseMigrationTest {
             FULL_CHAIN_25_TO_30_TEST_DB,
             30,
             true,
-            AppDatabase.MIGRATION_25_26,
-            AppDatabase.MIGRATION_26_27,
-            AppDatabase.MIGRATION_27_28,
-            AppDatabase.MIGRATION_28_29,
-            AppDatabase.MIGRATION_29_30
+            DatabaseMigrations.MIGRATION_25_26,
+            DatabaseMigrations.MIGRATION_26_27,
+            DatabaseMigrations.MIGRATION_27_28,
+            DatabaseMigrations.MIGRATION_28_29,
+            DatabaseMigrations.MIGRATION_29_30
         )
         try {
             database.query("SELECT chatType FROM chats WHERE id = 'c_migration_30'").use { cursor ->
@@ -421,7 +421,7 @@ class AppDatabaseMigrationTest {
             LEGACY_SENDING_TEST_DB,
             32,
             true,
-            AppDatabase.MIGRATION_31_32,
+            DatabaseMigrations.MIGRATION_31_32,
         )
         try {
             database.query("SELECT status FROM messages WHERE id = 'm_sending'").use { cursor ->
@@ -456,7 +456,7 @@ class AppDatabaseMigrationTest {
             JOURNAL_TEST_DB,
             35,
             true,
-            AppDatabase.MIGRATION_34_35,
+            DatabaseMigrations.MIGRATION_34_35,
         )
         try {
             // runMigrationsAndValidate above already asserts the Room schema (including the
@@ -490,7 +490,7 @@ class AppDatabaseMigrationTest {
             TOMBSTONE_TEST_DB,
             34,
             true,
-            AppDatabase.MIGRATION_33_34,
+            DatabaseMigrations.MIGRATION_33_34,
         )
         try {
             database.execSQL(
@@ -518,6 +518,65 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migrate36To40CreatesBusinessTables() {
+        helper.createDatabase(NEW_TABLES_TEST_DB, 36).close()
+
+        val database = helper.runMigrationsAndValidate(
+            NEW_TABLES_TEST_DB,
+            40,
+            true,
+            DatabaseMigrations.MIGRATION_36_37,
+            DatabaseMigrations.MIGRATION_37_38,
+            DatabaseMigrations.MIGRATION_38_39,
+            DatabaseMigrations.MIGRATION_39_40,
+        )
+        try {
+            database.query("PRAGMA table_info(scheduled_messages)").use { cursor ->
+                val columns = buildSet {
+                    while (cursor.moveToNext()) add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+                }
+                assertTrue(columns.contains("idempotencyKey"))
+            }
+            database.query("PRAGMA table_info(archive_suggestion_dismissals)").use { cursor ->
+                val columns = buildSet {
+                    while (cursor.moveToNext()) add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+                }
+                assertEquals(setOf("ownerUserId", "chatId", "dismissedAtMillis"), columns)
+            }
+            database.query("PRAGMA table_info(voice_played)").use { cursor ->
+                val columns = buildSet {
+                    while (cursor.moveToNext()) add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+                }
+                assertEquals(setOf("ownerUserId", "messageId", "playedAtMillis"), columns)
+            }
+            database.query("PRAGMA table_info(notification_center_items)").use { cursor ->
+                val columns = buildSet {
+                    while (cursor.moveToNext()) add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+                }
+                assertEquals(
+                    setOf(
+                        "ownerUserId", "id", "type", "mergeKey", "title", "subtitle",
+                        "preview", "deeplink", "extraJson", "read", "count",
+                        "createdAt", "updatedAt",
+                    ),
+                    columns,
+                )
+            }
+            // 新表可写可读。
+            database.execSQL(
+                "INSERT INTO archive_suggestion_dismissals (ownerUserId, chatId, dismissedAtMillis) " +
+                    "VALUES ('u1', 'c1', 1)"
+            )
+            database.query("SELECT COUNT(*) FROM archive_suggestion_dismissals WHERE ownerUserId = 'u1'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(1, cursor.getInt(0))
+            }
+        } finally {
+            database.close()
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-16-17"
         const val SETTINGS_TEST_DB = "migration-17-18"
@@ -529,5 +588,6 @@ class AppDatabaseMigrationTest {
         const val LEGACY_SENDING_TEST_DB = "migration-31-32-legacy-sending"
         const val JOURNAL_TEST_DB = "migration-34-35-plaintext-journal"
         const val TOMBSTONE_TEST_DB = "migration-33-34-tombstone"
+        const val NEW_TABLES_TEST_DB = "migration-36-40-business-tables"
     }
 }
