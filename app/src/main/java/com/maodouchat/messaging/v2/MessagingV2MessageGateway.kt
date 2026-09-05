@@ -27,6 +27,8 @@ interface ConversationMessageStagingGateway {
         payload: DecodedContentPayload,
         groupRevision: Long? = null,
     ): MessagingV2MessageGatewayOutcome
+
+    suspend fun cancel(messageId: String): Boolean = false
 }
 
 /**
@@ -93,6 +95,19 @@ class MessagingV2MessageGateway(
         if (!staged) return MessagingV2MessageGatewayOutcome.Rejected.TerminalTombstone(normalized.id)
         outbox.wakeAfterCommit()
         return MessagingV2MessageGatewayOutcome.Staged(normalized)
+    }
+
+    override suspend fun cancel(messageId: String): Boolean {
+        val owner = outbox.currentOwnerUserId()
+        return database.withTransaction {
+            val cancelled = database.messagingV2Dao().cancelOutboxMessage(owner, messageId)
+            if (cancelled > 0) {
+                database.messageDao().updateMessageStatus(messageId, com.maodouchat.data.model.MessageStatus.FAILED.name)
+                true
+            } else {
+                false
+            }
+        }
     }
 
     /** Explicit-outcome API for new callers. */

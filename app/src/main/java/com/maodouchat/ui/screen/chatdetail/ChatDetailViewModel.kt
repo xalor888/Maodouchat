@@ -26,6 +26,7 @@ import com.maodouchat.crypto.DecryptHistoryPolicy
 import com.maodouchat.crypto.DecryptPlaceholderPolicy
 import com.maodouchat.crypto.OwnSentMediaRestorePolicy
 import com.maodouchat.crypto.SignalProtocol
+import com.maodouchat.conversation.ConversationCommandFacade
 import com.maodouchat.conversation.ConversationLocalCleanupMode
 import com.maodouchat.conversation.conversationLocalCleanupSession
 import com.maodouchat.conversation.createAndroidConversationLocalStateCoordinator
@@ -160,6 +161,14 @@ class ChatDetailViewModel(
             indexMessage = ::indexSearchableMessage,
         )
     }
+    internal val commandFacade by lazy {
+        ConversationCommandFacade(
+            gateway = messageGateway,
+            resolveChat = chatRepo::getChatById,
+            getMessage = messageRepo::getMessageById,
+            ownerUserId = { currentUserId },
+        )
+    }
     internal val chatLockRepo = com.maodouchat.data.repository.ChatLockRepository(app.database.chatLockDao())
     internal val secretTtlRepo = com.maodouchat.data.repository.SecretChatRepository(app.database.secretChatDao())
     private val messageTerminalStore = MessageTerminalStore(
@@ -266,6 +275,11 @@ class ChatDetailViewModel(
                 messageGateway.retry(message, groupRevision, body, type)
             },
             persistFailedMessage = messageRepo::insertMessage,
+            currentOwnerUserId = { currentUserId },
+            currentAuthToken = { token },
+            findCachedDirectConversation = chatRepo::findCachedDirectChat,
+            createOfflineDirectConversation = chatRepo::createOfflineDirectChat,
+            commandFacade = commandFacade,
         )
     }
     private val conversationScheduleCoordinator = ConversationScheduleCoordinator(
@@ -322,6 +336,13 @@ class ChatDetailViewModel(
         },
         invalidateEpoch = groupMessagingCoordinator::invalidateSenderKey,
     )
+    private val groupLifecycleService: com.maodouchat.group.GroupLifecycleService by lazy {
+        com.maodouchat.group.DefaultGroupLifecycleService(
+            coordinator = groupLifecycleCoordinator,
+            tokenProvider = { tokenManager.getToken().orEmpty().ifBlank { token } },
+            membershipStore = app.groupMembershipStore,
+        )
+    }
     internal val conversationForwardCoordinator by lazy {
         ConversationForwardCoordinator(
             ownerUserId = { tokenManager.getUserId().orEmpty() },
@@ -1222,7 +1243,7 @@ class ChatDetailViewModel(
         }
         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
         if (liveToken.isBlank()) return
-        ApiService.getGroupMembers(liveToken, chatId).onSuccess { members ->
+        groupLifecycleService.fetchGroupMembers(chatId).onSuccess { members ->
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = expectedUserId,
                     liveToken = tokenManager.getToken(),
@@ -1750,6 +1771,12 @@ class ChatDetailViewModel(
                 withContext(Dispatchers.IO) { messageRepo.insertMessage(failedMsg) }
                 Log.w("ChatDetailViewModel", "v2 retry enqueue failed: ${error.message}", error)
             }
+        }
+    }
+
+    fun cancelSendMessage(messageId: String) {
+        viewModelScope.launch {
+            commandFacade.cancel(messageId)
         }
     }
 

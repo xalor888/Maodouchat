@@ -95,11 +95,60 @@ class OutgoingConversationResolverTest {
         assertTrue(harness.cachedWrites.isEmpty())
     }
 
+    @Test
+    fun `domain resolve by peerAccountId succeeds and returns ResolvedConversation`() = runTest {
+        val harness = Harness(created = directChat("direct-bob", "bob"))
+
+        val resolved = harness.resolver.resolve(peerAccountId = "bob")
+
+        assertEquals("direct-bob", resolved.conversationId)
+        assertTrue(resolved.isCryptoReady)
+    }
+
+    @Test
+    fun `findCachedDirectConversation resolves offline without network`() = runTest {
+        val cachedDirect = directChat("cached-direct-alice", "alice")
+        val harness = Harness(
+            findCachedDirect = { if (it == "alice") cachedDirect else null },
+        )
+
+        val result = harness.resolver.resolve(harness.request(activeContactId = "alice"))
+
+        val resolved = result.getOrThrow()
+        assertEquals("cached-direct-alice", resolved.conversation.id)
+        assertEquals("alice", resolved.peerUserId)
+        assertEquals(0, harness.createCount)
+        assertEquals(0, harness.fetchCount)
+    }
+
+    @Test
+    fun `offline fallback creates direct conversation when network throws IOException`() = runTest {
+        val offlineCreated = directChat("offline-direct-charlie", "charlie")
+        var offlineCreatedCalls = 0
+        val harness = Harness(
+            networkErrorOnCreate = true,
+            createOfflineDirect = { _, _, _ ->
+                offlineCreatedCalls += 1
+                offlineCreated
+            },
+        )
+
+        val result = harness.resolver.resolve(harness.request(activeContactId = "charlie"))
+
+        val resolved = result.getOrThrow()
+        assertEquals("offline-direct-charlie", resolved.conversation.id)
+        assertEquals(1, offlineCreatedCalls)
+        assertEquals(listOf("offline-direct-charlie"), harness.cachedWrites.map(Chat::id))
+    }
+
     private class Harness(
         private val cached: Chat? = null,
         private val fetched: List<Chat> = emptyList(),
         private val created: Chat = directChat("created", "alice"),
         private val botIds: Set<String> = emptySet(),
+        private val networkErrorOnCreate: Boolean = false,
+        private val findCachedDirect: (suspend (String) -> Chat?)? = null,
+        private val createOfflineDirect: (suspend (String, String, Boolean) -> Chat)? = null,
     ) {
         var fetchCount = 0
         var createCount = 0
@@ -117,6 +166,7 @@ class OutgoingConversationResolverTest {
             },
             createDirectConversation = { _, _, secret ->
                 createCount += 1
+                if (networkErrorOnCreate) throw java.io.IOException("offline")
                 secretCreateFlags += secret
                 created
             },
@@ -135,6 +185,10 @@ class OutgoingConversationResolverTest {
                 recipientNotReady = { "recipient" },
                 cannotSendToSelf = { "self" },
             ),
+            currentOwnerUserId = { "owner" },
+            currentAuthToken = { "token" },
+            findCachedDirectConversation = findCachedDirect,
+            createOfflineDirectConversation = createOfflineDirect,
         )
 
         fun request(

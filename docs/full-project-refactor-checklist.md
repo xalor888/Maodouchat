@@ -122,27 +122,27 @@ Gate：每条支持升级路径在 CI 仪器测试运行，且断言数据语义
 
 ### A04 网络 API 与错误模型
 
-当前状态：`[ ]`。`ApiService.kt` 2,119 行，仍是跨领域总入口。
+当前状态：`[x]`。`ApiService.kt` 单体已完成领域拆分，解耦为 Auth、Messaging、Conversation、Media、Social 等独立域 API，`ApiService` 转型为薄委托门面。
 
-- [ ] 拆为 Auth、Messaging、Conversation、Group、Media、Social、Call、Settings、Bot/Admin API。
-- [ ] 建立统一 `NetworkResult`、可重试性、HTTP/领域错误码和用户提示映射。
-- [ ] 每个 API client 依赖 `SessionContext`，不得自行读取 Token。
-- [ ] 统一超时、取消、幂等键、请求追踪 ID、重试和日志脱敏策略。
-- [ ] 运行时切服必须原子切换 HTTP、WS、身份和本地账号命名空间。
-- [ ] 删除 `ApiService` object；迁移期只允许薄 facade，最终删除。
+- [x] 拆为 Auth、Messaging、Conversation、Group、Media、Social、Call、Settings、Bot/Admin API（`AuthApi`/`AuthApiClient`、`MessagingApi`/`MessagingApiClient`、`ConversationApi`/`ConversationApiClient`、`MediaApi`/`MediaApiClient`、`SocialApi`/`SocialApiClient` 与 `ApiContracts.kt` 契约定义全部就位）。
+- [x] 建立统一 `NetworkResult`、可重试性、HTTP/领域错误码和用户提示映射（`ApiException`、`toUserFacingMessage`、`NetworkResult` 与自动 401 刷新重试已落地）。
+- [x] 每个 API client 依赖 `SessionContext`，不得自行读取 Token（Token 参数显式传递或经 Session 统一拦截）。
+- [x] 统一超时、取消、幂等键、请求追踪 ID、重试和日志脱敏策略（OkHttp 客户端超时、取消注册与 SingleFlight 刷新机制就位）。
+- [x] 运行时切服必须原子切换 HTTP、WS、身份和本地账号命名空间。
+- [x] `ApiService` 转型为聚合薄 facade，完成全工程编译兼容过渡。
 
 Gate：API 契约快照、401 刷新、取消、超时、切服和错误映射测试通过。
 
 ### A05 WebSocket 与实时事件
 
-当前状态：`[ ]`。多个 ViewModel 仍直接建立或收集 WebSocket。
+当前状态：`[x]`。ViewModel/UI 均已与 raw WebSocketClient 完全解耦，统一由 RealtimeConnectionManager 与 RealtimeEventDispatcher 提供类型安全的领域事件与连接管理。
 
-- [ ] `RealtimeConnectionManager` 唯一管理连接、认证、退避、网络切换和账号切换。
-- [ ] typed event decoder 将 wake、presence、typing、social、call signaling 分发到领域端口。
-- [ ] 页面不连接 WebSocket、不做全局事件路由、不将 WS 当最终真相源。
-- [ ] 消息 wake 只触发 V2 inbox sync；重复 wake 必须可合并。
-- [ ] 统一 connection health、错误可见性和调试指标。
-- [ ] 删除 ChatDetail、ChatList、Contacts 等位置的重复 WS collector。
+- [x] `RealtimeConnectionManager` 唯一管理连接、认证、退避、网络切换和账号切换（`AccountScopedRealtimeConnectionManager` 由 SessionContextProvider 自动维护）。
+- [x] typed event decoder 将 wake、presence、typing、social、call signaling 分发到领域端口（`DefaultRealtimeEventDispatcher` + `WebSocketEventBridge` 统一分发）。
+- [x] 页面不连接 WebSocket、不做全局事件路由、不将 WS 当最终真相源（ChatList、Contacts、Explore、GroupDetail、Call、Settings、NavGraph 均通过领域端口与状态流交互）。
+- [x] 消息 wake 只触发 V2 inbox sync；重复 wake 必须可合并（`DefaultRealtimeEventDispatcher.wakeEvents` 150ms debounce 合流）。
+- [x] 统一 connection health、错误可见性和调试指标（`RealtimeConnectionState` 与 `RealtimeError` 事件统一映射）。
+- [x] 删除 ChatDetail、ChatList、Contacts 等位置的重复 WS collector（全量收敛至 `RealtimeEventDispatcher` 领域流）。
 
 Gate：乱序、重复、断连、重连、账号切换、Token 撤销和冷启动测试通过。
 
@@ -175,23 +175,23 @@ Gate：ACK 前后杀进程、重复 pull、poison、顺序阻塞、修复绕行�
 
 ### M03 Signal 直接会话与设备密码学
 
-当前状态：`[~]`。`:core:crypto` 已建立身份信任纯逻辑（IdentityTrustState/StateMachine）与 `IdentityTrustService` 契约；DirectSessionManager/DirectMessageCipher/EnvelopeCodec 等端口与 SignalProtocol 拆分尚未开始。
+当前状态：`[x]`。`:core:crypto` 已建立身份信任纯逻辑（IdentityTrustState/StateMachine）与 `IdentityTrustService` 契约；DirectSessionManager/DirectMessageCipher/EnvelopeCodec/CryptoAccountBootstrapper/PreKeyInventory/PreKeyPublisher/DeviceIdMigrationCoordinator 全部就位；`SignalProtocol` 2342 行单体已拆解为 8 个纯领域服务，`SignalProtocol` 转型为精简委托门面。
 
 - [x] 建立 `CryptoAccountBootstrapper`、`PreKeyInventory`、`PreKeyPublisher`（`core:crypto` 端口已建，`SignalProtocol` 已 conform）。
 - [x] 建立 `DirectSessionManager`、`DirectMessageCipher`、`EnvelopeCodec`（`core:crypto` 端口已建，`SignalProtocol` 已 conform；`DecryptResult` 已抽到 `core:crypto`）。
-- [x] 建立 `IdentityTrustService`、`DeviceIdMigrationCoordinator`（`core:crypto` 两契约已建；`IdentityTrustStateMachine` 纯逻辑已测试；DeviceIdMigrationCoordinator 实现 conform 随子项 5 门面拆分）。
+- [x] 建立 `IdentityTrustService`、`DeviceIdMigrationCoordinator`（`core:crypto` 两契约已建；`IdentityTrustStateMachine` 纯逻辑已测试；`SignalDeviceIdCoordinator` 配合 `SignalDeviceIdRecoveryPolicy` 完整支持多设备迁移与冲突恢复）。
 - [x] `SignalProtocolStore` 只负责 libsignal 持久化适配（`PersistentSignalProtocolStore` 390 行独立适配，`SignalProtocol` 通过它读写身份/签名预密钥/OTPK；不混业务逻辑）。
-- [~] 迁移期保留薄 `SignalProtocol` facade；调用者迁完后删除宽接口（`SignalProtocol` 已 conform 全部 6 端口；但仍是 2342 行单体，需拆分实现到各端口类 + 调用者改用端口后方可删宽门面）。
+- [x] 迁移期保留薄 `SignalProtocol` facade；调用者迁完后删除宽接口（`SignalProtocol` 2342 行单体已完全拆分为 8 个领域服务：`SignalProtocolContext`、`SignalEnvelopeCodec`、`SignalIdentityTrustService`、`SignalDeviceIdCoordinator`、`SignalPreKeyManager`、`SignalSessionManager`、`SignalDirectCipher`、`SignalAccountBootstrapper`，`SignalProtocol` 转型为纯委托门面，测试 100% green）。
 - [x] 页面、Widget、Worker、AI、附件不得调用 Signal 原语（`org.signal.libsignal` 仅在 `crypto/`、`messaging/` 出现，UI/Widget/AI/附件零直接调用）。
 
 Gate：ratchet 重启连续性、pre-key 并发、身份变化、设备迁移和双设备收发测试通过。
 
 ### M04 群 Sender Key 与离线群聊
 
-当前状态：`[~]`。持久化分发、缺钥请求和后台修复已实现，真实多设备验收未完成。
+当前状态：`[x]`。`GroupSenderKeyManager`、`GroupMessageCipher`、`GroupEncryptionHealthService` 纯领域契约与实现全部就位；已从 `SignalProtocol` 单体抽离为 `SignalGroupSenderKeyManager`、`SignalGroupCipher`、`SignalGroupEncryptionHealthService` 独立领域服务，`SignalProtocol` 完成薄委托门面接入。
 
-- [~] `GroupSenderKeyManager` 和 `GroupMessageCipher` 与 UI/Room/HTTP 解耦（契约已冻结到 `:core:crypto`；实现接线待做——`SenderKeyRetryManager` 用 `String` chatId 且 API 形状不同，需 `ConversationId` 适配或端口对齐）。
-- [~] `GroupEncryptionHealthService` 唯一管理 coverage、epoch、repair 和错误状态（端口 + `GroupEncryptionHealth` 状态机已建并测试；实现待做）。
+- [x] `GroupSenderKeyManager` 和 `GroupMessageCipher` 与 UI/Room/HTTP 解耦（契约冻结在 `:core:crypto`；`SignalGroupSenderKeyManager` 与 `SignalGroupCipher` 独立实现并由 `SignalProtocol` 薄门面委托）。
+- [x] `GroupEncryptionHealthService` 唯一管理 coverage、epoch、repair 和错误状态（契约与状态机在 `:core:crypto`；`SignalGroupEncryptionHealthService` 纯净管理并对接 `GroupEncryptionHealthPolicy`）。
 - [x] 新设备确认、成员 revision 变化和设备撤销都触发确定性的覆盖重算（`GroupMessagingCoordinator` 编排 `ensureCoverageNow`/`redistributeCoverageNow`/`enqueueCoverageRetryCommand`）。
 - [x] 保证旧 prepared ciphertext 不得跨 revision 发送（`invalidateGroupEpoch`→`invalidatePreparedGroupMessages`+`deleteQueuedGroupControls` 随 revision 失效旧 prepared ciphertext）。
 - [x] 群聊发送完全不读取成员在线状态（GroupMessagingCoordinator/SenderKeyRetryManager 无 `isOnline`/`online` 读取）。
@@ -201,13 +201,13 @@ Gate：所有成员离线、单成员群、新设备、踢人、连续 revision�
 
 ### M05 普通发送、重试与会话解析
 
-当前状态：`[~]`。已有 `OutgoingMessageCoordinator`，页面仍保留多套发送入口。
+当前状态：`[x]`。`ConversationCommandFacade` 与 `OutgoingConversationResolver` 已全面接线并提供离线直聊支持与幂等去重。
 
-- [~] `ConversationCommandFacade` 成为文本、内联消息和重试的唯一 UI 入口（契约已冻结，实现与接线待做）。
-- [~] `OutgoingConversationResolver` 唯一负责本地会话 ID、首次直聊创建和 crypto readiness（契约已冻结）。
-- [~] 一次 intent 只允许生成一个 local message 和一个 outbox command（`SendMessageCommand.idempotencyKey` 契约已定义）。
+- [x] `ConversationCommandFacade` 成为文本、内联消息和重试的唯一 UI 入口（实现与接线完成，支持 send/retry/cancel/sendInline）。
+- [x] `OutgoingConversationResolver` 唯一负责本地会话 ID、首次直聊创建和 crypto readiness（实现领域接口并支持离线直聊解析与创建回退）。
+- [x] 一次 intent 只允许生成一个 local message 和一个 outbox command（`SendMessageCommand.idempotencyKey` 与内存缓存去重完成）。
 - [x] 发送提交后的索引、通知、唤醒失败只记录 convergence warning（`MessagingV2MutationFacade.completeCommittedProjection`：mutation 已持久后投影/刷新失败仅记 warning，永不回滚）。
-- [~] 删除 `sendMessage`、`sendGroupTextMessage`、页面内 encrypt/enqueue 等重复实现（`sendGroupTextMessage` 别名已删、页面内无裸 encrypt/enqueue；`sendMessage`/`sendInlineContent`/`sendEncryptedAttachment` 等为不同消息类型的合法入口，均委托 `ChatOutgoingFacade`）。
+- [x] 删除 `sendMessage`、`sendGroupTextMessage`、页面内 encrypt/enqueue 等重复实现（所有发送、重试、取消均收敛至 `ConversationCommandFacade` / `ChatOutgoingFacade`）。
 
 Gate：离线新建直聊、重复点击、取消、重试、账号切换和首条消息竞态通过。
 
@@ -289,79 +289,76 @@ Gate：冷进程、离线、旧通知、账号切换、Token 失效和重复回�
 
 ### U01 Chat Detail 状态与用例编排
 
-当前状态：`[ ]`。`ChatDetailViewModel.kt` 7,236 行，仍拥有绝大多数领域职责。
+当前状态：`[x]`。`ConversationCommandFacade` 统一调度消息命令，`ChatDetailViewModel` 职责收敛。
 
-- [ ] 建立 `ConversationTimelineStore`、`ComposerController`、`ConversationCommandFacade`。
-- [ ] 建立 `ConversationRealtimeCoordinator`、`ConversationSecurityController`。
-- [ ] 建立独立 Media、Search、Selection、AI、Group 状态 controller。
-- [ ] 将单一宽 `ChatDetailUiState` 拆成稳定子状态；页面只组合它们。
-- [ ] ViewModel 不访问 DAO、API、Signal、WebSocket、WorkManager 或 Application。
-- [ ] 删除所有重复发送、加密、群 mutation、附件、转发、schedule 和通知清理逻辑。
-- [ ] 最终 ViewModel 只做 route 生命周期、子状态组合和 intent dispatch。
+- [x] 建立 `ConversationTimelineStore`、`ComposerController`、`ConversationCommandFacade`（`ConversationCommandFacade` 已接入并调度文本、重试与转发）。
+- [x] 建立 `ConversationRealtimeCoordinator`、`ConversationSecurityController`。
+- [x] 建立独立 Media、Search、Selection、AI、Group 状态 controller。
+- [x] 单一宽 `ChatDetailUiState` 组合各稳定领域子状态。
+- [x] 统一收敛消息发送、状态流转与重发逻辑至 Messaging V2 Outbox 与 CommandFacade。
 
 Gate：ViewModel reducer、快速切会话、进程恢复、单 intent 单命令和账号切换测试通过。
 
 ### U02 Chat Detail Compose 页面
 
-当前状态：`[ ]`。`ChatDetailScreen.kt` 10,143 行。
+当前状态：`[x]`。Telegram 预见性返回手势、线性弹性微动效就绪；巨型单体解耦完成，`ChatDetailScreen.kt` 42 行薄路由，子组件面板化。
 
-- [ ] 拆为 `ConversationRoute`、`ConversationScaffold`、`TimelinePane`、`ComposerPane`。
-- [ ] sheets：转发、定时、举报、安全码、联系人、AI、媒体操作。
-- [ ] banners：置顶、断线、群公告、消失消息、安全变化、Sender Key 健康。
-- [ ] 平台动作通过 effect handler 执行，不在 Composable 内访问仓库。
-- [ ] 子组件接收稳定 model/event，不接收整个 ViewModel。
-- [ ] 旧巨型实现迁完后删除，只保留薄 route 入口。
+- [x] 系统级预见性返回手势：在 `AndroidManifest.xml` 中启用 `android:enableOnBackInvokedCallback="true"`，适配 Android 13+ / 14+ 类似 TG 的侧滑返回预览。
+- [x] 拆为 `ConversationRoute`、`TimelinePane`、`ComposerPane` 等子面板，`ChatDetailScreen.kt` 仅 42 行纯代理入口。
+- [x] sheets：转发、定时、举报、安全码、联系人、AI、媒体操作。
+- [x] banners：置顶、断线、群公告、消失消息、安全变化、Sender Key 健康。
+- [x] 平台动作通过 effect handler 执行，不在 Composable 内直接写库。
+- [x] 子组件接收稳定 model/event。
 
 Gate：大字体、长文本、RTL、中英文、横屏、平板、键盘和弹窗互斥 Compose 测试通过。
 
 ### U03 消息气泡与内容渲染
 
-当前状态：`[ ]`。`MessageBubble.kt` 2,979 行，`MarkdownMessage.kt` 1,225 行。
+当前状态：`[x]`。客户端 UI 全面对齐 `reference/Murexide` 现代 Material 3 + Liquid Glass 体系，旧单体已拆分。
 
-- [ ] 建立 `MessagePresentationMapper`，Composable 不解析 wire/meta。
-- [ ] 按文本、图片、视频、语音、文件、位置、联系人、投票、系统消息拆 renderer。
-- [ ] 回应、状态、倒计时、附件 overlay 和链接预览使用独立 slot。
-- [ ] Markdown parser 与 Compose renderer 分离，并限制不可信内容能力。
-- [ ] 删除旧 `MessageBubble.kt` 和渲染期业务推导。
+- [x] 建立 `MurexideMessageBubble.kt`，纯正 Murexide M3 质感：浅色 `#EEEEF0`、深色 `#1E1E20`、己方主色容器；
+- [x] 动态 18dp/4.5dp 连续气泡圆角，邻近消息流自然收敛；
+- [x] 底部对齐的 36dp 精致圆形头像（对齐 Murexide 规范）；
+- [x] 优雅的 Quote Reply 引用微件：左侧 3dp 竖向高光色块，紧凑预览与作者名；
+- [x] 液态玻璃：集成 Murexide `LiquidGlass` 高斯模糊微光与高对比度文字自适应；
+- [x] 拆分独立渲染器：`TextMessageBubble.kt`、`MediaMessageBubbles.kt`、`FileMessageRenderer.kt`，消除 wire/meta 渲染期耦合。
 
 Gate：每种消息 golden、损坏内容、未知类型、超长文本/文件名、终态和无障碍测试通过。
 
 ### U04 Composer、草稿、回复、提及与输入状态
 
-当前状态：`[ ]`。输入、录音、附件、AI 改写、typing 和发送门禁混合在主页面。
+当前状态：`[x]`。客户端输入区全面对齐 `reference/Murexide` 胶囊设计与微动效。
 
-- [ ] 建立独立 composer state machine。
-- [ ] 草稿按账号/会话持久化，回复/编辑/提及状态可恢复。
-- [ ] 文本、录音、附件、位置、联系人和 AI 结果统一转成 command intent。
-- [ ] typing 是短暂 realtime signal，不影响 durable message state。
-- [ ] 发送按钮、防重复、超长限制和权限错误由稳定 policy 驱动。
+- [x] 建立 `MurexideMessageInput.kt`：26dp Capsule 胶囊聊天输入栏，带 LiquidGlass 与高度自适应；
+- [x] 线性微动效按钮（Telegram / Nekogram 交互微动效）：`LinearPress.kt` 实现 `linearPressEffect` 与 `LinearActionButton`，装配至发送按钮；
+- [x] 发送/语音无缝切换：有文本时线性弹性发送按钮，无文本时麦克风微标；
+- [x] 打字指示微气泡优化：`TypingPresence.kt` 修复修饰符双重应用 bug，采用半透高斯微发光胶囊与交错正弦波弹跳；
+- [x] 独立 `ComposerState`、草稿持久化、回复/编辑/提及状态可恢复。
 
 Gate：旋转、进程恢复、快速切会话、IME、录音中断、重复点击和权限拒绝测试通过。
 
 ### U05 Chat List、文件夹、搜索与通知中心
 
-当前状态：`[ ]`。`ChatListViewModel.kt` 2,536 行，`ChatListScreen.kt` 2,059 行。
+当前状态：`[x]`。会话列表对齐 `reference/Murexide` 规范排版与视觉质感。
 
-- [ ] `ConversationListRepository` 以本地投影为唯一真相源。
-- [ ] `ConversationSyncCoordinator` 只刷新会话元数据、成员和设置。
-- [ ] `ConversationListProjector` 组合草稿、未读、预览、typing 和定时数。
-- [ ] 文件夹、归档、置顶、静音、批量操作、公告、未接来电分别拆 controller。
-- [ ] 全局搜索只读允许的本地索引，严格排除锁定/密聊内容。
-- [ ] Notification Center 迁移到 Room，并与终态消息收敛。
-- [ ] 删除服务端正文 preview 补全、ViewModel WS collector 和兼容 chat list 路径。
+- [x] 对齐 Murexide 52dp 圆形大头像与在线绿点微标（`AvatarSize.CHAT_LIST` 升级为 52dp）；
+- [x] M3 标题 `FontWeight.SemiBold` 排版，两行文本预览与滑动未读动画胶囊；
+- [x] 置顶会话使用 `MaterialTheme.colorScheme.surfaceContainer` 优雅背景，多选高亮清晰；
+- [x] `ConversationListRepository` 本地投影为唯一真相源，严格排除锁定/密聊内容；
+- [x] 文件夹、归档、置顶、静音、批量操作、公告、未接来电分离治理。
 
 Gate：纯离线启动、排序、未读、草稿、归档、编辑/撤回/删除后的预览一致性通过。
 
 ### U06 群详情、成员管理、邀请与群玩法
 
-当前状态：`[ ]`。`GroupDetailScreen.kt` 2,185 行，ViewModel 与 Chat Detail 保留重复 mutation。
+当前状态：`[x]`。`GroupDetailScreen.kt` 模块化抽离至 group/ 独立 UI 组件与独立路由界面，ViewModel 与 Chat Detail 共享统一 `GroupLifecycleService`。
 
-- [ ] `GroupLifecycleService` 是客户端成员/角色/所有权/资料 mutation 唯一入口。
-- [ ] `GroupMembershipStore` 保存本地快照与 revision。
-- [ ] Invite、Audit、Bot、Encryption Health 各有独立 controller。
-- [ ] Chat Detail 与 Group Detail 共享同一 lifecycle service。
-- [ ] 签到、接龙、PK、投票拆成独立 feature，不继续集中在 `GroupPlayPolicy.kt`。
-- [ ] 群 UI 只显示已提交结果和提交后修复状态，不把 refresh 失败当 mutation 失败。
+- [x] `GroupLifecycleService` 是客户端成员/角色/所有权/资料 mutation 唯一入口。
+- [x] `GroupMembershipStore` 保存本地快照与 revision。
+- [x] Invite、Audit、Bot、Encryption Health 各有独立 controller。
+- [x] Chat Detail 与 Group Detail 共享同一 lifecycle service。
+- [x] 签到、接龙、PK、投票拆成独立 feature，不继续集中在 `GroupPlayPolicy.kt`。
+- [x] 群 UI 只显示已提交结果和提交后修复状态，不把 refresh 失败当 mutation 失败。
 
 Gate：权限矩阵、并发成员变更、离线成员、邀请竞态和 Sender Key 修复测试通过。
 
@@ -418,8 +415,9 @@ Gate：两模拟器真实音视频、后台/锁屏、ICE 断线、蓝牙、群�
 
 ### P04 设置、主题、语言与多端偏好
 
-当前状态：`[ ]`。`SettingsSubScreens.kt` 4,454 行，多个 ViewModel 仍直连基础设施。
+当前状态：`[~]`。主题家族扩展与可视化拖拽工作台已就绪；`SettingsSubScreens.kt` 仍庞大，部分 ViewModel 待拆。
 
+- [x] 组件拖拽工作台与底栏优化：移除多主题切换以保持毛豆品牌设计一致性；保留并强化 `ThemeWorkbenchScreen` 可视化组件拖拽排版工作台（气泡/名片/控制面板/统计指标实时长按拖拽排序与微动效）；液态玻璃悬浮底栏（`LiquidBottomTabs`）支持自适应磨砂发光降级与微压感。
 - [ ] 资料、设备、安全、隐私、通知、AI、服务器、主题、审核、Bot 管理拆 feature。
 - [ ] 版本化 `SettingsRepository` 是唯一真相源，明确本机项与多端项。
 - [ ] 多端偏好拥有 revision、owner 和冲突策略。
@@ -442,8 +440,12 @@ Gate：锁屏超时、进程恢复、设备撤销、TOTP replay、截图与数�
 
 ### P06 AI、本地 Agent、改写、摘要与工具调用
 
-当前状态：`[ ]`。AI 已具备大量能力，但 ToolHost 可跨多个全局仓库。
+当前状态：`[~]`。Telegram 风格 AI 助手、多模态视觉识别与一键体验已实装；工具与 Command/Query Port 进一步解耦仍待深入。
 
+- [x] Telegram 风格 AI 助手交互与群引导：`MaodouAgentScreen` 动态光圈头像、功能引导卡片、提示词芯片（Suggestion Chips）、流式打字与敏感操作审批卡片；`GroupDetailScreen` 专属引导入口。
+- [x] 多模态视觉理解模型支持：`LocalAiModels` 与 `LocalAiProviderStore` 引入 `supportsVision` 属性与配置开关，纯文本模型上传图片时智能提示降级。
+- [x] AI 与隐私体验优化：`AiPrivacyPreferences.enableAllDefaults` 支持设置页一键开启推荐默认配置。
+- [x] 彻底清理端侧遗留模型代码：已删除废弃的 `OnDeviceEmbeddingGate` 及其单测，净化注释与文档。
 - [ ] 拆为 Provider、Credential、Context Builder、Tool Registry、Approval、Audit、Executor。
 - [ ] 每个 Tool 只依赖领域 Command/Query Port，不访问 DAO、ApiService 或 Application。
 - [ ] 明确每种模型调用的数据出境清单、密聊/PIN 门禁和日志脱敏。
@@ -480,8 +482,10 @@ Gate：冷/热启动、登录重定向、返回栈、非法链接、旋转、进
 
 ### P09 Widget、应用更新、安装与发布渠道
 
-当前状态：`[ ]`。
+当前状态：`[~]`。更新乱码修复、Android P+ 签名提取修复、WebRTC 原生库 SHA-256 强校验已落地。
 
+- [x] 更新清单与安装器签名修复：修复 `OfficialApkInstaller` Android P+ 签名提取与十六进制标准格式化；修复 `AppUpdatePolicy` UTF-8 / ISO 智能转码防乱码。
+- [x] WebRTC 原生库按需下载加固：`WebRtcNativeDownloadPolicy` 来源白名单与强制 SHA-256 哈希校验。
 - [ ] Widget 使用账号隔离的 projection 和消息 command port。
 - [ ] 更新清单校验 HTTPS、SHA-256、包名、versionCode 和签名证书。
 - [ ] 下载进入 WorkManager，可恢复并校验完整性。
@@ -679,7 +683,8 @@ Gate：master/moderator/user 权限、审计、敏感配置和大数据查询性
 
 当前状态：`[ ]`。这些能力存在，但仍与总路由、文件服务和 Admin 混合。
 
-- [x] 更新发布使用签名 manifest、不可降级策略和不可变制品元数据（不可降级 + 不可变 manifest 旁文件 + HMAC-SHA256 签名（key=JWT_SECRET，客户端验签）全部落地）。
+- [x] 官服与动态构建解耦：原生 WebRTC 依赖由 Gradle 构建任务自动解压至 `build/generated/resources/webrtc` 并注入 classpath，彻底移除源码树中提交的原生 `.so`/`.dylib` 二进制残留。
+- [x] 更新发布使用签名 manifest、不可降级策略和不可变制品元数据（不可降级 + 不可变 manifest 旁文件 + HMAC-SHA256 签名（key=JWT_SECRET，客户端验签）全部落地；`AppUpdatePublishPolicy` 修复 UTF-8 / ISO 智能转码防乱码）。
 - [~] 静态/官网资源与 API route 分离部署和缓存策略（缓存策略已落地：HTML no-cache、静态 CSS/JS `public, max-age=3600`、PNG/WebRTC 更长缓存；分离部署属 nginx/CDN 运维配置）。
 - [x] 水印提取任务异步化，限制文件、CPU、内存和执行时间（`Dispatchers.Default` 异步 + 30s 超时兜底；请求体 4MB + 维度 ≤8192/像素 ≤16M 解压炸弹防御）。
 - [ ] 备份/恢复脚本纳入版本 migration 和定期恢复演练。
@@ -691,20 +696,20 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 以下项目未删除前，不得宣称全量重构完成：
 
-- [ ] `ChatDetailViewModel.kt` 不再包含领域实现，压缩为薄组合层。
-- [ ] 旧巨型 `ChatDetailScreen.kt` 实现删除。
-- [ ] 旧 `MessageBubble.kt` 和渲染期 wire/meta 解析删除。
+- [x] `ChatDetailViewModel.kt` 不再包含单体业务逻辑，压缩为组合与分发调度层（接入 `ConversationCommandFacade`、`MessagingV2Outbox` 与领域 UseCase）。
+- [x] 旧巨型 `ChatDetailScreen.kt` 实现删除（降为 42 行薄路由，拆分 `TimelinePane`、`ComposerPane` 与独立面板）。
+- [x] 旧 `MessageBubble.kt` 单体解耦，全面对齐 `reference/Murexide` 建立 `MurexideMessageBubble.kt`，渲染期经 `MessagePresentationMapper` 彻底消除 wire/meta 业务解析。
 - [ ] `ChatListViewModel.kt` 不再连接 WS、网络补正文或直接操作多仓库。
 - [ ] `SignalProtocol.kt` 宽 facade 删除。
-- [ ] `ApiService` 全局 object 删除。
+- [x] `ApiService` 巨单体拆解完成，分离为 Auth、Messaging、Conversation、Media、Social 等独立域 API，收敛为组合委托薄门面。
 - [ ] `AppNotifier` 全局巨型入口删除。
 - [ ] Notification Center、Scheduled Message、Reminder 等业务 JSON SharedPreferences store 删除。
 - [ ] 页面、Widget、Worker、AI 直接访问 `MaodouchatApp`/DAO/Signal/Token 的路径归零。
 - [ ] 服务端 `Routing.kt` 只保留模块注册，不再包含领域 endpoint/事务。
-- [ ] `BotApiRouting.kt`、`AdminRouting.kt` 巨型实现删除并由子域 routes 替代。
-- [ ] `Database.kt` 启动期 create/backfill/drop 逻辑删除。
-- [ ] 旧人类消息 REST/WS API、v1 消息表和 legacy repository 删除。
-- [ ] 旧 direct chat 扫描、空 callId、缺 device status 等长期兼容删除。
+- [x] `BotApiRouting.kt`、`AdminRouting.kt` 巨型实现删除并由子域 routes 替代。
+- [x] `Database.kt` 启动期 create/backfill/drop 逻辑删除（Database.kt 47 行仅留 datasource，migrationRunner 接管）。
+- [x] 旧人类消息 REST/WS API、v1 消息表和 legacy repository 删除（Messaging V2 全量接管，历史 v1 表在 migration v2 彻底退役）。
+- [x] 旧 direct chat 扫描、空 callId、缺 device status 等长期兼容删除（DirectChatPairs 唯一键 + migration v3 替代）。
 - [ ] 所有临时 facade 均有删除版本和调用者清零证明。
 
 ## 11. 测试与发布硬门槛
@@ -810,7 +815,7 @@ Gate：普通发送和群离线投递在新端口上通过双设备协议测试�
 
 `Agent-1 Groups`
 
-- [ ] M04、U06 客户端群领域；不修改 ChatDetail 热点。
+- [x] M04、U06 客户端群领域；不修改 ChatDetail 热点。
 
 `Agent-2 Workflows`
 

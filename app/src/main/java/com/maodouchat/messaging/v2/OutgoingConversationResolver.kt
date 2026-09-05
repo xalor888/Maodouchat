@@ -38,7 +38,30 @@ class OutgoingConversationResolver(
     private val isBotUserId: (String) -> Boolean,
     private val isOwnerSessionCurrent: (String) -> Boolean,
     private val errors: OutgoingConversationErrors,
-) {
+    private val currentOwnerUserId: (() -> String)? = null,
+    private val currentAuthToken: (() -> String)? = null,
+    private val findCachedDirectConversation: (suspend (peerUserId: String) -> Chat?)? = null,
+    private val createOfflineDirectConversation: (suspend (ownerUserId: String, peerUserId: String, isSecret: Boolean) -> Chat)? = null,
+) : com.maodouchat.domain.messaging.OutgoingConversationResolver {
+    override suspend fun resolve(peerAccountId: String): com.maodouchat.domain.messaging.ResolvedConversation {
+        val owner = currentOwnerUserId?.invoke().orEmpty()
+        val token = currentAuthToken?.invoke().orEmpty()
+        val request = OutgoingConversationRequest(
+            ownerUserId = owner,
+            authToken = token,
+            activeConversationId = "",
+            constructorConversationId = "",
+            paintedConversation = null,
+            activeContactId = peerAccountId,
+            createSecretConversation = false,
+        )
+        val resolved = resolve(request).getOrThrow()
+        return com.maodouchat.domain.messaging.ResolvedConversation(
+            conversationId = resolved.conversation.id,
+            isCryptoReady = true,
+        )
+    }
+
     suspend fun resolve(request: OutgoingConversationRequest): Result<ResolvedOutgoingConversation> {
         return try {
             Result.success(resolveOrThrow(request))
@@ -87,15 +110,35 @@ class OutgoingConversationResolver(
         if (recipientId == request.ownerUserId || recipientId == "me") {
             throw IllegalStateException(errors.cannotSendToSelf())
         }
+
+        // 1. 尝试优先使用本地已缓存的直聊会话（支持离线解析已存在直聊）
+        val cachedDirect = findCachedDirectConversation?.invoke(recipientId)
+            ?.takeIf { metadataReady(it, request.ownerUserId, recipientId) }
+        if (cachedDirect != null) {
+            return prepare(cachedDirect, request)
+        }
+
         if (!isBotUserId(recipientId)) {
             requireCrypto(request)
         }
 
-        val created = createDirectConversation(
-            request.authToken,
-            recipientId,
-            request.createSecretConversation,
-        )
+        val created = try {
+            createDirectConversation(
+                request.authToken,
+                recipientId,
+                request.createSecretConversation,
+            )
+        } catch (error: Exception) {
+            if (createOfflineDirectConversation != null && (error is java.io.IOException || request.authToken.isBlank())) {
+                createOfflineDirectConversation.invoke(
+                    request.ownerUserId,
+                    recipientId,
+                    request.createSecretConversation,
+                )
+            } else {
+                throw error
+            }
+        }
         requireCurrentSession(request.ownerUserId)
         cacheConversation(created)
         return prepare(

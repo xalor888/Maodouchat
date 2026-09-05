@@ -32,8 +32,13 @@ internal class ChatOutgoingFacade(
     stageDurableMessage: suspend (Message, Long?, String, MessageType) -> Unit,
     retryDurableMessage: suspend (Message, Long?, String, MessageType) -> Unit,
     persistFailedMessage: suspend (Message) -> Unit,
+    currentOwnerUserId: (() -> String)? = null,
+    currentAuthToken: (() -> String)? = null,
+    findCachedDirectConversation: (suspend (peerUserId: String) -> Chat?)? = null,
+    createOfflineDirectConversation: (suspend (ownerUserId: String, peerUserId: String, isSecret: Boolean) -> Chat)? = null,
+    val commandFacade: com.maodouchat.conversation.ConversationCommandFacade? = null,
 ) {
-    private val resolver = OutgoingConversationResolver(
+    val resolver = OutgoingConversationResolver(
         getCachedConversation = getCachedConversation,
         fetchConversations = fetchConversations,
         createDirectConversation = createDirectConversation,
@@ -42,6 +47,10 @@ internal class ChatOutgoingFacade(
         isBotUserId = isBotUserId,
         isOwnerSessionCurrent = isOwnerSessionCurrent,
         errors = errors,
+        currentOwnerUserId = currentOwnerUserId,
+        currentAuthToken = currentAuthToken,
+        findCachedDirectConversation = findCachedDirectConversation,
+        createOfflineDirectConversation = createOfflineDirectConversation,
     )
 
     private val coordinator = OutgoingMessageCoordinator(

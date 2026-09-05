@@ -81,10 +81,128 @@ class ConversationCommandFacadeTest {
         assertTrue(gateway.messages.isEmpty())
     }
 
-    private fun facade(gateway: FakeGateway) = ConversationCommandFacade(
+    @Test
+    fun `send command with idempotencyKey deduplicates duplicate intents`() = runTest {
+        val gateway = FakeGateway()
+        var msgSeq = 0
+        val facade = facade(
+            gateway = gateway,
+            resolveChat = { chat() },
+            messageId = { "msg-${++msgSeq}" },
+        )
+        val command = com.maodouchat.domain.messaging.SendMessageCommand(
+            conversationId = "chat-1",
+            content = com.maodouchat.domain.messaging.ContentPayload.Text("Hello world"),
+            idempotencyKey = "key-12345",
+        )
+
+        val first = facade.send(command)
+        val second = facade.send(command)
+
+        assertTrue(first is com.maodouchat.domain.messaging.SendMessageResult.Success)
+        assertTrue(second is com.maodouchat.domain.messaging.SendMessageResult.Success)
+        assertEquals((first as com.maodouchat.domain.messaging.SendMessageResult.Success).localMessageId, (second as com.maodouchat.domain.messaging.SendMessageResult.Success).localMessageId)
+        assertEquals(1, gateway.messages.size)
+    }
+
+    @Test
+    fun `send command with empty text fails validation without hitting gateway`() = runTest {
+        val gateway = FakeGateway()
+        val facade = facade(gateway)
+        val command = com.maodouchat.domain.messaging.SendMessageCommand(
+            conversationId = "chat-1",
+            content = com.maodouchat.domain.messaging.ContentPayload.Text("   "),
+            idempotencyKey = "key-empty",
+        )
+
+        val result = facade.send(command)
+
+        assertTrue(result is com.maodouchat.domain.messaging.SendMessageResult.Failure)
+        assertEquals(com.maodouchat.domain.messaging.SendFailureReason.VALIDATION, (result as com.maodouchat.domain.messaging.SendMessageResult.Failure).reason)
+        assertTrue(gateway.messages.isEmpty())
+    }
+
+    @Test
+    fun `retry local message delegating by id succeeds or returns permanent on terminal`() = runTest {
+        val message = message()
+        val successGateway = FakeGateway()
+        val facadeSuccess = facade(
+            gateway = successGateway,
+            resolveChat = { chat() },
+            getMessage = { if (it == "m-1") message else null },
+        )
+
+        val successResult = facadeSuccess.retry("m-1")
+        assertTrue(successResult is com.maodouchat.domain.messaging.SendMessageResult.Success)
+        assertEquals(1, successGateway.retryCount)
+
+        val terminalGateway = FakeGateway(retryOutcome = MessagingV2MessageGatewayOutcome.Rejected.TerminalTombstone("m-1"))
+        val facadeTerminal = facade(
+            gateway = terminalGateway,
+            resolveChat = { chat() },
+            getMessage = { if (it == "m-1") message else null },
+        )
+        val terminalResult = facadeTerminal.retry("m-1")
+        assertTrue(terminalResult is com.maodouchat.domain.messaging.SendMessageResult.Failure)
+        assertEquals(com.maodouchat.domain.messaging.SendFailureReason.PERMANENT, (terminalResult as com.maodouchat.domain.messaging.SendMessageResult.Failure).reason)
+
+        val missingResult = facadeSuccess.retry("non-existent")
+        assertTrue(missingResult is com.maodouchat.domain.messaging.SendMessageResult.Failure)
+        assertEquals(com.maodouchat.domain.messaging.SendFailureReason.NOT_READY, (missingResult as com.maodouchat.domain.messaging.SendMessageResult.Failure).reason)
+    }
+
+    @Test
+    fun `cancel delegates to gateway and reports cancellation`() = runTest {
+        val gateway = FakeGateway()
+        val facade = facade(gateway)
+
+        val cancelled = facade.cancel("m-to-cancel")
+
+        assertTrue(cancelled)
+        assertEquals(listOf("m-to-cancel"), gateway.cancelledIds)
+    }
+
+    @Test
+    fun `sendInline stages sticker and deduplicates on idempotencyKey`() = runTest {
+        val gateway = FakeGateway()
+        val facade = facade(gateway)
+
+        val first = facade.sendInline(
+            chat = chat(),
+            ownerUserId = "owner-1",
+            content = "sticker:duck",
+            type = MessageType.STICKER,
+            idempotencyKey = "sticker-key-1",
+        )
+        val second = facade.sendInline(
+            chat = chat(),
+            ownerUserId = "owner-1",
+            content = "sticker:duck",
+            type = MessageType.STICKER,
+            idempotencyKey = "sticker-key-1",
+        )
+
+        assertTrue(first is ConversationCommandOutcome.Staged)
+        assertTrue(second is ConversationCommandOutcome.Staged)
+        assertEquals((first as ConversationCommandOutcome.Staged).message.id, (second as ConversationCommandOutcome.Staged).message.id)
+        assertEquals(1, gateway.messages.size)
+        assertEquals(MessageType.STICKER, gateway.messages.single().type)
+    }
+
+    private fun facade(
+        gateway: FakeGateway,
+        resolveChat: (suspend (String) -> Chat?)? = null,
+        getMessage: (suspend (String) -> Message?)? = null,
+        ownerUserId: () -> String = { "owner-1" },
+        messageId: () -> String = { "new-1" },
+        now: () -> Long = { 10L },
+    ) = ConversationCommandFacade(
         gateway = gateway,
-        messageId = { "new-1" },
-        now = { 10L },
+        resolveChat = resolveChat,
+        getMessage = getMessage,
+        ownerUserId = ownerUserId,
+        messageId = messageId,
+        now = now,
     )
 
     private fun chat() = Chat(id = "chat-1")
@@ -104,7 +222,9 @@ class ConversationCommandFacadeTest {
     ) : ConversationMessageStagingGateway {
         val messages = mutableListOf<Message>()
         val payloads = mutableListOf<DecodedContentPayload>()
+        val cancelledIds = mutableListOf<String>()
         var retryCount = 0
+        var cancelResult = true
 
         override suspend fun stage(
             message: Message,
@@ -125,6 +245,11 @@ class ConversationCommandFacadeTest {
             messages += message
             payloads += payload
             return retryOutcome ?: MessagingV2MessageGatewayOutcome.Staged(message)
+        }
+
+        override suspend fun cancel(messageId: String): Boolean {
+            cancelledIds += messageId
+            return cancelResult
         }
     }
 }

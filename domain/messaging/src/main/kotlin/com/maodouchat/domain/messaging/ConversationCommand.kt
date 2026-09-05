@@ -39,7 +39,10 @@ enum class SendFailureReason {
 
 /** 会话命令门面（M05）：文本、内联消息和重试的唯一 UI 入口。 */
 interface ConversationCommandFacade {
-    suspend fun send(conversationId: String, content: ContentPayload): SendMessageResult
+    suspend fun send(command: SendMessageCommand): SendMessageResult
+
+    suspend fun send(conversationId: String, content: ContentPayload): SendMessageResult =
+        send(SendMessageCommand(conversationId = conversationId, content = content, idempotencyKey = java.util.UUID.randomUUID().toString()))
 
     suspend fun retry(localMessageId: String): SendMessageResult
 

@@ -123,4 +123,43 @@ class ChatRepository(
     suspend fun markChatRead(chatId: String) {
         chatDao.setMarkedUnread(chatId, marked = false)
     }
+
+    /** 是否为密聊会话 */
+    suspend fun isSecretChat(chatId: String): Boolean =
+        chatDao.isSecretChat(chatId)
+
+    /** 从本地缓存查找与指定 peer 的单聊会话（离线快速直聊查找） */
+    suspend fun findCachedDirectChat(peerUserId: String): Chat? {
+        val allChats = chatDao.getAllChatsDirect()
+        val direct = allChats.firstOrNull { entity ->
+            !entity.isGroup && entity.participantIds.split(",").map { it.trim() }.contains(peerUserId)
+        } ?: return null
+        val users = userDao.getAllUsers().firstOrNull().orEmpty()
+        val userMap = users.associate { it.id to it.toDomain() }
+        return direct.toDomain(userMap)
+    }
+
+    /** 离线创建确定性本地直聊会话并存入本地缓存 */
+    suspend fun createOfflineDirectChat(
+        ownerUserId: String,
+        peerUserId: String,
+        isSecret: Boolean = false,
+    ): Chat {
+        val chatId = if (isSecret) "secret_${ownerUserId}_${peerUserId}" else "direct_${ownerUserId}_${peerUserId}"
+        val existing = getChatById(chatId)
+        if (existing != null) return existing
+        val newChat = Chat(
+            id = chatId,
+            participants = listOf(
+                User(id = ownerUserId, name = ""),
+                User(id = peerUserId, name = ""),
+            ),
+            isGroup = false,
+            chatType = if (isSecret) com.maodouchat.security.SecretChatPolicy.CHAT_TYPE else "DIRECT",
+            lastMessage = "",
+            lastMessageTime = System.currentTimeMillis(),
+        )
+        cacheChats(listOf(newChat))
+        return newChat
+    }
 }

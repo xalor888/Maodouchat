@@ -433,6 +433,15 @@ interface MessagingV2Dao {
 
     @Query(
         """
+        DELETE FROM messaging_v2_outbox
+        WHERE messageId = :messageId AND ownerUserId = :ownerUserId
+          AND state IN ('QUEUED', 'PREPARING', 'READY', 'RETRY_PREPARE', 'RETRY_SEND')
+        """,
+    )
+    suspend fun cancelOutboxMessage(ownerUserId: String, messageId: String): Int
+
+    @Query(
+        """
         UPDATE messaging_v2_outbox
         SET preparedEnvelopesJson = NULL, groupRevision = :newRevision, state = 'QUEUED',
             nextAttemptAt = 0, lastErrorCode = NULL, updatedAt = :now
