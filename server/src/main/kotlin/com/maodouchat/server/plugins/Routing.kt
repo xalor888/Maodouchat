@@ -221,31 +221,44 @@ fun Application.configureRouting(
         mediaReferenceService,
     )
     val aiSummaryCleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // B01：双实例下同一任务同时只跑一份。抢不到租约直接跳过本轮
+    //（幂等清理任务漏一轮无害）；跑完即释放，崩溃残留由 TTL 兜底。
+    // TTL 略大于循环间隔：崩溃最多跳过约一轮。
+    val jobLease = com.maodouchat.server.service.JobLease()
+    suspend fun runLeased(name: String, ttlMs: Long, logMessage: String, block: suspend () -> Unit) {
+        if (!jobLease.tryAcquire(name, ttlMs)) {
+            log.debug("Skipping {}: lease held by another instance", name)
+            return
+        }
+        try {
+            runTracked(name, logMessage, block)
+        } finally {
+            jobLease.release(name)
+        }
+    }
     aiSummaryCleanupScope.launch {
         while (isActive) {
             // B14：周期任务经 BackgroundTaskHealth 追踪成功/连续失败，供 readiness 覆盖。
-            runTracked("orphanGc", "Orphan blob/media GC failed") { orphanGcJob.run() }
-            runTracked("aiAuditPurge", "AI audit log purge failed") { aiRepo.purgeOldAuditLogs() }
-            runTracked("adminOpsPurge", "Admin operational data purge failed") { purgeAdminOperationalData() }
-            runTracked("friendExpiry", "Stale friend request expiry failed") { friendRepo.expireStalePending() }
-            runTracked("groupPlayPurge", "Group play data purge failed") { GroupCheckinRepository.purgeOldData() }
-            runTracked("groupAuditPurge", "Group audit log purge failed") { groupAuditRepo.purgeOlderThan() }
-            runTracked("botCommandLogPurge", "Bot command log purge failed") { BotRepository.purgeOldCommandLogs() }
-            runTracked("botInboxPurge", "Bot inbox purge failed") { BotRepository.purgeOldInbox() }
-            runTracked("prekeyPurge", "Consumed prekey purge failed") { signalKeyRepo.purgeConsumedPreKeys() }
+            runLeased("orphanGc", 7L * 60L * 60L * 1_000L, "Orphan blob/media GC failed") { orphanGcJob.run() }
+            runLeased("aiAuditPurge", 7L * 60L * 60L * 1_000L, "AI audit log purge failed") { aiRepo.purgeOldAuditLogs() }
+            runLeased("adminOpsPurge", 7L * 60L * 60L * 1_000L, "Admin operational data purge failed") { purgeAdminOperationalData() }
+            runLeased("friendExpiry", 7L * 60L * 60L * 1_000L, "Stale friend request expiry failed") { friendRepo.expireStalePending() }
+            runLeased("groupPlayPurge", 7L * 60L * 60L * 1_000L, "Group play data purge failed") { GroupCheckinRepository.purgeOldData() }
+            runLeased("groupAuditPurge", 7L * 60L * 60L * 1_000L, "Group audit log purge failed") { groupAuditRepo.purgeOlderThan() }
+            runLeased("botCommandLogPurge", 7L * 60L * 60L * 1_000L, "Bot command log purge failed") { BotRepository.purgeOldCommandLogs() }
+            runLeased("botInboxPurge", 7L * 60L * 60L * 1_000L, "Bot inbox purge failed") { BotRepository.purgeOldInbox() }
+            runLeased("prekeyPurge", 7L * 60L * 60L * 1_000L, "Consumed prekey purge failed") { signalKeyRepo.purgeConsumedPreKeys() }
             // 1.81：清理已删除评论的残留点赞
-            runTracked("orphanCommentLikePurge", "Orphaned comment like purge failed") { postRepo.purgeOrphanedCommentLikes() }
-            runTracked("reportPurge", "Resolved report purge failed") { reportRepo.purgeResolvedOlderThan() }
+            runLeased("orphanCommentLikePurge", 7L * 60L * 60L * 1_000L, "Orphaned comment like purge failed") { postRepo.purgeOrphanedCommentLikes() }
+            runLeased("reportPurge", 7L * 60L * 60L * 1_000L, "Resolved report purge failed") { reportRepo.purgeResolvedOlderThan() }
             delay(6L * 60L * 60L * 1_000L)
         }
     }
     aiSummaryCleanupScope.launch {
         while (isActive) {
-            runCatching { authTokenRepo.deleteExpired() }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    log.warn("Expired authentication session cleanup failed", error)
-                }
+            runLeased("authSessionExpiry", 30L * 60L * 1_000L, "Expired authentication session cleanup failed") {
+                authTokenRepo.deleteExpired()
+            }
             delay(15L * 60L * 1_000L)
         }
     }
