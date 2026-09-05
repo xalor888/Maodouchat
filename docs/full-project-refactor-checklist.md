@@ -112,7 +112,7 @@ Gate：并发 401、进程恢复、A-B-A 换号、切服、设备吊销、错误
 
 - [ ] 定义最低支持升级版本；明确 1-15 是否停止直接升级。
 - [ ] 按领域拆 entity、DAO、transaction 和 migration ownership。
-- [x] `AppDatabase.kt` 只负责数据库创建、注册 migration 和 transaction boundary（30 个迁移已抽到 `DatabaseMigrations.kt`，AppDatabase 723→171 行）。
+- [x] `AppDatabase.kt` 只负责数据库创建、注册 migration 和 transaction boundary（35 个迁移已抽到 `DatabaseMigrations.kt` 并经 `DatabaseMigrationsChainTest` 锁定连续无断点；AppDatabase 723→171 行）。
 - [x] 建立 `DatabaseLifecycle`，覆盖创建、解锁、换号销毁、迁移失败和恢复（已抽为 `internal object DatabaseLifecycle`：open/close/destroy/backup-recreate）。
 - [ ] 为每个受支持旧版本到当前版本保存 schema fixture 和真实数据 fixture。
 - [ ] 测试 SQLCipher 密钥错误、迁移中断、磁盘满、FTS、外键、墓碑和账号隔离。
