@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.runTracked
 import com.maodouchat.server.service.SealedSenderCertificateService
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
@@ -222,62 +223,19 @@ fun Application.configureRouting(
     val aiSummaryCleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     aiSummaryCleanupScope.launch {
         while (isActive) {
-            runCatching { orphanGcJob.run() }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    log.warn("Orphan blob/media GC failed", error)
-                }
-            runCatching { aiRepo.purgeOldAuditLogs() }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    log.warn("AI audit log purge failed", error)
-                }
-            runCatching { purgeAdminOperationalData() }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    log.warn("Admin operational data purge failed", error)
-                }
-            runCatching { friendRepo.expireStalePending() }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    log.warn("Stale friend request expiry failed", error)
-                }
-            runCatching { GroupCheckinRepository.purgeOldData() }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    log.warn("Group play data purge failed", error)
-                }
-            runCatching { groupAuditRepo.purgeOlderThan() }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    log.warn("Group audit log purge failed", error)
-                }
-            runCatching { BotRepository.purgeOldCommandLogs() }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    log.warn("Bot command log purge failed", error)
-                }
-            runCatching { BotRepository.purgeOldInbox() }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    log.warn("Bot inbox purge failed", error)
-                }
-            runCatching { signalKeyRepo.purgeConsumedPreKeys() }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    log.warn("Consumed prekey purge failed", error)
-                }
+            // B14：周期任务经 BackgroundTaskHealth 追踪成功/连续失败，供 readiness 覆盖。
+            runTracked("orphanGc", "Orphan blob/media GC failed") { orphanGcJob.run() }
+            runTracked("aiAuditPurge", "AI audit log purge failed") { aiRepo.purgeOldAuditLogs() }
+            runTracked("adminOpsPurge", "Admin operational data purge failed") { purgeAdminOperationalData() }
+            runTracked("friendExpiry", "Stale friend request expiry failed") { friendRepo.expireStalePending() }
+            runTracked("groupPlayPurge", "Group play data purge failed") { GroupCheckinRepository.purgeOldData() }
+            runTracked("groupAuditPurge", "Group audit log purge failed") { groupAuditRepo.purgeOlderThan() }
+            runTracked("botCommandLogPurge", "Bot command log purge failed") { BotRepository.purgeOldCommandLogs() }
+            runTracked("botInboxPurge", "Bot inbox purge failed") { BotRepository.purgeOldInbox() }
+            runTracked("prekeyPurge", "Consumed prekey purge failed") { signalKeyRepo.purgeConsumedPreKeys() }
             // 1.81：清理已删除评论的残留点赞
-            runCatching { postRepo.purgeOrphanedCommentLikes() }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    log.warn("Orphaned comment like purge failed", error)
-                }
-            runCatching { reportRepo.purgeResolvedOlderThan() }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    log.warn("Resolved report purge failed", error)
-                }
+            runTracked("orphanCommentLikePurge", "Orphaned comment like purge failed") { postRepo.purgeOrphanedCommentLikes() }
+            runTracked("reportPurge", "Resolved report purge failed") { reportRepo.purgeResolvedOlderThan() }
             delay(6L * 60L * 60L * 1_000L)
         }
     }

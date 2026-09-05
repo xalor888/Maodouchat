@@ -279,6 +279,8 @@ class HealthCheckRouteTest {
         assertTrue(ready.bodyAsText().contains("\"status\":\"ready\""), ready.bodyAsText())
         assertTrue(ready.bodyAsText().contains("\"database\":\"ok\""), ready.bodyAsText())
         assertTrue(ready.bodyAsText().contains("\"storage\":\"ok\""), ready.bodyAsText())
+        // B14：readiness 覆盖后台周期任务状态。
+        assertTrue(ready.bodyAsText().contains("\"backgroundTasks\""), ready.bodyAsText())
         assertEquals(HttpStatusCode.OK, client.get("/api/health").status)
     }
 

@@ -214,12 +214,16 @@ internal suspend fun ApplicationCall.respondReadiness() {
         val path = Paths.get(ServerConfig.storageDir).toAbsolutePath().normalize()
         Files.isDirectory(path) && Files.isWritable(path)
     }.getOrDefault(false)
+    // B14：后台周期任务状态——连续失败 >= 阈值判 degraded；从未运行为 unknown，不拉低就绪。
+    val backgroundTasks = com.maodouchat.server.service.BackgroundTaskHealth.global
+    val backgroundDegraded = backgroundTasks.degradedTasks()
     val checks = linkedMapOf(
         "database" to if (databaseReady) "ok" else "unavailable",
         "migrations" to if (migrationsReady) "ok" else "pending",
-        "storage" to if (storageReady) "ok" else "unavailable"
+        "storage" to if (storageReady) "ok" else "unavailable",
+        "backgroundTasks" to if (backgroundDegraded.isEmpty()) "ok" else "degraded:${backgroundDegraded.joinToString(",")}",
     )
-    if (databaseReady && migrationsReady && storageReady) {
+    if (databaseReady && migrationsReady && storageReady && backgroundDegraded.isEmpty()) {
         respond(HealthStatusResponse(status = "ready", checks = checks))
     } else {
         respond(HttpStatusCode.ServiceUnavailable, HealthStatusResponse(status = "not_ready", checks = checks))
