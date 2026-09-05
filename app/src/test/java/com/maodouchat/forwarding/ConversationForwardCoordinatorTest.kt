@@ -1,7 +1,7 @@
 package com.maodouchat.forwarding
 
 import com.maodouchat.conversation.ConversationCommandFacade
-import com.maodouchat.messaging.v2.ContentPayload
+import com.maodouchat.messaging.v2.DecodedContentPayload
 import com.maodouchat.messaging.v2.ConversationMessageStagingGateway
 import com.maodouchat.messaging.v2.MessagingV2MessageGatewayOutcome
 import com.maodouchat.data.model.Chat
@@ -170,11 +170,11 @@ class ConversationForwardCoordinatorTest {
 
     private class RecordingGateway : ConversationMessageStagingGateway {
         val messages = mutableListOf<Message>()
-        val payloads = mutableListOf<ContentPayload>()
+        val payloads = mutableListOf<DecodedContentPayload>()
 
         override suspend fun stage(
             message: Message,
-            payload: ContentPayload,
+            payload: DecodedContentPayload,
             groupRevision: Long?,
         ): MessagingV2MessageGatewayOutcome {
             messages += message
@@ -184,7 +184,7 @@ class ConversationForwardCoordinatorTest {
 
         override suspend fun retry(
             message: Message,
-            payload: ContentPayload,
+            payload: DecodedContentPayload,
             groupRevision: Long?,
         ): MessagingV2MessageGatewayOutcome = MessagingV2MessageGatewayOutcome.Staged(message)
     }

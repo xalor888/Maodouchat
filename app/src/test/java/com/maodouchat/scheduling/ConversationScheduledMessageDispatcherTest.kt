@@ -4,7 +4,7 @@ import com.maodouchat.conversation.ConversationCommandFacade
 import com.maodouchat.conversation.ConversationCommandOutcome
 import com.maodouchat.conversation.ConversationCommandRejection
 import com.maodouchat.data.model.Chat
-import com.maodouchat.messaging.v2.ContentPayload
+import com.maodouchat.messaging.v2.DecodedContentPayload
 import com.maodouchat.messaging.v2.ConversationMessageStagingGateway
 import com.maodouchat.messaging.v2.MessagingV2MessageGatewayOutcome
 import com.maodouchat.util.ScheduledMessage
@@ -58,11 +58,11 @@ class ConversationScheduledMessageDispatcherTest {
 
     private class RecordingGateway : ConversationMessageStagingGateway {
         var message: com.maodouchat.data.model.Message? = null
-        var payload: ContentPayload? = null
+        var payload: DecodedContentPayload? = null
 
         override suspend fun stage(
             message: com.maodouchat.data.model.Message,
-            payload: ContentPayload,
+            payload: DecodedContentPayload,
             groupRevision: Long?,
         ): MessagingV2MessageGatewayOutcome {
             this.message = message
@@ -72,7 +72,7 @@ class ConversationScheduledMessageDispatcherTest {
 
         override suspend fun retry(
             message: com.maodouchat.data.model.Message,
-            payload: ContentPayload,
+            payload: DecodedContentPayload,
             groupRevision: Long?,
         ): MessagingV2MessageGatewayOutcome = MessagingV2MessageGatewayOutcome.Staged(message)
     }

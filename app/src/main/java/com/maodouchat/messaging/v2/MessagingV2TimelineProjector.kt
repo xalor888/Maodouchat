@@ -97,13 +97,13 @@ internal class MessagingV2TimelineProjector(
         if (arrival.shouldSendDeliveryReceipt) sendDeliveryReceipt(envelope)
     }
 
-    private fun projectContent(payload: ContentPayload): String {
+    private fun projectContent(payload: DecodedContentPayload): String {
         if (payload.type !in ATTACHMENT_TYPES) return payload.body
         val reference = MediaCache.decodeEncryptedAttachmentReference(payload.body) ?: return payload.body
         return MediaCache.attachmentUri(reference.attachmentId)
     }
 
-    private fun projectMetadata(payload: ContentPayload): MessageMeta {
+    private fun projectMetadata(payload: DecodedContentPayload): MessageMeta {
         if (payload.type !in ATTACHMENT_TYPES) return payload.metadata
         val reference = MediaCache.decodeEncryptedAttachmentReference(payload.body) ?: return payload.metadata
         return payload.metadata.copy(

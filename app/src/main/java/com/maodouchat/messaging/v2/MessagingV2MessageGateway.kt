@@ -18,13 +18,13 @@ sealed interface MessagingV2MessageGatewayOutcome {
 interface ConversationMessageStagingGateway {
     suspend fun stage(
         message: Message,
-        payload: ContentPayload,
+        payload: DecodedContentPayload,
         groupRevision: Long? = null,
     ): MessagingV2MessageGatewayOutcome
 
     suspend fun retry(
         message: Message,
-        payload: ContentPayload,
+        payload: DecodedContentPayload,
         groupRevision: Long? = null,
     ): MessagingV2MessageGatewayOutcome
 }
@@ -34,7 +34,7 @@ interface ConversationMessageStagingGateway {
  *
  * A message becomes durable locally before it is handed to the encrypted outbox. Screens may
  * still decide optimistic UI and error presentation, but do not reimplement persistence/enqueue
- * ordering. New callers use typed [ContentPayload] and explicit [MessagingV2MessageGatewayOutcome].
+ * ordering. New callers use typed [DecodedContentPayload] and explicit [MessagingV2MessageGatewayOutcome].
  */
 class MessagingV2MessageGateway(
     private val database: AppDatabase,
@@ -44,7 +44,7 @@ class MessagingV2MessageGateway(
 ) : ConversationMessageStagingGateway {
     override suspend fun stage(
         message: Message,
-        payload: ContentPayload,
+        payload: DecodedContentPayload,
         groupRevision: Long?,
     ): MessagingV2MessageGatewayOutcome {
         val normalized = ContentPayloadCodec.normalizeLocalMessage(message)
@@ -71,7 +71,7 @@ class MessagingV2MessageGateway(
 
     override suspend fun retry(
         message: Message,
-        payload: ContentPayload,
+        payload: DecodedContentPayload,
         groupRevision: Long?,
     ): MessagingV2MessageGatewayOutcome {
         val normalized = ContentPayloadCodec.normalizeLocalMessage(message)

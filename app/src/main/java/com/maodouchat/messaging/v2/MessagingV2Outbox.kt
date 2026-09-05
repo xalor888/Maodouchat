@@ -264,7 +264,7 @@ class MessagingV2Outbox(
 
     internal suspend fun retryContentPayloadInCurrentTransaction(
         conversationId: String,
-        payload: ContentPayload,
+        payload: DecodedContentPayload,
         groupRevision: Long?,
         messageId: String,
     ) {
@@ -300,7 +300,7 @@ class MessagingV2Outbox(
 
     internal suspend fun enqueueContentPayloadInCurrentTransaction(
         conversationId: String,
-        payload: ContentPayload,
+        payload: DecodedContentPayload,
         groupRevision: Long?,
         messageId: String,
     ): String = enqueuePayloadInCurrentTransaction(

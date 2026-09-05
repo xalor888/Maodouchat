@@ -4,7 +4,7 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.messaging.v2.ContentPayload
+import com.maodouchat.messaging.v2.DecodedContentPayload
 import com.maodouchat.messaging.v2.ConversationMessageStagingGateway
 import com.maodouchat.messaging.v2.MessagingV2MessageGatewayOutcome
 import kotlinx.coroutines.test.runTest
@@ -103,12 +103,12 @@ class ConversationCommandFacadeTest {
         private val retryOutcome: MessagingV2MessageGatewayOutcome? = null,
     ) : ConversationMessageStagingGateway {
         val messages = mutableListOf<Message>()
-        val payloads = mutableListOf<ContentPayload>()
+        val payloads = mutableListOf<DecodedContentPayload>()
         var retryCount = 0
 
         override suspend fun stage(
             message: Message,
-            payload: ContentPayload,
+            payload: DecodedContentPayload,
             groupRevision: Long?,
         ): MessagingV2MessageGatewayOutcome {
             messages += message
@@ -118,7 +118,7 @@ class ConversationCommandFacadeTest {
 
         override suspend fun retry(
             message: Message,
-            payload: ContentPayload,
+            payload: DecodedContentPayload,
             groupRevision: Long?,
         ): MessagingV2MessageGatewayOutcome {
             retryCount += 1

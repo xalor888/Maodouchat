@@ -11,7 +11,7 @@ import org.junit.Test
 class ContentPayloadCodecTest {
     @Test
     fun `structured encoding writes metadata outside display body`() {
-        val payload = ContentPayload(
+        val payload = DecodedContentPayload(
             type = MessageType.TEXT,
             body = "hello",
             metadata = MessageMeta(forwardedFrom = "Alice", mentions = listOf("user-1")),

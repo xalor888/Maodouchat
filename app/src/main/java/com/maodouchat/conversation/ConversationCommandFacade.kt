@@ -5,7 +5,7 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.messaging.v2.ContentPayload
+import com.maodouchat.messaging.v2.DecodedContentPayload
 import com.maodouchat.messaging.v2.ConversationMessageStagingGateway
 import com.maodouchat.messaging.v2.MessagingV2MessageGatewayOutcome
 import java.util.UUID
@@ -62,7 +62,7 @@ class ConversationCommandFacade(
                 status = MessageStatus.SENDING,
                 meta = metadata.copy(markdown = type == MessageType.MARKDOWN),
             ),
-            payload = ContentPayload(
+            payload = DecodedContentPayload(
                 type = type,
                 body = normalized,
                 metadata = metadata.copy(markdown = type == MessageType.MARKDOWN),
@@ -79,7 +79,7 @@ class ConversationCommandFacade(
         capability = ConversationCapability.RETRY_MESSAGE,
         privacy = privacy,
         message = message,
-        payload = ContentPayload(
+        payload = DecodedContentPayload(
             type = message.type,
             body = message.parsedContent(),
             metadata = message.parsedMeta(),
@@ -110,7 +110,7 @@ class ConversationCommandFacade(
                 status = MessageStatus.SENDING,
                 meta = metadata,
             ),
-            payload = ContentPayload(
+            payload = DecodedContentPayload(
                 type = source.type,
                 body = source.parsedContent(),
                 metadata = metadata,
@@ -177,7 +177,7 @@ class ConversationCommandFacade(
                 status = MessageStatus.SENDING,
                 meta = metadata,
             ),
-            payload = ContentPayload(type = type, body = normalized, metadata = metadata),
+            payload = DecodedContentPayload(type = type, body = normalized, metadata = metadata),
             groupRevision = chat.memberRevision.takeIf { chat.isGroup && it > 0L },
         )
     }
@@ -186,7 +186,7 @@ class ConversationCommandFacade(
         capability: ConversationCapability,
         privacy: ConversationPrivacyContext,
         message: Message,
-        payload: ContentPayload,
+        payload: DecodedContentPayload,
         groupRevision: Long?,
         retry: Boolean = false,
     ): ConversationCommandOutcome {

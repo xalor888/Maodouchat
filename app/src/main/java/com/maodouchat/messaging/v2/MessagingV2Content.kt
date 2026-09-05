@@ -35,7 +35,7 @@ data class MessagingV2Content(
  * `Message.content` remains a local display field. This type is the application boundary that
  * keeps transport metadata structured rather than treating the display text as a wire format.
  */
-data class ContentPayload(
+data class DecodedContentPayload(
     val type: MessageType,
     val body: String,
     val metadata: MessageMeta = MessageMeta(),
@@ -52,7 +52,7 @@ object ContentPayloadCodec {
     private const val META_PREFIX = "<meta>"
     private const val META_SUFFIX = "</meta>"
 
-    fun encode(payload: ContentPayload): MessagingV2Content = MessagingV2Content(
+    fun encode(payload: DecodedContentPayload): MessagingV2Content = MessagingV2Content(
         version = STRUCTURED_VERSION,
         type = payload.type.name,
         body = payload.body,
@@ -64,7 +64,7 @@ object ContentPayloadCodec {
         metadata = payload.metadata,
     )
 
-    fun decode(content: MessagingV2Content): ContentPayload {
+    fun decode(content: MessagingV2Content): DecodedContentPayload {
         val legacy = if (content.metadata == null) {
             decodeLegacyBody(content.body)
         } else {
@@ -76,7 +76,7 @@ object ContentPayloadCodec {
             mentions = content.mentionedUserIds.ifEmpty { rawMetadata.mentions },
             attachmentId = content.attachmentIds.firstOrNull() ?: rawMetadata.attachmentId,
         )
-        return ContentPayload(
+        return DecodedContentPayload(
             type = MessageType.fromWire(content.type),
             body = legacy.body,
             metadata = metadata,
@@ -95,9 +95,9 @@ object ContentPayloadCodec {
         message: Message,
         transportBody: String = message.parsedContent(),
         transportType: MessageType = message.type,
-    ): ContentPayload {
+    ): DecodedContentPayload {
         val metadata = message.parsedMeta()
-        return ContentPayload(
+        return DecodedContentPayload(
             type = transportType,
             body = decodeLegacyBody(transportBody).body,
             metadata = metadata,
