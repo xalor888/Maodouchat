@@ -296,12 +296,8 @@ class MainActivity : FragmentActivity() {
                     notificationTarget.value = null
                     return@collect
                 }
-                when (target) {
-                    is NotificationTarget.Chat -> navController.navigate(Routes.chatDetail(target.id, target.messageId)) { launchSingleTop = true }
-                    is NotificationTarget.AiTasks -> navController.navigate(Routes.aiTasks(target.chatId)) { launchSingleTop = true }
-                    is NotificationTarget.Post -> navController.navigate(Routes.postDetail(target.id)) { launchSingleTop = true }
-                    is NotificationTarget.PublicProfile -> navController.navigate(Routes.publicProfile(target.username)) { launchSingleTop = true }
-                }
+                // P08：目标→路由字符串经 AppLinkDestination 统一映射（与 Routes builder 同构，见单测）。
+                navController.navigate(target.toDestination().toRoute()) { launchSingleTop = true }
                 // 8.47 修复：仅当仍是刚处理的目标时才清空——等待登录/导航期间新通知到达会
                 // 覆盖 value（TargetB）；无条件置 null 会把尚未处理的 TargetB 一并丢弃。
                 if (notificationTarget.value == target) {
@@ -761,5 +757,13 @@ class MainActivity : FragmentActivity() {
             override val sessionGeneration: Long,
             override val ownerUserId: String,
         ) : NotificationTarget
+    }
+
+    /** P08：系统入口目标 → 类型化导航目标（路由字符串经 `toRoute()` 统一生成）。 */
+    private fun NotificationTarget.toDestination(): AppLinkDestination = when (this) {
+        is NotificationTarget.Chat -> AppLinkDestination.ChatDetail(id, messageId)
+        is NotificationTarget.AiTasks -> AppLinkDestination.AiTasksChat(chatId)
+        is NotificationTarget.Post -> AppLinkDestination.PostDetail(id)
+        is NotificationTarget.PublicProfile -> AppLinkDestination.PublicProfile(username)
     }
 }

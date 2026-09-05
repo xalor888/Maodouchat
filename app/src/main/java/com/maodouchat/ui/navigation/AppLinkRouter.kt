@@ -41,6 +41,12 @@ sealed interface AppLinkDestination {
         }
     }
 
+    /** AI 任务屏（`Routes.aiTasks`）：会话级目标，独立于聊天详情路由。 */
+    data class AiTasksChat(val chatId: String) : AppLinkDestination {
+        override val requiresAuth: Boolean = true
+        override fun toRoute(): String = "ai_tasks/${AppLinkRouter.encodePathSegment(chatId)}"
+    }
+
     data class GroupInvite(val code: String) : AppLinkDestination {
         override val requiresAuth: Boolean = true
         // 暂无专用路由：先复用全局搜索/邀请落地页由调用方二次派发，路由字符串保留可解析形态。
@@ -110,8 +116,7 @@ object AppLinkRouter {
             return AppLinkDestination.ChatDetail(chatId = cleanChat, messageId = cleanMsg)
         }
         extras["open_ai_tasks_chat_id"]?.takeIf { it.isNotBlank() }?.let {
-            // AI 任务入口本质是会话级目标，复用 ChatDetail 承载，会话页内再切 AI 面板。
-            return AppLinkDestination.ChatDetail(chatId = sanitizeChatIdStrict(it) ?: return null)
+            return AppLinkDestination.AiTasksChat(chatId = sanitizeChatIdStrict(it) ?: return null)
         }
         extras["open_post_id"]?.takeIf { it.isNotBlank() }?.let {
             return AppLinkDestination.PostDetail(postId = sanitizePostIdStrict(it) ?: return null)

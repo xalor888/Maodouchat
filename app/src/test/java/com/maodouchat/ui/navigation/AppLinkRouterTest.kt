@@ -120,6 +120,45 @@ class AppLinkRouterTest {
     }
 
     @Test
+    fun aiTasksDestinationRoute() {
+        val dest = AppLinkDestination.AiTasksChat("c1")
+        assertTrue(dest.requiresAuth)
+        // 与 Routes.aiTasks 同构。
+        assertEquals("ai_tasks/c1", dest.toRoute())
+    }
+
+    @Test
+    fun notificationExtrasAiTasks() {
+        val dest = AppLinkRouter.parseNotificationExtras(
+            mapOf("open_ai_tasks_chat_id" to "c9")
+        )
+        assertEquals(AppLinkDestination.AiTasksChat("c9"), dest)
+    }
+
+    @Test
+    fun dispatchParityWithRoutesBuilders() {
+        // MainActivity 派发改走 toRoute()：锁定与旧 Routes.* builder 逐字一致。
+        assertEquals(
+            "chat_detail/c1",
+            (AppLinkDestination.ChatDetail("c1") as AppLinkDestination).toRoute()
+        )
+        assertEquals(
+            "chat_detail/c1?messageId=m1",
+            AppLinkDestination.ChatDetail("c1", "m1").toRoute()
+        )
+        assertEquals("ai_tasks/c1", AppLinkDestination.AiTasksChat("c1").toRoute())
+        assertEquals(
+            "post/p1?comment=",
+            AppLinkDestination.PostDetail("p1").toRoute()
+        )
+        assertEquals(
+            "post/p1?comment=c2",
+            AppLinkDestination.PostDetail("p1", "c2").toRoute()
+        )
+        assertEquals("public_profile/alice", AppLinkDestination.PublicProfile("alice").toRoute())
+    }
+
+    @Test
     fun encodeKeepsUnreserved() {
         assertEquals("abc-123_.~", AppLinkRouter.encodePathSegment("abc-123_.~"))
         assertEquals("a%2Fb", AppLinkRouter.encodePathSegment("a/b"))
