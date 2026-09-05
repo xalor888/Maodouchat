@@ -2,6 +2,7 @@ package com.maodouchat.crypto
 
 import android.util.Base64
 import android.util.Log
+import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.data.local.dao.IdentityTrustDao
 import com.maodouchat.data.local.dao.SignalKeyDao
 import com.maodouchat.data.local.entity.SignalKeyEntity
@@ -45,7 +46,7 @@ import java.util.UUID
 class SignalProtocol(
     private val signalKeyDao: SignalKeyDao,
     private val identityTrustDao: IdentityTrustDao
-) : com.maodouchat.core.crypto.DirectSessionManager, com.maodouchat.core.crypto.EnvelopeCodec {
+) : com.maodouchat.core.crypto.DirectSessionManager, com.maodouchat.core.crypto.EnvelopeCodec, com.maodouchat.core.crypto.DirectMessageCipher {
     private val initializationMutex = Mutex()
     /**
      * Serializes SessionCipher / GroupCipher / store mutations across ViewModels and workers.
@@ -820,7 +821,7 @@ class SignalProtocol(
         }
     }
 
-    suspend fun encryptTextEnvelope(token: String, recipientId: String, plaintext: String): Result<String> {
+    override suspend fun encryptTextEnvelope(token: String, recipientId: String, plaintext: String): Result<String> {
         return encryptContentEnvelope(token, recipientId, plaintext, PAYLOAD_TEXT)
     }
 
@@ -1157,7 +1158,7 @@ class SignalProtocol(
         return DecryptFailurePolicy.shouldSkipCryptoAttempt(decryptRetryTracker.failureCount(fingerprint))
     }
 
-    fun decryptTextEnvelope(senderId: String, content: String): DecryptResult {
+    override fun decryptTextEnvelope(senderId: String, content: String): DecryptResult {
         return decryptContentEnvelope(senderId, content)
     }
 
@@ -2158,17 +2159,6 @@ class SignalProtocol(
         TRUSTED,
         VERIFIED,
         CHANGED
-    }
-
-    sealed class DecryptResult {
-        data class Success(val plaintext: String) : DecryptResult()
-        data object UnsupportedEnvelope : DecryptResult()
-        data object NotForThisDevice : DecryptResult()
-        data object NoSession : DecryptResult()
-        data object UntrustedIdentity : DecryptResult()
-        data object FutureEpoch : DecryptResult()
-        data object Failed : DecryptResult()
-        data object Duplicate : DecryptResult()
     }
 
     data class EncryptedPayload(val type: String, val payload: ByteArray)

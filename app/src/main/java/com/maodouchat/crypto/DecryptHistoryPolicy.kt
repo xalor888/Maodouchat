@@ -1,5 +1,7 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.crypto.DecryptResult
+
 /**
  * History restore / decrypt-failure rules that must stay off ChatDetailViewModel.
  *
@@ -10,21 +12,21 @@ package com.maodouchat.crypto
 object DecryptHistoryPolicy {
 
     /** Never drop a chat row because this device cannot read it yet. */
-    fun shouldKeepWire(result: SignalProtocol.DecryptResult): Boolean = when (result) {
-        is SignalProtocol.DecryptResult.Success -> false
-        SignalProtocol.DecryptResult.NotForThisDevice,
-        SignalProtocol.DecryptResult.NoSession,
-        SignalProtocol.DecryptResult.UntrustedIdentity,
-        SignalProtocol.DecryptResult.FutureEpoch,
-        SignalProtocol.DecryptResult.Failed,
-        SignalProtocol.DecryptResult.Duplicate,
-        SignalProtocol.DecryptResult.UnsupportedEnvelope -> true
+    fun shouldKeepWire(result: DecryptResult): Boolean = when (result) {
+        is DecryptResult.Success -> false
+        DecryptResult.NotForThisDevice,
+        DecryptResult.NoSession,
+        DecryptResult.UntrustedIdentity,
+        DecryptResult.FutureEpoch,
+        DecryptResult.Failed,
+        DecryptResult.Duplicate,
+        DecryptResult.UnsupportedEnvelope -> true
     }
 
     /** 1:1 NoSession / identity change can be repaired later; not per-row during history. */
-    fun shouldDeferSessionRepair(result: SignalProtocol.DecryptResult): Boolean = when (result) {
-        SignalProtocol.DecryptResult.NoSession,
-        SignalProtocol.DecryptResult.UntrustedIdentity -> true
+    fun shouldDeferSessionRepair(result: DecryptResult): Boolean = when (result) {
+        DecryptResult.NoSession,
+        DecryptResult.UntrustedIdentity -> true
         else -> false
     }
 

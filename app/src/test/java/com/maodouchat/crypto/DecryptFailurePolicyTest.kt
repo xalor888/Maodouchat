@@ -1,5 +1,6 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.crypto.DecryptResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -10,10 +11,10 @@ class DecryptFailurePolicyTest {
     @Test
     fun terminalResultsStopImmediately() {
         val stop = listOf(
-            SignalProtocol.DecryptResult.Success("ok"),
-            SignalProtocol.DecryptResult.Duplicate,
-            SignalProtocol.DecryptResult.UnsupportedEnvelope,
-            SignalProtocol.DecryptResult.NotForThisDevice,
+            DecryptResult.Success("ok"),
+            DecryptResult.Duplicate,
+            DecryptResult.UnsupportedEnvelope,
+            DecryptResult.NotForThisDevice,
         )
         stop.forEach { result ->
             assertEquals(DecryptFailurePolicy.Disposition.STOP, DecryptFailurePolicy.disposition(result))
@@ -25,11 +26,11 @@ class DecryptFailurePolicyTest {
     fun duplicateIsRememberedAsTerminalRatherThanCleared() {
         assertEquals(
             DecryptFailurePolicy.TrackingAction.MARK_TERMINAL,
-            DecryptFailurePolicy.trackingAction(SignalProtocol.DecryptResult.Duplicate)
+            DecryptFailurePolicy.trackingAction(DecryptResult.Duplicate)
         )
         assertEquals(
             DecryptFailurePolicy.TrackingAction.CLEAR,
-            DecryptFailurePolicy.trackingAction(SignalProtocol.DecryptResult.Success("ok"))
+            DecryptFailurePolicy.trackingAction(DecryptResult.Success("ok"))
         )
     }
 
@@ -48,10 +49,10 @@ class DecryptFailurePolicyTest {
     @Test
     fun retryableResultsStopOnlyAfterCap() {
         val retry = listOf(
-            SignalProtocol.DecryptResult.NoSession,
-            SignalProtocol.DecryptResult.UntrustedIdentity,
-            SignalProtocol.DecryptResult.FutureEpoch,
-            SignalProtocol.DecryptResult.Failed,
+            DecryptResult.NoSession,
+            DecryptResult.UntrustedIdentity,
+            DecryptResult.FutureEpoch,
+            DecryptResult.Failed,
         )
         retry.forEach { result ->
             assertEquals(DecryptFailurePolicy.Disposition.RETRY, DecryptFailurePolicy.disposition(result))
@@ -66,16 +67,16 @@ class DecryptFailurePolicyTest {
     @Test
     fun trackerAcksTerminalAndCapsRetry() {
         val tracker = DecryptRetryTracker(maxAttempts = 5, maxTracked = 8)
-        assertTrue(tracker.shouldAcknowledge("e1", SignalProtocol.DecryptResult.Duplicate))
-        assertTrue(tracker.shouldAcknowledge("e2", SignalProtocol.DecryptResult.UnsupportedEnvelope))
-        assertTrue(tracker.shouldAcknowledge("e3", SignalProtocol.DecryptResult.NotForThisDevice))
+        assertTrue(tracker.shouldAcknowledge("e1", DecryptResult.Duplicate))
+        assertTrue(tracker.shouldAcknowledge("e2", DecryptResult.UnsupportedEnvelope))
+        assertTrue(tracker.shouldAcknowledge("e3", DecryptResult.NotForThisDevice))
 
         repeat(4) {
-            assertFalse(tracker.shouldAcknowledge("e4", SignalProtocol.DecryptResult.Failed))
+            assertFalse(tracker.shouldAcknowledge("e4", DecryptResult.Failed))
         }
-        assertTrue(tracker.shouldAcknowledge("e4", SignalProtocol.DecryptResult.Failed))
+        assertTrue(tracker.shouldAcknowledge("e4", DecryptResult.Failed))
         // 达上限后计数已清，下一次重新计数
-        assertFalse(tracker.shouldAcknowledge("e4", SignalProtocol.DecryptResult.Failed))
+        assertFalse(tracker.shouldAcknowledge("e4", DecryptResult.Failed))
     }
 
     @Test
@@ -124,13 +125,13 @@ class DecryptFailurePolicyTest {
             """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"ciphertextType":"prekey","ciphertext":"NAgB"}]}"""
         val placeholder = "无法解密"
         val failures = listOf(
-            SignalProtocol.DecryptResult.NoSession,
-            SignalProtocol.DecryptResult.UntrustedIdentity,
-            SignalProtocol.DecryptResult.FutureEpoch,
-            SignalProtocol.DecryptResult.Failed,
-            SignalProtocol.DecryptResult.NotForThisDevice,
-            SignalProtocol.DecryptResult.Duplicate,
-            SignalProtocol.DecryptResult.UnsupportedEnvelope,
+            DecryptResult.NoSession,
+            DecryptResult.UntrustedIdentity,
+            DecryptResult.FutureEpoch,
+            DecryptResult.Failed,
+            DecryptResult.NotForThisDevice,
+            DecryptResult.Duplicate,
+            DecryptResult.UnsupportedEnvelope,
         )
         failures.forEach { result ->
             assertTrue(DecryptFailurePolicy.neverPersistUiPlaceholder(result))
@@ -142,12 +143,12 @@ class DecryptFailurePolicyTest {
         assertEquals(
             "hello",
             DecryptFailurePolicy.persistDecryptResultToRoom(
-                SignalProtocol.DecryptResult.Success("hello"),
+                DecryptResult.Success("hello"),
                 wire,
                 placeholder
             )
         )
-        assertFalse(DecryptFailurePolicy.neverPersistUiPlaceholder(SignalProtocol.DecryptResult.Success("hello")))
+        assertFalse(DecryptFailurePolicy.neverPersistUiPlaceholder(DecryptResult.Success("hello")))
     }
 
     @Test

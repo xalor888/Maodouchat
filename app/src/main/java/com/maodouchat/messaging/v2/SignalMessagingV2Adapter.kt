@@ -1,5 +1,6 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.crypto.SenderKeyDistOutcome
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
@@ -204,7 +205,7 @@ class SignalMessagingV2EnvelopeProcessor(
             )
         }
         when (decrypted) {
-            is SignalProtocol.DecryptResult.Success -> {
+            is DecryptResult.Success -> {
                 if (envelope.kind == KIND_SENDER_KEY) {
                     when (
                         signalProtocol.processSenderKeyDistributionEnvelope(
@@ -237,7 +238,7 @@ class SignalMessagingV2EnvelopeProcessor(
                     domainSink.commit(envelope, content)
                 }
             }
-            SignalProtocol.DecryptResult.Duplicate -> {
+            DecryptResult.Duplicate -> {
                 // Sender-key installation is idempotent: a replayed distribution after a crash
                 // is already installed and must be acknowledged instead of dead-lettered.
                 if (envelope.kind == KIND_SENDER_KEY) return
@@ -262,7 +263,7 @@ class SignalMessagingV2EnvelopeProcessor(
                     inboxDao.writePlaintextJournal(envelope.envelopeId, "", System.currentTimeMillis())
                 }
             }
-            SignalProtocol.DecryptResult.NoSession -> {
+            DecryptResult.NoSession -> {
                 if (envelope.ciphertextType == CIPHERTEXT_SENDER_KEY) {
                     val epoch = envelope.groupRevision
                         ?: groupRevisionProvider(envelope.conversationId)
@@ -271,11 +272,11 @@ class SignalMessagingV2EnvelopeProcessor(
                 }
                 error("messaging_v2_no_session")
             }
-            SignalProtocol.DecryptResult.UntrustedIdentity -> error("messaging_v2_untrusted_identity")
-            SignalProtocol.DecryptResult.FutureEpoch -> error("messaging_v2_future_group_revision")
-            SignalProtocol.DecryptResult.NotForThisDevice -> error("messaging_v2_wrong_device")
-            SignalProtocol.DecryptResult.UnsupportedEnvelope -> error("messaging_v2_unsupported_ciphertext")
-            SignalProtocol.DecryptResult.Failed -> error("messaging_v2_decrypt_failed")
+            DecryptResult.UntrustedIdentity -> error("messaging_v2_untrusted_identity")
+            DecryptResult.FutureEpoch -> error("messaging_v2_future_group_revision")
+            DecryptResult.NotForThisDevice -> error("messaging_v2_wrong_device")
+            DecryptResult.UnsupportedEnvelope -> error("messaging_v2_unsupported_ciphertext")
+            DecryptResult.Failed -> error("messaging_v2_decrypt_failed")
         }
     }
 

@@ -1,5 +1,6 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.crypto.DecryptResult
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -25,25 +26,25 @@ object DecryptFailurePolicy {
         MARK_TERMINAL,
     }
 
-    fun disposition(result: SignalProtocol.DecryptResult): Disposition = when (result) {
-        is SignalProtocol.DecryptResult.Success,
-        SignalProtocol.DecryptResult.Duplicate,
-        SignalProtocol.DecryptResult.UnsupportedEnvelope,
-        SignalProtocol.DecryptResult.NotForThisDevice -> Disposition.STOP
-        SignalProtocol.DecryptResult.NoSession,
-        SignalProtocol.DecryptResult.UntrustedIdentity,
-        SignalProtocol.DecryptResult.FutureEpoch,
-        SignalProtocol.DecryptResult.Failed -> Disposition.RETRY
+    fun disposition(result: DecryptResult): Disposition = when (result) {
+        is DecryptResult.Success,
+        DecryptResult.Duplicate,
+        DecryptResult.UnsupportedEnvelope,
+        DecryptResult.NotForThisDevice -> Disposition.STOP
+        DecryptResult.NoSession,
+        DecryptResult.UntrustedIdentity,
+        DecryptResult.FutureEpoch,
+        DecryptResult.Failed -> Disposition.RETRY
     }
 
-    fun trackingAction(result: SignalProtocol.DecryptResult): TrackingAction = when {
-        result is SignalProtocol.DecryptResult.Success -> TrackingAction.CLEAR
+    fun trackingAction(result: DecryptResult): TrackingAction = when {
+        result is DecryptResult.Success -> TrackingAction.CLEAR
         disposition(result) == Disposition.RETRY -> TrackingAction.RECORD_FAILURE
         else -> TrackingAction.MARK_TERMINAL
     }
 
     /** 达到上限后，即使 [Disposition.RETRY] 也必须停，防止死循环重试同一条。 */
-    fun shouldStop(result: SignalProtocol.DecryptResult, previousAttempts: Int): Boolean {
+    fun shouldStop(result: DecryptResult, previousAttempts: Int): Boolean {
         if (disposition(result) == Disposition.STOP) return true
         return previousAttempts >= MAX_RETRY_ATTEMPTS
     }
@@ -56,19 +57,19 @@ object DecryptFailurePolicy {
      * UI placeholders cannot be re-decrypted after SK/session repair.
      */
     fun persistDecryptResultToRoom(
-        result: SignalProtocol.DecryptResult,
+        result: DecryptResult,
         originalWire: String,
         @Suppress("UNUSED_PARAMETER") uiPlaceholder: String
     ): String {
         if (originalWire.isBlank()) return originalWire
         return when (result) {
-            is SignalProtocol.DecryptResult.Success -> result.plaintext
+            is DecryptResult.Success -> result.plaintext
             else -> originalWire
         }
     }
 
-    fun neverPersistUiPlaceholder(result: SignalProtocol.DecryptResult): Boolean =
-        result !is SignalProtocol.DecryptResult.Success
+    fun neverPersistUiPlaceholder(result: DecryptResult): Boolean =
+        result !is DecryptResult.Success
 
     fun envelopeFingerprint(senderId: String, content: String): String {
         var hash = 1125899906842597L
@@ -96,7 +97,7 @@ class DecryptRetryTracker(
     /**
      * @return true 时调用方应 ACK / 停止再拉这一条。
      */
-    fun shouldAcknowledge(envelopeId: String, result: SignalProtocol.DecryptResult): Boolean {
+    fun shouldAcknowledge(envelopeId: String, result: DecryptResult): Boolean {
         if (envelopeId.isBlank()) {
             return DecryptFailurePolicy.disposition(result) == DecryptFailurePolicy.Disposition.STOP
         }

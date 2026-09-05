@@ -32,7 +32,7 @@ interface DirectSessionManager {
 /** 直接消息加解密：1:1 会话密文的加密与解密。 */
 interface DirectMessageCipher {
     suspend fun encryptTextEnvelope(token: String, recipientId: String, plaintext: String): Result<String>
-    fun decryptTextEnvelope(senderId: String, content: String): String?
+    fun decryptTextEnvelope(senderId: String, content: String): DecryptResult
 }
 
 /** 信封编解码：wire 信封格式的结构解析与生成（不含加密，只负责结构分派）。 */
