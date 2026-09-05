@@ -216,7 +216,7 @@ Gate：离线新建直聊、重复点击、取消、重试、账号切换和首�
 当前状态：`[~]`。Coordinator 和 tombstone 已有，UI 与本地投影仍需收敛。
 
 - [~] 编辑、撤回、删除、回应全部经 `MessagingV2MutationFacade`（契约已冻结：`MessageMutationCommand`/`MessageMutationResult`/`MutationKind`，实现接线待做）。
-- [ ] terminal mutation 与 tombstone 在同一 Room 事务提交。
+- [x] terminal mutation 与 tombstone 在同一 Room 事务提交（`MessageEventProjector`：REVOKE `persistTerminalTombstone`+`applyRevoke`、DELETE tombstone+deleteMessage+search 删除均在 `withTransaction`）。
 - [ ] 已读、送达、播放回执走独立 typed event 和聚合投影。
 - [ ] optimistic rollback 只允许发生在 durable staging 失败之前。
 - [ ] 编辑/撤回/删除同步收敛搜索、媒体缓存、通知和附件状态。
