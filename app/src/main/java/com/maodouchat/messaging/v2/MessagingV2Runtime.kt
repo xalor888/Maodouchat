@@ -152,6 +152,9 @@ class MessagingV2Runtime(
         syncOnce(generation)
     }
 
+    /** M02：domain 端口别名——对外暴露 `syncInbox`，与 [com.maodouchat.domain.messaging.MessagingV2Runtime] 契约一致。 */
+    suspend fun syncInbox() = syncNow()
+
     /**
      * Pauses both receive and send convergence while destructive conversation state is removed.
      * This prevents an already-claimed envelope or outboxWriter row from projecting after cleanup.
