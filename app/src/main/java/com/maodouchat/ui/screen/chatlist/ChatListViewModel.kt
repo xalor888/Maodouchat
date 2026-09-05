@@ -1739,9 +1739,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 if (readChatId.isBlank()) return@collect
                 val manuallyUnread = _uiState.value.chats.firstOrNull { it.id == readChatId && it.markedUnread }
                 _uiState.update { state ->
-                    state.copy(chats = state.chats.map { chat ->
-                        if (chat.id == readChatId) chat.copy(unreadCount = 0, markedUnread = false) else chat
-                    })
+                    state.copy(chats = zeroChatUnread(state.chats, readChatId))
                 }
                 // Persist zero unread so process death does not resurrect badge before next getChats.
                 viewModelScope.launch {
@@ -1798,20 +1796,16 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                 when (event) {
                     is RealtimeDomainEvent.AdminNotice -> {
                         val title = event.title.ifBlank { text(R.string.notification_admin_broadcast_default_title) }
-                        val body = event.text.trim()
-                        if (body.isNotBlank()) {
+                        val projection = buildAdminBroadcastProjection(
+                            title = title,
+                            body = event.text,
+                            timestamp = event.timestamp,
+                            senderLabel = text(R.string.notification_admin_broadcast_sender),
+                        )
+                        if (projection != null) {
                             try {
                                 app.notificationCenter.add(
-                                    com.maodouchat.data.repository.NotificationCenterItem(
-                                        id = "admin_bc_${event.timestamp}_${body.hashCode()}",
-                                        type = "SECURITY",
-                                        mergeKey = "admin_broadcast_${event.timestamp}",
-                                        title = title,
-                                        subtitle = text(R.string.notification_admin_broadcast_sender),
-                                        preview = body.take(200),
-                                        deeplink = null,
-                                        extra = mapOf("kind" to "admin_broadcast")
-                                    ),
+                                    projection.item,
                                     expectedUserId = liveUserId,
                                 )
                             } catch (error: kotlinx.coroutines.CancellationException) {
@@ -1826,7 +1820,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                                 )
                             ) return@collect
                             _uiState.update {
-                                it.copy(realtimeBanner = "$title: $body".take(240))
+                                it.copy(realtimeBanner = projection.bannerText)
                             }
                         }
                     }
@@ -1884,29 +1878,16 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
                             )
                         ) return@collect
                         _uiState.update { state ->
-                            state.copy(chats = state.chats.map { chat ->
-                                val updated = chat.participants.map { p ->
-                                    if (p.id == event.userId) {
-                                        val visibility = com.maodouchat.network.resolveUserVisibility(
-                                            currentIsOnline = p.isOnline,
-                                            currentStatus = p.status,
-                                            currentLastSeen = p.lastSeen,
-                                            eventIsOnline = event.isOnline,
-                                            eventLastSeen = event.lastSeen,
-                                            onlineRevoked = event.onlineRevoked,
-                                            statusRevoked = event.statusRevoked
-                                        )
-                                        p.copy(
-                                            isOnline = visibility.isOnline,
-                                            status = visibility.status,
-                                            lastSeen = visibility.lastSeen
-                                        )
-                                    } else {
-                                        p
-                                    }
-                                }
-                                chat.copy(participants = updated)
-                            })
+                            state.copy(
+                                chats = applyPresenceProjection(
+                                    chats = state.chats,
+                                    userId = event.userId,
+                                    eventIsOnline = event.isOnline,
+                                    eventLastSeen = event.lastSeen,
+                                    onlineRevoked = event.onlineRevoked,
+                                    statusRevoked = event.statusRevoked,
+                                )
+                            )
                         }
                     }
                     else -> Unit
