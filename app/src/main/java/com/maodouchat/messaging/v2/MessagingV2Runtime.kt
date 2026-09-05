@@ -13,6 +13,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import com.maodouchat.domain.messaging.OutboxState
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
@@ -23,9 +25,15 @@ import kotlinx.coroutines.sync.withLock
 class MessagingV2Runtime(
     private val app: MaodouchatApp,
     private val scope: CoroutineScope,
-) {
+) : com.maodouchat.domain.messaging.MessagingV2Runtime {
     private val tokenManager = TokenManager.getInstance(app)
     private val messageStore = LocalMessageStore(app.database.messageDao(), app.database)
+    private val dao = app.database.messagingV2Dao()
+    /** M02：domain 端口 `outbox` 状态流。 */
+    override val outbox = combine(
+        dao.observePendingOutboxCount(tokenManager.getUserId().orEmpty()),
+        dao.observeRetryingOutboxCount(tokenManager.getUserId().orEmpty()),
+    ) { pending, retrying -> OutboxState(pendingCount = pending, retryingCount = retrying) }
     val outboxWriter = MessagingV2Outbox(
         database = app.database,
         dao = app.database.messagingV2Dao(),
@@ -153,7 +161,15 @@ class MessagingV2Runtime(
     }
 
     /** M02：domain 端口别名——对外暴露 `syncInbox`，与 [com.maodouchat.domain.messaging.MessagingV2Runtime] 契约一致。 */
-    suspend fun syncInbox() = syncNow()
+    override suspend fun syncInbox() = syncNow()
+
+    /** M02：幂等确认单个信封（标记 ACK-pending 后触发同步刷新），与 domain 端口一致。 */
+    override suspend fun acknowledge(envelopeId: String) {
+        if (envelopeId.isBlank()) return
+        if (tokenManager.getUserId().isNullOrBlank()) return
+        dao.markInboxAckPending(envelopeId, System.currentTimeMillis())
+        syncNow()
+    }
 
     /**
      * Pauses both receive and send convergence while destructive conversation state is removed.

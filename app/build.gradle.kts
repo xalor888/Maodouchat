@@ -229,6 +229,9 @@ ksp {
 }
 
 dependencies {
+    // M02：接入 domain:messaging 端口（ContentPayload 协议 + MessagingV2Runtime 接口）。
+    implementation(project(":domain:messaging"))
+
     // Compose BOM
     val composeBom = platform("androidx.compose:compose-bom:2026.05.00")
     implementation(composeBom)

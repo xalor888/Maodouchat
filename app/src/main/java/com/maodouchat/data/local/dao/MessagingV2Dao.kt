@@ -533,4 +533,16 @@ interface MessagingV2Dao {
         invalidatePreparedGroupMessages(ownerUserId, conversationId, newRevision, now)
         deleteQueuedGroupControls(ownerUserId, conversationId)
     }
+
+    /** M02：出站队列 pending 计数流（待发送/发送中），供 domain `MessagingV2Runtime` 端口。 */
+    @Query(
+        "SELECT COUNT(*) FROM messaging_v2_outbox WHERE ownerUserId = :ownerUserId AND state IN ('QUEUED','PREPARING','SENDING','READY')"
+    )
+    fun observePendingOutboxCount(ownerUserId: String): Flow<Int>
+
+    /** M02：出站队列 retrying 计数流（退避重试），供 domain `MessagingV2Runtime` 端口。 */
+    @Query(
+        "SELECT COUNT(*) FROM messaging_v2_outbox WHERE ownerUserId = :ownerUserId AND state IN ('RETRY_PREPARE','RETRY_SEND')"
+    )
+    fun observeRetryingOutboxCount(ownerUserId: String): Flow<Int>
 }
