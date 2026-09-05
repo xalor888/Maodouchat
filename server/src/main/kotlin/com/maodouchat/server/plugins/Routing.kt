@@ -424,10 +424,9 @@ fun Application.configureRouting(
         )
         configureConversationRoutes(
             userRepo = userRepo,
-            creationService = conversationCreationService,
+            commandService = conversationCommandService,
             queryRepository = conversationQueryRepo,
             invitationService = groupInvitationService,
-            lifecycleRepository = conversationLifecycleRepo,
             pushService = pushService,
             createRateLimiter = createChatRateLimiter,
             json = json,
@@ -501,7 +500,7 @@ fun Application.configureRouting(
             groupProfileRepo = groupProfileRepo,
             groupModerationRepo = groupModerationRepo,
             groupInvitationService = groupInvitationService,
-            conversationLifecycleRepo = conversationLifecycleRepo,
+            commandService = conversationCommandService,
             conversationParticipantRepo = conversationParticipantRepo,
             conversationQueryRepo = conversationQueryRepo,
             botSendRateLimiter = botSendRateLimiter,

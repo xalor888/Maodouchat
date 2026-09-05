@@ -4,8 +4,7 @@ import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.model.CreateChatRequest
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.JoinGroupInviteRequest
-import com.maodouchat.server.repository.ConversationCreationService
-import com.maodouchat.server.repository.ConversationLifecycleRepository
+import com.maodouchat.server.repository.ConversationCommandService
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.CreateConversationCommand
 import com.maodouchat.server.repository.CreateConversationOutcome
@@ -34,10 +33,9 @@ import kotlinx.serialization.json.put
 /** Core conversation lifecycle HTTP adapter. */
 internal fun Route.configureConversationRoutes(
     userRepo: UserRepository,
-    creationService: ConversationCreationService,
+    commandService: ConversationCommandService,
     queryRepository: ConversationQueryRepository,
     invitationService: GroupInvitationService,
-    lifecycleRepository: ConversationLifecycleRepository,
     pushService: FcmPushService,
     createRateLimiter: BoundedRateLimiter,
     json: Json,
@@ -69,7 +67,7 @@ internal fun Route.configureConversationRoutes(
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("channels_disabled"))
                 return@post
             }
-            val outcome = creationService.create(
+            val outcome = commandService.create(
                 actorId = userId,
                 command = CreateConversationCommand(
                     participantIds = request.participantIds,
@@ -180,7 +178,7 @@ internal fun Route.configureConversationRoutes(
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 无效"))
                 return@delete
             }
-            val outcome = lifecycleRepository.leave(chatId, userId)
+            val outcome = commandService.leave(chatId, userId)
             when (outcome.result) {
                 LeaveConversationResult.OWNER_TRANSFER_REQUIRED -> {
                     call.respond(

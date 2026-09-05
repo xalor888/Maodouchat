@@ -11,7 +11,7 @@ import kotlinx.serialization.json.*
 
 /** Bot 会话生命周期与消息删除（leaveChat / deleteMessage）。 */
 internal fun Route.configureBotChatModerationRoutes(
-    conversationLifecycleRepo: ConversationLifecycleRepository,
+    commandService: ConversationCommandService,
     serviceMessageRepo: ServiceMessageRepository,
     userRepo: UserRepository,
     conversationParticipantRepo: ConversationParticipantRepository,
@@ -28,7 +28,7 @@ internal fun Route.configureBotChatModerationRoutes(
         val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
         if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
         val outcome = runCatching {
-            conversationLifecycleRepo.leave(chatId = chatId, userId = bot.id, requireBotDeliverable = true)
+            commandService.leave(chatId = chatId, userId = bot.id, requireBotDeliverable = true)
         }.getOrNull()
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "leaveChat")
         if (outcome?.result == LeaveConversationResult.OWNER_TRANSFER_REQUIRED) {

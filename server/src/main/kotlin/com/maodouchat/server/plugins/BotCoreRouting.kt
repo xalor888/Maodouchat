@@ -28,7 +28,7 @@ internal fun Route.configureBotCoreRoutes(
     groupProfileRepo: GroupProfileRepository,
     groupModerationRepo: GroupModerationRepository,
     groupInvitationService: GroupInvitationService,
-    conversationLifecycleRepo: ConversationLifecycleRepository,
+    commandService: ConversationCommandService,
     conversationParticipantRepo: ConversationParticipantRepository,
     conversationQueryRepo: ConversationQueryRepository,
     botSendRateLimiter: BoundedRateLimiter,
@@ -323,7 +323,7 @@ put("messageId", messageId)
     )
 
     configureBotChatModerationRoutes(
-        conversationLifecycleRepo = conversationLifecycleRepo,
+        commandService = commandService,
         serviceMessageRepo = serviceMessageRepo,
         userRepo = userRepo,
         conversationParticipantRepo = conversationParticipantRepo,
