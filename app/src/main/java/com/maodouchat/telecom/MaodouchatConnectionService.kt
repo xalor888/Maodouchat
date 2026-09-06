@@ -161,7 +161,7 @@ internal class MaodouchatConnection(
         // 来电通知 / 系统通话界面点击 → 打开 MainActivity → NavGraph 路由到 IncomingCallRoute
         val openIntent = Intent(applicationContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            action = "com.maodouchat.INCOMING_CALL"
+            action = TelecomHelper.ACTION_INCOMING_CALL
             putExtra(TelecomHelper.EXTRA_CALL_ID, callId)
             putExtra(TelecomHelper.EXTRA_CALLER_NAME, callerName)
             putExtra(TelecomHelper.EXTRA_IS_VIDEO, isVideo)
@@ -207,7 +207,7 @@ internal class MaodouchatConnection(
         try {
             val openIntent = Intent(applicationContext, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                action = "com.maodouchat.ANSWER_CALL"
+                action = TelecomHelper.ACTION_ANSWER_CALL
                 putExtra(TelecomHelper.EXTRA_CALL_ID, callId)
                 putExtra(TelecomHelper.EXTRA_CALLER_NAME, callerName)
                 putExtra(TelecomHelper.EXTRA_IS_VIDEO, isVideo)

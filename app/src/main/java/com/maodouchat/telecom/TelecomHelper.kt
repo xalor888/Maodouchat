@@ -19,6 +19,10 @@ object TelecomHelper {
     private const val TAG = "TelecomHelper"
     const val PHONE_ACCOUNT_ID = "maodouchat_calls"
 
+    /** 系统来电接听/拉起回应用的 Intent action（ConnectionService 发出，入口消费）。 */
+    const val ACTION_ANSWER_CALL = "com.maodouchat.ANSWER_CALL"
+    const val ACTION_INCOMING_CALL = "com.maodouchat.INCOMING_CALL"
+
     const val EXTRA_CALLER_NAME = "maodouchat.caller_name"
     const val EXTRA_CALL_ID = "maodouchat.call_id"
     const val EXTRA_IS_VIDEO = "maodouchat.is_video"

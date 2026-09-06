@@ -3,8 +3,10 @@ package com.maodouchat
 import com.maodouchat.notification.SocialNotificationService
 import com.maodouchat.notification.ReminderNotificationService
 import com.maodouchat.notification.NotificationIntents
+import com.maodouchat.notification.NotificationIntentConsumer
 import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.notification.CallNotificationService
+import com.maodouchat.ui.navigation.NotificationTarget
 import com.maodouchat.util.RuntimeFlags
 import android.Manifest
 import android.content.Intent
@@ -32,9 +34,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.rememberNavController
 import com.maodouchat.ui.navigation.MaodouchatNavGraph
 import com.maodouchat.ui.navigation.Routes
-import com.maodouchat.ui.navigation.AppLinkDestination
-import com.maodouchat.ui.navigation.AppLinkParseResult
-import com.maodouchat.ui.navigation.AppLinkRouter
+import com.maodouchat.ui.navigation.toDestination
 import com.maodouchat.ui.theme.Background
 import com.maodouchat.ui.theme.MaodouchatTheme
 import com.maodouchat.network.TokenManager
@@ -62,6 +62,16 @@ class MainActivity : FragmentActivity() {
     }
 
     private val notificationTarget = MutableStateFlow<NotificationTarget?>(null)
+    // P08：系统入口消费逻辑在 NotificationIntentConsumer，Activity 只提供宿主依赖。
+    private val notificationIntentConsumer by lazy {
+        NotificationIntentConsumer(
+            appContext = applicationContext,
+            packageName = packageName,
+            tokenManager = TokenManager.getInstance(this),
+            setTarget = { notificationTarget.value = it },
+            applyCallLockScreenFlags = { applyCallLockScreenFlags(enabled = it) },
+        )
+    }
     private var showAppLock by mutableStateOf(false)
     /** 假聊天模式：启用后冷启动/回前台先展示假聊天界面，密码解锁后才进入真实 App */
     private var showFakeChat by mutableStateOf(false)
@@ -339,162 +349,11 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun consumeNotificationIntent(intent: Intent) {
-        // Caller identity is unavailable for some Android Telecom launches, so null must not be
-        // trusted. Notification extras and Telecom actions are accepted only from this app's own
-        // pending-call state; external ACTION_VIEW deep links are separately handled below.
-        val caller = callingPackage ?: callingActivity?.packageName
-        if (caller != null && caller != packageName) {
-            NotificationIntents.clearFrom(intent)
-            // 8.34 修复：外部调用者的合法 ACTION_VIEW 深链必须放行——浏览器/系统 resolver
-            // 打开 chat.mdou.me/u/{username} 或 maodouchat://u/{username} 时 callingPackage
-            // 恒为外部包，此前直接 return 导致 manifest BROWSABLE 外部深链 100% 失效。
-            // 通知 extra 已清（防注入面），深链数据继续走下方白名单字符校验；非 VIEW 仍丢弃。
-            if (intent.action != android.content.Intent.ACTION_VIEW || intent.data == null) {
-                intent.data = null
-                return
-            }
-        }
-        // 深链接统一走 AppLinkRouter（P08）：maodouchat://u/<username> 或
-        // https://chat.mdou.me/u/<username> → 公开资料页。白名单 scheme/host 与
-        // 用户名清洗规则收敛一处（见 AppLinkRouter 及 parity 单测）。
-        val data = intent.data
-        if (intent.action == android.content.Intent.ACTION_VIEW && data != null) {
-            when (val parsed = AppLinkRouter.parseDeepLink(data.toString())) {
-                is AppLinkParseResult.Accepted -> {
-                    // 现阶段仅公开资料页经外部深链直达；其余 Accepted 目标
-                    //（chat/post/invite）保持 data 不动、落入常规应用内流程。
-                    val dest = parsed.destination
-                    if (dest is AppLinkDestination.PublicProfile) {
-                        val ownerUserId = TokenManager.getInstance(this).getUserId().orEmpty()
-                        notificationTarget.value = NotificationTarget.PublicProfile(
-                            // 8.34 意图延续：跳转用清洗后的用户名；多余路径段
-                            //（如 u/alice/bob）直接拒绝、不导航，而非截断后打开首段。
-                            username = dest.username,
-                            sessionGeneration = MaodouchatApp.currentSessionGeneration(),
-                            ownerUserId = ownerUserId,
-                        )
-                        intent.data = null
-                        return
-                    }
-                }
-                is AppLinkParseResult.Rejected -> Unit
-            }
-        }
-        // ConnectionService transport actions have no reliable calling package on modern Android.
-        // Treat a null caller as untrusted and accept only an action matching an app-owned pending
-        // call. The pending call is established by the in-process signaling/Telecom pipeline and
-        // cannot be forged by an external explicit Intent.
-        val telecomAction = intent.action
-        val telecomCallId = intent.getStringExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_CALL_ID).orEmpty()
-        val isTelecomAction = telecomAction == ACTION_ANSWER_CALL || telecomAction == ACTION_INCOMING_CALL
-        if (isTelecomAction && !com.maodouchat.telecom.TelecomHelper.isTrustedTransport(telecomCallId)) {
-            com.maodouchat.telecom.TelecomHelper.clearExtras(intent)
-            return
-        }
-        if (isTelecomAction) {
-            applyCallLockScreenFlags(enabled = true)
-            // P08：Telecom 唤醒 callId 同样经严格清洗（非法值按空串走通用轮询，不定向响铃）。
-            val wakeTelecomCallId = AppLinkRouter.sanitizeCallIdStrict(telecomCallId).orEmpty()
-            if (wakeTelecomCallId.isNotBlank()) {
-                CallNotificationService.cancelIncomingCall(this, wakeTelecomCallId)
-            }
-            MaodouchatApp.emitIncomingCallWake(
-                IncomingCallWake(
-                    callId = wakeTelecomCallId,
-                    senderId = "",
-                    isVideo = intent.getBooleanExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_IS_VIDEO, false),
-                    // 8.56：系统 Telecom「接听」≠「来电拉起」——标记自动接听，应用内不再要求二次点击
-                    autoAnswer = telecomAction == ACTION_ANSWER_CALL,
-                )
-            )
-            com.maodouchat.telecom.TelecomHelper.clearExtras(intent)
-            NotificationIntents.clearFrom(intent)
-        }
-        val rawChatId = intent.getStringExtra(NotificationIntents.EXTRA_OPEN_CHAT_ID)?.takeIf(String::isNotBlank)
-        // 8.41：消息「稍后提醒」点击 → 打开聊天后高亮原消息
-        val rawMessageId = intent.getStringExtra(NotificationIntents.EXTRA_OPEN_MESSAGE_ID)?.takeIf(String::isNotBlank)
-        val rawAiTasksChatId = intent.getStringExtra(NotificationIntents.EXTRA_OPEN_AI_TASKS_CHAT_ID)?.takeIf(String::isNotBlank)
-        val rawPostId = intent.getStringExtra(NotificationIntents.EXTRA_OPEN_POST_ID)?.takeIf(String::isNotBlank)
-        // P08：通知/Widget 入口 ID 经 AppLinkRouter 严格清洗（含 /?# 直接拒收；
-        // 合法 UUID/服务端 ID 不受影响）。messageId 非法时仅丢弃高亮、仍打开会话。
-        val chatId = rawChatId?.let { AppLinkRouter.sanitizeChatIdStrict(it) }
-        val messageId = rawMessageId?.let { AppLinkRouter.sanitizeMessageIdStrict(it) }
-        val aiTasksChatId = rawAiTasksChatId?.let { AppLinkRouter.sanitizeChatIdStrict(it) }
-        val postId = rawPostId?.let { AppLinkRouter.sanitizePostIdStrict(it) }
-        val openIncomingCall = intent.getBooleanExtra(NotificationIntents.EXTRA_OPEN_INCOMING_CALL, false)
-        val openMissedCalls = intent.getBooleanExtra(NotificationIntents.EXTRA_OPEN_MISSED_CALL, false)
-        val openContacts = intent.getBooleanExtra(NotificationIntents.EXTRA_OPEN_CONTACTS, false)
-        val notificationOwnerUserId = intent
-            .getStringExtra(NotificationIntents.EXTRA_NOTIFICATION_OWNER_USER_ID)
-            ?.takeIf(String::isNotBlank)
-        val hasNotificationTarget = chatId != null || aiTasksChatId != null || postId != null ||
-            openIncomingCall || openMissedCalls || openContacts
-        if (
-            hasNotificationTarget &&
-            !com.maodouchat.notification.NotificationIntentPolicy.belongsToCurrentAccount(
-                notificationOwnerUserId = notificationOwnerUserId,
-                currentUserId = TokenManager.getInstance(this).getUserId(),
-                sessionPurgeInProgress = com.maodouchat.security.SecureSessionManager.isPurgeInProgress(),
-            )
-        ) {
-            notificationTarget.value = null
-            NotificationIntents.clearFrom(intent)
-            return
-        }
-        if (openIncomingCall) {
-            // FCM payload has no SDP — wake observer to poll /api/signaling/pending?offersOnly=true
-            // Lock-screen / full-screen intent: keep screen on while user answers.
-            // Cleared when CallForegroundService stops (see observeCallLockScreenFlags).
-            applyCallLockScreenFlags(enabled = true)
-            // P08：FCM 唤醒 callId/senderId 同样经严格清洗（非法值按空串走通用轮询）。
-            val wakeCallId = AppLinkRouter.sanitizeCallIdStrict(
-                intent.getStringExtra(NotificationIntents.EXTRA_INCOMING_CALL_ID).orEmpty()
-            ).orEmpty()
-            // Ongoing FCM call trays often ignore autoCancel; drop shade entry as soon as
-            // the user opened the app for this call (poll / CallScreen still proceed).
-            if (wakeCallId.isNotBlank()) {
-                CallNotificationService.cancelIncomingCall(this, wakeCallId)
-            }
-            MaodouchatApp.emitIncomingCallWake(
-                IncomingCallWake(
-                    callId = wakeCallId,
-                    senderId = AppLinkRouter.sanitizeUserIdStrict(
-                        intent.getStringExtra(NotificationIntents.EXTRA_INCOMING_CALL_SENDER_ID).orEmpty()
-                    ).orEmpty(),
-                    isVideo = intent.getBooleanExtra(NotificationIntents.EXTRA_INCOMING_CALL_VIDEO, false),
-                )
-            )
-        }
-        if (openMissedCalls) {
-            // Tray autoCancel is unreliable for some OEMs; clear shade before list marks read.
-            // Without a specific callId, cancelAll is too broad — ChatList markMissedCallsRead
-            // cancels per-id; here we only emit open (per-id cancel happens after list loads).
-            MaodouchatApp.emitOpenMissedCalls()
-        }
-        if (openContacts) {
-            SocialNotificationService.cancelAllFriendRequests(this)
-            SocialNotificationService.cancelAllGroupInvites(this)
-            MaodouchatApp.emitOpenContacts()
-        }
-        // Drop tray immediately on tap so badge/shade clear before the target screen mounts.
-        // Center mark-read still happens in ChatDetail / AiTasks / PostDetail screens.
-        val sessionGen = MaodouchatApp.currentSessionGeneration()
-        when {
-            aiTasksChatId != null -> {
-                ReminderNotificationService.cancelAiTaskRemindersForChat(this, aiTasksChatId)
-                notificationTarget.value = NotificationTarget.AiTasks(aiTasksChatId, sessionGen, notificationOwnerUserId.orEmpty())
-            }
-            chatId != null -> {
-                MessageNotificationService.cancelMessage(this, chatId)
-                notificationTarget.value = NotificationTarget.Chat(chatId, sessionGen, notificationOwnerUserId.orEmpty(), messageId)
-            }
-            postId != null -> {
-                SocialNotificationService.cancelPostInteraction(this, postId)
-                notificationTarget.value = NotificationTarget.Post(postId, sessionGen, notificationOwnerUserId.orEmpty())
-            }
-            else -> notificationTarget.value = null
-        }
-        NotificationIntents.clearFrom(intent)
+        notificationIntentConsumer.consume(
+            intent = intent,
+            callingPackage = callingPackage,
+            callingActivityPackage = callingActivity?.packageName,
+        )
     }
 
     private fun requestPermissions() {
@@ -705,46 +564,5 @@ class MainActivity : FragmentActivity() {
                 delay(1000)
             }
         }
-    }
-
-    private companion object {
-        const val ACTION_ANSWER_CALL = "com.maodouchat.ANSWER_CALL"
-        const val ACTION_INCOMING_CALL = "com.maodouchat.INCOMING_CALL"
-    }
-
-    private sealed interface NotificationTarget {
-        val sessionGeneration: Long
-        val ownerUserId: String
-        data class Chat(
-            val id: String,
-            override val sessionGeneration: Long,
-            override val ownerUserId: String,
-            /** 8.41：消息「稍后提醒」点击后打开聊天并高亮该消息。 */
-            val messageId: String? = null,
-        ) : NotificationTarget
-        data class AiTasks(
-            val chatId: String,
-            override val sessionGeneration: Long,
-            override val ownerUserId: String,
-        ) : NotificationTarget
-        data class Post(
-            val id: String,
-            override val sessionGeneration: Long,
-            override val ownerUserId: String,
-        ) : NotificationTarget
-        /** 深链接打开公开资料页（maodouchat://u/<username> 或 https://chat.mdou.me/u/<username>）。 */
-        data class PublicProfile(
-            val username: String,
-            override val sessionGeneration: Long,
-            override val ownerUserId: String,
-        ) : NotificationTarget
-    }
-
-    /** P08：系统入口目标 → 类型化导航目标（路由字符串经 `toRoute()` 统一生成）。 */
-    private fun NotificationTarget.toDestination(): AppLinkDestination = when (this) {
-        is NotificationTarget.Chat -> AppLinkDestination.ChatDetail(id, messageId)
-        is NotificationTarget.AiTasks -> AppLinkDestination.AiTasksChat(chatId)
-        is NotificationTarget.Post -> AppLinkDestination.PostDetail(id)
-        is NotificationTarget.PublicProfile -> AppLinkDestination.PublicProfile(username)
     }
 }
