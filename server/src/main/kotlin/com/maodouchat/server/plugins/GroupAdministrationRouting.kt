@@ -86,7 +86,7 @@ internal fun Route.configureGroupAdministrationRoutes(
             val userId = call.requireUserId()
             val chatId = call.parameters["chatId"].orEmpty()
             if (call.rejectIfSuspended(userRepo, userId)) return@put
-            val request = call.receiveBoundedText()?.let { parseJson<UpdateGroupAnnouncementRequest>(it) }
+            val request = call.receiveJson<UpdateGroupAnnouncementRequest>()
                 ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@put
@@ -267,7 +267,7 @@ internal fun Route.configureGroupAdministrationRoutes(
             val userId = call.requireUserId()
             val chatId = call.parameters["chatId"].orEmpty()
             if (call.rejectIfSuspended(userRepo, userId)) return@put
-            val request = call.receiveBoundedText()?.let { parseJson<UpdateGroupNicknameRequest>(it) }
+            val request = call.receiveJson<UpdateGroupNicknameRequest>()
                 ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@put
@@ -288,7 +288,7 @@ internal fun Route.configureGroupAdministrationRoutes(
             val chatId = call.parameters["chatId"].orEmpty()
             val memberId = call.parameters["memberId"].orEmpty()
             if (call.rejectIfSuspended(userRepo, userId)) return@put
-            val request = call.receiveBoundedText()?.let { parseJson<UpdateMemberTitleRequest>(it) }
+            val request = call.receiveJson<UpdateMemberTitleRequest>()
                 ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@put
@@ -314,7 +314,7 @@ internal fun Route.configureGroupAdministrationRoutes(
             val chatId = call.parameters["chatId"].orEmpty()
             val memberId = call.parameters["memberId"].orEmpty()
             if (call.rejectIfSuspended(userRepo, userId)) return@put
-            val request = call.receiveBoundedText()?.let { parseJson<UpdateMemberMuteRequest>(it) }
+            val request = call.receiveJson<UpdateMemberMuteRequest>()
                 ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@put
@@ -340,7 +340,7 @@ internal fun Route.configureGroupAdministrationRoutes(
                 )
                 return@post
             }
-            val request = call.receiveBoundedText()?.let { parseJson<UpdateMemberMuteRequest>(it) }
+            val request = call.receiveJson<UpdateMemberMuteRequest>()
                 ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@post

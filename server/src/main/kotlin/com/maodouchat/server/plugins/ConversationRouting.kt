@@ -53,7 +53,7 @@ internal fun Route.configureConversationRoutes(
                 return@post
             }
             if (call.rejectIfSuspended(userRepo, userId)) return@post
-            val request = call.receiveBoundedText()?.let { parseJson<CreateChatRequest>(it) } ?: run {
+            val request = call.receiveJson<CreateChatRequest>() ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@post
             }
@@ -108,7 +108,7 @@ internal fun Route.configureConversationRoutes(
             }
             val userId = call.requireUserId()
             if (call.rejectIfSuspended(userRepo, userId)) return@post
-            val request = call.receiveBoundedText()?.let { parseJson<JoinGroupInviteRequest>(it) } ?: run {
+            val request = call.receiveJson<JoinGroupInviteRequest>() ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("邀请参数无效"))
                 return@post
             }

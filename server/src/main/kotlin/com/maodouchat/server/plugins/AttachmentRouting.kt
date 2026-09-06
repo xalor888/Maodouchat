@@ -28,7 +28,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
             post("/api/attachment-uploads") {
                 val userId = call.requireUserId()
                 if (call.rejectIfMessageRestricted(userRepo, userId)) return@post
-                val request = call.receiveBoundedText()?.let { parseJson<AttachmentUploadSessionRequest>(it) }
+                val request = call.receiveJson<AttachmentUploadSessionRequest>()
                 if (
                     request == null ||
                     request.chatId.isBlank() ||

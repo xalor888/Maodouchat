@@ -35,7 +35,7 @@ internal fun Route.configureConversationSettingsRoutes(
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 无效"))
                 return@put
             }
-            val request = call.receiveBoundedText()?.let { parseJson<UpdateChatSettingsRequest>(it) }
+            val request = call.receiveJson<UpdateChatSettingsRequest>()
                 ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("设置参数无效"))
                     return@put
@@ -71,7 +71,7 @@ internal fun Route.configureConversationSettingsRoutes(
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 无效"))
                 return@put
             }
-            val request = call.receiveBoundedText()?.let { parseJson<UpdateDisappearingMessagesRequest>(it) }
+            val request = call.receiveJson<UpdateDisappearingMessagesRequest>()
                 ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求体无效"))
                     return@put

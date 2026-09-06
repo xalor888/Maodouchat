@@ -45,7 +45,7 @@ internal fun Route.configureSignalKeyRoutes(
             val principal = call.principal<JWTPrincipal>()!!
             val userId = principal.payload.subject
             val authSessionId = JwtConfig.authSessionId(principal.payload)!!
-            val request = call.receiveBoundedText()?.let { parseJson<UploadKeysRequest>(it) }
+            val request = call.receiveJson<UploadKeysRequest>()
             if (request == null) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@post
@@ -153,7 +153,7 @@ internal fun Route.configureSignalKeyRoutes(
         put("/api/keys/devices/{deviceId}/name") {
             val requesterId = call.requireUserId()
             val deviceId = call.requireDeviceId() ?: return@put
-            val request = call.receiveBoundedText()?.let { parseJson<UpdateDeviceNameRequest>(it) } ?: run {
+            val request = call.receiveJson<UpdateDeviceNameRequest>() ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@put
             }
@@ -172,7 +172,7 @@ internal fun Route.configureSignalKeyRoutes(
         post("/api/keys/devices/{deviceId}/confirm") {
             val requesterId = call.requireUserId()
             val deviceId = call.requireDeviceId() ?: return@post
-            val request = call.receiveBoundedText()?.let { parseJson<ConfirmDeviceRequest>(it) } ?: run {
+            val request = call.receiveJson<ConfirmDeviceRequest>() ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@post
             }

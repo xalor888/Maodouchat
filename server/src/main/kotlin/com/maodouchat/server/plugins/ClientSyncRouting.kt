@@ -33,7 +33,7 @@ internal fun Route.configureClientSyncRoutes(
                 return@put
             }
             val userId = call.requireUserId()
-            val request = call.receiveBoundedText()?.let { parseJson<ChatFoldersSyncRequest>(it) } ?: run {
+            val request = call.receiveJson<ChatFoldersSyncRequest>() ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@put
             }
@@ -47,7 +47,7 @@ internal fun Route.configureClientSyncRoutes(
 
         put("/api/client-prefs") {
             val userId = call.requireUserId()
-            val request = call.receiveBoundedText()?.let { parseJson<ClientPrefsUpdateRequest>(it) } ?: run {
+            val request = call.receiveJson<ClientPrefsUpdateRequest>() ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@put
             }
