@@ -75,7 +75,7 @@ import com.maodouchat.ui.theme.liquidGlass
 import com.maodouchat.util.HapticGate
 
 /**
- * Murexide 纯正风格聊天输入栏：
+ * REF 纯正风格聊天输入栏：
  * 1. 胶囊造型（Capsule Shape 26dp）或悬浮质感表面；
  * 2. 左侧附件加号按钮，平滑展开更多面板；
  * 3. 表情/键盘无缝切换微件；
@@ -83,7 +83,7 @@ import com.maodouchat.util.HapticGate
  * 5. 线性动画弹性发送按钮，在无文字时平滑过渡至语音微标。
  */
 @Composable
-fun MurexideMessageInput(
+fun OrphanedMessageInput(
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
@@ -340,7 +340,7 @@ fun MurexideMessageInput(
                         val sendScale by animateFloatAsState(
                             targetValue = if (isPressed) 0.90f else 1f,
                             animationSpec = motion.springSpec(dampingRatio = 0.65f, stiffness = 550f),
-                            label = "murexide_send_scale"
+                            label = "REF_send_scale"
                         )
 
                         Box(

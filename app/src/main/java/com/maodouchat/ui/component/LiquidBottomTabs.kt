@@ -6,23 +6,33 @@
 package com.maodouchat.ui.component
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,8 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.Backdrop
 import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
-import com.maodouchat.ui.theme.liquidglass.LiquidBottomTabs as MurexideLiquidBottomTabs
-import com.maodouchat.ui.theme.liquidglass.snapNavigationIndex as murexideSnapNavigationIndex
+import com.maodouchat.ui.theme.liquidglass.LiquidBottomTabs as GlassBottomTabs
+import com.maodouchat.ui.theme.liquidglass.snapNavigationIndex as glassSnapNavigationIndex
 
 /** 一级页列表滚过悬浮底栏所需的底部留白（64 胶囊 + 外边距 + 导航条余量）。 */
 val FloatingBottomBarContentPadding = 128.dp
@@ -44,7 +54,7 @@ data class LiquidBottomTabItem(
 )
 
 internal fun snapNavigationIndex(value: Float, tabsCount: Int): Int =
-    murexideSnapNavigationIndex(value, tabsCount)
+    glassSnapNavigationIndex(value, tabsCount)
 
 internal fun liquidGlassContainerColor(isLightTheme: Boolean): Color {
     return if (isLightTheme) {
@@ -74,9 +84,87 @@ fun LiquidBottomTabs(
     val tabsCount = tabs.size
     val selectedIndex = selectedTabIndex.coerceIn(0, tabsCount - 1)
     val glassBackdrop = backdrop
-    if (glassBackdrop == null) return
 
-    MurexideLiquidBottomTabs(
+    if (glassBackdrop == null) {
+        // 容错渲染：当 Kyant backdrop 暂未就绪或设备不受支持时，以高质量毛玻璃药丸底栏保底展示，绝不留白
+        val isLightTheme = MaterialTheme.colorScheme.surface.luminance() > 0.5f
+        val fallbackBg = if (isLightTheme) Color.White.copy(alpha = 0.94f) else Color(0xFF1E1E1E).copy(alpha = 0.94f)
+        val borderColor = if (isLightTheme) Color.Black.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.12f)
+        Surface(
+            modifier = modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(start = 20.dp, top = 8.dp, end = 20.dp, bottom = 10.dp)
+                .height(64.dp),
+            shape = RoundedCornerShape(32.dp),
+            color = fallbackBg,
+            border = BorderStroke(1.dp, borderColor),
+            tonalElevation = 6.dp,
+            shadowElevation = 8.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                tabs.forEachIndexed { index, item ->
+                    val selected = index == selectedIndex
+                    val contentColor by animateColorAsState(
+                        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        label = "tabContentColor"
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(
+                                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                else Color.Transparent
+                            )
+                            .linearPressEffect()
+                            .clickable { onTabSelected(index) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box {
+                                Icon(
+                                    imageVector = if (selected) item.selectedIcon else item.icon,
+                                    contentDescription = item.label,
+                                    tint = contentColor,
+                                    modifier = Modifier.size(PinnedBottomNavMetrics.IconSize)
+                                )
+                                if (item.badgeCount > 0) {
+                                    AnimatedNotificationBadge(
+                                        count = item.badgeCount,
+                                        modifier = Modifier.align(Alignment.TopEnd)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = item.label,
+                                color = contentColor,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 10.sp,
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                    letterSpacing = 0.sp
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        return
+    }
+
+    GlassBottomTabs(
         selectedTabIndex = selectedIndex,
         onTabSelected = onTabSelected,
         backdrop = glassBackdrop,

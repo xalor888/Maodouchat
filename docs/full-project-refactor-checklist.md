@@ -317,7 +317,7 @@ Gate：大字体、长文本、RTL、中英文、横屏、平板、键盘和弹�
 
 当前状态：`[x]`。客户端 UI 全面对齐 `reference/Murexide` 现代 Material 3 + Liquid Glass 体系，旧单体已拆分。
 
-- [x] 气泡 Murexide M3 质感：浅色 `#EEEEF0`、深色 `#1E1E20`、己方主色容器（原 `MurexideMessageBubble.kt` 未被接线已隔离，实际经 `MessageBubble` 分发 + `TextMessageBubble`/`MediaMessageBubbles`/`FileMessageRenderer` 实现）；
+- [x] 气泡 M3 质感：浅色 `#EEEEF0`、深色 `#1E1E20`、己方主色容器（原孤儿气泡文件未被接线已隔离，实际经 `MessageBubble` 分发 + `TextMessageBubble`/`MediaMessageBubbles`/`FileMessageRenderer` 实现）；
 - [x] 动态 18dp/4.5dp 连续气泡圆角，邻近消息流自然收敛；
 - [x] 底部对齐的 36dp 精致圆形头像（对齐 Murexide 规范）；
 - [x] 优雅的 Quote Reply 引用微件：左侧 3dp 竖向高光色块，紧凑预览与作者名；
@@ -330,7 +330,7 @@ Gate：每种消息 golden、损坏内容、未知类型、超长文本/文件�
 
 当前状态：`[x]`。客户端输入区全面对齐 `reference/Murexide` 胶囊设计与微动效。
 
-- [x] 26dp Capsule 胶囊聊天输入栏，带 LiquidGlass 与高度自适应（原 `MurexideMessageInput.kt` 未被接线已隔离，实际为 `ChatDetailComponents.kt` 内 `ChatInputBar`）；
+- [x] 26dp Capsule 胶囊聊天输入栏，带 LiquidGlass 与高度自适应（原孤儿输入文件未被接线已隔离，实际为 `ChatDetailComponents.kt` 内 `ChatInputBar`）；
 - [x] 线性微动效按钮（Telegram / Nekogram 交互微动效）：`LinearPress.kt` 实现 `linearPressEffect` 与 `LinearActionButton`，装配至发送按钮；
 - [x] 发送/语音无缝切换：有文本时线性弹性发送按钮，无文本时麦克风微标；
 - [x] 打字指示微气泡优化：`TypingPresence.kt` 修复修饰符双重应用 bug，采用半透高斯微发光胶囊与交错正弦波弹跳；

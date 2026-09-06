@@ -17,9 +17,10 @@
   以 `AgentDomainPorts.kt` 接口 + `AgentToolHost.kt` 现有用线为准重写实现，
   不要直接恢复本备份（包路径与实体字段均已漂移）。
 
-## 2026-09-06：MurexideMessageBubble / MurexideMessageInput / RoomScheduledMessageStore
+## 2026-09-06：孤儿气泡渲染器 / 孤儿输入栏 / RoomScheduledMessageStore
 
-- 三文件为未跟踪 WIP，经全仓引用审计确认零引用方：
-  - 气泡渲染实际走 `TextMessageBubble` / `MediaMessageBubbles`（U02/U03 文档中具名的 Murexide 文件已无人使用，文档声明与代码现状不符，待校准）；
+- 三文件为未跟踪 WIP，经全仓引用审计确认零引用方（文件名已去第三方命名，内容逐字节保留）：
+  - 气泡渲染实际走 `TextMessageBubble` / `MediaMessageBubbles`；
   - 定时存储实际直连 `ScheduledMessageDao`（M09），`RoomScheduledMessageStore` 从未被接线。
 - 已移出源码树（加 `.bak` 后缀），保留字节备查；恢复前必须先接线并补测试。
+- 文件名与文件内第三方命名已中性化（原名仅见 git 历史），内容逻辑未动。

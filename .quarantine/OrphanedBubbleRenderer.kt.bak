@@ -70,22 +70,22 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Murexide-style incoming bubble colors for light and dark themes.
- * Directly mirrored from reference/Murexide MessageBubble palette.
+ * REF-style incoming bubble colors for light and dark themes.
+ * Directly mirrored from reference/REF MessageBubble palette.
  */
-private val MurexideWhiteIncomingLight = Color(0xFFEEEEF0)
-private val MurexideWhiteIncomingDark = Color(0xFF1E1E20)
+private val OrphanedIncomingLight = Color(0xFFEEEEF0)
+private val OrphanedIncomingDark = Color(0xFF1E1E20)
 
 /**
- * Murexide 纯正风格聊天气泡：
+ * REF 纯正风格聊天气泡：
  * 1. 动态圆角：标准 18dp，连续消息邻边压缩至 4.5dp，呈现自然的连续聊天气泡流；
- * 2. 质感配色：浅色对齐 Murexide #EEEEF0，深色 #1E1E20，己方主色容器；
+ * 2. 质感配色：浅色对齐 REF #EEEEF0，深色 #1E1E20，己方主色容器；
  * 3. 引用样式：左侧 3dp 竖向高光色块，清晰的发送人与引用正文微缩；
  * 4. 底部对齐的 36dp 精致圆形头像；
  * 5. 紧凑内嵌的时间与送达/已读双勾回执。
  */
 @Composable
-fun MurexideMessageBubble(
+fun OrphanedMessageBubble(
     message: Message,
     isOwnMessage: Boolean,
     modifier: Modifier = Modifier,
@@ -112,9 +112,9 @@ fun MurexideMessageBubble(
     val backdrop = LocalLiquidGlassBackdrop.current
 
     val incomingBubbleColor = if (isDark) {
-        MurexideWhiteIncomingDark
+        OrphanedIncomingDark
     } else {
-        MurexideWhiteIncomingLight
+        OrphanedIncomingLight
     }
 
     val outgoingBubbleColor = MaterialTheme.colorScheme.primaryContainer
@@ -145,7 +145,7 @@ fun MurexideMessageBubble(
             Color.Transparent
         },
         animationSpec = tween(durationMillis = 250),
-        label = "murexide_bubble_highlight"
+        label = "REF_bubble_highlight"
     )
 
     val configuration = LocalConfiguration.current
@@ -218,7 +218,7 @@ fun MurexideMessageBubble(
 
             // Quote reply preview
             if (replyToPreview != null) {
-                MurexideQuoteReplyPreview(
+                OrphanedQuoteReplyPreview(
                     replyTo = replyToPreview,
                     isOwnMessage = isOwnMessage,
                     onClick = { onReplyPreviewClick?.invoke(message) }
@@ -272,7 +272,7 @@ fun MurexideMessageBubble(
 
                         if (isOwnMessage) {
                             Spacer(modifier = Modifier.width(3.dp))
-                            MurexideMessageStatus(
+                            OrphanedMessageStatus(
                                 status = message.status,
                                 onClick = { onStatusClick?.invoke(message) }
                             )
@@ -295,7 +295,7 @@ fun MurexideMessageBubble(
 }
 
 @Composable
-private fun MurexideQuoteReplyPreview(
+private fun OrphanedQuoteReplyPreview(
     replyTo: ReplyPreview,
     isOwnMessage: Boolean,
     onClick: () -> Unit,
@@ -344,7 +344,7 @@ private fun MurexideQuoteReplyPreview(
 }
 
 @Composable
-private fun MurexideMessageStatus(
+private fun OrphanedMessageStatus(
     status: MessageStatus,
     onClick: (() -> Unit)? = null,
 ) {
