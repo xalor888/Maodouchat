@@ -58,8 +58,6 @@ import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
-import com.maodouchat.network.WebSocketClient
-import com.maodouchat.network.WebSocketEvent
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.screen.chatdetail.ChatDetailScreen
@@ -97,6 +95,21 @@ import com.maodouchat.update.AppUpdatePolicy
 import com.maodouchat.update.AppUpdatePromptStore
 import com.maodouchat.update.OfficialApkInstaller
 
+/**
+ * 会话过期事件消费：世代不符则消费丢弃并返回 true（调用方直接 return），
+ * 否则返回 false 继续处理。收敛各收集器逐字相同的守卫样板。
+ */
+private fun <T : com.maodouchat.SessionScopedEvent> consumeIfStale(
+    req: T,
+    consume: (T) -> Unit,
+): Boolean {
+    if (req.sessionGeneration != com.maodouchat.MaodouchatApp.currentSessionGeneration()) {
+        consume(req)
+        return true
+    }
+    return false
+}
+
 
 /**
  * 主框架容器 — 底部导航 + Tab 切换
@@ -110,10 +123,7 @@ internal fun MainContainer(navController: NavHostController) {
     var openMissedCallsRequest by remember { mutableLongStateOf(0L) }
     LaunchedEffect(Unit) {
         com.maodouchat.MaodouchatApp.openMissedCallsEvents.collect { req ->
-            if (req.sessionGeneration != com.maodouchat.MaodouchatApp.currentSessionGeneration()) {
-                com.maodouchat.MaodouchatApp.consumeOpenMissedCalls(req)
-                return@collect
-            }
+            if (consumeIfStale(req, com.maodouchat.MaodouchatApp::consumeOpenMissedCalls)) return@collect
             selectedTab = MainTab.CHATS
             openMissedCallsRequest = req.atMillis
             com.maodouchat.MaodouchatApp.consumeOpenMissedCalls(req)
@@ -122,10 +132,7 @@ internal fun MainContainer(navController: NavHostController) {
     // Friend-request / contacts deep-link → contacts tab.
     LaunchedEffect(Unit) {
         com.maodouchat.MaodouchatApp.openContactsEvents.collect { req ->
-            if (req.sessionGeneration != com.maodouchat.MaodouchatApp.currentSessionGeneration()) {
-                com.maodouchat.MaodouchatApp.consumeOpenContacts(req)
-                return@collect
-            }
+            if (consumeIfStale(req, com.maodouchat.MaodouchatApp::consumeOpenContacts)) return@collect
             selectedTab = MainTab.CONTACTS
             com.maodouchat.MaodouchatApp.consumeOpenContacts(req)
         }

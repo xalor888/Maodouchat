@@ -39,6 +39,13 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 
 /**
+ * 会话作用域事件：携带发射时 session 世代，收集器丢弃过期事件（登出/换号后送达）。
+ */
+interface SessionScopedEvent {
+    val sessionGeneration: Long
+}
+
+/**
  * Tap from FCM/system call notification → wake IncomingCallObserver to poll
  * pending offers (SDP lives server-side; FCM only carries callId/sender).
  */
@@ -48,11 +55,11 @@ data class IncomingCallWake(
     val isVideo: Boolean = false,
     val atMillis: Long = System.currentTimeMillis(),
     /** Matches [MaodouchatApp.currentSessionGeneration] at emit time; collectors drop stale wakes. */
-    val sessionGeneration: Long = 0L,
+    override val sessionGeneration: Long = 0L,
     val requestId: Long = 0L,
     /** 8.56：系统 Telecom 来电 UI 点击「接听」后为 true——IncomingCallRoute 直接自动接听。 */
     val autoAnswer: Boolean = false,
-)
+) : SessionScopedEvent
 
 /**
  * Application 类 — 全局初始化
@@ -673,9 +680,9 @@ class MaodouchatApp : Application() {
          */
         data class OpenMissedCallsRequest(
             val atMillis: Long,
-            val sessionGeneration: Long,
+            override val sessionGeneration: Long,
             val requestId: Long,
-        )
+        ) : SessionScopedEvent
         private val _openMissedCallsEvents =
             kotlinx.coroutines.flow.MutableStateFlow<OpenMissedCallsRequest?>(null)
         val openMissedCallsEvents = _openMissedCallsEvents.filterNotNull()
@@ -696,9 +703,9 @@ class MaodouchatApp : Application() {
          */
         data class OpenContactsRequest(
             val atMillis: Long,
-            val sessionGeneration: Long,
+            override val sessionGeneration: Long,
             val requestId: Long,
-        )
+        ) : SessionScopedEvent
         private val _openContactsEvents =
             kotlinx.coroutines.flow.MutableStateFlow<OpenContactsRequest?>(null)
         val openContactsEvents = _openContactsEvents.filterNotNull()
