@@ -2,7 +2,6 @@ package com.maodouchat.util
 
 import android.content.Context
 import com.maodouchat.network.TokenManager
-import org.json.JSONArray
 
 /**
  * 贴纸最近使用 / 启用包：按账号隔离。
@@ -15,26 +14,26 @@ object StickerPreferences {
     fun getRecent(context: Context): List<String> {
         val userId = currentUserId(context) ?: return emptyList()
         val raw = prefs(context).getString(key(KEY_RECENT, userId), null) ?: return emptyList()
-        return decodeList(raw)
+        return PrefsJsonLists.decode(raw)
     }
 
     fun recordRecent(context: Context, sticker: String) {
         val userId = currentUserId(context) ?: return
         val next = StickerPolicy.pushRecent(getRecent(context), sticker)
-        prefs(context).edit().putString(key(KEY_RECENT, userId), encodeList(next)).apply()
+        prefs(context).edit().putString(key(KEY_RECENT, userId), PrefsJsonLists.encode(next)).apply()
     }
 
     fun getEnabledPackIds(context: Context): List<String> {
         val userId = currentUserId(context) ?: return StickerCatalog.defaultEnabledPackIds()
         val raw = prefs(context).getString(key(KEY_ENABLED_PACKS, userId), null)
             ?: return StickerCatalog.defaultEnabledPackIds()
-        return StickerPolicy.normalizeEnabledPackIds(decodeList(raw))
+        return StickerPolicy.normalizeEnabledPackIds(PrefsJsonLists.decode(raw))
     }
 
     fun setEnabledPackIds(context: Context, packIds: List<String>) {
         val userId = currentUserId(context) ?: return
         val normalized = StickerPolicy.normalizeEnabledPackIds(packIds)
-        prefs(context).edit().putString(key(KEY_ENABLED_PACKS, userId), encodeList(normalized)).apply()
+        prefs(context).edit().putString(key(KEY_ENABLED_PACKS, userId), PrefsJsonLists.encode(normalized)).apply()
     }
 
     fun clearForUser(context: Context, userId: String) {
@@ -53,19 +52,5 @@ object StickerPreferences {
 
     private fun key(prefix: String, userId: String): String = "${prefix}_$userId"
 
-    private fun encodeList(items: List<String>): String {
-        val arr = JSONArray()
-        items.forEach { arr.put(it) }
-        return arr.toString()
-    }
 
-    private fun decodeList(raw: String): List<String> = runCatching {
-        val arr = JSONArray(raw)
-        buildList {
-            for (i in 0 until arr.length()) {
-                val v = arr.optString(i, "").trim()
-                if (v.isNotEmpty()) add(v)
-            }
-        }
-    }.getOrDefault(emptyList())
 }

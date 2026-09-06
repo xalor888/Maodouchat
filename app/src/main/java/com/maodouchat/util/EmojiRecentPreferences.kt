@@ -2,7 +2,6 @@ package com.maodouchat.util
 
 import android.content.Context
 import com.maodouchat.network.TokenManager
-import org.json.JSONArray
 
 /**
  * 表情「最近使用」：按账号隔离的本地记录（与贴纸 recent 同模式）。
@@ -15,7 +14,7 @@ object EmojiRecentPreferences {
     fun getRecent(context: Context): List<String> {
         val userId = currentUserId(context) ?: return emptyList()
         val raw = prefs(context).getString(key(KEY_RECENT, userId), null) ?: return emptyList()
-        return decodeList(raw)
+        return PrefsJsonLists.decode(raw)
     }
 
     fun recordRecent(context: Context, emoji: String) {
@@ -23,7 +22,7 @@ object EmojiRecentPreferences {
         val value = emoji.trim()
         if (value.isEmpty()) return
         val next = (listOf(value) + getRecent(context).filter { it != value }).take(MAX_RECENT)
-        prefs(context).edit().putString(key(KEY_RECENT, userId), encodeList(next)).apply()
+        prefs(context).edit().putString(key(KEY_RECENT, userId), PrefsJsonLists.encode(next)).apply()
     }
 
     fun clearForUser(context: Context, userId: String) {
@@ -39,19 +38,5 @@ object EmojiRecentPreferences {
 
     private fun key(prefix: String, userId: String): String = "${prefix}_$userId"
 
-    private fun encodeList(items: List<String>): String {
-        val arr = JSONArray()
-        items.forEach { arr.put(it) }
-        return arr.toString()
-    }
 
-    private fun decodeList(raw: String): List<String> = runCatching {
-        val arr = JSONArray(raw)
-        buildList {
-            for (i in 0 until arr.length()) {
-                val v = arr.optString(i, "").trim()
-                if (v.isNotEmpty()) add(v)
-            }
-        }
-    }.getOrDefault(emptyList())
 }

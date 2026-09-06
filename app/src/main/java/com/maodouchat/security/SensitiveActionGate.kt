@@ -65,37 +65,53 @@ object SensitiveActionGate {
         val prompt = BiometricPrompt(
             activity,
             executor,
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    if (expectedUserId.isNotBlank() && userId(context) == expectedUserId) {
-                        onSuccess()
-                    } else {
-                        onFailure(null)
-                    }
-                }
-
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    if (
-                        errorCode == BiometricPrompt.ERROR_USER_CANCELED ||
-                        errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||
-                        errorCode == BiometricPrompt.ERROR_CANCELED
-                    ) {
-                        onFailure(null)
-                    } else {
-                        onFailure(errString.toString())
-                    }
-                }
-
-                override fun onAuthenticationFailed() {
-                    // 可继续重试；最终错误走 onAuthenticationError
-                }
-            }
+            userBoundAuthCallback(
+                expectedUserId = expectedUserId,
+                userIdProvider = { userId(context) },
+                onSuccess = onSuccess,
+                onFailure = onFailure,
+            )
         )
         val builder = BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)
             .setAllowedAuthenticators(AppLockManager.authenticators())
         if (!subtitle.isNullOrBlank()) builder.setSubtitle(subtitle)
         prompt.authenticate(builder.build())
+    }
+
+    /**
+     * 用户归属绑定的认证回调：成功后校验账号未切换，用户取消按静默失败处理。
+     * 收敛 confirm / confirmSystemAuth 两处逐字相同的匿名实现。
+     */
+    private fun userBoundAuthCallback(
+        expectedUserId: String,
+        userIdProvider: () -> String?,
+        onSuccess: () -> Unit,
+        onFailure: (String?) -> Unit,
+    ) = object : BiometricPrompt.AuthenticationCallback() {
+        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+            if (expectedUserId.isNotBlank() && userIdProvider() == expectedUserId) {
+                onSuccess()
+            } else {
+                onFailure(null)
+            }
+        }
+
+        override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+            if (
+                errorCode == BiometricPrompt.ERROR_USER_CANCELED ||
+                errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||
+                errorCode == BiometricPrompt.ERROR_CANCELED
+            ) {
+                onFailure(null)
+            } else {
+                onFailure(errString.toString())
+            }
+        }
+
+        override fun onAuthenticationFailed() {
+            // 可继续重试；最终错误走 onAuthenticationError
+        }
     }
 
     fun clearForUser(context: Context, userId: String) {
@@ -125,31 +141,12 @@ object SensitiveActionGate {
         val prompt = BiometricPrompt(
             activity,
             executor,
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    if (expectedUserId.isNotBlank() && userId(context) == expectedUserId) {
-                        onSuccess()
-                    } else {
-                        onFailure(null)
-                    }
-                }
-
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    if (
-                        errorCode == BiometricPrompt.ERROR_USER_CANCELED ||
-                        errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||
-                        errorCode == BiometricPrompt.ERROR_CANCELED
-                    ) {
-                        onFailure(null)
-                    } else {
-                        onFailure(errString.toString())
-                    }
-                }
-
-                override fun onAuthenticationFailed() {
-                    // 可继续重试；最终错误走 onAuthenticationError
-                }
-            }
+            userBoundAuthCallback(
+                expectedUserId = expectedUserId,
+                userIdProvider = { userId(context) },
+                onSuccess = onSuccess,
+                onFailure = onFailure,
+            )
         )
         val builder = BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)

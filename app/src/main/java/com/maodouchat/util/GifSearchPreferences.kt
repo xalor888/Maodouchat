@@ -2,7 +2,6 @@ package com.maodouchat.util
 
 import android.content.Context
 import com.maodouchat.network.TokenManager
-import org.json.JSONArray
 
 /**
  * 本机 GIF 最近发送记录（按账号隔离）。
@@ -14,13 +13,13 @@ object GifSearchPreferences {
     fun getRecentIds(context: Context): List<String> {
         val userId = currentUserId(context) ?: return emptyList()
         val raw = prefs(context).getString(key(KEY_RECENT, userId), null) ?: return emptyList()
-        return decodeList(raw)
+        return PrefsJsonLists.decode(raw)
     }
 
     fun recordRecent(context: Context, gifId: String) {
         val userId = currentUserId(context) ?: return
         val next = GifSearchPolicy.pushRecent(getRecentIds(context), gifId)
-        prefs(context).edit().putString(key(KEY_RECENT, userId), encodeList(next)).apply()
+        prefs(context).edit().putString(key(KEY_RECENT, userId), PrefsJsonLists.encode(next)).apply()
     }
 
     fun clearForUser(context: Context, userId: String) {
@@ -36,19 +35,5 @@ object GifSearchPreferences {
 
     private fun key(prefix: String, userId: String): String = "${prefix}_$userId"
 
-    private fun encodeList(items: List<String>): String {
-        val arr = JSONArray()
-        items.forEach { arr.put(it) }
-        return arr.toString()
-    }
 
-    private fun decodeList(raw: String): List<String> = runCatching {
-        val arr = JSONArray(raw)
-        buildList {
-            for (i in 0 until arr.length()) {
-                val v = arr.optString(i, "").trim()
-                if (v.isNotEmpty()) add(v)
-            }
-        }
-    }.getOrDefault(emptyList())
 }
