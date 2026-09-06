@@ -364,92 +364,6 @@ class ContactsViewModel @JvmOverloads constructor(
         }
     }
 
-    fun sendFriendRequest(user: User, message: String = "") {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.FRIEND_REQUESTS)) {
-            _uiState.update { it.copy(errorMessage = text(R.string.friend_requests_disabled)) }
-            return
-        }
-        if (_uiState.value.isFriendActionBusy) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isFriendActionBusy = true, errorMessage = null, infoMessage = null) }
-            try {
-                val result = friendRequestUseCase.sendFriendRequest(user.id, message.take(300))
-                result.fold(
-                    onSuccess = {
-                        _uiState.update {
-                            it.copy(
-                                isFriendActionBusy = false,
-                                infoMessage = text(R.string.contacts_friend_request_sent)
-                            )
-                        }
-                        loadFriendRequests()
-                    },
-                    onFailure = { error ->
-                        _uiState.update {
-                            it.copy(
-                                isFriendActionBusy = false,
-                                errorMessage = error.message ?: text(R.string.contacts_friend_request_failed)
-                            )
-                        }
-                    }
-                )
-            } catch (error: CancellationException) {
-                _uiState.update { it.copy(isFriendActionBusy = false) }
-                throw error
-            } catch (error: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isFriendActionBusy = false,
-                        errorMessage = error.message ?: text(R.string.contacts_friend_request_failed)
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * 好友操作公共骨架：忙 guard → 置忙 → 用例调用 → 成功文案/刷新 → 失败文案。
-     * cancel 原未重置 infoMessage，此处统一重置（陈旧成功提示不再残留）。
-     */
-    private fun launchFriendAction(
-        successMessage: String? = null,
-        refreshRequests: Boolean = false,
-        refreshContacts: Boolean = false,
-        action: suspend () -> Result<*>,
-    ) {
-        if (_uiState.value.isFriendActionBusy) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isFriendActionBusy = true, errorMessage = null, infoMessage = null) }
-            try {
-                action().fold(
-                    onSuccess = {
-                        _uiState.update { it.copy(isFriendActionBusy = false, infoMessage = successMessage) }
-                        if (refreshRequests) loadFriendRequests()
-                        if (refreshContacts) reloadContacts()
-                    },
-                    onFailure = { error ->
-                        _uiState.update {
-                            it.copy(
-                                isFriendActionBusy = false,
-                                errorMessage = error.message ?: text(R.string.error_operation_failed)
-                            )
-                        }
-                    }
-                )
-            } catch (error: CancellationException) {
-                _uiState.update { it.copy(isFriendActionBusy = false) }
-                throw error
-            } catch (error: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isFriendActionBusy = false,
-                        errorMessage = error.message ?: text(R.string.error_operation_failed)
-                    )
-                }
-            }
-        }
-    }
-
     fun acceptFriendRequest(requestId: String) = launchFriendAction(
         successMessage = text(R.string.contacts_friend_accepted),
         refreshRequests = true,
@@ -469,6 +383,78 @@ class ContactsViewModel @JvmOverloads constructor(
         refreshRequests = true,
     ) {
         friendRequestUseCase.cancelFriendRequest(requestId)
+    }
+
+    fun removeFriend(user: User) = launchFriendAction(
+        successMessage = text(R.string.contacts_friend_removed),
+    ) {
+        contactMutationUseCase.removeFriend(user.id)
+    }
+
+    fun blockUser(user: User) = launchFriendAction(
+        successMessage = text(R.string.contacts_friend_blocked, user.displayName),
+    ) {
+        contactMutationUseCase.blockUser(user.id)
+    }
+
+    /**
+     * 好友操作公共骨架：忙 guard → 置忙 → 用例调用 → 成功文案/刷新 → 失败文案。
+     * cancel 原未重置 infoMessage，此处统一重置（陈旧成功提示不再残留）。
+     */
+    private fun launchFriendAction(
+        successMessage: String? = null,
+        fallbackErrorMessage: String? = null,
+        refreshRequests: Boolean = false,
+        refreshContacts: Boolean = false,
+        action: suspend () -> Result<*>,
+    ) {
+        if (_uiState.value.isFriendActionBusy) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isFriendActionBusy = true, errorMessage = null, infoMessage = null) }
+            try {
+                action().fold(
+                    onSuccess = {
+                        _uiState.update { it.copy(isFriendActionBusy = false, infoMessage = successMessage) }
+                        if (refreshRequests) loadFriendRequests()
+                        if (refreshContacts) reloadContacts()
+                    },
+                    onFailure = { error ->
+                        _uiState.update {
+                            it.copy(
+                                isFriendActionBusy = false,
+                                errorMessage = error.message ?: fallbackErrorMessage
+                                ?: text(R.string.error_operation_failed)
+                            )
+                        }
+                    }
+                )
+            } catch (error: CancellationException) {
+                _uiState.update { it.copy(isFriendActionBusy = false) }
+                throw error
+            } catch (error: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isFriendActionBusy = false,
+                        errorMessage = error.message ?: fallbackErrorMessage
+                        ?: text(R.string.error_operation_failed)
+                    )
+                }
+            }
+        }
+    }
+
+    fun sendFriendRequest(user: User, message: String = "") {
+        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.FRIEND_REQUESTS)) {
+            _uiState.update { it.copy(errorMessage = text(R.string.friend_requests_disabled)) }
+            return
+        }
+        launchFriendAction(
+            successMessage = text(R.string.contacts_friend_request_sent),
+            fallbackErrorMessage = text(R.string.contacts_friend_request_failed),
+            refreshRequests = true,
+        ) {
+            friendRequestUseCase.sendFriendRequest(user.id, message.take(300))
+        }
     }
 
     fun acceptAllFriendRequests() {
@@ -554,18 +540,6 @@ class ContactsViewModel @JvmOverloads constructor(
                 }
             )
         }
-    }
-
-    fun removeFriend(user: User) = launchFriendAction(
-        successMessage = text(R.string.contacts_friend_removed),
-    ) {
-        contactMutationUseCase.removeFriend(user.id)
-    }
-
-    fun blockUser(user: User) = launchFriendAction(
-        successMessage = text(R.string.contacts_friend_blocked, user.displayName),
-    ) {
-        contactMutationUseCase.blockUser(user.id)
     }
 
     // ─── 会话创建端口分发 ───────────────────────────────────────────
