@@ -47,7 +47,7 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
 
                 post("/user-tags") {
                     if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                    val actorId = call.requireUserId()
                     val req = call.receiveAdminJson<CreateUserTagRequest>()
                         ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
                     if (req.name.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("标签名称不能为空"))
@@ -67,7 +67,7 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
 
                 put("/user-tags/{id}") {
                     if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                    val actorId = call.requireUserId()
                     val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少标签 ID"))
                     val req = call.receiveAdminJson<UpdateUserTagRequest>()
                         ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
@@ -83,7 +83,7 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
 
                 delete("/user-tags/{id}") {
                     if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                    val actorId = call.requireUserId()
                     val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少标签 ID"))
                     if (!userTagRepo.deleteTag(id)) {
                         return@delete call.respond(HttpStatusCode.Conflict, ErrorResponse("系统内置标签不可删除或标签不存在"))
@@ -121,7 +121,7 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
 
                 post("/users/{userId}/tags") {
                     if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                    val actorId = call.requireUserId()
                     val userId = call.parameters["userId"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
                     val req = call.receiveAdminJson<AssignUserTagsRequest>()
                         ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
@@ -162,7 +162,7 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
 
                 delete("/users/{userId}/tags/{tagId}") {
                     if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                    val actorId = call.requireUserId()
                     val userId = call.parameters["userId"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
                     val tagId = call.parameters["tagId"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少标签 ID"))
                     if (!userTagRepo.detachTag(userId, tagId)) {

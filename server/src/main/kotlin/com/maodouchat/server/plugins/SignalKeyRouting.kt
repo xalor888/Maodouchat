@@ -94,7 +94,7 @@ internal fun Route.configureSignalKeyRoutes(
         }
 
         get("/api/keys/{userId}/prekey-bundle") {
-            val requesterId = call.principal<JWTPrincipal>()!!.payload.subject
+            val requesterId = call.requireUserId()
             val targetUserId = call.parameters["userId"].orEmpty()
             if (!call.canFetchKeys(
                     requesterId,
@@ -118,7 +118,7 @@ internal fun Route.configureSignalKeyRoutes(
         }
 
         get("/api/keys/{userId}/devices") {
-            val requesterId = call.principal<JWTPrincipal>()!!.payload.subject
+            val requesterId = call.requireUserId()
             val targetUserId = call.parameters["userId"].orEmpty()
             if (!call.canFetchKeys(
                     requesterId,
@@ -151,7 +151,7 @@ internal fun Route.configureSignalKeyRoutes(
         }
 
         put("/api/keys/devices/{deviceId}/name") {
-            val requesterId = call.principal<JWTPrincipal>()!!.payload.subject
+            val requesterId = call.requireUserId()
             val deviceId = call.requireDeviceId() ?: return@put
             val request = call.receiveBoundedText()?.let { parseJson<UpdateDeviceNameRequest>(it) } ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
@@ -170,7 +170,7 @@ internal fun Route.configureSignalKeyRoutes(
         }
 
         post("/api/keys/devices/{deviceId}/confirm") {
-            val requesterId = call.principal<JWTPrincipal>()!!.payload.subject
+            val requesterId = call.requireUserId()
             val deviceId = call.requireDeviceId() ?: return@post
             val request = call.receiveBoundedText()?.let { parseJson<ConfirmDeviceRequest>(it) } ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
@@ -191,7 +191,7 @@ internal fun Route.configureSignalKeyRoutes(
         }
 
         delete("/api/keys/devices/{deviceId}") {
-            val requesterId = call.principal<JWTPrincipal>()!!.payload.subject
+            val requesterId = call.requireUserId()
             val deviceId = call.requireDeviceId() ?: return@delete
             val authSessionId = JwtConfig.authSessionId(call.principal<JWTPrincipal>()!!.payload)
             val currentDeviceId = authSessionId?.let { sessionId ->
@@ -224,7 +224,7 @@ internal fun Route.configureSignalKeyRoutes(
         }
 
         get("/api/keys/{userId}/devices/{deviceId}/prekey-bundle") {
-            val requesterId = call.principal<JWTPrincipal>()!!.payload.subject
+            val requesterId = call.requireUserId()
             val targetUserId = call.parameters["userId"].orEmpty()
             val deviceId = call.requireDeviceId() ?: return@get
             if (!call.canFetchKeys(
@@ -248,7 +248,7 @@ internal fun Route.configureSignalKeyRoutes(
         }
 
         get("/api/keys/{userId}/prekey-bundles") {
-            val requesterId = call.principal<JWTPrincipal>()!!.payload.subject
+            val requesterId = call.requireUserId()
             val targetUserId = call.parameters["userId"].orEmpty()
             if (!call.canFetchKeys(
                     requesterId,
@@ -274,7 +274,7 @@ internal fun Route.configureSignalKeyRoutes(
         }
 
         get("/api/e2ee/sealed-sender/certificate") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             if (!RuntimeConfigService.isSealedSenderEnabled()) {
                 call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("sealed sender disabled"))
                 return@get

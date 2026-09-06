@@ -26,7 +26,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
 ) {
     authenticate("auth-jwt") {
             post("/api/attachment-uploads") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 if (call.rejectIfMessageRestricted(userRepo, userId)) return@post
                 val request = call.receiveBoundedText()?.let { parseJson<AttachmentUploadSessionRequest>(it) }
                 if (
@@ -103,7 +103,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
             }
 
             get("/api/attachment-uploads/{id}") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val attachmentId = call.parameters["id"].orEmpty()
                 val record = encryptedAttachmentRepo.get(attachmentId)
                 if (record == null || record.uploaderId != userId) {
@@ -139,7 +139,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
             }
 
             put("/api/attachment-uploads/{id}") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 if (call.rejectIfMessageRestricted(userRepo, userId)) return@put
                 val attachmentId = call.parameters["id"].orEmpty()
                 val offset = call.request.queryParameters["offset"]?.toLongOrNull()
@@ -230,7 +230,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
             }
 
             post("/api/attachments") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 if (call.rejectIfMessageRestricted(userRepo, userId)) return@post
                 val chatId = call.request.queryParameters["chatId"].orEmpty()
                 val pendingMessageId = call.request.queryParameters["messageId"].orEmpty()
@@ -325,7 +325,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
             }
 
             get("/api/attachments/{id}") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 // Bandwidth / bulk-exfil throttle (authenticated participants still rate-limited)
                 if (!rateLimiter.acquire("attachment_download:$userId", maxPerMinute = 60)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("附件下载过于频繁，请稍后再试"))
@@ -409,7 +409,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
             }
 
             delete("/api/attachments/{id}") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val attachmentId = call.parameters["id"].orEmpty()
                 if (!encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("待确认附件不存在"))

@@ -51,7 +51,7 @@ fun Application.configureAnnouncementRoutes(
         // ─── 用户端公告（普通登录态，非管理端点）────────────────
         authenticate("auth-jwt") {
             get("/api/announcements/active") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val now = System.currentTimeMillis()
                 val userTagIds = userTagRepo.userTagIds(userId)
                 val active = announcementRepo.activeForUser(userId, now, userTagIds)
@@ -68,7 +68,7 @@ fun Application.configureAnnouncementRoutes(
             }
 
             post("/api/announcements/{id}/ack") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val id = call.parameters["id"] ?: return@post call.respond(
                     HttpStatusCode.BadRequest, ErrorResponse("缺少公告 ID")
                 )
@@ -119,7 +119,7 @@ fun Application.configureAnnouncementRoutes(
 
                 post("/announcements") {
                     if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                    val actorId = call.requireUserId()
                     val req = call.receiveAdminJson<CreateAnnouncementRequest>()
                         ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
                     if (req.title.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("公告标题不能为空"))
@@ -167,7 +167,7 @@ fun Application.configureAnnouncementRoutes(
 
                 put("/announcements/{id}") {
                     if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                    val actorId = call.requireUserId()
                     val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少公告 ID"))
                     val req = call.receiveAdminJson<UpdateAnnouncementRequest>()
                         ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
@@ -210,7 +210,7 @@ fun Application.configureAnnouncementRoutes(
 
                 post("/announcements/{id}/publish") {
                     if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                    val actorId = call.requireUserId()
                     val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少公告 ID"))
                     // 发布前快照：仅首次发布（此前非 ACTIVE）推送 FCM，重复 publish 不重复广播
                     val before = announcementRepo.get(id)
@@ -254,7 +254,7 @@ fun Application.configureAnnouncementRoutes(
 
                 post("/announcements/{id}/cancel") {
                     if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                    val actorId = call.requireUserId()
                     val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少公告 ID"))
                     val cancelled = announcementRepo.cancel(id, actorId)
                         ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("公告不存在"))
@@ -264,7 +264,7 @@ fun Application.configureAnnouncementRoutes(
 
                 delete("/announcements/{id}") {
                     if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                    val actorId = call.requireUserId()
                     val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少公告 ID"))
                     if (!announcementRepo.delete(id)) {
                         return@delete call.respond(HttpStatusCode.Conflict, ErrorResponse("仅未发布的草稿可删除；已发布公告请使用取消"))
