@@ -91,7 +91,7 @@ fun Application.configureAdminEnhanceRouting(
                 // ═══ 审计时间范围导出 ═══
                 get("/audit/time-range-export") {
                     if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                    val actorId = call.requireUserId()
                     val scope = call.request.queryParameters["scope"]?.trim()?.uppercase()?.take(30)
                         ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少导出范围 scope"))
                     if (scope !in setOf("ADMIN_AUDIT", "RISK_EVENTS", "ANNOUNCEMENTS", "USER_TAGS", "RATE_LIMIT")) {
@@ -171,7 +171,7 @@ fun Application.configureAdminEnhanceRouting(
 
                 post("/rate-limit/sample") {
                     if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                    val actorId = call.requireUserId()
                     rateLimitStatsRepo.recordMinute()
                     recordAdminAudit(actorId, "RATE_LIMIT_MANUAL_SAMPLE", "")
                     call.respond(buildJsonObject { put("ok", true) })

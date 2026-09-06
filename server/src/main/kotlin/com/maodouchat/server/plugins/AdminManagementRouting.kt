@@ -217,7 +217,7 @@ put("pushTokens", JsonArray(push))
 
             post("/users/{id}/sessions/revoke") {
                 if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-                val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                val actorId = call.requireUserId()
                 val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing user id"))
                 if (AdminAccess.isAdmin(id) && id != actorId) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("cannot revoke master admin sessions"))
@@ -359,7 +359,7 @@ put("offset", offset)
 
 post("/broadcast") {
                 if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-                val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                val actorId = call.requireUserId()
                 val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
                 val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -411,7 +411,7 @@ put("delivered", delivered)
 
             put("/users/{id}/moderator") {
                 if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-                val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                val actorId = call.requireUserId()
                 val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing user id"))
                 if (AdminAccess.isAdmin(id)) {
                     return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("cannot change master admin"))
@@ -434,7 +434,7 @@ put("isModerator", enabled)
 
 post("/users/{id}/force-logout") {
                 if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-                val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                val actorId = call.requireUserId()
                 val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing user id"))
                 if (AdminAccess.isAdmin(id) && id != actorId) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("cannot force-logout master admin"))
@@ -462,7 +462,7 @@ put("userId", id)
 
             post("/users/{id}/disable-totp") {
                 if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-                val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+                val actorId = call.requireUserId()
                 val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing user id"))
                 if (AdminAccess.isAdmin(id) && id != actorId) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("cannot disable TOTP for another master admin"))
@@ -496,7 +496,7 @@ put("count", logs.size)
             }
             get("/watermark/self-test") {
                 if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+                val adminId = call.requireUserId()
                 val sample = com.maodouchat.server.watermark.AdminWatermarkExtractor.embedDemoPngBase64(
                     userId = adminId,
                     chatId = "self-test-chat",

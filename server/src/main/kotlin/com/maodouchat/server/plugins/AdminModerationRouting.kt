@@ -56,7 +56,7 @@ internal fun Route.configureAdminModerationRoutes(
 
     put("/reports/{reportId}/status") {
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val reportId = call.parameters["reportId"].orEmpty()
         val req = call.receiveAdminJson<UpdateReportStatusRequest>()
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
@@ -68,7 +68,7 @@ internal fun Route.configureAdminModerationRoutes(
 
     post("/reports/{reportId}/action") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val reportId = call.parameters["reportId"].orEmpty()
         val req = call.receiveAdminJson<ApplyReportActionRequest>()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
@@ -182,7 +182,7 @@ internal fun Route.configureAdminModerationRoutes(
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
         val id = runCatching { moderationRuleRepo.createRule(req) }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("规则参数无效"))
-        recordAdminAudit(call.principal<JWTPrincipal>()!!.payload.subject, "ADMIN_RULE_CREATED", "ruleId=$id")
+        recordAdminAudit(call.requireUserId(), "ADMIN_RULE_CREATED", "ruleId=$id")
         call.respond(
             buildJsonObject {
                 put("id", id)
@@ -201,7 +201,7 @@ internal fun Route.configureAdminModerationRoutes(
         }
         val updated = moderationRuleRepo.updateRule(id, req)
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("规则参数无效"))
-        recordAdminAudit(call.principal<JWTPrincipal>()!!.payload.subject, "ADMIN_RULE_UPDATED", "ruleId=$id")
+        recordAdminAudit(call.requireUserId(), "ADMIN_RULE_UPDATED", "ruleId=$id")
         call.respond(updated)
     }
 
@@ -211,7 +211,7 @@ internal fun Route.configureAdminModerationRoutes(
         if (!moderationRuleRepo.deleteRule(id)) {
             return@delete call.respond(HttpStatusCode.NotFound, ErrorResponse("规则不存在"))
         }
-        recordAdminAudit(call.principal<JWTPrincipal>()!!.payload.subject, "ADMIN_RULE_DELETED", "ruleId=$id")
+        recordAdminAudit(call.requireUserId(), "ADMIN_RULE_DELETED", "ruleId=$id")
         call.respond(
             buildJsonObject {
                 put("status", "deleted")
@@ -249,7 +249,7 @@ internal fun Route.configureAdminModerationRoutes(
 
     put("/risk-events/{id}/resolve") {
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少事件 ID"))
         val updated = transaction {
             val exists = RiskEvents.selectAll().where { RiskEvents.id eq id }.firstOrNull()

@@ -27,7 +27,7 @@ internal fun Route.configurePollLegacyRoutes(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("polls_disabled"))
                     return@post
                 }
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 // 9.145：封禁用户不得参与群玩法写入（与 PollRouting 各写端点的 8.33 口径一致——
                 // 此前本文件的 polls 三写端点只查成员/禁言，封禁账号仍可创建投票广播到全群）
                 if (call.rejectIfSuspended(userRepo, userId)) return@post
@@ -69,7 +69,7 @@ internal fun Route.configurePollLegacyRoutes(
                 call.respond(poll)
             }
             get("/api/chats/{chatId}/polls") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val chatId = call.parameters["chatId"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
                 // 8.32 一致性：非成员 403（此前仓库层静默过滤返回 200 []，与其余群资源 403 不一致）
                 if (!com.maodouchat.server.repository.PollRepository.isMember(chatId, userId)) {
@@ -78,7 +78,7 @@ internal fun Route.configurePollLegacyRoutes(
                 call.respond(com.maodouchat.server.repository.PollRepository.listChatPolls(chatId, userId))
             }
             get("/api/polls/{pollId}") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val pollId = call.parameters["pollId"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pollId"))
                 val poll = com.maodouchat.server.repository.PollRepository.getPoll(pollId, userId)
                     ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("poll not found"))
@@ -89,7 +89,7 @@ internal fun Route.configurePollLegacyRoutes(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("polls_disabled"))
                     return@post
                 }
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 // 9.145：封禁用户不得参与投票（同 polls 创建口径）
                 if (call.rejectIfSuspended(userRepo, userId)) return@post
                 val pollId = call.parameters["pollId"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pollId"))
@@ -130,7 +130,7 @@ internal fun Route.configurePollLegacyRoutes(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("polls_disabled"))
                     return@post
                 }
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 // 9.145：封禁用户不得关闭投票（同 polls 创建口径）
                 if (call.rejectIfSuspended(userRepo, userId)) return@post
                 val pollId = call.parameters["pollId"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pollId"))

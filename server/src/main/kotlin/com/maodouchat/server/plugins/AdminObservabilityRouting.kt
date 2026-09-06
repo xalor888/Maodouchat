@@ -92,7 +92,7 @@ internal fun Route.configureAdminObservabilityRoutes(serverConfig: ServerConfig)
 
     get("/audit-logs/export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5_000).coerceIn(1, 10_000)
         val offset = (call.request.queryParameters["offset"]?.toIntOrNull() ?: 0).coerceAtLeast(0)
         val logs = OperationsQueryService.auditLogsExport(limit, offset)

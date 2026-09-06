@@ -165,7 +165,7 @@ internal fun Route.configureAdminUsersRoutes(
 
     put("/users/{id}/status") {
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
         if (id == actorId) return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("不能修改自己的管理状态"))
         if (AdminAccess.isAdmin(id)) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("不能修改其他超级管理员"))
@@ -197,7 +197,7 @@ internal fun Route.configureAdminUsersRoutes(
 
     put("/users/{id}/post-restriction") {
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
         if (id == actorId) return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("不能限制自己的发帖权限"))
         if (AdminAccess.isAdmin(id)) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("不能限制其他超级管理员"))
@@ -222,7 +222,7 @@ internal fun Route.configureAdminUsersRoutes(
 
     put("/users/{id}/message-restriction") {
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
         if (id == actorId) return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("不能限制自己的发消息权限"))
         if (AdminAccess.isAdmin(id)) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("不能限制系统主管理员"))
@@ -248,7 +248,7 @@ internal fun Route.configureAdminUsersRoutes(
 
     delete("/users/{id}") {
         if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
         if (id == actorId) return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("不能删除自己的管理员账号"))
         if (AdminAccess.isAdmin(id)) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("不能删除其他超级管理员"))

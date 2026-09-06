@@ -78,7 +78,7 @@ internal fun Route.configureAdminChatsRoutes() {
 
     delete("/chats/{id}") {
         if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少聊天 ID"))
         val (status, attachmentIds, groupAvatarUrl) = transaction {
             val chat = Chats.selectAll().where { Chats.id eq id }.forUpdate().firstOrNull()

@@ -23,7 +23,7 @@ internal fun Route.configureClientSyncRoutes(
 ) {
     authenticate("auth-jwt") {
         get("/api/chat-folders") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             call.respond(chatFolderRepository.getFolders(userId))
         }
 
@@ -32,7 +32,7 @@ internal fun Route.configureClientSyncRoutes(
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("chat_folders_disabled"))
                 return@put
             }
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val request = call.receiveBoundedText()?.let { parseJson<ChatFoldersSyncRequest>(it) } ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@put
@@ -41,12 +41,12 @@ internal fun Route.configureClientSyncRoutes(
         }
 
         get("/api/client-prefs") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             call.respond(clientPrefsRepository.get(userId))
         }
 
         put("/api/client-prefs") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val request = call.receiveBoundedText()?.let { parseJson<ClientPrefsUpdateRequest>(it) } ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@put

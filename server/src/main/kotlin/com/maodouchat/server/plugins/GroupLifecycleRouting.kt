@@ -19,7 +19,7 @@ internal suspend fun ApplicationCall.handleRemoveGroupMember(
     groupMembershipService: GroupMembershipService,
     json: Json,
 ) {
-    val actorId = principal<JWTPrincipal>()!!.payload.subject
+    val actorId = requireUserId()
     val chatId = parameters["chatId"].orEmpty()
     val targetUserId = parameters["memberId"].orEmpty()
     if (rejectIfSuspended(userRepo, actorId)) return
@@ -43,7 +43,7 @@ internal suspend fun ApplicationCall.handleUpdateGroupMemberRole(
     groupMembershipService: GroupMembershipService,
     json: Json,
 ) {
-    val actorId = principal<JWTPrincipal>()!!.payload.subject
+    val actorId = requireUserId()
     val chatId = parameters["chatId"].orEmpty()
     val targetUserId = parameters["memberId"].orEmpty()
     if (rejectIfSuspended(userRepo, actorId)) return
@@ -75,7 +75,7 @@ internal suspend fun ApplicationCall.handleTransferGroupOwnership(
     groupMembershipService: GroupMembershipService,
     json: Json,
 ) {
-    val actorId = principal<JWTPrincipal>()!!.payload.subject
+    val actorId = requireUserId()
     val chatId = parameters["chatId"].orEmpty()
     val targetUserId = parameters["memberId"].orEmpty()
     if (rejectIfSuspended(userRepo, actorId)) return

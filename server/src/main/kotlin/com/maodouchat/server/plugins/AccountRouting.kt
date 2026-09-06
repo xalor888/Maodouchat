@@ -264,7 +264,7 @@ put("status", "ok")
             }
 
             get("/api/users/{id}") {
-                val viewerId = call.principal<JWTPrincipal>()?.payload?.subject
+                val viewerId = call.optionalUserId()
                 val user = userRepo.getPublicById(call.parameters["id"]!!, viewerId = viewerId)
                 if (user != null) {
                     call.respond(
@@ -331,7 +331,7 @@ put("status", "ok")
 
             // 修改资料
             put("/api/users/profile") {
-                val userId = call.principal<JWTPrincipal>()?.payload?.subject
+                val userId = call.optionalUserId()
                 if (userId == null) { call.respond(HttpStatusCode.Unauthorized, ErrorResponse("未认证")); return@put }
                 // 8.33 修复：封禁用户不得修改资料（此前仅部分写路径有检查）
                 if (call.rejectIfSuspended(userRepo, userId)) return@put
@@ -348,7 +348,7 @@ put("status", "ok")
 
             // 设置用户名（类似 @username，用于 chat.mdou.me/u/{username}）
             put("/api/users/me/username") {
-                val userId = call.principal<JWTPrincipal>()?.payload?.subject
+                val userId = call.optionalUserId()
                 if (userId == null) { call.respond(HttpStatusCode.Unauthorized, ErrorResponse("未认证")); return@put }
                 // 8.38：封禁用户不得改用户名（与头像/资料/附近位置一致）；且设置带限流防占用枚举
                 if (call.rejectIfSuspended(userRepo, userId)) return@put
@@ -380,7 +380,7 @@ put("username", result)
 
             // 清除用户名
             delete("/api/users/me/username") {
-                val userId = call.principal<JWTPrincipal>()?.payload?.subject
+                val userId = call.optionalUserId()
                 if (userId == null) { call.respond(HttpStatusCode.Unauthorized, ErrorResponse("未认证")); return@delete }
                 if (call.rejectIfSuspended(userRepo, userId)) return@delete
                 userRepo.clearUsername(userId)

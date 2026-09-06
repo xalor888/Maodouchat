@@ -30,7 +30,7 @@ internal fun Route.configureConversationSettingsRoutes(
 ) {
     authenticate("auth-jwt") {
         put("/api/chats/{chatId}/settings") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"]?.takeIf(String::isNotBlank) ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 无效"))
                 return@put
@@ -65,7 +65,7 @@ internal fun Route.configureConversationSettingsRoutes(
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("disappearing_messages_disabled"))
                 return@put
             }
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             if (call.rejectIfSuspended(userRepo, userId)) return@put
             val chatId = call.parameters["chatId"]?.takeIf(String::isNotBlank) ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 无效"))

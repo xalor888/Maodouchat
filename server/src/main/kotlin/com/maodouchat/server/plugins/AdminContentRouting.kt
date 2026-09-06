@@ -57,7 +57,7 @@ internal fun Route.configureAdminContentRoutes(postRepo: PostRepository) {
 
     delete("/posts/{id}") {
         if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少动态 ID"))
         val ok = postRepo.deletePostForModeration(id)
         if (!ok) return@delete call.respond(HttpStatusCode.NotFound, ErrorResponse("动态不存在"))
@@ -72,7 +72,7 @@ internal fun Route.configureAdminContentRoutes(postRepo: PostRepository) {
 
     delete("/comments/{id}") {
         if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少评论 ID"))
         val ok = postRepo.deleteCommentForModeration(id)
         if (!ok) return@delete call.respond(HttpStatusCode.NotFound, ErrorResponse("评论不存在"))

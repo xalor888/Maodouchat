@@ -42,7 +42,7 @@ internal fun Route.configureBotInteractionRoutes(
 ) {
 
     get("/api/chats/{chatId}/bot-commands") {
-        val userId = call.principal<JWTPrincipal>()!!.payload.subject
+        val userId = call.requireUserId()
         val chatId = call.parameters["chatId"]!!
         if (!conversationParticipantRepo.isParticipant(chatId, userId)) {
             call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
@@ -81,7 +81,7 @@ internal fun Route.configureBotInteractionRoutes(
 
     post("/api/chats/{chatId}/bot-inbox") {
         if (call.rejectIfMaintenance()) return@post
-        val userId = call.principal<JWTPrincipal>()!!.payload.subject
+        val userId = call.requireUserId()
         if (call.rejectIfSuspended(userRepo, userId)) return@post
         if (call.rejectIfMessageRestricted(userRepo, userId)) return@post
         if (!RuntimeConfigService.isBotsAllowed()) {
@@ -138,7 +138,7 @@ internal fun Route.configureBotInteractionRoutes(
 
     post("/api/bots/{botId}/dm") {
         if (call.rejectIfMaintenance()) return@post
-        val userId = call.principal<JWTPrincipal>()!!.payload.subject
+        val userId = call.requireUserId()
         if (call.rejectIfSuspended(userRepo, userId)) return@post
         if (!RuntimeConfigService.isBotsAllowed()) {
             call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot platform disabled"))
@@ -174,7 +174,7 @@ internal fun Route.configureBotInteractionRoutes(
 
     post("/api/chats/{chatId}/bot-callback") {
         if (call.rejectIfMaintenance()) return@post
-        val userId = call.principal<JWTPrincipal>()!!.payload.subject
+        val userId = call.requireUserId()
         // 8.33 修复：封禁用户不得触发 bot 回调（bot 平台交互面一致收口）
         if (call.rejectIfSuspended(userRepo, userId)) return@post
         val chatId = call.parameters["chatId"]!!
@@ -236,7 +236,7 @@ put("callbackQueryId", updateId)
     }
 
 post("/api/chats/{chatId}/bots") {
-        val userId = call.principal<JWTPrincipal>()!!.payload.subject
+        val userId = call.requireUserId()
         if (call.rejectIfMaintenance()) return@post
         if (!RuntimeConfigService.isBotsAllowed()) {
             // 8.32 一致性：功能禁用统一 403（与 nearby/posts/chat_folders 等 disabled 语义一致）

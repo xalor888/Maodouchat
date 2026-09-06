@@ -156,7 +156,7 @@ put("envAllowRegistration", ServerConfig.allowRegistration)
 
     put("/settings") {
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))

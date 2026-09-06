@@ -11,3 +11,9 @@ import io.ktor.server.auth.principal
  * 缺失 principal 时行为与原来一致（Kotlin `!!` 抛错，由上层 StatusPages 处理）。
  */
 fun ApplicationCall.requireUserId(): String = principal<JWTPrincipal>()!!.payload.subject
+
+/**
+ * 可选身份（公开端点的 viewer 语义）：无 principal 时返回 null，
+ * 与 `call.principal<JWTPrincipal>()?.payload?.subject` 等价。
+ */
+fun ApplicationCall.optionalUserId(): String? = principal<JWTPrincipal>()?.payload?.subject

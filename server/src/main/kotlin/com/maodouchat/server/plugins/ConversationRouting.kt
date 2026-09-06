@@ -42,12 +42,12 @@ internal fun Route.configureConversationRoutes(
 ) {
     authenticate("auth-jwt") {
         get("/api/chats") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             call.respond(queryRepository.listForUser(userId))
         }
 
         post("/api/chats") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             if (!createRateLimiter.acquire(userId, maxPerMinute = 20)) {
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建会话过于频繁，请稍后再试"))
                 return@post
@@ -106,7 +106,7 @@ internal fun Route.configureConversationRoutes(
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("group_invites_disabled"))
                 return@post
             }
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             if (call.rejectIfSuspended(userRepo, userId)) return@post
             val request = call.receiveBoundedText()?.let { parseJson<JoinGroupInviteRequest>(it) } ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("邀请参数无效"))
@@ -160,7 +160,7 @@ internal fun Route.configureConversationRoutes(
         }
 
         get("/api/chats/{id}") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["id"]?.takeIf(String::isNotBlank) ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 无效"))
                 return@get
@@ -173,7 +173,7 @@ internal fun Route.configureConversationRoutes(
         }
 
         delete("/api/chats/{id}") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["id"]?.takeIf(String::isNotBlank) ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 无效"))
                 return@delete

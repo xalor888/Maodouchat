@@ -34,12 +34,12 @@ internal fun Route.configureCallSignalingRoutes(
 ) {
     authenticate("auth-jwt") {
         get("/api/calls/ice-config") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             call.respond(turnCredentialService.issue(userId))
         }
 
         post("/api/signaling/send") {
-            val fromUserId = call.principal<JWTPrincipal>()!!.payload.subject
+            val fromUserId = call.requireUserId()
             if (call.rejectIfMessageRestricted(userRepository, fromUserId)) return@post
             val request = call.receiveBoundedText()?.let { parseJson<SendSignalRequest>(it) } ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
@@ -69,7 +69,7 @@ internal fun Route.configureCallSignalingRoutes(
         }
 
         get("/api/signaling/pending") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val offersOnly = call.request.queryParameters["offersOnly"]?.toBooleanStrictOrNull() == true
             call.respond(callSignalingService.pending(userId, offersOnly).map {
                 SignalMessageResponse(
@@ -90,7 +90,7 @@ internal fun Route.configureCallSignalingRoutes(
         }
 
         post("/api/signaling/hangup") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val request = call.receiveBoundedText()?.let { parseJson<SendSignalRequest>(it) } ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@post
