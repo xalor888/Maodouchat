@@ -189,6 +189,16 @@ object AppLinkRouter {
     fun sanitizePostIdStrict(raw: String): String? =
         if (raw.any { it == '/' || it == '?' || it == '#' }) null else sanitizePostId(raw)
 
+    /**
+     * 来电唤醒入口（Telecom/FCM）用严格清洗：callId/senderId 均为服务端 opaque ID，
+     * 含 /?# 直接拒绝。返回 null 时调用方按空串处理（仍走通用轮询，不定向响铃）。
+     */
+    fun sanitizeCallIdStrict(raw: String): String? =
+        if (raw.any { it == '/' || it == '?' || it == '#' }) null else sanitizeOpaqueId(raw)
+
+    fun sanitizeUserIdStrict(raw: String): String? =
+        if (raw.any { it == '/' || it == '?' || it == '#' }) null else sanitizeOpaqueId(raw)
+
     // ---- 内部解析 ----
 
     private fun parseMaodouScheme(afterScheme: String): AppLinkParseResult {

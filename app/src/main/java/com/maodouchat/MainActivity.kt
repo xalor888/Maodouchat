@@ -393,12 +393,14 @@ class MainActivity : FragmentActivity() {
         }
         if (isTelecomAction) {
             applyCallLockScreenFlags(enabled = true)
-            if (telecomCallId.isNotBlank()) {
-                CallNotificationService.cancelIncomingCall(this, telecomCallId)
+            // P08：Telecom 唤醒 callId 同样经严格清洗（非法值按空串走通用轮询，不定向响铃）。
+            val wakeTelecomCallId = AppLinkRouter.sanitizeCallIdStrict(telecomCallId).orEmpty()
+            if (wakeTelecomCallId.isNotBlank()) {
+                CallNotificationService.cancelIncomingCall(this, wakeTelecomCallId)
             }
             MaodouchatApp.emitIncomingCallWake(
                 IncomingCallWake(
-                    callId = telecomCallId,
+                    callId = wakeTelecomCallId,
                     senderId = "",
                     isVideo = intent.getBooleanExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_IS_VIDEO, false),
                     // 8.56：系统 Telecom「接听」≠「来电拉起」——标记自动接听，应用内不再要求二次点击
@@ -444,7 +446,10 @@ class MainActivity : FragmentActivity() {
             // Lock-screen / full-screen intent: keep screen on while user answers.
             // Cleared when CallForegroundService stops (see observeCallLockScreenFlags).
             applyCallLockScreenFlags(enabled = true)
-            val wakeCallId = intent.getStringExtra(NotificationIntents.EXTRA_INCOMING_CALL_ID).orEmpty()
+            // P08：FCM 唤醒 callId/senderId 同样经严格清洗（非法值按空串走通用轮询）。
+            val wakeCallId = AppLinkRouter.sanitizeCallIdStrict(
+                intent.getStringExtra(NotificationIntents.EXTRA_INCOMING_CALL_ID).orEmpty()
+            ).orEmpty()
             // Ongoing FCM call trays often ignore autoCancel; drop shade entry as soon as
             // the user opened the app for this call (poll / CallScreen still proceed).
             if (wakeCallId.isNotBlank()) {
@@ -453,7 +458,9 @@ class MainActivity : FragmentActivity() {
             MaodouchatApp.emitIncomingCallWake(
                 IncomingCallWake(
                     callId = wakeCallId,
-                    senderId = intent.getStringExtra(NotificationIntents.EXTRA_INCOMING_CALL_SENDER_ID).orEmpty(),
+                    senderId = AppLinkRouter.sanitizeUserIdStrict(
+                        intent.getStringExtra(NotificationIntents.EXTRA_INCOMING_CALL_SENDER_ID).orEmpty()
+                    ).orEmpty(),
                     isVideo = intent.getBooleanExtra(NotificationIntents.EXTRA_INCOMING_CALL_VIDEO, false),
                 )
             )

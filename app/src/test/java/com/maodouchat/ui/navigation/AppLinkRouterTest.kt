@@ -191,6 +191,20 @@ class AppLinkRouterTest {
     }
 
     @Test
+    fun callAndUserIdsAreStrictSanitized() {
+        val uuid = "123e4567-e89b-42d3-a456-426614174000"
+        assertEquals(uuid, AppLinkRouter.sanitizeCallIdStrict(uuid))
+        assertEquals("u_abc-123", AppLinkRouter.sanitizeUserIdStrict("u_abc-123"))
+        // /?# 直接拒绝（而非截断），避免误定向响铃。
+        assertNull(AppLinkRouter.sanitizeCallIdStrict("c1/evil"))
+        assertNull(AppLinkRouter.sanitizeCallIdStrict("c1?x=1"))
+        assertNull(AppLinkRouter.sanitizeCallIdStrict("c1#frag"))
+        assertNull(AppLinkRouter.sanitizeUserIdStrict("u1/evil"))
+        assertNull(AppLinkRouter.sanitizeCallIdStrict("  "))
+        assertNull(AppLinkRouter.sanitizeCallIdStrict(""))
+    }
+
+    @Test
     fun deepLinkPatternsAreSingleSourced() {
         // NavGraph/Manifest 与此逐项对应；增删模式必须同步三处。
         assertEquals(
