@@ -109,7 +109,7 @@ object OfficialApkInstaller {
 
     @Suppress("DEPRECATION")
     private fun signingInfoFlags(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        PackageManager.GET_SIGNING_CERTIFICATES
+        PackageManager.GET_SIGNING_CERTIFICATES or PackageManager.GET_SIGNATURES
     } else {
         PackageManager.GET_SIGNATURES
     }
@@ -117,20 +117,25 @@ object OfficialApkInstaller {
     @Suppress("DEPRECATION")
     private fun signerDigests(packageInfo: PackageInfo): Set<String> {
         val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            packageInfo.signingInfo?.let { signingInfo ->
+            val fromSigningInfo = packageInfo.signingInfo?.let { signingInfo ->
                 if (signingInfo.hasMultipleSigners()) {
                     signingInfo.apkContentsSigners
                 } else {
                     signingInfo.signingCertificateHistory
                 }
-            }.orEmpty()
+            }
+            if (!fromSigningInfo.isNullOrEmpty()) {
+                fromSigningInfo
+            } else {
+                packageInfo.signatures.orEmpty()
+            }
         } else {
             packageInfo.signatures.orEmpty()
         }
         return signatures.map { signature ->
             MessageDigest.getInstance("SHA-256")
                 .digest(signature.toByteArray())
-                .joinToString("") { byte -> "%02x".format(byte) }
+                .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xFF) }
         }.toSet()
     }
 
@@ -143,7 +148,7 @@ object OfficialApkInstaller {
                 digest.update(buffer, 0, read)
             }
         }
-        digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+        digest.digest().joinToString("") { byte -> "%02x".format(byte.toInt() and 0xFF) }
     }
 
     fun promptInstall(context: Context, apk: File) {

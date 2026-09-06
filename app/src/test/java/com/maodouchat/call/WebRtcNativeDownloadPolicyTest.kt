@@ -2,7 +2,9 @@ package com.maodouchat.call
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class WebRtcNativeDownloadPolicyTest {
 
@@ -39,5 +41,25 @@ class WebRtcNativeDownloadPolicyTest {
     fun parseChecksumRejectsWeakTimeBucketEtag() {
         assertNull(WebRtcNativeDownloadPolicy.parseChecksum("W/\"abcdef0123456789\"", null))
         assertNull(WebRtcNativeDownloadPolicy.parseChecksum(null, null))
+    }
+
+    @Test
+    fun originTrust() {
+        assertTrue(WebRtcNativeDownloadPolicy.isOriginTrusted("https://chat.mdou.me/lib/arm64-v8a"))
+        assertTrue(WebRtcNativeDownloadPolicy.isOriginTrusted("https://files.mdou.me/lib/arm64-v8a"))
+        assertTrue(WebRtcNativeDownloadPolicy.isOriginTrusted("http://10.0.2.2:8080/lib/arm64-v8a"))
+        assertFalse(WebRtcNativeDownloadPolicy.isOriginTrusted("http://cdn.example.com/lib/arm64-v8a"))
+        assertFalse(WebRtcNativeDownloadPolicy.isOriginTrusted("https://chat.mdou.me.evil.com/lib"))
+        assertFalse(WebRtcNativeDownloadPolicy.isOriginTrusted("ftp://chat.mdou.me/lib"))
+        assertFalse(WebRtcNativeDownloadPolicy.isOriginTrusted(""))
+    }
+
+    @Test
+    fun integrityVerify() {
+        assertTrue(WebRtcNativeDownloadPolicy.verifyIntegrity(sha, sha.uppercase()))
+        assertFalse(WebRtcNativeDownloadPolicy.verifyIntegrity(sha, "b".repeat(64)))
+        assertFalse(WebRtcNativeDownloadPolicy.verifyIntegrity("", sha))
+        assertFalse(WebRtcNativeDownloadPolicy.verifyIntegrity("abc", sha))
+        assertFalse(WebRtcNativeDownloadPolicy.verifyIntegrity(sha, null))
     }
 }

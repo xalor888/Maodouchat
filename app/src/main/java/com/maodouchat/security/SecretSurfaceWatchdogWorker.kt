@@ -58,6 +58,19 @@ class SecretSurfaceWatchdogWorker(
         } catch (error: Exception) {
             Log.w(TAG, "Secret session TTL sweep failed", error)
         }
+
+        // M10: 阅后即焚与密聊到期消息兜底清理
+        try {
+            val purged = app.secretConversationController.purgeExpiredMessages()
+            if (purged.isNotEmpty()) {
+                Log.i(TAG, "Watchdog purged ${purged.size} expired disappearing messages")
+            }
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Log.w(TAG, "Watchdog disappearing messages purge failed", error)
+        }
+
         return Result.success()
     }
 

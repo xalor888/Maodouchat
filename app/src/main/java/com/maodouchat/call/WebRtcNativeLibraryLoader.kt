@@ -128,10 +128,14 @@ object WebRtcNativeLibraryLoader {
 
     private fun download(target: File) {
         val abi = WebRtcNativeDownloadPolicy.requestAbi(Build.SUPPORTED_ABIS)
-        Log.i(TAG, "downloading WebRTC native lib abi=$abi url=${ApiConfig.BASE_URL}$SERVER_ROUTE/$abi")
+        val downloadUrl = "${ApiConfig.BASE_URL}$SERVER_ROUTE/$abi"
+        if (!WebRtcNativeDownloadPolicy.isOriginTrusted(downloadUrl)) {
+            throw SecurityException("untrusted_webrtc_download_origin")
+        }
+        Log.i(TAG, "downloading WebRTC native lib abi=$abi url=$downloadUrl")
         _progress.value = 1
         val request = Request.Builder()
-            .url("${ApiConfig.BASE_URL}$SERVER_ROUTE/$abi")
+            .url(downloadUrl)
             .header("Accept-Encoding", "identity")
             .apply {
                 TokenManager.getInstanceOrNull()?.getToken()?.takeIf { it.isNotBlank() }?.let {
@@ -172,9 +176,10 @@ object WebRtcNativeLibraryLoader {
                     }
                 }
                 val actualSha256 = sha256(tmp)
-                if (actualSha256 != expectedSha256) {
+                if (!WebRtcNativeDownloadPolicy.verifyIntegrity(actualSha256, expectedSha256)) {
                     throw IllegalStateException("sha256_mismatch")
                 }
+                if (target.exists()) target.delete()
                 if (!tmp.renameTo(target)) {
                     if (!target.isFile) throw IllegalStateException("file_write_failed")
                     tmp.delete()
@@ -196,6 +201,6 @@ object WebRtcNativeLibraryLoader {
                 digest.update(buffer, 0, read)
             }
         }
-        return digest.digest().joinToString("") { "%02x".format(it) }
+        return digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xFF) }
     }
 }

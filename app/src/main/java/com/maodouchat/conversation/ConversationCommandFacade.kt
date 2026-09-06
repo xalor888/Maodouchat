@@ -216,6 +216,8 @@ class ConversationCommandFacade(
                 AttachmentKind.FILE -> MessageType.FILE
                 AttachmentKind.STICKER -> MessageType.STICKER
                 AttachmentKind.GIF -> MessageType.GIF
+                AttachmentKind.LOCATION -> MessageType.LOCATION
+                AttachmentKind.CONTACT -> MessageType.TEXT
             }
             val meta = MessageMeta(
                 attachmentId = content.attachmentId,

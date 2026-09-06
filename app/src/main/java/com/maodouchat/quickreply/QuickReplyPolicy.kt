@@ -78,12 +78,13 @@ object QuickReplyPolicy {
             ) {
                 return@withContext ChatGateVerdict.Rejected("session_changed")
             }
+            val caps = app.secretConversationController.capabilities(chatId)
             // 密聊：拒绝
-            if (app.database.chatDao().isSecretChat(chatId)) {
+            if (caps.isSecretChat) {
                 return@withContext ChatGateVerdict.Rejected("secret_chat")
             }
             // 会话 PIN 锁：磁盘有锁即拒绝（后台无法验证 PIN）
-            if (app.database.chatLockDao().get(chatId) != null) {
+            if (caps.isLocked) {
                 return@withContext ChatGateVerdict.Rejected("chat_locked")
             }
             ChatGateVerdict.Allowed

@@ -10,6 +10,8 @@ import kotlinx.serialization.Serializable
 import org.signal.libsignal.protocol.IdentityKey
 import org.signal.libsignal.protocol.ecc.Curve
 import org.signal.libsignal.protocol.state.PreKeyBundle
+import org.signal.libsignal.protocol.state.PreKeyRecord
+import org.signal.libsignal.protocol.state.SignedPreKeyRecord
 
 enum class SignalExchangeFailure {
     SIGNED_PREKEY_MISSING,
@@ -147,19 +149,22 @@ object SignalKeyExchange {
      * 风险大且会破坏旧客户端兼容。当前走 X3DH 路径，详见
      * [com.maodouchat.crypto.SignalProtocol.ensurePreKeysAvailable] 的注释。
      */
-    suspend fun uploadKeys(token: String, signalProtocol: SignalProtocol): Result<Unit> {
+    suspend fun uploadKeys(
+        token: String,
+        identityKey: IdentityKey,
+        signedPreKey: SignedPreKeyRecord?,
+        preKeys: List<PreKeyRecord>,
+        registrationId: Int,
+        deviceId: Int
+    ): Result<Unit> {
         return try {
-            val identityKey = signalProtocol.getIdentityPublicKey()
-            val signedPreKey = signalProtocol.getSignedPreKey()
-            val preKeys = signalProtocol.getPreKeys()
-
             if (signedPreKey == null) {
                 return Result.failure(SignalExchangeException(SignalExchangeFailure.SIGNED_PREKEY_MISSING))
             }
 
             val request = UploadKeysRequest(
-                registrationId = signalProtocol.getRegistrationId(),
-                deviceId = signalProtocol.getDeviceId(),
+                registrationId = registrationId,
+                deviceId = deviceId,
                 deviceName = defaultDeviceName(),
                 identityKey = android.util.Base64.encodeToString(identityKey.serialize(), android.util.Base64.NO_WRAP),
                 signedPreKeyId = signedPreKey.id,
@@ -179,6 +184,16 @@ object SignalKeyExchange {
             Result.failure(e.toExchangeException())
         }
     }
+
+    suspend fun uploadKeys(token: String, signalProtocol: SignalProtocol): Result<Unit> =
+        uploadKeys(
+            token = token,
+            identityKey = signalProtocol.getIdentityPublicKey(),
+            signedPreKey = signalProtocol.getSignedPreKey(),
+            preKeys = signalProtocol.getPreKeys(),
+            registrationId = signalProtocol.getRegistrationId(),
+            deviceId = signalProtocol.getDeviceId()
+        )
 
     suspend fun fetchPreKeyBundle(token: String, targetUserId: String): Result<PreKeyBundleResponse> =
         ApiService.getPreKeyBundle(token, targetUserId)
