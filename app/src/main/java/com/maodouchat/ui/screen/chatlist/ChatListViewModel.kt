@@ -1124,43 +1124,25 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
 
     // 9.150：置顶/静音/归档/标未读改为按 chatId 现查 _uiState 最新快照取反，
     // 不再信任调用方传入的 Chat 快照（长按菜单 menuChat 可能在 WS 刷新后陈旧，反向操作会覆盖新值）
-    fun togglePinned(chatId: String) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_PIN)) {
-            _uiState.update { it.copy(errorMessage = text(R.string.feature_disabled_by_admin)) }
-            return
-        }
-        val chat = _uiState.value.chats.firstOrNull { it.id == chatId } ?: return
-        val mutation = buildSettingsToggle(chat, ChatSettingsToggle.PIN)
-        updateChatSettings(chat, mutation.optimistic, mutation.request)
-    }
+    fun togglePinned(chatId: String) =
+        toggleSetting(chatId, RuntimeFlags.CHAT_PIN, ChatSettingsToggle.PIN)
 
-    fun toggleNotificationsMuted(chatId: String) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_MUTE)) {
-            _uiState.update { it.copy(errorMessage = text(R.string.feature_disabled_by_admin)) }
-            return
-        }
-        val chat = _uiState.value.chats.firstOrNull { it.id == chatId } ?: return
-        val mutation = buildSettingsToggle(chat, ChatSettingsToggle.MUTE)
-        updateChatSettings(chat, mutation.optimistic, mutation.request)
-    }
+    fun toggleNotificationsMuted(chatId: String) =
+        toggleSetting(chatId, RuntimeFlags.CHAT_MUTE, ChatSettingsToggle.MUTE)
 
-    fun toggleArchived(chatId: String) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_ARCHIVE)) {
-            _uiState.update { it.copy(errorMessage = text(R.string.feature_disabled_by_admin)) }
-            return
-        }
-        val chat = _uiState.value.chats.firstOrNull { it.id == chatId } ?: return
-        val mutation = buildSettingsToggle(chat, ChatSettingsToggle.ARCHIVE)
-        updateChatSettings(chat, mutation.optimistic, mutation.request)
-    }
+    fun toggleArchived(chatId: String) =
+        toggleSetting(chatId, RuntimeFlags.CHAT_ARCHIVE, ChatSettingsToggle.ARCHIVE)
 
-    fun toggleMarkedUnread(chatId: String) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MARKED_UNREAD)) {
+    fun toggleMarkedUnread(chatId: String) =
+        toggleSetting(chatId, RuntimeFlags.MARKED_UNREAD, ChatSettingsToggle.MARKED_UNREAD)
+
+    private fun toggleSetting(chatId: String, flagKey: RuntimeFlags.Flag, toggle: ChatSettingsToggle) {
+        if (!RuntimeFlags.isEnabled(getApplication(), flagKey)) {
             _uiState.update { it.copy(errorMessage = text(R.string.feature_disabled_by_admin)) }
             return
         }
         val chat = _uiState.value.chats.firstOrNull { it.id == chatId } ?: return
-        val mutation = buildSettingsToggle(chat, ChatSettingsToggle.MARKED_UNREAD)
+        val mutation = buildSettingsToggle(chat, toggle)
         updateChatSettings(chat, mutation.optimistic, mutation.request)
     }
 
