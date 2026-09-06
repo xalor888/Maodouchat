@@ -230,8 +230,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
     // FCM / system notification tap → re-poll (IncomingCallObserver may already be alive)
     LaunchedEffect(Unit) {
         com.maodouchat.MaodouchatApp.incomingCallWakeEvents.collect { wake ->
-            if (wake.sessionGeneration != com.maodouchat.MaodouchatApp.currentSessionGeneration()) {
-                com.maodouchat.MaodouchatApp.consumeIncomingCallWake(wake)
+            if (com.maodouchat.consumeIfStale(wake, com.maodouchat.MaodouchatApp::consumeIncomingCallWake)) {
                 return@collect
             }
             // 8.56：系统 Telecom「接听」唤醒 → 带 autoAnswer 进入轮询，命中的来电自动接听

@@ -94,21 +94,7 @@ import com.maodouchat.network.PublicUpdatesDto
 import com.maodouchat.update.AppUpdatePolicy
 import com.maodouchat.update.AppUpdatePromptStore
 import com.maodouchat.update.OfficialApkInstaller
-
-/**
- * 会话过期事件消费：世代不符则消费丢弃并返回 true（调用方直接 return），
- * 否则返回 false 继续处理。收敛各收集器逐字相同的守卫样板。
- */
-private fun <T : com.maodouchat.SessionScopedEvent> consumeIfStale(
-    req: T,
-    consume: (T) -> Unit,
-): Boolean {
-    if (req.sessionGeneration != com.maodouchat.MaodouchatApp.currentSessionGeneration()) {
-        consume(req)
-        return true
-    }
-    return false
-}
+import com.maodouchat.consumeIfStale
 
 
 /**
