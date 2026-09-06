@@ -47,7 +47,7 @@ internal fun Route.configureAdminBulkRoutes(
 ) {
     post("/users/bulk-force-logout") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -100,7 +100,7 @@ put("count", okIds.size)
 
     post("/users/bulk-ban") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -133,7 +133,7 @@ put("count", banned.size)
 
     post("/users/bulk-unban") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -158,7 +158,7 @@ put("count", updated.size)
 
     post("/users/bulk-suspend-days") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -187,7 +187,7 @@ put("count", updated.size)
 
 post("/users/bulk-message-restrict") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -216,7 +216,7 @@ put("count", updated.size)
 
     post("/users/bulk-message-unrestrict") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -239,7 +239,7 @@ put("count", updated.size)
 
 get("/ai-usage-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
         // Metadata only — never export prompt/body
         val rows = transaction {
@@ -302,7 +302,7 @@ get("/ai-usage-export") {
 
     post("/users/bulk-post-restrict") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -330,7 +330,7 @@ put("count", updated.size)
 
     post("/users/bulk-post-unrestrict") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -351,7 +351,7 @@ put("count", updated.size)
 
 post("/users/bulk-set-message-restrict-until") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -386,7 +386,7 @@ put("count", updated.size)
 
     post("/users/bulk-set-searchable-false") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -409,7 +409,7 @@ put("count", updated.size)
 
     post("/users/bulk-set-searchable-true") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -432,7 +432,7 @@ put("count", updated.size)
 
     post("/users/bulk-set-show-status") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -462,7 +462,7 @@ put("showStatus", showStatus)
 
     post("/users/bulk-set-show-online") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -492,7 +492,7 @@ put("showOnline", showOnline)
 
     post("/users/bulk-set-searchable") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -522,7 +522,7 @@ put("searchable", searchable)
 
     post("/users/bulk-disable-totp") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -545,7 +545,7 @@ put("count", updated.size)
 
     post("/chats/bulk-clear-invite-tokens") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -571,7 +571,7 @@ put("count", updated.size)
 
 post("/users/bulk-set-suspend-until") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -606,7 +606,7 @@ put("suspendedUntil", until)
 
 post("/users/bulk-clear-all-restrictions") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -627,7 +627,7 @@ put("count", updated.size)
 
 post("/users/bulk-clear-message-and-post-restrict") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -648,7 +648,7 @@ put("count", updated.size)
 
 post("/users/bulk-force-token-bump") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -700,7 +700,7 @@ put("count", updated.size)
 
 post("/users/bulk-clear-suspend") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -721,7 +721,7 @@ put("count", updated.size)
 
 post("/users/bulk-clear-message-restrict") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -742,7 +742,7 @@ put("count", updated.size)
 
 post("/users/bulk-message-restrict-days") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
@@ -770,7 +770,7 @@ put("count", updated.size)
 
 post("/users/bulk-clear-post-restrict") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))

@@ -65,7 +65,7 @@ private const val WATERMARK_EXTRACT_TIMEOUT_MS = 30_000L
 internal fun Route.configureAdminExportsRoutes(authTokenRepo: AuthTokenRepository) {
     get("/push-tokens-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Privacy-safe: no full push token secret — prefix only
         val rows = transaction {
@@ -208,7 +208,7 @@ internal fun Route.configureAdminExportsRoutes(authTokenRepo: AuthTokenRepositor
 
     get("/reports-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
         val rows = org.jetbrains.exposed.sql.transactions.transaction {
             com.maodouchat.server.db.Reports.selectAll()
@@ -244,7 +244,7 @@ internal fun Route.configureAdminExportsRoutes(authTokenRepo: AuthTokenRepositor
 
     get("/risk-events-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
         val rows = org.jetbrains.exposed.sql.transactions.transaction {
             com.maodouchat.server.db.RiskEvents.selectAll()
@@ -280,7 +280,7 @@ internal fun Route.configureAdminExportsRoutes(authTokenRepo: AuthTokenRepositor
 
     get("/online-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         // Privacy-safe: ids + presence only, no message bodies
         val online = try {
             com.maodouchat.server.plugins.ConnectionRegistry.onlineUserIds()
@@ -305,7 +305,7 @@ internal fun Route.configureAdminExportsRoutes(authTokenRepo: AuthTokenRepositor
 
     get("/sessions-summary-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Privacy-safe: session counts per user, no token secrets
         val rows = transaction {
@@ -396,7 +396,7 @@ get("/polls-export") {
 
     get("/moderation-audit-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
         // Audit metadata only — no message bodies
         val rows = transaction {
@@ -433,7 +433,7 @@ get("/polls-export") {
 
     get("/bot-command-stats-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Command names only — no message bodies
         val rows = transaction {
@@ -470,7 +470,7 @@ get("/polls-export") {
 
     get("/friends-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Friendship graph metadata only — no message bodies
         val rows = transaction {
@@ -505,7 +505,7 @@ get("/polls-export") {
 
     get("/reports-meta-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Report metadata only — no message bodies / E2EE plaintext
         val rows = transaction {
@@ -545,7 +545,7 @@ get("/polls-export") {
 
     get("/blocks-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Block edges only — no message bodies
         val rows = transaction {
@@ -574,7 +574,7 @@ get("/polls-export") {
 
     get("/chat-settings-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Per-user chat settings metadata only — no message bodies / SECRET ids
         val rows = transaction {
@@ -614,7 +614,7 @@ get("/polls-export") {
 
     get("/disappearing-chats-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Chat disappearing timer metadata only — no message bodies
         val rows = transaction {
@@ -649,7 +649,7 @@ get("/polls-export") {
 
     get("/muted-chats-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Muted chat settings metadata only — no message bodies
         val rows = transaction {
@@ -696,7 +696,7 @@ get("/polls-export") {
 
     get("/ai-feature-flags-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val csv = buildString {
             appendLine("key,value")
             appendLine("ai_enabled," + RuntimeConfigService.isAiEnabled())
@@ -746,7 +746,7 @@ get("/polls-export") {
 
     get("/online-presence-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         val rows = transaction {
             Users.selectAll()
@@ -772,7 +772,7 @@ get("/polls-export") {
 
     get("/privacy-flags-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         val rows = transaction {
             Users.selectAll()
@@ -801,7 +801,7 @@ get("/polls-export") {
 
     get("/identity-users-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Identity discoverability metadata only — no secrets / bodies
         val rows = transaction {
@@ -832,7 +832,7 @@ get("/polls-export") {
 
     get("/totp-users-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // TOTP status only — no secrets / E2EE bodies
         val rows = transaction {
@@ -862,7 +862,7 @@ get("/polls-export") {
 
     get("/group-invites-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Invite metadata only — no message bodies
         val rows = transaction {
@@ -893,7 +893,7 @@ get("/polls-export") {
 
 get("/restricted-users-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         val now = System.currentTimeMillis()
         val rows = transaction {
@@ -927,7 +927,7 @@ get("/restricted-users-export") {
 
 get("/poll-votes-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         val rows = transaction {
             GroupPollVotes.selectAll()
@@ -955,7 +955,7 @@ get("/poll-votes-export") {
 
 get("/pinned-messages-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Pinned message metadata only — no message bodies / E2EE plaintext
         val rows = transaction {
@@ -1044,7 +1044,7 @@ get("/pinned-messages-export") {
 
     get("/runtime-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.principal<JWTPrincipal>()!!.payload.subject
+        val actorId = call.requireUserId()
         recordAdminAudit(actorId, "ADMIN_RUNTIME_EXPORT", "settings snapshot")
         call.respond(
         buildJsonObject {
@@ -1068,7 +1068,7 @@ put("maxMessagePerMin", RuntimeConfigService.maxMessagePerMinute())
 
 post("/watermark/extract") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val adminId = call.principal<JWTPrincipal>()!!.payload.subject
+        val adminId = call.requireUserId()
         val bodyText = runCatching { call.receiveBoundedText(MAX_ADMIN_WATERMARK_BODY_CHARS) }.getOrNull().orEmpty()
         if (bodyText.length > MAX_ADMIN_WATERMARK_BODY_CHARS) {
             return@post call.respond(HttpStatusCode.PayloadTooLarge, ErrorResponse("请求体过大"))
