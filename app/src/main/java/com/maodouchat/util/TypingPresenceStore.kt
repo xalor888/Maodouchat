@@ -34,11 +34,20 @@ object TypingPresenceStore {
 
     fun isTyping(chatId: String): String? = _typingByChat.value[chatId]
 
-    /** 应用启动时调用一次：订阅全局 WS 事件流。 */
+    /** 应用启动时调用一次：订阅领域 typing 事件流。 */
+    fun start(dispatcher: com.maodouchat.core.realtime.RealtimeEventDispatcher) {
+        scope.launch {
+            dispatcher.typingEvents.collect { event ->
+                handleTyping(event.chatId, event.userId, event.isTyping)
+            }
+        }
+    }
+
+    /** 兼容历史传输层事件调用。 */
     fun start(events: SharedFlow<WebSocketEvent>) {
         scope.launch {
             events.filterIsInstance<WebSocketEvent.UserTyping>().collect { event ->
-                handleEvent(event)
+                handleTyping(event.chatId, event.userId, event.isTyping)
             }
         }
     }
@@ -53,9 +62,9 @@ object TypingPresenceStore {
         }
     }
 
-    private fun handleEvent(event: WebSocketEvent.UserTyping) {
+    private fun handleTyping(chatId: String, userId: String, isTyping: Boolean) {
         val currentUserId = TokenManager.getInstanceOrNull()?.getUserId().orEmpty()
-        if (currentUserId.isBlank() || event.userId.isBlank() || event.userId == currentUserId || event.userId == "me") return
+        if (currentUserId.isBlank() || userId.isBlank() || userId == currentUserId || userId == "me") return
         synchronized(lock) {
             if (trackedUserId != currentUserId) {
                 trackedUserId = currentUserId
@@ -63,8 +72,8 @@ object TypingPresenceStore {
                 expiryJobs.clear()
                 _typingByChat.value = emptyMap()
             }
-            if (event.isTyping) renew(event.chatId, event.userId)
-            else stop(event.chatId)
+            if (isTyping) renew(chatId, userId)
+            else stop(chatId)
         }
     }
 

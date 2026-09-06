@@ -7,7 +7,8 @@ import java.util.Locale
 import java.util.regex.Pattern
 
 /**
- * 本机链接预览：只从消息正文抽 URL / 解析 HTML meta，不把 URL 交给第三方 OG 服务。
+ * 本机链接预览策略（8.54 / U07）：只从消息正文抽 URL / 解析 HTML meta，不把 URL 交给第三方 OG 服务。
+ * 严格防御客户端 SSRF，阻断内网地址、私有网段、各种 IP 编码变体及危险协议。
  */
 object LinkPreviewPolicy {
     data class Preview(
@@ -21,6 +22,8 @@ object LinkPreviewPolicy {
     private val URL_PATTERN: Pattern = Pattern.compile(
         "(?i)\\b((?:https?://|www\\.)[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+)"
     )
+
+    private val ALLOWED_WEB_PORTS = setOf(80, 443, 8080, 8443)
 
     /** 取正文中第一个 http(s)/www URL，规范化 scheme。 */
     fun firstHttpUrl(text: String): String? {
@@ -43,47 +46,89 @@ object LinkPreviewPolicy {
         return sanitizeUrl(withScheme)
     }
 
+    /**
+     * 校验并清洗待抓取的 URL，阻断各类内网/私网探测与绕过变体（防止客户端 SSRF）。
+     * 验证失败或存在安全隐患时返回 null。
+     */
     fun sanitizeUrl(url: String): String? {
         return runCatching {
             val uri = URI(url)
             val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return null
             if (scheme != "http" && scheme != "https") return null
+
+            // 拒绝包含 userinfo 的 URL（如 http://user:pass@host/ 或 http://admin@localhost/）
+            if (!uri.rawUserInfo.isNullOrEmpty()) return null
+
             val host = uri.host?.trim()?.trim('.') ?: return null
             if (host.isBlank()) return null
-            // 拒绝内网/非公网探测目标（防止客户端 SSRF）
-            if (host.equals("localhost", true) || host.endsWith(".local", true)) return null
-            // 拒绝非标准 IP 字面量编码（十进制整数 / 十六进制），这些会被 OkHttp 解析为内网地址
-            // 例如 2130706433 (=127.0.0.1)、0x7f000001 (=127.0.0.1)。
+
+            // 拒绝包含百分号编码的 host（防止通过 %2e%2e 等方式混淆主机名）
+            if (host.contains("%")) return null
+
+            // 端口约束：若显式指定端口，仅允许标准 Web 服务端口，防止针对内网服务（如 Redis/SSH/SMTP）的端口扫描
+            val port = uri.port
+            if (port != -1 && port !in ALLOWED_WEB_PORTS) return null
+
+            // 拒绝内网/非公网主机名
+            if (host.equals("localhost", true) || host.endsWith(".local", true) || host.endsWith(".internal", true)) {
+                return null
+            }
+
+            // 拒绝单个整数或十六进制字面量（例如 2130706433 或 0x7f000001 即 127.0.0.1）
             if (host.matches(Regex("""^(0x[0-9a-fA-F]+|\d+)$"""))) return null
-            // Reject dotted hexadecimal shorthand such as 0x7f.0.0.1, which some parsers
-            // resolve as an IPv4-mapped private address.
-            if (host.matches(Regex("""^0x[0-9a-fA-F]+(\.[0-9a-fA-F]+)*$"""))) return null
-            // Reject decimal IPv4 shorthand (127.1, 127.0.1). Four-label dotted decimal is
-            // still allowed only when each octet is strict decimal and is not private.
-            val dottedNumericLabels = host.split(".")
-            if (dottedNumericLabels.size in 2..4 && dottedNumericLabels.all { it.matches(Regex("""\d+""")) }) {
-                if (dottedNumericLabels.size != 4) return null
-                val octets = dottedNumericLabels.map { it.toIntOrNull() }
-                if (dottedNumericLabels.zip(octets).any { (raw, n) ->
-                        n == null || n !in 0..255 || (n != 0 && raw != n.toString())
+
+            // 检查带点分段的数值/十六进制/八进制混合变体（例如 127.1, 127.0.0.0x1, 0x7f.0.0.1, 0177.0.0.1）
+            val parts = host.split(".")
+            val isNumericOrHexLabels = parts.all { it.matches(Regex("""(?i)^(0x[0-9a-fA-F]+|\d+)$""")) }
+            if (isNumericOrHexLabels) {
+                // 必须严格为 4 段十进制，不能包含 0x，不能有前导 0（八进制形式）
+                if (parts.size != 4) return null
+                if (parts.any { it.startsWith("0x", ignoreCase = true) }) return null
+
+                val octets = parts.map { it.toIntOrNull() }
+                if (parts.zip(octets).any { (raw, n) ->
+                        n == null || n !in 0..255 || raw != n.toString()
                     }
                 ) return null
-                // Keep the explicit octet null checks after validation so later indexed reads are total.
+
                 val a = octets[0] ?: return null
                 val b = octets[1] ?: return null
-                if (a == 0 || a == 10 || a == 127 ||
-                    (a == 169 && b == 254) ||
-                    (a == 172 && b in 16..31) ||
-                    (a == 192 && b == 168) ||
-                    (a == 100 && b in 64..127)
-                ) return null
+                val c = octets[2] ?: return null
+
+                // 0.0.0.0/8 (当前网络)
+                if (a == 0) return null
+                // 10.0.0.0/8 (私有 A 类)
+                if (a == 10) return null
+                // 127.0.0.0/8 (回环)
+                if (a == 127) return null
+                // 169.254.0.0/16 (链路本地 / 关键云厂商元数据 169.254.169.254)
+                if (a == 169 && b == 254) return null
+                // 172.16.0.0/12 (私有 B 类)
+                if (a == 172 && b in 16..31) return null
+                // 192.168.0.0/16 (私有 C 类)
+                if (a == 192 && b == 168) return null
+                // 100.64.0.0/10 (运营商级 NAT)
+                if (a == 100 && b in 64..127) return null
+                // 192.0.0.0/24 (IETF 协议分配)
+                if (a == 192 && b == 0 && c == 0) return null
+                // 192.0.2.0/24 (TEST-NET-1)
+                if (a == 192 && b == 0 && c == 2) return null
+                // 198.18.0.0/15 (网络基准测试)
+                if (a == 198 && b in 18..19) return null
+                // 198.51.100.0/24 (TEST-NET-2)
+                if (a == 198 && b == 51 && c == 100) return null
+                // 203.0.113.0/24 (TEST-NET-3)
+                if (a == 203 && b == 0 && c == 113) return null
+                // 224.0.0.0/4 (组播) 与 240.0.0.0/4 (保留)
+                if (a >= 224) return null
             }
-            // IPv6 literal 过滤：环回、未指定、链路本地、站点本地、组播，以及
-            // IPv4-mapped/IPv4-compatible 编码都不能作为链接预览探测目标。
+
+            // IPv6 literal 过滤：环回、未指定、链路本地、站点本地、组播、ULA (fc00::/7)、IPv4-mapped (::ffff:) 等
             if (host.contains(":")) {
                 val h = host.removeSurrounding("[", "]").lowercase(Locale.ROOT)
                 if (h.contains("::ffff:") || isNonPublicIpv6Literal(h)) return null
             }
+
             uri.toString()
         }.getOrNull()
     }
@@ -97,12 +142,28 @@ object LinkPreviewPolicy {
     private fun isNonPublicIpv6Literal(host: String): Boolean {
         return runCatching {
             val address = InetAddress.getByName(host)
-            address.isAnyLocalAddress ||
+            if (address !is Inet6Address) return true
+            if (address.isIPv4CompatibleAddress) return true
+            if (address.isAnyLocalAddress ||
                 address.isLoopbackAddress ||
                 address.isLinkLocalAddress ||
                 address.isSiteLocalAddress ||
-                address.isMulticastAddress ||
-                (address is Inet6Address && address.isIPv4CompatibleAddress)
+                address.isMulticastAddress
+            ) {
+                return true
+            }
+            val bytes = address.address
+            if (bytes.size == 16) {
+                val first = bytes[0].toInt() and 0xff
+                // fc00::/7 (Unique local addresses ULA: fc00::/8 与 fd00::/8)
+                if (first and 0xfe == 0xfc) return true
+                // 2001:db8::/32 (文档/示例专用地址)
+                val second = bytes[1].toInt() and 0xff
+                val third = bytes[2].toInt() and 0xff
+                val fourth = bytes[3].toInt() and 0xff
+                if (first == 0x20 && second == 0x01 && third == 0x0d && fourth == 0xb8) return true
+            }
+            false
         }.getOrDefault(true)
     }
 

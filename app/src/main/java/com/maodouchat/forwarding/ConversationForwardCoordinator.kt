@@ -7,6 +7,14 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
+import com.maodouchat.domain.messaging.AttachmentIntent
+import com.maodouchat.domain.messaging.AttachmentIntentController
+import com.maodouchat.domain.messaging.AttachmentKind
+import com.maodouchat.domain.messaging.ForwardFailureReason
+import com.maodouchat.domain.messaging.ForwardPolicy
+import com.maodouchat.domain.messaging.ForwardRequest
+import com.maodouchat.domain.messaging.ForwardTargetResult
+import com.maodouchat.domain.messaging.Forwardability
 import com.maodouchat.util.JsonFormat
 import kotlinx.coroutines.CancellationException
 import java.util.UUID
@@ -37,19 +45,23 @@ class ConversationForwardCoordinator(
     private val resolveTargets: suspend (token: String, targets: List<Chat>) -> List<Chat> = { _, targets -> targets },
     private val stageMessage: suspend (message: Message, groupRevision: Long?) -> Unit = { _, _ -> },
     private val commandFacade: ConversationCommandFacade? = null,
-    private val forwardAttachment: suspend (
+    private val forwardAttachment: (suspend (
         target: Chat,
         message: Message,
         messageId: String,
         sourceName: String?,
         ownerUserId: String,
-    ) -> Unit,
+    ) -> Unit)? = null,
+    private val attachmentIntentController: AttachmentIntentController? = null,
+    private val getMessageById: (suspend (messageId: String) -> Message?)? = null,
+    private val getChatById: (suspend (chatId: String) -> Chat?)? = null,
+    private val isChatLocked: (suspend (chatId: String) -> Boolean)? = null,
     private val onDurableMessage: (Message) -> Unit = {},
     private val onMessageSent: (chatId: String, preview: String, type: MessageType) -> Unit = { _, _, _ -> },
     private val preview: (type: MessageType, plainContent: String) -> String = { _, content -> content.take(40) },
     private val messageId: () -> String = { "m_${UUID.randomUUID()}" },
     private val now: () -> Long = System::currentTimeMillis,
-) {
+) : com.maodouchat.domain.messaging.ConversationForwardCoordinator {
     suspend fun loadTargets(activeChatId: String): List<Chat> {
         val owner = requireSession()
         val liveToken = token().trim()
@@ -119,7 +131,7 @@ class ConversationForwardCoordinator(
         ensureForwardable(message.type)
         val id = messageId()
         if (message.type in ATTACHMENT_TYPES) {
-            forwardAttachment(target, message, id, sourceName, owner)
+            forwardAttachmentResolved(target, message, id, sourceName, owner)
             return null
         }
 
@@ -157,6 +169,131 @@ class ConversationForwardCoordinator(
         stageAndPublish(target, local, preview(message.type, plainContent))
         return local
     }
+
+    private suspend fun forwardAttachmentResolved(
+        target: Chat,
+        message: Message,
+        id: String,
+        sourceName: String?,
+        owner: String,
+    ) {
+        if (forwardAttachment != null) {
+            forwardAttachment.invoke(target, message, id, sourceName, owner)
+            return
+        }
+        val controller = attachmentIntentController
+            ?: throw IllegalStateException("no_attachment_forwarder_provided")
+        val existingMeta = message.parsedMeta()
+        val kind = when (message.type) {
+            MessageType.IMAGE -> AttachmentKind.IMAGE
+            MessageType.GIF -> AttachmentKind.GIF
+            MessageType.VIDEO -> AttachmentKind.VIDEO
+            MessageType.VOICE -> AttachmentKind.VOICE
+            MessageType.FILE -> AttachmentKind.FILE
+            MessageType.STICKER -> AttachmentKind.STICKER
+            MessageType.LOCATION -> AttachmentKind.LOCATION
+            else -> AttachmentKind.FILE
+        }
+        val intent = AttachmentIntent(
+            conversationId = target.id,
+            kind = kind,
+            uri = message.parsedContent(),
+            idempotencyKey = id,
+            fileName = existingMeta.fileName,
+            mimeType = existingMeta.fileMimeType,
+            durationMs = existingMeta.voiceDurationMs,
+            extraData = existingMeta.forwardedFrom ?: sourceName,
+        )
+        val result = controller.submit(intent)
+        if (result.isFailure) {
+            throw result.exceptionOrNull() ?: IllegalStateException("attachment_forward_failed")
+        }
+    }
+
+    override suspend fun forward(request: ForwardRequest): List<ForwardTargetResult> {
+        val owner = try {
+            requireSession()
+        } catch (e: Throwable) {
+            return request.targetConversationIds.map {
+                ForwardTargetResult(it, success = false, reason = ForwardFailureReason.NOT_READY)
+            }
+        }
+
+        val sourceChat = getChatById?.invoke(request.sourceConversationId)
+        val isSecret = sourceChat?.isSecret == true
+        val isLocked = isChatLocked?.invoke(request.sourceConversationId) == true
+
+        val sourceMessage = getMessageById?.invoke(request.sourceMessageId)
+        if (sourceMessage == null) {
+            return request.targetConversationIds.map {
+                ForwardTargetResult(it, success = false, reason = ForwardFailureReason.PERMANENT)
+            }
+        }
+
+        val isTerminal = sourceMessage.status == MessageStatus.FAILED
+        val policyResult = ForwardPolicy.evaluate(
+            isSecretChat = isSecret,
+            isTerminalMessage = isTerminal,
+            senderForbidsForward = false,
+            isPinLocked = isLocked,
+        )
+
+        if (policyResult != Forwardability.ALLOWED) {
+            val failureReason = when (policyResult) {
+                Forwardability.PIN_LOCKED_BLOCKED -> ForwardFailureReason.PIN_LOCKED
+                Forwardability.SECRET_CHAT_BLOCKED, Forwardability.PRIVACY_BLOCKED -> ForwardFailureReason.FORBIDDEN
+                Forwardability.TERMINAL_BLOCKED -> ForwardFailureReason.PERMANENT
+                Forwardability.ALLOWED -> null
+            }
+            return request.targetConversationIds.map {
+                ForwardTargetResult(it, success = false, reason = failureReason)
+            }
+        }
+
+        if (sourceMessage.type !in FORWARDABLE_TYPES) {
+            return request.targetConversationIds.map {
+                ForwardTargetResult(it, success = false, reason = ForwardFailureReason.FORBIDDEN)
+            }
+        }
+
+        val liveTargets = try {
+            val targets = request.targetConversationIds.map { Chat(id = it) }
+            resolveCurrentTargets(owner, targets)
+        } catch (e: Throwable) {
+            return request.targetConversationIds.map {
+                ForwardTargetResult(it, success = false, reason = ForwardFailureReason.NOT_READY)
+            }
+        }
+        val targetMap = liveTargets.associateBy(Chat::id)
+        val sourceName = sourceChat?.participants?.firstOrNull { it.id == sourceMessage.senderId }?.name
+        val results = mutableListOf<ForwardTargetResult>()
+
+        for (targetId in request.targetConversationIds) {
+            val target = targetMap[targetId]
+            if (target == null) {
+                results += ForwardTargetResult(targetId, success = false, reason = ForwardFailureReason.NOT_READY)
+                continue
+            }
+            try {
+                forwardResolved(owner, target, sourceMessage, sourceName)
+                val caption = request.caption
+                if (!caption.isNullOrBlank()) {
+                    sendNoteResolved(owner, target, caption.trim())
+                }
+                results += ForwardTargetResult(targetId, success = true)
+            } catch (e: CancellationException) {
+                results += ForwardTargetResult(targetId, success = false, reason = ForwardFailureReason.CANCELLED)
+                throw e
+            } catch (e: Throwable) {
+                results += ForwardTargetResult(targetId, success = false, reason = ForwardFailureReason.PERMANENT)
+            }
+        }
+
+        return results
+    }
+
+    override suspend fun forwardBatch(requests: List<ForwardRequest>): Map<String, List<ForwardTargetResult>> =
+        requests.associate { it.sourceMessageId to forward(it) }
 
     suspend fun forwardBatch(
         targets: List<Chat>,

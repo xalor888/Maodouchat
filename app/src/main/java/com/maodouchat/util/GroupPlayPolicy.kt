@@ -36,9 +36,8 @@ object GroupPlayPolicy {
         return sides to value
     }
 
-    fun formatCheckIn(dayStreak: Int, userLabel: String): String {
-        return "${CHECKIN_PREFIX}$dayStreak|${userLabel} checked in · streak $dayStreak"
-    }
+    fun formatCheckIn(dayStreak: Int, userLabel: String): String =
+        com.maodouchat.group.play.GroupCheckinPolicy.formatCheckIn(dayStreak, userLabel)
 
     fun buildPollPayload(
         pollId: String,
@@ -46,20 +45,10 @@ object GroupPlayPolicy {
         options: List<String>,
         multi: Boolean,
         anonymous: Boolean
-    ): String {
-        val o = JSONObject()
-        o.put("id", pollId)
-        o.put("q", question.take(200))
-        o.put("options", JSONArray(options.map { it.take(80) }))
-        o.put("multi", multi)
-        o.put("anonymous", anonymous)
-        return POLL_PREFIX + o.toString()
-    }
+    ): String = com.maodouchat.group.play.GroupPollPolicy.buildPollPayload(pollId, question, options, multi, anonymous)
 
-    fun parsePoll(content: String): JSONObject? {
-        if (!content.startsWith(POLL_PREFIX)) return null
-        return runCatching { JSONObject(content.removePrefix(POLL_PREFIX)) }.getOrNull()
-    }
+    fun parsePoll(content: String): JSONObject? =
+        com.maodouchat.group.play.GroupPollPolicy.parsePoll(content)
 
     fun formatLuckyDraw(pickerName: String, targetName: String): String {
         return "LUCKY:${esc(pickerName)}|$targetName"
@@ -78,22 +67,13 @@ object GroupPlayPolicy {
     const val TRUTH_PREFIX = "TRUTH:"
     const val ANON_PREFIX = "ANON:"
 
-    fun rollRps(): String = rpsChoices.random()
+    fun rollRps(): String = com.maodouchat.group.play.GroupPkPolicy.rollRps()
 
-    fun formatRps(choice: String, userLabel: String): String {
-        val c = choice.lowercase().let { if (it in rpsChoices) it else rollRps() }
-        val emoji = when (c) {
-            "rock" -> "[R]"
-            "paper" -> "[P]"
-            else -> "[S]"
-        }
-        return "${RPS_PREFIX}${esc(c)}|${userLabel} played $emoji $c"
-    }
+    fun formatRps(choice: String, userLabel: String): String =
+        com.maodouchat.group.play.GroupPkPolicy.formatRps(choice, userLabel)
 
-    fun parseRps(content: String): String? {
-        if (!content.startsWith(RPS_PREFIX)) return null
-        return unesc(content.removePrefix(RPS_PREFIX).substringBefore('|').trim()).ifBlank { null }
-    }
+    fun parseRps(content: String): String? =
+        com.maodouchat.group.play.GroupPkPolicy.parseRps(content)
 
     fun randomTruthPrompt(): String = truthPrompts.random()
 
@@ -110,52 +90,30 @@ object GroupPlayPolicy {
     const val BOMB_PREFIX = "BOMB:"
     const val WORD_PREFIX = "WORD:"
 
-    fun rollNumberBomb(max: Int = 100): Pair<Int, Int> {
-        val hi = max.coerceIn(10, 1000)
-        val secret = Random.nextInt(1, hi + 1)
-        return secret to hi
-    }
+    fun rollNumberBomb(max: Int = 100): Pair<Int, Int> =
+        com.maodouchat.group.play.GroupPkPolicy.rollNumberBomb(max)
 
-    fun formatNumberBomb(secret: Int, max: Int, hostLabel: String): String {
-        // Secret is embedded for E2EE-only peers; UI should not reveal until guess flow local.
-        return "${BOMB_PREFIX}$max:$secret|${hostLabel} started number bomb (1-$max)"
-    }
+    fun formatNumberBomb(secret: Int, max: Int, hostLabel: String): String =
+        com.maodouchat.group.play.GroupPkPolicy.formatNumberBomb(secret, max, hostLabel)
 
-    fun parseNumberBomb(content: String): Triple<Int, Int, String>? {
-        if (!content.startsWith(BOMB_PREFIX)) return null
-        val body = content.removePrefix(BOMB_PREFIX)
-        val head = unesc(body.substringBefore('|'))
-        val parts = head.split(':')
-        if (parts.size < 2) return null
-        val max = parts[0].toIntOrNull() ?: return null
-        val secret = parts[1].toIntOrNull() ?: return null
-        val label = body.substringAfter('|', "")
-        return Triple(max, secret, label)
-    }
+    fun parseNumberBomb(content: String): Triple<Int, Int, String>? =
+        com.maodouchat.group.play.GroupPkPolicy.parseNumberBomb(content)
 
-    fun randomWordSeed(): String = wordChainSeeds.random()
+    fun randomWordSeed(): String = com.maodouchat.group.play.GroupChainPolicy.randomWordSeed()
 
-    fun formatWordChain(seed: String, userLabel: String): String {
-        return "${WORD_PREFIX}${seed}|${userLabel} word chain: start with '$seed'"
-    }
+    fun formatWordChain(seed: String, userLabel: String): String =
+        com.maodouchat.group.play.GroupChainPolicy.formatWordChain(seed, userLabel)
 
 
     const val RACE_PREFIX = "RACE:"
 
-    fun randomRaceToken(): String = raceTokens.random()
+    fun randomRaceToken(): String = com.maodouchat.group.play.GroupPkPolicy.randomRaceToken()
 
-    fun formatReactionRace(token: String, hostLabel: String): String {
-        val t = token.ifBlank { randomRaceToken() }.take(16)
-        return "${RACE_PREFIX}${esc(t)}|${hostLabel} reaction race: first to reply with $t wins"
-    }
+    fun formatReactionRace(token: String, hostLabel: String): String =
+        com.maodouchat.group.play.GroupPkPolicy.formatReactionRace(token, hostLabel)
 
-    fun parseReactionRace(content: String): Pair<String, String>? {
-        if (!content.startsWith(RACE_PREFIX)) return null
-        val body = content.removePrefix(RACE_PREFIX)
-        val token = unesc(body.substringBefore('|')).ifBlank { return null }
-        val rest = body.substringAfter('|', "")
-        return token to rest
-    }
+    fun parseReactionRace(content: String): Pair<String, String>? =
+        com.maodouchat.group.play.GroupPkPolicy.parseReactionRace(content)
 
 
 

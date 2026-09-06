@@ -55,44 +55,21 @@ object QrCodeGenerator {
     ).joinToString(":")
 
     fun parsePayload(text: String): QrTarget? {
-        if (text.isBlank()) return null
-        return when {
-            text.startsWith(PREFIX_USER) -> QrTarget.User(text.removePrefix(PREFIX_USER))
-            text.startsWith(PREFIX_CHAT) -> QrTarget.Chat(text.removePrefix(PREFIX_CHAT))
-            text.startsWith(PREFIX_CHAT_INVITE) -> {
-                val token = text.removePrefix(PREFIX_CHAT_INVITE).trim()
-                if (token.matches(Regex("^[A-Za-z0-9_-]{32,80}$"))) QrTarget.ChatInvite(token) else null
-            }
-            text.startsWith(PREFIX_SAFETY) -> parseSafetyPayload(text.removePrefix(PREFIX_SAFETY))
-            else -> null
-        }
-    }
-
-    private fun parseSafetyPayload(payload: String): QrTarget.Safety? {
-        val parts = payload.split(":")
-        if (parts.size == 7 && parts[0] == "v2") {
-            val ownerUserId = decodePart(parts[1]) ?: return null
-            val ownerDeviceId = parts[2].toIntOrNull()?.takeIf { it in 1..255 } ?: return null
-            val peerUserId = decodePart(parts[3]) ?: return null
-            val peerDeviceId = parts[4].toIntOrNull()?.takeIf { it in 1..255 } ?: return null
-            val ownerFingerprint = decodePart(parts[5]) ?: return null
-            val peerFingerprint = decodePart(parts[6]) ?: return null
-            return QrTarget.Safety(
-                ownerUserId = ownerUserId,
-                ownerDeviceId = ownerDeviceId,
-                peerUserId = peerUserId,
-                peerDeviceId = peerDeviceId,
-                ownerIdentityFingerprint = ownerFingerprint,
-                peerIdentityFingerprint = peerFingerprint
+        return when (val parsed = com.maodouchat.contacts.QrPayloadParser.parse(text)) {
+            is com.maodouchat.contacts.QrParsedPayload.User -> QrTarget.User(parsed.userId)
+            is com.maodouchat.contacts.QrParsedPayload.Chat -> QrTarget.Chat(parsed.chatId)
+            is com.maodouchat.contacts.QrParsedPayload.ChatInvite -> QrTarget.ChatInvite(parsed.token)
+            is com.maodouchat.contacts.QrParsedPayload.Safety -> QrTarget.Safety(
+                ownerUserId = parsed.ownerUserId,
+                ownerDeviceId = parsed.ownerDeviceId,
+                peerUserId = parsed.peerUserId,
+                peerDeviceId = parsed.peerDeviceId,
+                safetyCode = parsed.safetyCode,
+                ownerIdentityFingerprint = parsed.ownerIdentityFingerprint,
+                peerIdentityFingerprint = parsed.peerIdentityFingerprint
             )
+            is com.maodouchat.contacts.QrParsedPayload.Invalid -> null
         }
-        if (parts.size != 5) return null
-        val ownerUserId = decodePart(parts[0]) ?: return null
-        val ownerDeviceId = parts[1].toIntOrNull()?.takeIf { it in 1..255 } ?: return null
-        val peerUserId = decodePart(parts[2]) ?: return null
-        val peerDeviceId = parts[3].toIntOrNull()?.takeIf { it in 1..255 } ?: return null
-        val safetyCode = decodePart(parts[4]) ?: return null
-        return QrTarget.Safety(ownerUserId, ownerDeviceId, peerUserId, peerDeviceId, safetyCode = safetyCode)
     }
 
     fun generateBitmap(content: String, size: Int = 600): Bitmap? = runCatching {
@@ -130,9 +107,5 @@ object QrCodeGenerator {
     private fun encode(b: ByteArray): String = Base64.encodeToString(b, Base64.NO_WRAP)
 
     private fun encodePart(value: String): String =
-        Base64.encodeToString(value.toByteArray(StandardCharsets.UTF_8), Base64.URL_SAFE or Base64.NO_WRAP)
-
-    private fun decodePart(value: String): String? = runCatching {
-        String(Base64.decode(value, Base64.URL_SAFE or Base64.NO_WRAP), StandardCharsets.UTF_8)
-    }.getOrNull()?.takeIf { it.isNotBlank() }
+        java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(value.toByteArray(StandardCharsets.UTF_8))
 }
