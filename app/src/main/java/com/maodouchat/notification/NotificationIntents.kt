@@ -1,5 +1,7 @@
 package com.maodouchat.notification
 
+import android.content.Intent
+
 /**
  * 通知入口 extras 键（P07 收官：已删除的 `AppNotifier` 逐字迁移）。
  *
@@ -21,4 +23,19 @@ object NotificationIntents {
     const val EXTRA_INCOMING_CALL_ID = "maodouchat_incoming_call_id"
     const val EXTRA_INCOMING_CALL_VIDEO = "maodouchat_incoming_call_video"
     const val EXTRA_INCOMING_CALL_SENDER_ID = "maodouchat_incoming_call_sender_id"
+
+    /** P08：入口消费后清除全部 extras（自 MainActivity 迁入，防复用 Intent 重放）。 */
+    fun clearFrom(intent: Intent?) {
+        intent?.removeExtra(EXTRA_OPEN_CHAT_ID)
+        intent?.removeExtra(EXTRA_OPEN_MESSAGE_ID)
+        intent?.removeExtra(EXTRA_OPEN_AI_TASKS_CHAT_ID)
+        intent?.removeExtra(EXTRA_OPEN_POST_ID)
+        intent?.removeExtra(EXTRA_OPEN_MISSED_CALL)
+        intent?.removeExtra(EXTRA_OPEN_CONTACTS)
+        intent?.removeExtra(EXTRA_NOTIFICATION_OWNER_USER_ID)
+        intent?.removeExtra(EXTRA_OPEN_INCOMING_CALL)
+        intent?.removeExtra(EXTRA_INCOMING_CALL_ID)
+        intent?.removeExtra(EXTRA_INCOMING_CALL_VIDEO)
+        intent?.removeExtra(EXTRA_INCOMING_CALL_SENDER_ID)
+    }
 }

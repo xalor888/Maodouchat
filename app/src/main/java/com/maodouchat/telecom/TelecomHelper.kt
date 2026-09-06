@@ -104,4 +104,21 @@ object TelecomHelper {
     fun cancelIncomingCall(context: Context) {
         // 自管 (self-managed) 模式下无需显式 cancel；Connection.destroy() 即可。
     }
+
+    /**
+     * P08：Telecom 传输可信判定——callId 必须命中本机待接来电或活跃通话
+     *（自 MainActivity 迁入；现代 Android 无可靠 callingPackage，只能比对自有状态）。
+     */
+    fun isTrustedTransport(callId: String): Boolean {
+        if (callId.isBlank()) return false
+        return com.maodouchat.call.IncomingCallCoordinator.peekPending()?.callId == callId ||
+            com.maodouchat.service.CallForegroundService.getActiveCallId() == callId
+    }
+
+    /** P08：清除 Telecom 传输 extras（自 MainActivity 迁入）。 */
+    fun clearExtras(intent: android.content.Intent?) {
+        intent?.removeExtra(EXTRA_CALL_ID)
+        intent?.removeExtra(EXTRA_CALLER_NAME)
+        intent?.removeExtra(EXTRA_IS_VIDEO)
+    }
 }

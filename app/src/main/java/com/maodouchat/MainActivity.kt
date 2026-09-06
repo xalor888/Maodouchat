@@ -344,7 +344,7 @@ class MainActivity : FragmentActivity() {
         // pending-call state; external ACTION_VIEW deep links are separately handled below.
         val caller = callingPackage ?: callingActivity?.packageName
         if (caller != null && caller != packageName) {
-            clearNotificationExtras(intent)
+            NotificationIntents.clearFrom(intent)
             // 8.34 修复：外部调用者的合法 ACTION_VIEW 深链必须放行——浏览器/系统 resolver
             // 打开 chat.mdou.me/u/{username} 或 maodouchat://u/{username} 时 callingPackage
             // 恒为外部包，此前直接 return 导致 manifest BROWSABLE 外部深链 100% 失效。
@@ -387,8 +387,8 @@ class MainActivity : FragmentActivity() {
         val telecomAction = intent.action
         val telecomCallId = intent.getStringExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_CALL_ID).orEmpty()
         val isTelecomAction = telecomAction == ACTION_ANSWER_CALL || telecomAction == ACTION_INCOMING_CALL
-        if (isTelecomAction && !isTrustedTelecomTransport(telecomCallId)) {
-            clearTelecomExtras(intent)
+        if (isTelecomAction && !com.maodouchat.telecom.TelecomHelper.isTrustedTransport(telecomCallId)) {
+            com.maodouchat.telecom.TelecomHelper.clearExtras(intent)
             return
         }
         if (isTelecomAction) {
@@ -407,8 +407,8 @@ class MainActivity : FragmentActivity() {
                     autoAnswer = telecomAction == ACTION_ANSWER_CALL,
                 )
             )
-            clearTelecomExtras(intent)
-            clearNotificationExtras(intent)
+            com.maodouchat.telecom.TelecomHelper.clearExtras(intent)
+            NotificationIntents.clearFrom(intent)
         }
         val rawChatId = intent.getStringExtra(NotificationIntents.EXTRA_OPEN_CHAT_ID)?.takeIf(String::isNotBlank)
         // 8.41：消息「稍后提醒」点击 → 打开聊天后高亮原消息
@@ -438,7 +438,7 @@ class MainActivity : FragmentActivity() {
             )
         ) {
             notificationTarget.value = null
-            clearNotificationExtras(intent)
+            NotificationIntents.clearFrom(intent)
             return
         }
         if (openIncomingCall) {
@@ -494,33 +494,7 @@ class MainActivity : FragmentActivity() {
             }
             else -> notificationTarget.value = null
         }
-        clearNotificationExtras(intent)
-    }
-
-    private fun clearTelecomExtras(intent: Intent?) {
-        intent?.removeExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_CALL_ID)
-        intent?.removeExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_CALLER_NAME)
-        intent?.removeExtra(com.maodouchat.telecom.TelecomHelper.EXTRA_IS_VIDEO)
-    }
-
-    private fun isTrustedTelecomTransport(callId: String): Boolean {
-        if (callId.isBlank()) return false
-        return com.maodouchat.call.IncomingCallCoordinator.peekPending()?.callId == callId ||
-            com.maodouchat.service.CallForegroundService.getActiveCallId() == callId
-    }
-
-    private fun clearNotificationExtras(intent: Intent?) {
-        intent?.removeExtra(NotificationIntents.EXTRA_OPEN_CHAT_ID)
-        intent?.removeExtra(NotificationIntents.EXTRA_OPEN_MESSAGE_ID)
-        intent?.removeExtra(NotificationIntents.EXTRA_OPEN_AI_TASKS_CHAT_ID)
-        intent?.removeExtra(NotificationIntents.EXTRA_OPEN_POST_ID)
-        intent?.removeExtra(NotificationIntents.EXTRA_OPEN_INCOMING_CALL)
-        intent?.removeExtra(NotificationIntents.EXTRA_INCOMING_CALL_ID)
-        intent?.removeExtra(NotificationIntents.EXTRA_INCOMING_CALL_VIDEO)
-        intent?.removeExtra(NotificationIntents.EXTRA_INCOMING_CALL_SENDER_ID)
-        intent?.removeExtra(NotificationIntents.EXTRA_OPEN_MISSED_CALL)
-        intent?.removeExtra(NotificationIntents.EXTRA_OPEN_CONTACTS)
-        intent?.removeExtra(NotificationIntents.EXTRA_NOTIFICATION_OWNER_USER_ID)
+        NotificationIntents.clearFrom(intent)
     }
 
     private fun requestPermissions() {
