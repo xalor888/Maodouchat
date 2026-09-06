@@ -1,9 +1,7 @@
 package com.maodouchat.server.plugins
 
-internal fun wsRestrictionMessage(until: Long, action: String): String {
-    val remainingMinutes = ((until - System.currentTimeMillis()).coerceAtLeast(0) + 59_999L) / 60_000L
-    return "$action，约 ${remainingMinutes.coerceAtLeast(1)} 分钟后恢复"
-}
+internal fun wsRestrictionMessage(until: Long, action: String): String =
+    restrictionMessage(until, action)
 
 @kotlinx.serialization.Serializable
 internal data class PostDeletedPayload(val postId: String)
