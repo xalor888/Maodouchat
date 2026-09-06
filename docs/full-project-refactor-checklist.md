@@ -317,7 +317,7 @@ Gate：大字体、长文本、RTL、中英文、横屏、平板、键盘和弹�
 
 当前状态：`[x]`。客户端 UI 全面对齐 `reference/Murexide` 现代 Material 3 + Liquid Glass 体系，旧单体已拆分。
 
-- [x] 建立 `MurexideMessageBubble.kt`，纯正 Murexide M3 质感：浅色 `#EEEEF0`、深色 `#1E1E20`、己方主色容器；
+- [x] 气泡 Murexide M3 质感：浅色 `#EEEEF0`、深色 `#1E1E20`、己方主色容器（原 `MurexideMessageBubble.kt` 未被接线已隔离，实际经 `MessageBubble` 分发 + `TextMessageBubble`/`MediaMessageBubbles`/`FileMessageRenderer` 实现）；
 - [x] 动态 18dp/4.5dp 连续气泡圆角，邻近消息流自然收敛；
 - [x] 底部对齐的 36dp 精致圆形头像（对齐 Murexide 规范）；
 - [x] 优雅的 Quote Reply 引用微件：左侧 3dp 竖向高光色块，紧凑预览与作者名；
@@ -330,7 +330,7 @@ Gate：每种消息 golden、损坏内容、未知类型、超长文本/文件�
 
 当前状态：`[x]`。客户端输入区全面对齐 `reference/Murexide` 胶囊设计与微动效。
 
-- [x] 建立 `MurexideMessageInput.kt`：26dp Capsule 胶囊聊天输入栏，带 LiquidGlass 与高度自适应；
+- [x] 26dp Capsule 胶囊聊天输入栏，带 LiquidGlass 与高度自适应（原 `MurexideMessageInput.kt` 未被接线已隔离，实际为 `ChatDetailComponents.kt` 内 `ChatInputBar`）；
 - [x] 线性微动效按钮（Telegram / Nekogram 交互微动效）：`LinearPress.kt` 实现 `linearPressEffect` 与 `LinearActionButton`，装配至发送按钮；
 - [x] 发送/语音无缝切换：有文本时线性弹性发送按钮，无文本时麦克风微标；
 - [x] 打字指示微气泡优化：`TypingPresence.kt` 修复修饰符双重应用 bug，采用半透高斯微发光胶囊与交错正弦波弹跳；
@@ -702,7 +702,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 - [x] `ChatDetailViewModel.kt` 不再包含单体业务逻辑，压缩为组合与分发调度层（接入 `ConversationCommandFacade`、`MessagingV2Outbox` 与领域 UseCase）。
 - [x] 旧巨型 `ChatDetailScreen.kt` 实现删除（降为 42 行薄路由，拆分 `TimelinePane`、`ComposerPane` 与独立面板）。
-- [x] 旧 `MessageBubble.kt` 单体解耦，全面对齐 `reference/Murexide` 建立 `MurexideMessageBubble.kt`，渲染期经 `MessagePresentationMapper` 彻底消除 wire/meta 业务解析。
+- [~] 旧 `MessageBubble.kt` 单体解耦（现 641 行按类型分发的薄入口 + `TextMessageBubble`/`MediaMessageBubbles`/`FileMessageRenderer` 独立渲染器，经 `MessagePresentationMapper` 消除 wire/meta 渲染期耦合；`MessageBubble.kt` 本体仍在，未删除）。
 - [~] `ChatListViewModel.kt` 瘦身中（多选状态机纯 reducer 9 单测；设置 toggle 纯构造 + 服务端确认合并 10 单测；实时三投影纯函数 7 单测；预览内存投影 + 置顶排序口径纯化 + 批量归零去重 9 单测，`restoreChatSorted` 私有包装已删；collector 编排与 WS/网络/多仓库直连尚未解耦）。
 - [ ] `SignalProtocol.kt` 宽 facade 删除。
 - [x] `ApiService` 巨单体拆解完成，分离为 Auth、Messaging、Conversation、Media、Social 等独立域 API，收敛为组合委托薄门面。
