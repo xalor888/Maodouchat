@@ -520,7 +520,7 @@ Gate：性能预算、Macrobenchmark、无障碍扫描和截图回归进入 CI�
 - [~] 每领域独立 schema/table 文件，Database 只管理 datasource（表已拆 CoreTables/AdminTables/MessagingV2Tables/SignalTables/PollTables/ServiceMessageTables；Database.kt 556→47 行，migration/backfill 已迁 SchemaMigration.kt；createSchemaTables 仍待并入 migration v1 以彻底移除启动期建表）。
 - [~] 采用 expand -> compatibility -> backfill -> contract 发布流程（migration v1=baseline、v2=retire legacy，流程文档化待补）。
 - [x] 破坏性 drop 只在明确 contract 版本执行（`retireLegacyMessagingTables` 在 migration v2）。
-- [~] 后台清理任务使用数据库 lease，不依赖 route 内进程协程（租约原语已就绪 + 12 个清理任务经 `runLeased` 按名抢租约：抢不到跳过本轮，跑完释放，TTL 略大于间隔；循环本体仍在 route 内协程，彻底搬迁待任务运行时落地）。
+- [x] 后台清理任务使用数据库 lease（`MaintenanceRunner` 持有 6h×11 + 15min×1 双循环本体，`Routing.kt` 只做装配启停 559→541 行；租约/健康追踪语义不变）。
 - [x] typed immutable startup config 与 runtime settings 分离（`ServerConfig` + `RuntimeConfigService`）。
 - [x] 统一 Docker/self-host 配置，支持两副本、优雅关闭和 readiness（`docker-compose.yml` + `server/Dockerfile` + HikariCP 优雅关闭）。
 
