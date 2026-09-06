@@ -2,7 +2,7 @@ package com.maodouchat.notification
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.maodouchat.network.TokenManager
+import com.maodouchat.util.AccountScopedPrefs
 
 /**
  * Local notification preferences scoped to the currently authenticated account.
@@ -52,7 +52,7 @@ object NotificationPreferences {
     /** 用户选择的铃声 URI（字符串）；空/默认 = 系统默认铃声。 */
     fun ringtoneUri(context: Context): String? {
         val account = accountPreferences(context) ?: return null
-        return account.prefs.getString(scopedKey(KEY_RINGTONE_URI, account.userId), null)
+        return account.prefs.getString(account.scopedKey(KEY_RINGTONE_URI), null)
             ?.takeIf { it.isNotBlank() }
     }
 
@@ -61,9 +61,9 @@ object NotificationPreferences {
         val account = accountPreferences(context) ?: return
         val editor = account.prefs.edit()
         if (uri.isNullOrBlank()) {
-            editor.remove(scopedKey(KEY_RINGTONE_URI, account.userId))
+            editor.remove(account.scopedKey(KEY_RINGTONE_URI))
         } else {
-            editor.putString(scopedKey(KEY_RINGTONE_URI, account.userId), uri)
+            editor.putString(account.scopedKey(KEY_RINGTONE_URI), uri)
         }
         editor.apply()
     }
@@ -71,7 +71,7 @@ object NotificationPreferences {
     /** 0.72：群聊独立铃声 URI；空 = 回退单聊铃声。 */
     fun groupRingtoneUri(context: Context): String? {
         val account = accountPreferences(context) ?: return null
-        return account.prefs.getString(scopedKey(KEY_GROUP_RINGTONE_URI, account.userId), null)
+        return account.prefs.getString(account.scopedKey(KEY_GROUP_RINGTONE_URI), null)
             ?.takeIf { it.isNotBlank() }
     }
 
@@ -80,9 +80,9 @@ object NotificationPreferences {
         val account = accountPreferences(context) ?: return
         val editor = account.prefs.edit()
         if (uri.isNullOrBlank()) {
-            editor.remove(scopedKey(KEY_GROUP_RINGTONE_URI, account.userId))
+            editor.remove(account.scopedKey(KEY_GROUP_RINGTONE_URI))
         } else {
-            editor.putString(scopedKey(KEY_GROUP_RINGTONE_URI, account.userId), uri)
+            editor.putString(account.scopedKey(KEY_GROUP_RINGTONE_URI), uri)
         }
         editor.apply()
     }
@@ -96,14 +96,14 @@ object NotificationPreferences {
      */
     fun dndEnabled(context: Context): Boolean {
         val account = accountPreferences(context) ?: return false
-        val enabledKey = scopedKey(KEY_DND_ENABLED, account.userId)
+        val enabledKey = account.scopedKey(KEY_DND_ENABLED)
         val stored = if (account.prefs.contains(enabledKey)) {
             account.prefs.getBoolean(enabledKey, false)
         } else {
             null
         }
-        val startKey = scopedKey(KEY_DND_START, account.userId)
-        val endKey = scopedKey(KEY_DND_END, account.userId)
+        val startKey = account.scopedKey(KEY_DND_START)
+        val endKey = account.scopedKey(KEY_DND_END)
         return DndPreferenceResolve.enabled(
             enabledStored = stored,
             startHourPresent = account.prefs.contains(startKey),
@@ -116,7 +116,7 @@ object NotificationPreferences {
     /** 勿扰开始分钟（0-1439）。分钟 key 缺失时从小时 key 派生，避免读到默认 22:00 盖住用户窗口。 */
     fun dndStartMinute(context: Context): Int {
         val account = accountPreferences(context) ?: return 22 * 60
-        val minuteKey = scopedKey(KEY_DND_START_MINUTE, account.userId)
+        val minuteKey = account.scopedKey(KEY_DND_START_MINUTE)
         val stored = if (account.prefs.contains(minuteKey)) {
             account.prefs.getInt(minuteKey, 22 * 60)
         } else {
@@ -124,14 +124,14 @@ object NotificationPreferences {
         }
         return DndPreferenceResolve.startMinute(
             storedMinute = stored,
-            startHour = account.prefs.getInt(scopedKey(KEY_DND_START, account.userId), 22),
+            startHour = account.prefs.getInt(account.scopedKey(KEY_DND_START), 22),
         )
     }
 
     /** 勿扰结束分钟（0-1439）。分钟 key 缺失时从小时 key 派生。 */
     fun dndEndMinute(context: Context): Int {
         val account = accountPreferences(context) ?: return 7 * 60
-        val minuteKey = scopedKey(KEY_DND_END_MINUTE, account.userId)
+        val minuteKey = account.scopedKey(KEY_DND_END_MINUTE)
         val stored = if (account.prefs.contains(minuteKey)) {
             account.prefs.getInt(minuteKey, 7 * 60)
         } else {
@@ -139,7 +139,7 @@ object NotificationPreferences {
         }
         return DndPreferenceResolve.endMinute(
             storedMinute = stored,
-            endHour = account.prefs.getInt(scopedKey(KEY_DND_END, account.userId), 7),
+            endHour = account.prefs.getInt(account.scopedKey(KEY_DND_END), 7),
         )
     }
 
@@ -152,11 +152,11 @@ object NotificationPreferences {
         val safeStart = startMinute.coerceIn(0, 1439)
         val safeEnd = endMinute.coerceIn(0, 1439)
         account.prefs.edit()
-            .putBoolean(scopedKey(KEY_DND_ENABLED, account.userId), enabled)
-            .putInt(scopedKey(KEY_DND_START_MINUTE, account.userId), safeStart)
-            .putInt(scopedKey(KEY_DND_END_MINUTE, account.userId), safeEnd)
-            .putInt(scopedKey(KEY_DND_START, account.userId), safeStart / 60)
-            .putInt(scopedKey(KEY_DND_END, account.userId), safeEnd / 60)
+            .putBoolean(account.scopedKey(KEY_DND_ENABLED), enabled)
+            .putInt(account.scopedKey(KEY_DND_START_MINUTE), safeStart)
+            .putInt(account.scopedKey(KEY_DND_END_MINUTE), safeEnd)
+            .putInt(account.scopedKey(KEY_DND_START), safeStart / 60)
+            .putInt(account.scopedKey(KEY_DND_END), safeEnd / 60)
             .apply()
     }
 
@@ -186,25 +186,23 @@ object NotificationPreferences {
         val startMinute = dndStartMinute?.coerceIn(0, 1439) ?: (dndStartHour.coerceIn(0, 23) * 60)
         val endMinute = dndEndMinute?.coerceIn(0, 1439) ?: (dndEndHour.coerceIn(0, 23) * 60)
         val editor = account.prefs.edit()
-        editor.putBoolean(scopedKey(KEY_ENABLE, account.userId), enableNotifications)
-            .putBoolean(scopedKey(KEY_SOUND, account.userId), soundEnabled)
-            .putBoolean(scopedKey(KEY_PREVIEW, account.userId), previewEnabled)
-            .putBoolean(scopedKey(KEY_RINGTONE, account.userId), ringtoneEnabled)
-            .putInt(scopedKey(KEY_DND_START, account.userId), startMinute / 60)
-            .putInt(scopedKey(KEY_DND_END, account.userId), endMinute / 60)
-            .putBoolean(scopedKey(KEY_DND_ENABLED, account.userId), dndEnabled ?: false)
-            .putInt(scopedKey(KEY_DND_START_MINUTE, account.userId), startMinute)
-            .putInt(scopedKey(KEY_DND_END_MINUTE, account.userId), endMinute)
+        editor.putBoolean(account.scopedKey(KEY_ENABLE), enableNotifications)
+            .putBoolean(account.scopedKey(KEY_SOUND), soundEnabled)
+            .putBoolean(account.scopedKey(KEY_PREVIEW), previewEnabled)
+            .putBoolean(account.scopedKey(KEY_RINGTONE), ringtoneEnabled)
+            .putInt(account.scopedKey(KEY_DND_START), startMinute / 60)
+            .putInt(account.scopedKey(KEY_DND_END), endMinute / 60)
+            .putBoolean(account.scopedKey(KEY_DND_ENABLED), dndEnabled ?: false)
+            .putInt(account.scopedKey(KEY_DND_START_MINUTE), startMinute)
+            .putInt(account.scopedKey(KEY_DND_END_MINUTE), endMinute)
         taskRemindersEnabled?.let {
-            editor.putBoolean(scopedKey(KEY_TASK_REMINDERS, account.userId), it)
+            editor.putBoolean(account.scopedKey(KEY_TASK_REMINDERS), it)
         }
         editor.apply()
     }
 
-    private fun getBoolean(context: Context, key: String, default: Boolean): Boolean {
-        val account = accountPreferences(context) ?: return default
-        return account.prefs.getBoolean(scopedKey(key, account.userId), default)
-    }
+    private fun getBoolean(context: Context, key: String, default: Boolean): Boolean =
+        accountPreferences(context)?.getBoolean(key, default) ?: default
 
     /** 8.34：本地是否有未同步的设置修改（sync 失败时置位，成功后清除）。 */
     fun hasPendingSync(context: Context): Boolean = getBoolean(context, KEY_PENDING_SYNC, false)
@@ -213,22 +211,17 @@ object NotificationPreferences {
         putBoolean(context, KEY_PENDING_SYNC, pending)
     }
 
-    private fun getInt(context: Context, key: String, default: Int): Int {
-        val account = accountPreferences(context) ?: return default
-        return account.prefs.getInt(scopedKey(key, account.userId), default)
-    }
+    private fun getInt(context: Context, key: String, default: Int): Int =
+        accountPreferences(context)?.getInt(key, default) ?: default
 
     private fun putBoolean(context: Context, key: String, value: Boolean) {
-        val account = accountPreferences(context) ?: return
-        account.prefs.edit().putBoolean(scopedKey(key, account.userId), value).apply()
+        accountPreferences(context)?.putBoolean(key, value)
     }
 
-    private fun accountPreferences(context: Context): AccountPreferences? {
-        val appContext = context.applicationContext
-        val userId = TokenManager.getInstance(appContext).getUserId()?.takeIf(String::isNotBlank) ?: return null
-        val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        migrateLegacy(prefs, userId)
-        return AccountPreferences(prefs, userId)
+    private fun accountPreferences(context: Context): AccountScopedPrefs? {
+        val account = AccountScopedPrefs.of(context, PREFS_NAME) ?: return null
+        migrateLegacy(account.prefs, account.userId)
+        return account
     }
 
     /** The first authenticated account after upgrade claims the former global settings. */
@@ -304,6 +297,4 @@ object NotificationPreferences {
             editor.putBoolean(marker, true).commit()
         }
     }
-
-    private data class AccountPreferences(val prefs: SharedPreferences, val userId: String)
 }
