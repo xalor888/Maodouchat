@@ -77,16 +77,18 @@ class MainActivity : FragmentActivity() {
     private var showFakeChat by mutableStateOf(false)
     /** 当前是否位于含消息内容的界面（由 Nav 回写） */
     private var onChatSurface by mutableStateOf(false)
-    /** 当前路由是否落在已开启密聊的会话表面 */
-    private var onSecretChatSurface by mutableStateOf(false)
-    /** 当前是否在会话 PIN 锁（ChatLockGate）表面；PIN 属敏感信息，需强制 FLAG_SECURE */
-    private var onChatLockSurface by mutableStateOf(false)
+    // P08：窗口隐私状态与落旗逻辑在 WindowPrivacyController，Activity 只供给 App 锁/假聊天/会话状态。
+    val windowPrivacyController by lazy {
+        com.maodouchat.security.WindowPrivacyController(
+            activity = this,
+            showAppLock = { showAppLock },
+            showFakeChat = { showFakeChat },
+            onChatSurface = { onChatSurface },
+        )
+    }
     /** 8.48：当前导航路由（供通话 PiP 判断） */
     @Volatile
     private var currentNavRoute: String? = null
-    @Volatile
-    private var windowSecureRequested: Boolean = false
-    private var captureScrubber: com.maodouchat.security.ScreenshotDetector? = null
 
     // 多权限请求
     private val permissionLauncher = registerForActivityResult(
@@ -101,7 +103,7 @@ class MainActivity : FragmentActivity() {
         showAppLock = AppLockManager.shouldLock(this)
         showFakeChat = FakeChatManager.shouldShowFake(this)
         com.maodouchat.MaodouchatApp.appInForeground = true
-        refreshWindowPrivacy()
+        windowPrivacyController.refreshWindowPrivacy()
         observeCallLockScreenFlags()
         // B5 新增（仅追加）：会话失效/账号切换时兜底移除悬浮球，避免跨账号残留窗口。
         // 悬浮球仅承载通用小球，不展示会话内容；此处只负责生命周期清理。
@@ -122,10 +124,10 @@ class MainActivity : FragmentActivity() {
                     AppLockManager.isEnabled(this@MainActivity) ||
                     FakeChatManager.isEnabled(this@MainActivity) ||
                     ScreenSecureManager.isEnabled(this@MainActivity) ||
-                    onSecretChatSurface ||
+                    windowPrivacyController.onSecretChatSurface ||
                     SecretChatSession.hasActiveSecretSurface()
                 ) {
-                    updateWindowPrivacy(true)
+                    windowPrivacyController.updateWindowPrivacy(true)
                 }
             }
             override fun onStop(owner: LifecycleOwner) {
@@ -143,7 +145,7 @@ class MainActivity : FragmentActivity() {
             override fun onStart(owner: LifecycleOwner) {
                 com.maodouchat.MaodouchatApp.appInForeground = true
                 com.maodouchat.network.WebSocketClient.sendPresence(true)
-                refreshWindowPrivacy()
+                windowPrivacyController.refreshWindowPrivacy()
             }
             override fun onResume(owner: LifecycleOwner) {
                 if (!showFakeChat && FakeChatManager.shouldShowFake(this@MainActivity)) {
@@ -156,7 +158,7 @@ class MainActivity : FragmentActivity() {
                         AppLockManager.markUnlocked(this@MainActivity)
                     }
                 }
-                refreshWindowPrivacy()
+                windowPrivacyController.refreshWindowPrivacy()
             }
         })
 
@@ -175,7 +177,7 @@ class MainActivity : FragmentActivity() {
                                     } else {
                                         AppLockManager.markUnlocked(this@MainActivity)
                                     }
-                                    refreshWindowPrivacy()
+                                    windowPrivacyController.refreshWindowPrivacy()
                                 },
                                 onFailed = { /* 输错密码留在假界面，可重试 */ }
                             )
@@ -185,7 +187,7 @@ class MainActivity : FragmentActivity() {
                                 onUnlocked = {
                                     AppLockManager.markUnlocked(this@MainActivity)
                                     showAppLock = false
-                                    refreshWindowPrivacy()
+                                    windowPrivacyController.refreshWindowPrivacy()
                                 },
                                 onFailed = { /* 保留锁屏，用户可重试 */ }
                             )
@@ -237,9 +239,9 @@ class MainActivity : FragmentActivity() {
             // 失败闭合：进入含消息内容的详情（chat_detail / two_pane 等）立即乐观 FLAG_SECURE，
             // 即便 arguments 尚未填好、全局开关关闭。列表页不乐观。
             // 查库确认非密聊后再降级。
-            onSecretChatSurface = onChatDetailSurface
-            onChatLockSurface = false
-            refreshWindowPrivacy()
+            windowPrivacyController.onSecretChatSurface = onChatDetailSurface
+            windowPrivacyController.onChatLockSurface = false
+            windowPrivacyController.refreshWindowPrivacy()
             val isSecret = if (chatId != null) {
                 try {
                     val caps = (application as MaodouchatApp).secretConversationController.capabilities(chatId)
@@ -266,12 +268,12 @@ class MainActivity : FragmentActivity() {
             }
             // 有真实 chatId：以查库为准。无 chatId 但仍在详情模式（arguments 未填好的
             // chat_detail/{chatId}）：保持乐观，等 ChatDetail notify 确认。列表页走 session 标记。
-            onSecretChatSurface = when {
+            windowPrivacyController.onSecretChatSurface = when {
                 chatId != null -> isSecret
                 onChatDetailSurface -> true
                 else -> SecretChatSession.hasActiveSecretSurface()
             }
-            refreshWindowPrivacy()
+            windowPrivacyController.refreshWindowPrivacy()
         }
         LaunchedEffect(navController) {
             notificationTarget.filterNotNull().collect { target ->
@@ -356,6 +358,24 @@ class MainActivity : FragmentActivity() {
         )
     }
 
+    /** Detail screens call this after toggling 密聊 so FLAG_SECURE updates without re-nav. */
+    fun notifySecretChatSurfaceChanged(chatId: String, isSecret: Boolean) =
+        windowPrivacyController.notifySecretChatSurfaceChanged(chatId, isSecret)
+
+    /**
+     * ChatDetail leaving composition (two-pane deselect / back). Drops FLAG_SECURE markers
+     * without deleting decrypted media — disk clear stays with disable / logout / SIM.
+     */
+    fun notifySecretChatSurfaceLeft(chatId: String) =
+        windowPrivacyController.notifySecretChatSurfaceLeft(chatId)
+
+    /** ChatLockGate 显示/隐藏时调用：PIN 输入期间强制 FLAG_SECURE，即便全局开关关闭、也非密聊。 */
+    fun notifyChatLockSurfaceChanged(active: Boolean) =
+        windowPrivacyController.notifyChatLockSurfaceChanged(active)
+
+    fun notifyScreenSecurePreferenceChanged() =
+        windowPrivacyController.notifyScreenSecurePreferenceChanged()
+
     private fun requestPermissions() {
         val permissions = mutableListOf<String>()
 
@@ -369,107 +389,6 @@ class MainActivity : FragmentActivity() {
 
         if (permissions.isNotEmpty()) {
             permissionLauncher.launch(permissions.toTypedArray())
-        }
-    }
-
-    private fun refreshWindowPrivacy() {
-        val secure = ScreenSecurePolicy.shouldSecureWindow(
-            appLockShowing = showAppLock,
-            globalEnabled = ScreenSecureManager.isEnabled(this),
-            onChatSurface = onChatSurface,
-            secretChatSurfaceActive = onSecretChatSurface || SecretChatSession.hasActiveSecretSurface(),
-            chatLockSurfaceActive = onChatLockSurface
-        ) || showFakeChat
-        updateWindowPrivacy(secure)
-    }
-
-    /** Detail screens call this after toggling 密聊 so FLAG_SECURE updates without re-nav. */
-    fun notifySecretChatSurfaceChanged(chatId: String, isSecret: Boolean) {
-        if (isSecret) {
-            SecretChatSession.markSurfaceActive(chatId)
-        } else {
-            // 只放 FLAG_SECURE 标记。真正删解密缓存由 disable / logout / SIM 路径承担，
-            // 避免 ChatDetail 在 isSecretChat 尚未查完时把密聊误降成 false 并烧掉媒体。
-            SecretChatSession.clearSurfaceMarker(chatId)
-        }
-        onSecretChatSurface = SecretChatSession.hasActiveSecretSurface()
-        refreshWindowPrivacy()
-    }
-
-    /**
-     * ChatDetail leaving composition (two-pane deselect / back). Drops FLAG_SECURE markers
-     * without deleting decrypted media — disk clear stays with disable / logout / SIM.
-     */
-    fun notifySecretChatSurfaceLeft(chatId: String) {
-        SecretChatSession.clearSurfaceMarker(chatId)
-        onSecretChatSurface = SecretChatSession.hasActiveSecretSurface()
-        refreshWindowPrivacy()
-    }
-
-    /** ChatLockGate 显示/隐藏时调用：PIN 输入期间强制 FLAG_SECURE，即便全局开关关闭、也非密聊。 */
-    fun notifyChatLockSurfaceChanged(active: Boolean) {
-        onChatLockSurface = active
-        refreshWindowPrivacy()
-    }
-
-    fun notifyScreenSecurePreferenceChanged() {
-        refreshWindowPrivacy()
-    }
-
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) refreshWindowPrivacy()
-    }
-
-    private fun updateWindowPrivacy(secure: Boolean) {
-        windowSecureRequested = secure
-        // addFlags 不够：enableEdgeToEdge / 部分 OEM 会覆盖 LayoutParams.flags。
-        // 必须同时写 window.attributes，并在下一帧再钉一次。
-        applySecureFlagToWindow(window, secure)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            runCatching { setRecentsScreenshotEnabled(!secure) }
-        }
-        window.decorView.post { applySecureFlagToWindow(window, windowSecureRequested) }
-        syncCaptureScrubber(secure)
-        // Hide task snapshot in recents while secure surfaces are active (secret / chat lock).
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            runCatching {
-                val am = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
-                val hideRecents = secure && RuntimeFlags.isEnabled(this, RuntimeFlags.RECENTS_EXCLUSION)
-                am.appTasks.firstOrNull()?.setExcludeFromRecents(hideRecents)
-            }
-        }
-    }
-
-    private fun applySecureFlagToWindow(target: android.view.Window, secure: Boolean) {
-        val attrs = target.attributes
-        val next = if (secure) {
-            attrs.flags or WindowManager.LayoutParams.FLAG_SECURE
-        } else {
-            attrs.flags and WindowManager.LayoutParams.FLAG_SECURE.inv()
-        }
-        if (attrs.flags != next) {
-            attrs.flags = next
-            target.attributes = attrs
-        }
-        if (secure) target.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        else target.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-    }
-
-    /**
-     * FLAG_SECURE 被部分 OEM 忽略时，系统仍可能把截图写进相册。
-     * 全局防截屏 / 密聊开启时立刻删掉刚写入的截图/录屏文件。
-     */
-    private fun syncCaptureScrubber(secure: Boolean) {
-        if (secure) {
-            if (captureScrubber == null) {
-                captureScrubber = com.maodouchat.security.ScreenshotDetector(this) {
-                    com.maodouchat.security.SecureCaptureScrubber.deleteLatestCapture(this)
-                }.also { it.start() }
-            }
-        } else {
-            captureScrubber?.stop()
-            captureScrubber = null
         }
     }
 
@@ -536,8 +455,7 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onDestroy() {
-        captureScrubber?.stop()
-        captureScrubber = null
+        windowPrivacyController.shutdown()
         // Activity instances must never hand lock-screen visibility to a later instance.
         applyCallLockScreenFlags(false)
         super.onDestroy()
