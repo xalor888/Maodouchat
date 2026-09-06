@@ -59,15 +59,6 @@ import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import com.maodouchat.ui.screen.chatlist.BottomNavBar
-import com.maodouchat.ui.screen.chatlist.ChatListScreen
-import com.maodouchat.ui.screen.contacts.ContactsScreen
-import com.maodouchat.ui.screen.explore.ExploreScreen
-import com.maodouchat.ui.screen.login.LoginScreen
-import com.maodouchat.ui.screen.settings.SettingsScreen
-import com.maodouchat.webrtc.CallState
-import com.maodouchat.webrtc.CallType
-import com.maodouchat.webrtc.WebRTCSignaling
 // B5 新增（仅追加）：平板双栏布局
 import com.maodouchat.ui.layout.AdaptiveLayout
 import com.maodouchat.ui.layout.rememberAdaptiveLayoutState
@@ -337,28 +328,8 @@ fun MaodouchatNavGraph(
             }
         }
     ) {
-        composable(Routes.LOGIN) {
-            LoginScreen(
-                onLoginSuccess = {
-                    // Multi-device UX prefs before main chrome paints with stale local theme/lang.
-                    com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
-                        runCatching {
-                            com.maodouchat.util.ClientPrefsSync.pullAndApply(
-                                com.maodouchat.MaodouchatApp.instance
-                            )
-                        }
-                    }
-                    navController.navigate(Routes.MAIN) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
-                    }
-                },
-                onOpenServer = { navController.navigate(Routes.SETTINGS_SERVER) }
-            )
-        }
-
-        composable(Routes.MAIN) {
-            MainContainer(navController = navController)
-        }
+        // P08：登录/主壳目的地见 authDestinations。
+        authDestinations(navController)
 
         // P08：聊天域目的地见 chatDestinations。
         chatDestinations(navController)
