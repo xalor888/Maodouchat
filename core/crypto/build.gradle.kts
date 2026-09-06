@@ -20,7 +20,7 @@ kotlin {
 }
 
 dependencies {
-    implementation(project(":core:model"))
+    api(project(":core:model"))
 
     testImplementation("junit:junit:4.13.2")
 }

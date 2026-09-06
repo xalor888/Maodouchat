@@ -112,6 +112,8 @@ Release 启用 R8 + 资源收缩，默认仅 arm64-v8a。运行时也可在 App�
 ## 文档
 
 - [`docs/feature-inventory.md`](docs/feature-inventory.md) — 功能与完整度台账
+- [`docs/full-project-refactor-checklist.md`](docs/full-project-refactor-checklist.md) — 架构与重构指南
+- [`docs/messaging-v2-architecture.md`](docs/messaging-v2-architecture.md) — Messaging V2 消息架构与不变量
 - [`docs/bot-developer-api.md`](docs/bot-developer-api.md) — Bot REST API
 - [`docs/self-host-quickstart.md`](docs/self-host-quickstart.md) — 自托管快速上手
 - [`docs/docker-deployment.md`](docs/docker-deployment.md) — Docker 部署细节

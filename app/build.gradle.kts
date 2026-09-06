@@ -233,6 +233,10 @@ dependencies {
     implementation(project(":domain:messaging"))
     // M03：接入 core:crypto 端口（IdentityTrustService + 直接会话密码学端口）。
     implementation(project(":core:crypto"))
+    // 核心通用领域模型（ConversationId, UserId 等）
+    implementation(project(":core:model"))
+    // A05：接入 core:realtime 端口（RealtimeEventDispatcher + 强类型领域事件）。
+    implementation(project(":core:realtime"))
 
     // Compose BOM
     val composeBom = platform("androidx.compose:compose-bom:2026.05.00")
