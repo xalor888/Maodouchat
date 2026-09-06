@@ -125,7 +125,7 @@ Bot 可通过一系列 `get*Flags` 读取服务端运行时开关，用于自适
 | 截屏防护 | `getCaptureShieldFlags`, `shieldz` |
 | 通用探活 | `healthz`, `readyz`, `alivez`, `statusz`, `ping`, `uptime`, `versionz` … |
 
-完整列表：调用 **`GET /api/bot/listCapabilities`**，并与 `Routing.kt` 对照。
+完整列表：调用 **`GET /api/bot/listCapabilities`**，实现见 `BotPresentationRouting.kt`（bot 路由已全部迁出 `Routing.kt`，见 `Bot*Routing.kt`）。
 
 ---
 
