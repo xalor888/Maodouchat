@@ -9,6 +9,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.update
 
 internal sealed interface GroupAdminAccess {
     data class Allowed(val chat: ResultRow) : GroupAdminAccess
@@ -51,6 +52,13 @@ internal object GroupMutationTransaction {
             it[GroupAuditLogs.action] = action.take(40)
             it[GroupAuditLogs.targetUserId] = targetUserId
             it[createdAt] = System.currentTimeMillis()
+        }
+    }
+
+    /** 成员变更后版本号 +1（事务内调用）。收敛 GroupProfile/GroupModeration 各自的私有拷贝。 */
+    fun bumpRevision(chatId: String, previousRevision: Long) {
+        Chats.update({ Chats.id eq chatId }) {
+            it[Chats.memberRevision] = previousRevision + 1
         }
     }
 

@@ -320,6 +320,3 @@ private suspend fun io.ktor.server.application.ApplicationCall.requireDeviceId()
     return deviceId
 }
 
-private suspend fun io.ktor.server.application.ApplicationCall.respondOk() {
-    respond(buildJsonObject { put("status", "ok") })
-}

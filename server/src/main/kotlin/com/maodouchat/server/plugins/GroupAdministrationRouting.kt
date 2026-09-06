@@ -383,9 +383,6 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondUpdatedGro
     else respond(chat)
 }
 
-private suspend fun io.ktor.server.application.ApplicationCall.respondOk() {
-    respond(buildJsonObject { put("status", "ok") })
-}
 
 private suspend fun io.ktor.server.application.ApplicationCall.normalizeMuteDeadline(requested: Long): Long? {
     val now = System.currentTimeMillis()

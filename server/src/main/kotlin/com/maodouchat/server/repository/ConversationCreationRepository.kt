@@ -6,6 +6,7 @@ import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.DirectChatPairs
 import com.maodouchat.server.db.SecretChatPairs
 import com.maodouchat.server.db.Users
+import com.maodouchat.server.db.lockUsersInTx
 import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.service.DisappearingMessagePolicy
 import java.util.UUID
@@ -260,15 +261,6 @@ class ConversationCreationRepository {
         return users.size == 2 && users.none { it[Users.deletedAt] != null }
     }
 
-    private fun lockUsersInTx(userIds: List<String>): List<ResultRow> {
-        val orderedIds = userIds.distinct().sorted()
-        if (orderedIds.isEmpty()) return emptyList()
-        return Users.selectAll()
-            .where { Users.id inList orderedIds }
-            .orderBy(Users.id, SortOrder.ASC)
-            .forUpdate()
-            .toList()
-    }
 
     private fun hasBlockedPairInTx(userIds: List<String>): Boolean {
         val ids = userIds.distinct()

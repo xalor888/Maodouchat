@@ -7,6 +7,7 @@ import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.GroupAuditLogs
 import com.maodouchat.server.db.Users
+import com.maodouchat.server.db.lockUsersInTx
 import java.util.UUID
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -14,7 +15,9 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
 
 /** SQL boundary for membership, role, ownership, revision and member-scoped cleanup. */
-class GroupMembershipRepository {
+class GroupMembershipRepository(
+    private val participantQuery: ConversationParticipantRepository = ConversationParticipantRepository(),
+) {
     fun addMembers(
         chatId: String,
         actorId: String,
@@ -127,11 +130,8 @@ class GroupMembershipRepository {
         AddOwnedBotResult.ADDED
     }
 
-    fun participantIds(chatId: String): List<String> = transaction {
-        ChatParticipants.select(ChatParticipants.userId)
-            .where { ChatParticipants.chatId eq chatId }
-            .map { it[ChatParticipants.userId] }
-    }
+    /** 成员 id 查询收敛至只读边界 ConversationParticipantRepository。 */
+    fun participantIds(chatId: String): List<String> = participantQuery.participantIds(chatId)
 
     fun memberRevision(chatId: String): Long? = transaction {
         Chats.select(Chats.memberRevision)
@@ -272,15 +272,6 @@ class GroupMembershipRepository {
         }
     }
 
-    private fun lockUsersInTx(userIds: List<String>): List<ResultRow> {
-        val orderedIds = userIds.distinct().sorted()
-        if (orderedIds.isEmpty()) return emptyList()
-        return Users.selectAll()
-            .where { Users.id inList orderedIds }
-            .orderBy(Users.id, SortOrder.ASC)
-            .forUpdate()
-            .toList()
-    }
 
     private companion object {
         const val ROLE_OWNER = "OWNER"

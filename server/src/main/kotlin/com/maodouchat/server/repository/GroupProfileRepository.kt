@@ -33,7 +33,7 @@ class GroupProfileRepository {
             it[ChatParticipants.title] = title
         }
         if (updated != 1) return@transaction GroupMemberMutationResult.TARGET_NOT_PARTICIPANT
-        bumpRevision(chatId, (access as GroupAdminAccess.Allowed).chat[Chats.memberRevision])
+        GroupMutationTransaction.bumpRevision(chatId, (access as GroupAdminAccess.Allowed).chat[Chats.memberRevision])
         GroupMutationTransaction.insertAudit(chatId, actorId, "TITLE_UPDATED", targetUserId)
         GroupMemberMutationResult.UPDATED
     }
@@ -106,7 +106,7 @@ class GroupProfileRepository {
             it[ChatParticipants.groupNickname] = nickname
         }
         if (updated != 1) return@transaction GroupMemberMutationResult.ACTOR_NOT_PARTICIPANT
-        bumpRevision(chatId, chat[Chats.memberRevision])
+        GroupMutationTransaction.bumpRevision(chatId, chat[Chats.memberRevision])
         GroupMutationTransaction.insertAudit(chatId, userId, "NICKNAME_UPDATED", userId)
         GroupMemberMutationResult.UPDATED
     }
@@ -156,9 +156,4 @@ class GroupProfileRepository {
         GroupAvatarMutationResult(GroupMemberMutationResult.UPDATED, previous)
     }
 
-    private fun bumpRevision(chatId: String, previousRevision: Long) {
-        Chats.update({ Chats.id eq chatId }) {
-            it[Chats.memberRevision] = previousRevision + 1
-        }
-    }
 }

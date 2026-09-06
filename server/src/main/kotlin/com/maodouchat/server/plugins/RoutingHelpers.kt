@@ -18,6 +18,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
+import kotlinx.serialization.json.put
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.net.Inet4Address
@@ -622,6 +623,11 @@ internal fun hasContentModerationAccess(userRepo: com.maodouchat.server.reposito
 internal fun restrictionMessage(until: Long, action: String): String {
     val remainingMinutes = ((until - System.currentTimeMillis()).coerceAtLeast(0) + 59_999L) / 60_000L
     return "$action，约 ${remainingMinutes.coerceAtLeast(1)} 分钟后恢复"
+}
+
+/** 通用 {"status":"ok"} 应答。收敛各路由文件的私有 `respondOk` 拷贝。 */
+internal suspend fun ApplicationCall.respondOk() {
+    respond(kotlinx.serialization.json.buildJsonObject { put("status", "ok") })
 }
 
 // ── Signal 密钥辅助 ───────────────────

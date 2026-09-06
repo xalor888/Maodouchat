@@ -49,7 +49,7 @@ class GroupModerationRepository {
             it[ChatParticipants.mutedUntil] = normalizedUntil
         }
         if (updated != 1) return@transaction GroupMemberMutationResult.TARGET_NOT_PARTICIPANT
-        bumpRevision(chatId, chat[Chats.memberRevision])
+        GroupMutationTransaction.bumpRevision(chatId, chat[Chats.memberRevision])
         GroupMutationTransaction.insertAudit(
             chatId,
             actorId,
@@ -98,7 +98,7 @@ class GroupModerationRepository {
             it[ChatParticipants.mutedUntil] = normalizedUntil
         }
         if (updated > 0) {
-            bumpRevision(chatId, chat[Chats.memberRevision])
+            GroupMutationTransaction.bumpRevision(chatId, chat[Chats.memberRevision])
             val action = if (normalizedUntil > 0) "MEMBER_MUTED" else "MEMBER_UNMUTED"
             targets.forEach { targetUserId ->
                 GroupMutationTransaction.insertAudit(chatId, actorId, action, targetUserId)
@@ -107,9 +107,4 @@ class GroupModerationRepository {
         GroupBulkMuteResult(GroupMemberMutationResult.UPDATED, updated)
     }
 
-    private fun bumpRevision(chatId: String, previousRevision: Long) {
-        Chats.update({ Chats.id eq chatId }) {
-            it[Chats.memberRevision] = previousRevision + 1
-        }
-    }
 }
