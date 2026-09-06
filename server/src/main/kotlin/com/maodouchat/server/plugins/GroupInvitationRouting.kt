@@ -43,7 +43,7 @@ internal fun Route.configureGroupInvitationRoutes(
                 return@post
             }
             if (call.rejectIfSuspended(userRepo, userId)) return@post
-            val request = call.receiveBoundedText()?.let { parseJson<CreateChatRequest>(it) } ?: run {
+            val request = call.receiveJson<CreateChatRequest>() ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@post
             }

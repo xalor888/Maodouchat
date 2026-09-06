@@ -62,7 +62,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("举报过于频繁，请稍后再试"))
                     return@post
                 }
-                val req = call.receiveBoundedText()?.let { parseJson<CreateReportRequest>(it) } ?: run {
+                val req = call.receiveJson<CreateReportRequest>() ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@post
                 }
@@ -99,7 +99,7 @@ put("status", "ok")
                     return@put
                 }
                 val reportId = call.parameters["reportId"].orEmpty()
-                val req = call.receiveBoundedText()?.let { parseJson<UpdateReportStatusRequest>(it) } ?: run {
+                val req = call.receiveJson<UpdateReportStatusRequest>() ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@put
                 }
@@ -124,7 +124,7 @@ put("status", "ok")
                     return@post
                 }
                 val reportId = call.parameters["reportId"].orEmpty()
-                val req = call.receiveBoundedText()?.let { parseJson<ApplyReportActionRequest>(it) } ?: run {
+                val req = call.receiveJson<ApplyReportActionRequest>() ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@post
                 }
@@ -281,7 +281,7 @@ put("status", "ok")
                     return@put
                 }
                 val ruleId = call.parameters["ruleId"].orEmpty()
-                val req = call.receiveBoundedText()?.let { parseJson<UpdateModerationRuleRequest>(it) } ?: run {
+                val req = call.receiveJson<UpdateModerationRuleRequest>() ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@put
                 }

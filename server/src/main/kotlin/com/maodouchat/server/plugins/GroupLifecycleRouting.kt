@@ -47,7 +47,7 @@ internal suspend fun ApplicationCall.handleUpdateGroupMemberRole(
     val chatId = parameters["chatId"].orEmpty()
     val targetUserId = parameters["memberId"].orEmpty()
     if (rejectIfSuspended(userRepo, actorId)) return
-    val request = receiveBoundedText()?.let { parseJson<UpdateMemberRoleRequest>(it) }
+    val request = receiveJson<UpdateMemberRoleRequest>()
     if (request == null) {
         respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
         return

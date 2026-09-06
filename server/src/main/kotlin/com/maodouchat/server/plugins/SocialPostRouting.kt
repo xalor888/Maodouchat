@@ -175,7 +175,7 @@ internal fun Route.configureSocialPostRoutes(
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("发布过于频繁，请稍后再试"))
                     return@post
                 }
-                val req = call.receiveBoundedText()?.let { parseJson<CreatePostRequest>(it) } ?: run {
+                val req = call.receiveJson<CreatePostRequest>() ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("动态内容无效"))
                     return@post
                 }
@@ -248,7 +248,7 @@ internal fun Route.configureSocialPostRoutes(
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("图片上传过于频繁，请稍后再试"))
                     return@post
                 }
-                val req = call.receiveBoundedText(MAX_UPLOAD_JSON_BODY_CHARS)?.let { parseJson<UploadPostImageRequest>(it) }
+                val req = call.receiveJson<UploadPostImageRequest>(MAX_UPLOAD_JSON_BODY_CHARS)
                 if (req == null) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效")); return@post }
                 val imageUrl = try {
                     com.maodouchat.server.service.FileStorageService.savePostImage(req.base64Data, userId)
@@ -311,7 +311,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权编辑该动态"))
                     return@put
                 }
-                val req = call.receiveBoundedText()?.let { parseJson<EditPostRequest>(it) } ?: run {
+                val req = call.receiveJson<EditPostRequest>() ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求体无效"))
                     return@put
                 }
@@ -440,7 +440,7 @@ put("status", "ok")
                     return@post
                 }
                 val postId = call.parameters["id"]!!
-                val req = call.receiveBoundedText()?.let { parseJson<CreateCommentRequest>(it) }
+                val req = call.receiveJson<CreateCommentRequest>()
                 if (req == null) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效")); return@post }
                 if (!isValidCommentPayload(req.content)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("评论内容无效"))
@@ -495,7 +495,7 @@ put("status", "ok")
                 }
                 val postId = call.parameters["id"]!!
                 val cid = call.parameters["cid"]!!
-                val req = call.receiveBoundedText()?.let { parseJson<UpdateCommentRequest>(it) }
+                val req = call.receiveJson<UpdateCommentRequest>()
                 if (req == null || !isValidCommentPayload(req.content)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("评论内容无效"))
                     return@put
