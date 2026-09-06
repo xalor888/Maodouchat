@@ -490,7 +490,7 @@ Gate：冷/热启动、登录重定向、返回栈、非法链接、旋转、进
 
 - [x] 更新清单与安装器签名修复：修复 `OfficialApkInstaller` Android P+ 签名提取与十六进制标准格式化；修复 `AppUpdatePolicy` UTF-8 / ISO 智能转码防乱码。
 - [x] WebRTC 原生库按需下载加固：`WebRtcNativeDownloadPolicy` 来源白名单与强制 SHA-256 哈希校验。
-- [~] Widget 使用账号隔离的 projection 和消息 command port（行投影纯化完成：`WidgetRowPolicy.buildWidgetRows` + 10 单测，账号隔离/密聊排除/脱敏保持；command port 接入待续）。
+- [x] Widget 使用账号隔离的 projection 和消息 command port（行投影 `WidgetRowPolicy.buildWidgetRows` + 10 单测；命令端口 `androidQuickReplyCommandHandler` 门禁/去重/发送三件套经 `QuickReplyUseCase` 落库，16 单测全绿）。
 - [ ] 更新清单校验 HTTPS、SHA-256、包名、versionCode 和签名证书。
 - [ ] 下载进入 WorkManager，可恢复并校验完整性。
 - [ ] 禁止降级、错误签名、错误包和不可信重定向。
