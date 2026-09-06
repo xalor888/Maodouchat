@@ -38,7 +38,9 @@ class AccountLifecycleService {
         authorized: (ResultRow) -> Boolean,
         onDeactivated: (Long) -> Unit = {}
     ): AccountDeactivationResult? {
-        return transaction {
+        // 大事务并发下可能死锁：回滚后整体重跑安全（deletedAt 守卫保证幂等），仅串行化失败重试。
+        return com.maodouchat.server.db.withSerializationRetry {
+            transaction {
             val row = Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
                 ?: return@transaction null
             if (row[Users.deletedAt] != null) return@transaction null
@@ -126,6 +128,7 @@ class AccountLifecycleService {
                 orphanedAttachmentIds = orphanedAttachmentIds,
                 avatarUrl = avatarUrl
             )
+            }
         }
     }
 
