@@ -46,11 +46,8 @@ fun Application.configureMessagingV2Routing(repository: MessagingV2Repository) {
         authenticate("auth-jwt") {
             route("/api/v2") {
                 get("/conversations/{conversationId}/snapshot") {
-                    val principal = call.principal<JWTPrincipal>()!!
-                    val userId = principal.payload.subject
-                    val authSessionId = JwtConfig.authSessionId(principal.payload)
-                    val deviceId = authSessionId?.let { repository.resolveAuthenticatedDevice(userId, it) }
-                    if (deviceId == null) {
+                    val binding = call.deviceSessionBinding(repository)
+                    if (binding == null) {
                         call.respond(
                             HttpStatusCode.Conflict,
                             ErrorResponse("当前登录会话尚未绑定已确认设备", "DEVICE_NOT_READY"),
@@ -66,7 +63,7 @@ fun Application.configureMessagingV2Routing(repository: MessagingV2Repository) {
                         return@get
                     }
                     val snapshot = try {
-                        repository.conversationSnapshot(conversationId, userId, deviceId)
+                        repository.conversationSnapshot(conversationId, binding.userId, binding.deviceId)
                     } catch (error: MessagingV2ConversationNotFoundException) {
                         call.respond(
                             HttpStatusCode.NotFound,
@@ -90,11 +87,8 @@ fun Application.configureMessagingV2Routing(repository: MessagingV2Repository) {
                 }
 
                 post("/messages") {
-                    val principal = call.principal<JWTPrincipal>()!!
-                    val userId = principal.payload.subject
-                    val authSessionId = JwtConfig.authSessionId(principal.payload)
-                    val deviceId = authSessionId?.let { repository.resolveAuthenticatedDevice(userId, it) }
-                    if (deviceId == null) {
+                    val binding = call.deviceSessionBinding(repository)
+                    if (binding == null) {
                         call.respond(
                             HttpStatusCode.Conflict,
                             ErrorResponse("当前登录会话尚未绑定已确认设备", "DEVICE_NOT_READY"),
@@ -130,8 +124,8 @@ fun Application.configureMessagingV2Routing(repository: MessagingV2Repository) {
                     val command = SendMessageV2Command(
                         id = request.id,
                         conversationId = request.conversationId,
-                        senderUserId = userId,
-                        senderDeviceId = deviceId,
+                        senderUserId = binding.userId,
+                        senderDeviceId = binding.deviceId,
                         kind = request.kind,
                         clientTimestamp = request.clientTimestamp,
                         groupRevision = request.groupRevision,
@@ -147,7 +141,7 @@ fun Application.configureMessagingV2Routing(repository: MessagingV2Repository) {
                     val result = try {
                         repository.send(command) {
                             messageRateLimiter.acquire(
-                                key = "messaging-v2:$userId",
+                                key = "messaging-v2:${binding.userId}",
                                 maxPerMinute = RuntimeConfigService.maxMessagePerMinute(),
                             )
                         }
@@ -238,11 +232,8 @@ fun Application.configureMessagingV2Routing(repository: MessagingV2Repository) {
                 }
 
                 get("/inbox") {
-                    val principal = call.principal<JWTPrincipal>()!!
-                    val userId = principal.payload.subject
-                    val authSessionId = JwtConfig.authSessionId(principal.payload)
-                    val deviceId = authSessionId?.let { repository.resolveAuthenticatedDevice(userId, it) }
-                    if (deviceId == null) {
+                    val binding = call.deviceSessionBinding(repository)
+                    if (binding == null) {
                         call.respond(
                             HttpStatusCode.Conflict,
                             ErrorResponse("当前登录会话尚未绑定已确认设备", "DEVICE_NOT_READY"),
@@ -250,15 +241,12 @@ fun Application.configureMessagingV2Routing(repository: MessagingV2Repository) {
                         return@get
                     }
                     val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 100).coerceIn(1, 500)
-                    call.respond(repository.pending(userId, deviceId, limit))
+                    call.respond(repository.pending(binding.userId, binding.deviceId, limit))
                 }
 
                 post("/inbox/ack") {
-                    val principal = call.principal<JWTPrincipal>()!!
-                    val userId = principal.payload.subject
-                    val authSessionId = JwtConfig.authSessionId(principal.payload)
-                    val deviceId = authSessionId?.let { repository.resolveAuthenticatedDevice(userId, it) }
-                    if (deviceId == null) {
+                    val binding = call.deviceSessionBinding(repository)
+                    if (binding == null) {
                         call.respond(
                             HttpStatusCode.Conflict,
                             ErrorResponse("当前登录会话尚未绑定已确认设备", "DEVICE_NOT_READY"),
@@ -276,7 +264,7 @@ fun Application.configureMessagingV2Routing(repository: MessagingV2Repository) {
                         call.respond(HttpStatusCode.BadRequest, ErrorResponse("ACK 参数无效", "INVALID_ACK"))
                         return@post
                     }
-                    val acknowledged = repository.acknowledge(userId, deviceId, request.envelopeIds.toSet())
+                    val acknowledged = repository.acknowledge(binding.userId, binding.deviceId, request.envelopeIds.toSet())
                     call.respond(AcknowledgeEnvelopesV2Response(acknowledged))
                 }
             }

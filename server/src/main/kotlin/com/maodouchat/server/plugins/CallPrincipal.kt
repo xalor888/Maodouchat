@@ -17,3 +17,26 @@ fun ApplicationCall.requireUserId(): String = principal<JWTPrincipal>()!!.payloa
  * 与 `call.principal<JWTPrincipal>()?.payload?.subject` 等价。
  */
 fun ApplicationCall.optionalUserId(): String? = principal<JWTPrincipal>()?.payload?.subject
+
+/**
+ * 设备会话绑定（B02 DeviceSession：auth session → user + 已确认 Signal device）。
+ *
+ * 收敛 V2 路由三处 `authSessionId → resolveAuthenticatedDevice` 设备门：
+ * principal 缺失沿用 `!!` 语义；session/device 未绑定返回 null，
+ * 调用方按原样回 409 DEVICE_NOT_READY。
+ */
+data class DeviceSessionBinding(
+    val userId: String,
+    val authSessionId: String,
+    val deviceId: Int,
+)
+
+fun ApplicationCall.deviceSessionBinding(
+    repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
+): DeviceSessionBinding? {
+    val principal = principal<JWTPrincipal>()!!
+    val userId = principal.payload.subject
+    val authSessionId = com.maodouchat.server.auth.JwtConfig.authSessionId(principal.payload) ?: return null
+    val deviceId = repository.resolveAuthenticatedDevice(userId, authSessionId) ?: return null
+    return DeviceSessionBinding(userId, authSessionId, deviceId)
+}
