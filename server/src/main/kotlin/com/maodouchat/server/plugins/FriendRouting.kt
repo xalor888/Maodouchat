@@ -78,7 +78,7 @@ internal fun Route.configureFriendRoutes(
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("friend_requests_disabled"))
                 return@post
             }
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             if (call.rejectIfSuspended(userRepository, userId)) return@post
             if (!requestRateLimiter.acquire(userId, maxPerMinute = 10)) {
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
@@ -111,21 +111,21 @@ internal fun Route.configureFriendRoutes(
         }
 
         get("/api/friends/requests/incoming") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val status = call.request.queryParameters["status"] ?: "PENDING"
             val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
             call.respond(friendRepository.listIncoming(userId, status, limit))
         }
 
         get("/api/friends/requests/outgoing") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val status = call.request.queryParameters["status"] ?: "PENDING"
             val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
             call.respond(friendRepository.listOutgoing(userId, status, limit))
         }
 
         post("/api/friends/requests/{id}/accept") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             if (call.rejectIfSuspended(userRepository, userId)) return@post
             call.respondToMutation(friendRepository.acceptRequest(userId, call.parameters["id"].orEmpty())) {
                 notifyFriendRequest(it, "ACCEPTED")
@@ -133,7 +133,7 @@ internal fun Route.configureFriendRoutes(
         }
 
         post("/api/friends/requests/{id}/reject") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             if (call.rejectIfSuspended(userRepository, userId)) return@post
             call.respondToMutation(friendRepository.rejectRequest(userId, call.parameters["id"].orEmpty())) {
                 notifyFriendRequest(it, "REJECTED")
@@ -141,7 +141,7 @@ internal fun Route.configureFriendRoutes(
         }
 
         post("/api/friends/requests/{id}/cancel") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             if (call.rejectIfSuspended(userRepository, userId)) return@post
             call.respondToMutation(friendRepository.cancelRequest(userId, call.parameters["id"].orEmpty())) {
                 notifyFriendRequest(it, "CANCELLED")
@@ -149,12 +149,12 @@ internal fun Route.configureFriendRoutes(
         }
 
         get("/api/friends") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             call.respond(friendRepository.listFriends(userId))
         }
 
         delete("/api/friends/{friendId}") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val friendId = call.parameters["friendId"].orEmpty()
             if (friendId.isBlank()) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))

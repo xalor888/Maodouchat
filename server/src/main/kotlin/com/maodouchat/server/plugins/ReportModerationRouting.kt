@@ -32,7 +32,7 @@ internal fun Route.configureReportModerationRoutes(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("block_report_disabled"))
                     return@post
                 }
-                val blockerId = call.principal<JWTPrincipal>()!!.payload.subject
+                val blockerId = call.requireUserId()
                 val blockedId = call.parameters["uid"].orEmpty()
                 if (!userRepo.blockUser(blockerId, blockedId)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法拉黑该用户"))
@@ -44,20 +44,20 @@ put("status", "ok")
                 }
             )
             }
-            delete("/api/users/block/{uid}") { userRepo.unblockUser(call.principal<JWTPrincipal>()!!.payload.subject, call.parameters["uid"]!!); call.respond(
+            delete("/api/users/block/{uid}") { userRepo.unblockUser(call.requireUserId(), call.parameters["uid"]!!); call.respond(
                 buildJsonObject {
 put("status", "ok")
                 }
             ) }
-            get("/api/users/blocks") { call.respond(userRepo.getBlockedUsers(call.principal<JWTPrincipal>()!!.payload.subject)) }
-            get("/api/users/blocks/details") { call.respond(userRepo.getBlockedUserDetails(call.principal<JWTPrincipal>()!!.payload.subject)) }
+            get("/api/users/blocks") { call.respond(userRepo.getBlockedUsers(call.requireUserId())) }
+            get("/api/users/blocks/details") { call.respond(userRepo.getBlockedUserDetails(call.requireUserId())) }
             post("/api/reports") {
 
                 if (!RuntimeConfigService.isBlockReportEnabled()) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("block_report_disabled"))
                     return@post
                 }
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val uid = call.requireUserId()
                 if (!reportRateLimiter.acquire(uid, maxPerMinute = 5)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("举报过于频繁，请稍后再试"))
                     return@post
@@ -73,7 +73,7 @@ put("status", "ok")
             }
 
             get("/api/reports/mine") {
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val uid = call.requireUserId()
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
                 call.respond(reportRepo.getMyReports(uid, limit))
             }
@@ -81,7 +81,7 @@ put("status", "ok")
             // 路径从 /api/admin/reports 改为 /api/moderator/reports，避免与 AdminRouting.kt 的 master admin 版本冲突
             // admin.js（web admin，admin-jwt）仍走 /api/admin/reports；app 客户端（moderator，auth-jwt）走此路径
             get("/api/moderator/reports") {
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val uid = call.requireUserId()
                 if (!hasContentModerationAccess(userRepo, uid)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要审核员权限"))
                     return@get
@@ -93,7 +93,7 @@ put("status", "ok")
             }
 
             put("/api/moderator/reports/{reportId}/status") {
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val uid = call.requireUserId()
                 if (!hasContentModerationAccess(userRepo, uid)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要审核员权限"))
                     return@put
@@ -118,7 +118,7 @@ put("status", "ok")
             }
 
             post("/api/moderator/reports/{reportId}/action") {
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val uid = call.requireUserId()
                 if (!hasContentModerationAccess(userRepo, uid)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要审核员权限"))
                     return@post
@@ -266,7 +266,7 @@ put("status", "ok")
             }
 
             get("/api/admin/moderation/rules") {
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val uid = call.requireUserId()
                 if (!hasContentModerationAccess(userRepo, uid)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要审核员权限"))
                     return@get
@@ -275,7 +275,7 @@ put("status", "ok")
             }
 
             put("/api/admin/moderation/rules/{ruleId}") {
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val uid = call.requireUserId()
                 if (!hasContentModerationAccess(userRepo, uid)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要审核员权限"))
                     return@put
@@ -296,7 +296,7 @@ put("status", "ok")
             }
 
             get("/api/admin/moderation/events") {
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val uid = call.requireUserId()
                 if (!hasContentModerationAccess(userRepo, uid)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要审核员权限"))
                     return@get
@@ -307,7 +307,7 @@ put("status", "ok")
             }
 
             post("/api/admin/moderation/events/{eventId}/ack") {
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val uid = call.requireUserId()
                 if (!hasContentModerationAccess(userRepo, uid)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要审核员权限"))
                     return@post

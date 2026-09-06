@@ -34,7 +34,7 @@ internal fun Route.configureSocialPostRoutes(
 ) {
     authenticate("auth-jwt") {
             post("/api/messages/{messageId}/star") {
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val uid = call.requireUserId()
                 if (!com.maodouchat.server.service.RuntimeConfigService.isMessageStarringEnabled()) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("starring_disabled"))
                     return@post
@@ -50,7 +50,7 @@ internal fun Route.configureSocialPostRoutes(
 
             // 会话消息置顶（群：管理员；单聊：双方）
             get("/api/chats/{chatId}/pins") {
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val uid = call.requireUserId()
                 val chatId = call.parameters["chatId"]!!
                 if (!conversationParticipantRepo.isParticipant(chatId, uid)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
@@ -69,7 +69,7 @@ internal fun Route.configureSocialPostRoutes(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("message_pin_disabled"))
                     return@post
                 }
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val uid = call.requireUserId()
                 if (call.rejectIfSuspended(userRepo, uid)) return@post
                 val chatId = call.parameters["chatId"]!!
                 val mid = call.parameters["messageId"]!!
@@ -134,7 +134,7 @@ internal fun Route.configureSocialPostRoutes(
                 }
             }
             get("/api/messages/starred") {
-                val uid = call.principal<JWTPrincipal>()!!.payload.subject
+                val uid = call.requireUserId()
                 if (!com.maodouchat.server.service.RuntimeConfigService.isMessageStarringEnabled()) {
                     call.respond(emptyList<com.maodouchat.server.model.StarredMessageReference>())
                     return@get
@@ -150,7 +150,7 @@ internal fun Route.configureSocialPostRoutes(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("posts_disabled"))
                     return@get
                 }
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 30).coerceIn(1, 50)
                 val before = call.request.queryParameters["before"]?.toLongOrNull()
                 val beforeId = call.request.queryParameters["beforeId"]
@@ -169,7 +169,7 @@ internal fun Route.configureSocialPostRoutes(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("posts_disabled"))
                     return@post
                 }
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 if (call.rejectIfPostRestricted(userRepo, userId)) return@post
                 if (!postRateLimiter.acquire(userId, maxPerMinute = 20)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("发布过于频繁，请稍后再试"))
@@ -242,7 +242,7 @@ internal fun Route.configureSocialPostRoutes(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("posts_disabled"))
                     return@post
                 }
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 if (call.rejectIfPostRestricted(userRepo, userId)) return@post
                 if (!postImageRateLimiter.acquire(userId, maxPerMinute = 10)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("图片上传过于频繁，请稍后再试"))
@@ -262,7 +262,7 @@ internal fun Route.configureSocialPostRoutes(
             }
 
             delete("/api/posts/images/{filename}") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val filename = call.parameters["filename"].orEmpty()
                 if (!com.maodouchat.server.service.FileStorageService.isOwnedPostImageFilename(filename, userId)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("动态图片无效"))
@@ -273,7 +273,7 @@ internal fun Route.configureSocialPostRoutes(
             }
 
             get("/api/posts/{id}") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val postId = call.parameters["id"]!!
                 val post = postRepo.getPostById(postId, userId)
                 if (post == null) call.respond(HttpStatusCode.NotFound, ErrorResponse("动态不存在"))
@@ -281,7 +281,7 @@ internal fun Route.configureSocialPostRoutes(
             }
 
             delete("/api/posts/{id}") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val postId = call.parameters["id"]!!
                 if (!postRepo.exists(postId)) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("动态不存在"))
@@ -301,7 +301,7 @@ put("status", "ok")
             }
 
             put("/api/posts/{id}") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val postId = call.parameters["id"]!!
                 if (!postRepo.exists(postId)) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("动态不存在"))
@@ -360,7 +360,7 @@ put("status", "ok")
             }
 
             post("/api/posts/{id}/like") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 if (call.rejectIfSuspended(userRepo, userId)) return@post
                 val postId = call.parameters["id"]!!
                 // 8.38：点赞/取消点赞限流——此前无限流可对作者反复 like/unlike 刷 FCM 通知
@@ -392,7 +392,7 @@ put("status", "ok")
             }
 
             delete("/api/posts/{id}/like") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val postId = call.parameters["id"]!!
                 if (!postLikeRateLimiter.acquire(userId, maxPerMinute = 30)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
@@ -411,7 +411,7 @@ put("status", "ok")
             }
 
             get("/api/posts/{id}/comments") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val postId = call.parameters["id"]!!
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
                 val before = call.request.queryParameters["before"]?.toLongOrNull()
@@ -424,7 +424,7 @@ put("status", "ok")
 
             // 1.93：动态点赞者列表
             get("/api/posts/{id}/likers") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val postId = call.parameters["id"]!!
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
                 val likers = postRepo.listPostLikers(postId, userId, limit)
@@ -433,7 +433,7 @@ put("status", "ok")
             }
 
             post("/api/posts/{id}/comments") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 if (call.rejectIfPostRestricted(userRepo, userId)) return@post
                 if (!commentRateLimiter.acquire(userId, maxPerMinute = 30)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("评论过于频繁，请稍后再试"))
@@ -487,7 +487,7 @@ put("status", "ok")
             }
 
             put("/api/posts/{id}/comments/{cid}") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 if (call.rejectIfPostRestricted(userRepo, userId)) return@put
                 if (!commentRateLimiter.acquire(userId, maxPerMinute = 30)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("评论操作过于频繁，请稍后再试"))
@@ -526,7 +526,7 @@ put("status", "ok")
             }
 
             delete("/api/posts/{id}/comments/{cid}") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val postId = call.parameters["id"]!!
                 val cid = call.parameters["cid"]!!
                 val ok = postRepo.deleteCommentForUser(postId, cid, userId)
@@ -540,7 +540,7 @@ put("status", "deleted")
 
             // 1.52：评论点赞/取消点赞（1.83：独立限流与动态点赞隔离）
             post("/api/posts/{id}/comments/{cid}/like") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 if (call.rejectIfPostRestricted(userRepo, userId)) return@post
                 val postId = call.parameters["id"]!!
                 val cid = call.parameters["cid"]!!
@@ -570,7 +570,7 @@ put("likeCount", likeCount)
             )
             }
             delete("/api/posts/{id}/comments/{cid}/like") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val postId = call.parameters["id"]!!
                 val cid = call.parameters["cid"]!!
                 if (!commentLikeRateLimiter.acquire(userId, maxPerMinute = 30)) {
@@ -602,7 +602,7 @@ put("likeCount", likeCount)
                 call.respondFile(file)
             }
             get("/api/chats/{chatId}/avatar/file/{filename}") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val chatId = call.parameters["chatId"]!!
                 val filename = call.parameters["filename"]!!
                 if (!filename.matches(Regex("^[A-Za-z0-9_.-]+$"))) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("文件名无效")); return@get }
@@ -619,7 +619,7 @@ put("likeCount", likeCount)
             get("/api/files/post-image/{filename}") {
                 val filename = call.parameters["filename"]!!
                 if (!filename.matches(Regex("^[A-Za-z0-9_.-]+$"))) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("文件名无效")); return@get }
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val postId = postRepo.findPostIdByImageFilename(filename)
                 if (postId == null) { call.respond(HttpStatusCode.NotFound, ErrorResponse("文件不存在")); return@get }
                 if (!postRepo.canView(postId, userId)) {
