@@ -64,7 +64,7 @@ internal fun Route.configureGroupAdministrationRoutes(
         }
 
         put("/api/chats/{chatId}/name") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"].orEmpty()
             if (call.rejectIfSuspended(userRepo, userId)) return@put
             val name = call.receiveBoundedText()
@@ -83,7 +83,7 @@ internal fun Route.configureGroupAdministrationRoutes(
         }
 
         put("/api/chats/{chatId}/announcement") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"].orEmpty()
             if (call.rejectIfSuspended(userRepo, userId)) return@put
             val request = call.receiveBoundedText()?.let { parseJson<UpdateGroupAnnouncementRequest>(it) }
@@ -107,7 +107,7 @@ internal fun Route.configureGroupAdministrationRoutes(
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("group_invites_disabled"))
                 return@post
             }
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"].orEmpty()
             if (call.rejectIfSuspended(userRepo, userId)) return@post
             if (participantRepository.chatType(chatId) == ChatType.CHANNEL) {
@@ -147,7 +147,7 @@ internal fun Route.configureGroupAdministrationRoutes(
         }
 
         post("/api/chats/{chatId}/avatar") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"].orEmpty()
             if (call.rejectIfSuspended(userRepo, userId)) return@post
             if (!avatarRateLimiter.acquire(userId, maxPerMinute = 10)) {
@@ -193,7 +193,7 @@ internal fun Route.configureGroupAdministrationRoutes(
         }
 
         get("/api/chats/{chatId}/members") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"].orEmpty()
             if (!participantRepository.isParticipant(chatId, userId)) {
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
@@ -210,7 +210,7 @@ internal fun Route.configureGroupAdministrationRoutes(
         }
 
         get("/api/chats/{chatId}/audit") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"].orEmpty()
             if (!participantRepository.isParticipant(chatId, userId) ||
                 (participantRepository.chatType(chatId) == ChatType.CHANNEL &&
@@ -264,7 +264,7 @@ internal fun Route.configureGroupAdministrationRoutes(
         }
 
         put("/api/chats/{chatId}/members/me/nickname") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"].orEmpty()
             if (call.rejectIfSuspended(userRepo, userId)) return@put
             val request = call.receiveBoundedText()?.let { parseJson<UpdateGroupNicknameRequest>(it) }
@@ -284,7 +284,7 @@ internal fun Route.configureGroupAdministrationRoutes(
         }
 
         put("/api/chats/{chatId}/members/{memberId}/title") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"].orEmpty()
             val memberId = call.parameters["memberId"].orEmpty()
             if (call.rejectIfSuspended(userRepo, userId)) return@put
@@ -310,7 +310,7 @@ internal fun Route.configureGroupAdministrationRoutes(
         }
 
         put("/api/chats/{chatId}/members/{memberId}/mute") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"].orEmpty()
             val memberId = call.parameters["memberId"].orEmpty()
             if (call.rejectIfSuspended(userRepo, userId)) return@put
@@ -330,7 +330,7 @@ internal fun Route.configureGroupAdministrationRoutes(
         }
 
         post("/api/chats/{chatId}/mute-all") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"].orEmpty()
             if (call.rejectIfSuspended(userRepo, userId)) return@post
             if (!participantRepository.isOwnerOrAdmin(chatId, userId)) {

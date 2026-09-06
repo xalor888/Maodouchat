@@ -79,7 +79,7 @@ fun Routing.configurePollRoutes() {
 
         // ── 群签到 ─────────────────────────────────────
         post("/api/chats/{chatId}/checkins") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             if (call.rejectIfSuspendedForPolls(userId)) return@post
             val chatId = call.parameters["chatId"]
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
@@ -102,7 +102,7 @@ fun Routing.configurePollRoutes() {
         }
 
         get("/api/chats/{chatId}/checkins/me") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"]
                 ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
             // 8.39：与同文件其余读端点一致，先校验成员返回 403（此前落到 404「签到信息不存在」，
@@ -116,7 +116,7 @@ fun Routing.configurePollRoutes() {
         }
 
         get("/api/chats/{chatId}/checkins/rank") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"]
                 ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
             if (!PollRepository.isMember(chatId, userId)) {
@@ -128,7 +128,7 @@ fun Routing.configurePollRoutes() {
 
         // ── 群接龙 ─────────────────────────────────────
         post("/api/chats/{chatId}/chains") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             if (call.rejectIfSuspendedForPolls(userId)) return@post
             val chatId = call.parameters["chatId"]
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
@@ -162,7 +162,7 @@ fun Routing.configurePollRoutes() {
         }
 
         get("/api/chats/{chatId}/chains") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"]
                 ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
             if (!PollRepository.isMember(chatId, userId)) {
@@ -173,7 +173,7 @@ fun Routing.configurePollRoutes() {
         }
 
         get("/api/chains/{chainId}") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chainId = call.parameters["chainId"]
                 ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chainId"))
             val chain = GroupCheckinRepository.getChain(chainId, userId)
@@ -182,7 +182,7 @@ fun Routing.configurePollRoutes() {
         }
 
         post("/api/chains/{chainId}/entries") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             if (call.rejectIfSuspendedForPolls(userId)) return@post
             val chainId = call.parameters["chainId"]
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chainId"))
@@ -211,7 +211,7 @@ fun Routing.configurePollRoutes() {
 
         // ── 群 PK ─────────────────────────────────────
         post("/api/chats/{chatId}/pk") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             if (call.rejectIfSuspendedForPolls(userId)) return@post
             val chatId = call.parameters["chatId"]
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
@@ -243,7 +243,7 @@ fun Routing.configurePollRoutes() {
         }
 
         get("/api/chats/{chatId}/pk") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"]
                 ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
             if (!PollRepository.isMember(chatId, userId)) {
@@ -254,7 +254,7 @@ fun Routing.configurePollRoutes() {
         }
 
         get("/api/pk/{pkId}") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val pkId = call.parameters["pkId"]
                 ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pkId"))
             val pk = GroupCheckinRepository.getPk(pkId, userId)
@@ -263,7 +263,7 @@ fun Routing.configurePollRoutes() {
         }
 
         post("/api/pk/{pkId}/vote") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             if (call.rejectIfSuspendedForPolls(userId)) return@post
             val pkId = call.parameters["pkId"]
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pkId"))
@@ -290,7 +290,7 @@ fun Routing.configurePollRoutes() {
         }
 
         post("/api/pk/{pkId}/close") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             if (call.rejectIfSuspendedForPolls(userId)) return@post
             val pkId = call.parameters["pkId"]
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pkId"))
@@ -304,7 +304,7 @@ fun Routing.configurePollRoutes() {
 
         // ── 投票同步（补充端点，不重复 Routing.kt 已有 CRUD）──
         get("/api/chats/{chatId}/polls/sync") {
-            val userId = call.principal<JWTPrincipal>()!!.payload.subject
+            val userId = call.requireUserId()
             val chatId = call.parameters["chatId"]
                 ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
             if (!PollRepository.isGroupChat(chatId) || !PollRepository.isMember(chatId, userId)) {
