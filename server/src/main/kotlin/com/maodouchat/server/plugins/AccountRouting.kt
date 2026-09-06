@@ -240,11 +240,7 @@ internal fun Route.configureAccountRoutes(
                     call.respond(HttpStatusCode.Unauthorized, ErrorResponse("登录会话已被撤销"))
                     return@post
                 }
-                call.respond(
-                buildJsonObject {
-put("status", "ok")
-                }
-            )
+                call.respondOk()
             }
 
             delete("/api/users/push-tokens") {
@@ -256,11 +252,7 @@ put("status", "ok")
                     return@delete
                 }
                 pushTokenRepo.remove(userId, deviceId)
-                call.respond(
-                buildJsonObject {
-put("status", "ok")
-                }
-            )
+                call.respondOk()
             }
 
             get("/api/users/{id}") {
@@ -322,11 +314,7 @@ put("avatarUrl", avatarUrl)
                     return@delete
                 }
                 com.maodouchat.server.service.FileStorageService.deleteAvatarUrl(replacement.previousUrl, userId)
-                call.respond(
-                buildJsonObject {
-put("status", "ok")
-                }
-            )
+                call.respondOk()
             }
 
             // 修改资料
@@ -422,11 +410,7 @@ put("publicProfileUrl", publicProfileUrl)
                     sessionService.revokeAllUserSessions(userId)
                     // 与 logout-all 一致：旧设备会话已废，推送 token 必须清掉，否则仍收消息/来电推送
                     disconnectUserSessions(userId, "密码已修改，请重新登录")
-                    call.respond(
-                buildJsonObject {
-put("status", "ok")
-                }
-            )
+                    call.respondOk()
                 } else {
                     // 403：勿用 401 — 客户端 executeWithRefresh 会把带 Authorization 的 401 当会话过期并清库
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("原密码错误", code = "WRONG_PASSWORD"))

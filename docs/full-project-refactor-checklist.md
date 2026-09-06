@@ -533,7 +533,7 @@ Gate：空库、旧库升级、重复/中断 migration、备份恢复、滚动�
 - [x] 拆 `CredentialService`、`MfaService`、`SessionService`、`ProfileService`（`SessionService` 收敛 7 处「废会话 + 清推送」组合：改密/重置/全设备登出/删号/三处封禁，WS 断开仍归路由；`ProfileService`/`CredentialService` 同构拆分；14 个仓储的 `isUniqueViolation` 私有拷贝已删除）。
 - [~] 拆 `PrivacyService`、`BlockService`、`AccountLifecycleService`（三个均已拆；UserRepository 保留薄委托）。
 - [~] 登录失败、验证码和 limiter 使用可共享 store，支持多实例（`EmailVerificationCodeContractTest` 3 例锁定迁移门：用途隔离/5 次锁定/未知邮箱拒识；`EmailService` 进程内存储迁移本身需 Redis/DB + 部署配合，暂不动生产认证链）。
-- [~] `DeviceSession` 明确绑定 auth session、Signal device 和 push token（`DeviceSessionBinding` 值对象收敛 V2 四处设备门：user + authSessionId + 已确认 deviceId，409 语义不变；push token 绑定与跨路由统一建模待续）。
+- [~] `DeviceSession` 明确绑定 auth session、Signal device 和 push token（`DeviceSessionBinding` 值对象收敛 V2 四处设备门；push 会话绑定已存在（注册校验 + 投递过滤），缺口精确定位：推送 installationId（string）与 Signal deviceId（int）分属两套命名空间，需双端协议扩展映射，列为专项）。
 - [~] 注销使用可重试编排器和删除清单（删除清单经全表审计补齐；`withSerializationRetry` 落地：死锁/串行化失败整体重跑，`TransactionRetryTest` 4 例；分步可恢复编排待做）。
 - [x] 认证/用户路由全部迁出 `Routing.kt`（`AuthRouting`/`AccountRouting` 独立文件，`Routing.kt` 零 endpoint 定义、无 route 内事务；身份提取收敛为 `call.requireUserId()`）。
 
