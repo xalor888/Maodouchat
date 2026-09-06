@@ -535,31 +535,8 @@ fun MaodouchatNavGraph(
             )
         }
 
-        // ── 群玩法 B3：投票 / 签到+排行 / 接龙 / PK ──
-        composable(
-            route = Routes.GROUP_POLL,
-            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
-        ) {
-            com.maodouchat.ui.screen.groupplay.GroupPollScreen(onBack = { navController.popBackStack() })
-        }
-        composable(
-            route = Routes.GROUP_CHECKIN,
-            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
-        ) {
-            com.maodouchat.ui.screen.groupplay.GroupCheckinScreen(onBack = { navController.popBackStack() })
-        }
-        composable(
-            route = Routes.GROUP_CHAIN,
-            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
-        ) {
-            com.maodouchat.ui.screen.groupplay.GroupChainScreen(onBack = { navController.popBackStack() })
-        }
-        composable(
-            route = Routes.GROUP_PK,
-            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
-        ) {
-            com.maodouchat.ui.screen.groupplay.GroupPkScreen(onBack = { navController.popBackStack() })
-        }
+        // P08：群玩法域目的地见 groupPlayDestinations。
+        groupPlayDestinations(navController)
 
         composable(Routes.GLOBAL_SEARCH) {
             GlobalSearchScreen(
