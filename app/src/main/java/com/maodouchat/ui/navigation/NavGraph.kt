@@ -56,7 +56,6 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
-import androidx.navigation.navDeepLink
 import com.maodouchat.R
 import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.network.ApiConfig
@@ -82,7 +81,6 @@ import com.maodouchat.ui.screen.contacts.ContactsScreen
 import com.maodouchat.ui.screen.explore.ExploreScreen
 import com.maodouchat.ui.screen.login.LoginScreen
 import com.maodouchat.ui.screen.settings.SettingsScreen
-import com.maodouchat.ui.screen.explore.PublicProfileScreen
 import com.maodouchat.webrtc.CallState
 import com.maodouchat.webrtc.CallType
 import com.maodouchat.webrtc.WebRTCSignaling
@@ -796,85 +794,8 @@ fun MaodouchatNavGraph(
 
         // P08：设置域目的地见 settingsDestinations（本文件只保留装配顺序）。
         settingsDestinations(navController)
-        composable(Routes.MY_QR_CODE) {
-            com.maodouchat.ui.screen.contacts.MyQrCodeScreen(
-                onBack = { navController.popBackStack() },
-                onOpenScan = { navController.navigate(Routes.SCAN) }
-            )
-        }
-        composable(Routes.SCAN) {
-            com.maodouchat.ui.screen.contacts.ScanScreen(
-                onBack = { navController.popBackStack() },
-                onAddContact = { user ->
-                    com.maodouchat.call.CallOrchestrator.requestDirectChat(user.id, user.name)
-                },
-                onOpenChat = { chatId ->
-                    navController.navigate(Routes.chatDetail(chatId)) {
-                        launchSingleTop = true
-                    }
-                }
-            )
-        }
-        composable(Routes.NEARBY) {
-            androidx.compose.runtime.LaunchedEffect(Unit) { navController.popBackStack() }
-        }
-        composable(Routes.MOMENTS) {
-            com.maodouchat.ui.screen.explore.MomentsScreen(
-                onBack = { navController.popBackStack() },
-                onOpenAuthor = { authorId -> navController.navigate(Routes.authorProfile(authorId)) },
-                onOpenPost = { postId -> navController.navigate(Routes.postDetail(postId)) }
-            )
-        }
-        composable(
-            route = Routes.AUTHOR_PROFILE,
-            arguments = listOf(navArgument("authorId") { type = NavType.StringType })
-        ) { entry ->
-            val authorId = Uri.decode(entry.arguments?.getString("authorId") ?: "")
-            com.maodouchat.ui.screen.explore.AuthorProfileScreen(
-                authorId = authorId,
-                onBack = { navController.popBackStack() },
-                onOpenChat = { id -> com.maodouchat.call.CallOrchestrator.requestDirectChat(id, "") },
-                onOpenPost = { postId -> navController.navigate(Routes.postDetail(postId)) }
-            )
-        }
-        composable(
-            route = Routes.POST_DETAIL,
-            arguments = listOf(
-                navArgument("postId") { type = NavType.StringType },
-                // 1.132：通知跳转定位到具体评论
-                navArgument("comment") { type = NavType.StringType; defaultValue = "" }
-            )
-        ) { entry ->
-            val postId = Uri.decode(entry.arguments?.getString("postId") ?: "")
-            val commentId = entry.arguments?.getString("comment")?.takeIf { it.isNotBlank() }
-            com.maodouchat.ui.screen.explore.PostDetailScreen(
-                postId = postId,
-                initialCommentId = commentId,
-                onBack = { navController.popBackStack() },
-                // 1.107：详情页作者行 → 作者主页
-                onOpenAuthor = { authorId -> navController.navigate(Routes.authorProfile(authorId)) { launchSingleTop = true } }
-            )
-        }
-        composable(
-            route = Routes.PUBLIC_PROFILE,
-            arguments = listOf(navArgument("username") { type = NavType.StringType }),
-            // P08：深链模式唯一事实源见 AppLinkRouter.publicProfileDeepLinkPatterns。
-            deepLinks = AppLinkRouter.publicProfileDeepLinkPatterns.map { pattern ->
-                navDeepLink { uriPattern = pattern }
-            }
-        ) { entry ->
-            val username = Uri.decode(entry.arguments?.getString("username") ?: "")
-            if (username.isNotBlank()) {
-                PublicProfileScreen(
-                    username = username,
-                    onBack = { navController.popBackStack() },
-                    onStartChat = { userId ->
-                        com.maodouchat.call.CallOrchestrator.requestDirectChat(userId, "")
-                        navController.popBackStack()
-                    }
-                )
-            }
-        }
+        // P08：动态/联系人域目的地见 exploreDestinations。
+        exploreDestinations(navController)
 
         // ===== B5 新增（仅追加）：平板双栏布局 =====
         // 双栏总入口：宽屏（≥840dp 且宽≥高）时左栏列表 + 右栏会话详情；
