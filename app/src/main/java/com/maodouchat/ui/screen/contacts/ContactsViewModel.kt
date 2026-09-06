@@ -457,61 +457,47 @@ class ContactsViewModel @JvmOverloads constructor(
         }
     }
 
-    fun acceptAllFriendRequests() {
-        val pending = _uiState.value.incomingRequests
-        if (pending.isEmpty() || _uiState.value.isFriendActionBusy) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isFriendActionBusy = true, errorMessage = null, infoMessage = null) }
-            try {
-                val results = friendRequestUseCase.batchAcceptFriendRequests(pending.map { it.id })
-                val successCount = results.values.count { it.isSuccess }
-                val failedCount = results.values.count { it.isFailure }
-                _uiState.update {
-                    it.copy(
-                        isFriendActionBusy = false,
-                        infoMessage = if (failedCount == 0) {
-                            text(R.string.contacts_friend_accepted_all)
-                        } else {
-                            text(R.string.contacts_friend_batch_partial, successCount, failedCount)
-                        }
-                    )
-                }
-                loadFriendRequests()
-                reloadContacts()
-            } catch (error: CancellationException) {
-                _uiState.update { it.copy(isFriendActionBusy = false) }
-                throw error
-            } catch (error: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isFriendActionBusy = false,
-                        errorMessage = error.message ?: text(R.string.error_operation_failed)
-                    )
-                }
-            }
-        }
+    fun acceptAllFriendRequests() = launchFriendBatchAction(
+        allSucceededMessage = text(R.string.contacts_friend_accepted_all),
+        reloadContacts = true,
+    ) { ids ->
+        friendRequestUseCase.batchAcceptFriendRequests(ids)
     }
 
-    fun rejectAllFriendRequests() {
-        val pending = _uiState.value.incomingRequests
-        if (pending.isEmpty() || _uiState.value.isFriendActionBusy) return
+    fun rejectAllFriendRequests() = launchFriendBatchAction(
+        allSucceededMessage = text(R.string.contacts_friend_rejected_all),
+    ) { ids ->
+        friendRequestUseCase.batchRejectFriendRequests(ids)
+    }
+
+    /**
+     * 批量好友操作骨架：空列表/忙时直接返回；按结果计数拼全成功或部分成功文案。
+     */
+    private fun launchFriendBatchAction(
+        allSucceededMessage: String,
+        reloadContacts: Boolean = false,
+        action: suspend (ids: List<String>) -> Map<String, Result<*>>,
+    ) {
+        val ids = _uiState.value.incomingRequests.map { it.id }
+        if (ids.isEmpty() || _uiState.value.isFriendActionBusy) return
         viewModelScope.launch {
             _uiState.update { it.copy(isFriendActionBusy = true, errorMessage = null, infoMessage = null) }
             try {
-                val results = friendRequestUseCase.batchRejectFriendRequests(pending.map { it.id })
+                val results = action(ids)
                 val successCount = results.values.count { it.isSuccess }
                 val failedCount = results.values.count { it.isFailure }
                 _uiState.update {
                     it.copy(
                         isFriendActionBusy = false,
                         infoMessage = if (failedCount == 0) {
-                            text(R.string.contacts_friend_rejected_all)
+                            allSucceededMessage
                         } else {
                             text(R.string.contacts_friend_batch_partial, successCount, failedCount)
                         }
                     )
                 }
                 loadFriendRequests()
+                if (reloadContacts) reloadContacts()
             } catch (error: CancellationException) {
                 _uiState.update { it.copy(isFriendActionBusy = false) }
                 throw error
