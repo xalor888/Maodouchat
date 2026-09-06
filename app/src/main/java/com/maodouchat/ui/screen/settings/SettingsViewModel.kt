@@ -116,6 +116,27 @@ class SettingsViewModel @JvmOverloads constructor(
         return if (value in visibilityOptions.map { it.first }) value else "PUBLIC"
     }
 
+    /**
+     * 隐私开关公共骨架：保存中直接忽略；与已加载值比对决定脏位增减；
+     * 最后应用 UI 更新。调用方只给字段、是否干净与更新 lambda。
+     */
+    private inline fun trackPrivacyField(
+        vararg fields: PrivacyField,
+        isClean: () -> Boolean,
+        update: () -> Unit,
+    ) {
+        if (_uiState.value.isSavingPrivacy) return
+        if (isClean()) {
+            dirtyPrivacyFields -= fields.toSet()
+        } else {
+            dirtyPrivacyFields += fields.toSet()
+        }
+        update()
+    }
+
+    private fun currentLoadedPrivacy() =
+        loadedPrivacy?.takeIf { it.ownerUserId == tokenManager.getUserId() }
+
     private fun isCurrentOwner(expectedUserId: String): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = expectedUserId,
@@ -451,50 +472,44 @@ class SettingsViewModel @JvmOverloads constructor(
     }
 
     fun onOnlineVisibilityChange(v: String) {
-        if (_uiState.value.isSavingPrivacy) return
         val normalized = when (v) {
             "contacts", "nobody" -> v
             else -> "everyone"
         }
-        if (loadedPrivacy?.takeIf { it.ownerUserId == tokenManager.getUserId() }?.onlineVisibility == normalized) {
-            dirtyPrivacyFields -= PrivacyField.ONLINE_VISIBILITY
-            dirtyPrivacyFields -= PrivacyField.SHOW_ONLINE
-        } else {
-            dirtyPrivacyFields += PrivacyField.ONLINE_VISIBILITY
-            dirtyPrivacyFields += PrivacyField.SHOW_ONLINE
+        trackPrivacyField(
+            PrivacyField.ONLINE_VISIBILITY, PrivacyField.SHOW_ONLINE,
+            isClean = { currentLoadedPrivacy()?.onlineVisibility == normalized },
+        ) {
+            _uiState.update { it.copy(onlineVisibility = normalized, showOnline = normalized != "nobody") }
         }
-        _uiState.update { it.copy(onlineVisibility = normalized, showOnline = normalized != "nobody") }
     }
 
     fun onShowStatusChange(v: Boolean) {
-        if (_uiState.value.isSavingPrivacy) return
-        if (loadedPrivacy?.takeIf { it.ownerUserId == tokenManager.getUserId() }?.showStatus == v) {
-            dirtyPrivacyFields -= PrivacyField.SHOW_STATUS
-        } else {
-            dirtyPrivacyFields += PrivacyField.SHOW_STATUS
+        trackPrivacyField(
+            PrivacyField.SHOW_STATUS,
+            isClean = { currentLoadedPrivacy()?.showStatus == v },
+        ) {
+            _uiState.update { it.copy(showStatus = v) }
         }
-        _uiState.update { it.copy(showStatus = v) }
     }
 
     fun onSearchableChange(v: Boolean) {
-        if (_uiState.value.isSavingPrivacy) return
-        if (loadedPrivacy?.takeIf { it.ownerUserId == tokenManager.getUserId() }?.searchable == v) {
-            dirtyPrivacyFields -= PrivacyField.SEARCHABLE
-        } else {
-            dirtyPrivacyFields += PrivacyField.SEARCHABLE
+        trackPrivacyField(
+            PrivacyField.SEARCHABLE,
+            isClean = { currentLoadedPrivacy()?.searchable == v },
+        ) {
+            _uiState.update { it.copy(searchable = v) }
         }
-        _uiState.update { it.copy(searchable = v) }
     }
 
     fun onDefaultVisibilityChange(v: String) {
-        if (_uiState.value.isSavingPrivacy) return
         val normalized = normalizeVisibility(v)
-        if (loadedPrivacy?.takeIf { it.ownerUserId == tokenManager.getUserId() }?.defaultPostVisibility == normalized) {
-            dirtyPrivacyFields -= PrivacyField.DEFAULT_POST_VISIBILITY
-        } else {
-            dirtyPrivacyFields += PrivacyField.DEFAULT_POST_VISIBILITY
+        trackPrivacyField(
+            PrivacyField.DEFAULT_POST_VISIBILITY,
+            isClean = { currentLoadedPrivacy()?.defaultPostVisibility == normalized },
+        ) {
+            _uiState.update { it.copy(defaultPostVisibility = normalized) }
         }
-        _uiState.update { it.copy(defaultPostVisibility = normalized) }
     }
 
     fun openBlockedUsers() {
@@ -1045,7 +1060,6 @@ class SettingsViewModel @JvmOverloads constructor(
         val ownerUserId = tokenManager.getUserId().orEmpty()
         accountMutationJob = viewModelScope.launch {
             withContext(NonCancellable) {
-                com.maodouchat.network.WebSocketClient.disconnect()
                 app.secureSessionManager.purgeLocalSession(
                     destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
                         com.maodouchat.security.LogoutStorePolicy.Reason.LOGOUT
@@ -1089,7 +1103,6 @@ class SettingsViewModel @JvmOverloads constructor(
                     onSuccess = {
                         if (!isCurrentOwner(ownerUserId)) return@fold
                         withContext(NonCancellable) {
-                            com.maodouchat.network.WebSocketClient.disconnect()
                             app.secureSessionManager.purgeLocalSession(
                                 destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
                                     com.maodouchat.security.LogoutStorePolicy.Reason.LOGOUT
