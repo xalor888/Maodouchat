@@ -147,6 +147,9 @@ jobs:
       - name: Architecture check (A01 module dependency gate)
         run: ./gradlew checkArchitecture --no-daemon --console=plain
 
+      - name: Navigation registration check (P08 route gate)
+        run: python3 scripts/check-nav-registration.py
+
       - name: Lint check (catch common bugs)
         run: ./gradlew :app:lintDebug --no-daemon --console=plain
 
