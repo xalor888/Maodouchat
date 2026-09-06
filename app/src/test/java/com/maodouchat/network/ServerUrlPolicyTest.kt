@@ -44,4 +44,31 @@ class ServerUrlPolicyTest {
         assertTrue(ServerUrlPolicy.hasUnsupportedPath("chat"))
         assertTrue(ServerUrlPolicy.hasUnsupportedPath("//"))
     }
+
+    @Test
+    fun localOrPrivateHost_classification() {
+        // loopback / local domains
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("localhost"))
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("LOCALHOST"))
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("127.0.0.1"))
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("::1"))
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("printer.local"))
+        // RFC1918
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("10.0.0.1"))
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("172.16.0.1"))
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("172.31.255.255"))
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("192.168.1.10"))
+        // public must NOT classify as local
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("8.8.8.8"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("1.1.1.1"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("chat.example.com"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("172.15.0.1"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("172.32.0.1"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("192.167.1.1"))
+        // spoof shapes
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("10.0.0.1.evil.com"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("192.168.1.10.evil.com"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost(""))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("not-an-ip"))
+    }
 }

@@ -5,7 +5,7 @@ import com.maodouchat.network.*
 import java.io.File
 
 /** Remaining endpoints retained through ApiService during the migration. */
-interface ApiSurface {
+interface ApiSurface : SocialApi {
     suspend fun getSealedSenderCertificate(token: String, deviceId: Int = 1): Result<String>
 
     suspend fun getPublicStatus(): Result<String>
@@ -71,35 +71,6 @@ interface ApiSurface {
 
     suspend fun getStarredMessages(token: String, chatId: String? = null): Result<List<StarredMessageRefDto>>
 
-    suspend fun getUsers(token: String, limit: Int = 30, offset: Int = 0): Result<List<UserDto>>
-
-    suspend fun getAllSearchableUsers(
-    token: String,
-    pageSize: Int = 100,
-    maxUsers: Int = 1000
-): Result<List<UserDto>>
-
-    suspend fun getUser(token: String, userId: String): Result<UserDto>
-
-    suspend fun getNearbyLocationStatus(token: String): Result<NearbyLocationStatusResponse>
-
-    suspend fun updateNearbyLocation(token: String, latitude: Double, longitude: Double): Result<NearbyLocationStatusResponse>
-
-    suspend fun stopNearbyLocationSharing(token: String): Result<NearbyLocationStatusResponse>
-
-    suspend fun getNearbyUsers(token: String, radiusKm: Double = 10.0, limit: Int = 50): Result<List<NearbyUserResponse>>
-
-    suspend fun searchUsers(token: String, query: String, limit: Int = 30): Result<List<UserDto>>
-
-    suspend fun getCurrentUser(token: String): Result<UserDto>
-
-    suspend fun getCurrentUserPublic(token: String): Result<CurrentUserPublicResponse>
-
-    suspend fun getPublicProfile(username: String): Result<PublicProfileResponse>
-
-    suspend fun setUsername(token: String, username: String): Result<SetUsernameResponse>
-
-    suspend fun clearUsername(token: String): Result<Unit>
 
     suspend fun getPrivacy(token: String): Result<UserPrivacyDto>
 
@@ -112,7 +83,7 @@ interface ApiSurface {
     onlineVisibility: String? = null
 ): Result<UserPrivacyDto>
 
-    suspend fun getPublicUpdates(officialBaseUrl: String = BuildConfig.API_BASE_URL): Result<PublicUpdatesDto>
+    suspend fun getPublicUpdates(baseUrl: String = ApiConfig.BASE_URL): Result<PublicUpdatesDto>
 
     suspend fun getNotificationSettings(token: String): Result<NotificationSettingsResponse>
 
@@ -150,53 +121,6 @@ interface ApiSurface {
 
     suspend fun getIceConfig(token: String): Result<IceConfigDto>
 
-    suspend fun blockUser(token: String, userId: String): Result<Unit>
-
-    suspend fun unblockUser(token: String, userId: String): Result<Unit>
-
-    suspend fun getBlockedUsers(token: String): Result<List<String>>
-
-    suspend fun getBlockedUserDetails(token: String): Result<List<UserDto>>
-
-    suspend fun getPosts(
-    token: String,
-    limit: Int = 40,
-    before: Long? = null,
-    beforeId: String? = null,
-    authorId: String? = null
-): Result<List<PostDto>>
-
-    suspend fun createPost(token: String, content: String, imageUrls: List<String>, visibility: String? = null): Result<PostDto>
-
-    suspend fun getPost(token: String, postId: String): Result<PostDto>
-
-    suspend fun editPost(token: String, postId: String, content: String, visibility: String? = null): Result<PostDto>
-
-    suspend fun deletePost(token: String, postId: String): Result<Unit>
-
-    suspend fun likePost(token: String, postId: String): Result<PostDto>
-
-    suspend fun unlikePost(token: String, postId: String): Result<PostDto>
-
-    suspend fun getPostComments(
-    token: String,
-    postId: String,
-    limit: Int = 50,
-    before: Long? = null,
-    beforeId: String? = null
-): Result<List<PostCommentDto>>
-
-    suspend fun createPostComment(token: String, postId: String, content: String, replyToId: String? = null): Result<PostCommentDto>
-
-    suspend fun editPostComment(token: String, postId: String, commentId: String, content: String): Result<PostCommentDto>
-
-    suspend fun getPostLikers(token: String, postId: String, limit: Int = 50): Result<PostLikersResponse>
-
-    suspend fun deleteComment(token: String, postId: String, commentId: String): Result<Unit>
-
-    suspend fun likeComment(token: String, postId: String, commentId: String): Result<CommentLikeResponse>
-
-    suspend fun unlikeComment(token: String, postId: String, commentId: String): Result<CommentLikeResponse>
 
     suspend fun sendFriendRequest(token: String, toUserId: String, message: String = ""): Result<FriendRequestDto>
 
@@ -231,16 +155,6 @@ interface ApiSurface {
     suspend fun getClientPrefs(token: String): Result<ClientPrefsDto>
 
     suspend fun putClientPrefs(token: String, request: ClientPrefsUpdateRequest): Result<ClientPrefsDto>
-
-    suspend fun createReport(
-    token: String,
-    targetType: String,
-    targetId: String,
-    chatId: String? = null,
-    messageId: String? = null,
-    reason: String,
-    description: String? = null
-): Result<ReportResponse>
 
     suspend fun getMyReports(token: String, limit: Int = 50): Result<List<ReportResponse>>
 
@@ -426,3 +340,104 @@ interface MediaApi {
 
     suspend fun uploadGroupAvatar(token: String, chatId: String, base64Data: String): Result<String>
 }
+
+interface SocialApi {
+    suspend fun getUsers(token: String, limit: Int = 30, offset: Int = 0): Result<List<UserDto>>
+
+    suspend fun getAllSearchableUsers(
+        token: String,
+        pageSize: Int = 100,
+        maxUsers: Int = 1000
+    ): Result<List<UserDto>>
+
+    suspend fun getUser(token: String, userId: String): Result<UserDto>
+
+    suspend fun searchUsers(token: String, query: String, limit: Int = 30): Result<List<UserDto>>
+
+    suspend fun getCurrentUser(token: String): Result<UserDto>
+
+    suspend fun getCurrentUserPublic(token: String): Result<CurrentUserPublicResponse>
+
+    suspend fun getPublicProfile(username: String): Result<PublicProfileResponse>
+
+    suspend fun setUsername(token: String, username: String): Result<SetUsernameResponse>
+
+    suspend fun clearUsername(token: String): Result<Unit>
+
+    suspend fun getNearbyLocationStatus(token: String): Result<NearbyLocationStatusResponse>
+
+    suspend fun updateNearbyLocation(token: String, latitude: Double, longitude: Double): Result<NearbyLocationStatusResponse>
+
+    suspend fun stopNearbyLocationSharing(token: String): Result<NearbyLocationStatusResponse>
+
+    suspend fun getNearbyUsers(token: String, radiusKm: Double = 10.0, limit: Int = 50): Result<List<NearbyUserResponse>>
+
+    suspend fun blockUser(token: String, userId: String): Result<Unit>
+
+    suspend fun unblockUser(token: String, userId: String): Result<Unit>
+
+    suspend fun getBlockedUsers(token: String): Result<List<String>>
+
+    suspend fun getBlockedUserDetails(token: String): Result<List<UserDto>>
+
+    suspend fun getPosts(
+        token: String,
+        limit: Int = 40,
+        before: Long? = null,
+        beforeId: String? = null,
+        authorId: String? = null
+    ): Result<List<PostDto>>
+
+    suspend fun createPost(token: String, content: String, imageUrls: List<String>, visibility: String? = null): Result<PostDto>
+
+    suspend fun getPost(token: String, postId: String): Result<PostDto>
+
+    suspend fun editPost(token: String, postId: String, content: String, visibility: String? = null): Result<PostDto>
+
+    suspend fun deletePost(token: String, postId: String): Result<Unit>
+
+    suspend fun likePost(token: String, postId: String): Result<PostDto>
+
+    suspend fun unlikePost(token: String, postId: String): Result<PostDto>
+
+    suspend fun getPostComments(
+        token: String,
+        postId: String,
+        limit: Int = 50,
+        before: Long? = null,
+        beforeId: String? = null
+    ): Result<List<PostCommentDto>>
+
+    suspend fun createPostComment(
+        token: String,
+        postId: String,
+        content: String,
+        replyToId: String? = null
+    ): Result<PostCommentDto>
+
+    suspend fun editPostComment(
+        token: String,
+        postId: String,
+        commentId: String,
+        content: String
+    ): Result<PostCommentDto>
+
+    suspend fun getPostLikers(token: String, postId: String, limit: Int = 50): Result<PostLikersResponse>
+
+    suspend fun deleteComment(token: String, postId: String, commentId: String): Result<Unit>
+
+    suspend fun likeComment(token: String, postId: String, commentId: String): Result<CommentLikeResponse>
+
+    suspend fun unlikeComment(token: String, postId: String, commentId: String): Result<CommentLikeResponse>
+
+    suspend fun createReport(
+        token: String,
+        targetType: String,
+        targetId: String,
+        chatId: String? = null,
+        messageId: String? = null,
+        reason: String,
+        description: String? = null
+    ): Result<ReportResponse>
+}
+

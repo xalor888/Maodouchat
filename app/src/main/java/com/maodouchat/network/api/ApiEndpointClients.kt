@@ -313,11 +313,20 @@ override suspend fun updatePrivacy(
     onlineVisibility: String?): Result<UserPrivacyDto> =
     send(Request.Builder().url("${ApiConfig.BASE_URL}/api/users/privacy").addHeader("Authorization", "Bearer $token").put(jsonBody(json.encodeToString(UpdatePrivacyRequest.serializer(), UpdatePrivacyRequest(showOnline, showStatus, searchable, defaultPostVisibility, onlineVisibility)))).build(), UserPrivacyDto.serializer())
 
-override suspend fun getPublicUpdates(officialBaseUrl: String): Result<PublicUpdatesDto> =
+override suspend fun getPublicUpdates(baseUrl: String): Result<PublicUpdatesDto> =
     send(
-        Request.Builder().url("${officialBaseUrl.trimEnd('/')}/api/public/updates").get().build(),
+        Request.Builder().url("${baseUrl.trimEnd('/')}/api/public/updates").get().build(),
         PublicUpdatesDto.serializer()
-    )
+    ).recoverCatching { error ->
+        if (baseUrl.trimEnd('/') != BuildConfig.API_BASE_URL.trimEnd('/')) {
+            send(
+                Request.Builder().url("${BuildConfig.API_BASE_URL.trimEnd('/')}/api/public/updates").get().build(),
+                PublicUpdatesDto.serializer()
+            ).getOrThrow()
+        } else {
+            throw error
+        }
+    }
 
 override suspend fun getNotificationSettings(token: String): Result<NotificationSettingsResponse> =
     send(Request.Builder().url("${ApiConfig.BASE_URL}/api/users/notification-settings").addHeader("Authorization", "Bearer $token").get().build(), NotificationSettingsResponse.serializer())

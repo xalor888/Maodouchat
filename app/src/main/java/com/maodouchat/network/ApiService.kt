@@ -30,6 +30,8 @@ import com.maodouchat.network.api.MediaApi
 import com.maodouchat.network.api.MediaApiClient
 import com.maodouchat.network.api.MessagingApi
 import com.maodouchat.network.api.MessagingApiClient
+import com.maodouchat.network.api.SocialApi
+import com.maodouchat.network.api.SocialApiClient
 
 enum class ApiFailureKind {
     HTTP,
@@ -119,6 +121,7 @@ object ApiService :
     val messaging: MessagingApi = MessagingApiClient
     val conversations: ConversationApi = ConversationApiClient
     val media: MediaApi = MediaApiClient
+    val social: SocialApi = ApiEndpointClients
 
     internal val json = Json { ignoreUnknownKeys = true }
     // TokenManager is a process singleton holding applicationContext only. Reading it on
