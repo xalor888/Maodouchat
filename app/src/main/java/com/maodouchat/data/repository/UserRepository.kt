@@ -61,4 +61,21 @@ class UserRepository(private val userDao: UserDao) {
     /** 给联系人设置本地备注名 */
     suspend fun setNickname(userId: String, nickname: String) =
         userDao.setNickname(userId, nickname.ifBlank { null })
+
+    /** 应用实时在线状态与可见性变更 */
+    suspend fun applyRealtimeVisibility(
+        userId: String,
+        isOnline: Boolean,
+        onlineRevoked: Boolean,
+        statusRevoked: Boolean,
+        updatedAt: Long = System.currentTimeMillis()
+    ) {
+        userDao.applyRealtimeVisibility(
+            userId = userId,
+            isOnline = isOnline,
+            onlineRevoked = onlineRevoked,
+            statusRevoked = statusRevoked,
+            updatedAt = updatedAt
+        )
+    }
 }

@@ -96,7 +96,11 @@ class MessageSearchRepository(private val database: AppDatabase) {
         // 密聊明文永不进全局搜索：任何入口都先删除该会话已有索引，再拒绝写入。
         val isSecretChat = secretChatIds?.contains(message.chatId)
             ?: (message.chatId.isNotBlank() && chatDao.isSecretChat(message.chatId))
-        if (isSecretChat) {
+        val caps = com.maodouchat.domain.messaging.ConversationPrivacyCapabilities(
+            isSecretChat = isSecretChat,
+            isLocked = false
+        )
+        if (!com.maodouchat.domain.messaging.ConversationPrivacyPolicy.allows(caps, com.maodouchat.domain.messaging.PrivacyAction.SEARCH)) {
             searchDao.deleteDocument(message.id)
             return knownFingerprint != null
         }

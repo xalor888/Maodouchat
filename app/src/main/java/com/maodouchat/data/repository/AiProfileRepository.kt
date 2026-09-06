@@ -26,8 +26,7 @@ import java.io.File
  *
  * 红线约束：
  * - 只依赖 net.sqlcipher + 现有 DatabasePassphraseProvider，不改动 AppDatabase；
- * - 端侧 embedding 不落库（OnDeviceEmbeddingGate.isImplementationAllowed=false），
- *   本库只存文本统计与结果，不存向量/权重。
+ * - 端侧不落重型向量库，本库只存文本统计与结果，不存模型权重。
  */
 class AiProfileRepository private constructor(private val context: Context) {
 
