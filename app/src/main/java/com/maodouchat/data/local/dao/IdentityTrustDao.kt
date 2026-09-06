@@ -27,6 +27,9 @@ interface IdentityTrustDao {
     @Query("UPDATE identity_trust SET trustState = :trustState, verifiedAt = :verifiedAt, lastSeenAt = :lastSeenAt WHERE accountId = :accountId AND remoteUserId = :remoteUserId AND deviceId = :deviceId")
     suspend fun updateTrustState(accountId: String, remoteUserId: String, deviceId: Int, trustState: String, verifiedAt: Long?, lastSeenAt: Long)
 
+    @Query("DELETE FROM identity_trust WHERE accountId = :accountId AND remoteUserId = :remoteUserId AND deviceId = :deviceId")
+    fun deleteTrustBlocking(accountId: String, remoteUserId: String, deviceId: Int)
+
     @Query("DELETE FROM identity_trust WHERE accountId = :accountId")
     suspend fun deleteForAccount(accountId: String)
 

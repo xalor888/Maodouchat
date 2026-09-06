@@ -18,5 +18,6 @@ data class MessagingV2ReceiptEntity(
     val recipientUserId: String,
     val deliveredAt: Long? = null,
     val readAt: Long? = null,
+    val playedAt: Long? = null,
     val updatedAt: Long = System.currentTimeMillis(),
 )

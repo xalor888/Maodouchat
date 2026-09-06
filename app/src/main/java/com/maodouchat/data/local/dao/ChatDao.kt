@@ -41,8 +41,14 @@ interface ChatDao {
     @Query("SELECT EXISTS(SELECT 1 FROM chats WHERE id = :chatId AND chatType = 'SECRET')")
     suspend fun isSecretChat(chatId: String): Boolean
 
+    @Query("SELECT EXISTS(SELECT 1 FROM chats WHERE id = :chatId AND chatType = 'SECRET')")
+    fun isSecretChatBlocking(chatId: String): Boolean
+
     @Query("SELECT id FROM chats WHERE chatType = 'SECRET'")
     suspend fun listSecretChatIds(): List<String>
+
+    @Query("SELECT id FROM chats WHERE chatType = 'SECRET'")
+    fun observeSecretChatIds(): Flow<List<String>>
 
     // SQLite REPLACE deletes the existing parent row before inserting it again. Because
     // messages.chatId has ON DELETE CASCADE, REPLACE here used to erase the complete local

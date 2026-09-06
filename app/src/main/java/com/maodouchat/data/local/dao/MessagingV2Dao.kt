@@ -253,7 +253,7 @@ interface MessagingV2Dao {
         """
         SELECT * FROM messaging_v2_receipts
         WHERE ownerUserId = :ownerUserId AND messageId = :messageId
-        ORDER BY COALESCE(readAt, deliveredAt, updatedAt) ASC
+        ORDER BY COALESCE(playedAt, readAt, deliveredAt, updatedAt) ASC
         """,
     )
     suspend fun getReceiptsForMessage(
