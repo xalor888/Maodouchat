@@ -72,25 +72,48 @@ internal class MessageReceiptProjector(
         }
     }
 
+    suspend fun applyPlayReceipt(
+        owner: String,
+        existing: Message,
+        envelope: MessagingV2InboxEntity,
+        event: MessagingV2Event,
+    ) {
+        val targetMessageId = event.targetMessageId
+        val target = if (existing.id == targetMessageId) existing else messageStore.getMessageById(targetMessageId) ?: return
+        if (envelope.senderUserId == owner) return
+        if (target.senderId != owner) return
+
+        persistReceipt(
+            ownerUserId = owner,
+            message = target,
+            recipientUserId = envelope.senderUserId,
+            deliveredAt = envelope.serverTimestamp,
+            readAt = envelope.serverTimestamp,
+            playedAt = envelope.serverTimestamp,
+        )
+    }
+
     private suspend fun persistReceipt(
         ownerUserId: String,
         message: Message,
         recipientUserId: String,
         deliveredAt: Long?,
         readAt: Long? = null,
+        playedAt: Long? = null,
     ) {
         val dao = app.database.messagingV2Dao()
         val previous = dao.getReceipt(ownerUserId, message.id, recipientUserId)
-        dao.upsertReceipt(
-            MessagingV2ReceiptEntity(
-                ownerUserId = ownerUserId,
-                messageId = message.id,
-                conversationId = message.chatId,
-                recipientUserId = recipientUserId,
-                deliveredAt = maxOf(previous?.deliveredAt ?: 0L, deliveredAt ?: 0L).takeIf { it > 0L },
-                readAt = maxOf(previous?.readAt ?: 0L, readAt ?: 0L).takeIf { it > 0L },
-                updatedAt = clock(),
-            ),
+        val merged = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = previous,
+            ownerUserId = ownerUserId,
+            messageId = message.id,
+            conversationId = message.chatId,
+            recipientUserId = recipientUserId,
+            deliveredAt = deliveredAt,
+            readAt = readAt,
+            playedAt = playedAt,
+            now = clock(),
         )
+        dao.upsertReceipt(merged)
     }
 }

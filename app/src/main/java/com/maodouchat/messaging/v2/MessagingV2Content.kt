@@ -158,4 +158,5 @@ object MessagingV2EventAction {
     const val REACTION_SNAPSHOT = "REACTION_SNAPSHOT"
     const val DELIVERY_RECEIPT = "DELIVERY_RECEIPT"
     const val READ_RECEIPT = "READ_RECEIPT"
+    const val PLAY_RECEIPT = "PLAY_RECEIPT"
 }

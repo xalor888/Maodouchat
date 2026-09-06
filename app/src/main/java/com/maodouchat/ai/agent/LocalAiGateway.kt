@@ -173,6 +173,11 @@ object LocalAiGateway {
             LocalAiFileAnalyzer.Kind.TEXT ->
                 AgentSessionEngine().completeText(provider, instruction, prepared.text)
             LocalAiFileAnalyzer.Kind.PDF_PAGES -> {
+                if (!provider.hasVisionCapability()) {
+                    return Result.failure(
+                        IllegalStateException("当前模型 (${provider.model}) 不支持视觉多模态输入，请在「AI 与隐私」设置中开启多模态支持或配置视觉模型（如 GPT-4o / Claude-3 / Qwen-VL 等）")
+                    )
+                }
                 val pages = prepared.pageJpegsBase64.map { "image/jpeg" to it }
                 when (val result = OpenAiCompatClient.completeVision(provider, instruction, pages)) {
                     is OpenAiCompatClient.Completion.Text -> Result.success(result.content.trim())

@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
  * 「分类统计」或按类别筛选本地消息。
  *
  * 约束：
- * - 纯本地规则，不引入 embedding/模型权重（OnDeviceEmbeddingGate 保持关闭）；
+ * - 纯本地启发式规则，不引入重型 embedding 向量模型；
  * - 明文只在 SQLCipher 解密通道内处理，分类结果不离开本机；
  * - 词典是启发式，不构成任何事实/特权声明。
  */

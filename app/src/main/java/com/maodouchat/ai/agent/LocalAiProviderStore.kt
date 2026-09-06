@@ -148,7 +148,8 @@ object LocalAiProviderStore {
                         contextWindowTokens = o.optInt("contextWindowTokens", 128_000),
                         historyMessageLimit = o.optInt("historyMessageLimit", 24),
                         timeoutSeconds = o.optInt("timeoutSeconds", 120),
-                        stream = o.optBoolean("stream", true)
+                        stream = o.optBoolean("stream", true),
+                        supportsVision = o.optBoolean("supportsVision", false)
                     )
                 )
             }
@@ -176,6 +177,7 @@ object LocalAiProviderStore {
                     .put("historyMessageLimit", p.historyMessageLimit)
                     .put("timeoutSeconds", p.timeoutSeconds)
                     .put("stream", p.stream)
+                    .put("supportsVision", p.supportsVision)
             )
         }
         return array.toString()

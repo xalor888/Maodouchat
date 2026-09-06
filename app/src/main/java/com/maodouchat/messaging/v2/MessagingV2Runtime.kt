@@ -25,6 +25,7 @@ import kotlinx.coroutines.sync.withLock
 class MessagingV2Runtime(
     private val app: MaodouchatApp,
     private val scope: CoroutineScope,
+    private val realtimeDispatcher: com.maodouchat.core.realtime.RealtimeEventDispatcher? = null,
 ) : com.maodouchat.domain.messaging.MessagingV2Runtime {
     private val tokenManager = TokenManager.getInstance(app)
     private val messageStore = LocalMessageStore(app.database.messageDao(), app.database)
@@ -119,8 +120,15 @@ class MessagingV2Runtime(
         started = true
         val generation = ++lifecycleGeneration
         eventJob = scope.launch {
-            WebSocketClient.events.collect { event ->
-                if (event is WebSocketEvent.InboxAvailableV2) syncOnce(generation)
+            val wakeEvents = realtimeDispatcher?.wakeEvents
+            if (wakeEvents != null) {
+                wakeEvents.collect {
+                    syncOnce(generation)
+                }
+            } else {
+                WebSocketClient.events.collect { event ->
+                    if (event is WebSocketEvent.InboxAvailableV2) syncOnce(generation)
+                }
             }
         }
         pollJob = scope.launch {

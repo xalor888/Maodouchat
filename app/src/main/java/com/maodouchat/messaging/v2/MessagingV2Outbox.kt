@@ -138,6 +138,29 @@ class MessagingV2Outbox(
         )
     }
 
+    suspend fun enqueuePlayReceipt(
+        conversationId: String,
+        messageId: String,
+        groupRevision: Long? = null,
+    ): String {
+        val owner = requireOwner()
+        return enqueueEvent(
+            conversationId = conversationId,
+            event = MessagingV2Event(
+                action = MessagingV2EventAction.PLAY_RECEIPT,
+                targetMessageId = messageId,
+                status = "PLAYED",
+            ),
+            groupRevision = groupRevision,
+            messageId = receiptMessageId(
+                action = MessagingV2EventAction.PLAY_RECEIPT,
+                targetMessageId = messageId,
+                owner = owner,
+            ),
+            kind = "RECEIPT",
+        )
+    }
+
     suspend fun enqueueAttachmentReference(
         conversationId: String,
         type: MessageType,

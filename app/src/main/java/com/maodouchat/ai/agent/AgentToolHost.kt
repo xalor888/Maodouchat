@@ -153,11 +153,13 @@ object AgentToolHost {
 
     private suspend fun requireReadableChat(app: MaodouchatApp, chatId: String): String? {
         if (chatId.isBlank()) return "Error: chatId required"
-        val locked = app.database.chatLockDao().get(chatId) != null
-        val secret = app.database.chatDao().isSecretChat(chatId)
+        val caps = app.secretConversationController.capabilities(chatId)
+        if (!com.maodouchat.domain.messaging.ConversationPrivacyPolicy.allows(caps, com.maodouchat.domain.messaging.PrivacyAction.AI)) {
+            return "Error: secret chats cannot be accessed by AI"
+        }
         return AgentSecretGatePolicy.denyIfSecretOrLocked(
-            isSecret = secret,
-            isLocked = locked,
+            isSecret = caps.isSecretChat,
+            isLocked = caps.isLocked,
             unlocked = ChatLockSession.isUnlocked(chatId)
         )
     }

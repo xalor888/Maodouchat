@@ -62,6 +62,21 @@ object AiPrivacyPreferences {
             .apply()
     }
 
+    /**
+     * 一键开启全部 AI 核心能力与隐私授权：
+     * 包括：用户总开关、本机处理授权、自动翻译、端侧消息安全提醒与图片 OCR。
+     */
+    fun enableAllDefaults(context: Context) {
+        val account = account(context) ?: return
+        account.prefs.edit()
+            .putBoolean(scopedKey(KEY_CONSENT, account.userId), true)
+            .putBoolean(scopedKey(KEY_USER_ENABLED, account.userId), true)
+            .putBoolean(scopedKey(KEY_LOCAL_SAFETY, account.userId), true)
+            .putBoolean(scopedKey(KEY_AUTO_TRANSLATE, account.userId), true)
+            .apply()
+        ImageOcrPreferences.setEnabled(context, true)
+    }
+
     fun revoke(context: Context) {
         val account = account(context) ?: return
         account.prefs.edit()

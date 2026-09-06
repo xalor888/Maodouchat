@@ -26,8 +26,28 @@ data class LocalAiProvider(
     val contextWindowTokens: Int = 128_000,
     val historyMessageLimit: Int = 24,
     val timeoutSeconds: Int = 120,
-    val stream: Boolean = true
+    val stream: Boolean = true,
+    val supportsVision: Boolean = false
 ) {
+    /**
+     * 判断当前模型是否具备视觉多模态能力。
+     * 若显式设置为 true 则为 true；若为 false，则尝试匹配知名视觉模型命名规则。
+     */
+    fun hasVisionCapability(): Boolean {
+        if (supportsVision) return true
+        val m = model.trim().lowercase()
+        return m.contains("vision") ||
+            m.contains("4o") ||
+            m.contains("claude-3") ||
+            m.contains("gemini") ||
+            m.contains("qwen-vl") ||
+            m.contains("vl-") ||
+            m.endsWith("-vl") ||
+            m.contains("pixtral") ||
+            m.contains("llava") ||
+            m.contains("multimodal")
+    }
+
     fun resolvedChatCompletionsUrl(): String {
         val base = baseUrl.trim().trimEnd('/')
         return if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
