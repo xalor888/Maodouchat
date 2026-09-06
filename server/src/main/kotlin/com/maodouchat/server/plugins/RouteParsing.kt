@@ -11,7 +11,10 @@ private val routingParseLogger = org.slf4j.LoggerFactory.getLogger("RoutingParse
 
 // 手动 JSON 解析 —— 绕过 Ktor ContentNegotiation 对 receiveNullable / ContentConversion 的歧义。
 // 在 Ktor 2.3 + in-memory testApplication 同进程多次 mount 时行为最稳定。
-// 用法：val req = call.receiveBoundedText()?.let { parseJson<SomeRequest>(it) }
+// 用法：val req = call.receiveJson<SomeRequest>()
+internal suspend inline fun <reified T> ApplicationCall.receiveJson(maxChars: Int = MAX_JSON_BODY_CHARS): T? =
+    receiveBoundedText(maxChars)?.let { parseJson<T>(it) }
+
 internal inline fun <reified T> parseJson(text: String): T? = try {
     if (text.isBlank()) null
     else routingJson.decodeFromString<T>(text)

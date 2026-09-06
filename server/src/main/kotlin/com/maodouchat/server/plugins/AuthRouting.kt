@@ -45,7 +45,7 @@ internal fun Route.configureAuthRoutes(
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("注册过于频繁，请稍后再试"))
                 return@post
             }
-            val req = call.receiveBoundedText()?.let { parseJson<RegisterRequest>(it) }
+            val req = call.receiveJson<RegisterRequest>()
             if (req == null || req.name.isBlank() || req.email.isBlank() || !isValidPassword(req.password)) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@post
@@ -84,7 +84,7 @@ internal fun Route.configureAuthRoutes(
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("登录过于频繁，请稍后再试"))
                 return@post
             }
-            val req = call.receiveBoundedText()?.let { parseJson<LoginRequest>(it) }
+            val req = call.receiveJson<LoginRequest>()
             if (req == null || req.email.isBlank() || req.password.isBlank()) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("邮箱或密码不能为空"))
                 return@post
@@ -151,7 +151,7 @@ internal fun Route.configureAuthRoutes(
         // 发送验证码 — 在 Dispatchers.IO 中同步阻塞等待邮件发送完成，避免阻塞 Netty 事件线程
             // purpose=register（默认）| reset；重置密码不依赖 allowRegistration
             post("/api/auth/send-code") {
-                val req = call.receiveBoundedText()?.let { parseJson<SendCodeRequest>(it) } ?: run {
+                val req = call.receiveJson<SendCodeRequest>() ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@post
                 }
@@ -230,7 +230,7 @@ return@post
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("注册过于频繁，请稍后再试"))
                     return@post
                 }
-                val req = call.receiveBoundedText()?.let { parseJson<RegisterWithCodeRequest>(it) } ?: run {
+                val req = call.receiveJson<RegisterWithCodeRequest>() ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@post
                 }
@@ -280,7 +280,7 @@ return@post
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                 return@post
             }
-            val req = call.receiveBoundedText()?.let { parseJson<ResetPasswordRequest>(it) } ?: run {
+            val req = call.receiveJson<ResetPasswordRequest>() ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@post
             }
@@ -328,7 +328,7 @@ put("message", "密码已重置，请使用新密码登录")
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                 return@post
             }
-            val req = call.receiveBoundedText()?.let { parseJson<RefreshTokenRequest>(it) } ?: run {
+            val req = call.receiveJson<RefreshTokenRequest>() ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@post
             }
@@ -385,7 +385,7 @@ put("message", "密码已重置，请使用新密码登录")
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                 return@post
             }
-            val req = call.receiveBoundedText()?.let { parseJson<RefreshTokenRequest>(it) } ?: run {
+            val req = call.receiveJson<RefreshTokenRequest>() ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@post
             }
