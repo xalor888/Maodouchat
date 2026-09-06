@@ -445,7 +445,7 @@ internal fun Route.configureAuthenticatedSessionRoutes(
 ) {
     authenticate("auth-jwt") {
             post("/api/auth/logout-all") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 sessionService.revokeAllUserSessions(userId)
                 // 全设备登出后必须清掉推送 token，否则已退出设备仍可能收到来电唤醒。
                 disconnectUserSessions(userId, "已在其他设备退出全部会话")
@@ -457,13 +457,13 @@ put("status", "ok")
             }
 
             get("/api/auth/totp/status") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 call.respond(TotpStatusResponse(enabled = mfaService.isTotpEnabled(userId)))
             }
 
             // 0.77：重新生成恢复码（验证当前 TOTP；旧码全部作废）
             post("/api/auth/totp/recover-codes") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 if (!totpManageRateLimiter.acquire(userId, maxPerMinute = 5)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                 }
@@ -479,7 +479,7 @@ put("status", "ok")
             }
 
             post("/api/auth/totp/setup") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val setup = mfaService.beginTotpSetup(userId)
                     ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("user not found"))
                 call.respond(
@@ -492,7 +492,7 @@ put("status", "ok")
             }
 
             post("/api/auth/totp/confirm") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 // 8.40：2FA 管理端点限流 + 失败锁定——6 位码 ±1 窗口可爆破，此前无限流
                 if (!totpManageRateLimiter.acquire(userId, maxPerMinute = 5)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
@@ -510,7 +510,7 @@ put("status", "ok")
             }
 
             post("/api/auth/totp/disable") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 // 8.40：与 confirm 一致限流；disable 需验码，爆破同样应被抑制
                 if (!totpManageRateLimiter.acquire(userId, maxPerMinute = 5)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))

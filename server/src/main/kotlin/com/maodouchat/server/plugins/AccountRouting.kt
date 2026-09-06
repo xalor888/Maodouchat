@@ -38,7 +38,7 @@ internal fun Route.configureAccountRoutes(
 ) {
     authenticate("auth-jwt") {
             get("/api/users/me") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val user = userRepo.getById(userId)
                 if (user != null) call.respond(user)
                 else call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
@@ -48,7 +48,7 @@ internal fun Route.configureAccountRoutes(
             // 任何客户端可拿密钥伪造 FCM 签名）。密钥按用户派生（HMAC(master, userId)），
             // 仅认证用户可取**自己的**派生密钥——只能伪造发给自己的推送，无法伪造他人。
             get("/api/push/verify-key") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val secret = com.maodouchat.server.config.ServerConfig.pushHmacSecret
                 if (secret.isBlank() || secret.startsWith("dev-only-")) {
                     call.respond(buildJsonObject { put("key", JsonNull) })
@@ -58,7 +58,7 @@ internal fun Route.configureAccountRoutes(
             }
 
             get("/api/users") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 if (!userSearchRateLimiter.acquire(userId, maxPerMinute = 30)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                     return@get
@@ -86,7 +86,7 @@ internal fun Route.configureAccountRoutes(
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("搜索关键字至少 2 个字符"))
                     return@get
                 }
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 if (!userSearchRateLimiter.acquire(userId, maxPerMinute = 30)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                     return@get
@@ -95,14 +95,14 @@ internal fun Route.configureAccountRoutes(
             }
 
             get("/api/users/privacy") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val privacy = userRepo.getPrivacy(userId)
                 if (privacy != null) call.respond(privacy)
                 else call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
             }
 
             put("/api/users/privacy") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 // 8.38：封禁用户不得改隐私（与头像/资料/附近位置一致，防关闭 searchable 逃避检索处置）
                 if (call.rejectIfSuspended(userRepo, userId)) return@put
                 val req = call.receiveBoundedText()?.let { parseJson<UpdatePrivacyRequest>(it) }
@@ -141,7 +141,7 @@ internal fun Route.configureAccountRoutes(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("nearby_disabled"))
                     return@get
                 }
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 call.respond(nearbyRepo.getStatus(userId))
             }
 
@@ -151,7 +151,7 @@ internal fun Route.configureAccountRoutes(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("nearby_disabled"))
                     return@put
                 }
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 // 8.33 修复：封禁用户不得更新附近位置（位置 = 实时行踪，封禁期间必须消失）
                 if (call.rejectIfSuspended(userRepo, userId)) return@put
                 // 每用户限流：位置更新是 DB 写，防高频轮询刷写
@@ -174,7 +174,7 @@ internal fun Route.configureAccountRoutes(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("nearby_disabled"))
                     return@delete
                 }
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 nearbyRepo.stopSharing(userId)
                 call.respond(NearbyLocationStatusResponse(false, 0))
             }
@@ -185,7 +185,7 @@ internal fun Route.configureAccountRoutes(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("nearby_disabled"))
                     return@get
                 }
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 // 8.33 修复：封禁用户不得查询附近的人（位置隐私双向一致）
                 if (call.rejectIfSuspended(userRepo, userId)) return@get
                 // 每用户限流：附近查询是范围扫描 + haversine 计算，防高频轮询打 CPU
@@ -199,12 +199,12 @@ internal fun Route.configureAccountRoutes(
             }
 
             get("/api/users/notification-settings") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 call.respond(notificationPreferenceRepo.getSettings(userId))
             }
 
             put("/api/users/notification-settings") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val req = call.receiveBoundedText()?.let { parseJson<NotificationSettingsRequest>(it) }
                 if (req == null) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
@@ -248,7 +248,7 @@ put("status", "ok")
             }
 
             delete("/api/users/push-tokens") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val req = call.receiveBoundedText()?.let { parseJson<RemovePushTokenRequest>(it) }
                 val deviceId = req?.deviceId?.trim().orEmpty()
                 if (!deviceId.matches(Regex("^[A-Za-z0-9._:-]{1,100}$"))) {
@@ -275,7 +275,7 @@ put("status", "ok")
 
             // 上传头像
             post("/api/users/avatar") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 // 8.33 修复：封禁用户不得更换头像/资料（与 profile 修改一致）
                 if (call.rejectIfSuspended(userRepo, userId)) return@post
                 if (!avatarRateLimiter.acquire(userId, maxPerMinute = 10)) {
@@ -315,7 +315,7 @@ put("avatarUrl", avatarUrl)
             }
 
             delete("/api/users/avatar") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val replacement = userRepo.replaceAvatar(userId, null)
                 if (replacement == null) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
@@ -393,7 +393,7 @@ put("ok", true)
 
             // 获取当前用户公开信息（含用户名；8.32 一致性：公开形态不含 email 等私有字段）
             get("/api/users/me/public") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val user = userRepo.getPublicMe(userId)
                 if (user != null) {
                     val publicProfileUrl = user.username?.let { "${ServerConfig.baseUrl.trimEnd('/')}/u/${it}" }
@@ -408,7 +408,7 @@ put("publicProfileUrl", publicProfileUrl)
 
             // 修改密码：成功后吊销全部刷新令牌并轮换 access token version，避免旧会话继续有效
             post("/api/users/change-password") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val req = call.receiveBoundedText()?.let { parseJson<ChangePasswordRequest>(it) } ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@post
@@ -434,7 +434,7 @@ put("status", "ok")
             }
 
             delete("/api/users/me") {
-                val userId = call.principal<JWTPrincipal>()!!.payload.subject
+                val userId = call.requireUserId()
                 val groupAvatarCandidates = groupMediaReferenceRepo.avatarUrlsForParticipant(userId)
                 // 8.33 修复：删号会 bump memberRevision（含群主转让），但此前无广播，剩余成员残留成员列表
                 val groupSnapshots = conversationParticipantRepo.groupMembershipSnapshotForDeletion(userId)

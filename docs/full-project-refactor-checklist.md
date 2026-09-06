@@ -535,7 +535,7 @@ Gate：空库、旧库升级、重复/中断 migration、备份恢复、滚动�
 - [~] 登录失败、验证码和 limiter 使用可共享 store，支持多实例（`EmailVerificationCodeContractTest` 3 例锁定迁移门：用途隔离/5 次锁定/未知邮箱拒识；`EmailService` 进程内存储迁移本身需 Redis/DB + 部署配合，暂不动生产认证链）。
 - [ ] `DeviceSession` 明确绑定 auth session、Signal device 和 push token。
 - [~] 注销使用可重试编排器和删除清单（删除清单经全表审计补齐好友申请双向 + 群邀请双向，有意保留审计/上报/系统表并注释；`AccountDeactivationCleanupTest` 覆盖；可重试编排器待做）。
-- [ ] 认证/用户路由全部迁出 `Routing.kt`。
+- [x] 认证/用户路由全部迁出 `Routing.kt`（`AuthRouting`/`AccountRouting` 独立文件，`Routing.kt` 零 endpoint 定义、无 route 内事务；身份提取收敛为 `call.requireUserId()`）。
 
 Gate：refresh rotation/replay、多设备登出、TOTP、两节点限流、注销恢复和 WS 撤销通过。
 
