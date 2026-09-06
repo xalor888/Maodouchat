@@ -9,8 +9,16 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
+import com.maodouchat.domain.messaging.AttachmentIntent
+import com.maodouchat.domain.messaging.AttachmentIntentController
+import com.maodouchat.domain.messaging.AttachmentTransfer
+import com.maodouchat.domain.messaging.ForwardFailureReason
+import com.maodouchat.domain.messaging.ForwardRequest
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -168,6 +176,167 @@ class ConversationForwardCoordinatorTest {
         assertEquals(7L, stagedRevision)
     }
 
+    @Test
+    fun `forward request blocks secret chat with FORBIDDEN`() = runTest {
+        val coordinator = coordinator(
+            getChatById = { chat("secret-chat").copy(chatType = "SECRET") },
+            getMessageById = { message() },
+        )
+        val request = ForwardRequest(
+            sourceConversationId = "secret-chat",
+            sourceMessageId = "source-1",
+            targetConversationIds = listOf("target-1"),
+        )
+
+        val results = coordinator.forward(request)
+
+        assertEquals(1, results.size)
+        assertFalse(results.single().success)
+        assertEquals(ForwardFailureReason.FORBIDDEN, results.single().reason)
+    }
+
+    @Test
+    fun `forward request blocks PIN locked source chat with PIN_LOCKED`() = runTest {
+        val coordinator = coordinator(
+            getChatById = { chat("locked-chat") },
+            getMessageById = { message() },
+            isChatLocked = { it == "locked-chat" },
+        )
+        val request = ForwardRequest(
+            sourceConversationId = "locked-chat",
+            sourceMessageId = "source-1",
+            targetConversationIds = listOf("target-1"),
+        )
+
+        val results = coordinator.forward(request)
+
+        assertEquals(1, results.size)
+        assertFalse(results.single().success)
+        assertEquals(ForwardFailureReason.PIN_LOCKED, results.single().reason)
+    }
+
+    @Test
+    fun `forward request blocks terminal message with PERMANENT`() = runTest {
+        val coordinator = coordinator(
+            getChatById = { chat() },
+            getMessageById = { message().copy(status = MessageStatus.FAILED) },
+        )
+        val request = ForwardRequest(
+            sourceConversationId = "chat-1",
+            sourceMessageId = "source-1",
+            targetConversationIds = listOf("target-1"),
+        )
+
+        val results = coordinator.forward(request)
+
+        assertEquals(1, results.size)
+        assertFalse(results.single().success)
+        assertEquals(ForwardFailureReason.PERMANENT, results.single().reason)
+    }
+
+    @Test
+    fun `forward request supports partial multi target failure`() = runTest {
+        val staged = mutableListOf<Message>()
+        val coordinator = coordinator(
+            getChatById = { chat() },
+            getMessageById = { message() },
+            resolveTargets = { _, targets -> targets },
+            stageMessage = { msg, _ ->
+                if (msg.chatId == "target-bad") error("network unreachable")
+                staged += msg
+            },
+        )
+        val request = ForwardRequest(
+            sourceConversationId = "chat-1",
+            sourceMessageId = "source-1",
+            targetConversationIds = listOf("target-ok", "target-bad"),
+        )
+
+        val results = coordinator.forward(request)
+
+        assertEquals(2, results.size)
+        assertTrue(results[0].success)
+        assertEquals("target-ok", results[0].conversationId)
+        assertFalse(results[1].success)
+        assertEquals("target-bad", results[1].conversationId)
+        assertEquals(ForwardFailureReason.PERMANENT, results[1].reason)
+        assertEquals(1, staged.size)
+        assertEquals("target-ok", staged.single().chatId)
+    }
+
+    @Test
+    fun `forward request delegates media to AttachmentIntentController`() = runTest {
+        val controller = FakeAttachmentIntentController()
+        val coordinator = coordinator(
+            getChatById = { chat() },
+            getMessageById = { message(content = "https://cdn.example.com/photo.jpg", type = MessageType.IMAGE) },
+            attachmentIntentController = controller,
+        )
+        val request = ForwardRequest(
+            sourceConversationId = "chat-1",
+            sourceMessageId = "source-1",
+            targetConversationIds = listOf("target-1"),
+        )
+
+        val results = coordinator.forward(request)
+
+        assertEquals(1, results.size)
+        assertTrue(results.single().success)
+        assertEquals(1, controller.intents.size)
+        assertEquals("target-1", controller.intents.single().conversationId)
+        assertEquals("https://cdn.example.com/photo.jpg", controller.intents.single().uri)
+    }
+
+    @Test
+    fun `forwardBatch forwards multiple requests with caption on last`() = runTest {
+        val staged = mutableListOf<Message>()
+        val coordinator = coordinator(
+            getChatById = { chat() },
+            getMessageById = { id -> message(content = "content_$id").copy(id = id) },
+            resolveTargets = { _, targets -> targets },
+            stageMessage = { msg, _ -> staged += msg },
+        )
+        val requests = listOf(
+            ForwardRequest(
+                sourceConversationId = "chat-1",
+                sourceMessageId = "m-1",
+                targetConversationIds = listOf("target-1"),
+                caption = null,
+            ),
+            ForwardRequest(
+                sourceConversationId = "chat-1",
+                sourceMessageId = "m-2",
+                targetConversationIds = listOf("target-1"),
+                caption = "Check this out",
+            ),
+        )
+
+        val batchResult = coordinator.forwardBatch(requests)
+
+        assertEquals(2, batchResult.size)
+        assertTrue(batchResult["m-1"]!!.single().success)
+        assertTrue(batchResult["m-2"]!!.single().success)
+        // 2 forwarded messages + 1 note
+        assertEquals(3, staged.size)
+        assertEquals("Check this out", staged.last().content)
+    }
+
+    private class FakeAttachmentIntentController : AttachmentIntentController {
+        val intents = mutableListOf<AttachmentIntent>()
+        var failure: Throwable? = null
+
+        override suspend fun submit(intent: AttachmentIntent): Result<String> {
+            failure?.let { return Result.failure(it) }
+            intents += intent
+            return Result.success("transfer-1")
+        }
+
+        override fun observe(transferId: String): Flow<AttachmentTransfer> = emptyFlow()
+        override suspend fun pause(transferId: String): Boolean = true
+        override suspend fun resume(transferId: String): Boolean = true
+        override suspend fun cancel(transferId: String): Boolean = true
+    }
+
     private class RecordingGateway : ConversationMessageStagingGateway {
         val messages = mutableListOf<Message>()
         val payloads = mutableListOf<DecodedContentPayload>()
@@ -194,7 +363,11 @@ class ConversationForwardCoordinatorTest {
         fetchTargets: suspend (String) -> Result<List<Chat>> = { Result.success(emptyList()) },
         resolveTargets: suspend (String, List<Chat>) -> List<Chat> = { _, targets -> targets },
         stageMessage: suspend (Message, Long?) -> Unit = { _, _ -> },
-        forwardAttachment: suspend (Chat, Message, String, String?, String) -> Unit = { _, _, _, _, _ -> },
+        forwardAttachment: (suspend (Chat, Message, String, String?, String) -> Unit)? = null,
+        attachmentIntentController: AttachmentIntentController? = null,
+        getMessageById: (suspend (String) -> Message?)? = null,
+        getChatById: (suspend (String) -> Chat?)? = null,
+        isChatLocked: (suspend (String) -> Boolean)? = null,
         onMessageSent: (String, String, MessageType) -> Unit = { _, _, _ -> },
     ) = ConversationForwardCoordinator(
         ownerUserId = { "owner-1" },
@@ -204,6 +377,10 @@ class ConversationForwardCoordinatorTest {
         resolveTargets = resolveTargets,
         stageMessage = stageMessage,
         forwardAttachment = forwardAttachment,
+        attachmentIntentController = attachmentIntentController,
+        getMessageById = getMessageById,
+        getChatById = getChatById,
+        isChatLocked = isChatLocked,
         onMessageSent = onMessageSent,
         messageId = { "m-1" },
         now = { 10L },

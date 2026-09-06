@@ -14,6 +14,8 @@ class ContactsControllerTest {
         val repository = object : ContactsRepository {
             override fun currentSession() = session
             override fun isCurrent(session: ContactsSession) = current
+            override fun observeFriends(session: ContactsSession): kotlinx.coroutines.flow.Flow<List<User>> =
+                kotlinx.coroutines.flow.flowOf(emptyList())
             override suspend fun loadFriends(session: ContactsSession): ContactsLoadResult {
                 current = false
                 return ContactsLoadResult(listOf(User(id = "u1", name = "User")))
@@ -34,6 +36,8 @@ class ContactsControllerTest {
         val repository = object : ContactsRepository {
             override fun currentSession() = session
             override fun isCurrent(session: ContactsSession) = true
+            override fun observeFriends(session: ContactsSession): kotlinx.coroutines.flow.Flow<List<User>> =
+                kotlinx.coroutines.flow.flowOf(emptyList())
             override suspend fun loadFriends(session: ContactsSession) = ContactsLoadResult(emptyList())
             override suspend fun search(session: ContactsSession, query: String): ContactsLoadResult {
                 received = query

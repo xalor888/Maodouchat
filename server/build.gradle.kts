@@ -92,19 +92,18 @@ dependencies {
     testImplementation("io.ktor:ktor-client-core:$ktorVersion")
 }
 
-// 9.303：构建期从 stream-webrtc-android AAR 提取 arm64-v8a 的 libjingle_peerconnection_so.so
-// 到资源目录（服务端 WebRtcBinaryService 从 classpath /webrtc/... 惰性解压提供下载）。
-// 手工同步的 server/src/main/resources/webrtc/ 被 gitignore，Docker 构建拿不到，
-// 只能靠此任务在 installDist 前落盘。本地已存在的同步文件不重复覆盖。
+// 9.303：构建期从 stream-webrtc-android AAR 提取 arm64-v8a/x86_64 的 libjingle_peerconnection_so.so
+// 到生成的资源目录（服务端 WebRtcBinaryService 从 classpath /webrtc/... 惰性解压提供下载）。
+// 输出到 build/generated/resources，不污染 src/main/resources 源码树。
 val extractWebRtcNativeLib = tasks.register("extractWebRtcNativeLib") {
-    val destDir = layout.projectDirectory.dir("src/main/resources/webrtc")
+    val destDir = layout.buildDirectory.dir("generated/resources/webrtc")
     val abis = listOf("arm64-v8a", "x86_64")
-    outputs.files(abis.map { destDir.file("$it/libjingle_peerconnection_so.so") })
+    outputs.files(abis.map { destDir.get().file("$it/libjingle_peerconnection_so.so") })
     doLast {
         val aar = webrtcNative.singleFile
         ZipFile(aar).use { zip ->
             for (abi in abis) {
-                val dest = destDir.file("$abi/libjingle_peerconnection_so.so").asFile
+                val dest = destDir.get().file("$abi/libjingle_peerconnection_so.so").asFile
                 if (dest.isFile) continue
                 dest.parentFile.mkdirs()
                 val entry = zip.getEntry("jni/$abi/libjingle_peerconnection_so.so")
@@ -116,6 +115,7 @@ val extractWebRtcNativeLib = tasks.register("extractWebRtcNativeLib") {
     }
 }
 
+sourceSets["main"].resources.srcDir(layout.buildDirectory.dir("generated/resources"))
 tasks.named("processResources") { dependsOn(extractWebRtcNativeLib) }
 
 tasks.withType<Test> {

@@ -42,8 +42,8 @@ class ThemeStyleTest {
         assertEquals(Color(0xFF1A1A1A), light.content)
         assertEquals(Color(0xFF111111), darkPaint.colorScheme.background)
         assertEquals(Color(0xFF2A2A2A), dark!!.color)
-        // 9.x：接收气泡对齐 Telegram 浅色白底带边框（发送气泡仍为灰墨色，见上一断言）
-        assertEquals(Color(0xFFFFFFFF), lightPaint.chatPalette.chatBubbleReceived)
+        // Murexide M3 浅色接收气泡对齐 #EEEEF0
+        assertEquals(Color(0xFFEEEEF0), lightPaint.chatPalette.chatBubbleReceived)
     }
 
     @Test

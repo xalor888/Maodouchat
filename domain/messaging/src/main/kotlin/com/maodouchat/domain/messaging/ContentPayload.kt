@@ -95,6 +95,8 @@ enum class AttachmentKind {
     @SerialName("file") FILE,
     @SerialName("sticker") STICKER,
     @SerialName("gif") GIF,
+    @SerialName("location") LOCATION,
+    @SerialName("contact") CONTACT,
 }
 
 @Serializable

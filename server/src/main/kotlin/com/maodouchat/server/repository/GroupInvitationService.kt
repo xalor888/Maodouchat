@@ -10,7 +10,7 @@ import com.maodouchat.server.model.GroupInvitationDto
  * 原子完成，本层保持薄委托以与 GroupMembershipService 的分层一致。
  */
 class GroupInvitationService(
-    private val invitationRepository: GroupInvitationRepository,
+    private val invitationRepository: GroupInvitationRepository = GroupInvitationRepository(),
 ) {
     fun inviteMembers(
         chatId: String,

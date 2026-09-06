@@ -42,8 +42,25 @@ object AppUpdatePublishPolicy {
         return value
     }
 
-    fun sanitizeNotes(raw: String?): String =
-        (raw ?: "").trim().take(2_000)
+    fun sanitizeNotes(raw: String?): String {
+        if (raw.isNullOrBlank()) return ""
+        val trimmed = raw.trim()
+        val decoded = try {
+            if (trimmed.contains('%')) {
+                java.net.URLDecoder.decode(trimmed, "UTF-8")
+            } else if (trimmed.any { it.code in 0x80..0xFF }) {
+                // Recover UTF-8 characters corrupted by HTTP/1.1 ISO-8859-1 header parsing
+                val bytes = trimmed.toByteArray(Charsets.ISO_8859_1)
+                val utf8Str = String(bytes, Charsets.UTF_8)
+                if (utf8Str.none { it == '\uFFFD' }) utf8Str else trimmed
+            } else {
+                trimmed
+            }
+        } catch (_: Exception) {
+            trimmed
+        }
+        return decoded.trim().take(2_000)
+    }
 
     fun isZipMagic(header: ByteArray): Boolean {
         if (header.size < 4) return false

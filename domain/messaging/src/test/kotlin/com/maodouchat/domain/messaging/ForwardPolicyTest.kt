@@ -30,6 +30,19 @@ class ForwardPolicyTest {
     }
 
     @Test
+    fun `pin locked chat is blocked`() {
+        assertEquals(
+            Forwardability.PIN_LOCKED_BLOCKED,
+            ForwardPolicy.evaluate(
+                isSecretChat = false,
+                isTerminalMessage = false,
+                senderForbidsForward = false,
+                isPinLocked = true,
+            ),
+        )
+    }
+
+    @Test
     fun `plain message is allowed`() {
         assertEquals(
             Forwardability.ALLOWED,

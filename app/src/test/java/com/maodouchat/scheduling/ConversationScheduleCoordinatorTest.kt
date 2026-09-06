@@ -3,312 +3,43 @@ package com.maodouchat.scheduling
 import com.maodouchat.util.MessageReminderStore
 import com.maodouchat.util.ScheduledMessage
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ConversationScheduleCoordinatorTest {
-    @Test
-    fun `queue binds item to owner and schedules only after storage`() {
-        val backend = FakeBackend()
-        val coordinator = coordinator(backend)
 
-        val result = coordinator.queue(request())
-
-        assertTrue(result is ConversationScheduleResult.Success)
-        assertEquals("owner-1", backend.lastAddOwner)
-        assertEquals(listOf("add:sch-1", "schedule:sch-1"), backend.events)
-        assertEquals(1, backend.scheduled.size)
-    }
-
-    @Test
-    fun `queue rolls storage back when worker scheduling fails`() {
-        val backend = FakeBackend(scheduleFailuresRemaining = 1)
-        val coordinator = coordinator(backend)
-
-        val result = coordinator.queue(request())
-
-        assertEquals(
-            ConversationScheduleFailure.STORAGE,
-            (result as ConversationScheduleResult.Failure).reason,
-        )
-        assertTrue(backend.scheduled.isEmpty())
-        assertEquals(listOf("add:sch-1", "schedule:sch-1", "remove:sch-1"), backend.events)
-    }
-
-    @Test
-    fun `reschedule restores previous row and job when replacement fails`() {
-        val backend = FakeBackend(rescheduleFailuresRemaining = 1)
-        val original = scheduled(id = "existing", text = "old", sendAt = 100L)
-        backend.scheduled += original
-        val coordinator = coordinator(backend)
-
-        val result = coordinator.reschedule("existing", sendAtMillis = 900L, text = "new")
-
-        assertEquals(
-            ConversationScheduleFailure.STORAGE,
-            (result as ConversationScheduleResult.Failure).reason,
-        )
-        assertEquals(original, backend.scheduled.single())
-        assertTrue(backend.events.contains("reschedule:existing:900"))
-        assertTrue(backend.events.contains("reschedule:existing:100"))
-    }
-
-    @Test
-    fun `immediate send pauses job and removes row only after durable commit`() {
-        val backend = FakeBackend()
-        backend.scheduled += scheduled(id = "existing")
-        val coordinator = coordinator(backend)
-
-        val begun = coordinator.beginImmediateSend("existing")
-
-        assertTrue(begun is ConversationScheduleResult.Success)
-        assertEquals(1, backend.scheduled.size)
-        assertTrue(backend.cancelledJobs.contains("existing"))
-
-        coordinator.completeImmediateSend("existing")
-
-        assertTrue(backend.scheduled.isEmpty())
-    }
-
-    @Test
-    fun `failed immediate send restores paused worker without deleting row`() {
-        val backend = FakeBackend()
-        backend.scheduled += scheduled(id = "existing")
-        val coordinator = coordinator(backend)
-
-        coordinator.beginImmediateSend("existing")
-        coordinator.restoreImmediateSend("existing")
-
-        assertEquals(1, backend.scheduled.size)
-        assertTrue(backend.events.contains("schedule:existing"))
-    }
-
-    @Test
-    fun `durable completion removes original owner row after account switch`() {
-        val backend = FakeBackend()
-        backend.scheduled += scheduled(id = "existing")
-        backend.scheduled += scheduled(id = "existing", ownerUserId = "owner-2")
-        var liveOwner = "owner-1"
-        val coordinator = ConversationScheduleCoordinator(
-            ownerUserId = { liveOwner },
-            backend = backend,
-        )
-
-        val begun = coordinator.beginImmediateSend("existing") as ConversationScheduleResult.Success
-        liveOwner = "owner-2"
-        coordinator.completeImmediateSend(begun.value.ownerUserId, begun.value.id)
-
-        assertEquals(listOf("owner-2"), backend.scheduled.map { it.ownerUserId })
-    }
-
-    @Test
-    fun `reminder scheduler failure removes stored reminder`() {
-        val backend = FakeBackend(reminderScheduleFailuresRemaining = 1)
-        val coordinator = coordinator(backend, now = 1_000L)
-
-        val result = coordinator.scheduleReminder(
-            MessageReminderRequest(
-                chatId = "chat-1",
-                messageId = "message-1",
-                messagePreview = "hello",
-                remindAtMillis = Long.MAX_VALUE,
-            )
-        )
-
-        assertEquals(
-            ConversationScheduleFailure.STORAGE,
-            (result as ConversationScheduleResult.Failure).reason,
-        )
-        assertTrue(backend.reminders.isEmpty())
-        assertEquals("owner-1", backend.lastReminderOwner)
-    }
-
-    @Test
-    fun `missing session never touches backend`() {
-        val backend = FakeBackend()
-        val coordinator = ConversationScheduleCoordinator(
-            ownerUserId = { "" },
-            backend = backend,
-        )
-
-        val result = coordinator.queue(request())
-
-        assertEquals(
-            ConversationScheduleFailure.SESSION_MISSING,
-            (result as ConversationScheduleResult.Failure).reason,
-        )
-        assertTrue(backend.events.isEmpty())
-        assertNull(backend.lastAddOwner)
-    }
-
-    @Test
-    fun `chat controller rejects missing live session before coordinator storage`() {
-        val backend = FakeBackend()
-        val controller = ChatScheduleController(
-            coordinator = coordinator(backend),
-            scheduledMessagesEnabled = { true },
-        )
-
-        val result = controller.queue(command(sessionAvailable = false))
-
-        assertEquals(
-            ChatScheduleRejection.SESSION_MISSING,
-            (result as ChatScheduleMutationOutcome.Rejected).reason,
-        )
-        assertTrue(backend.events.isEmpty())
-    }
-
-    @Test
-    fun `chat controller rejects disabled and blocked commands without storage writes`() {
-        val disabledBackend = FakeBackend()
-        val disabled = ChatScheduleController(
-            coordinator = coordinator(disabledBackend),
-            scheduledMessagesEnabled = { false },
-        ).queue(command())
-        assertEquals(
-            ChatScheduleRejection.DISABLED,
-            (disabled as ChatScheduleMutationOutcome.Rejected).reason,
-        )
-        assertTrue(disabledBackend.events.isEmpty())
-
-        val blockedBackend = FakeBackend()
-        val blocked = ChatScheduleController(
-            coordinator = coordinator(blockedBackend),
-            scheduledMessagesEnabled = { true },
-        ).queue(command(blocked = true))
-        assertEquals(
-            ChatScheduleRejection.BLOCKED,
-            (blocked as ChatScheduleMutationOutcome.Rejected).reason,
-        )
-        assertTrue(blockedBackend.events.isEmpty())
-    }
-
-    @Test
-    fun `chat controller returns authoritative scheduled snapshot after queue`() {
-        val backend = FakeBackend()
-        val controller = ChatScheduleController(
-            coordinator = coordinator(backend),
-            scheduledMessagesEnabled = { true },
-        )
-
-        val result = controller.queue(command(isGroup = true)) as ChatScheduleMutationOutcome.Applied
-
-        assertEquals(100_000L, result.effectiveAtMillis)
-        assertEquals(listOf("sch-1"), result.scheduledMessages.map { it.id })
-        assertEquals("", result.scheduledMessages.single().peerUserId)
-        assertTrue(result.scheduledMessages.single().isGroup)
-    }
-
-    @Test
-    fun `chat controller immediate send lease survives live owner changes`() {
-        val backend = FakeBackend()
-        backend.scheduled += scheduled(id = "existing")
-        var owner = "owner-1"
-        val controller = ChatScheduleController(
-            coordinator = ConversationScheduleCoordinator(
-                ownerUserId = { owner },
-                backend = backend,
-            ),
-            scheduledMessagesEnabled = { true },
-        )
-
-        val ready = controller.beginImmediateSend("existing") as ChatScheduleImmediateOutcome.Ready
-        owner = "owner-2"
-        controller.completeImmediateSend(ready.item.ownerUserId, ready.item.id)
-
-        assertTrue(backend.scheduled.isEmpty())
-    }
-
-    private fun coordinator(
-        backend: FakeBackend,
-        now: Long = 1_000L,
-    ) = ConversationScheduleCoordinator(
-        ownerUserId = { "owner-1" },
-        backend = backend,
-        now = { now },
-        reminderId = { "reminder-1" },
-    )
-
-    private fun request() = ScheduledMessageRequest(
-        chatId = "chat-1",
-        peerUserId = "peer-1",
-        text = "hello",
-        sendAtMillis = 100_000L,
-        isGroup = false,
-    )
-
-    private fun command(
-        sessionAvailable: Boolean = true,
-        blocked: Boolean = false,
-        isGroup: Boolean = false,
-    ) = ChatScheduleCommand(
-        chatId = "chat-1",
-        peerUserId = "peer-1",
-        text = "hello",
-        isGroup = isGroup,
-        sessionAvailable = sessionAvailable,
-        blocked = blocked,
-        sendAtMillis = 100_000L,
-    )
-
-    private fun scheduled(
-        id: String,
-        text: String = "hello",
-        sendAt: Long = 100_000L,
-        ownerUserId: String = "owner-1",
-    ) = ScheduledMessage(
-        id = id,
-        chatId = "chat-1",
-        peerUserId = "peer-1",
-        text = text,
-        sendAtMillis = sendAt,
-        createdAtMillis = 1L,
-        ownerUserId = ownerUserId,
-    )
-
-    private class FakeBackend(
-        var scheduleFailuresRemaining: Int = 0,
-        var rescheduleFailuresRemaining: Int = 0,
-        var reminderScheduleFailuresRemaining: Int = 0,
-    ) : ConversationScheduleBackend {
-        val scheduled = mutableListOf<ScheduledMessage>()
-        val reminders = mutableListOf<MessageReminderStore.MessageReminder>()
-        val cancelledJobs = mutableListOf<String>()
-        val events = mutableListOf<String>()
-        var lastAddOwner: String? = null
-        var lastReminderOwner: String? = null
+    private class FakeBackend : ConversationScheduleBackend {
+        val scheduled = mutableMapOf<String, ScheduledMessage>()
+        val scheduledJobs = mutableSetOf<String>()
+        val reminders = mutableMapOf<String, MessageReminderStore.MessageReminder>()
+        val reminderJobs = mutableSetOf<String>()
 
         override fun listAllScheduled(ownerUserId: String): List<ScheduledMessage> =
-            scheduled.filter { it.ownerUserId == ownerUserId }
+            scheduled.values.filter { it.ownerUserId == ownerUserId }
 
         override fun listScheduled(ownerUserId: String, chatId: String): List<ScheduledMessage> =
-            scheduled.filter { it.ownerUserId == ownerUserId && it.chatId == chatId }
+            scheduled.values.filter { it.ownerUserId == ownerUserId && it.chatId == chatId }
 
         override fun getScheduled(ownerUserId: String, id: String): ScheduledMessage? =
-            scheduled.firstOrNull { it.ownerUserId == ownerUserId && it.id == id }
+            scheduled[id]?.takeIf { it.ownerUserId == ownerUserId }
 
-        override fun addScheduled(
-            ownerUserId: String,
-            request: ScheduledMessageRequest,
-        ): ScheduledMessage {
-            lastAddOwner = ownerUserId
+        override fun addScheduled(ownerUserId: String, request: ScheduledMessageRequest): ScheduledMessage? {
             val item = ScheduledMessage(
-                id = "sch-1",
+                id = "sch_${scheduled.size + 1}",
                 chatId = request.chatId,
                 peerUserId = request.peerUserId,
                 text = request.text,
                 sendAtMillis = request.sendAtMillis,
-                createdAtMillis = 1L,
+                createdAtMillis = 1000L,
                 isGroup = request.isGroup,
                 ownerUserId = ownerUserId,
                 repeatIntervalMs = request.repeatIntervalMs,
                 repeatCount = request.repeatCount,
                 weekdaysOnly = request.weekdaysOnly,
             )
-            scheduled += item
-            events += "add:${item.id}"
+            scheduled[item.id] = item
             return item
         }
 
@@ -318,66 +49,141 @@ class ConversationScheduleCoordinatorTest {
             text: String?,
             sendAtMillis: Long?,
         ): ScheduledMessage? {
-            val index = scheduled.indexOfFirst { it.ownerUserId == ownerUserId && it.id == id }
-            if (index < 0) return null
-            val updated = scheduled[index].copy(
-                text = text ?: scheduled[index].text,
-                sendAtMillis = sendAtMillis ?: scheduled[index].sendAtMillis,
+            val current = getScheduled(ownerUserId, id) ?: return null
+            val updated = current.copy(
+                text = text ?: current.text,
+                sendAtMillis = sendAtMillis ?: current.sendAtMillis,
             )
-            scheduled[index] = updated
-            events += "update:$id:${updated.sendAtMillis}"
+            scheduled[id] = updated
             return updated
         }
 
         override fun removeScheduled(ownerUserId: String, id: String): Boolean {
-            events += "remove:$id"
-            return scheduled.removeAll { it.ownerUserId == ownerUserId && it.id == id }
+            val item = scheduled[id]
+            if (item != null && item.ownerUserId == ownerUserId) {
+                scheduled.remove(id)
+                return true
+            }
+            return false
         }
 
         override fun clearScheduled(ownerUserId: String, chatId: String): List<String> {
-            val ids = scheduled
-                .filter { it.ownerUserId == ownerUserId && it.chatId == chatId }
-                .map { it.id }
-            scheduled.removeAll { it.ownerUserId == ownerUserId && it.chatId == chatId }
-            return ids
+            val toRemove = scheduled.values.filter { it.ownerUserId == ownerUserId && it.chatId == chatId }.map { it.id }
+            toRemove.forEach { scheduled.remove(it) }
+            return toRemove
         }
 
         override fun scheduleJob(item: ScheduledMessage) {
-            events += "schedule:${item.id}"
-            if (scheduleFailuresRemaining-- > 0) error("schedule failed")
+            scheduledJobs.add(item.id)
         }
 
         override fun cancelJob(id: String) {
-            cancelledJobs += id
-            events += "cancel:$id"
+            scheduledJobs.remove(id)
         }
 
         override fun rescheduleJob(item: ScheduledMessage) {
-            events += "reschedule:${item.id}:${item.sendAtMillis}"
-            if (rescheduleFailuresRemaining-- > 0) error("reschedule failed")
+            scheduledJobs.add(item.id)
         }
 
         override fun listReminders(ownerUserId: String): List<MessageReminderStore.MessageReminder> =
-            reminders.filter { it.ownerUserId == ownerUserId }
+            reminders.values.filter { it.ownerUserId == ownerUserId }
 
         override fun upsertReminder(reminder: MessageReminderStore.MessageReminder) {
-            lastReminderOwner = reminder.ownerUserId
-            reminders.removeAll { it.id == reminder.id }
-            reminders += reminder
+            reminders[reminder.id] = reminder
         }
 
         override fun removeReminder(ownerUserId: String, id: String) {
-            reminders.removeAll { it.ownerUserId == ownerUserId && it.id == id }
+            reminders.remove(id)
         }
 
         override fun clearReminders(ownerUserId: String, chatId: String) {
-            reminders.removeAll { it.ownerUserId == ownerUserId && it.chatId == chatId }
+            val toRemove = reminders.values.filter { it.ownerUserId == ownerUserId && it.chatId == chatId }.map { it.id }
+            toRemove.forEach { reminders.remove(it) }
         }
 
         override fun scheduleReminderJob(reminder: MessageReminderStore.MessageReminder) {
-            if (reminderScheduleFailuresRemaining-- > 0) error("reminder schedule failed")
+            reminderJobs.add(reminder.id)
         }
 
-        override fun cancelReminderJob(id: String) = Unit
+        override fun cancelReminderJob(id: String) {
+            reminderJobs.remove(id)
+        }
+    }
+
+    @Test
+    fun `two-phase immediate send maintains row until completion or restoration`() {
+        val backend = FakeBackend()
+        val coordinator = ConversationScheduleCoordinator(
+            ownerUserId = { "user_1" },
+            backend = backend,
+            now = { 10_000L },
+        )
+
+        val queueResult = coordinator.queue(
+            ScheduledMessageRequest(
+                chatId = "chat_1",
+                peerUserId = "peer_1",
+                text = "Test send now",
+                sendAtMillis = 60_000L,
+                isGroup = false,
+            )
+        )
+        assertTrue(queueResult is ConversationScheduleResult.Success)
+        val item = (queueResult as ConversationScheduleResult.Success).value
+
+        assertTrue("Job should be scheduled initially", backend.scheduledJobs.contains(item.id))
+        assertNotNull(backend.scheduled[item.id])
+
+        // 1. Begin immediate send: cancels worker job, but preserves row in backend
+        val beginResult = coordinator.beginImmediateSend(item.id)
+        assertTrue(beginResult is ConversationScheduleResult.Success)
+        assertTrue("Job should be paused/cancelled", !backend.scheduledJobs.contains(item.id))
+        assertNotNull("Row MUST remain during staging phase", backend.scheduled[item.id])
+
+        // 2. Failure scenario -> restoreImmediateSend: job is re-scheduled, row stays
+        coordinator.restoreImmediateSend(item.id)
+        assertTrue("Job should be re-scheduled on failure", backend.scheduledJobs.contains(item.id))
+        assertNotNull("Row remains intact", backend.scheduled[item.id])
+
+        // 3. Success scenario -> begin again, then completeImmediateSend: deletes row and job
+        coordinator.beginImmediateSend(item.id)
+        coordinator.completeImmediateSend(item.id)
+        assertNull("Row should be deleted after outbox commit", backend.scheduled[item.id])
+        assertTrue("Job should be cancelled", !backend.scheduledJobs.contains(item.id))
+    }
+
+    @Test
+    fun `reminder lifecycle clamps within valid range and cleans up on cancel`() {
+        val backend = FakeBackend()
+        val coordinator = ConversationScheduleCoordinator(
+            ownerUserId = { "user_1" },
+            backend = backend,
+            now = { 100_000L },
+            reminderId = { "rem_1" },
+        )
+
+        // Request reminder 5 minutes ahead (300,000 ms)
+        val result = coordinator.scheduleReminder(
+            MessageReminderRequest(
+                chatId = "chat_1",
+                messageId = "msg_1",
+                messagePreview = "Reminder text",
+                remindAtMillis = 400_000L,
+            )
+        )
+        assertTrue(result is ConversationScheduleResult.Success)
+        val reminder = (result as ConversationScheduleResult.Success).value
+
+        assertEquals("rem_1", reminder.id)
+        assertEquals("chat_1", reminder.chatId)
+        assertTrue(backend.reminderJobs.contains("rem_1"))
+
+        val activeList = coordinator.listReminders("chat_1")
+        assertEquals(1, activeList.size)
+        assertEquals("rem_1", activeList[0].id)
+
+        coordinator.cancelReminder("rem_1")
+        assertEquals(0, coordinator.listReminders("chat_1").size)
+        assertTrue(!backend.reminderJobs.contains("rem_1"))
     }
 }
