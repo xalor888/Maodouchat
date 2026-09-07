@@ -29,6 +29,16 @@ sealed interface NotificationTarget {
         override val sessionGeneration: Long,
         override val ownerUserId: String,
     ) : NotificationTarget
+
+    /**
+     * 群邀请加入（`maodouchat:chat-invite:v1:` / `maodouchat://invite/` / `https://chat.mdou.me/join/`）。
+     * 登录前到达时 ownerUserId 可能为空，登录后不得因 owner 校验丢弃（同 PublicProfile）。
+     */
+    data class GroupInvite(
+        val code: String,
+        override val sessionGeneration: Long,
+        override val ownerUserId: String,
+    ) : NotificationTarget
 }
 
 /** P08：系统入口目标 → 类型化导航目标（路由字符串经 `toRoute()` 统一生成）。 */
@@ -37,4 +47,5 @@ fun NotificationTarget.toDestination(): AppLinkDestination = when (this) {
     is NotificationTarget.AiTasks -> AppLinkDestination.AiTasksChat(chatId)
     is NotificationTarget.Post -> AppLinkDestination.PostDetail(id)
     is NotificationTarget.PublicProfile -> AppLinkDestination.PublicProfile(username)
+    is NotificationTarget.GroupInvite -> AppLinkDestination.GroupInvite(code)
 }

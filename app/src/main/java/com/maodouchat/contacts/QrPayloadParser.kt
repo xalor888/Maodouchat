@@ -43,7 +43,7 @@ object QrPayloadParser {
     private const val PREFIX_SAFETY = "maodouchat:safety:"
 
     private val ID_REGEX = Regex("^[a-zA-Z0-9_-]{1,64}$")
-    private val INVITE_TOKEN_REGEX = Regex("^[A-Za-z0-9_-]{32,80}$")
+    // 邀请 token 清洗收敛至 AppLinkRouter.sanitizeChatInviteToken（与深链同事实源）。
 
     fun parse(rawText: String?): QrParsedPayload {
         if (rawText == null || rawText.isBlank()) {
@@ -87,10 +87,8 @@ object QrPayloadParser {
     }
 
     private fun parseChatInvitePayload(rawToken: String): QrParsedPayload {
-        val token = rawToken.trim()
-        if (!token.matches(INVITE_TOKEN_REGEX)) {
-            return QrParsedPayload.Invalid("Malformed chat invite token in payload")
-        }
+        val token = com.maodouchat.ui.navigation.AppLinkRouter.sanitizeChatInviteToken(rawToken)
+            ?: return QrParsedPayload.Invalid("Malformed chat invite token in payload")
         return QrParsedPayload.ChatInvite(token)
     }
 

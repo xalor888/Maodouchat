@@ -68,9 +68,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.compose.rememberNavController
 import com.maodouchat.network.PublicUpdatesDto
+import com.maodouchat.update.AppUpdateDownloadScheduler
 import com.maodouchat.update.AppUpdatePolicy
 import com.maodouchat.update.AppUpdatePromptStore
-import com.maodouchat.update.OfficialApkInstaller
+import androidx.work.WorkInfo
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * 导航图（注册装配；路由定义见 `NavRoutes.kt`，深链决策见 `AppLinkRouter`）。
@@ -98,7 +100,24 @@ fun MaodouchatNavGraph(
     var appUpdateOffer by remember { mutableStateOf<PublicUpdatesDto?>(null) }
     var appUpdateDownloading by remember { mutableStateOf(false) }
     var appUpdateProgress by remember { mutableIntStateOf(0) }
-    val appUpdateScope = rememberCoroutineScope()
+
+    LaunchedEffect(appUpdateDownloading) {
+        if (!appUpdateDownloading) return@LaunchedEffect
+        AppUpdateDownloadScheduler.observe(context).collectLatest { info ->
+            appUpdateProgress = AppUpdateDownloadScheduler.progressOf(info)
+            when (info?.state) {
+                WorkInfo.State.SUCCEEDED -> {
+                    appUpdateDownloading = false
+                    appUpdateOffer = null
+                }
+                WorkInfo.State.FAILED,
+                WorkInfo.State.CANCELLED -> {
+                    appUpdateDownloading = false
+                }
+                else -> Unit
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         val ownerUserId = TokenManager.getInstance(context).getUserId().orEmpty()
@@ -150,16 +169,13 @@ fun MaodouchatNavGraph(
                     enabled = !appUpdateDownloading,
                     onClick = {
                         appUpdateDownloading = true
-                        appUpdateScope.launch {
-                            val result = OfficialApkInstaller.downloadAndPromptInstall(
-                                context = context,
-                                apkUrl = offer.apkUrl,
-                                expectedSha256 = offer.apkSha256,
-                                onProgress = { percent -> appUpdateProgress = percent },
-                            )
-                            appUpdateDownloading = false
-                            if (result.isSuccess) appUpdateOffer = null
-                        }
+                        appUpdateProgress = 0
+                        AppUpdateDownloadScheduler.enqueue(
+                            context = context,
+                            apkUrl = offer.apkUrl,
+                            expectedSha256 = offer.apkSha256,
+                            expectedVersionCode = offer.versionCode,
+                        )
                     }
                 ) {
                     Text(stringResource(R.string.about_update_download))

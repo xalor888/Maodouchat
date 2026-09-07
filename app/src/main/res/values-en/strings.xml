@@ -2242,6 +2242,12 @@
     <string name="notif_center_search_hint">Search notification title or preview</string>
     <string name="notif_center_search_empty">No matching notifications</string>
     <string name="ai_privacy_reset_consent">Revoke local AI authorization</string>
+    <string name="ai_privacy_enable_all_title">Enable All AI Features</string>
+    <string name="ai_privacy_enable_all_subtitle">Enable in-chat AI, local consent, message auto-translation, and image text search in one tap.</string>
+    <string name="ai_privacy_enable_all_btn">Enable All</string>
+    <string name="ai_privacy_enable_all_active">All AI Features Enabled</string>
+    <string name="agent_provider_supports_vision">Multimodal Vision</string>
+    <string name="agent_provider_supports_vision_hint">Enable to analyze and recognize images in agent chat. Keep disabled for text-only models.</string>
     <string name="ai_privacy_reset_consent_subtitle">Clear local AI preferences and stop all AI features. You\'ll be asked to consent again next time.</string>
     <string name="ai_privacy_reset_confirm">Revoke local AI authorization? Existing cached summaries will stay on this device.</string>
     <string name="ai_privacy_reset_confirm_ok">Revoke</string>
@@ -2827,6 +2833,8 @@
     <string name="widget_config_requires_login">Sign in before configuring the widget</string>
     <string name="widget_config_load_failed">Failed to load conversations</string>
     <!-- B5 block · quick reply (QuickReply) -->
+    <string name="quick_reply_action">Reply</string>
+    <string name="quick_reply_hint">Type a reply…</string>
     <string name="quick_reply_rejected">Quick reply is unavailable for this chat (secret or locked)</string>
     <!-- B5 block · floating ball (FloatingBall) -->
     <string name="floating_ball_content_description">Maodouchat floating ball</string>

@@ -8,6 +8,8 @@ import com.maodouchat.data.repository.UserRepository
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 
 data class ContactsSession(val ownerUserId: String)
@@ -21,6 +23,7 @@ data class ContactsLoadResult(
 interface ContactsRepository {
     fun currentSession(): ContactsSession?
     fun isCurrent(session: ContactsSession): Boolean
+    fun observeFriends(session: ContactsSession): Flow<List<User>>
     suspend fun loadFriends(session: ContactsSession): ContactsLoadResult
     suspend fun search(session: ContactsSession, query: String): ContactsLoadResult
 }
@@ -29,6 +32,9 @@ class ContactsController(private val repository: ContactsRepository) {
     fun currentSession(): ContactsSession? = repository.currentSession()
 
     fun isCurrent(session: ContactsSession): Boolean = repository.isCurrent(session)
+
+    fun observeFriends(session: ContactsSession): Flow<List<User>> =
+        repository.observeFriends(session)
 
     suspend fun loadFriends(session: ContactsSession): ContactsLoadResult =
         repository.loadFriends(session).takeIf { repository.isCurrent(session) }
@@ -59,6 +65,15 @@ internal class AndroidContactsRepository(application: Application) : ContactsRep
             liveUserId = tokenManager.getUserId(),
         )
 
+    override fun observeFriends(session: ContactsSession): Flow<List<User>> =
+        combine(
+            userRepository.getAllUsers(),
+            FriendCacheStore.observeFriendIds(app, session.ownerUserId)
+        ) { users, friendIds ->
+            users.filter { it.id != session.ownerUserId && it.id in friendIds }
+                .sortedBy { it.displayName.lowercase() }
+        }
+
     override suspend fun loadFriends(session: ContactsSession): ContactsLoadResult {
         val token = tokenManager.getToken().orEmpty()
         if (token.isBlank() || !isAuthenticated(session)) {
@@ -73,7 +88,7 @@ internal class AndroidContactsRepository(application: Application) : ContactsRep
                         .distinctBy { it.id }
                         .map { it.toContactUser() }
                     userRepository.insertUsers(users)
-                    FriendCacheStore.replaceAll(app, dtos.map { it.id }.toSet())
+                    FriendCacheStore.replaceAll(app, dtos.map { it.id }.toSet(), session.ownerUserId)
                     val merged = users.map { user ->
                         val nickname = userRepository.getUserById(user.id)?.nickname
                         if (nickname.isNullOrBlank()) user else user.copy(nickname = nickname)
@@ -82,7 +97,7 @@ internal class AndroidContactsRepository(application: Application) : ContactsRep
                 },
                 onFailure = { cachedFriends(session, it, sessionMissing = false) },
             )
-        } catch (error: CancellationException) {
+        } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (error: Exception) {
             cachedFriends(session, error, sessionMissing = false)
@@ -121,7 +136,7 @@ internal class AndroidContactsRepository(application: Application) : ContactsRep
         failure: Throwable?,
         sessionMissing: Boolean,
     ): ContactsLoadResult {
-        val friendIds = FriendCacheStore.getFriendIds(app)
+        val friendIds = FriendCacheStore.getFriendIds(app, session.ownerUserId)
         val users = userRepository.getAllUsers().firstOrNull().orEmpty()
             .filter { it.id != session.ownerUserId && it.id in friendIds }
             .sortedBy { it.displayName.lowercase() }

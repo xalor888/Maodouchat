@@ -6,6 +6,8 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+// NotificationTarget lives in the same package (NavTargets.kt).
+
 class AppLinkRouterTest {
 
     @Test
@@ -68,6 +70,34 @@ class AppLinkRouterTest {
         assertEquals("ABCdef-12_", (a.destination as AppLinkDestination.GroupInvite).code)
         val b = AppLinkRouter.parseDeepLink("https://chat.mdou.me/join/XYZ-9")
         assertIs<AppLinkParseResult.Accepted>(b)
+        // 生产侧分享/扫码载荷：冒号协议（无 ://）必须与 QR 解析收敛到同一 GroupInvite。
+        val token = "A".repeat(43)
+        val c = AppLinkRouter.parseDeepLink("maodouchat:chat-invite:v1:$token")
+        assertIs<AppLinkParseResult.Accepted>(c)
+        assertEquals(token, (c.destination as AppLinkDestination.GroupInvite).code)
+        assertEquals("join_group_invite/$token", c.destination.toRoute())
+    }
+
+    @Test
+    fun chatInviteColonFormRejectsShortOrInjectedToken() {
+        assertIs<AppLinkParseResult.Rejected>(
+            AppLinkRouter.parseDeepLink("maodouchat:chat-invite:v1:short")
+        )
+        assertIs<AppLinkParseResult.Rejected>(
+            AppLinkRouter.parseDeepLink("maodouchat:chat-invite:v1:${"a".repeat(40)}/evil")
+        )
+    }
+
+    @Test
+    fun groupInviteTargetMapsToDestination() {
+        val target = NotificationTarget.GroupInvite(
+            code = "B".repeat(40),
+            sessionGeneration = 1L,
+            ownerUserId = "u1",
+        )
+        val dest = target.toDestination() as AppLinkDestination.GroupInvite
+        assertEquals("B".repeat(40), dest.code)
+        assertEquals("join_group_invite/${"B".repeat(40)}", dest.toRoute())
     }
 
     @Test
@@ -215,6 +245,13 @@ class AppLinkRouterTest {
             ),
             AppLinkRouter.publicProfileDeepLinkPatterns,
         )
+        assertEquals(
+            listOf(
+                "https://chat.mdou.me/join/{code}",
+                "maodouchat://invite/{code}",
+            ),
+            AppLinkRouter.groupInviteDeepLinkPatterns,
+        )
         // 每个模式都有对应的解析覆盖。
         assertTrue(
             AppLinkRouter.parseDeepLink("https://chat.mdou.me/u/alice") is AppLinkParseResult.Accepted
@@ -224,6 +261,12 @@ class AppLinkRouterTest {
         )
         assertTrue(
             AppLinkRouter.parseDeepLink("maodouchat://u/alice") is AppLinkParseResult.Accepted
+        )
+        assertTrue(
+            AppLinkRouter.parseDeepLink("https://chat.mdou.me/join/XYZ-9") is AppLinkParseResult.Accepted
+        )
+        assertTrue(
+            AppLinkRouter.parseDeepLink("maodouchat://invite/ABCdef-12_") is AppLinkParseResult.Accepted
         )
     }
 
@@ -245,11 +288,91 @@ class AppLinkRouterTest {
     }
 
     @Test
-    fun strictSanitizersRejectDelimiters() {
-        assertNull(AppLinkRouter.sanitizeChatIdStrict("c1/evil"))
-        assertNull(AppLinkRouter.sanitizeChatIdStrict("c1?x=1"))
-        assertNull(AppLinkRouter.sanitizeMessageIdStrict("m1#frag"))
-        assertNull(AppLinkRouter.sanitizePostIdStrict("p1/p2"))
-        assertNull(AppLinkRouter.sanitizeChatIdStrict("   "))
+    fun legacyCenterDeeplinkChatAndAiTasks() {
+        val chat = AppLinkRouter.parseLegacyCenterDeeplink("maodouchat:chat:c1")
+            as AppLinkDestination.ChatDetail
+        assertEquals("c1", chat.chatId)
+        assertEquals("chat_detail/c1", chat.toRoute())
+
+        val ai = AppLinkRouter.parseLegacyCenterDeeplink("maodouchat:ai_tasks:c9")
+            as AppLinkDestination.AiTasksChat
+        assertEquals("c9", ai.chatId)
+        assertEquals("ai_tasks/c9", ai.toRoute())
+    }
+
+    @Test
+    fun legacyCenterDeeplinkPostWithComment() {
+        val post = AppLinkRouter.parseLegacyCenterDeeplink("maodouchat:post:p1?comment=cm2")
+            as AppLinkDestination.PostDetail
+        assertEquals("p1", post.postId)
+        assertEquals("cm2", post.commentId)
+        assertEquals("post/p1?comment=cm2", post.toRoute())
+    }
+
+    @Test
+    fun legacyCenterDeeplinkTabTargets() {
+        assertEquals(
+            AppLinkDestination.MissedCallsTab,
+            AppLinkRouter.parseLegacyCenterDeeplink("maodouchat:missed_calls"),
+        )
+        assertEquals(
+            AppLinkDestination.ContactsTab,
+            AppLinkRouter.parseLegacyCenterDeeplink("maodouchat:contacts"),
+        )
+        assertEquals(
+            AppLinkDestination.GroupInvitesTab,
+            AppLinkRouter.parseLegacyCenterDeeplink("maodouchat:group_invites"),
+        )
+    }
+
+    @Test
+    fun legacyCenterDeeplinkRejectsInjection() {
+        assertNull(AppLinkRouter.parseLegacyCenterDeeplink("maodouchat:chat:c1/evil"))
+        assertNull(AppLinkRouter.parseLegacyCenterDeeplink("maodouchat:chat:c1?x=1"))
+        assertNull(AppLinkRouter.parseLegacyCenterDeeplink("maodouchat:post:p1/p2"))
+        assertNull(AppLinkRouter.parseLegacyCenterDeeplink("maodouchat:post:p1?comment=c/x"))
+        assertNull(AppLinkRouter.parseLegacyCenterDeeplink("maodouchat:unknown:x"))
+        assertNull(AppLinkRouter.parseLegacyCenterDeeplink(""))
+        assertNull(AppLinkRouter.parseLegacyCenterDeeplink("   "))
+    }
+
+    @Test
+    fun resolveUserFacingUrlPrefersInAppDeepLinks() {
+        val profile = AppLinkRouter.resolveUserFacingUrl("https://chat.mdou.me/u/alice")
+        assertIs<AppLinkParseResult.Accepted>(profile)
+        assertEquals(AppLinkDestination.PublicProfile("alice"), profile.destination)
+
+        val invite = AppLinkRouter.resolveUserFacingUrl("https://chat.mdou.me/join/" + "A".repeat(40))
+        assertIs<AppLinkParseResult.Accepted>(invite)
+        assertIs<AppLinkDestination.GroupInvite>(invite.destination)
+    }
+
+    @Test
+    fun resolveUserFacingUrlMapsGenericHttpToExternal() {
+        val result = AppLinkRouter.resolveUserFacingUrl("https://example.com/path?q=1")
+        assertIs<AppLinkParseResult.Accepted>(result)
+        assertEquals(
+            AppLinkDestination.ExternalUrl("https://example.com/path?q=1"),
+            result.destination,
+        )
+        // Untrusted host must not become PublicProfile even if path looks like /u/.
+        val evil = AppLinkRouter.resolveUserFacingUrl("https://evil.com/u/alice")
+        assertIs<AppLinkParseResult.Accepted>(evil)
+        assertEquals(AppLinkDestination.ExternalUrl("https://evil.com/u/alice"), evil.destination)
+    }
+
+    @Test
+    fun resolveUserFacingUrlRejectsDangerousSchemes() {
+        assertIs<AppLinkParseResult.Rejected>(
+            AppLinkRouter.resolveUserFacingUrl("javascript:alert(1)")
+        )
+        assertIs<AppLinkParseResult.Rejected>(
+            AppLinkRouter.resolveUserFacingUrl("file:///etc/passwd")
+        )
+        assertIs<AppLinkParseResult.Rejected>(
+            AppLinkRouter.resolveUserFacingUrl("intent://evil#Intent;end")
+        )
+        assertNull(AppLinkRouter.sanitizeHttpUrl("http://exa mple.com"))
+        assertNull(AppLinkRouter.sanitizeHttpUrl("https:///no-host"))
     }
 }

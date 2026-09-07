@@ -33,10 +33,12 @@ import androidx.lifecycle.lifecycleScope
 import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.rememberNavController
 import com.maodouchat.ui.navigation.MaodouchatNavGraph
+import com.maodouchat.ui.navigation.NotificationTargetReplayPolicy
 import com.maodouchat.ui.navigation.Routes
 import com.maodouchat.ui.navigation.toDestination
 import com.maodouchat.ui.theme.Background
 import com.maodouchat.ui.theme.MaodouchatTheme
+import com.maodouchat.call.CallSystemIntegration
 import com.maodouchat.network.TokenManager
 
 import com.maodouchat.util.AppLocaleManager
@@ -45,6 +47,9 @@ import com.maodouchat.security.FakeChatManager
 import com.maodouchat.security.ScreenSecureManager
 import com.maodouchat.security.ScreenSecurePolicy
 import com.maodouchat.security.SecretChatSession
+import com.maodouchat.ui.AppSurfaceGateController
+import com.maodouchat.ui.CallLockScreenFlagController
+import com.maodouchat.ui.StartupPermissionPolicy
 import com.maodouchat.ui.screen.lock.FakeChatScreen
 import com.maodouchat.ui.screen.lock.PasscodeLockScreen
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -86,23 +91,68 @@ class MainActivity : FragmentActivity() {
             onChatSurface = { onChatSurface },
         )
     }
+    // P08：App 锁 / 假聊天门闩决策在 AppSurfaceGateController；Activity 只持 Compose 状态与 Screen。
+    private val surfaceGateController by lazy {
+        AppSurfaceGateController(
+            shouldShowFake = { FakeChatManager.shouldShowFake(this) },
+            shouldLock = { AppLockManager.shouldLock(this) },
+            noteAppLockBackground = { AppLockManager.noteBackground(this) },
+            noteFakeChatBackground = { FakeChatManager.noteBackground(this) },
+            markFakeUnlocked = { FakeChatManager.markUnlocked(this) },
+            markAppUnlocked = { AppLockManager.markUnlocked(this) },
+            isAppLockEnabled = { AppLockManager.isEnabled(this) },
+            isFakeChatEnabled = { FakeChatManager.isEnabled(this) },
+            isScreenSecureEnabled = { ScreenSecureManager.isEnabled(this) },
+            onSecretChatSurface = { windowPrivacyController.onSecretChatSurface },
+            hasActiveSecretSurface = { SecretChatSession.hasActiveSecretSurface() },
+        )
+    }
     /** 8.48：当前导航路由（供通话 PiP 判断） */
     @Volatile
     private var currentNavRoute: String? = null
+
+    // P08：前台/后台 presence 与 activeChat 清理在 AppForegroundLifecycleController。
+    private val foregroundLifecycleController by lazy {
+        com.maodouchat.ui.AppForegroundLifecycleController(
+            setAppInForeground = { MaodouchatApp.appInForeground = it },
+            clearActiveChatSurface = {
+                MaodouchatApp.activeChatId = null
+                MaodouchatApp.activeChatOpenedAtMs = 0L
+            },
+            sendPresence = { online ->
+                com.maodouchat.network.WebSocketClient.sendPresence(online)
+            },
+        )
+    }
+
+    // P03/P08：通话系统集成（FGS/Telecom/锁屏判定）；Activity 只落 Window flags。
+    private val callSystemIntegration by lazy { CallSystemIntegration(applicationContext) }
+
+    // P08：来电锁屏旗标轮询决策在 CallLockScreenFlagController；Activity 只落 Window flags。
+    private val callLockScreenFlagController by lazy {
+        CallLockScreenFlagController(
+            flagsNeeded = { callSystemIntegration.lockScreenFlagsNeeded() },
+            applyFlags = { applyCallLockScreenFlags(enabled = it) },
+        )
+    }
 
     // 多权限请求
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { _ -> /* 权限结果回调 */ }
 
+    private fun applySurfaceGate(state: AppSurfaceGateController.State) {
+        showFakeChat = state.showFakeChat
+        showAppLock = state.showAppLock
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         consumeNotificationIntent(intent)
         requestPermissions()
         enableEdgeToEdge()
-        showAppLock = AppLockManager.shouldLock(this)
-        showFakeChat = FakeChatManager.shouldShowFake(this)
-        com.maodouchat.MaodouchatApp.appInForeground = true
+        applySurfaceGate(surfaceGateController.initialState())
+        foregroundLifecycleController.onHostCreated()
         windowPrivacyController.refreshWindowPrivacy()
         observeCallLockScreenFlags()
         // B5 新增（仅追加）：会话失效/账号切换时兜底移除悬浮球，避免跨账号残留窗口。
@@ -116,17 +166,7 @@ class MainActivity : FragmentActivity() {
         // 系统认证会暂停 Activity；锁屏已显示时不能把认证弹窗误记成普通后台离开。
         lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onPause(owner: LifecycleOwner) {
-                if (!showAppLock) AppLockManager.noteBackground(this@MainActivity)
-                // 假聊天模式启用即视为「离开」：回前台需重新走假界面拦截
-                FakeChatManager.noteBackground(this@MainActivity)
-                // 后台期间若开启 App 锁、假聊天、全局防截屏或密聊表面，保持窗口安全
-                if (
-                    AppLockManager.isEnabled(this@MainActivity) ||
-                    FakeChatManager.isEnabled(this@MainActivity) ||
-                    ScreenSecureManager.isEnabled(this@MainActivity) ||
-                    windowPrivacyController.onSecretChatSurface ||
-                    SecretChatSession.hasActiveSecretSurface()
-                ) {
+                if (surfaceGateController.onHostPaused(showAppLock = showAppLock)) {
                     windowPrivacyController.updateWindowPrivacy(true)
                 }
             }
@@ -137,27 +177,21 @@ class MainActivity : FragmentActivity() {
                 //（否则聊天页被指纹弹窗遮挡时到的新消息会被误判为后台消息而弹托盘通知）。
                 // ChatDetailViewModel 回前台会重新设置。
                 // 不清 openChatDetailId：列表不得对仍打开的会话再解 1:1 密文。
-                com.maodouchat.MaodouchatApp.activeChatId = null
-                com.maodouchat.MaodouchatApp.activeChatOpenedAtMs = 0L
-                com.maodouchat.MaodouchatApp.appInForeground = false
-                com.maodouchat.network.WebSocketClient.sendPresence(false)
+                foregroundLifecycleController.onHostStopped()
             }
             override fun onStart(owner: LifecycleOwner) {
-                com.maodouchat.MaodouchatApp.appInForeground = true
-                com.maodouchat.network.WebSocketClient.sendPresence(true)
+                foregroundLifecycleController.onHostStarted()
                 windowPrivacyController.refreshWindowPrivacy()
             }
             override fun onResume(owner: LifecycleOwner) {
-                if (!showFakeChat && FakeChatManager.shouldShowFake(this@MainActivity)) {
-                    showFakeChat = true
-                }
-                if (!showAppLock) {
-                    if (AppLockManager.shouldLock(this@MainActivity)) {
-                        showAppLock = true
-                    } else {
-                        AppLockManager.markUnlocked(this@MainActivity)
-                    }
-                }
+                applySurfaceGate(
+                    surfaceGateController.onHostResumed(
+                        AppSurfaceGateController.State(
+                            showFakeChat = showFakeChat,
+                            showAppLock = showAppLock,
+                        )
+                    )
+                )
                 windowPrivacyController.refreshWindowPrivacy()
             }
         })
@@ -170,13 +204,7 @@ class MainActivity : FragmentActivity() {
                             // 假聊天界面在外层：不暴露真实 App 的锁屏提示，解锁后再按需走 App 锁
                             FakeChatScreen(
                                 onUnlocked = {
-                                    FakeChatManager.markUnlocked(this@MainActivity)
-                                    showFakeChat = false
-                                    if (AppLockManager.shouldLock(this@MainActivity)) {
-                                        showAppLock = true
-                                    } else {
-                                        AppLockManager.markUnlocked(this@MainActivity)
-                                    }
+                                    applySurfaceGate(surfaceGateController.onFakeChatUnlocked())
                                     windowPrivacyController.refreshWindowPrivacy()
                                 },
                                 onFailed = { /* 输错密码留在假界面，可重试 */ }
@@ -185,8 +213,14 @@ class MainActivity : FragmentActivity() {
                         showAppLock -> {
                             PasscodeLockScreen(
                                 onUnlocked = {
-                                    AppLockManager.markUnlocked(this@MainActivity)
-                                    showAppLock = false
+                                    applySurfaceGate(
+                                        surfaceGateController.onAppLockUnlocked(
+                                            AppSurfaceGateController.State(
+                                                showFakeChat = showFakeChat,
+                                                showAppLock = showAppLock,
+                                            )
+                                        )
+                                    )
                                     windowPrivacyController.refreshWindowPrivacy()
                                 },
                                 onFailed = { /* 保留锁屏，用户可重试 */ }
@@ -277,36 +311,26 @@ class MainActivity : FragmentActivity() {
         }
         LaunchedEffect(navController) {
             notificationTarget.filterNotNull().collect { target ->
-                while (!TokenManager.getInstance(this@MainActivity).isLoggedIn() ||
-                    navController.currentDestination?.route == null ||
-                    navController.currentDestination?.route == Routes.LOGIN
-                ) {
-                    if (target.sessionGeneration != MaodouchatApp.currentSessionGeneration()) {
-                        notificationTarget.value = null
-                        return@collect
+                // P08：等待/丢弃/导航决策在 NotificationTargetReplayPolicy；Activity 只注入宿主态。
+                while (true) {
+                    val tokenManager = TokenManager.getInstance(this@MainActivity)
+                    when (
+                        NotificationTargetReplayPolicy.evaluate(
+                            target = target,
+                            isLoggedIn = tokenManager.isLoggedIn(),
+                            currentRoute = navController.currentDestination?.route,
+                            loginRoute = Routes.LOGIN,
+                            liveSessionGeneration = MaodouchatApp.currentSessionGeneration(),
+                            liveUserId = tokenManager.getUserId(),
+                        )
+                    ) {
+                        NotificationTargetReplayPolicy.Decision.ContinueWaiting -> delay(250)
+                        NotificationTargetReplayPolicy.Decision.Drop -> {
+                            notificationTarget.value = null
+                            return@collect
+                        }
+                        NotificationTargetReplayPolicy.Decision.Navigate -> break
                     }
-                    // 8.34 修复：PublicProfile 深链无账号归属概念（公开资料页），登录前到达时
-                    // 捕获的 ownerUserId 为空，登录后不得被 owner 校验丢弃（此前外部深链 100% 静默丢失）
-                    if (target !is NotificationTarget.PublicProfile) {
-                        TokenManager.getInstance(this@MainActivity).getUserId()
-                            ?.takeIf(String::isNotBlank)
-                            ?.let { liveUserId ->
-                                if (target.ownerUserId != liveUserId) {
-                                    notificationTarget.value = null
-                                    return@collect
-                                }
-                            }
-                    }
-                    delay(250)
-                }
-                // Logout bumps sessionGeneration — drop deep-links from the prior account.
-                if (
-                    target.sessionGeneration != MaodouchatApp.currentSessionGeneration() ||
-                    (target !is NotificationTarget.PublicProfile &&
-                        target.ownerUserId != TokenManager.getInstance(this@MainActivity).getUserId())
-                ) {
-                    notificationTarget.value = null
-                    return@collect
                 }
                 // P08：目标→路由字符串经 AppLinkDestination 统一映射（与 Routes builder 同构，见单测）。
                 navController.navigate(target.toDestination().toRoute()) { launchSingleTop = true }
@@ -377,16 +401,12 @@ class MainActivity : FragmentActivity() {
         windowPrivacyController.notifyScreenSecurePreferenceChanged()
 
     private fun requestPermissions() {
-        val permissions = mutableListOf<String>()
-
-        // 通知权限（Android 13+）。录音/相机权限在具体功能入口按需请求。
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-
+        val permissions = StartupPermissionPolicy.permissionsToRequest(
+            sdkInt = Build.VERSION.SDK_INT,
+            isGranted = {
+                ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+            },
+        )
         if (permissions.isNotEmpty()) {
             permissionLauncher.launch(permissions.toTypedArray())
         }
@@ -417,12 +437,6 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    private fun callLockScreenFlagsNeeded(): Boolean =
-        com.maodouchat.call.CallLockScreenFlagPolicy.shouldEnable(
-            activeCallId = com.maodouchat.service.CallForegroundService.getActiveCallId(),
-            hasPendingIncomingCall = com.maodouchat.call.IncomingCallCoordinator.peekPending() != null,
-        )
-
     /**
      * Keep keyguard-bypass while an incoming ring or active call is present.
      * Drop flags when both coordinator pending and foreground service are idle
@@ -436,10 +450,8 @@ class MainActivity : FragmentActivity() {
                 // Always overwrite intent-carried flags from the current source of truth. In
                 // particular, a stale full-screen intent may have enabled them before onStart,
                 // and a call may have ended while this activity was stopped.
-                applyCallLockScreenFlags(callLockScreenFlagsNeeded())
                 pollJob = lifecycleScope.launch {
-                    while (true) {
-                        applyCallLockScreenFlags(callLockScreenFlagsNeeded())
+                    while (callLockScreenFlagController.onHostStartedTick()) {
                         delay(500)
                     }
                 }
@@ -449,7 +461,7 @@ class MainActivity : FragmentActivity() {
                 pollJob = null
                 // Keep only flags still justified by a real call. This is also the no-call
                 // fallback if stop races with an expired/consumed incoming-call intent.
-                applyCallLockScreenFlags(callLockScreenFlagsNeeded())
+                callLockScreenFlagController.onHostStopped()
             }
         })
     }
@@ -457,7 +469,7 @@ class MainActivity : FragmentActivity() {
     override fun onDestroy() {
         windowPrivacyController.shutdown()
         // Activity instances must never hand lock-screen visibility to a later instance.
-        applyCallLockScreenFlags(false)
+        callLockScreenFlagController.onHostDestroyed()
         super.onDestroy()
     }
 

@@ -38,71 +38,81 @@ fun NavGraphBuilder.searchCenterDestinations(navController: NavHostController) {
                     }
                     return@onOpenItem
                 }
-                when {
-                    // Missed-call center rows open inbox via shared wake path.
-                    item.type == "MISSED_CALL" ||
-                        item.deeplink == "maodouchat:missed_calls" -> {
+                // MESSAGE 无 deeplink：走 extra.chatId（与历史行兼容）
+                if (item.type == "MESSAGE" && item.deeplink == null) {
+                    val chatId = item.extra["chatId"].orEmpty()
+                    if (chatId.isNotBlank()) {
+                        com.maodouchat.notification.MessageNotificationService.cancelMessage(
+                            context.applicationContext,
+                            chatId,
+                        )
+                        navController.navigate(Routes.chatDetail(chatId)) { launchSingleTop = true }
+                    }
+                    return@onOpenItem
+                }
+                // MISSED_CALL 类型无 deeplink 时仍打开未接箱，并按 callId 清托盘
+                if (item.type == "MISSED_CALL" && item.deeplink.isNullOrBlank()) {
+                    val callId = item.extra["callId"].orEmpty()
+                    if (callId.isNotBlank()) {
+                        com.maodouchat.notification.CallNotificationService.cancelMissedCall(
+                            context.applicationContext,
+                            callId,
+                        )
+                    }
+                    com.maodouchat.MaodouchatApp.emitOpenMissedCalls()
+                    navController.popBackStack()
+                    return@onOpenItem
+                }
+                if (item.type == "FRIEND_REQUEST" && item.deeplink.isNullOrBlank()) {
+                    com.maodouchat.MaodouchatApp.emitOpenContacts()
+                    navController.popBackStack()
+                    return@onOpenItem
+                }
+                val dest = AppLinkRouter.parseLegacyCenterDeeplink(item.deeplink.orEmpty())
+                    ?: return@onOpenItem
+                when (dest) {
+                    is AppLinkDestination.MissedCallsTab -> {
                         val callId = item.extra["callId"].orEmpty()
                         if (callId.isNotBlank()) {
                             com.maodouchat.notification.CallNotificationService.cancelMissedCall(
                                 context.applicationContext,
-                                callId
+                                callId,
                             )
                         }
                         com.maodouchat.MaodouchatApp.emitOpenMissedCalls()
                         navController.popBackStack()
                     }
-                    item.type == "MESSAGE" && item.deeplink == null -> {
-                        val chatId = item.extra["chatId"].orEmpty()
-                        if (chatId.isNotBlank()) {
-                            com.maodouchat.notification.MessageNotificationService.cancelMessage(context.applicationContext, chatId)
-                            navController.navigate(Routes.chatDetail(chatId)) { launchSingleTop = true }
-                        }
-                    }
-                    item.deeplink?.startsWith("maodouchat:chat:") == true -> {
-                        val chatId = item.deeplink.removePrefix("maodouchat:chat:")
-                        if (chatId.isNotBlank()) {
-                            // Center open should match open-chat tray dismiss.
-                            com.maodouchat.notification.MessageNotificationService.cancelMessage(
-                                context.applicationContext,
-                                chatId
-                            )
-                            navController.navigate(Routes.chatDetail(chatId)) { launchSingleTop = true }
-                        }
-                    }
-                    item.deeplink?.startsWith("maodouchat:ai_tasks:") == true -> {
-                        val chatId = item.deeplink.removePrefix("maodouchat:ai_tasks:")
-                        if (chatId.isNotBlank()) {
-                            com.maodouchat.notification.ReminderNotificationService.cancelAiTaskRemindersForChat(
-                                context.applicationContext,
-                                chatId
-                            )
-                            navController.navigate(Routes.aiTasks(chatId)) { launchSingleTop = true }
-                        }
-                    }
-                    item.deeplink?.startsWith("maodouchat:post:") == true -> {
-                        val raw = item.deeplink.removePrefix("maodouchat:post:")
-                        val postId = raw.substringBefore("?").trim()
-                        val commentId = raw.substringAfter("?comment=", "").trim().takeIf { it.isNotBlank() }
-                        if (postId.isNotBlank()) {
-                            com.maodouchat.notification.SocialNotificationService.cancelPostInteraction(
-                                context.applicationContext,
-                                postId
-                            )
-                            // 1.121：打开动态时将该动态的全部互动通知标记已读（角标/未读同步归零）
-                            runCatching {
-                                (context.applicationContext as? com.maodouchat.MaodouchatApp)
-                                    ?.notificationCenter?.markPostInteractionsRead(postId)
-                            }
-                            // 1.132：带评论 id 时详情页定位到该评论
-                            navController.navigate(Routes.postDetail(postId, commentId)) { launchSingleTop = true }
-                        }
-                    }
-                    item.type == "FRIEND_REQUEST" ||
-                        item.deeplink == "maodouchat:contacts" -> {
+                    is AppLinkDestination.ContactsTab -> {
                         com.maodouchat.MaodouchatApp.emitOpenContacts()
                         navController.popBackStack()
                     }
+                    is AppLinkDestination.ChatDetail -> {
+                        com.maodouchat.notification.MessageNotificationService.cancelMessage(
+                            context.applicationContext,
+                            dest.chatId,
+                        )
+                        navController.navigate(dest.toRoute()) { launchSingleTop = true }
+                    }
+                    is AppLinkDestination.AiTasksChat -> {
+                        com.maodouchat.notification.ReminderNotificationService.cancelAiTaskRemindersForChat(
+                            context.applicationContext,
+                            dest.chatId,
+                        )
+                        navController.navigate(dest.toRoute()) { launchSingleTop = true }
+                    }
+                    is AppLinkDestination.PostDetail -> {
+                        com.maodouchat.notification.SocialNotificationService.cancelPostInteraction(
+                            context.applicationContext,
+                            dest.postId,
+                        )
+                        // 1.121：打开动态时将该动态的全部互动通知标记已读（角标/未读同步归零）
+                        runCatching {
+                            (context.applicationContext as? com.maodouchat.MaodouchatApp)
+                                ?.notificationCenter?.markPostInteractionsRead(dest.postId)
+                        }
+                        navController.navigate(dest.toRoute()) { launchSingleTop = true }
+                    }
+                    else -> Unit
                 }
             }
         )

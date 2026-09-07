@@ -2219,6 +2219,12 @@
     <string name="notif_center_search_hint">搜索通知标题或预览</string>
     <string name="notif_center_search_empty">没有匹配的通知</string>
     <string name="ai_privacy_reset_consent">撤回本机 AI 授权</string>
+    <string name="ai_privacy_enable_all_title">一键开启全部 AI 体验</string>
+    <string name="ai_privacy_enable_all_subtitle">一键开启聊天内 AI、端侧授权、消息自动翻译与图内文字检索，无需逐项手动开启。</string>
+    <string name="ai_privacy_enable_all_btn">一键开启全部</string>
+    <string name="ai_privacy_enable_all_active">AI 功能已全部开启</string>
+    <string name="agent_provider_supports_vision">多模态视觉理解 (Vision)</string>
+    <string name="agent_provider_supports_vision_hint">启用后支持在智能体中识别和分析图片。纯文本模型请勿开启。</string>
     <string name="ai_privacy_reset_consent_subtitle">清空本机 AI 设置并停止所有 AI 功能，下次使用会重新请求授权。</string>
     <string name="ai_privacy_reset_confirm">确认撤回本机 AI 授权？本机已产生的摘要仍会保留。</string>
     <string name="ai_privacy_reset_confirm_ok">撤回授权</string>
@@ -2797,6 +2803,8 @@
     <string name="widget_config_requires_login">请先登录后再配置小组件</string>
     <string name="widget_config_load_failed">会话加载失败</string>
     <!-- B5 区块 · 快捷回复（QuickReply） -->
+    <string name="quick_reply_action">回复</string>
+    <string name="quick_reply_hint">输入回复内容…</string>
     <string name="quick_reply_rejected">当前会话不可快捷回复（密聊或已锁定）</string>
     <!-- B5 区块 · 悬浮球（FloatingBall） -->
     <string name="floating_ball_content_description">喵聊悬浮球</string>

@@ -301,8 +301,8 @@ class MaodouchatApp : Application() {
         // 9.3xx：冷启动按设置恢复推送保活（登录态在 ensureForUser 内校验）
         com.maodouchat.push.PushKeepAlive.ensureForUser(this)
 
-        // ConnectionService：注册系统通话 PhoneAccount（用于来电时接管原生通话 UI）
-        com.maodouchat.telecom.TelecomHelper.registerPhoneAccount(this)
+        // P03：经 CallSystemIntegration 注册系统通话 PhoneAccount（来电原生 UI）
+        com.maodouchat.call.CallSystemIntegration(this).registerPhoneAccount()
 
         // 1.103：会话列表「正在输入」presence——订阅领域事件流（进程级单例，随连接生灭自清理）
         com.maodouchat.util.TypingPresenceStore.start(realtimeEventDispatcher)

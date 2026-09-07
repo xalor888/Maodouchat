@@ -489,10 +489,8 @@ private suspend fun resolveCallerAndNavigate(
             autoAnswer = autoAnswer,
         )
     )
-    // ConnectionService：让 Android Telecom 接管来电 UI（锁屏 / 后台场景展示原生通话界面）
-    // 失败时静默回退到下方应用内 navigate(IncomingCallRoute)
-    com.maodouchat.telecom.TelecomHelper.placeIncomingCall(
-        context = appCtx,
+    // P03：Telecom 来电派发经 CallSystemIntegration；失败时静默回退到应用内 IncomingCallRoute
+    com.maodouchat.call.CallSystemIntegration(appCtx).placeIncomingCall(
         callerName = displayName,
         callId = callId,
         isVideo = callType == com.maodouchat.webrtc.CallType.VIDEO,

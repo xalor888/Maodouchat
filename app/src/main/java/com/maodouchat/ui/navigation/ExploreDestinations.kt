@@ -29,7 +29,28 @@ fun NavGraphBuilder.exploreDestinations(navController: NavHostController) {
                 navController.navigate(Routes.chatDetail(chatId)) {
                     launchSingleTop = true
                 }
-            }
+            },
+            onJoinGroupInvite = { inviteCode ->
+                navController.navigate(Routes.joinGroupInvite(inviteCode)) {
+                    launchSingleTop = true
+                }
+            },
+        )
+    }
+    composable(
+        route = Routes.JOIN_GROUP_INVITE,
+        arguments = listOf(navArgument("inviteCode") { type = NavType.StringType }),
+    ) { entry ->
+        val inviteCode = Uri.decode(entry.arguments?.getString("inviteCode") ?: "")
+        com.maodouchat.ui.screen.contacts.JoinGroupInviteScreen(
+            inviteCode = inviteCode,
+            onBack = { navController.popBackStack() },
+            onJoined = { chatId ->
+                navController.navigate(Routes.chatDetail(chatId)) {
+                    popUpTo(Routes.JOIN_GROUP_INVITE) { inclusive = true }
+                    launchSingleTop = true
+                }
+            },
         )
     }
     composable(Routes.NEARBY) {

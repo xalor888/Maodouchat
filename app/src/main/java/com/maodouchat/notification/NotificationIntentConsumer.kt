@@ -6,6 +6,7 @@ import com.maodouchat.IncomingCallWake
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.network.TokenManager
 import com.maodouchat.telecom.TelecomHelper
+import com.maodouchat.ui.navigation.AppLinkAuthGate
 import com.maodouchat.ui.navigation.AppLinkDestination
 import com.maodouchat.ui.navigation.AppLinkParseResult
 import com.maodouchat.ui.navigation.AppLinkRouter
@@ -51,18 +52,46 @@ class NotificationIntentConsumer(
         if (intent.action == android.content.Intent.ACTION_VIEW && data != null) {
             when (val parsed = AppLinkRouter.parseDeepLink(data.toString())) {
                 is AppLinkParseResult.Accepted -> {
-                    // 现阶段仅公开资料页经外部深链直达；其余 Accepted 目标
-                    //（chat/post/invite）保持 data 不动、落入常规应用内流程。
                     val dest = parsed.destination
-                    if (dest is AppLinkDestination.PublicProfile) {
-                        val ownerUserId = tokenManager.getUserId().orEmpty()
-                        setTarget(NotificationTarget.PublicProfile(
-                            // 8.34 意图延续：跳转用清洗后的用户名；多余路径段
-                            //（如 u/alice/bob）直接拒绝、不导航，而非截断后打开首段。
+                    // P08：业务导航前先过认证门闩；未登录时仍入队 pending，由 MainActivity 等登录后回放。
+                    AppLinkAuthGate.evaluate(
+                        destination = dest,
+                        isLoggedIn = tokenManager.isLoggedIn(),
+                    )
+                    val ownerUserId = tokenManager.getUserId().orEmpty()
+                    val sessionGen = MaodouchatApp.currentSessionGeneration()
+                    val target: NotificationTarget? = when (dest) {
+                        is AppLinkDestination.PublicProfile -> NotificationTarget.PublicProfile(
                             username = dest.username,
-                            sessionGeneration = MaodouchatApp.currentSessionGeneration(),
+                            sessionGeneration = sessionGen,
                             ownerUserId = ownerUserId,
-                        ))
+                        )
+                        is AppLinkDestination.ChatDetail -> NotificationTarget.Chat(
+                            id = dest.chatId,
+                            sessionGeneration = sessionGen,
+                            ownerUserId = ownerUserId,
+                            messageId = dest.messageId,
+                        )
+                        is AppLinkDestination.PostDetail -> NotificationTarget.Post(
+                            id = dest.postId,
+                            sessionGeneration = sessionGen,
+                            ownerUserId = ownerUserId,
+                        )
+                        is AppLinkDestination.AiTasksChat -> NotificationTarget.AiTasks(
+                            chatId = dest.chatId,
+                            sessionGeneration = sessionGen,
+                            ownerUserId = ownerUserId,
+                        )
+                        is AppLinkDestination.GroupInvite -> NotificationTarget.GroupInvite(
+                            code = dest.code,
+                            sessionGeneration = sessionGen,
+                            ownerUserId = ownerUserId,
+                        )
+                        // Tab-only destinations still need dedicated targets (contacts/missed/invites tray).
+                        else -> null
+                    }
+                    if (target != null) {
+                        setTarget(target)
                         intent.data = null
                         return
                     }

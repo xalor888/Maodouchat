@@ -15,6 +15,8 @@ object Routes {
     const val GROUP_DETAIL = "group_detail/{chatId}"
     const val GROUP_EDIT = "group_detail/{chatId}/edit"
     const val GROUP_INVITE = "group_detail/{chatId}/invite"
+    /** 外部/QR 邀请 token 落地：加入群后跳转会话。 */
+    const val JOIN_GROUP_INVITE = "join_group_invite/{inviteCode}"
     const val STARRED_MESSAGES = "starred_messages?chatId={chatId}"
     const val AI_TASKS = "ai_tasks/{chatId}"
     const val MEDIA_CENTER = "media_center/{chatId}"
@@ -73,6 +75,7 @@ object Routes {
     fun groupDetail(chatId: String) = "group_detail/${Uri.encode(chatId)}"
     fun groupEdit(chatId: String) = "group_detail/${Uri.encode(chatId)}/edit"
     fun groupInvite(chatId: String) = "group_detail/${Uri.encode(chatId)}/invite"
+    fun joinGroupInvite(inviteCode: String) = "join_group_invite/${Uri.encode(inviteCode)}"
     fun starredMessages(chatId: String? = null): String {
         val id = chatId?.takeIf { it.isNotBlank() }?.let { Uri.encode(it) }.orEmpty()
         return if (id.isEmpty()) "starred_messages" else "starred_messages?chatId=$id"

@@ -339,7 +339,8 @@ fun MyQrCodeScreen(
 fun ScanScreen(
     onBack: () -> Unit = {},
     onAddContact: (User) -> Unit = {},
-    onOpenChat: (String) -> Unit = {}
+    onOpenChat: (String) -> Unit = {},
+    onJoinGroupInvite: (inviteCode: String) -> Unit = {},
 ) {
     val context = LocalContext.current
     if (!RuntimeFlags.isEnabled(context, RuntimeFlags.QR_CODE)) {
@@ -364,8 +365,6 @@ fun ScanScreen(
     var scannedUserError by remember { mutableStateOf<String?>(null) }
     var scannedUserFriendBusy by remember { mutableStateOf(false) }
     var scannedUserFriendMessage by remember { mutableStateOf<String?>(null) }
-    var joinedChat by remember { mutableStateOf<ChatDto?>(null) }
-    var inviteError by remember { mutableStateOf<String?>(null) }
     var safetyScanResult by remember { mutableStateOf<SafetyScanResult?>(null) }
     var invalidQr by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
@@ -380,8 +379,6 @@ fun ScanScreen(
             scannedUserError = null
             scannedUserFriendBusy = false
             scannedUserFriendMessage = null
-            joinedChat = null
-            inviteError = null
             safetyScanResult = null
             invalidQr = true
             return@handleRaw
@@ -389,59 +386,8 @@ fun ScanScreen(
         when (target) {
             is QrCodeGenerator.QrTarget.Chat -> onOpenChat(target.chatId)
             is QrCodeGenerator.QrTarget.ChatInvite -> {
-                scannedTarget = target
-                joinedChat = null
-                inviteError = null
-                loading = true
-                val tokenManager = TokenManager.getInstance(context)
-                val token = tokenManager.getToken().orEmpty()
-                val joinOwnerUserId = tokenManager.getUserId().orEmpty()
-                scope.launch {
-                    try {
-                        if (token.isBlank() || joinOwnerUserId.isBlank()) {
-                            inviteError = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
-                            return@launch
-                        }
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = joinOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
-                        ) {
-                            inviteError = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
-                            return@launch
-                        }
-                        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                        ApiService.joinGroupByInvite(liveToken, target.token)
-                            .onSuccess { chat ->
-                                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                        expectedUserId = joinOwnerUserId,
-                                        liveToken = tokenManager.getToken(),
-                                        liveUserId = tokenManager.getUserId(),
-                                    )
-                                ) {
-                                    return@onSuccess
-                                }
-                                joinedChat = chat
-                            }
-                            .onFailure { error ->
-                                val api = error as? ApiException
-                                val feedback = QrScanFeedbackPolicy.forJoinInvite(
-                                    httpStatus = api?.statusCode,
-                                    serverCode = api?.serverCode,
-                                    serverMessage = api?.serverMessage ?: error.message,
-                                    isNetwork = api?.kind == ApiFailureKind.NETWORK,
-                                    isTimeout = api?.kind == ApiFailureKind.TIMEOUT
-                                )
-                                inviteError = qrScanMessage(context, feedback)
-                            }
-                    } catch (error: kotlinx.coroutines.CancellationException) {
-                        loading = false
-                        throw error
-                    } finally {
-                        loading = false
-                    }
-                }
+                // P08：QR 邀请与深链统一经 JoinGroupInvite 路由，不再页内直调 join API。
+                onJoinGroupInvite(target.token)
             }
             is QrCodeGenerator.QrTarget.Safety -> {
                 scannedTarget = target
@@ -814,44 +760,6 @@ fun ScanScreen(
                 )
             },
             confirmButton = { TextButton(onClick = { scannedTarget = null }) { Text(stringResource(R.string.chat_acknowledge)) } }
-        )
-    }
-
-    if (scannedTarget is QrCodeGenerator.QrTarget.ChatInvite && loading) {
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text(stringResource(R.string.contacts_joining_group)) },
-            text = { Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } },
-            confirmButton = {}
-        )
-    } else if (scannedTarget is QrCodeGenerator.QrTarget.ChatInvite && joinedChat != null) {
-        val chat = joinedChat!!
-        AlertDialog(
-            onDismissRequest = { scannedTarget = null; joinedChat = null },
-            title = { Text(stringResource(R.string.contacts_joined_group)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(chat.groupName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_group))
-                    Text(pluralStringResource(R.plurals.chat_members_count, chat.participants.size, chat.participants.size), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    scannedTarget = null
-                    joinedChat = null
-                    onOpenChat(chat.id)
-                }) { Text(stringResource(R.string.contacts_enter_group), color = MaterialTheme.colorScheme.primary) }
-            },
-            dismissButton = {
-                TextButton(onClick = { scannedTarget = null; joinedChat = null }) { Text(stringResource(R.string.chat_later), color = LocalChatPalette.current.textSecondary) }
-            }
-        )
-    } else if (scannedTarget is QrCodeGenerator.QrTarget.ChatInvite && inviteError != null) {
-        AlertDialog(
-            onDismissRequest = { scannedTarget = null; inviteError = null },
-            title = { Text(stringResource(R.string.contacts_cannot_join_group)) },
-            text = { Text(inviteError.orEmpty()) },
-            confirmButton = { TextButton(onClick = { scannedTarget = null; inviteError = null }) { Text(stringResource(R.string.chat_acknowledge)) } }
         )
     }
 
