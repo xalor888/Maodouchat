@@ -65,4 +65,33 @@ object AnnouncementPolicy {
         val status: String,
         val acked: Boolean = false
     )
+
+    /**
+     * 解析 `/api/announcements/active` JSON 载荷并做展示过滤。
+     * 解析失败返回空列表（调用方保持既有公告不变）。
+     */
+    fun parseAndFilterActivePayload(raw: String, nowMs: Long = System.currentTimeMillis()): List<AnnouncementData> {
+        if (raw.isBlank()) return emptyList()
+        return runCatching {
+            val arr = org.json.JSONObject(raw).optJSONArray("announcements") ?: org.json.JSONArray()
+            fun safeOpt(o: org.json.JSONObject, key: String): String =
+                if (o.has(key)) o.optString(key).takeIf { it != "null" }.orEmpty() else ""
+            val items = (0 until arr.length()).mapNotNull { i ->
+                val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                val id = safeOpt(o, "id")
+                if (id.isBlank()) return@mapNotNull null
+                AnnouncementData(
+                    id = id,
+                    title = safeOpt(o, "title"),
+                    content = safeOpt(o, "content"),
+                    level = safeOpt(o, "level"),
+                    startsAt = o.optLong("startsAt", 0L),
+                    expiresAt = o.optLong("expiresAt", 0L),
+                    status = safeOpt(o, "status"),
+                    acked = o.optBoolean("acked", false),
+                )
+            }
+            filterForDisplay(items, nowMs)
+        }.getOrNull().orEmpty()
+    }
 }

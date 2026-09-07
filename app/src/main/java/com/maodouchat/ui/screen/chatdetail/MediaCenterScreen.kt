@@ -99,7 +99,6 @@ import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.MediaCache
-import com.maodouchat.util.MediaExport
 import com.maodouchat.util.MediaViewerPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -144,20 +143,15 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
                 _uiState.update { MediaCenterUiState(items = emptyList(), isLoading = false, isChatLocked = false) }
                 return@launch
             }
-            val locked = try {
-                chatLockRepo.get(chatId) != null
+            val caps = try {
+                app.secretConversationController.capabilities(chatId)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (_: Exception) {
-                false
+                com.maodouchat.domain.messaging.ConversationPrivacyCapabilities(isSecretChat = true, isLocked = false)
             }
-            val secret = try {
-                app.database.chatDao().isSecretChat(chatId)
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            } catch (_: Exception) {
-                true
-            }
+            val locked = caps.isLocked
+            val secret = caps.isSecretChat
             if (secret) {
                 com.maodouchat.security.SecretChatSession.markSurfaceActive(chatId)
             } else {
@@ -204,6 +198,22 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
                 observeMedia(displayName)
             }
             onResult(ok)
+        }
+    }
+
+    internal val mediaExportUseCase: MediaExportUseCase = DefaultMediaExportUseCase(application)
+
+    fun saveMessageMedia(message: Message, onResult: (MediaExportResult) -> Unit) {
+        viewModelScope.launch {
+            val res = mediaExportUseCase.saveMessageMedia(message, _uiState.value.isSecretChat)
+            onResult(res)
+        }
+    }
+
+    fun shareMessageMedia(message: Message, chooserTitle: String, onResult: (MediaExportResult) -> Unit) {
+        viewModelScope.launch {
+            val res = mediaExportUseCase.shareMessageMedia(message, _uiState.value.isSecretChat, chooserTitle)
+            onResult(res)
         }
     }
 
@@ -481,7 +491,29 @@ internal fun MediaCenterCategoryContent(
             message = msg,
             onDismiss = { previewMessage = null },
             secretChatId = if (state.isSecretChat) viewModel.chatId else null,
-            currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId()
+            currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
+            onSave = {
+                viewModel.saveMessageMedia(msg) { res ->
+                    val text = when (res) {
+                        is MediaExportResult.SecretBlocked -> secretExportBlocked
+                        is MediaExportResult.Success -> exportSaved
+                        is MediaExportResult.Failure -> exportSaveFailed
+                    }
+                    Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+                }
+            },
+            onShare = {
+                viewModel.shareMessageMedia(msg, shareMedia) { res ->
+                    val text = when (res) {
+                        is MediaExportResult.SecretBlocked -> secretExportBlocked
+                        is MediaExportResult.Success -> null
+                        is MediaExportResult.Failure -> exportShareFailed
+                    }
+                    if (text != null) {
+                        Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
         )
     }
 
@@ -500,25 +532,13 @@ internal fun MediaCenterCategoryContent(
                 Column {
                     TextButton(
                         onClick = {
-                            if (state.isSecretChat) {
-                                Toast.makeText(context, secretExportBlocked, Toast.LENGTH_SHORT).show()
-                                exportTarget = null
-                                return@TextButton
-                            }
-                            val meta = msg.parsedMeta()
-                            val mime = MediaViewerPolicy.defaultMime(msg.type.name, meta.fileMimeType)
-                            val name = MediaViewerPolicy.defaultFileName(msg.type.name, meta.fileName, mime)
-                            scope.launch {
-                                val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                    MediaExport.saveToGallery(context, msg.parsedContent(), mime, name)
+                            viewModel.saveMessageMedia(msg) { res ->
+                                val text = when (res) {
+                                    is MediaExportResult.SecretBlocked -> secretExportBlocked
+                                    is MediaExportResult.Success -> if (isFile) exportSavedFile else exportSaved
+                                    is MediaExportResult.Failure -> exportSaveFailed
                                 }
-                                Toast.makeText(
-                                    context,
-                                    if (ok) {
-                                        if (isFile) exportSavedFile else exportSaved
-                                    } else exportSaveFailed,
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
                                 exportTarget = null
                             }
                         },
@@ -531,23 +551,17 @@ internal fun MediaCenterCategoryContent(
                     }
                     TextButton(
                         onClick = {
-                            if (state.isSecretChat) {
-                                Toast.makeText(context, secretExportBlocked, Toast.LENGTH_SHORT).show()
+                            viewModel.shareMessageMedia(msg, if (isFile) shareFile else shareMedia) { res ->
+                                val text = when (res) {
+                                    is MediaExportResult.SecretBlocked -> secretExportBlocked
+                                    is MediaExportResult.Success -> null
+                                    is MediaExportResult.Failure -> exportShareFailed
+                                }
+                                if (text != null) {
+                                    Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+                                }
                                 exportTarget = null
-                                return@TextButton
                             }
-                            val meta = msg.parsedMeta()
-                            val mime = MediaViewerPolicy.defaultMime(msg.type.name, meta.fileMimeType)
-                            val ok = MediaExport.share(
-                                context,
-                                msg.parsedContent(),
-                                mime,
-                                if (isFile) shareFile else shareMedia
-                            )
-                            if (!ok) {
-                                Toast.makeText(context, exportShareFailed, Toast.LENGTH_SHORT).show()
-                            }
-                            exportTarget = null
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -660,18 +674,11 @@ private fun MediaCenterImageViewer(
     message: Message,
     onDismiss: () -> Unit,
     secretChatId: String? = null,
-    currentUserId: String? = null
+    currentUserId: String? = null,
+    onSave: () -> Unit,
+    onShare: () -> Unit,
 ) {
     val context = LocalContext.current
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val secretExportBlocked = stringResource(R.string.secret_chat_media_export_blocked)
-    val exportSaved = stringResource(R.string.media_export_saved)
-    val exportSaveFailed = stringResource(R.string.media_export_save_failed)
-    val shareMedia = stringResource(R.string.common_share)
-    val exportShareFailed = stringResource(R.string.media_export_share_failed)
-    val meta = remember(message.id, message.content) { message.parsedMeta() }
-    val mime = MediaViewerPolicy.defaultMime(message.type.name, meta.fileMimeType)
-    val displayName = MediaViewerPolicy.defaultFileName(message.type.name, meta.fileName, mime)
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -726,41 +733,12 @@ private fun MediaCenterImageViewer(
                     horizontalArrangement = Arrangement.spacedBy(20.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(
-                        onClick = {
-                            if (!secretChatId.isNullOrBlank()) {
-                                Toast.makeText(context, secretExportBlocked, Toast.LENGTH_SHORT).show()
-                                return@TextButton
-                            }
-                            scope.launch {
-                                val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                    MediaExport.saveToGallery(context, message.parsedContent(), mime, displayName)
-                                }
-                                Toast.makeText(
-                                    context,
-                                    if (ok) exportSaved else exportSaveFailed,
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-                    ) { Text(stringResource(R.string.common_save), color = Color.White) }
-                    TextButton(
-                        onClick = {
-                            if (!secretChatId.isNullOrBlank()) {
-                                Toast.makeText(context, secretExportBlocked, Toast.LENGTH_SHORT).show()
-                                return@TextButton
-                            }
-                            val ok = MediaExport.share(
-                                context,
-                                message.parsedContent(),
-                                mime,
-                                shareMedia
-                            )
-                            if (!ok) {
-                                Toast.makeText(context, exportShareFailed, Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    ) { Text(stringResource(R.string.common_share), color = Color.White) }
+                    TextButton(onClick = onSave) {
+                        Text(stringResource(R.string.common_save), color = Color.White)
+                    }
+                    TextButton(onClick = onShare) {
+                        Text(stringResource(R.string.common_share), color = Color.White)
+                    }
                 }
             }
         }
@@ -1054,8 +1032,7 @@ private fun MediaCenterCategory.labelResource(): Int = when (this) {
 }
 
 private fun openWebLink(context: Context, url: String) {
-    val uri = runCatching { Uri.parse(url) }.getOrNull()?.takeIf { it.scheme in setOf("http", "https") } ?: return
-    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
+    com.maodouchat.ui.navigation.AppLinkOpener.openUserFacingUrl(context, url)
 }
 
 private fun openLocalContent(context: Context, rawUri: String, mimeType: String?) {

@@ -215,6 +215,7 @@ import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.InlineTypingDots
+import com.maodouchat.ui.component.TypingPresence
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.security.MessageSafetyScanner
@@ -222,7 +223,6 @@ import com.maodouchat.security.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
 import com.maodouchat.security.findActivity
 import com.maodouchat.ui.component.FloatingGlassTopBar
-import com.maodouchat.ui.component.MessageBubble
 import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
 import com.maodouchat.ui.theme.LocalLiquidGlassEnabled
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -3350,6 +3350,12 @@ if (showGroupCallTypeDialog) {
                     viewModel.onInputChange("")
                     viewModel.clearDraftPersistence()
                 },
+            )
+
+            // 打字中微动效指示器 (Murexide / Telegram 风格悬浮指示)
+            TypingPresence(
+                visible = state.typingContact != null,
+                modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
             )
 
             // 输入区

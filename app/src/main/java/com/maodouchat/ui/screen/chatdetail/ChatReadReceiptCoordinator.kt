@@ -44,9 +44,10 @@ internal class ChatReadReceiptCoordinator(
             updateState { it.copy(isLoadingReadReceipts = true, readReceipts = emptyList()) }
             try {
                 val receipts = withContext(Dispatchers.IO) {
-                    dao.getReceiptsForMessage(ownerUserId, messageId).filter { it.readAt != null }
+                    dao.getReceiptsForMessage(ownerUserId, messageId)
                 }
-                val readAtByUser = receipts.associate { it.recipientUserId to requireNotNull(it.readAt) }
+                val readAtByUser = receipts.filter { it.readAt != null }.associate { it.recipientUserId to requireNotNull(it.readAt) }
+                val playedAtByUser = receipts.filter { it.playedAt != null }.associate { it.recipientUserId to requireNotNull(it.playedAt) }
                 val members = currentState().chat?.participants.orEmpty()
                 val rows = members.filter { it.id != ownerUserId }.map { user ->
                     ReadReceiptUi(
@@ -54,6 +55,7 @@ internal class ChatReadReceiptCoordinator(
                         name = user.displayName,
                         avatar = user.avatar,
                         readAt = readAtByUser[user.id],
+                        playedAt = playedAtByUser[user.id],
                         isOnline = user.isOnline,
                     )
                 }

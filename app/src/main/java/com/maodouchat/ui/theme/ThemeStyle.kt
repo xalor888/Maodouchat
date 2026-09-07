@@ -19,7 +19,7 @@ enum class ThemeFamily(val id: String) {
     TG_GRAPHITE("tg_graphite");
 
     val isLiquidGlass: Boolean get() = this == MAODOU
-    val isTelegram: Boolean get() = this != MAODOU
+    val isTelegram: Boolean get() = this == TG_CLASSIC || this == TG_MIDNIGHT || this == TG_GRAPHITE
 
     companion object {
         fun normalize(raw: String?): ThemeFamily = when (raw?.trim()?.lowercase()) {
@@ -29,7 +29,7 @@ enum class ThemeFamily(val id: String) {
             else -> MAODOU
         }
 
-        val ALL: List<ThemeFamily> = entries
+        val ALL: List<ThemeFamily> = listOf(MAODOU, TG_CLASSIC, TG_MIDNIGHT, TG_GRAPHITE)
         val PICKABLE: List<ThemeFamily> = listOf(MAODOU)
     }
 }
@@ -369,7 +369,7 @@ fun resolveThemePaint(family: ThemeFamily, dark: Boolean): ThemePaint {
             SentBubbleSpec(Color(0xFFF2F2F2), Color(0xFF1A1A1A), Color(0x991A1A1A))
         }
     )
-    if (!family.isTelegram) return maodou
+    if (family == ThemeFamily.MAODOU) return maodou
 
     // TG 浅色发送气泡用经典浅绿 #EFFDDE（配深墨字）；TG 深色沿用近黑灰气泡（配浅字）。
     val tgLightSent = SentBubbleSpec(Color(0xFFEFFDDE), Color(0xFF1A1A1A), Color(0x991A1A1A))

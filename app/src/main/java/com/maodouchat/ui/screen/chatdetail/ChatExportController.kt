@@ -8,15 +8,18 @@ import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.ChatExport
 import com.maodouchat.util.JsonFormat
 import com.maodouchat.util.RuntimeFlags
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
  * 聊天导出控制器。从 ChatDetailViewModel 抽出；导出只读本地已解密明文快照，
- * 密聊一律拒绝导出（防明文泄漏），分页窗口用 partial 标记。
+ * 密聊一律拒绝导出（防明文泄漏），建立版本协议（FORMAT_VERSION）、流式写入与任务取消支持。
  */
 class ChatExportController(
     private val messageRepo: LocalMessageStore,
@@ -30,15 +33,31 @@ class ChatExportController(
     private val currentUserId: String get() = tokenManager.getUserId() ?: "me"
     private val token: String get() = tokenManager.getToken() ?: ""
 
-    /** 导出本会话聊天记录（本地已解密消息 → 文本 → 系统分享）。上限 ChatExport.MAX_MESSAGES 条。 */
+    private var exportJob: Job? = null
+
+    /** 取消进行中的聊天记录导出任务。 */
+    fun cancelExport() {
+        exportJob?.cancel()
+        exportJob = null
+    }
+
+    /** 导出本会话聊天记录（本地已解密消息 → 流式文本 → 系统分享）。上限 ChatExport.MAX_MESSAGES 条。 */
     fun exportChatHistory() {
-        scope.launch {
+        cancelExport()
+        exportJob = scope.launch {
             if (!RuntimeFlags.isEnabled(context, RuntimeFlags.CHAT_EXPORT)) {
                 uiState.update { it.copy(infoMessage = text(R.string.chat_export_disabled)) }
                 return@launch
             }
             val chat = uiState.value.chat ?: return@launch
-            if (chat.isSecret || uiState.value.isSecretChat == true) {
+            val caps = (context.applicationContext as? com.maodouchat.MaodouchatApp)
+                ?.secretConversationController
+                ?.capabilities(chat.id)
+                ?: com.maodouchat.domain.messaging.ConversationPrivacyCapabilities(
+                    isSecretChat = chat.isSecret || uiState.value.isSecretChat == true,
+                    isLocked = false
+                )
+            if (!com.maodouchat.domain.messaging.ConversationPrivacyPolicy.allows(caps, com.maodouchat.domain.messaging.PrivacyAction.EXPORT)) {
                 uiState.update { it.copy(infoMessage = text(R.string.secret_chat_export_blocked)) }
                 return@launch
             }
@@ -50,7 +69,7 @@ class ChatExportController(
             val recent = try {
                 messageRepo.getRecentMessages(chat.id, ChatExport.MAX_MESSAGES)
                     .asReversed()
-            } catch (error: kotlinx.coroutines.CancellationException) {
+            } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
                 emptyList()
@@ -67,14 +86,16 @@ class ChatExportController(
                 participants.values.firstOrNull { it.id != ownerId }?.name?.takeIf { it.isNotBlank() }
                     ?: text(R.string.chat_group)
             }
-            val exportText = ChatExport.buildText(
-                chatName = chatName,
-                ownerId = ownerId,
-                resolveSenderName = { id -> participants[id]?.name?.takeIf { it.isNotBlank() } ?: id },
-                messages = recent
-            )
             val file = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                ChatExport.write(context, chat.id, exportText)
+                ChatExport.writeStream(
+                    context = context,
+                    fileName = chat.id,
+                    chatName = chatName,
+                    ownerId = ownerId,
+                    messages = recent.asSequence(),
+                    resolveSenderName = { id -> participants[id]?.name?.takeIf { it.isNotBlank() } ?: id },
+                    isCancelled = { !isActive }
+                )
             }
             if (file != null && ChatExport.share(context, file, text(R.string.chat_export_share_title))) {
                 uiState.update { it.copy(infoMessage = text(R.string.chat_export_done)) }
@@ -100,14 +121,21 @@ class ChatExportController(
             return "{}"
         }
         val state = uiState.value
-        // Secret chats: refuse plaintext export snapshot (defense-in-depth for any caller).
-        if (state.isSecretChat == true) {
+        val chat = state.chat ?: return "{}"
+        val caps = (context.applicationContext as? com.maodouchat.MaodouchatApp)
+            ?.secretConversationController
+            ?.capabilities(chat.id)
+            ?: com.maodouchat.domain.messaging.ConversationPrivacyCapabilities(
+                isSecretChat = chat.isSecret || state.isSecretChat == true,
+                isLocked = false
+            )
+        if (!com.maodouchat.domain.messaging.ConversationPrivacyPolicy.allows(caps, com.maodouchat.domain.messaging.PrivacyAction.EXPORT)) {
             return "{}"
         }
-        val chat = state.chat ?: return "{}"
         // 导出只含当前已加载的分页窗口（pageLimit=200）；显式标记 partial，避免误以为备份完整。
         val partial = state.hasMoreOlderMessages
         val data = mapOf(
+            "formatVersion" to ChatExport.FORMAT_VERSION,
             "chatId" to chat.id,
             "isGroup" to chat.isGroup,
             "groupName" to chat.groupName,

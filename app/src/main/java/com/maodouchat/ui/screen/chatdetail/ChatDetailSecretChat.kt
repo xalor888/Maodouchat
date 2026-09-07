@@ -26,7 +26,7 @@ internal fun ChatDetailViewModel.refreshSecretChatState() {
             null
         }
         val secret = try {
-            loaded?.isSecret ?: app.database.chatDao().isSecretChat(targetChatId)
+            loaded?.isSecret ?: app.secretConversationController.capabilities(targetChatId).isSecretChat
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (_: Exception) {

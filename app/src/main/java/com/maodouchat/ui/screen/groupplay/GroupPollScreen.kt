@@ -44,9 +44,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
-import com.maodouchat.network.WebSocketClient
-import com.maodouchat.network.WebSocketEvent
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.util.GroupPollPolicy
@@ -97,7 +96,17 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
     private fun str(id: Int): String = getApplication<Application>().getString(id)
 
     init {
-        if (chatId.isNotBlank()) refresh()
+        if (chatId.isNotBlank()) {
+            refresh()
+            val app = getApplication<MaodouchatApp>()
+            viewModelScope.launch {
+                app.realtimeEventDispatcher.groupPlayEvents.collect { event ->
+                    if (event.chatId == chatId) {
+                        refresh()
+                    }
+                }
+            }
+        }
     }
 
     fun refresh() {
@@ -248,15 +257,6 @@ fun GroupPollScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // 群玩法实时刷新：同群成员的签到/接龙/PK 变化通过 GROUP_PLAY_UPDATE 推送到达时自动刷新，
-    // 此前该事件在客户端无任何处理，界面只能靠退出重进才能看到他人更新。
-    LaunchedEffect(viewModel.chatId) {
-        WebSocketClient.events.collect { event ->
-            if (event is WebSocketEvent.GroupPlayUpdated && event.chatId == viewModel.chatId) {
-                viewModel.refresh()
-            }
-        }
-    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,

@@ -1,6 +1,12 @@
 package com.maodouchat.ui.screen.settings
 
-class SecurityCoordinator(private val repository: SettingsRepository) {
+/**
+ * 门面协调器：继承领域层 SecurityCoordinator，并集成 SettingsRepository 的持久化能力。
+ */
+class SecurityCoordinator(
+    private val repository: SettingsRepository
+) : com.maodouchat.security.coordinator.SecurityCoordinator() {
+
     fun currentSession(): SettingsSession? = repository.currentSession()
 
     suspend fun pull(session: SettingsSession): Result<SecurityPreferences> =

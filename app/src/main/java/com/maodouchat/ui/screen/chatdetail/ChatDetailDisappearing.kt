@@ -26,7 +26,8 @@ internal fun ChatDetailViewModel.setDisappearingMessages(seconds: Int) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.disappear_group_unsupported)) }
         return
     }
-    if (chat.isSecret) {
+    val caps = getApplication<com.maodouchat.MaodouchatApp>().secretConversationController.capabilities(chat.id)
+    if (caps.isSecretChat) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_timer_locked)) }
         return
     }
@@ -130,25 +131,10 @@ internal fun ChatDetailViewModel.setDisappearingMessages(seconds: Int) {
 
 internal suspend fun ChatDetailViewModel.armSecretDisappearing(targetChatId: String, throughId: String?) {
     if (targetChatId.isBlank()) return
-    if (_uiState.value.isSecretChat != true) return
-    val timer = DisappearingMessagePolicy.SECRET_DEFAULT_SECONDS
-    if (!DisappearingMessagePolicy.shouldArmOnVisible(true, timer)) return
-    val now = System.currentTimeMillis()
-    val messages = _uiState.value.messages
-    val boundary = throughId?.let { boundaryId -> messages.firstOrNull { it.id == boundaryId } }
-    val localMessages = messages.filter { message ->
-        val withinBoundary = boundary == null ||
-            message.timestamp < boundary.timestamp ||
-            (message.timestamp == boundary.timestamp && message.id <= boundary.id)
-        withinBoundary &&
-            message.type != MessageType.SK_DIST &&
-            message.type != MessageType.REVOKED &&
-            (message.expiresAt == null || message.expiresAt <= 0L)
-    }
-    localMessages.forEach { msg ->
-        val armed = DisappearingMessagePolicy.resolveExpiresAt(null, timer, now) ?: return@forEach
-        applyMessageExpires(msg.id, armed)
-    }
+    val app = getApplication<com.maodouchat.MaodouchatApp>()
+    val caps = app.secretConversationController.capabilities(targetChatId)
+    if (!caps.isSecretChat) return
+    app.secretConversationController.armOnRead(targetChatId)
 }
 
 internal suspend fun ChatDetailViewModel.applyMessageExpires(messageId: String, expiresAt: Long) {
@@ -169,32 +155,14 @@ internal suspend fun ChatDetailViewModel.applyMessageExpires(messageId: String, 
 }
 
 internal suspend fun ChatDetailViewModel.purgeExpiredLocalMessages(nowMs: Long = System.currentTimeMillis()) {
-    // 阅后即焚：基于数据库扫描所有已过期消息（含已滚出内存窗口/分页未加载的），
-    // 不再只依赖当前屏幕内存列表，避免私密内容因不在可见窗口而永久留存。
-    val expiredIds = withContext(Dispatchers.IO) { messageRepo.deleteExpiredMessages(nowMs) }
-    if (expiredIds.isEmpty()) return
-    withContext(Dispatchers.IO) {
-        expiredIds.forEach { id ->
-            MediaCache.deleteCachedMediaForMessage(getApplication(), id)
-        }
-    }
-    // 8.32 修复 F9（隐私）：自毁消息删除后同步清理 tray 预览与通知中心条目，
-    // 否则密文已删但通知栏仍展示正文预览。
-    try {
-        com.maodouchat.MaodouchatApp.instance.notificationCenter.deleteItemsForMessages(expiredIds)
-    } catch (error: kotlinx.coroutines.CancellationException) {
-        throw error
-    } catch (_: Exception) {
-        // 通知中心清理失败不阻塞自毁消息删除
-    }
-    runCatching {
-        com.maodouchat.util.AppNotifier.cancelMessage(getApplication(), activeChatId)
-    }
-    val expiredSet = expiredIds.toSet()
+    val app = getApplication<com.maodouchat.MaodouchatApp>()
+    app.secretConversationController.purgeExpiredMessages(nowMs)
     _uiState.update { s ->
         s.copy(
-            messages = s.messages.filterNot { it.id in expiredSet },
-            pinnedMessages = s.pinnedMessages.filterNot { it.messageId in expiredSet }
+            messages = s.messages.filter { it.expiresAt == null || it.expiresAt <= 0L || it.expiresAt > nowMs },
+            pinnedMessages = s.pinnedMessages.filter { pin ->
+                s.messages.none { it.id == pin.messageId && it.expiresAt != null && it.expiresAt > 0L && it.expiresAt <= nowMs }
+            }
         )
     }
 }

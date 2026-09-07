@@ -1,5 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.domain.messaging.ConversationPrivacyCapabilities
+import com.maodouchat.domain.messaging.ConversationPrivacyPolicy
+import com.maodouchat.domain.messaging.PrivacyAction
 import com.maodouchat.util.DisappearingMessagePolicy
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
@@ -132,10 +135,21 @@ internal fun ChatDetailViewModel.normalizeAiRewriteMode(mode: String?): String {
     }
 }
 
+internal fun ChatDetailViewModel.isAiAllowed(): Boolean {
+    val targetChatId = activeChatId
+    val caps = if (targetChatId.isNotBlank()) {
+        getApplication<MaodouchatApp>().secretConversationController.capabilities(targetChatId)
+    } else {
+        val isSecret = _uiState.value.isSecretChat == true || _uiState.value.chat?.isSecret == true
+        ConversationPrivacyCapabilities(isSecretChat = isSecret, isLocked = false)
+    }
+    return ConversationPrivacyPolicy.allows(caps, PrivacyAction.AI)
+}
+
 fun ChatDetailViewModel.requestAiRewrite(mode: String, targetLanguage: String? = null) {
     if (_uiState.value.isAiWorking) return
     // 密聊会话禁止 AI 改写：解密明文不得送服务端 AI
-    if (_uiState.value.isSecretChat == true) {
+    if (!isAiAllowed()) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
         return
     }
@@ -157,7 +171,7 @@ fun ChatDetailViewModel.requestAiRewrite(mode: String, targetLanguage: String? =
 fun ChatDetailViewModel.requestAiSuggestions(tone: String = "friendly") {
     if (_uiState.value.isAiWorking) return
     // 密聊会话禁止 AI 建议回复：解密明文不得送服务端 AI
-    if (_uiState.value.isSecretChat == true) {
+    if (!isAiAllowed()) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
         return
     }
@@ -188,7 +202,7 @@ fun ChatDetailViewModel.requestAiSummary(
 ) {
     if (_uiState.value.isAiWorking) return
     // 密聊会话禁止 AI 聚合：解密明文不得送服务端 AI
-    if (_uiState.value.isSecretChat == true) {
+    if (!isAiAllowed()) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
         return
     }
@@ -268,7 +282,7 @@ fun ChatDetailViewModel.requestGroupAiWithMode(query: String, mode: String) {
 }
 
 fun ChatDetailViewModel.requestVoiceTranscription(messageId: String) {
-    if (_uiState.value.isSecretChat == true) {
+    if (!isAiAllowed()) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
         return
     }
@@ -295,7 +309,7 @@ fun ChatDetailViewModel.requestVoiceTranscription(messageId: String) {
 internal fun ChatDetailViewModel.maybeAutoTranslateIncoming(message: Message) {
     if (message.senderId == currentUserId) return
     if (message.type != MessageType.TEXT && message.type != MessageType.MARKDOWN) return
-    if (_uiState.value.isSecretChat == true) return
+    if (!isAiAllowed()) return
     if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) return
     if (!_uiState.value.aiEnabled) return
     val app = getApplication<Application>()
@@ -312,7 +326,7 @@ internal fun ChatDetailViewModel.maybeAutoTranslateIncoming(message: Message) {
 }
 
 fun ChatDetailViewModel.requestMessageTranslation(messageId: String, targetLanguage: String = DEFAULT_TRANSLATION_LANGUAGE) {
-    if (_uiState.value.isSecretChat == true) {
+    if (!isAiAllowed()) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
         return
     }
@@ -347,7 +361,7 @@ fun ChatDetailViewModel.requestMessageTranslation(messageId: String, targetLangu
 }
 
 fun ChatDetailViewModel.requestAiImageAnalysis(messageId: String, mode: AiImageAnalysisMode) {
-    if (_uiState.value.isSecretChat == true) {
+    if (!isAiAllowed()) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
         return
     }
@@ -388,7 +402,7 @@ fun ChatDetailViewModel.clearAiImageAnalysis() {
 }
 
 fun ChatDetailViewModel.requestAiFileAnalysis(messageId: String, mode: AiFileAnalysisMode, question: String? = null) {
-    if (_uiState.value.isSecretChat == true) {
+    if (!isAiAllowed()) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
         return
     }

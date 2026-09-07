@@ -30,6 +30,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -222,12 +223,10 @@ import com.maodouchat.security.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
 import com.maodouchat.security.findActivity
 import com.maodouchat.ui.component.FloatingGlassTopBar
-import com.maodouchat.ui.component.MessageBubble
 import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
 import com.maodouchat.ui.theme.LocalLiquidGlassEnabled
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.maodouchat.ui.component.ReplyPreview
 import com.maodouchat.ui.component.ReplyTargetBar
 import com.maodouchat.ui.component.ParticleDeleteEffect
 import com.maodouchat.ui.component.ParticleState
@@ -4013,7 +4012,17 @@ internal fun ComposerPane(
                     modifier = Modifier.size(22.dp)
                 )
             }
-            Box(modifier = Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(LocalChatPalette.current.chatInputBackground)) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .border(
+                        width = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                        shape = RoundedCornerShape(26.dp)
+                    )
+            ) {
                 // 1.175：回车发送偏好（开 → 单行 + IME Send；关 → 多行回车换行）
                 val enterToSend = com.maodouchat.util.ComposerPreferences.enterToSend(context)
                 TextField(

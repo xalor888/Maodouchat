@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,11 +44,13 @@ import androidx.compose.ui.unit.dp
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import androidx.work.WorkInfo
 import com.maodouchat.R
 import com.maodouchat.network.ApiService
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.update.AppUpdateDownloadScheduler
 import com.maodouchat.update.AppUpdatePolicy
-import com.maodouchat.update.OfficialApkInstaller
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
@@ -73,8 +76,30 @@ fun AboutScreen(onBack: () -> Unit = {}) {
     var updateMessage by remember { mutableStateOf<String?>(null) }
     var downloadUrl by remember { mutableStateOf<String?>(null) }
     var downloadSha256 by remember { mutableStateOf<String?>(null) }
+    var downloadVersionCode by remember { mutableStateOf(0) }
     // 9.209：关于页展示当前连接的服务器身份（第三方模式显示运营方名称）
     val serverIdentity by com.maodouchat.network.ServerIdentity.current.collectAsState()
+
+    LaunchedEffect(downloadingUpdate) {
+        if (!downloadingUpdate) return@LaunchedEffect
+        AppUpdateDownloadScheduler.observe(context).collectLatest { info ->
+            val percent = AppUpdateDownloadScheduler.progressOf(info)
+            if (percent > 0) {
+                updateMessage = context.getString(R.string.about_update_downloading, percent)
+            }
+            when (info?.state) {
+                WorkInfo.State.SUCCEEDED -> {
+                    downloadingUpdate = false
+                }
+                WorkInfo.State.FAILED,
+                WorkInfo.State.CANCELLED -> {
+                    downloadingUpdate = false
+                    updateMessage = context.getString(R.string.about_update_install_failed)
+                }
+                else -> Unit
+            }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
@@ -165,6 +190,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                     updateMessage = null
                     downloadUrl = null
                     downloadSha256 = null
+                    downloadVersionCode = 0
                     scope.launch {
                         val result = ApiService.getPublicUpdates()
                         checkingUpdate = false
@@ -177,6 +203,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                                     )
                                     downloadUrl = remote.apkUrl
                                     downloadSha256 = remote.apkSha256
+                                    downloadVersionCode = remote.versionCode
                                 } else {
                                     updateMessage = context.getString(R.string.about_update_latest)
                                 }
@@ -203,23 +230,12 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                     onClick = {
                         if (downloadingUpdate) return@TextButton
                         downloadingUpdate = true
-                        scope.launch {
-                            val result = OfficialApkInstaller.downloadAndPromptInstall(
-                                context = context,
-                                apkUrl = url,
-                                expectedSha256 = downloadSha256.orEmpty(),
-                                onProgress = { percent ->
-                                    updateMessage = context.getString(R.string.about_update_downloading, percent)
-                                },
-                            )
-                            downloadingUpdate = false
-                            result.fold(
-                                onSuccess = { },
-                                onFailure = {
-                                    updateMessage = context.getString(R.string.about_update_install_failed)
-                                }
-                            )
-                        }
+                        AppUpdateDownloadScheduler.enqueue(
+                            context = context,
+                            apkUrl = url,
+                            expectedSha256 = downloadSha256.orEmpty(),
+                            expectedVersionCode = downloadVersionCode,
+                        )
                     },
                     enabled = !downloadingUpdate
                 ) {

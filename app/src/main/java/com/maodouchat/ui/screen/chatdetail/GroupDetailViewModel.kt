@@ -1,135 +1,31 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.util.RuntimeFlags
-import android.annotation.SuppressLint
 import android.app.Application
-import android.content.Intent
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Checklist
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.NotificationsOff
-import androidx.compose.material.icons.outlined.Campaign
-import androidx.compose.material.icons.outlined.Link
-import androidx.compose.material.icons.outlined.PersonAdd
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.SwapHoriz
-import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.QrCode
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
-import com.maodouchat.data.local.entity.AttachmentTransferState
-import com.maodouchat.data.local.entity.hasCompletedUpload
+import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.data.model.User
-import com.maodouchat.network.ApiService
-import com.maodouchat.network.GroupMemberDto
-import com.maodouchat.network.GroupAuditLogDto
-import com.maodouchat.network.SenderKeyDistributionTargetDto
-import com.maodouchat.network.SenderKeyDistributionStatusDto
-import com.maodouchat.network.TokenManager
-import com.maodouchat.network.WebSocketClient
-import com.maodouchat.network.WebSocketEvent
-import com.maodouchat.messaging.v2.createAndroidGroupMessagingCoordinator
+import com.maodouchat.group.DefaultGroupLifecycleService
+import com.maodouchat.group.GroupAuditController
+import com.maodouchat.group.GroupBotController
+import com.maodouchat.group.GroupEncryptionHealthController
+import com.maodouchat.group.GroupInviteController
+import com.maodouchat.group.GroupLifecycleService
+import com.maodouchat.group.GroupMemberUi
+import com.maodouchat.group.GroupOwnedBotUi
+import com.maodouchat.group.toUi
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceCoordinator
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceOutcome
-import com.maodouchat.ui.component.Avatar
-import com.maodouchat.ui.component.AvatarSize
-import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
-import com.maodouchat.ui.component.secretPageBlindWatermark
-import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.ui.theme.UnreadRed
-import com.maodouchat.util.QrCodeGenerator
+import com.maodouchat.messaging.v2.createAndroidGroupMessagingCoordinator
+import com.maodouchat.network.GroupAuditLogDto
+import com.maodouchat.network.SenderKeyDistributionStatusDto
+import com.maodouchat.network.TokenManager
 import com.maodouchat.util.ImagePicker
+import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -138,21 +34,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-
-data class GroupMemberUi(
-    val userId: String,
-    val name: String,
-    val avatar: String? = null,
-    val role: String = "MEMBER",
-    val title: String? = null,
-    val groupNickname: String? = null,
-    val joinedAt: Long = 0,
-    val isOnline: Boolean = false,
-    val mutedUntil: Long = 0
-) {
-    val displayName: String get() = groupNickname?.takeIf { it.isNotBlank() } ?: name
-    val isMuted: Boolean get() = mutedUntil > System.currentTimeMillis()
-}
+typealias OwnedBotUi = GroupOwnedBotUi
+typealias GroupMemberUi = com.maodouchat.group.GroupMemberUi
 
 data class GroupDetailUiState(
     val groupName: String = "",
@@ -192,12 +75,6 @@ data class GroupDetailUiState(
     val isOwner: Boolean get() = myRole == "OWNER"
 }
 
-data class OwnedBotUi(
-    val id: String,
-    val name: String,
-    val username: String,
-)
-
 class GroupDetailViewModel(
     application: Application,
     savedStateHandle: SavedStateHandle
@@ -229,12 +106,31 @@ class GroupDetailViewModel(
             )
         },
         fetchChat = { liveToken, targetChatId ->
-            ApiService.getChats(liveToken).map { chats ->
+            com.maodouchat.network.ApiService.getChats(liveToken).map { chats ->
                 chats.firstOrNull { it.id == targetChatId }
             }
         },
         invalidateEpoch = groupMessagingCoordinator::invalidateSenderKey,
     )
+    private val groupLifecycleService: GroupLifecycleService = DefaultGroupLifecycleService(
+        coordinator = groupLifecycleCoordinator,
+        tokenProvider = { tokenManager.getToken().orEmpty() },
+        membershipStore = app.groupMembershipStore,
+    )
+    private val groupInviteController = GroupInviteController(
+        tokenProvider = { tokenManager.getToken().orEmpty() }
+    )
+    private val groupAuditController = GroupAuditController(
+        tokenProvider = { tokenManager.getToken().orEmpty() }
+    )
+    private val groupBotController = GroupBotController(
+        tokenProvider = { tokenManager.getToken().orEmpty() }
+    )
+    private val groupEncryptionHealthController = GroupEncryptionHealthController(
+        maintenanceCoordinator = groupSenderKeyMaintenanceCoordinator,
+        tokenProvider = { tokenManager.getToken().orEmpty() },
+    )
+
     private val token: String get() = tokenManager.getToken().orEmpty()
     private val currentUserId: String get() = tokenManager.getUserId().orEmpty()
     /** 8.49：群审计分页游标——服务端已返回的原始条数（offset 语义），与本地去重后的列表长度解耦。 */
@@ -254,7 +150,7 @@ class GroupDetailViewModel(
     private fun observeRealtimeChanges() {
         val revisionOwnerUserId = currentUserId
         viewModelScope.launch {
-            WebSocketClient.events.collect { event ->
+            app.realtimeEventDispatcher.allEvents.collect { event ->
                 if (
                     revisionOwnerUserId.isBlank() ||
                     !com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -265,9 +161,9 @@ class GroupDetailViewModel(
                 ) {
                     return@collect
                 }
-                if (event is WebSocketEvent.UserOnline) {
+                if (event is RealtimeDomainEvent.Presence) {
                     if (event.onlineRevoked || event.statusRevoked) {
-                        app.database.userDao().applyRealtimeVisibility(
+                        app.userRepository.applyRealtimeVisibility(
                             userId = event.userId,
                             isOnline = event.isOnline,
                             onlineRevoked = event.onlineRevoked,
@@ -318,7 +214,7 @@ class GroupDetailViewModel(
                         )
                     }
                 }
-                if (event is WebSocketEvent.GroupRevisionChanged && event.chatId == chatId) {
+                if (event is RealtimeDomainEvent.GroupRevision && event.chatId == chatId) {
                     if (event.memberRevision > _uiState.value.memberRevision) {
                         withContext(Dispatchers.IO) {
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -400,40 +296,20 @@ class GroupDetailViewModel(
                         ) {
                             throw kotlinx.coroutines.CancellationException("group_load_session_changed")
                         }
-                        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                        val chats = ApiService.getChats(liveToken).getOrThrow()
-                        val chat = chats.firstOrNull { it.id == chatId }
-                        val members = ApiService.getGroupMembers(liveToken, chatId).getOrThrow().map { it.toUi() }
-                        val senderKeyStatus = groupMessagingCoordinator
-                            .getSenderKeyCoverageStatus(chatId)
-                            .getOrNull()
+                        val chat = groupLifecycleService.fetchGroupDetails(chatId).getOrThrow()
+                        val members = groupLifecycleService.fetchGroupMembers(chatId).getOrThrow().map { it.toUi() }
+                        val senderKeyStatus = groupEncryptionHealthController.fetchSenderKeyStatus(chatId).getOrNull()
                         // 8.39：显式传 limit=100（服务端上限）——此前不传走默认 50，
                         // UI「展开更多」阈值 80 永不触发，审计历史被静默截断
-                        val auditLogs = ApiService.getGroupAudit(liveToken, chatId, limit = 100).getOrDefault(emptyList())
+                        val auditLogs = groupAuditController.fetchAuditLogs(chatId, limit = 100, offset = 0).getOrDefault(emptyList())
                         // 8.49：记录服务端已返回的原始条数（见 loadMoreAuditLogs 注释）
                         auditNextOffset = auditLogs.size
                         val memberIds = members.map { it.userId }.toSet()
-                        val candidates = ApiService.getAllSearchableUsers(liveToken).getOrDefault(emptyList())
-                            .filter { it.id !in memberIds && it.id != loadOwnerUserId }
-                            .map { User(it.id, it.name, it.avatar, it.email, it.isOnline, it.status) }
-                        val ownedBots = runCatching {
-                            val raw = ApiService.listBots(liveToken).getOrNull().orEmpty()
-                            val arr = org.json.JSONArray(raw)
-                            buildList {
-                                for (i in 0 until arr.length()) {
-                                    val o = arr.optJSONObject(i) ?: continue
-                                    val id = o.optString("id").trim()
-                                    val name = o.optString("name").trim()
-                                    val username = o.optString("username").trim()
-                                    val enabled = o.optBoolean("enabled", true)
-                                    if (id.isBlank() || !enabled) continue
-                                    add(OwnedBotUi(id = id, name = name.ifBlank { username }, username = username))
-                                }
-                            }
-                        }.getOrDefault(emptyList())
+                        val candidates = groupLifecycleService.fetchCandidates(memberIds, loadOwnerUserId).getOrDefault(emptyList())
+                        val ownedBots = groupBotController.fetchCandidateBots().getOrDefault(emptyList())
                         val self = members.firstOrNull { it.userId == loadOwnerUserId }
                         val secret = try {
-                            chat?.isSecret == true || app.database.chatDao().isSecretChat(chatId)
+                            chat?.isSecret == true || app.secretConversationController.capabilities(chatId).isSecretChat
                         } catch (e: kotlinx.coroutines.CancellationException) {
                             throw e
                         } catch (_: Exception) {
@@ -529,9 +405,8 @@ class GroupDetailViewModel(
      */
     fun loadMoreAudit() {
         if (_uiState.value.isLoadingMoreAudit || !_uiState.value.hasMoreAudit) return
-        val auditToken = tokenManager.getToken().orEmpty()
-        val auditOwnerUserId = tokenManager.getUserId().orEmpty()
-        if (auditToken.isBlank() || auditOwnerUserId.isBlank()) return
+        val auditOwnerUserId = currentUserId
+        if (auditOwnerUserId.isBlank()) return
         _uiState.update { it.copy(isLoadingMoreAudit = true) }
         viewModelScope.launch {
             try {
@@ -544,12 +419,8 @@ class GroupDetailViewModel(
                     _uiState.update { it.copy(isLoadingMoreAudit = false) }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { auditToken }
-                // 8.49 修复：offset 用「服务端已返回的总条数」推进，而非本地列表长度——
-                // distinctBy 去重会把列表压短，旧算法使下一页 offset 偏小/偏大交替，
-                // 中段审计记录可能被永久跳过
                 val offset = auditNextOffset
-                val page = ApiService.getGroupAudit(liveToken, chatId, limit = 100, offset = offset).getOrNull().orEmpty()
+                val page = groupAuditController.fetchAuditLogs(chatId, limit = 100, offset = offset).getOrNull().orEmpty()
                 auditNextOffset = offset + page.size
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = auditOwnerUserId,
@@ -588,7 +459,7 @@ class GroupDetailViewModel(
             action = GroupMutationAction.RENAME,
             successMessage = text(R.string.chat_group_name_updated),
             retry = { renameGroup(trimmed) }
-        ) { liveToken -> ApiService.renameGroup(liveToken, chatId, trimmed).getOrThrow() }
+        ) { groupLifecycleService.updateGroupInfo(chatId, name = trimmed, announcement = null, avatar = null) }
     }
 
     fun updateAnnouncement(announcement: String) {
@@ -601,9 +472,7 @@ class GroupDetailViewModel(
                 text(R.string.chat_group_announcement_updated)
             },
             retry = { updateAnnouncement(trimmed) }
-        ) { liveToken ->
-            ApiService.updateGroupAnnouncement(liveToken, chatId, trimmed).getOrThrow()
-        }
+        ) { groupLifecycleService.updateGroupInfo(chatId, name = null, announcement = trimmed, avatar = null) }
     }
 
     fun loadGroupInvite(rotate: Boolean = false, expiresInSeconds: Long = 7L * 24L * 60L * 60L, maxUses: Int = 100) {
@@ -645,49 +514,47 @@ class GroupDetailViewModel(
                     }
                     return@launch
                 }
-                val result = withContext(Dispatchers.IO) {
-                    val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                    ApiService.getOrCreateGroupInvite(liveToken, chatId, rotate, expiresInSeconds, maxUses)
+                val result = if (rotate) {
+                    groupInviteController.rotateInvite(chatId, expiresInSeconds, maxUses)
+                } else {
+                    groupInviteController.fetchInvite(chatId, rotate = false, expiresInSeconds, maxUses)
                 }
                 result.fold(
-                    onSuccess = { invite ->
+                    onSuccess = { res ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = inviteOwnerUserId,
                                 liveToken = tokenManager.getToken(),
                                 liveUserId = tokenManager.getUserId(),
                             )
                         ) {
+                            _uiState.update { it.copy(isLoadingInvite = false) }
                             return@fold
                         }
-                        val payload = invite.payload.takeIf { it.isNotBlank() }
-                            ?: QrCodeGenerator.encodeChatInviteQrPayload(invite.token)
                         pendingRetry = null
-                        val successMsg = if (rotate) text(R.string.group_detail_invite_refreshed) else null
+                        val msg = if (rotate) text(R.string.group_detail_invite_refreshed) else null
                         _uiState.update {
                             it.copy(
-                                groupInvitePayload = payload,
-                                inviteExpiresAt = invite.expiresAt,
-                                inviteMaxUses = invite.maxUses,
-                                inviteUsedCount = invite.usedCount,
-                                inviteRemainingUses = invite.remainingUses,
                                 isLoadingInvite = false,
-                                message = successMsg,
-                                feedback = successMsg?.let { msg ->
+                                groupInvitePayload = res.payload,
+                                inviteExpiresAt = res.expiresAt,
+                                inviteMaxUses = res.maxUses,
+                                inviteUsedCount = res.usedCount,
+                                inviteRemainingUses = res.remainingUses,
+                                message = msg,
+                                feedback = if (msg != null) {
                                     GroupMutationFeedbackPolicy.success(GroupMutationAction.INVITE, msg)
-                                }
+                                } else null
                             )
                         }
                     },
                     onFailure = { error ->
                         val fb = GroupMutationFeedbackPolicy.fromThrowable(GroupMutationAction.INVITE, error)
-                        pendingRetry = {
-                            loadGroupInvite(rotate = rotate, expiresInSeconds = expiresInSeconds, maxUses = maxUses)
-                        }
+                        pendingRetry = { loadGroupInvite(rotate, expiresInSeconds, maxUses) }
                         _uiState.update {
                             it.copy(
                                 isLoadingInvite = false,
                                 message = fb.detail ?: text(R.string.group_detail_invite_failed),
-                                feedback = fb
+                                feedback = fb.copy(canRetry = true)
                             )
                         }
                     }
@@ -771,8 +638,7 @@ class GroupDetailViewModel(
                     }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                ApiService.uploadGroupAvatar(liveToken, chatId, base64).fold(
+                groupLifecycleService.uploadAvatar(chatId, base64).fold(
                     onSuccess = { url ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = avatarOwnerUserId,
@@ -811,18 +677,15 @@ class GroupDetailViewModel(
             action = GroupMutationAction.NICKNAME,
             successMessage = text(R.string.chat_group_nickname_updated),
             retry = { setMyNickname(trimmed) }
-        ) { liveToken -> ApiService.updateGroupNickname(liveToken, chatId, trimmed).getOrThrow() }
+        ) { groupLifecycleService.updateMyNickname(chatId, trimmed) }
     }
 
     fun addMember(userId: String) {
         updateGroup(
             action = GroupMutationAction.ADD_MEMBER,
             successMessage = text(R.string.chat_group_member_added_key),
-            rotateSenderKey = true,
             retry = { addMember(userId) }
-        ) { liveToken ->
-            ApiService.addGroupMembers(liveToken, chatId, listOf(userId)).getOrThrow()
-        }
+        ) { groupLifecycleService.addMembers(chatId, listOf(userId)) }
     }
 
     fun removeMember(userId: String) {
@@ -830,11 +693,8 @@ class GroupDetailViewModel(
         updateGroup(
             action = GroupMutationAction.REMOVE_MEMBER,
             successMessage = text(R.string.chat_group_member_removed_key),
-            rotateSenderKey = true,
             retry = { removeMember(userId) }
-        ) { liveToken ->
-            ApiService.removeGroupMember(liveToken, chatId, userId).getOrThrow()
-        }
+        ) { groupLifecycleService.removeMember(chatId, userId) }
     }
 
     fun updateRole(userId: String, role: String) {
@@ -842,7 +702,7 @@ class GroupDetailViewModel(
             action = GroupMutationAction.ROLE,
             successMessage = text(R.string.chat_group_role_updated),
             retry = { updateRole(userId, role) }
-        ) { liveToken -> ApiService.updateMemberRole(liveToken, chatId, userId, role).getOrThrow() }
+        ) { groupLifecycleService.setRole(chatId, userId, role) }
     }
 
     fun transferOwnership(userId: String) {
@@ -851,9 +711,7 @@ class GroupDetailViewModel(
             action = GroupMutationAction.TRANSFER_OWNER,
             successMessage = text(R.string.group_detail_transfer_success),
             retry = { transferOwnership(userId) }
-        ) { liveToken ->
-            ApiService.transferGroupOwnership(liveToken, chatId, userId).getOrThrow()
-        }
+        ) { groupLifecycleService.transferOwnership(chatId, userId) }
     }
 
     fun updateTitle(userId: String, title: String) {
@@ -862,7 +720,7 @@ class GroupDetailViewModel(
             action = GroupMutationAction.TITLE,
             successMessage = text(R.string.chat_group_title_updated),
             retry = { updateTitle(userId, trimmed) }
-        ) { liveToken -> ApiService.updateMemberTitle(liveToken, chatId, userId, trimmed).getOrThrow() }
+        ) { groupLifecycleService.setTitle(chatId, userId, trimmed) }
     }
 
     fun updateMemberMute(userId: String, mutedUntil: Long) {
@@ -874,9 +732,7 @@ class GroupDetailViewModel(
                 text(R.string.group_detail_mute_cleared)
             },
             retry = { updateMemberMute(userId, mutedUntil) }
-        ) { liveToken ->
-            ApiService.updateMemberMute(liveToken, chatId, userId, mutedUntil).getOrThrow()
-        }
+        ) { groupLifecycleService.setMemberMute(chatId, userId, mutedUntil) }
     }
 
     /** 0.99：全员静音（除群主/管理员）。 */
@@ -889,9 +745,7 @@ class GroupDetailViewModel(
                 text(R.string.group_detail_mute_all_cleared)
             },
             retry = { muteAllMembers(mutedUntil) }
-        ) { liveToken ->
-            ApiService.muteAllMembers(liveToken, chatId, mutedUntil).getOrThrow()
-        }
+        ) { groupLifecycleService.setMuteAll(chatId, muted = mutedUntil > System.currentTimeMillis()) }
     }
 
     fun redistributeSenderKey() {
@@ -932,7 +786,7 @@ class GroupDetailViewModel(
                 }
                 val epoch = _uiState.value.memberRevision
                 val outcome = withContext(Dispatchers.IO) {
-                    groupSenderKeyMaintenanceCoordinator.runManual(chatId, epoch)
+                    groupEncryptionHealthController.runManual(chatId, epoch)
                 }
                 when (outcome) {
                     is GroupSenderKeyMaintenanceOutcome.Ready -> {
@@ -972,8 +826,8 @@ class GroupDetailViewModel(
         viewModelScope.launch {
             try {
                 val outcome = withContext(Dispatchers.IO) {
-                    groupSenderKeyMaintenanceCoordinator.runAutomatic(
-                        conversationId = chatId,
+                    groupEncryptionHealthController.runAutomatic(
+                        chatId = chatId,
                         epoch = epoch,
                         currentStatus = state.senderKeyStatus,
                         localHasSenderKeyHint = state.localHasSenderKey,
@@ -1038,9 +892,8 @@ class GroupDetailViewModel(
     private fun updateGroup(
         action: GroupMutationAction,
         successMessage: String,
-        rotateSenderKey: Boolean = false,
         retry: (() -> Unit)? = null,
-        block: suspend (token: String) -> Unit
+        mutation: suspend () -> GroupMutationCommit
     ) {
         if (_uiState.value.isUpdating) return
         if (chatId.isBlank() || token.isBlank()) {
@@ -1080,13 +933,7 @@ class GroupDetailViewModel(
                 }
                 val result = withContext(Dispatchers.IO) {
                     try {
-                        Result.success(
-                        groupLifecycleCoordinator.mutate(
-                            chatId = chatId,
-                            rotateSenderKey = rotateSenderKey,
-                            mutation = block,
-                        )
-                        )
+                        Result.success(mutation())
                     } catch (error: kotlinx.coroutines.CancellationException) {
                         throw error
                     } catch (error: Throwable) {
@@ -1147,9 +994,14 @@ class GroupDetailViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isInvitingBot = true, message = null) }
             try {
-                val liveToken = tokenManager.getToken().orEmpty()
+                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                        expectedUserId = ownerUserId,
+                        liveToken = tokenManager.getToken(),
+                        liveUserId = tokenManager.getUserId(),
+                    )
+                ) return@launch
                 val result = withContext(Dispatchers.IO) {
-                    ApiService.inviteBotToChat(liveToken, chatId, botId)
+                    groupBotController.inviteBot(chatId, botId)
                 }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = ownerUserId,
@@ -1178,15 +1030,3 @@ class GroupDetailViewModel(
         }
     }
 }
-
-private fun GroupMemberDto.toUi(): GroupMemberUi = GroupMemberUi(
-    userId = userId,
-    name = name,
-    avatar = avatar,
-    role = role,
-    title = title,
-    groupNickname = groupNickname,
-    joinedAt = joinedAt,
-    isOnline = isOnline,
-    mutedUntil = mutedUntil
-)

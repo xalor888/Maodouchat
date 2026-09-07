@@ -43,6 +43,7 @@ data class ReadReceiptUi(
     val name: String,
     val avatar: String? = null,
     val readAt: Long? = null,
+    val playedAt: Long? = null,
     /** 1.65：成员是否在线（阅读详情中显示在线点）。 */
     val isOnline: Boolean = false
 )
