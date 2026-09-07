@@ -4,6 +4,8 @@ import com.maodouchat.notification.SocialNotificationService
 import com.maodouchat.notification.ReminderNotificationService
 import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.notification.CallNotificationService
+import com.maodouchat.ui.navigation.AppLinkDestination
+import com.maodouchat.ui.navigation.AppLinkRouter
 import android.annotation.SuppressLint
 import android.app.Application
 import androidx.compose.animation.core.spring
@@ -192,7 +194,8 @@ class NotificationCenterViewModel(application: Application) : AndroidViewModel(a
                     }
                     item.type == "MESSAGE" || item.deeplink?.startsWith("maodouchat:chat:") == true -> {
                         val chatId = item.extra["chatId"]
-                            ?: item.deeplink?.removePrefix("maodouchat:chat:")
+                            ?: (AppLinkRouter.parseLegacyCenterDeeplink(item.deeplink.orEmpty())
+                                as? AppLinkDestination.ChatDetail)?.chatId
                             ?: item.mergeKey.removePrefix("msg_")
                         if (chatId.isNotBlank()) {
                             com.maodouchat.notification.MessageNotificationService.cancelMessage(ctx, chatId)
@@ -201,16 +204,21 @@ class NotificationCenterViewModel(application: Application) : AndroidViewModel(a
                     item.type == "POST_INTERACTION" ||
                         item.deeplink?.startsWith("maodouchat:post:") == true -> {
                         val postId = item.extra["postId"]
-                            ?: item.deeplink?.removePrefix("maodouchat:post:")
+                            ?: (AppLinkRouter.parseLegacyCenterDeeplink(item.deeplink.orEmpty())
+                                as? AppLinkDestination.PostDetail)?.postId
                             ?: item.mergeKey.removePrefix("post_")
                         if (postId.isNotBlank()) {
                             com.maodouchat.notification.SocialNotificationService.cancelPostInteraction(ctx, postId)
                         }
                     }
-                    item.type == "FRIEND_REQUEST" || item.deeplink == "maodouchat:contacts" -> {
+                    item.type == "FRIEND_REQUEST" ||
+                        AppLinkRouter.parseLegacyCenterDeeplink(item.deeplink.orEmpty())
+                            is AppLinkDestination.ContactsTab -> {
                         com.maodouchat.notification.SocialNotificationService.cancelAllFriendRequests(ctx)
                     }
-                    item.type == "GROUP_INVITE" || item.deeplink == "maodouchat:group_invites" -> {
+                    item.type == "GROUP_INVITE" ||
+                        AppLinkRouter.parseLegacyCenterDeeplink(item.deeplink.orEmpty())
+                            is AppLinkDestination.GroupInvitesTab -> {
                         com.maodouchat.notification.SocialNotificationService.cancelAllGroupInvites(ctx)
                     }
                 }
@@ -577,14 +585,10 @@ private fun EmptyNotificationCenter(modifier: Modifier) {
 /** extra.chatId → deeplink → mergeKey（msg_/ai_tasks_） */
 internal fun resolvedNotificationChatId(item: NotificationCenterItem): String? {
     item.extra["chatId"]?.takeIf { it.isNotBlank() }?.let { return it }
-    val deeplink = item.deeplink.orEmpty()
-    when {
-        deeplink.startsWith("maodouchat:chat:") ->
-            deeplink.removePrefix("maodouchat:chat:").substringBefore(':')
-                .takeIf { it.isNotBlank() }?.let { return it }
-        deeplink.startsWith("maodouchat:ai_tasks:") ->
-            deeplink.removePrefix("maodouchat:ai_tasks:").substringBefore(':')
-                .takeIf { it.isNotBlank() }?.let { return it }
+    when (val dest = AppLinkRouter.parseLegacyCenterDeeplink(item.deeplink.orEmpty())) {
+        is AppLinkDestination.ChatDetail -> return dest.chatId
+        is AppLinkDestination.AiTasksChat -> return dest.chatId
+        else -> Unit
     }
     if (item.mergeKey.startsWith("msg_") && item.mergeKey.length > 4) {
         return item.mergeKey.removePrefix("msg_").takeIf { it.isNotBlank() }

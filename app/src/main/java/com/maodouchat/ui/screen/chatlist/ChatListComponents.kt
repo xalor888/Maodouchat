@@ -418,9 +418,23 @@ internal fun ChatListItem(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // 1.148：搜索时关键词高亮
                 if (searchQuery.isNotBlank()) {
-                    Text(highlightedText(displayName, searchQuery), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(
+                        highlightedText(displayName, searchQuery),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
                 } else {
-                    Text(displayName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(
+                        displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
                 if (isSecret || chat.isSecret) {
                     Spacer(Modifier.width(4.dp))
@@ -434,11 +448,10 @@ internal fun ChatListItem(
                 Text(
                     formatChatTime(chat.lastMessageTime),
                     style = MaterialTheme.typography.labelSmall,
-                    // 9.276：TG 式——有未读时时间用强调色，否则中性 hint
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(3.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (identityChanged) {
                     Icon(
@@ -460,7 +473,7 @@ internal fun ChatListItem(
                     if (searchQuery.isNotBlank()) highlightedText(finalPreview, searchQuery) else androidx.compose.ui.text.AnnotatedString(finalPreview),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (typingPreview != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )

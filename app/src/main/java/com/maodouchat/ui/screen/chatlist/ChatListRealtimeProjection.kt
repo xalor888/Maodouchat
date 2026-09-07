@@ -7,8 +7,7 @@ import com.maodouchat.data.repository.NotificationCenterItem
  * 会话列表实时投影纯函数（ChatList 瘦身第 3 切片）。
  *
  * 自 `ChatListViewModel.observeRealtime` 抽出的三处纯投影：已读归零、在线状态
- * 叠加、管理广播映射。collector 的会话门禁、Room 写、Token 检查与重载调度仍
- * 在 ViewModel（下一步收敛为 realtime 协调器时再搬）。
+ * 叠加、管理广播映射。collector 编排已收敛至 [ChatListRealtimeCoordinator]。
  */
 fun zeroChatUnread(chats: List<Chat>, chatId: String): List<Chat> {
     if (chatId.isBlank()) return chats

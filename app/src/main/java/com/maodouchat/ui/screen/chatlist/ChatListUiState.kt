@@ -25,8 +25,6 @@ import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.UpdateChatSettingsRequest
 import com.maodouchat.network.TokenManager
-import com.maodouchat.network.WebSocketClient
-import com.maodouchat.network.WebSocketEvent
 import com.maodouchat.scheduling.AndroidConversationScheduleBackend
 import com.maodouchat.scheduling.ConversationScheduleCoordinator
 import com.maodouchat.ui.OwnerSessionPolicy

@@ -124,7 +124,6 @@ import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.MissedCall
-import com.maodouchat.ui.component.MessageStatusIcon
 import com.maodouchat.network.ApiService
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
