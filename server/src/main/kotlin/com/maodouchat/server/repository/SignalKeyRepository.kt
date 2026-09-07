@@ -5,6 +5,8 @@ import com.maodouchat.server.db.PushTokens
 import com.maodouchat.server.db.RefreshTokens
 import com.maodouchat.server.db.SignalDevices
 import com.maodouchat.server.db.SignalKeys
+import com.maodouchat.server.service.IdentitySecurityEventPolicy
+import com.maodouchat.server.service.IdentitySecurityEventRecorder
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
@@ -177,9 +179,19 @@ class SignalKeyRepository(
             // candidate: returning IDENTITY_MISMATCH would make the client switch slots even
             // though every subsequent upload is rejected by the session binding.
             if (boundDeviceId != null && existingIdentity != null && existingIdentity != identityKey) {
+                recordIdentityMismatchAndRevokeSessionInTx(
+                    userId = userId,
+                    deviceId = deviceId,
+                    authSessionId = authSessionId,
+                )
                 return@transaction UploadKeyPackageResult.SESSION_CONFLICT
             }
             if (existingIdentity != null && existingIdentity != identityKey) {
+                recordIdentityMismatchAndRevokeSessionInTx(
+                    userId = userId,
+                    deviceId = deviceId,
+                    authSessionId = authSessionId,
+                )
                 return@transaction UploadKeyPackageResult.DEVICE_IDENTITY_MISMATCH
             }
             if (boundDeviceId == null) {
@@ -200,7 +212,15 @@ class SignalKeyRepository(
                 }
             }
 
+            val identityFirstPublish = existingIdentity == null
             upsertSingleKeyInTx(userId, deviceId, "identity_key", identityKey)
+            if (identityFirstPublish) {
+                IdentitySecurityEventRecorder.recordInTx(
+                    userId = userId,
+                    action = IdentitySecurityEventPolicy.ACTION_PUBLISHED,
+                    detail = IdentitySecurityEventPolicy.publishedDetail(deviceId),
+                )
+            }
             upsertSingleKeyInTx(userId, deviceId, "registration_id", registrationId.toString())
             upsertSingleKeyInTx(userId, deviceId, "device_id", deviceId.toString())
 
@@ -224,6 +244,33 @@ class SignalKeyRepository(
 
             touchDeviceInTx(userId, deviceId, deviceName)
             UploadKeyPackageResult.UPLOADED
+        }
+    }
+
+    /**
+     * B03：同槽身份不一致 → 审计事件 + 吊销当前 auth session（会话风险收敛）。
+     * 必须在已持有用户行锁的事务内调用。
+     */
+    private fun recordIdentityMismatchAndRevokeSessionInTx(
+        userId: String,
+        deviceId: Int,
+        authSessionId: String,
+    ) {
+        val now = System.currentTimeMillis()
+        IdentitySecurityEventRecorder.recordInTx(
+            userId = userId,
+            action = IdentitySecurityEventPolicy.ACTION_MISMATCH,
+            detail = IdentitySecurityEventPolicy.mismatchDetail(deviceId, authSessionId),
+            nowMs = now,
+        )
+        if (IdentitySecurityEventPolicy.shouldRevokeAuthSessionOnMismatch()) {
+            AuthSessions.update({ AuthSessions.id eq authSessionId }) {
+                it[revokedAt] = now
+                it[updatedAt] = now
+            }
+            RefreshTokens.update({ RefreshTokens.sessionId eq authSessionId }) {
+                it[revokedAt] = now
+            }
         }
     }
 

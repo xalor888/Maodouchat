@@ -19,9 +19,11 @@ data class MessagingV2ModerationDeleteResult(
  * 本类仅组合依赖并保留原公开 API（Routing/Bot 无需感知拆分）。
  */
 class MessagingV2Repository(
+    deviceDirectory: com.maodouchat.server.repository.EncryptableDeviceDirectory =
+        com.maodouchat.server.repository.DeviceRegistry(),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    private val snapshotStore = ConversationDeviceSnapshotStore()
+    private val snapshotStore = ConversationDeviceSnapshotStore(deviceDirectory)
     private val admission = MessageAdmissionPolicy(snapshotStore, clock)
     private val mailboxStore = EnvelopeMailboxStore(clock)
     private val metadataStore = MessageMetadataStore()

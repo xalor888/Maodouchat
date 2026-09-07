@@ -4,8 +4,8 @@ import com.maodouchat.server.db.AuthSessions
 import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
-import com.maodouchat.server.db.SignalDevices
-import com.maodouchat.server.db.SignalKeys
+import com.maodouchat.server.repository.DeviceRegistry
+import com.maodouchat.server.repository.EncryptableDeviceDirectory
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
@@ -15,10 +15,12 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
 /**
- * B06：会话设备快照子域。确认可加密设备集合（Signal bundle 完备）、会话快照与
- * 拉黑过滤是 admission 与 mailbox 共享的只读边界。
+ * B06：会话设备快照子域。确认可加密设备集合经只读 [EncryptableDeviceDirectory]，
+ * 会话快照与拉黑过滤是 admission 与 mailbox 共享的只读边界。
  */
-class ConversationDeviceSnapshotStore {
+class ConversationDeviceSnapshotStore(
+    private val deviceDirectory: EncryptableDeviceDirectory = DeviceRegistry(),
+) {
 
     fun resolveAuthenticatedDevice(userId: String, authSessionId: String): Int? = transaction {
         AuthSessions
@@ -31,11 +33,7 @@ class ConversationDeviceSnapshotStore {
             .firstOrNull()
             ?.get(AuthSessions.signalDeviceId)
             ?.takeIf { deviceId ->
-                SignalDevices.selectAll().where {
-                    (SignalDevices.userId eq userId) and
-                        (SignalDevices.deviceId eq deviceId) and
-                        (SignalDevices.status eq "CONFIRMED")
-                }.firstOrNull() != null
+                deviceDirectory.isDeviceConfirmed(userId, deviceId)
             }
     }
 
@@ -74,22 +72,7 @@ class ConversationDeviceSnapshotStore {
     internal fun confirmedEncryptableDeviceTargets(userIds: Collection<String>): MutableSet<DeviceTarget> {
         val ids = userIds.filter(String::isNotBlank).distinct()
         if (ids.isEmpty()) return linkedSetOf()
-        val confirmed = SignalDevices.select(SignalDevices.userId, SignalDevices.deviceId)
-            .where {
-                (SignalDevices.userId inList ids) and
-                    (SignalDevices.status eq "CONFIRMED")
-            }
-            .map { it[SignalDevices.userId] to it[SignalDevices.deviceId] }
-            .toSet()
-        val complete = SignalKeys.select(SignalKeys.userId, SignalKeys.deviceId, SignalKeys.keyType)
-            .where { SignalKeys.userId inList ids }
-            .groupBy { it[SignalKeys.userId] to it[SignalKeys.deviceId] }
-            .filterValues { rows ->
-                REQUIRED_BUNDLE_KEY_TYPES.all { keyType -> rows.any { it[SignalKeys.keyType] == keyType } }
-            }
-            .keys
-        return confirmed
-            .intersect(complete)
+        return deviceDirectory.getConfirmedDeviceTargets(ids)
             .mapTo(linkedSetOf()) { (userId, deviceId) -> DeviceTarget(userId, deviceId) }
     }
 
@@ -106,14 +89,5 @@ class ConversationDeviceSnapshotStore {
                 row[BlockedUsers.blockerId]
             }
         }
-    }
-
-    private companion object {
-        val REQUIRED_BUNDLE_KEY_TYPES = setOf(
-            "identity_key",
-            "registration_id",
-            "signed_pre_key",
-            "signed_pre_key_signature",
-        )
     }
 }

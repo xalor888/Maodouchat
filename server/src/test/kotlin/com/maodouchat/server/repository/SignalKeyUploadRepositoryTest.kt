@@ -35,6 +35,37 @@ class SignalKeyUploadRepositoryTest {
     }
 
     @Test
+    fun `identity mismatch records security event and revokes the contending session`() {
+        setupDb()
+        insertSession(id = "occupying-session", deviceId = 7)
+        val repository = SignalKeyRepository()
+        val publishedIdentity = newIdentity()
+        assertEquals(
+            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            upload(repository, "occupying-session", 7, publishedIdentity),
+        )
+        insertSession(id = "contending-session", deviceId = null)
+        assertEquals(
+            SignalKeyRepository.UploadKeyPackageResult.DEVICE_IDENTITY_MISMATCH,
+            upload(repository, "contending-session", 7, newIdentity()),
+        )
+        transaction {
+            val events = com.maodouchat.server.db.ModerationAuditLog.selectAll()
+                .where {
+                    com.maodouchat.server.db.ModerationAuditLog.action eq
+                        com.maodouchat.server.service.IdentitySecurityEventPolicy.ACTION_MISMATCH
+                }
+                .toList()
+            assertEquals(1, events.size)
+            assertEquals(USER_ID, events.single()[com.maodouchat.server.db.ModerationAuditLog.userId])
+            val session = AuthSessions.selectAll().where { AuthSessions.id eq "contending-session" }.single()
+            assertTrue(session[AuthSessions.revokedAt] != null)
+            val occupying = AuthSessions.selectAll().where { AuthSessions.id eq "occupying-session" }.single()
+            assertEquals(null, occupying[AuthSessions.revokedAt])
+        }
+    }
+
+    @Test
     fun `identity mismatch wins over another active session occupying device id`() {
         setupDb()
         insertSession(id = "occupying-session", deviceId = 7)
