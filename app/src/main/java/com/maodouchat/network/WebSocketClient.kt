@@ -53,7 +53,10 @@ sealed class WebSocketEvent {
         val callId: String = "",
         val groupId: String = "",
         val groupMemberIds: List<String> = emptyList(),
-        val groupInvite: Boolean = false
+        val groupInvite: Boolean = false,
+        val epoch: Long = 0,
+        val sequence: Long = 0,
+        val idempotencyKey: String = "",
     ) : WebSocketEvent()
     data class ServerError(
         val code: String? = null,
@@ -168,7 +171,10 @@ private data class IncomingSignaling(
     val callId: String = "",
     val groupId: String = "",
     val groupMemberIds: List<String> = emptyList(),
-    val groupInvite: Boolean = false
+    val groupInvite: Boolean = false,
+    val epoch: Long = 0,
+    val sequence: Long = 0,
+    val idempotencyKey: String = "",
 )
 
 @Serializable
@@ -835,7 +841,10 @@ internal object WebSocketTransport : RealtimeTransport {
                             data.callId,
                             data.groupId,
                             data.groupMemberIds,
-                            data.groupInvite
+                            data.groupInvite,
+                            data.epoch,
+                            data.sequence,
+                            data.idempotencyKey,
                         )
                     )
                 } catch (e: Exception) {

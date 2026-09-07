@@ -368,7 +368,11 @@ override suspend fun sendSignaling(
     callId: String,
     groupId: String,
     groupMemberIds: List<String>,
-    groupInvite: Boolean): Result<Unit> = sendUnit(
+    groupInvite: Boolean,
+    epoch: Long,
+    sequence: Long,
+    idempotencyKey: String,
+): Result<Unit> = sendUnit(
     Request.Builder()
         .url("${ApiConfig.BASE_URL}/api/signaling/send")
         .addHeader("Authorization", "Bearer $token")
@@ -383,7 +387,10 @@ override suspend fun sendSignaling(
                         callId = callId,
                         groupId = groupId,
                         groupMemberIds = groupMemberIds,
-                        groupInvite = groupInvite
+                        groupInvite = groupInvite,
+                        epoch = epoch,
+                        sequence = sequence,
+                        idempotencyKey = idempotencyKey,
                     )
                 )
             )
@@ -396,7 +403,11 @@ override suspend fun hangUpCall(
     toUserId: String,
     callId: String,
     groupId: String,
-    groupMemberIds: List<String>): Result<Unit> = sendUnit(
+    groupMemberIds: List<String>,
+    epoch: Long,
+    sequence: Long,
+    idempotencyKey: String,
+): Result<Unit> = sendUnit(
     Request.Builder()
         .url("${ApiConfig.BASE_URL}/api/signaling/hangup")
         .addHeader("Authorization", "Bearer $token")
@@ -410,7 +421,10 @@ override suspend fun hangUpCall(
                         payload = "",
                         callId = callId,
                         groupId = groupId,
-                        groupMemberIds = groupMemberIds
+                        groupMemberIds = groupMemberIds,
+                        epoch = epoch,
+                        sequence = sequence,
+                        idempotencyKey = idempotencyKey,
                     )
                 )
             )

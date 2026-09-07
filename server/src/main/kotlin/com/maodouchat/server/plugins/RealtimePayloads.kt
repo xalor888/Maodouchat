@@ -23,7 +23,10 @@ internal data class OutgoingSignalingPayload(
     val callId: String = "",
     val groupId: String = "",
     val groupMemberIds: List<String> = emptyList(),
-    val groupInvite: Boolean = false
+    val groupInvite: Boolean = false,
+    val epoch: Long = 0,
+    val sequence: Long = 0,
+    val idempotencyKey: String = "",
 )
 
 @kotlinx.serialization.Serializable
@@ -34,7 +37,10 @@ internal data class IncomingSignalingPayload(
     val callId: String = "",
     val groupId: String = "",
     val groupMemberIds: List<String> = emptyList(),
-    val groupInvite: Boolean = false
+    val groupInvite: Boolean = false,
+    val epoch: Long = 0,
+    val sequence: Long = 0,
+    val idempotencyKey: String = "",
 )
 
 @kotlinx.serialization.Serializable

@@ -403,14 +403,14 @@ Gate：分页竞态、断网发布、上传恢复、草稿隔离、可见性矩�
 
 ### P03 音视频通话与 WebRTC
 
-当前状态：`[~]`。`CallSessionMachine`（状态机+单测）、`SignalingOfferFreshnessPolicy`、`MissedCallTimeoutPolicy`、`GroupCallPolicy`（6 人上限/网格/边协商）纯策略已落地；本轮收敛 REST 轮询与 WS 双路径共享的 `CallOfferSelector`（终端判定/mesh 边过滤/首选选择，6 单测）。ViewModel/系统集成/真实设备门仍待做。
+当前状态：`[~]`。`CallSessionMachine`（状态机+单测）、`SignalingOfferFreshnessPolicy`、`MissedCallTimeoutPolicy`、`GroupCallPolicy`（6 人上限/网格/边协商）纯策略已落地；`CallOfferSelector` 统一双路径来电选择（6 单测）。`CallSystemIntegration` 已承接 FGS 启停、Telecom `placeIncomingCall`/`registerPhoneAccount`、锁屏旗标查询（4 单测）；MainActivity / CallNavigation / MaodouchatApp 改走该端口。本轮：客户端出站 `CallSignalingOutboundCursor` + 入站 `CallSignalingAdmissionPolicy`/`CallSignalingIdempotencyStore`/`CallSignalingOrderPolicy`；REST/WS/Realtime 全链路携带 `epoch`/`sequence`/`idempotencyKey`；`GroupCallCapabilities` 显式标记 SFU/屏幕共享/录制未实现。真实设备门与媒体采集分层仍待做。
 
 - [x] 建立 `CallSessionMachine`（`CallSessionMachineTest` 锁定生命周期）与 offer/超时/网格纯策略；`CallOfferSelector` 统一双路径来电选择语义。
-- [ ] Direct、Group Mesh、媒体采集、音频路由、ICE 恢复、系统集成分层。
-- [ ] 所有信令携带合法 `callId`、session epoch，并幂等处理。
+- [~] Direct、Group Mesh、媒体采集、音频路由、ICE 恢复、系统集成分层（`CallSystemIntegration` 已覆盖 FGS + Telecom 派发 + 锁屏判定；媒体采集/音频路由/ICE 仍在 ViewModel/WebRTCManager）。
+- [x] 所有信令携带合法 `callId`、session epoch，并幂等处理（出站游标 + 入站准入/幂等；服务端 `CallSignalingOrderPolicy` + idempotencyKey 复用；WS/REST fanout 透传 epoch/seq/key，遗留 0/0 仍放行）。
 - [ ] ViewModel 只显示 call state 和发送 user intent。
-- [ ] 前台服务、Telecom、锁屏和权限生命周期进入 `CallSystemIntegration`。
-- [ ] 明确 6 人 Mesh 上限；SFU、屏幕共享、录制保持未实现，不能伪装完成。
+- [~] 前台服务、Telecom、锁屏和权限生命周期进入 `CallSystemIntegration`（FGS/Telecom/锁屏已接入；通话中权限请求仍按入口触发）。
+- [x] 明确 6 人 Mesh 上限；SFU、屏幕共享、录制保持未实现，不能伪装完成（`GroupCallCapabilities` + `canStartMesh` 接线 VM；`SFU_SUPPORTED`/`SCREEN_SHARE_SUPPORTED`/`CALL_RECORDING_SUPPORTED` 恒 false）。
 
 Gate：两模拟器真实音视频、后台/锁屏、ICE 断线、蓝牙、群成员变化和进程恢复通过。
 
@@ -458,12 +458,12 @@ Gate：prompt injection、伪造 tool call、重复写、流中断、账号切�
 
 ### P07 Push、后台保活与本地通知
 
-当前状态：`[~]`。Push 注册语义与实际 WS 保活混杂。`AppNotifier.kt` 已删除（1057→0）：`EXTRA_*` 逐字迁入 `NotificationIntents`，35 文件调用方改直连四服务/基础设施（含 3 个 mockk 单测转 mock 新服务）。
+当前状态：`[~]`。Push 注册语义与实际 WS 保活混杂。`AppNotifier.kt` 已删除（1057→0）：`EXTRA_*` 逐字迁入 `NotificationIntents`，35 文件调用方改直连四服务/基础设施（含 3 个 mockk 单测转 mock 新服务）。本轮：`PushKeepAliveService` 全模式仅 dataSync FGS；`PushKeepAlivePolicy` 将 media/call legacy 别名归一化为 foreground，并永久禁用 MediaSession/假来电伪装（4 单测）。
 
 - [x] 冻结通知槽位纯策略：`NotificationSlotPolicy`（消息/reminder/来电/未接/动态/AI任务/好友/群邀请/公告/测试 tag+id+分组+dataURI+requestCode，表达式与历史行为逐字等价；`AppNotifier` 私有槽位常量与 `incomingCallNotifyId/missedCallNotifyId/aiTaskGroupSummaryId` 私有函数已删除）。
-- [ ] 定义统一 `PushTransport`；前台 WS 与后台推送渠道职责分开。
-- [ ] 推送只唤醒 inbox/sync，不携带聊天敏感正文。
-- [ ] 替换语义模糊的守护/假来电/媒体保活实现，遵守 Android 后台限制。
+- [~] 定义统一 `PushTransport`；前台 WS 与后台推送渠道职责分开（`PushTransport`/`PushTransportController` 已冻结前台 WS 连接门闩 + 单测；FCM HTTP 已移除，离线唤醒走 Ideaura 式 WS 保活；后台渠道与保活语义仍待继续收敛）。
+- [~] 推送只唤醒 inbox/sync，不携带聊天敏感正文（客户端 `PushWakePayloadPolicy` 拒绝 body/preview/plaintext 等键，5 单测；服务端 `enqueuePostInteraction` 停写 preview；消息正文已不经 push data，wake→`MessagingV2Runtime` inbox sync）。
+- [x] 替换语义模糊的守护/假来电/媒体保活实现，遵守 Android 后台限制（运行时仅 dataSync FGS + Wake/WifiLock + daemon 互拉；`effectiveMode` 将 media/call 遗留偏好归一为 foreground；`wantsMediaSession`/`wantsFakeCall` 恒 false，4 单测；真实通话仍由 `CallForegroundService`）。
 - [x] 拆分 Message、Call、Social、Reminder notification service（4/4 完成：+`MessageNotificationService`（showMessage/reminder/test/scheduledFailed/cancelMessage，M11 动作/前台静音/群渠道逐行搬运）与 Post 归位 Social（showPostInteraction/cancelPostInteraction）；`AppNotifier` 1057→207 行，仅剩薄委托/`EXTRA_*` 常量/兼容入口）。
 - [x] 通知去重保持纯策略（`NotificationSlotPolicy` 为 tag/id/分组/data-URI/requestCode 唯一事实源；账号隔离仍由 `notificationOwnerMatches` + `NotificationIntentPolicy` 双门禁执行；共享实现下沉为模块内 `NotificationInfrastructure`，四服务直连）。
 - [x] 删除巨型 `AppNotifier` 静态入口（文件已删除；调用方直连四服务/`NotificationInfrastructure`/`NotificationIntents`，零 `AppNotifier` 代码引用残留）。
@@ -472,29 +472,29 @@ Gate：Doze、强杀、重启、Token 轮换、Android 13-16 权限、密聊脱�
 
 ### P08 Navigation、Activity、深链与系统入口
 
-当前状态：`[~]`。`NavGraph.kt` 1050→356 行（路由定义迁入 `NavRoutes.kt`；登录主壳/聊天/设置/动态联系人/通话/群玩法/搜索通知 7 个 feature 簇逐字搬运），Activity 承担较多全局状态。纯决策层已先行冻结：`AppLinkDestination` typed 目标 + `AppLinkRouter` 纯解析/清洗器（13 单测，含遍历/非法字符/危险 scheme/斜杠注入拒绝），零行为变更，待调用方渐进接入。
+当前状态：`[~]`。`NavGraph.kt` 1050→356 行（路由定义迁入 `NavRoutes.kt`；登录主壳/聊天/设置/动态联系人/通话/群玩法/搜索通知 7 个 feature 簇逐字搬运），Activity 宿主持续收敛。纯决策层已冻结并接线：`AppLinkDestination`/`AppLinkRouter`/`AppLinkAuthGate`/`StartupPermissionPolicy`/`NotificationTargetReplayPolicy`（通知回放等待/丢弃/导航，10 单测）。
 
 - [x] 冻结纯决策契约：typed `AppLinkDestination`（ChatDetail/AiTasksChat/PublicProfile/PostDetail/GroupInvite/NotificationCenter/CallHistory，`requiresAuth` + `toRoute()`）与 `AppLinkRouter`（深链白名单 scheme/host、通知 extras 映射、严格/宽松两档清洗器、对外深链模式唯一事实源 `publicProfileDeepLinkPatterns` 直供 `NavGraph`）。
-- [~] MainActivity 外部深链分支已迁移到 `AppLinkRouter.parseDeepLink`（手写 scheme/host/path 截取删除；parity 单测锁定旧接受/忽略语义；多余路径段从截断改为拒绝，见 8.34 注释意图）。通知 extras 四 ID（chat/message/aiTasks/post）已改走严格清洗（含 /?# 拒收；非法 messageId 仅丢高亮、仍开会话）。系统入口派发改走 `toDestination().toRoute()` 统一映射（与 `Routes.*` builder 同构锁定，21 单测）。Widget 打开/标已读生产侧同样清洗（非法 ID 走刷新/丢弃，不构造 intent）。Telecom/FCM 唤醒 callId/senderId 已改走严格清洗（非法值按空串走通用轮询，不定向响铃，23 单测）。二维码（`maodouchat:` 私有域多步流程，已在 P01 加固，保持独立）、邀请、网页链接尚未统一接入。
+- [~] MainActivity 外部深链分支已迁移到 `AppLinkRouter.parseDeepLink`（手写 scheme/host/path 截取删除；parity 单测锁定旧接受/忽略语义；多余路径段从截断改为拒绝，见 8.34 注释意图）。通知 extras 四 ID（chat/message/aiTasks/post）已改走严格清洗（含 /?# 拒收；非法 messageId 仅丢高亮、仍开会话）。系统入口派发改走 `toDestination().toRoute()` 统一映射（与 `Routes.*` builder 同构锁定，21 单测）。Widget 打开/标已读生产侧同样清洗（非法 ID 走刷新/丢弃，不构造 intent）。Telecom/FCM 唤醒 callId/senderId 已改走严格清洗（非法值按空串走通用轮询，不定向响铃，23 单测）。群邀请码深链 / QR 已统一至 `AppLinkDestination.GroupInvite` → `JoinGroupInviteScreen` + `JoinGroupInviteUseCase`（清洗经 `sanitizeChatInviteToken`/`sanitizeInviteCode`，UI 不直连 join API，5 单测）。网页链接已统一：`resolveUserFacingUrl` + `ExternalUrl` + `AppLinkOpener`（气泡 Markdown/富文本/预览卡 + 媒体中心链接 Tab；应用内深链优先、其它 http(s) 外开；危险 scheme 拒绝）。通知中心 legacy 字符串（`maodouchat:chat:`/`ai_tasks:`/`post:`/`contacts`/`missed_calls`/`group_invites`）已统一经 `AppLinkRouter.parseLegacyCenterDeeplink`（`SearchCenterDestinations`/`NotificationCenterScreen`/`resolvedNotificationChatId`；注入拒绝；单测覆盖）。
 - [x] 每个 feature 提供 destination contract 并由 NavGraph 统一注册（6 簇：`SettingsDestinations`/`ExploreDestinations`/`CallDestinations`/`GroupPlayDestinations`/`SearchCenterDestinations`/`ChatDestinations`；41 路由注册完整性由 `scripts/check-nav-registration.py` 在 CI 锁定）。
-- [ ] 通知、来电、Widget、二维码、邀请和网页链接统一经过 `AppLinkRouter`（MainActivity 手写解析与 navDeepLink pattern 尚未迁移）。
-- [ ] Deep link 参数在执行业务前完成认证、权限和数据校验。
-- [ ] `MainActivity` 只负责宿主、权限和系统生命周期。
+- [~] 通知、来电、Widget、二维码、邀请和网页链接统一经过 `AppLinkRouter`（通知中心 legacy 已接入；外部 ACTION_VIEW 已覆盖 PublicProfile/Chat/Post/AiTasks；邀请码深链与 QR 已统一 GroupInvite 目标；用户面 http(s)/深链已统一 `resolveUserFacingUrl`）。
+- [~] Deep link 参数在执行业务前完成认证、权限和数据校验（`AppLinkAuthGate` 纯门闩 + ExternalUrl 免登录；`NotificationIntentConsumer` 深链 Accepted 后先 evaluate；未登录仍入队 pending 由 MainActivity 等登录回放；`NotificationTargetReplayPolicy` 统一会话代际/账号归属/登录等待决策，10 单测；权限/数据校验仍待按目标补齐）。
+- [~] `MainActivity` 宿主收敛中：通知入口已交 `NotificationIntentConsumer`，窗口隐私已交 `WindowPrivacyController`，前台/后台 presence 与 `activeChatId` 清理已交 `AppForegroundLifecycleController`；App 锁/假聊天门闩已交 `AppSurfaceGateController`；来电锁屏旗标轮询已交 `CallLockScreenFlagController` + `CallSystemIntegration.lockScreenFlagsNeeded`；冷启动通知权限清单已交 `StartupPermissionPolicy`；通知导航回放已交 `NotificationTargetReplayPolicy`（Activity 只 delay/navigate/清 StateFlow）；`ActivityResult` 启动器与 Compose 宿主仍在 Activity。
 - [ ] 导航接线由唯一集成 Agent 完成。
 
 Gate：冷/热启动、登录重定向、返回栈、非法链接、旋转、进程恢复和平板测试通过。
 
 ### P09 Widget、应用更新、安装与发布渠道
 
-当前状态：`[~]`。更新乱码修复、Android P+ 签名提取修复、WebRTC 原生库 SHA-256 强校验已落地。Widget 行投影已纯化为 `WidgetRowPolicy`（隐私门禁/脱敏/角标/上限，10 单测）。
+当前状态：`[x]`。更新乱码修复、Android P+ 签名提取修复、WebRTC 原生库 SHA-256 强校验已落地。Widget 行投影已纯化为 `WidgetRowPolicy`（隐私门禁/脱敏/角标/上限，10 单测）。安装侧 `AppUpdateInstallPolicy` + WorkManager 下载（`AppUpdateDownloadWorker`）已接线；发布渠道/签名/回滚文档与 `scripts/check-app-update-gates.py` CI 门禁已落地。
 
 - [x] 更新清单与安装器签名修复：修复 `OfficialApkInstaller` Android P+ 签名提取与十六进制标准格式化；修复 `AppUpdatePolicy` UTF-8 / ISO 智能转码防乱码。
 - [x] WebRTC 原生库按需下载加固：`WebRtcNativeDownloadPolicy` 来源白名单与强制 SHA-256 哈希校验。
 - [x] Widget 使用账号隔离的 projection 和消息 command port（行投影 `WidgetRowPolicy.buildWidgetRows` + 10 单测；命令端口 `androidQuickReplyCommandHandler` 门禁/去重/发送三件套经 `QuickReplyUseCase` 落库，16 单测全绿）。
-- [ ] 更新清单校验 HTTPS、SHA-256、包名、versionCode 和签名证书。
-- [ ] 下载进入 WorkManager，可恢复并校验完整性。
-- [ ] 禁止降级、错误签名、错误包和不可信重定向。
-- [ ] 发布渠道、签名证书和回滚策略形成文档与自动检查。
+- [x] 更新清单校验 HTTPS、SHA-256、包名、versionCode 和签名证书（offer 侧 HTTPS/SHA/version；安装侧 package+signer+archive `versionCode` 与 offer 对齐且严格高于已安装，经 `AppUpdateInstallPolicy` + `OfficialApkInstaller`）。
+- [x] 下载进入 WorkManager，可恢复并校验完整性（`AppUpdateDownloadWorker` + `AppUpdateDownloadScheduler` 唯一任务/联网约束/指数退避；Worker 内 SHA/包名/签名/versionCode 校验后弹安装；UI 观察 WorkInfo 进度）。
+- [x] 禁止降级、错误签名、错误包和不可信重定向（redirect 复核、SHA、包名/签名、archive versionCode 门禁已落地；HTTP 失败可重试，完整性失败不重试）。
+- [x] 发布渠道、签名证书和回滚策略形成文档与自动检查（`docs/app-update-release.md` + `scripts/check-app-update-gates.py`，CI android 作业接入）。
 
 Gate：截断、哈希错、签名错、空间不足、权限恢复、多 Widget 和换号测试通过。
 
@@ -514,11 +514,11 @@ Gate：性能预算、Macrobenchmark、无障碍扫描和截图回归进入 CI�
 
 ### B01 配置、数据库迁移、任务与部署基础
 
-当前状态：`[~]`。版本化 migration runner（PostgreSQL advisory lock + H2 行锁 + schema_migrations 历史表）已存在；表已按领域拆分；Database.kt 已拆出 SchemaMigration（47 行只剩 datasource/schema 引导）；ServerConfig/RuntimeConfigService 分离、Docker/Hikari/优雅关闭齐备；任务租约原语已就绪（`job_leases` 表 + `JobLease` 行锁抢占/续约/释放，`JobLeaseTest` 3 例，含 8 线程恰好一人 + PG 唯一冲突转 false）。剩余：schema 创建完全并入 migration、清理循环按任务抢租约接线、expand→contract 流程文档化。
+当前状态：`[~]`。版本化 migration runner（PostgreSQL advisory lock + H2 行锁 + schema_migrations 历史表）已存在；表已按领域拆分；Database.kt 已拆出 SchemaMigration（47 行只剩 datasource/schema 引导）；ServerConfig/RuntimeConfigService 分离、Docker/Hikari/优雅关闭齐备；任务租约原语已就绪（`job_leases` 表 + `JobLease` 行锁抢占/续约/释放，`JobLeaseTest` 3 例，含 8 线程恰好一人 + PG 唯一冲突转 false）。本轮：生产启动去掉旁路 `initDatabase()`，schema expand 仅经 migration v1；`docs/server-migration-expand-contract.md` 文档化 expand→compatibility→backfill→contract。剩余：测试夹具仍可 `initDatabase()` 快速建表（不记版本），长期应统一走 migration 夹具。
 
 - [x] 引入 Flyway/Liquibase 或等价版本化 migration runner（`db/migration/MigrationRunner`，PostgreSQL advisory lock + H2 行锁 + schema_migrations 版本表）。
-- [~] 每领域独立 schema/table 文件，Database 只管理 datasource（表已拆 CoreTables/AdminTables/MessagingV2Tables/SignalTables/PollTables/ServiceMessageTables；Database.kt 556→47 行，migration/backfill 已迁 SchemaMigration.kt；createSchemaTables 仍待并入 migration v1 以彻底移除启动期建表）。
-- [~] 采用 expand -> compatibility -> backfill -> contract 发布流程（migration v1=baseline、v2=retire legacy，流程文档化待补）。
+- [~] 每领域独立 schema/table 文件，Database 只管理 datasource（表已拆 CoreTables/AdminTables/MessagingV2Tables/SignalTables/PollTables/ServiceMessageTables；Database.kt 仅留 `createSchemaTables` 供 v1/测试；生产 `Application` 只调 `runDatabaseMigrations()`，启动期旁路建表已删）。
+- [x] 采用 expand -> compatibility -> backfill -> contract 发布流程（migration v1=baseline expand、v2=contract retire legacy、v3=backfill pairs、v4=expand signaling；流程见 `docs/server-migration-expand-contract.md`）。
 - [x] 破坏性 drop 只在明确 contract 版本执行（`retireLegacyMessagingTables` 在 migration v2）。
 - [x] 后台清理任务使用数据库 lease（`MaintenanceRunner` 持有 6h×11 + 15min×1 双循环本体，`Routing.kt` 只做装配启停 559→541 行；租约/健康追踪语义不变）。
 - [x] typed immutable startup config 与 runtime settings 分离（`ServerConfig` + `RuntimeConfigService`）。
@@ -619,12 +619,12 @@ Gate：双节点、慢连接、重连、fanout、拉黑侧信道、鉴权撤销�
 
 ### B09 通话信令、TURN 与 Push 唤醒
 
-当前状态：`[~]`。CallSignalingService 统一 REST/WS 校验与仓储，epoch/sequence/幂等键已入库；去重/排序与会话级 TURN 撤销待完成。
+当前状态：`[~]`。CallSignalingService 统一 REST/WS 校验与仓储；epoch/sequence/幂等键已入库；`CallSignalingOrderPolicy` 准入与投递排序（8 单测）已接线（落后游标 → `CALL_SIGNAL_STALE`；consume 按 epoch/seq/ts/id）；WS `OutgoingSignalingPayload`/`IncomingSignalingPayload` 与 REST wakeup 透传 epoch/seq/idempotencyKey；`TurnCredentialService` 支持 `callId` 绑定签发与 `revokeForCall`（挂断/终端信令撤销双方会话凭据，5 单测）；`GET /api/calls/ice-config?callId=` 已接线。统一 call session 状态机仍待深化。
 
-- [~] `CallSignalingService` 使用统一 call session 状态机。
-- [~] offer/answer/ICE/terminal 使用 callId、epoch、sequence 和幂等键。
+- [~] `CallSignalingService` 使用统一 call session 状态机（领域门面 + 终端清理已有；完整会话状态机仍待）。
+- [x] offer/answer/ICE/terminal 使用 callId、epoch、sequence 和幂等键（入库 + 幂等复用 + `CallSignalingOrderPolicy` 拒绝落后游标 + consume 有序投递；客户端出站游标与 REST/WS 同键重试）。
 - [x] REST durable fallback 与 WS 共享同一校验和 repository。
-- [~] TURN 凭据短期、限用户/会话、可撤销。
+- [~] TURN 凭据短期、限用户/会话、可撤销（用户+可选 callId 绑定；挂断撤销后该会话不再签发 TURN；已发出凭据仍受 TTL 约束）。
 - [x] Push 只唤醒来电，不包含敏感 SDP/消息正文。
 - [x] 协议升级后删除空 callId 兼容。
 
@@ -702,8 +702,8 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 - [x] `ChatDetailViewModel.kt` 不再包含单体业务逻辑，压缩为组合与分发调度层（接入 `ConversationCommandFacade`、`MessagingV2Outbox` 与领域 UseCase）。
 - [x] 旧巨型 `ChatDetailScreen.kt` 实现删除（降为 42 行薄路由，拆分 `TimelinePane`、`ComposerPane` 与独立面板）。
-- [~] 旧 `MessageBubble.kt` 单体解耦（现 641 行按类型分发的薄入口 + `TextMessageBubble`/`MediaMessageBubbles`/`FileMessageRenderer` 独立渲染器，经 `MessagePresentationMapper` 消除 wire/meta 渲染期耦合；`MessageBubble.kt` 本体仍在，未删除）。
-- [~] `ChatListViewModel.kt` 瘦身中（多选状态机纯 reducer 9 单测；设置 toggle 纯构造 + 服务端确认合并 10 单测；实时三投影纯函数 7 单测；预览内存投影 + 置顶排序口径纯化 + 批量归零去重 9 单测，`restoreChatSorted` 私有包装已删；collector 编排与 WS/网络/多仓库直连尚未解耦）。
+- [x] 旧 `MessageBubble.kt` 单体解耦（薄类型分发入口 + `MessageBubbleChrome.kt` 共享 chrome；`TextMessageBubble`/`MediaMessageBubbles`/`FileMessageRenderer`/`SystemMessageRenderer` 独立渲染器，经 `MessagePresentationMapper` 消除 wire/meta 渲染期耦合）。
+- [~] `ChatListViewModel.kt` 瘦身中（多选状态机纯 reducer 9 单测；设置 toggle 纯构造 + 服务端确认合并 10 单测；实时三投影纯函数 7 单测；预览内存投影 + 置顶排序口径纯化 + 批量归零去重 9 单测，`restoreChatSorted` 私有包装已删；`ChatListRealtimeCoordinator` 已承接 chatRead/chatMessageSent/RealtimeEventDispatcher collector 与断线横幅，7 单测；`ChatListLoadCoordinator` 已承接 getChats 请求合并/静默重载/stale 清理/未接来电观察，`ChatListRemoteMergePolicy` 纯化 DTO↔本地未读/设置合并，9 单测；`ChatListAnnouncementCoordinator`（公告拉取/ack + push verify key，5 单测）与 `ChatListMutationCoordinator`（settings/clearMarkedUnread/delete/密聊创建，4 单测）；`ChatListMissedCallCoordinator`（3 单测）、`ChatListArchiveSuggestionCoordinator`（3 单测）、`ChatListPreviewCoordinator`（3 单测）、`ChatListUnreadBatchCoordinator`（全部已读/多选已读共用路径，2 单测）、`ChatListLocalProjectionCoordinator`（草稿/回执/锁定密聊/消息搜索/身份告警，4 单测）；`ChatListPorts`/`AndroidChatListPorts` 已隔离生产侧 MaodouchatApp/ApiService/DAO 装配（ViewModel 只消费 ports，`createForTest` 缝）；ViewModel 1772→578 行；MaodouchatApp/TokenManager 经 ports 注入，全局单例直连已迁出 VM 业务路径）。
 - [ ] `SignalProtocol.kt` 宽 facade 删除。
 - [x] `ApiService` 巨单体拆解完成，分离为 Auth、Messaging、Conversation、Media、Social 等独立域 API，收敛为组合委托薄门面。
 - [x] `AppNotifier` 全局巨型入口删除（文件已物理删除；四服务 + `NotificationSlotPolicy` + `NotificationIntents` + `NotificationInfrastructure` 替代）。
@@ -867,7 +867,7 @@ Gate：所有聊天页面不直接依赖 infrastructure；旧页面入口和重�
 
 `Agent-3 Calls/System Client`
 
-- [ ] P03、P07、P09；通话、Push、通知、Widget、更新。
+- [ ] P03、P07；[x] P09（Widget、更新、安装与发布渠道）；通话、Push、通知。
 
 `Agent-0 Integration`
 

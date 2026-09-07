@@ -10,8 +10,13 @@ import com.maodouchat.R
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.ApiService
 import com.maodouchat.core.realtime.RealtimeDomainEvent
-import com.maodouchat.service.CallForegroundService
 import com.maodouchat.call.CallActionBus
+import com.maodouchat.call.CallSignalingAdmissionPolicy
+import com.maodouchat.call.CallSignalingIdempotencyStore
+import com.maodouchat.call.CallSignalingOrderPolicy
+import com.maodouchat.call.CallSignalingOutboundCursor
+import com.maodouchat.call.CallSystemIntegration
+import com.maodouchat.call.GroupCallCapabilities
 import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.call.MissedCallRecorder
 import com.maodouchat.call.MissedCallTimeoutPolicy
@@ -112,6 +117,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private var activeCallId: String = ""
     private val callSessionGate = CallSessionGate()
     private val callSessionMachine = com.maodouchat.call.CallSessionMachine()
+    private val callSystemIntegration = CallSystemIntegration(application)
     private var activeCallSession: Long = 0L
     private var activeDomainSession: Long = 0L
     private var activeGroupId: String = ""
@@ -120,7 +126,10 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     @Volatile
     private var endingCall = false
     private var activeGroupMemberIds: Set<String> = emptySet()
-    private val handledSignalingMessages = LinkedHashSet<String>()
+    private val signalingIdempotency = CallSignalingIdempotencyStore()
+    private val outboundSignalingCursor = CallSignalingOutboundCursor()
+    /** Per sender last accepted (epoch, sequence) for the active call. */
+    private val inboundSignalingCursors = mutableMapOf<String, CallSignalingOrderPolicy.Cursor>()
     // 8.55：通话开始时的账号快照——writeCallLog 用其作 expectedUserId 守卫，
     // 通话中异地登出换号后旧通话不写进新账号 key
     private var callLogOwnerUserId: String = ""
@@ -140,16 +149,15 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun startForegroundService() {
         val state = _uiState.value
-        CallForegroundService.start(
-            app,
-            state.contactName.ifBlank { text(R.string.call_unknown_caller) },
-            state.callType == CallType.VIDEO,
-            activeCallId
+        callSystemIntegration.startCallForeground(
+            contactName = state.contactName.ifBlank { text(R.string.call_unknown_caller) },
+            isVideo = state.callType == CallType.VIDEO,
+            callId = activeCallId,
         )
     }
 
     private fun stopForegroundService() {
-        CallForegroundService.stop(app)
+        callSystemIntegration.stopCallForeground()
     }
 
     init {
@@ -225,7 +233,9 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun beginCallSession(peerId: String, incoming: Boolean = false): Long {
-        handledSignalingMessages.clear()
+        signalingIdempotency.clear()
+        inboundSignalingCursors.clear()
+        outboundSignalingCursor.begin()
         iceRestartAttempts = 0
         val snapshot = if (incoming) {
             callSessionMachine.beginIncoming(peerId)
@@ -638,7 +648,9 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         }
         val selfUserId = tokenManager.getUserId().orEmpty()
         val normalizedMembers = groupMemberIds.filter(String::isNotBlank).distinct()
-        val isGroup = groupId.isNotBlank() && normalizedMembers.size in 2..GroupCallPolicy.MAX_MESH_MEMBERS && selfUserId in normalizedMembers
+        val isGroup = groupId.isNotBlank() &&
+            GroupCallCapabilities.canStartMesh(normalizedMembers.size) &&
+            selfUserId in normalizedMembers
         activeGroupId = if (isGroup) groupId else ""
         meshGroupMemberIds = if (isGroup) normalizedMembers.sorted() else emptyList()
         activeGroupMemberIds = if (isGroup) normalizedMembers.filter { it != selfUserId }.toSet() else emptySet()
@@ -881,6 +893,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         val groupId = groupIdOverride ?: activeGroupId
         val groupMembers = groupMemberIdsOverride ?: meshGroupMemberIds
         val sourceSession = activeCallSession
+        val ticket = outboundSignalingCursor.next(callId, type)
         viewModelScope.launch {
             if (token.isBlank()) {
                 if (callSessionGate.isCurrent(sourceSession)) {
@@ -892,10 +905,16 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             // 关键信令（offer/answer/hang-up 等）不能只信 OkHttp 本地 enqueue 成功；
             // WS 缓冲接受 ≠ 服务端处理。关键类型始终补 REST，ICE 保持 WS-first。
             val normalizedType = CallReliabilityPolicy.normalizeSignalingType(type)
-            val sentByWebSocket = WebRTCSignaling.sendViaWebSocket(toUserId, type, payload, callId, groupId, groupMembers, groupInvite)
+            val sentByWebSocket = WebRTCSignaling.sendViaWebSocket(
+                toUserId, type, payload, callId, groupId, groupMembers, groupInvite,
+                ticket.epoch, ticket.sequence, ticket.idempotencyKey,
+            )
             val needRest = CallReliabilityPolicy.isCriticalSignalingType(normalizedType) || !sentByWebSocket
             if (needRest) {
-                WebRTCSignaling.sendViaRest(token, toUserId, type, payload, callId, groupId, groupMembers, groupInvite).onFailure { error ->
+                WebRTCSignaling.sendViaRest(
+                    token, toUserId, type, payload, callId, groupId, groupMembers, groupInvite,
+                    ticket.epoch, ticket.sequence, ticket.idempotencyKey,
+                ).onFailure { error ->
                     if (!callSessionGate.isCurrent(sourceSession) && normalizedType != "hang-up") return@onFailure
                     val message = text(R.string.call_error_with_reason, errorPrefix, failureReason(error))
                     if (
@@ -939,7 +958,10 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                                     event.callId,
                                     event.groupId,
                                     event.groupMemberIds,
-                                    event.groupInvite
+                                    event.groupInvite,
+                                    event.epoch,
+                                    event.sequence,
+                                    event.idempotencyKey,
                                 )
                             }
                             is RealtimeDomainEvent.RealtimeError -> {
@@ -988,7 +1010,18 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                                 return@onSuccess
                             }
                             messages.forEach {
-                                handleSignalingMessage(it.type, it.payload, it.fromUserId, it.callId, it.groupId, it.groupMemberIds, it.groupInvite)
+                                handleSignalingMessage(
+                                    it.type,
+                                    it.payload,
+                                    it.fromUserId,
+                                    it.callId,
+                                    it.groupId,
+                                    it.groupMemberIds,
+                                    it.groupInvite,
+                                    it.epoch,
+                                    it.sequence,
+                                    it.idempotencyKey,
+                                )
                             }
                         }
                         .onFailure { error ->
@@ -1027,14 +1060,16 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             }
             return
         }
-        if (selfUserId.isBlank() || remoteMembers.size + 1 > GroupCallPolicy.MAX_MESH_MEMBERS) {
+        if (selfUserId.isBlank() ||
+            !GroupCallCapabilities.canStartMesh(remoteMembers.size + 1)
+        ) {
             _uiState.update {
                 it.copy(
                     contactId = chatId,
                     contactName = text(R.string.chat_group_call),
                     callType = type,
                     callState = CallState.DISCONNECTED,
-                    errorMessage = text(R.string.call_group_mesh_limit, GroupCallPolicy.MAX_MESH_MEMBERS)
+                    errorMessage = text(R.string.call_group_mesh_limit, GroupCallCapabilities.MAX_MESH_MEMBERS)
                 )
             }
             return
@@ -1112,53 +1147,63 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         callId: String = "",
         groupId: String = "",
         groupMemberIds: List<String> = emptyList(),
-        groupInvite: Boolean = false
+        groupInvite: Boolean = false,
+        epoch: Long = 0L,
+        sequence: Long = 0L,
+        idempotencyKey: String = "",
     ) {
         val currentState = _uiState.value
         val expectedContactId = currentState.contactId
         val normalizedType = CallReliabilityPolicy.normalizeSignalingType(type)
-        // 群通话模式不限制 fromUserId（每个对端独立）
         val isGroup = currentState.isGroupCall
-        if (!CallReliabilityPolicy.shouldAcceptSignal(isGroup, expectedContactId, fromUserId)) return
-        if (!GroupCallPolicy.shouldAcceptMetadata(activeGroupId, groupId, meshGroupMemberIds, groupMemberIds)) {
-            if (normalizedType == "offer" && fromUserId.isNotBlank()) {
-                sendSignalWithFallback(
-                    fromUserId,
-                    "busy",
-                    "",
-                    text(R.string.call_notify_busy_failed),
-                    callId,
-                    groupId,
-                    groupMemberIds
-                )
+        val cursorKey = "$callId|$fromUserId"
+        when (
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = isGroup,
+                expectedContactId = expectedContactId,
+                fromUserId = fromUserId,
+                activeCallId = activeCallId,
+                incomingCallId = callId,
+                activeGroupId = activeGroupId,
+                incomingGroupId = groupId,
+                activeMembers = meshGroupMemberIds,
+                incomingMembers = groupMemberIds,
+                signalType = type,
+                incomingEpoch = epoch,
+                incomingSequence = sequence,
+                lastAcceptedCursor = inboundSignalingCursors[cursorKey],
+            )
+        ) {
+            CallSignalingAdmissionPolicy.Decision.DROP -> return
+            CallSignalingAdmissionPolicy.Decision.BUSY_REJECT -> {
+                if (fromUserId.isNotBlank()) {
+                    sendSignalWithFallback(
+                        fromUserId,
+                        "busy",
+                        "",
+                        text(R.string.call_notify_busy_failed),
+                        callId,
+                        groupId,
+                        groupMemberIds
+                    )
+                }
+                return
             }
-            return
-        }
-        if (!CallReliabilityPolicy.shouldAcceptCallId(activeCallId, callId)) {
-            if (normalizedType == "offer" && fromUserId.isNotBlank()) {
-                sendSignalWithFallback(
-                    fromUserId,
-                    "busy",
-                    "",
-                    text(R.string.call_notify_busy_failed),
-                    callId,
-                    groupId,
-                    groupMemberIds
-                )
-            }
-            return
+            CallSignalingAdmissionPolicy.Decision.ACCEPT -> Unit
         }
 
-        // 8.39：去重 key 用完整 payload 而非 payload.hashCode()——群 mesh 候选量大（数百~上千），
-        // String.hashCode 碰撞概率可达百分之几，不同 ICE 候选碰撞时后到者被静默丢弃导致连接卡死
-        val messageKey = "$callId|$fromUserId|$normalizedType|$payload"
-        if (!handledSignalingMessages.add(messageKey)) return
-        if (handledSignalingMessages.size > 128) {
-            val iterator = handledSignalingMessages.iterator()
-            if (iterator.hasNext()) {
-                iterator.next()
-                iterator.remove()
-            }
+        if (!signalingIdempotency.remember(
+                callId = callId,
+                fromUserId = fromUserId,
+                type = normalizedType,
+                payload = payload,
+                idempotencyKey = idempotencyKey,
+            )
+        ) {
+            return
+        }
+        if (epoch != 0L || sequence != 0L) {
+            inboundSignalingCursors[cursorKey] = CallSignalingOrderPolicy.Cursor(epoch, sequence)
         }
 
         try {
@@ -1440,7 +1485,9 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         activeCallSession = 0L
         callSessionMachine.finish(activeDomainSession)
         activeDomainSession = 0L
-        handledSignalingMessages.clear()
+        signalingIdempotency.clear()
+        inboundSignalingCursors.clear()
+        outboundSignalingCursor.clear()
 
         _uiState.update {
             it.copy(
@@ -1534,6 +1581,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         // Capture owner at hang-up request time: after account switch, do not hang up under new session.
         val hangUpOwnerUserId = tokenManager.getUserId().orEmpty()
         if (hangUpOwnerUserId.isBlank()) return
+        val ticket = outboundSignalingCursor.next(callId, "hang-up")
         com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
             // 挂断必须尽量送达：进程/协程取消时仍跑 REST+WS，避免对端幽灵响铃
             withContext(kotlinx.coroutines.NonCancellable) {
@@ -1551,7 +1599,10 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 if (authToken.isBlank()) return@withContext
                 // 走 /api/signaling/hangup：存 hang-up 并 clearForCallExcluding，避免离线仍响铃
                 try {
-                    WebRTCSignaling.hangUp(authToken, toUserId, callId, groupId, groupMembers)
+                    WebRTCSignaling.hangUp(
+                        authToken, toUserId, callId, groupId, groupMembers,
+                        ticket.epoch, ticket.sequence, ticket.idempotencyKey,
+                    )
                 } catch (error: kotlinx.coroutines.CancellationException) {
                     throw error
                 } catch (error: Exception) {
@@ -1568,7 +1619,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 try {
                     WebRTCSignaling.sendViaWebSocket(
-                        toUserId, "hang-up", "", callId, groupId, groupMembers, false
+                        toUserId, "hang-up", "", callId, groupId, groupMembers, false,
+                        ticket.epoch, ticket.sequence, ticket.idempotencyKey,
                     )
                 } catch (error: kotlinx.coroutines.CancellationException) {
                     throw error

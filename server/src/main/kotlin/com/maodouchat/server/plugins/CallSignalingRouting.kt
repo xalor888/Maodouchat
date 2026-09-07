@@ -35,7 +35,8 @@ internal fun Route.configureCallSignalingRoutes(
     authenticate("auth-jwt") {
         get("/api/calls/ice-config") {
             val userId = call.requireUserId()
-            call.respond(turnCredentialService.issue(userId))
+            val callId = call.request.queryParameters["callId"].orEmpty()
+            call.respond(turnCredentialService.issue(userId, callId = callId))
         }
 
         post("/api/signaling/send") {
@@ -124,6 +125,9 @@ private suspend fun sendSignalWakeup(json: Json, fromUserId: String, request: Se
                         request.groupId,
                         request.groupMemberIds,
                         request.groupInvite,
+                        request.epoch,
+                        request.sequence,
+                        request.idempotencyKey,
                     ),
                 ),
             ),
@@ -140,4 +144,7 @@ private data class SignalingPayload(
     val groupId: String = "",
     val groupMemberIds: List<String> = emptyList(),
     val groupInvite: Boolean = false,
+    val epoch: Long = 0,
+    val sequence: Long = 0,
+    val idempotencyKey: String = "",
 )

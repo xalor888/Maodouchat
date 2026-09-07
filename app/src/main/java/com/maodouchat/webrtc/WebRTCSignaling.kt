@@ -35,7 +35,10 @@ object WebRTCSignaling {
         val callId: String = "",
         val groupId: String = "",
         val groupMemberIds: List<String> = emptyList(),
-        val groupInvite: Boolean = false
+        val groupInvite: Boolean = false,
+        val epoch: Long = 0,
+        val sequence: Long = 0,
+        val idempotencyKey: String = "",
     )
 
     @Serializable
@@ -48,7 +51,10 @@ object WebRTCSignaling {
         val callId: String = "",
         val groupId: String = "",
         val groupMemberIds: List<String> = emptyList(),
-        val groupInvite: Boolean = false
+        val groupInvite: Boolean = false,
+        val epoch: Long = 0,
+        val sequence: Long = 0,
+        val idempotencyKey: String = "",
     )
 
     /**
@@ -61,9 +67,15 @@ object WebRTCSignaling {
         callId: String = "",
         groupId: String = "",
         groupMemberIds: List<String> = emptyList(),
-        groupInvite: Boolean = false
+        groupInvite: Boolean = false,
+        epoch: Long = 0,
+        sequence: Long = 0,
+        idempotencyKey: String = "",
     ): Boolean {
-        val request = SendSignalRequest(toUserId, type, payload, callId, groupId, groupMemberIds, groupInvite)
+        val request = SendSignalRequest(
+            toUserId, type, payload, callId, groupId, groupMemberIds, groupInvite,
+            epoch, sequence, idempotencyKey,
+        )
         val signalPayload = json.encodeToString(SendSignalRequest.serializer(), request)
         val wsMsg = json.encodeToString(
             com.maodouchat.network.WsMessage.serializer(),
@@ -84,10 +96,14 @@ object WebRTCSignaling {
         callId: String = "",
         groupId: String = "",
         groupMemberIds: List<String> = emptyList(),
-        groupInvite: Boolean = false
+        groupInvite: Boolean = false,
+        epoch: Long = 0,
+        sequence: Long = 0,
+        idempotencyKey: String = "",
     ): Result<Unit> {
         val result = ApiService.sendSignaling(
-            token, toUserId, type, payload, callId, groupId, groupMemberIds, groupInvite
+            token, toUserId, type, payload, callId, groupId, groupMemberIds, groupInvite,
+            epoch, sequence, idempotencyKey,
         )
         return mapSignalingResult(result, FailureOperation.SEND)
     }
@@ -111,7 +127,10 @@ object WebRTCSignaling {
                             callId = it.callId,
                             groupId = it.groupId,
                             groupMemberIds = it.groupMemberIds,
-                            groupInvite = it.groupInvite
+                            groupInvite = it.groupInvite,
+                            epoch = it.epoch,
+                            sequence = it.sequence,
+                            idempotencyKey = it.idempotencyKey,
                         )
                     }
                 )
@@ -153,9 +172,15 @@ object WebRTCSignaling {
         toUserId: String,
         callId: String = "",
         groupId: String = "",
-        groupMemberIds: List<String> = emptyList()
+        groupMemberIds: List<String> = emptyList(),
+        epoch: Long = 0,
+        sequence: Long = 0,
+        idempotencyKey: String = "",
     ): Result<Unit> {
-        val result = ApiService.hangUpCall(token, toUserId, callId, groupId, groupMemberIds)
+        val result = ApiService.hangUpCall(
+            token, toUserId, callId, groupId, groupMemberIds,
+            epoch, sequence, idempotencyKey,
+        )
         return mapSignalingResult(result, FailureOperation.HANG_UP)
     }
 

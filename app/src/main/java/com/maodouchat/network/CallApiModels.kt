@@ -10,7 +10,10 @@ data class SignalingSendRequest(
     val callId: String = "",
     val groupId: String = "",
     val groupMemberIds: List<String> = emptyList(),
-    val groupInvite: Boolean = false
+    val groupInvite: Boolean = false,
+    val epoch: Long = 0,
+    val sequence: Long = 0,
+    val idempotencyKey: String = "",
 )
 
 @Serializable
@@ -23,7 +26,10 @@ data class SignalMessageDto(
     val callId: String = "",
     val groupId: String = "",
     val groupMemberIds: List<String> = emptyList(),
-    val groupInvite: Boolean = false
+    val groupInvite: Boolean = false,
+    val epoch: Long = 0,
+    val sequence: Long = 0,
+    val idempotencyKey: String = "",
 )
 
 @Serializable

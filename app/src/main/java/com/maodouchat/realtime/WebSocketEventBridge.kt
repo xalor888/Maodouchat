@@ -53,6 +53,9 @@ class WebSocketEventBridge(
                                 groupId = wsEvent.groupId,
                                 groupMemberIds = wsEvent.groupMemberIds,
                                 groupInvite = wsEvent.groupInvite,
+                                epoch = wsEvent.epoch,
+                                sequence = wsEvent.sequence,
+                                idempotencyKey = wsEvent.idempotencyKey,
                             )
                         )
                     }

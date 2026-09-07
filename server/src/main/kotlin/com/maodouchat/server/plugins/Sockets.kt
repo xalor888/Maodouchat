@@ -73,7 +73,8 @@ fun Application.configureSockets(
         com.maodouchat.server.repository.NotificationPreferenceRepository()
     ),
     callInviteRateLimiter: CallInviteRateLimiter = CallInviteRateLimiter(),
-    authTokenRepo: AuthTokenRepository = AuthTokenRepository()
+    authTokenRepo: AuthTokenRepository = AuthTokenRepository(),
+    turnCredentialService: com.maodouchat.server.service.TurnCredentialService? = null,
 ) {
     val participantRepository = ConversationParticipantRepository()
     val conversationQueryRepository = ConversationQueryRepository()
@@ -82,6 +83,7 @@ fun Application.configureSockets(
         userRepo,
         conversationQueryRepository,
         callInviteRateLimiter,
+        turnCredentialService,
     )
     // Tests and standalone plugin installs may use the default FCM service instead of the
     // Routing-owned instance. shutdown() is idempotent when production shares one instance.
@@ -422,13 +424,26 @@ private suspend fun WebSocketSession.handleWsMessage(
             val request = SendSignalRequest(
                 payload.toUserId, payload.type, payload.payload,
                 payload.callId, payload.groupId, payload.groupMemberIds, payload.groupInvite,
+                payload.epoch, payload.sequence, payload.idempotencyKey,
             )
             when (val outcome = callSignalingService.send(request, senderId)) {
                 is com.maodouchat.server.service.CallSignalingService.SendOutcome.Rejected ->
                     sendError(outcome.message, json, outcome.code, outcome.retryAfterSeconds)
                 is com.maodouchat.server.service.CallSignalingService.SendOutcome.Stored -> {
+                    val stored = outcome.request
                     val signalMsg = json.encodeToString(WsMessage("SIGNALING", json.encodeToString(
-                        IncomingSignalingPayload(senderId, payload.type, payload.payload, payload.callId, payload.groupId, payload.groupMemberIds, payload.groupInvite)
+                        IncomingSignalingPayload(
+                            senderId,
+                            stored.type,
+                            stored.payload,
+                            stored.callId,
+                            stored.groupId,
+                            stored.groupMemberIds,
+                            stored.groupInvite,
+                            stored.epoch,
+                            stored.sequence,
+                            stored.idempotencyKey,
+                        )
                     )))
                     LocalRealtimeBus.publish(payload.toUserId, signalMsg)
                     if (payload.type.equals("offer", ignoreCase = true) && (payload.groupId.isBlank() || payload.groupInvite)) {

@@ -106,7 +106,10 @@ interface ApiSurface : SocialApi {
     callId: String = "",
     groupId: String = "",
     groupMemberIds: List<String> = emptyList(),
-    groupInvite: Boolean = false
+    groupInvite: Boolean = false,
+    epoch: Long = 0,
+    sequence: Long = 0,
+    idempotencyKey: String = "",
 ): Result<Unit>
 
     suspend fun hangUpCall(
@@ -114,7 +117,10 @@ interface ApiSurface : SocialApi {
     toUserId: String,
     callId: String = "",
     groupId: String = "",
-    groupMemberIds: List<String> = emptyList()
+    groupMemberIds: List<String> = emptyList(),
+    epoch: Long = 0,
+    sequence: Long = 0,
+    idempotencyKey: String = "",
 ): Result<Unit>
 
     suspend fun getPendingSignaling(token: String, offersOnly: Boolean = false): Result<List<SignalMessageDto>>
