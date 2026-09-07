@@ -32,7 +32,12 @@ object PushKeepAlive {
             } else {
                 context.applicationContext.startService(intent)
             }
-        }.onSuccess { Log.i(PushKeepAliveService.TAG, "keepalive started (mode=$mode)") }
+        }.onSuccess {
+            Log.i(
+                PushKeepAliveService.TAG,
+                "keepalive started (stored=$mode effective=${PushKeepAlivePolicy.effectiveMode(mode)})",
+            )
+        }
             .onFailure { Log.w(PushKeepAliveService.TAG, "keepalive start failed (bg limit?): ${it.message}") }
     }
 

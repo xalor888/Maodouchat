@@ -3,17 +3,16 @@ package com.maodouchat.push
 import android.content.Context
 
 /**
- * 9.3xx：后台推送保活模式偏好（参考 Ideaura 的保活栈）。
+ * 后台推送保活模式偏好。
  *
  * 模式：
- * - [MODE_OFF]        关闭（默认，零副作用）
+ * - [MODE_OFF]        关闭
  * - [MODE_FOREGROUND] 前台保活：dataSync 前台服务 + WakeLock/WifiLock + 网络变化重连
- *                     + START_STICKY + 守护服务互拉（Ideaura KeepAliveService 同款）
- * - [MODE_MEDIA]      音乐播放器模式：在前台保活基础上挂 MediaSession「播放中」状态 +
- *                     无声音频循环 + 媒体样式常驻通知（系统对媒体会话有额外豁免）
- * - [MODE_CALL]       来电模式（Ideaura 最强手段）：注册自管理 PhoneAccount 并挂一个
- *                     onHold 的「假来电」，进程获得通话级优先级；不响铃、不弹通话 UI；
- *                     真实通话开始/结束时自动让位（移除假来电→通话结束→恢复）
+ *                     + START_STICKY + 守护服务互拉
+ * - [MODE_MEDIA]      **遗留偏好键**（仍可读/可写以兼容旧设置）；运行时由
+ *                     [PushKeepAlivePolicy.effectiveMode] 归一为 [MODE_FOREGROUND]，
+ *                     不再挂 MediaSession / 无声音频
+ * - [MODE_CALL]       **遗留偏好键**；运行时同样归一为前台 dataSync，不再挂合成假来电
  */
 object PushKeepAliveModeStore {
     const val MODE_OFF = "off"
@@ -22,6 +21,9 @@ object PushKeepAliveModeStore {
     const val MODE_CALL = "call"
 
     val ALL_MODES = listOf(MODE_OFF, MODE_FOREGROUND, MODE_MEDIA, MODE_CALL)
+
+    /** UI / 新写入只应暴露仍有效的模式。 */
+    val SUPPORTED_RUNTIME_MODES = listOf(MODE_OFF, MODE_FOREGROUND)
 
     private const val PREFS = "maodouchat_push_keepalive"
     private const val KEY_MODE = "keepalive_mode"
@@ -35,6 +37,10 @@ object PushKeepAliveModeStore {
         return if (m in ALL_MODES) m else MODE_FOREGROUND
     }
 
+    /** 运行时实际模式（legacy media/call → foreground）。 */
+    fun effectiveMode(context: Context): String =
+        PushKeepAlivePolicy.effectiveMode(mode(context))
+
     fun setMode(context: Context, mode: String) {
         prefs(context).edit().putString(KEY_MODE, if (mode in ALL_MODES) mode else MODE_FOREGROUND).apply()
         PushKeepAlive.applyMode(context)
@@ -43,9 +49,11 @@ object PushKeepAliveModeStore {
     /** MODE_OFF 或非法模式视为关闭，避免 logout/stop 后 daemon 仍复活 FGS。 */
     fun isEnabled(context: Context): Boolean = PushKeepAlivePolicy.isEnabled(mode(context))
 
-    /** 当前模式是否要求挂 MediaSession（音乐播放器伪装）。 */
-    fun wantsMedia(context: Context): Boolean = mode(context) == MODE_MEDIA
+    /** @deprecated 媒体伪装已退役；恒为 false。 */
+    fun wantsMedia(context: Context): Boolean =
+        PushKeepAlivePolicy.wantsMediaSession(mode(context))
 
-    /** 当前模式是否要求挂假来电。 */
-    fun wantsFakeCall(context: Context): Boolean = mode(context) == MODE_CALL
+    /** @deprecated 假来电伪装已退役；恒为 false。 */
+    fun wantsFakeCall(context: Context): Boolean =
+        PushKeepAlivePolicy.wantsFakeCall(mode(context))
 }

@@ -51,6 +51,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Maodouchat"
+        android:enableOnBackInvokedCallback="true"
         tools:targetApi="36">
 
         <activity
@@ -82,6 +83,25 @@
                 <data
                     android:scheme="maodouchat"
                     android:host="u" />
+            </intent-filter>
+            <!-- 群邀请深链：https://chat.mdou.me/join/{code} -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="chat.mdou.me"
+                    android:pathPrefix="/join/" />
+            </intent-filter>
+            <!-- 群邀请自定义 scheme：maodouchat://invite/{code} -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="maodouchat"
+                    android:host="invite" />
             </intent-filter>
         </activity>
 
@@ -164,6 +184,16 @@
         <service
             android:name=".widget.ConversationWidgetSyncService"
             android:exported="false" />
+
+        <!-- M11 系统通知 RemoteInput 快捷回复与通知动作 Receiver -->
+        <receiver
+            android:name=".quickreply.NotificationQuickReplyReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.maodouchat.action.NOTIFICATION_QUICK_REPLY" />
+                <action android:name="com.maodouchat.action.NOTIFICATION_MARK_READ" />
+            </intent-filter>
+        </receiver>
 
         <!-- ===== 前台 WebSocket 传输 ===== -->
 
