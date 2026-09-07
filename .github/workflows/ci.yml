@@ -150,6 +150,9 @@ jobs:
       - name: Navigation registration check (P08 route gate)
         run: python3 scripts/check-nav-registration.py
 
+      - name: App update release gates check (P09)
+        run: python3 scripts/check-app-update-gates.py
+
       - name: Lint check (catch common bugs)
         run: ./gradlew :app:lintDebug --no-daemon --console=plain
 
