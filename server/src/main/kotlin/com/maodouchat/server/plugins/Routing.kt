@@ -166,6 +166,11 @@ fun Application.configureRouting(
     signalingRepo: SignalingRepository = SignalingRepository(),
     callInviteRateLimiter: CallInviteRateLimiter = CallInviteRateLimiter(),
     messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository = com.maodouchat.server.messaging.v2.MessagingV2Repository(),
+    turnCredentialService: TurnCredentialService = TurnCredentialService(
+        turnUrls = ServerConfig.turnUrls,
+        sharedSecret = ServerConfig.turnSharedSecret,
+        ttlSeconds = ServerConfig.turnCredentialTtlSeconds,
+    ),
 ) {
     if (attributes.contains(RoutingInstalledKey)) {
         if (attributes[RoutingPushServiceKey] !== pushService) pushService.shutdown()
@@ -174,11 +179,6 @@ fun Application.configureRouting(
     attributes.put(RoutingInstalledKey, Unit)
     attributes.put(RoutingPushServiceKey, pushService)
     val signalKeyRepo = SignalKeyRepository()
-    val turnCredentialService = TurnCredentialService(
-        turnUrls = ServerConfig.turnUrls,
-        sharedSecret = ServerConfig.turnSharedSecret,
-        ttlSeconds = ServerConfig.turnCredentialTtlSeconds
-    )
     val starMessageRepo = StarMessageRepository()
     val pinnedMessageRepo = PinnedMessageRepository()
     val serviceMessageRepo = ServiceMessageRepository(messagingV2Repository)
@@ -385,6 +385,7 @@ fun Application.configureRouting(
                 userRepo,
                 conversationQueryRepo,
                 callInviteRateLimiter,
+                turnCredentialService,
             ),
             turnCredentialService = turnCredentialService,
             pushService = pushService,

@@ -1,8 +1,10 @@
 package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.SignalingMessages
+import com.maodouchat.server.service.CallSignalingOrderPolicy
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
@@ -34,6 +36,34 @@ class SignalingRepository {
     ): String {
         return transaction {
             storeInTx(fromUserId, toUserId, type, payload, callId, groupId, groupMemberIds, groupInvite, epoch, sequence, idempotencyKey)
+        }
+    }
+
+    /**
+     * 同 callId + 发送方已接受的最大 (epoch, sequence) 游标；无记录时 null。
+     * 遗留 0/0 行不参与游标（避免挡住已编号客户端）。
+     */
+    fun latestCursor(callId: String, fromUserId: String): CallSignalingOrderPolicy.Cursor? {
+        if (callId.isBlank() || fromUserId.isBlank()) return null
+        return transaction {
+            SignalingMessages.selectAll().where {
+                (SignalingMessages.callId eq callId) and
+                    (SignalingMessages.fromUserId eq fromUserId) and
+                    (
+                        (SignalingMessages.epoch greater 0L) or
+                            (SignalingMessages.sequence greater 0L)
+                    )
+            }.orderBy(
+                SignalingMessages.epoch to SortOrder.DESC,
+                SignalingMessages.sequence to SortOrder.DESC,
+            ).limit(1)
+                .firstOrNull()
+                ?.let {
+                    CallSignalingOrderPolicy.Cursor(
+                        epoch = it[SignalingMessages.epoch],
+                        sequence = it[SignalingMessages.sequence],
+                    )
+                }
         }
     }
 
@@ -149,6 +179,8 @@ class SignalingRepository {
                     (SignalingMessages.toUserId eq userId) and
                         (eligibleOffer or (SignalingMessages.type inList TERMINAL_SIGNAL_TYPES) or (SignalingMessages.type inList ICE_SIGNAL_TYPES))
                 }.orderBy(
+                    SignalingMessages.epoch to SortOrder.ASC,
+                    SignalingMessages.sequence to SortOrder.ASC,
                     SignalingMessages.timestamp to SortOrder.ASC,
                     SignalingMessages.id to SortOrder.ASC
                 )
@@ -157,6 +189,8 @@ class SignalingRepository {
             } else {
                 SignalingMessages.selectAll().where { SignalingMessages.toUserId eq userId }
                     .orderBy(
+                        SignalingMessages.epoch to SortOrder.ASC,
+                        SignalingMessages.sequence to SortOrder.ASC,
                         SignalingMessages.timestamp to SortOrder.ASC,
                         SignalingMessages.id to SortOrder.ASC
                     )

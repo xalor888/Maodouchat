@@ -72,8 +72,7 @@ fun main() {
     )
     Database.connect(dataSource)
 
-    // Bootstrap table definitions once, then apply ordered, locked migrations.
-    initDatabase()
+    // B01：schema expand/backfill/contract 全部经版本化 migration；不再启动期单独建表。
     runDatabaseMigrations()
 
     // B06：mailbox retention——进程内定时批处理（单实例部署；多实例 lease 属迁移框架后续）。
@@ -103,6 +102,11 @@ fun main() {
     val pushService = FcmPushService(pushTokenRepo, notificationPreferenceRepo)
     val signalingRepo = SignalingRepository()
     val callInviteRateLimiter = CallInviteRateLimiter()
+    val turnCredentialService = com.maodouchat.server.service.TurnCredentialService(
+        turnUrls = ServerConfig.turnUrls,
+        sharedSecret = ServerConfig.turnSharedSecret,
+        ttlSeconds = ServerConfig.turnCredentialTtlSeconds,
+    )
     // B6 运维增强：公告 / 用户标签 / 限流统计仓库
     val announcementRepo = AnnouncementRepository()
     val userTagRepo = UserTagRepository()
@@ -140,7 +144,8 @@ fun main() {
             userRepo,
             signalingRepo = signalingRepo,
             pushService = pushService,
-            callInviteRateLimiter = callInviteRateLimiter
+            callInviteRateLimiter = callInviteRateLimiter,
+            turnCredentialService = turnCredentialService,
         )
         configureRouting(
             userRepo,
@@ -151,7 +156,8 @@ fun main() {
             pushService = pushService,
             signalingRepo = signalingRepo,
             callInviteRateLimiter = callInviteRateLimiter,
-            messagingV2Repository = messagingV2Repository
+            messagingV2Repository = messagingV2Repository,
+            turnCredentialService = turnCredentialService,
         )
         configureMessagingV2Routing(messagingV2Repository)
         // 群玩法 B3：群签到+排行 / 群接龙 / 群 PK / 投票同步（REST + WS 推送）

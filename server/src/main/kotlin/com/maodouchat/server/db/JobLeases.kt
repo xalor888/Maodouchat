@@ -5,7 +5,7 @@ import org.jetbrains.exposed.sql.Table
 /**
  * 后台周期任务租约表（B01）。
  *
- * 按项目惯例（新表免版本迁移）：列入 [createSchemaTables] 后新老库自动建表。
+ * 经 migration v1 `createSchemaTables` expand 建表（生产不再启动期旁路建表）。
  * 行格式：name 主键 + 持有者 + 过期时间；抢占/续约靠行锁 + 条件写，PG/H2 通用。
  */
 object JobLeases : Table("job_leases") {

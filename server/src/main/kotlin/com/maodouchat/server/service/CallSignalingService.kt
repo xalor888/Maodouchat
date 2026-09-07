@@ -11,13 +11,15 @@ import io.ktor.http.HttpStatusCode
 
 /**
  * B09：通话信令领域门面。REST durable fallback 与 WS 共享同一校验、邀请限流与仓储，
- * 终端信令（hang-up/busy/reject）与同 callId 旧信令清理同事务。
+ * 终端信令（hang-up/busy/reject）与同 callId 旧信令清理同事务；
+ * epoch/sequence 准入由 [CallSignalingOrderPolicy] 判定；挂断撤销会话级 TURN。
  */
 class CallSignalingService(
     private val signalingRepository: SignalingRepository,
     private val userRepository: UserRepository,
     private val conversationQueryRepository: ConversationQueryRepository,
     private val callInviteRateLimiter: CallInviteRateLimiter,
+    private val turnCredentialService: TurnCredentialService? = null,
 ) {
     sealed interface SendOutcome {
         data class Stored(val request: SendSignalRequest) : SendOutcome
@@ -32,6 +34,8 @@ class CallSignalingService(
     fun send(request: SendSignalRequest, fromUserId: String): SendOutcome {
         val rejected = validate(request, fromUserId)
         if (rejected != null) return rejected
+        val stale = rejectIfStale(request, fromUserId)
+        if (stale != null) return stale
 
         if (CallInviteRateLimiter.isInitialInvite(request.type, request.groupId, request.groupInvite)) {
             val key = CallInviteRateLimiter.sessionKey(request.callId, request.groupId, request.toUserId)
@@ -52,6 +56,7 @@ class CallSignalingService(
                 request.callId, request.groupId, request.groupMemberIds, request.groupInvite,
                 request.epoch, request.sequence, request.idempotencyKey,
             )
+            revokeTurnForCall(request.callId, fromUserId, request.toUserId)
         } else {
             signalingRepository.store(
                 fromUserId, request.toUserId, request.type, request.payload,
@@ -65,16 +70,42 @@ class CallSignalingService(
     fun hangUp(request: SendSignalRequest, userId: String): SendOutcome {
         val rejected = validate(request, userId)
         if (rejected != null) return rejected
+        val stale = rejectIfStale(request, userId)
+        if (stale != null) return stale
         signalingRepository.storeTerminalAndClearOthers(
             userId, request.toUserId, "hang-up", request.payload,
             request.callId, request.groupId, request.groupMemberIds, request.groupInvite,
             request.epoch, request.sequence, request.idempotencyKey,
         )
+        revokeTurnForCall(request.callId, userId, request.toUserId)
         return SendOutcome.Stored(request.copy(type = "hang-up"))
     }
 
     fun pending(userId: String, offersOnly: Boolean): List<SignalingRepository.SignalingMessage> =
         signalingRepository.consumeForUser(userId, offersOnly)
+
+    private fun rejectIfStale(request: SendSignalRequest, fromUserId: String): SendOutcome.Rejected? {
+        val last = signalingRepository.latestCursor(request.callId, fromUserId)
+        return when (
+            CallSignalingOrderPolicy.admit(
+                CallSignalingOrderPolicy.Cursor(request.epoch, request.sequence),
+                last,
+            )
+        ) {
+            CallSignalingOrderPolicy.Admit.Accept -> null
+            CallSignalingOrderPolicy.Admit.RejectStale -> SendOutcome.Rejected(
+                HttpStatusCode.Conflict,
+                "信令顺序已过期",
+                "CALL_SIGNAL_STALE",
+            )
+        }
+    }
+
+    private fun revokeTurnForCall(callId: String, vararg userIds: String) {
+        val turn = turnCredentialService ?: return
+        if (callId.isBlank()) return
+        userIds.forEach { turn.revokeForCall(it, callId) }
+    }
 
     private fun validate(request: SendSignalRequest, fromUserId: String): SendOutcome.Rejected? {
         if (!isValidSignalPayload(request.type, request.payload) || !isValidCallId(request.callId)) {

@@ -8,6 +8,12 @@ internal fun isH2Db(): Boolean =
     TransactionManager.current().db.vendor.contains("h2", ignoreCase = true)
 
 
+/**
+ * Test/dev fixture: create missing tables/columns without recording migration versions.
+ *
+ * Production startup must call [com.maodouchat.server.db.migration.runDatabaseMigrations]
+ * only — baseline expand lives in migration v1 (`applyBaselineSchemaMigration`).
+ */
 fun initDatabase() {
     org.jetbrains.exposed.sql.transactions.transaction {
         createSchemaTables()
@@ -15,8 +21,8 @@ fun initDatabase() {
 }
 
 /**
- * Creates missing application tables and columns without deleting data or applying data migrations.
- * Versioned changes belong in [com.maodouchat.server.db.migration.runDatabaseMigrations].
+ * Expand-phase schema materialization shared by migration v1 and test fixtures.
+ * Versioned data changes belong in [com.maodouchat.server.db.migration.runDatabaseMigrations].
  */
 internal fun createSchemaTables() {
     SchemaUtils.createMissingTablesAndColumns(

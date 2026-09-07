@@ -63,7 +63,7 @@ class FcmPushService(
         actorId: String,
         postId: String,
         interaction: String,
-        preview: String? = null,
+        @Suppress("UNUSED_PARAMETER") preview: String? = null,
         commentId: String? = null
     ) {
         if (closed.get() || recipientId.isBlank() || postId.isBlank() || recipientId == actorId ||
@@ -76,7 +76,7 @@ class FcmPushService(
             "interaction" to interaction,
             "recipientId" to recipientId
         )
-        preview?.takeIf(String::isNotBlank)?.let { data["preview"] = it.trim().take(80) }
+        // P07：唤醒载荷不得夹带正文/预览；客户端只凭 id 拉投影。
         commentId?.takeIf(String::isNotBlank)?.let { data["commentId"] = it }
         record(Delivery(recipientId = recipientId, isCall = false, data = data))
     }

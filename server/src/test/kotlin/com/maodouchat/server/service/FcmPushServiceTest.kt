@@ -152,6 +152,27 @@ class FcmPushServiceTest {
     }
 
     @Test
+    fun `post interaction wake omits preview body plaintext`() {
+        withConfiguredService { service, queued ->
+            service.enqueuePostInteraction(
+                recipientId = "u2",
+                actorId = "u1",
+                postId = "p1",
+                interaction = "COMMENT",
+                preview = "secret comment body",
+                commentId = "c9",
+            )
+            val data = queued.single().data
+            assertEquals("POST_INTERACTION", data["type"])
+            assertEquals("c9", data["commentId"])
+            assertFalse(data.containsKey("preview"))
+            assertFalse(data.containsKey("body"))
+            assertFalse(data.containsKey("plaintext"))
+            assertFalse(data.values.any { it.contains("secret") })
+        }
+    }
+
+    @Test
     fun `enqueue drops blank ids self send and empty recipient lists`() {
         withConfiguredService { service, queued ->
             service.enqueueIncomingCall(recipientId = "", senderId = "u1", isVideo = false, callId = "call-1")
