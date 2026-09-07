@@ -11,6 +11,7 @@ import com.maodouchat.network.TokenManager
 import com.maodouchat.network.ApiService
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.call.CallActionBus
+import com.maodouchat.call.CallMediaBridge
 import com.maodouchat.call.CallSignalingAdmissionPolicy
 import com.maodouchat.call.CallSignalingIdempotencyStore
 import com.maodouchat.call.CallSignalingOrderPolicy
@@ -84,7 +85,8 @@ data class GroupCallParticipantUi(
 class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     private val tokenManager = TokenManager.getInstance(application)
-    private var webRTCManager: WebRTCManager? = null
+    private val mediaBridge = CallMediaBridge()
+    private val webRTCManager: WebRTCManager? get() = mediaBridge.manager
     private val token: String get() = tokenManager.getToken() ?: ""
     private val app: Application get() = getApplication()
 
@@ -484,7 +486,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                     runCatching { manager.release() }
                     return@launch
                 }
-                webRTCManager = manager
+                mediaBridge.bind(manager)
                 configureReliabilityCallbacks(manager, session)
                 manager.initialize()
                 // 8.56：建 manager 后 flush 群成员边缓冲（发起者在初始化期间被先接听成员 offer）
@@ -763,7 +765,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                     runCatching { manager.release() }
                     return@launch
                 }
-                webRTCManager = manager
+                mediaBridge.bind(manager)
                 configureReliabilityCallbacks(manager, session)
                 manager.initialize()
                 if (latest.isGroupCall) {
@@ -839,29 +841,29 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(errorMessage = null) }
     }
 
-    fun toggleMute(muted: Boolean) { webRTCManager?.toggleMute(muted) }
-    fun toggleVideo(enabled: Boolean) { webRTCManager?.toggleVideo(enabled) }
-    fun switchCamera() { webRTCManager?.switchCamera() }
-    fun selectAudioRoute(route: CallAudioRoute) { webRTCManager?.selectAudioRoute(route) }
+    fun toggleMute(muted: Boolean) { mediaBridge.toggleMute(muted) }
+    fun toggleVideo(enabled: Boolean) { mediaBridge.toggleVideo(enabled) }
+    fun switchCamera() { mediaBridge.switchCamera() }
+    fun selectAudioRoute(route: CallAudioRoute) { mediaBridge.selectAudioRoute(route) }
 
     /** UI 层创建 SurfaceViewRenderer 后调用，将渲染器连接到 WebRTCManager */
     fun attachLocalRenderer(renderer: org.webrtc.SurfaceViewRenderer) {
-        webRTCManager?.attachLocalRenderer(renderer)
+        mediaBridge.attachLocalRenderer(renderer)
     }
     fun attachRemoteRenderer(renderer: org.webrtc.SurfaceViewRenderer) {
-        webRTCManager?.attachRemoteRenderer(renderer)
+        mediaBridge.attachRemoteRenderer(renderer)
     }
     fun attachGroupRemoteRenderer(userId: String, renderer: org.webrtc.SurfaceViewRenderer) {
-        webRTCManager?.attachGroupRemoteRenderer(userId, renderer)
+        mediaBridge.attachGroupRemoteRenderer(userId, renderer)
     }
     fun detachGroupRemoteRenderer(userId: String, renderer: org.webrtc.SurfaceViewRenderer) {
-        webRTCManager?.detachGroupRemoteRenderer(userId, renderer)
+        mediaBridge.detachGroupRemoteRenderer(userId, renderer)
     }
     fun detachLocalRenderer(renderer: org.webrtc.SurfaceViewRenderer) {
-        webRTCManager?.detachLocalRenderer(renderer)
+        mediaBridge.detachLocalRenderer(renderer)
     }
     fun detachRemoteRenderer(renderer: org.webrtc.SurfaceViewRenderer) {
-        webRTCManager?.detachRemoteRenderer(renderer)
+        mediaBridge.detachRemoteRenderer(renderer)
     }
 
     private fun sendSdp(toUserId: String, type: String, sdp: SessionDescription, groupInvite: Boolean = false) {
@@ -1106,7 +1108,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                     runCatching { manager.release() }
                     return@launch
                 }
-                webRTCManager = manager
+                mediaBridge.bind(manager)
                 configureReliabilityCallbacks(manager, session)
                 manager.initialize()
                 var firstOfferSent = false
@@ -1434,8 +1436,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         iceReconnectJob = null
         iceRefreshJob = null
 
-        webRTCManager?.release()
-        webRTCManager = null
+        mediaBridge.release()
         pendingOfferSdp = null
         // 8.56：清群 mesh 边 offer 缓冲——否则过期 offer 会串入下一通点对点通话（flush 误建 group peer）
         pendingGroupOffers.clear()
