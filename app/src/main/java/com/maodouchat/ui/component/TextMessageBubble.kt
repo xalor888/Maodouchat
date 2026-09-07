@@ -118,21 +118,20 @@ import java.util.Locale
 internal fun resolveBubbleShape(isOwnMessage: Boolean, isGroupEdge: Boolean): androidx.compose.ui.graphics.Shape {
     val base = if (isOwnMessage) com.maodouchat.ui.theme.LocalBubbleShapes.current.sent
     else com.maodouchat.ui.theme.LocalBubbleShapes.current.received
-    if (!isGroupEdge) return base
     val rounded = base as? androidx.compose.foundation.shape.RoundedCornerShape ?: return base
     val tight = androidx.compose.foundation.shape.CornerSize(4.5.dp)
     return if (isOwnMessage) {
         androidx.compose.foundation.shape.RoundedCornerShape(
             topStart = rounded.topStart,
-            topEnd = tight,
+            topEnd = if (!isGroupEdge) tight else rounded.topEnd,
             bottomStart = rounded.bottomStart,
-            bottomEnd = rounded.bottomEnd
+            bottomEnd = if (isGroupEdge) tight else rounded.bottomEnd
         )
     } else {
         androidx.compose.foundation.shape.RoundedCornerShape(
-            topStart = tight,
+            topStart = if (!isGroupEdge) tight else rounded.topStart,
             topEnd = rounded.topEnd,
-            bottomStart = rounded.bottomStart,
+            bottomStart = if (isGroupEdge) tight else rounded.bottomStart,
             bottomEnd = rounded.bottomEnd
         )
     }
@@ -212,7 +211,7 @@ internal fun TextBubble(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start,
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.Bottom
         ) {
             if (!isOwnMessage) {
                 if (showAvatar) {
@@ -526,15 +525,9 @@ internal fun TextBubble(
                         isOwnMessage = isOwnMessage,
                         allowSelection = secretChatId.isNullOrBlank(),
                         onLinkClick = { url ->
-                            // scheme 白名单：仅允许 http/https（防 javascript:/intent: 等危险 scheme）
-                            val parsed = android.net.Uri.parse(url)
-                            val scheme = parsed.scheme?.lowercase().orEmpty()
-                            if (scheme != "http" && scheme != "https") {
-                                android.widget.Toast.makeText(linkContext, linkContext.getString(com.maodouchat.R.string.chat_open_link_failed), android.widget.Toast.LENGTH_SHORT).show()
-                                return@MarkdownMessageContent
-                            }
-                            // 密聊外链拦截：开关开启时阻断外链跳转（防社工/钓鱼）
-                            if (!secretChatId.isNullOrBlank() && RuntimeFlags.isEnabled(linkContext, RuntimeFlags.SECRET_EXTERNAL_LINK_BLOCK)) {
+                            if (!secretChatId.isNullOrBlank() &&
+                                RuntimeFlags.isEnabled(linkContext, RuntimeFlags.SECRET_EXTERNAL_LINK_BLOCK)
+                            ) {
                                 android.widget.Toast.makeText(
                                     linkContext,
                                     linkContext.getString(com.maodouchat.R.string.secret_external_link_blocked),
@@ -542,16 +535,7 @@ internal fun TextBubble(
                                 ).show()
                                 return@MarkdownMessageContent
                             }
-                            runCatching {
-                                linkContext.startActivity(
-                                    android.content.Intent(
-                                        android.content.Intent.ACTION_VIEW,
-                                        android.net.Uri.parse(url)
-                                    )
-                                )
-                            }.onFailure {
-                                android.widget.Toast.makeText(linkContext, linkContext.getString(com.maodouchat.R.string.chat_open_link_failed), android.widget.Toast.LENGTH_SHORT).show()
-                            }
+                            com.maodouchat.ui.navigation.AppLinkOpener.openUserFacingUrl(linkContext, url)
                         }
                     )
                 } else {
@@ -575,14 +559,9 @@ internal fun TextBubble(
                                 }
                                 return@RichTextContent
                             }
-                            // scheme 白名单：仅允许 http/https（findUrlRanges 已限制前缀，双保险）
-                            val parsed = android.net.Uri.parse(url)
-                            val scheme = parsed.scheme?.lowercase().orEmpty()
-                            if (scheme != "http" && scheme != "https") {
-                                android.widget.Toast.makeText(linkContext, linkContext.getString(com.maodouchat.R.string.chat_open_link_failed), android.widget.Toast.LENGTH_SHORT).show()
-                                return@RichTextContent
-                            }
-                            if (!secretChatId.isNullOrBlank() && RuntimeFlags.isEnabled(linkContext, RuntimeFlags.SECRET_EXTERNAL_LINK_BLOCK)) {
+                            if (!secretChatId.isNullOrBlank() &&
+                                RuntimeFlags.isEnabled(linkContext, RuntimeFlags.SECRET_EXTERNAL_LINK_BLOCK)
+                            ) {
                                 android.widget.Toast.makeText(
                                     linkContext,
                                     linkContext.getString(com.maodouchat.R.string.secret_external_link_blocked),
@@ -590,16 +569,7 @@ internal fun TextBubble(
                                 ).show()
                                 return@RichTextContent
                             }
-                            runCatching {
-                                linkContext.startActivity(
-                                    android.content.Intent(
-                                        android.content.Intent.ACTION_VIEW,
-                                        android.net.Uri.parse(url)
-                                    )
-                                )
-                            }.onFailure {
-                                android.widget.Toast.makeText(linkContext, linkContext.getString(com.maodouchat.R.string.chat_open_link_failed), android.widget.Toast.LENGTH_SHORT).show()
-                            }
+                            com.maodouchat.ui.navigation.AppLinkOpener.openUserFacingUrl(linkContext, url)
                         }
                     )
                 }
@@ -830,14 +800,7 @@ internal fun LinkPreviewSlot(
                 ).show()
                 return@LinkPreviewCard
             }
-            runCatching {
-                context.startActivity(
-                    android.content.Intent(
-                        android.content.Intent.ACTION_VIEW,
-                        android.net.Uri.parse(card.url)
-                    ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                )
-            }
+            com.maodouchat.ui.navigation.AppLinkOpener.openUserFacingUrl(context, card.url)
         }
     )
 }

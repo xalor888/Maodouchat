@@ -43,8 +43,8 @@ import com.maodouchat.ui.theme.Surface
 enum class AvatarSize(val dp: Dp, val fontSize: TextUnit) {
     SM(36.dp, 14.sp),
     MD(48.dp, 18.sp),
-    /** 会话列表头像：Murexide ConversationItem 为 48.dp。 */
-    CHAT_LIST(48.dp, 18.sp),
+    /** 会话列表头像：Murexide ConversationItem 为 52.dp。 */
+    CHAT_LIST(52.dp, 19.sp),
     LG(64.dp, 24.sp)
 }
 

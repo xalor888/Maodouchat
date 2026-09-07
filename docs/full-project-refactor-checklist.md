@@ -406,7 +406,7 @@ Gate：分页竞态、断网发布、上传恢复、草稿隔离、可见性矩�
 当前状态：`[~]`。`CallSessionMachine`（状态机+单测）、`SignalingOfferFreshnessPolicy`、`MissedCallTimeoutPolicy`、`GroupCallPolicy`（6 人上限/网格/边协商）纯策略已落地；`CallOfferSelector` 统一双路径来电选择（6 单测）。`CallSystemIntegration` 已承接 FGS 启停、Telecom `placeIncomingCall`/`registerPhoneAccount`、锁屏旗标查询（4 单测）；MainActivity / CallNavigation / MaodouchatApp 改走该端口。本轮：客户端出站 `CallSignalingOutboundCursor` + 入站 `CallSignalingAdmissionPolicy`/`CallSignalingIdempotencyStore`/`CallSignalingOrderPolicy`；REST/WS/Realtime 全链路携带 `epoch`/`sequence`/`idempotencyKey`；`GroupCallCapabilities` 显式标记 SFU/屏幕共享/录制未实现。真实设备门与媒体采集分层仍待做。
 
 - [x] 建立 `CallSessionMachine`（`CallSessionMachineTest` 锁定生命周期）与 offer/超时/网格纯策略；`CallOfferSelector` 统一双路径来电选择语义。
-- [~] Direct、Group Mesh、媒体采集、音频路由、ICE 恢复、系统集成分层（`CallSystemIntegration` 已覆盖 FGS + Telecom 派发 + 锁屏判定；媒体采集/音频路由/ICE 仍在 ViewModel/WebRTCManager）。
+- [~] Direct、Group Mesh、媒体采集、音频路由、ICE 恢复、系统集成分层（`CallSystemIntegration` 已覆盖 FGS + Telecom 派发 + 锁屏判定；`CallMediaBridge` 承接 mute/video/camera/route/renderer 与 manager 生命周期，3 单测；ICE restart/群 peer 信令仍经 ViewModel→manager）。
 - [x] 所有信令携带合法 `callId`、session epoch，并幂等处理（出站游标 + 入站准入/幂等；服务端 `CallSignalingOrderPolicy` + idempotencyKey 复用；WS/REST fanout 透传 epoch/seq/key，遗留 0/0 仍放行）。
 - [ ] ViewModel 只显示 call state 和发送 user intent。
 - [~] 前台服务、Telecom、锁屏和权限生命周期进入 `CallSystemIntegration`（FGS/Telecom/锁屏已接入；通话中权限请求仍按入口触发）。
@@ -704,7 +704,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [x] 旧巨型 `ChatDetailScreen.kt` 实现删除（降为 42 行薄路由，拆分 `TimelinePane`、`ComposerPane` 与独立面板）。
 - [x] 旧 `MessageBubble.kt` 单体解耦（薄类型分发入口 + `MessageBubbleChrome.kt` 共享 chrome；`TextMessageBubble`/`MediaMessageBubbles`/`FileMessageRenderer`/`SystemMessageRenderer` 独立渲染器，经 `MessagePresentationMapper` 消除 wire/meta 渲染期耦合）。
 - [~] `ChatListViewModel.kt` 瘦身中（多选状态机纯 reducer 9 单测；设置 toggle 纯构造 + 服务端确认合并 10 单测；实时三投影纯函数 7 单测；预览内存投影 + 置顶排序口径纯化 + 批量归零去重 9 单测，`restoreChatSorted` 私有包装已删；`ChatListRealtimeCoordinator` 已承接 chatRead/chatMessageSent/RealtimeEventDispatcher collector 与断线横幅，7 单测；`ChatListLoadCoordinator` 已承接 getChats 请求合并/静默重载/stale 清理/未接来电观察，`ChatListRemoteMergePolicy` 纯化 DTO↔本地未读/设置合并，9 单测；`ChatListAnnouncementCoordinator`（公告拉取/ack + push verify key，5 单测）与 `ChatListMutationCoordinator`（settings/clearMarkedUnread/delete/密聊创建，4 单测）；`ChatListMissedCallCoordinator`（3 单测）、`ChatListArchiveSuggestionCoordinator`（3 单测）、`ChatListPreviewCoordinator`（3 单测）、`ChatListUnreadBatchCoordinator`（全部已读/多选已读共用路径，2 单测）、`ChatListLocalProjectionCoordinator`（草稿/回执/锁定密聊/消息搜索/身份告警，4 单测）；`ChatListPorts`/`AndroidChatListPorts` 已隔离生产侧 MaodouchatApp/ApiService/DAO 装配（ViewModel 只消费 ports，`createForTest` 缝）；ViewModel 1772→578 行；MaodouchatApp/TokenManager 经 ports 注入，全局单例直连已迁出 VM 业务路径）。
-- [ ] `SignalProtocol.kt` 宽 facade 删除。
+- [~] `SignalProtocol.kt` 宽 facade 已拆为薄委托门面（M03/M04 领域服务就位；调用方迁完后删除 facade 本身）。
 - [x] `ApiService` 巨单体拆解完成，分离为 Auth、Messaging、Conversation、Media、Social 等独立域 API，收敛为组合委托薄门面。
 - [x] `AppNotifier` 全局巨型入口删除（文件已物理删除；四服务 + `NotificationSlotPolicy` + `NotificationIntents` + `NotificationInfrastructure` 替代）。
 - [x] Notification Center、Scheduled Message、Reminder 等业务 JSON SharedPreferences store 删除（定时/提醒 Room 36→37；归档忽略 37→38；语音已播 38→39；通知中心本轮迁入 Room 39→40：`notification_center_items` 表 + DAO + 一次性 prefs 导入 + 登出清理，旧 JSON 读写删除；调用方 API 零变更——内存 StateFlow 仍是真相源，磁盘经 `runBlocking(IO)`/后台协程桥接）。

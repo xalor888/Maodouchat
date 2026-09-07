@@ -135,6 +135,7 @@ fun AnimatedChatInput(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
+                    .linearPressEffect()
                     .background(
                         if (hasText) Primary
                         else Primary.copy(alpha = 0.3f)
