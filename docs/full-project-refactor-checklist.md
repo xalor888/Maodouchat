@@ -1086,6 +1086,9 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 - **Android** 16m26s：`Compile and test Android` ✓、`Architecture check` ✓、
   `Lint check` ✓、`Assemble debug APK` ✓、`Verify release APK dry-run` ✓、`aapt2` ✓。
 - **Docker Compose Config** ✓。
+- 本记录所在 commit `d3dfcca6`（含上述清单校正）的 run
+  **[34789042603](https://github.com/xalor888/Maodouchat/actions/runs/34789042603)** 同为
+  **success**，Server / Android / Docker Compose Config 三 job 全绿。
 
 **Risks / 遗留**
 - 这次绿只证明「CI 现有覆盖面全绿」，**不**证明仪器测试、截图回归或真机验收。
