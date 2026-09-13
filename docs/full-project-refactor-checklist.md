@@ -681,8 +681,8 @@ Gate：token rotate、webhook 重启/死信、顺序幂等、群权限和 Telegr
 - [x] 合并 AdminRouting/AdminEnhanceRouting 重复能力（`receiveEnhanceJson`→`receiveAdminJson`、`observabilityDayBucketExpression`→`dayBucketExpression`、`recordObservabilityAudit`→`recordAdminAudit`、`isAdminObservabilityUser`→`isAdminUser`、`observabilityCsvCell`→`csvCell` 等重复 helper 全部去重）。
 - [~] 删除重复 getter、路由事务和敏感配置导出（`knownKeys`/`defaults` 三重复消除；`dayBucketExpression`/`recordAdminAudit`/`isAdminUser`/`csvCell`/`parseAdminIds` 去重；secrets 只存 `ServerConfig`，不导出。**但「路由事务清零」不成立**：实测 `AdminEnhanceRouting`=12、`AdminManagementRouting`=6、`AdminDiagnosticsRouting`=4、`AdminBulkRouting`=3、`AdminUsersRouting`=3 处 `transaction {`，全项目 plugins/ 共 75 处、分布于 18 个文件；且 `AdminExportsRouting.kt`(1110 行/26 处) 与 `AdminEnhanceRouting.kt`(598 行/12 处) 仍在 route 内直写 Exposed SQL，缺 service/repository 边界）。
 
-- [ ] 管理/运维/开发者 route 面补齐 `route→service→repository` 边界（**本项此前漏列，是当前最大架构缺口**：全项目 `plugins/` 共 **75 处 `transaction {`，分布于 18 个文件**，其中 AdminExportsRouting=26、AdminEnhanceRouting=12、AdminManagementRouting=6、DeveloperRouting=4、AnnouncementRouting=4、AdminDiagnosticsRouting=4；34 个 plugin 文件与 6 个 service 文件直接 import Exposed；`AdminUsersRouting.kt:272` 与 `SecretSurfaceRouting.kt:185` 在 handler 内 `new Repository()`。最差 `AdminExportsRouting.kt`(1110 行/57 个 Exposed 操作) 每个 handler 内联 `selectAll()`+CSV 映射，需 `AdminExportService`/`AdminExportRepository`）。
-- [ ] 消除反向依赖：`repository/BotRepository.kt:18`→`plugins.isAllowedWebhookAddress`、`repository/RateLimitStatsRepository.kt:4-5`→`plugins.GlobalRateLimiter/RateLimitStats` 为真实倒置；另有 18 个 service/policy 文件（约 3784 行，如 `repository/FeedQueryService.kt` 455 行、`repository/AccountLifecycleService.kt` 432 行）物理错放在 `repository/`，破坏「repository=SQL 边界」契约。
+- [ ] 管理/运维/开发者 route 面补齐 `route→service→repository` 边界（**本项此前漏列，是当前最大架构缺口**：全项目 `plugins/` 共 **75 处 `transaction {`，分布于 18 个文件**，其中 AdminExportsRouting=26、AdminEnhanceRouting=12、AdminManagementRouting=6、DeveloperRouting=4、AnnouncementRouting=4、AdminDiagnosticsRouting=4；34 个 plugin 文件与 6 个 service 文件直接 import Exposed；`AdminUsersRouting.kt:272` 与 `SecretSurfaceRouting.kt:185` 在 handler 内 `new Repository()`。最差 `AdminExportsRouting.kt`(1110 行/57 个 Exposed 操作) 每个 handler 内联 `selectAll()`+CSV 映射，需 `AdminExportService`/`AdminExportRepository`）。**现已由棘轮门禁冻结**：`ServerArchitectureTest` 断言「不许新增、减少必须同步下调基线」，新增 route 文件自写事务会直接红。
+- [ ] 消除反向依赖：`repository/BotRepository.kt:18`→`plugins.isAllowedWebhookAddress`、`repository/RateLimitStatsRepository.kt:4-5`→`plugins.GlobalRateLimiter/RateLimitStats` 为真实倒置；`service/` 另有 4 个文件（`BotWebhookService`/`CallSignalingService`/`MaintenanceRunner`/`OrphanGcJob`）反向依赖 `plugins/`；另有 16 个 `*Service.kt`（约 3784 行，如 `repository/FeedQueryService.kt` 455 行、`repository/AccountLifecycleService.kt` 432 行）物理错放在 `repository/`，破坏「repository=SQL 边界」契约。以上三组均已进入 `ServerArchitectureTest` 棘轮基线。
 
 Gate：master/moderator/user 权限、审计、敏感配置和大数据查询性能通过。
 
@@ -725,7 +725,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 - [ ] 每个 domain command/query 有成功、失败、取消、重复和账号切换测试。
 - [ ] reducer/state machine 使用 fake clock 和确定性 dispatcher。
-- [ ] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖。
+- [~] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖（客户端：`core/testing/ArchitectureTest.kt` ArchUnit 2 条 + 根 `checkArchitecture` 模块依赖；**服务端已补 `server/src/test/.../architecture/ServerArchitectureTest.kt`**，随 `server:test` 自动进 CI：2 条绝对不变量 + 5 条精确相等棘轮，实测注入违规会红、基线过期也会红，见 M1 记录）。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
 
 ### Q02 数据库与迁移
@@ -988,3 +988,44 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 6. [ ] 每一波完成后汇报已完成清单 ID、测试、删除量和下一波阻塞。
 
 这份清单的完成标准不是文件变小，也不是新类数量增加，而是：职责只有一个 owner、状态只有一个真相源、所有入口走同一事务与权限边界、旧路径真正删除，并在真实离线和多设备环境中证明可以恢复。
+
+## 16. 自主链执行记录（keepgoal / DIRECTION.md）
+
+本项目的方向文档是 [`DIRECTION.md`](../DIRECTION.md)。自本记录起，每一次自主目标完成都必须在
+本节留下**可执行的证据**（命令 + 输出），而不是叙述。
+
+原则（与第 15 节末段一致，但更强）：**任何写进本清单的 `[x]`，必须有一条会失败的命令替它作证。**
+
+### M1 — 可执行契约就位 + 在途 B03 落地
+
+**Scope**：B03 migration v5 落地并提交；服务端新增架构棘轮门禁；清单同步实测。
+
+**Files**
+- 新增 `DIRECTION.md`。
+- 新增 `server/src/test/kotlin/com/maodouchat/server/architecture/ServerArchitectureTest.kt`。
+- 新增 `server/src/test/kotlin/com/maodouchat/server/db/migration/SignalDeviceBackfillMigrationTest.kt`。
+- 修改 `SchemaMigration.kt`、`DatabaseMigrations.kt`、`DeviceRegistry.kt`、`MigrationRunnerTest.kt`、
+  `docs/server-migration-expand-contract.md`。
+
+**Contracts / Migration**
+- `migration v5 = backfillSignalKeyDeviceIds + backfillSignalDeviceConfirmation + backfillMissingSignalDevices`；
+  版本集 1..5 不可变。`DeviceRegistry.getDeviceInfos` 不再为缺元数据行合成 `PENDING`（该兼容由 v5 回填替代）。
+
+**Tests（实测命令与结果）**
+- `cd server && ../gradlew test --tests "*SignalDeviceBackfillMigrationTest*" --tests "*MigrationRunnerTest*"` → **BUILD SUCCESSFUL**（36s，`Task :test` 真实执行）。
+- `cd server && ../gradlew test --tests "*ServerArchitectureTest*"` → **7 tests / 0 failures**；
+  stdout 实测 `plugins transaction blocks = 75 in 18 files`、`plugins importing Exposed = 36 files`。
+- **反向验证（关键）**：注入 4 个违规探针文件（`plugins/GateProbeRouting.kt`、`repository/GateProbeRepository.kt`、
+  `messaging/GateProbeMessaging.kt`、`model/GateProbeModel.kt`）→ **7 tests / 5 failures**，
+  5 条规则全部按预期报红并给出可操作修复方向；删除探针后恢复绿。
+- **棘轮语义验证**：把一条已消除文件写进基线（`PhantomRemovedFile.kt`）→ **1 failure**，
+  报「已消除（好事，请下调基线）」。证明基线**精确相等**，不会随代码改善而悄悄失真。
+
+**Deletion**：无（本里程碑只做「把契约变成会失败的东西」）。
+
+**Risks**：棘轮基线是文本扫描口径（与 `grep -roE` 对齐），不做 AST 解析；代价是注释里的引用会被计数，
+换来的是「宁可多报不可漏报」。若包目录缺失或源码根找不到，门禁**直接失败**而非静默通过。
+
+**本轮已确认、尚未解决（下一目标输入）**：`plugins/` 75 处事务、36 个 Exposed 直连文件、
+`repository/`→`plugins/` 2 处、`service/`→`plugins/` 4 处、`repository/` 下 16 个错放 service。
+最大单点仍是 `AdminExportsRouting.kt`（1110 行 / 26 处事务 / 内联 Exposed SQL + CSV 映射）。
