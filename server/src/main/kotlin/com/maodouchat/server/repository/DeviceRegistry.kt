@@ -222,19 +222,20 @@ class DeviceRegistry(
         }
         return getDeviceIds(userId, confirmedOnly = false).mapNotNull { deviceId ->
             val identityKey = identityKeyProvider(userId, deviceId) ?: return@mapNotNull null
-            val meta = metadata[deviceId]
-            val status = meta?.status ?: DEVICE_STATUS_PENDING
+            // B03：缺元数据行不再合成 PENDING——由 migration v5 backfillMissingSignalDevices 补齐。
+            val meta = metadata[deviceId] ?: return@mapNotNull null
+            val status = meta.status
             if (!includePending && status != DEVICE_STATUS_CONFIRMED) return@mapNotNull null
             DeviceInfo(
                 userId = userId,
                 deviceId = deviceId,
-                deviceName = meta?.deviceName ?: "设备 #$deviceId",
+                deviceName = meta.deviceName.ifBlank { "设备 #$deviceId" },
                 identityKey = identityKey,
-                lastSeenAt = meta?.lastSeenAt,
+                lastSeenAt = meta.lastSeenAt,
                 isCurrent = currentDeviceId == deviceId,
                 status = status,
-                confirmedAt = meta?.confirmedAt,
-                confirmedByDeviceId = meta?.confirmedByDeviceId
+                confirmedAt = meta.confirmedAt,
+                confirmedByDeviceId = meta.confirmedByDeviceId
             )
         }
     }

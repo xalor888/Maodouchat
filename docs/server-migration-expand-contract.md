@@ -14,7 +14,7 @@ B01 要求破坏性 schema 变更不得在同一发布里「先删再建」。�
 
 3. **Backfill**  
    在线或受控批处理把历史行填到新结构。  
-   例：migration v3 `backfillDirectChatPairs`；v1 内 `backfillSignalKeyDeviceIds` / `backfillMemberRoles` 等。
+   例：migration v3 `backfillDirectChatPairs`；v5 `backfillSignalKeyDeviceIds` / `backfillSignalDeviceConfirmation` / `backfillMissingSignalDevices`。
 
 4. **Contract**  
    删除旧列/旧表/旧兼容分支，且仅在明确 contract 版本执行。  

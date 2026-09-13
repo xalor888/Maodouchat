@@ -28,8 +28,6 @@ internal fun applyBaselineSchemaMigration() {
     // 9.4xx：PostgreSQL 全文/模糊搜索索引（pg_trgm；H2 与受限环境自动跳过）
     ensureSearchIndexes()
     migrateAuthSessionState()
-    backfillSignalKeyDeviceIds()
-    backfillSignalDeviceConfirmation()
     backfillMemberRoles()
     backfillChatTypes()
     backfillModeratorEmails()
@@ -388,14 +386,37 @@ private fun ensureSearchIndexes() {
     }
 }
 
-private fun backfillSignalKeyDeviceIds() {
+/** B03：补全 signal_keys.device_id 空值（遗留行）。 */
+internal fun backfillSignalKeyDeviceIds() {
     TransactionManager.current().exec("UPDATE signal_keys SET device_id = 1 WHERE device_id IS NULL")
 }
 
-private fun backfillSignalDeviceConfirmation() {
+/** B03：补全 signal_devices.status / confirmed_at。 */
+internal fun backfillSignalDeviceConfirmation() {
     val now = System.currentTimeMillis()
     TransactionManager.current().exec("UPDATE signal_devices SET status = 'CONFIRMED' WHERE status IS NULL OR status = ''")
     TransactionManager.current().exec("UPDATE signal_devices SET confirmed_at = $now WHERE status = 'CONFIRMED' AND confirmed_at IS NULL")
+}
+
+/**
+ * B03：为仅有 signal_keys、缺少 signal_devices 行的 (user, device) 补元数据行。
+ * 删除 DeviceRegistry 读路径「缺行即 PENDING」长期兼容前必须先落地。
+ */
+internal fun backfillMissingSignalDevices() {
+    val now = System.currentTimeMillis()
+    TransactionManager.current().exec(
+        """
+        INSERT INTO signal_devices (user_id, device_id, device_name, status, confirmed_at, created_at, last_seen_at)
+        SELECT DISTINCT k.user_id, k.device_id,
+               ('设备 #' || CAST(k.device_id AS VARCHAR(16))),
+               'CONFIRMED', $now, $now, $now
+        FROM signal_keys k
+        WHERE NOT EXISTS (
+            SELECT 1 FROM signal_devices d
+            WHERE d.user_id = k.user_id AND d.device_id = k.device_id
+        )
+        """.trimIndent()
+    )
 }
 
 private fun backfillMemberRoles() {

@@ -3,6 +3,9 @@ package com.maodouchat.server.db.migration
 import com.maodouchat.server.db.addSignalingEpochSequenceColumns
 import com.maodouchat.server.db.applyBaselineSchemaMigration
 import com.maodouchat.server.db.backfillDirectChatPairs
+import com.maodouchat.server.db.backfillMissingSignalDevices
+import com.maodouchat.server.db.backfillSignalDeviceConfirmation
+import com.maodouchat.server.db.backfillSignalKeyDeviceIds
 import com.maodouchat.server.db.retireLegacyMessagingTables
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -61,6 +64,16 @@ internal object DatabaseMigrations {
 
             override fun apply() {
                 addSignalingEpochSequenceColumns()
+            }
+        },
+        object : DatabaseMigration {
+            override val version = 5
+            override val description = "Backfill signal device_id/status and missing signal_devices rows"
+
+            override fun apply() {
+                backfillSignalKeyDeviceIds()
+                backfillSignalDeviceConfirmation()
+                backfillMissingSignalDevices()
             }
         },
     )
