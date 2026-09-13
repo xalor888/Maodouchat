@@ -730,7 +730,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 ### Q02 数据库与迁移
 
-- [~] Android 每个支持旧版本 -> 当前版本真实数据迁移测试（`AppDatabaseMigrationTest` 因 A03 抽取全挂已修复：27 处引用改走 `DatabaseMigrations`；新增 36→40 业务四表链测试；本地无模拟器，CI 仪器测试执行）。
+- [~] Android 每个支持旧版本 -> 当前版本真实数据迁移测试（`AppDatabaseMigrationTest` 因 A03 抽取全挂已修复：27 处引用改走 `DatabaseMigrations`；新增 36→40 业务四表链测试。**但此处原先写的「CI 仪器测试执行」是错的**：该文件在 `app/src/androidTest/`，而 `ci.yml` 与 `release.yml` 都没有 `connectedDebugAndroidTest` 或任何 androidTest 任务——`grep -n "connected\|androidTest\|instrument" .github/workflows/*.yml` → **0 命中**。全部 4 个仪器测试文件（`AppDatabaseMigrationTest`、`ParentUpsertCascadeTest`、`AiMessageResultStoreTest`、`MessageTerminalRaceTest`）**从未被任何自动化执行**，只在有模拟器的本地环境才可能跑）。
 - [ ] Server 空库、最后生产版本、重复、中断、回滚/恢复 migration 测试。
 - [ ] PostgreSQL 是并发和约束测试真源，H2 只用于快速测试。
 - [ ] SQLCipher 密钥、磁盘满、事务故障和数据损坏测试。
@@ -759,8 +759,8 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 ### Q06 CI 与发版
 
-- [ ] CI 运行 JVM、Lint、Room instrumentation、Compose、Server PostgreSQL 和 E2E。
-- [ ] Release 必须依赖同 commit 全门禁成功，不允许单独绕过测试构建。
+- [~] CI 运行 JVM、Lint、Room instrumentation、Compose、Server PostgreSQL 和 E2E（**实测覆盖面 = run [34788176334](https://github.com/xalor888/Maodouchat/actions/runs/34788176334)，2026-09-13T22:55Z→23:11Z，三 job 全绿**。**运行**：JVM 单测（server 404 / android 1499）、`checkArchitecture`、nav/app-update/brand 脚本门禁、`:app:lintDebug`、`assembleDebug`、`assembleRelease + verifyReleaseSize`、aapt2 badging、Server `postgresIntegrationTest`（真 PostgreSQL 16 service 容器）、admin/website/developer 三个浏览器 E2E、`docker compose config` 两个文件 + 生产网络隔离断言。**未运行**：Room/Compose 仪器测试（4 个 androidTest 文件从不执行）、截图回归、Macrobenchmark、真机验收——故本项不能标 `[x]`）。
+- [~] Release 必须依赖同 commit 全门禁成功，不允许单独绕过测试构建（**未达标**：`.github/workflows/release.yml` 由 tag / `workflow_dispatch` 独立触发，与 `ci.yml` **无任何依赖关系**——`grep -n "workflow_run\|needs:" .github/workflows/release.yml` → 0 命中。因此在 CI 已经红的 commit 上打 tag，仍会照常构建并发布）。
 - [ ] 生产签名 Secret 缺失必须失败，禁止回退 debug 签名。
 - [ ] 产出 SBOM、签名证书信息、checksum 和可复现构建记录。
 - [ ] Android 26、当前稳定 Android、target SDK 真机验收。
@@ -1033,3 +1033,63 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 `repository/`→`plugins/` 3 处 / 2 文件、`service/`→`plugins/` 7 处 / 4 文件、
 `repository/` 下 16 个错放 service。
 最大单点仍是 `AdminExportsRouting.kt`（1110 行 / 26 处事务 / 内联 Exposed SQL + CSV 映射）。
+
+### M2 — 284 个提交首次进入真实 CI，并修掉它挡下的两个发布阻塞
+
+**Background**：`origin/main` 停在 `d5cdf68b`（2026-08-29），本地 main 已领先 **284 个提交**。
+也就是说这段时间的所有工作**从未经过 CI**——而本机没有 Docker、没有 PostgreSQL，CI 是
+`postgresIntegrationTest` 与三个浏览器 E2E 的**唯一真源**。先把本地能复现的 CI 步骤跑一遍，
+再推、再看真 run。
+
+**Scope**：推 main → CI 三 job 全绿；校正已被证伪的清单说法。
+
+**Files**
+- `app/src/main/java/com/maodouchat/ui/screen/contacts/JoinGroupInviteScreen.kt`（修 lint error）
+- `app/build.gradle.kts`（修 `verifyReleaseSize` classpath）
+- `.github/workflows/release.yml`（注释与行为对齐）
+- 本清单 Q02 / Q06 / 第 16 节。
+
+**发现的两个真实 CI 阻塞（推送前本地复现，均已修复）**
+
+1. **`lintDebug` 红（1 error / 605 warnings）**——`JoinGroupInviteScreen.kt` 在 `LaunchedEffect`
+   内调用 `context.getString(...)`，被 Compose lint 判为 `LocalContextGetResourceValueCall`。
+   改为在 Composable 顶层 `stringResource(...)` 求值后捕获。影响 CI 的 "Lint check" 步骤。
+
+2. **`assembleRelease + verifyReleaseSize` 红——发布路径被锁死**。报
+   `Could not determine the dependencies of task ':app:verifyReleaseSize'`。
+   根因：`verifyReleaseSize` 是纯 JVM `JavaExec`，却把 Android 的 `releaseRuntimeClasspath`
+   塞进 classpath；模块化后 `:core:*` 是 Android library，其 runtime 配置暴露多个
+   `artifactType` 变体（android-aar-metadata / android-jni / android-classes-jar …），
+   而普通 FileCollection 解析不请求 `artifactType`，Gradle 无法取舍。
+   改为专用可解析配置 `sizeGuardRuntime`（只含 kotlin-stdlib）——`SizeGuard` 只 import
+   `java.io`/`java.util.zip`，本就不需要 Android runtime。
+   **影响面**：CI 的 "Verify release APK dry-run" 与 `release.yml` 的
+   "Build & verify Android release APK" 跑的是同一条命令，因此这段时间**无法产出任何 release 包**。
+
+**Tests（本地逐条复现 CI 步骤）**
+- `./gradlew :app:testDebugUnitTest` → **1499 tests / 0 failures**
+- `./gradlew checkArchitecture` → 通过
+- `./gradlew :app:lintDebug` → SUCCESS（修复前 1 error）
+- `./gradlew :app:assembleDebug` → SUCCESS
+- `./gradlew :app:assembleRelease :app:verifyReleaseSize -P…` → SUCCESS，SizeGuard 实测
+  `13246493 bytes (12.63 MB) ≤ 14.0 MB` → 通过
+- aapt2 badging → `package: name='com.maodouchat'`、`application-label:'毛豆聊天'`、icon OK
+- `python3 scripts/check-{brand-terminology,nav-registration,app-update-gates,string-parity}.py` → 全 OK
+- 本地起 `gradlew run`（H2，`/health/ready` = db/migrations/storage/backgroundTasks 全 ok）
+  → `npm run test:admin-e2e` / `test:website` / `test:developer-e2e` → **三个全通过**
+
+**CI 实测（真 run，非叙述）**
+- push `d5cdf68b..9734a007`，run **[34788176334](https://github.com/xalor888/Maodouchat/actions/runs/34788176334)**
+  → `conclusion = success`（2026-09-13T22:55:03Z → 23:11:32Z，headSha `9734a007`）。
+- **Server** 12m56s：`Compile and test server` ✓、`Run PostgreSQL concurrency integration tests` ✓
+  （`BUILD SUCCESSFUL in 17s`，真 PostgreSQL 16 service 容器）、`Run admin browser E2E` ✓。
+- **Android** 16m26s：`Compile and test Android` ✓、`Architecture check` ✓、
+  `Lint check` ✓、`Assemble debug APK` ✓、`Verify release APK dry-run` ✓、`aapt2` ✓。
+- **Docker Compose Config** ✓。
+
+**Risks / 遗留**
+- 这次绿只证明「CI 现有覆盖面全绿」，**不**证明仪器测试、截图回归或真机验收。
+- Q02/Q06 的两处说法已按实测改正；`release.yml` 与 CI 仍无依赖关系（标签可绕过门禁）。
+
+**下一目标输入**：把 4 个 `androidTest` 文件真正纳入自动化（CI 加 emulator runner，或
+改为可在 JVM 侧执行的等价测试）——这是「CI 说它测了 Room 迁移、其实没测」这条虚假安全感的直接修复。
