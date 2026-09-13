@@ -97,18 +97,26 @@ class ServerArchitectureTest {
         "UserTagRouting.kt",
     )
 
-    /** `repository/` 反向依赖 `plugins/` 的文件。当前 2 个（真实倒置，待消除）。 */
-    private val frozenRepositoryDependingOnPlugins: Set<String> = setOf(
-        "BotRepository.kt",
-        "RateLimitStatsRepository.kt",
+    /**
+     * `repository/` 反向依赖 `plugins/` 的**引用处数**（非仅文件数）。当前 3 处 / 2 个文件。
+     *
+     * 按处数而非文件数冻结，是为了堵住「在已违规文件里再加一条引用」这条绕过路径。
+     */
+    private val frozenRepositoryDependingOnPlugins: Map<String, Int> = mapOf(
+        "BotRepository.kt" to 1,
+        "RateLimitStatsRepository.kt" to 2,
     )
 
-    /** `service/` 反向依赖 `plugins/` 的文件。当前 4 个（route 层 helper 尚未下沉）。 */
-    private val frozenServicesDependingOnPlugins: Set<String> = setOf(
-        "BotWebhookService.kt",
-        "CallSignalingService.kt",
-        "MaintenanceRunner.kt",
-        "OrphanGcJob.kt",
+    /**
+     * `service/` 反向依赖 `plugins/` 的**引用处数**。当前 7 处 / 4 个文件。
+     *
+     * `CallSignalingService` 3 处、`OrphanGcJob` 2 处、`BotWebhookService`/`MaintenanceRunner` 各 1 处。
+     */
+    private val frozenServicesDependingOnPlugins: Map<String, Int> = mapOf(
+        "BotWebhookService.kt" to 1,
+        "CallSignalingService.kt" to 3,
+        "MaintenanceRunner.kt" to 1,
+        "OrphanGcJob.kt" to 2,
     )
 
     /** 物理错放在 `repository/` 的 `*Service.kt`。当前 16 个（应迁往 `service/`）。 */
@@ -212,14 +220,14 @@ class ServerArchitectureTest {
     @Test
     fun `repository must not depend on plugins`() {
         val actual = filesUnder("repository")
-            .filter { it.readText().contains("com.maodouchat.server.plugins") }
-            .map { it.name }
-            .toSet()
+            .map { it.name to PLUGINS_PACKAGE_REFERENCE.findAll(it.readText()).count() }
+            .filter { it.second > 0 }
+            .toMap()
 
         assertRatchet(
             what = "repository/ → plugins/ 反向依赖",
-            actual = actual.asRatchet(),
-            baseline = frozenRepositoryDependingOnPlugins.asRatchet(),
+            actual = actual.mapValues { (_, v) -> v.toString() },
+            baseline = frozenRepositoryDependingOnPlugins.mapValues { (_, v) -> v.toString() },
             direction = "内层（repository）不得依赖外层（plugins）；把被依赖的常量/工具下沉到中立包。",
         )
     }
@@ -227,14 +235,14 @@ class ServerArchitectureTest {
     @Test
     fun `service must not depend on plugins`() {
         val actual = filesUnder("service")
-            .filter { it.readText().contains("com.maodouchat.server.plugins") }
-            .map { it.name }
-            .toSet()
+            .map { it.name to PLUGINS_PACKAGE_REFERENCE.findAll(it.readText()).count() }
+            .filter { it.second > 0 }
+            .toMap()
 
         assertRatchet(
             what = "service/ → plugins/ 反向依赖",
-            actual = actual.asRatchet(),
-            baseline = frozenServicesDependingOnPlugins.asRatchet(),
+            actual = actual.mapValues { (_, v) -> v.toString() },
+            baseline = frozenServicesDependingOnPlugins.mapValues { (_, v) -> v.toString() },
             direction = "service 不得依赖 route 层；把被依赖的常量/工具下沉到中立包。",
         )
     }
@@ -350,5 +358,8 @@ class ServerArchitectureTest {
          * 用 `[ \t]*` 而非 `\s*`，避免跨行匹配导致与 grep 人工复核结果不一致。
          */
         val TRANSACTION_BLOCK = Regex("""\btransaction[ \t]*[({]""")
+
+        /** 与 `grep -o 'com\.maodouchat\.server\.plugins'` 等价的文本口径（按引用处计数）。 */
+        val PLUGINS_PACKAGE_REFERENCE = Regex("""com\.maodouchat\.server\.plugins""")
     }
 }

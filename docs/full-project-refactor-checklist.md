@@ -1020,6 +1020,9 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
   5 条规则全部按预期报红并给出可操作修复方向；删除探针后恢复绿。
 - **棘轮语义验证**：把一条已消除文件写进基线（`PhantomRemovedFile.kt`）→ **1 failure**，
   报「已消除（好事，请下调基线）」。证明基线**精确相等**，不会随代码改善而悄悄失真。
+- **粒度验证（补强）**：反向依赖按**引用处数**而非仅文件数冻结。在已违规文件 `BotRepository.kt`
+  内再加一条 `plugins.` 引用 → **1 failure**，报 `BotRepository.kt: 1 -> 2`；
+  若只冻结文件集合，这条新增会被完全漏掉。
 
 **Deletion**：无（本里程碑只做「把契约变成会失败的东西」）。
 
@@ -1027,5 +1030,6 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 换来的是「宁可多报不可漏报」。若包目录缺失或源码根找不到，门禁**直接失败**而非静默通过。
 
 **本轮已确认、尚未解决（下一目标输入）**：`plugins/` 75 处事务、36 个 Exposed 直连文件、
-`repository/`→`plugins/` 2 处、`service/`→`plugins/` 4 处、`repository/` 下 16 个错放 service。
+`repository/`→`plugins/` 3 处 / 2 文件、`service/`→`plugins/` 7 处 / 4 文件、
+`repository/` 下 16 个错放 service。
 最大单点仍是 `AdminExportsRouting.kt`（1110 行 / 26 处事务 / 内联 Exposed SQL + CSV 映射）。
