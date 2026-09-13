@@ -3,7 +3,7 @@ name: Release
 # 打 tag（v*）自动构建并发布 GitHub Release；也可手动触发（workflow_dispatch）。
 # 需要的仓库 Secrets：
 #   RELEASE_API_BASE_URL / RELEASE_WS_URL  发布版 App 指向的服务端地址（https/wss）
-#   KEYSTORE_BASE64                         签名用的 .jks 文件 base64（可不配，但会发布无法安装的未签名 APK）
+#   KEYSTORE_BASE64                         签名用的 .jks 文件 base64（**必配**：缺失时 "Decode signing keystore" 步骤 `exit 1`，发布直接失败，不会产出未签名 APK）
 #   KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD  签名证书信息
 on:
   push:

@@ -41,6 +41,9 @@ fun JoinGroupInviteScreen(
     onJoined: (chatId: String) -> Unit,
 ) {
     val context = LocalContext.current
+    // 在 Composable 顶层读取，而不是在 LaunchedEffect 内 context.getString(...)：
+    // 后者会被 lint 判为 LocalContextGetResourceValueCall（配置变更时不会失效）。
+    val invalidCodeMessage = stringResource(R.string.contacts_invite_invalid_or_expired)
     var loading by remember(inviteCode) { mutableStateOf(true) }
     var errorMessage by remember(inviteCode) { mutableStateOf<String?>(null) }
     var joinedChatId by remember(inviteCode) { mutableStateOf<String?>(null) }
@@ -72,7 +75,7 @@ fun JoinGroupInviteScreen(
                 loading = false
             }
             JoinGroupInviteResult.InvalidCode -> {
-                errorMessage = context.getString(R.string.contacts_invite_invalid_or_expired)
+                errorMessage = invalidCodeMessage
                 loading = false
             }
             is JoinGroupInviteResult.Failed -> {
