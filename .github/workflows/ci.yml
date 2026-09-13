@@ -175,6 +175,70 @@ jobs:
           grep -q "^package: name='com.maodouchat'" /tmp/badging.txt
           grep -q "application-icon" /tmp/badging.txt
 
+  # Q02/Q03：Room 迁移 / 级联 / 终端竞态这 4 个仪器测试此前**从未被任何自动化执行**——
+  # 清单曾声称「CI 仪器测试执行」，实际两个 workflow 都没有 androidTest 任务（实测 0 命中）。
+  # 第一次真的跑起来时 AppDatabaseMigrationTest 就是红的。这个 job 让它们无法再悄悄失效。
+  instrumented:
+    name: Android Instrumented
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "platform-tools"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      # GitHub 的 Linux runner 是 x86_64。app 的 defaultConfig 只打包 arm64-v8a，
+      # debug 变体已显式放开 x86_64（依赖 AAR 四种 ABI 都提供）。
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run instrumented tests on emulator
+        uses: ReactiveCircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: >-
+            -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+            -camera-back none -camera-front none
+          script: ./gradlew :app:connectedDebugAndroidTest --no-daemon --console=plain
+
+      - name: Upload instrumented test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-instrumented-reports
+          path: |
+            app/build/reports/androidTests/connected
+            app/build/outputs/androidTest-results
+          if-no-files-found: ignore
+
   docker-config:
     name: Docker Compose Config
     runs-on: ubuntu-latest

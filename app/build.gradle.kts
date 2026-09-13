@@ -96,6 +96,14 @@ android {
 
     buildTypes {
         debug {
+            // 调试变体放开 x86_64：CI 的 Linux runner 是 x86_64，跑 connectedDebugAndroidTest
+            // 需要 SQLCipher / libsignal 的 x86_64 .so（依赖 AAR 四种 ABI 都提供，此前只是被
+            // defaultConfig 的 abiFilters 过滤掉了）。arm64-v8a 保留给本机 Apple Silicon 模拟器。
+            // Release 不受影响，仍走 defaultConfig 的 arm64-v8a 单 ABI（体积护栏与分发策略不变）。
+            ndk {
+                abiFilters.clear()
+                abiFilters.addAll(listOf("arm64-v8a", "x86_64"))
+            }
             val debugApiBaseUrl = readGradleProperty("MAODOU_API_BASE_URL") ?: "http://10.0.2.2:8080"
             val debugWsUrl = readGradleProperty("MAODOU_WS_URL") ?: "ws://10.0.2.2:8080/ws"
             buildConfigField("String", "API_BASE_URL", debugApiBaseUrl.asBuildConfigString())

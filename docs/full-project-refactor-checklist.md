@@ -730,14 +730,14 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 ### Q02 数据库与迁移
 
-- [~] Android 每个支持旧版本 -> 当前版本真实数据迁移测试（`AppDatabaseMigrationTest` 因 A03 抽取全挂已修复：27 处引用改走 `DatabaseMigrations`；新增 36→40 业务四表链测试。**但此处原先写的「CI 仪器测试执行」是错的**：该文件在 `app/src/androidTest/`，而 `ci.yml` 与 `release.yml` 都没有 `connectedDebugAndroidTest` 或任何 androidTest 任务——`grep -n "connected\|androidTest\|instrument" .github/workflows/*.yml` → **0 命中**。全部 4 个仪器测试文件（`AppDatabaseMigrationTest`、`ParentUpsertCascadeTest`、`AiMessageResultStoreTest`、`MessageTerminalRaceTest`）**从未被任何自动化执行**，只在有模拟器的本地环境才可能跑）。
+- [~] Android 每个支持旧版本 -> 当前版本真实数据迁移测试（`AppDatabaseMigrationTest` 因 A03 抽取全挂已修复：27 处引用改走 `DatabaseMigrations`；新增 36→40 业务四表链测试。**此处的历史教训**：原先写的「CI 仪器测试执行」是错的——`ci.yml` 与 `release.yml` 都没有 `connectedDebugAndroidTest`（`grep -n "connected\|androidTest\|instrument" .github/workflows/*.yml` → 0 命中），4 个仪器测试文件从未被任何自动化执行。**G3 已补上 CI `instrumented` job**（emulator runner 跑 `connectedDebugAndroidTest`），第一次真跑就抓到 `migrate33To34CreatesTerminalTombstonesWithConversationCascade` 是红的。仍未覆盖：真实旧版本设备数据 fixture、SQLCipher 密钥/磁盘满/损坏等故障注入）。
 - [ ] Server 空库、最后生产版本、重复、中断、回滚/恢复 migration 测试。
 - [ ] PostgreSQL 是并发和约束测试真源，H2 只用于快速测试。
 - [ ] SQLCipher 密钥、磁盘满、事务故障和数据损坏测试。
 
 ### Q03 Compose 与系统集成
 
-- [ ] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试。
+- [ ] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**仍未做**：`app/src/androidTest` 只有 4 个数据层测试文件（迁移/级联/终端竞态），没有任何 Compose UI 测试；G3 之后这 4 个至少会被 CI 真实执行）。
 - [ ] 截图覆盖浅/深色、手机/平板、横屏、大字体、RTL、中英文。
 - [ ] 通知、Widget、深链、权限、前台服务和更新器仪器测试。
 
@@ -759,8 +759,8 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 ### Q06 CI 与发版
 
-- [~] CI 运行 JVM、Lint、Room instrumentation、Compose、Server PostgreSQL 和 E2E（**实测覆盖面 = run [34788176334](https://github.com/xalor888/Maodouchat/actions/runs/34788176334)，2026-09-13T22:55Z→23:11Z，三 job 全绿**。**运行**：JVM 单测（server 404 / android 1499）、`checkArchitecture`、nav/app-update/brand 脚本门禁、`:app:lintDebug`、`assembleDebug`、`assembleRelease + verifyReleaseSize`、aapt2 badging、Server `postgresIntegrationTest`（真 PostgreSQL 16 service 容器）、admin/website/developer 三个浏览器 E2E、`docker compose config` 两个文件 + 生产网络隔离断言。**未运行**：Room/Compose 仪器测试（4 个 androidTest 文件从不执行）、截图回归、Macrobenchmark、真机验收——故本项不能标 `[x]`）。
-- [~] Release 必须依赖同 commit 全门禁成功，不允许单独绕过测试构建（**未达标**：`.github/workflows/release.yml` 由 tag / `workflow_dispatch` 独立触发，与 `ci.yml` **无任何依赖关系**——`grep -n "workflow_run\|needs:" .github/workflows/release.yml` → 0 命中。因此在 CI 已经红的 commit 上打 tag，仍会照常构建并发布）。
+- [~] CI 运行 JVM、Lint、Room instrumentation、Compose、Server PostgreSQL 和 E2E（**G2 实测覆盖面 = run [34788176334](https://github.com/xalor888/Maodouchat/actions/runs/34788176334)，三 job 全绿**。**G3 新增第 4 个 job `instrumented`**：emulator runner 真跑 `connectedDebugAndroidTest`。**运行**：JVM 单测（server 404 / android 1499）、`checkArchitecture`、nav/app-update/brand 脚本门禁、`:app:lintDebug`、`assembleDebug`、`assembleRelease + verifyReleaseSize`、aapt2 badging、**Android 仪器测试（22 例）**、Server `postgresIntegrationTest`（真 PostgreSQL 16 service 容器）、admin/website/developer 三个浏览器 E2E、`docker compose config`。**未运行**：Compose UI 测试（不存在）、截图回归、Macrobenchmark、真机验收——故本项不能标 `[x]`）。
+- [~] Release 必须依赖同 commit 全门禁成功，不允许单独绕过测试构建（**G3 已补门禁**：`release.yml` 新增 `verify-ci` job 并让 `release` 声明 `needs: verify-ci`；该 job 用 `gh api` 查同 `github.sha` 上 `ci.yml` 是否存在 `completed + success` 的 run，否则 `exit 1`。本地已双向验证脚本逻辑：在绿 commit `9734a007` 上 `ok=1` 放行；在无 CI run 的 `35b60169` 上 `runs=[] ok=0` 拒绝。仍未做：跨 workflow 的强制 required-check，绕过手段是手动 `workflow_dispatch` 一个未过 CI 的 ref——但该 ref 同样会被 `verify-ci` 拦下）。
 - [ ] 生产签名 Secret 缺失必须失败，禁止回退 debug 签名。
 - [ ] 产出 SBOM、签名证书信息、checksum 和可复现构建记录。
 - [ ] Android 26、当前稳定 Android、target SDK 真机验收。
@@ -996,7 +996,10 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 
 原则（与第 15 节末段一致，但更强）：**任何写进本清单的 `[x]`，必须有一条会失败的命令替它作证。**
 
-### M1 — 可执行契约就位 + 在途 B03 落地
+编号约定：本节用 **G1、G2、G3…** 表示「自主链的第 N 个目标」，与 `DIRECTION.md` 的项目里程碑
+**M1–M6**、以及清单正文按领域划分的 **M01–M11** 是三个不同的编号体系，不要混读。
+
+### G1 — 可执行契约就位 + 在途 B03 落地
 
 **Scope**：B03 migration v5 落地并提交；服务端新增架构棘轮门禁；清单同步实测。
 
@@ -1034,7 +1037,7 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 `repository/` 下 16 个错放 service。
 最大单点仍是 `AdminExportsRouting.kt`（1110 行 / 26 处事务 / 内联 Exposed SQL + CSV 映射）。
 
-### M2 — 284 个提交首次进入真实 CI，并修掉它挡下的两个发布阻塞
+### G2 — 284 个提交首次进入真实 CI，并修掉它挡下的两个发布阻塞
 
 **Background**：`origin/main` 停在 `d5cdf68b`（2026-08-29），本地 main 已领先 **284 个提交**。
 也就是说这段时间的所有工作**从未经过 CI**——而本机没有 Docker、没有 PostgreSQL，CI 是
@@ -1096,3 +1099,75 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 
 **下一目标输入**：把 4 个 `androidTest` 文件真正纳入自动化（CI 加 emulator runner，或
 改为可在 JVM 侧执行的等价测试）——这是「CI 说它测了 Room 迁移、其实没测」这条虚假安全感的直接修复。
+
+### G3 — 让「仪器测试」与「发布门禁」两道假门禁变成真门禁
+
+**Scope**：4 个从未执行的仪器测试真实跑起来并修到绿、接入 CI；`release.yml` 补上对 CI 的依赖。
+
+**Files**
+- `app/src/androidTest/java/com/maodouchat/data/local/AppDatabaseMigrationTest.kt`（+14 行）
+- `app/build.gradle.kts`（debug 变体放开 x86_64）
+- `.github/workflows/ci.yml`（新增 `instrumented` job）
+- `.github/workflows/release.yml`（新增 `verify-ci` job + `release.needs`）
+- 本清单 Q02 / Q03 / Q06 / 第 16 节。
+
+**第一次真跑就抓到红（这就是从不执行 4 个测试文件的代价）**
+
+本地 `maodou_test` AVD（API 36 / google_apis / arm64）实测
+`./gradlew :app:connectedDebugAndroidTest` → **22 tests / 1 failure**：
+
+```
+com.maodouchat.data.local.AppDatabaseMigrationTest >
+  migrate33To34CreatesTerminalTombstonesWithConversationCascade  FAILED
+  java.lang.AssertionError: expected:<0> but was:<1>
+```
+
+**定位（先量，不猜）**。在断言处临时插入诊断，实测输出：
+
+```
+DIAG foreign_keys=0 fkList=[table=chats onDelete=CASCADE;] chatsLeft=0
+```
+
+三件事同时成立：外键**声明是对的**（`ON DELETE CASCADE`）、父行**确实删掉了**、
+但该连接上 `PRAGMA foreign_keys=0`（强制未开启）→ 级联永远不会发生。
+结论：**迁移代码没问题，是测试的隐含假设错了**——`MigrationTestHelper` 返回的连接不启用外键，
+所以这条断言只能永远为 1。
+
+**Fix**：在断言前显式 `PRAGMA foreign_keys = ON`，并**先断言前提成立**（读回 `PRAGMA foreign_keys`
+必须为 1）。前提不成立时必须红，而不是静默通过。生产代码**未改**：修完后
+`git diff --quiet app/src/main/java/com/maodouchat/data/local/DatabaseMigrations.kt` 通过，
+该文件与 HEAD 逐字节一致。
+
+**反证（修错了会红，两条都实测）**
+1. 把 `PRAGMA foreign_keys = ON` 改回 `OFF` → 红，且报的是前提断言：
+   `级联断言要求 SQLite 外键强制开启（PRAGMA foreign_keys） expected:<1> but was:<0>`。
+2. 把迁移里的 `ON DELETE CASCADE` 改成 `ON DELETE SET NULL` →
+   `java.lang.IllegalStateException: Migration didn't properly handle: message_mutation_tombstones`
+   （Room 的 schema 校验会拦住改错的迁移）。
+
+**ABI：CI 是 x86_64，而 app 只打包 arm64**
+`defaultConfig.ndk.abiFilters = ["arm64-v8a"]` 对 debug 同样生效，debug APK 里只有
+`lib/arm64-v8a/`；而 GitHub 的 Linux runner 是 x86_64，仪器测试会缺 SQLCipher/libsignal 的 native 库。
+实测依赖 AAR（`android-database-sqlcipher-4.5.4`、`libsignal-android-0.41.0`）**四种 ABI 都提供**
+（arm64-v8a / armeabi-v7a / x86_64 / x86），只是被 app 的过滤器挡掉了。故只在 **debug** 变体放开
+x86_64（arm64-v8a 保留给本机 Apple Silicon 模拟器）。
+
+- `:app:assembleDebug` → APK 含 `lib/arm64-v8a/` + `lib/x86_64/`。
+- `:app:assembleRelease :app:verifyReleaseSize` → 仍只有 `lib/arm64-v8a/`，
+  且体积 **13246493 bytes 一字未变**（与改动前完全相同）→ Release 策略与护栏不受影响。
+
+**Tests（本地实测）**
+- `./gradlew :app:connectedDebugAndroidTest` → **Starting 22 / Finished 22 / BUILD SUCCESSFUL**
+- `./gradlew :app:testDebugUnitTest :app:lintDebug checkArchitecture` → BUILD SUCCESSFUL
+- YAML 解析校验：`ci.yml` jobs = `[server, android, instrumented, docker-config]`；
+  `release.yml` jobs = `[verify-ci, release]`，`release.needs = verify-ci`。
+
+**发布门禁的本地双向验证**（脚本逐字抽出后真跑）
+- 绿 commit `9734a007`：`runs=1 ok=1` → 放行。
+- 无 CI run 的 commit `35b60169`：`runs=[] ok=0` → **REFUSED**。
+
+**Deletion**：无。
+
+**Risks**：CI 仪器 job 依赖 x86_64 系统镜像与 KVM，首次真实运行前本机无法验证（Apple Silicon
+跑不了 x86_64 镜像）——所以这一项的最终判据只能是**真实 CI run**。模拟器 job 天然比单测慢，
+已单独成 job 且 `timeout-minutes: 45`，不阻塞其余门禁。

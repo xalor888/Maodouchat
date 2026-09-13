@@ -493,6 +493,20 @@ class AppDatabaseMigrationTest {
             DatabaseMigrations.MIGRATION_33_34,
         )
         try {
+            // MigrationTestHelper 返回的连接默认 **不** 启用外键（实测 PRAGMA foreign_keys=0），
+            // 而 ON DELETE CASCADE 只有在外键强制开启时才生效。不显式打开，这条断言就退化成
+            // "永远不级联、永远为 1"，而它此前从未被任何自动化执行过，所以一直没人发现。
+            // 先打开，再断言前提成立——前提不成立时必须红，而不是静默通过。
+            database.execSQL("PRAGMA foreign_keys = ON")
+            val fkEnabled = database.query("PRAGMA foreign_keys").use { cursor ->
+                if (cursor.moveToFirst()) cursor.getInt(0) else -1
+            }
+            assertEquals(
+                "级联断言要求 SQLite 外键强制开启（PRAGMA foreign_keys）",
+                1,
+                fkEnabled,
+            )
+
             database.execSQL(
                 """
                 INSERT INTO message_mutation_tombstones (

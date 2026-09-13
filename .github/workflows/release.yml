@@ -44,8 +44,40 @@ env:
   GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx3g
 
 jobs:
+  # Q06：「Release 必须依赖同 commit 全门禁成功」此前不成立——release.yml 由 tag /
+  # workflow_dispatch 独立触发，与 ci.yml 无任何依赖关系（grep workflow_run|needs: → 0 命中），
+  # 所以在 CI 已经红的 commit 上打 tag 仍会照常构建并发布。这个 job 把门禁补上。
+  verify-ci:
+    name: Verify CI green for this commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Require a successful CI run for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          echo "查 $REPO 在 $SHA 上的 CI 结论"
+          runs=$(gh api \
+            "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$SHA&per_page=100" \
+            --jq '[.workflow_runs[] | {id, status, conclusion, html_url}]')
+          echo "$runs" | jq -r '.[] | "run \(.id) status=\(.status) conclusion=\(.conclusion) \(.html_url)"'
+          ok=$(echo "$runs" | jq -r '[.[] | select(.status=="completed" and .conclusion=="success")] | length')
+          if [ "$ok" -eq 0 ]; then
+            echo "::error::该 commit 上没有成功的 CI run；拒绝发布。先让 CI 绿再打 tag。"
+            exit 1
+          fi
+          echo "CI 已在该 commit 上成功（$ok 个 run），允许继续发布。"
+
   release:
     name: Build & publish release
+    needs: verify-ci
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
