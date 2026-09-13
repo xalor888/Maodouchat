@@ -112,7 +112,7 @@ Gate：并发 401、进程恢复、A-B-A 换号、切服、设备吊销、错误
 
 - [ ] 定义最低支持升级版本；明确 1-15 是否停止直接升级。
 - [ ] 按领域拆 entity、DAO、transaction 和 migration ownership。
-- [x] `AppDatabase.kt` 只负责数据库创建、注册 migration 和 transaction boundary（35 个迁移已抽到 `DatabaseMigrations.kt` 并经 `DatabaseMigrationsChainTest` 锁定连续无断点；AppDatabase 723→171 行）。
+- [x] `AppDatabase.kt` 只负责数据库创建、注册 migration 和 transaction boundary（35 个迁移已抽到 `DatabaseMigrations.kt` 并经 `DatabaseMigrationsChainTest` 锁定连续无断点；AppDatabase 723→136 行）。
 - [x] 建立 `DatabaseLifecycle`，覆盖创建、解锁、换号销毁、迁移失败和恢复（已抽为 `internal object DatabaseLifecycle`：open/close/destroy/backup-recreate）。
 - [x] 登出清理覆盖审计（`SecureSessionManager` 双路径：销毁整库 vs 同账号保留；14 张 owner 作用域表逐项核对——定时/提醒/归档忽略/语音/通知中心/附件/推送等短暂队列按账号清理，草稿/信任/墓碑/V2 收发箱/重试队列在保留路径有意保留以保证重登收敛；销毁路径整库删除兜底）。
 - [ ] 为每个受支持旧版本到当前版本保存 schema fixture 和真实数据 fixture。
@@ -290,7 +290,7 @@ Gate：冷进程、离线、旧通知、账号切换、Token 失效和重复回�
 
 ### U01 Chat Detail 状态与用例编排
 
-当前状态：`[x]`。`ConversationCommandFacade` 统一调度消息命令，`ChatDetailViewModel` 职责收敛。
+当前状态：`[~]`。`ConversationCommandFacade` 统一调度消息命令；但 `ChatDetailViewModel` 职责**并未收敛**：实测 3131 行 / 130 个函数（仅 35 个是单行委托）、133 行构造期手写装配约 30 个具体依赖、**18 处直连 `app.database.*` DAO**、**6 处裸 `ApiService.*`**、**8 处 `signalProtocol.*` 原语**、46 处 `viewModelScope.launch`；`currentGroupRevision()`(182 行)、`loadChat()`(178 行)、`sendEncryptedAttachment()`(139 行)、`handleGroupRevisionChanged()`(123 行) 等单体核心未拆。端口接线目前只是薄层。
 
 - [x] 建立 `ConversationTimelineStore`、`ComposerController`、`ConversationCommandFacade`（`ConversationCommandFacade` 已接入并调度文本、重试与转发）。
 - [x] 建立 `ConversationRealtimeCoordinator`、`ConversationSecurityController`。
@@ -302,13 +302,13 @@ Gate：ViewModel reducer、快速切会话、进程恢复、单 intent 单命令
 
 ### U02 Chat Detail Compose 页面
 
-当前状态：`[x]`。Telegram 预见性返回手势、线性弹性微动效就绪；巨型单体解耦完成，`ChatDetailScreen.kt` 42 行薄路由，子组件面板化。
+当前状态：`[~]`。Telegram 预见性返回手势、线性弹性微动效就绪；`ChatDetailScreen.kt` 42 行薄路由（但仅代理一个 5061 行的 `ChatDetailRoute` 单体 composable，属表面收敛）。
 
 - [x] 系统级预见性返回手势：在 `AndroidManifest.xml` 中启用 `android:enableOnBackInvokedCallback="true"`，适配 Android 13+ / 14+ 类似 TG 的侧滑返回预览。
 - [x] 拆为 `ConversationRoute`、`TimelinePane`、`ComposerPane` 等子面板，`ChatDetailScreen.kt` 仅 42 行纯代理入口。
 - [x] sheets：转发、定时、举报、安全码、联系人、AI、媒体操作。
 - [x] banners：置顶、断线、群公告、消失消息、安全变化、Sender Key 健康。
-- [x] 平台动作通过 effect handler 执行，不在 Composable 内直接写库。
+- [ ] 平台动作通过 effect handler 执行，不在 Composable 内直接写库（**未达标**：`ChatDetailRoute.kt:879` 在 Composable 内取 `secretChatDao()`，`:891` 于 `while(true)` 中每 60s `touchActivity()` 写库，并内联 TTL 过期判定/`destroySession`；`:1010/1025/1042/1059` 另取 4 个 `database` 句柄驱动 AI 业务逻辑。`ChatDetailRoute.kt` 实为单个 5061 行 composable，含 78 处 `LaunchedEffect`）。
 - [x] 子组件接收稳定 model/event。
 
 Gate：大字体、长文本、RTL、中英文、横屏、平板、键盘和弹窗互斥 Compose 测试通过。
@@ -358,7 +358,7 @@ Gate：纯离线启动、排序、未读、草稿、归档、编辑/撤回/删�
 - [x] `GroupMembershipStore` 保存本地快照与 revision。
 - [x] Invite、Audit、Bot、Encryption Health 各有独立 controller。
 - [x] Chat Detail 与 Group Detail 共享同一 lifecycle service。
-- [x] 签到、接龙、PK、投票拆成独立 feature，不继续集中在 `GroupPlayPolicy.kt`。
+- [~] 签到、接龙、PK、投票拆成独立 feature，不继续集中在 `GroupPlayPolicy.kt`（**未达标**：`util/GroupPlayPolicy.kt` 仍为 2298 行 / 986 条声明，仍含 25 处 Checkin/Chain/Pk/Poll 引用且被 `ui/component/TextMessageBubble.kt` 生产引用；`group/play/` 下四个「已抽出」文件合计仅 154 行（GroupPkPolicy 72 / GroupPollPolicy 33 / GroupChainPolicy 29 / GroupCheckinPolicy 20），只是 format/parse helper 且重复了常量，并未吸收主体；另存在 `util/GroupPollPolicy.kt` 与 `group/play/GroupPollPolicy.kt` 同名并存。群玩法 4 个 Screen 已落地，此部分成立）。
 - [x] 群 UI 只显示已提交结果和提交后修复状态，不把 refresh 失败当 mutation 失败。
 
 Gate：权限矩阵、并发成员变更、离线成员、邀请竞态和 Sender Key 修复测试通过。
@@ -548,7 +548,7 @@ Gate：refresh rotation/replay、多设备登出、TOTP、两节点限流、注�
 - [x] one-time pre-key 消费使用数据库原子操作（`forUpdate` 行锁 + 条件更新 + FIFO；8 线程并发恰好一人成功，H2 验证）。
 - [x] 身份密钥变化产生安全事件并触发会话风险处理（`IdentitySecurityEventPolicy`/`Recorder` → moderation_audit_log；mismatch 吊销当前 auth session + refresh；上传测试锁定事件与会话）。
 - [x] V2 只依赖只读 `EncryptableDeviceDirectory`（`ConversationDeviceSnapshotStore`/`MessagingV2Repository` 注入目录；`ConversationDeviceSnapshotStoreDirectoryTest` 锁定）。
-- [ ] backfill 迁入版本 migration，删除缺 device id/status 的长期兼容。
+- [x] backfill 迁入版本 migration，删除缺 device id/status 的长期兼容（migration v5 + `backfillMissingSignalDevices`；`DeviceRegistry.getDeviceInfos` 不再为缺行合成 PENDING）。
 
 Gate：并发 pre-key、设备批准防重放、被撤销设备、新设备群 key 修复通过。
 
@@ -672,14 +672,17 @@ Gate：token rotate、webhook 重启/死信、顺序幂等、群权限和 Telegr
 
 ### B13 Admin、运行配置、运营统计与审计
 
-当前状态：`[x]`。`AdminRouting.kt` 已缩为 22 行注册门面（非 4,575 行）；`RuntimeConfigService` 引入 typed registry（`RuntimeSettingsRegistry`，`defaults()`/`knownKeys` 三重复消除）；`OperationsQueryService` 承接运营统计只读查询；`AdminIdentity`（两级角色解析）+ `UserDispositionService`（单用户/批量处置 + 开关写命令门面）落地，AdminBulkRouting 1366→~800 行，管理路由无裸 `Users.update/insert`；AdminEnhanceRouting 1106→598 行（公告→`AnnouncementRouting`、用户标签→`UserTagRouting`、模型→`AnnouncementModels`/`UserTagModels`）；重复 helper（`receiveEnhanceJson`/`dayBucketExpression`/`recordAdminAudit`/`isAdminUser`/`csvCell`/`parseAdminIds`）全部去重，secrets 不入 `RuntimeConfigService`。
+当前状态：`[~]`。`AdminRouting.kt` 已缩为 22 行注册门面（非 4,575 行）；`RuntimeConfigService` 引入 typed registry（`RuntimeSettingsRegistry`，`defaults()`/`knownKeys` 三重复消除）；`OperationsQueryService` 承接运营统计只读查询；`AdminIdentity`（两级角色解析）+ `UserDispositionService`（单用户/批量处置 + 开关写命令门面）落地，AdminBulkRouting 1366→~800 行，管理路由无裸 `Users.update/insert`；AdminEnhanceRouting 1106→598 行（公告→`AnnouncementRouting`、用户标签→`UserTagRouting`、模型→`AnnouncementModels`/`UserTagModels`）；重复 helper（`receiveEnhanceJson`/`dayBucketExpression`/`recordAdminAudit`/`isAdminUser`/`csvCell`/`parseAdminIds`）全部去重，secrets 不入 `RuntimeConfigService`。**未完成**：route 内仍持 75 处 `transaction {`（18 个文件），其中 AdminExportsRouting(26)/AdminEnhanceRouting(12) 在 handler 内直写 Exposed DSL 与 CSV 映射，需补 `AdminExportService`/`AdminExportRepository` 等边界。
 
 - [x] 建立 `AdminIdentity`、`UserDispositionService`、`OperationsQueryService`（`AdminIdentity`+`AdminIdentityResolver`、`UserDispositionService` 写命令门面、`OperationsQueryService` 只读统计）。
 - [x] Runtime settings 使用 typed registry 描述类型、默认值、范围、敏感性和重启要求（`RuntimeSettingsRegistry`：类型/默认/range/sensitive/restartRequired，`defaults()` 单一事实源派生 + `normalize` 校验）。
 - [x] 管理 route 按用户治理、内容审核、配置、统计、公告拆分（用户治理→Users/Bulk/Management、内容审核→Content/Moderation/Report/UserTag、配置→System、统计→Observability+OperationsQuery/Diagnostics、公告→Announcement）。
 - [x] 管理写操作统一 command + audit；统计走只读 query model（处置单/批量、开关、moderator、TOTP 全部走 `UserRepository` 命令 + 审计；统计走 `OperationsQueryService`）。
 - [x] 合并 AdminRouting/AdminEnhanceRouting 重复能力（`receiveEnhanceJson`→`receiveAdminJson`、`observabilityDayBucketExpression`→`dayBucketExpression`、`recordObservabilityAudit`→`recordAdminAudit`、`isAdminObservabilityUser`→`isAdminUser`、`observabilityCsvCell`→`csvCell` 等重复 helper 全部去重）。
-- [x] 删除重复 getter、路由事务和敏感配置导出（`knownKeys`/`defaults` 三重复消除；observability + bulk + 单用户写路由事务清零；`dayBucketExpression`/`recordAdminAudit`/`isAdminUser`/`csvCell`/`parseAdminIds` 去重；secrets 只存 `ServerConfig`，不导出）。
+- [~] 删除重复 getter、路由事务和敏感配置导出（`knownKeys`/`defaults` 三重复消除；`dayBucketExpression`/`recordAdminAudit`/`isAdminUser`/`csvCell`/`parseAdminIds` 去重；secrets 只存 `ServerConfig`，不导出。**但「路由事务清零」不成立**：实测 `AdminEnhanceRouting`=12、`AdminManagementRouting`=6、`AdminDiagnosticsRouting`=4、`AdminBulkRouting`=3、`AdminUsersRouting`=3 处 `transaction {`，全项目 plugins/ 共 75 处、分布于 18 个文件；且 `AdminExportsRouting.kt`(1110 行/26 处) 与 `AdminEnhanceRouting.kt`(598 行/12 处) 仍在 route 内直写 Exposed SQL，缺 service/repository 边界）。
+
+- [ ] 管理/运维/开发者 route 面补齐 `route→service→repository` 边界（**本项此前漏列，是当前最大架构缺口**：全项目 `plugins/` 共 **75 处 `transaction {`，分布于 18 个文件**，其中 AdminExportsRouting=26、AdminEnhanceRouting=12、AdminManagementRouting=6、DeveloperRouting=4、AnnouncementRouting=4、AdminDiagnosticsRouting=4；34 个 plugin 文件与 6 个 service 文件直接 import Exposed；`AdminUsersRouting.kt:272` 与 `SecretSurfaceRouting.kt:185` 在 handler 内 `new Repository()`。最差 `AdminExportsRouting.kt`(1110 行/57 个 Exposed 操作) 每个 handler 内联 `selectAll()`+CSV 映射，需 `AdminExportService`/`AdminExportRepository`）。
+- [ ] 消除反向依赖：`repository/BotRepository.kt:18`→`plugins.isAllowedWebhookAddress`、`repository/RateLimitStatsRepository.kt:4-5`→`plugins.GlobalRateLimiter/RateLimitStats` 为真实倒置；另有 18 个 service/policy 文件（约 3784 行，如 `repository/FeedQueryService.kt` 455 行、`repository/AccountLifecycleService.kt` 432 行）物理错放在 `repository/`，破坏「repository=SQL 边界」契约。
 
 Gate：master/moderator/user 权限、审计、敏感配置和大数据查询性能通过。
 

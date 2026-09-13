@@ -83,3 +83,5 @@ server/src/main/resources/webrtc/
 .v2c/
 .video_agent/
 emulator-*.png
+# keepgoal 的内部状态（台账、访问记录），不该进版本库
+.keepgoal/
