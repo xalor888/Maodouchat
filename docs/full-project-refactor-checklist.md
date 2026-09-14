@@ -724,7 +724,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 ### Q01 单元与架构测试
 
 - [ ] 每个 domain command/query 有成功、失败、取消、重复和账号切换测试。
-- [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试。**G7 续已补掉第 9 条**（`MessagingV2OutboxPlaintextBoundaryTest`，2 例 + 双向反证）、第 5/6/7 条（`MessagingV2InboxSynchronizerTest`，3 例 + 三向反证）与第 2 条（`MessagingV2RepositoryTest` 的原子性回滚用例 + 提前提交反证）；第 4 轮更正了两条**假缺口**（21/24 其实早有 `ConversationLocalStateCoordinatorTest` 覆盖，是我第一轮按文件名收集候选用例时漏了 `conversation/**`），缺口降为 2 条）。
+- [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试。**G7 续已补掉第 9 条**（`MessagingV2OutboxPlaintextBoundaryTest`，2 例 + 双向反证）、第 5/6/7 条（`MessagingV2InboxSynchronizerTest`，3 例 + 三向反证）与第 2 条（`MessagingV2RepositoryTest` 的原子性回滚用例 + 提前提交反证）；第 4 轮更正了两条**假缺口**（21/24 其实早有 `ConversationLocalStateCoordinatorTest` 覆盖，是我第一轮按文件名收集候选用例时漏了 `conversation/**`），缺口降为 2 条）；第 6 轮补掉最后一条真测试缺口——不变量 3（新增 `/api/v2/messages` 的第一个 HTTP 级测试 + 真实 WebSocket 收帧 + 注入反证），缺口降为 **1 条**（只剩 17 的后半句，属契约决策）。
 - [ ] reducer/state machine 使用 fake clock 和确定性 dispatcher。
 - [~] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖（客户端：`core/testing/ArchitectureTest.kt` ArchUnit 2 条 + 根 `checkArchitecture` 模块依赖；**服务端已补 `server/src/test/.../architecture/ServerArchitectureTest.kt`**，随 `server:test` 自动进 CI：2 条绝对不变量 + 5 条精确相等棘轮，实测注入违规会红、基线过期也会红，见 M1 记录）。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
@@ -1601,6 +1601,30 @@ TLS: Let's Encrypt, CN=chat.mdou.me, 有效期至 2026-11-18
 `the number of declared gaps only goes down` 发现缺口集合变成 `[3]`。也就是说，
 **连「换一种写法描述缺口」都会被测出来**，这个门禁不是摆设。
 
-**仍未做（下一步）**：剩 2 条 —— 3（WebSocket 只发 `INBOX_AVAILABLE_V2`；已确认
-`/api/v2/messages` 至今没有 HTTP 级测试，需要完整脚手架，是本目标最贵的一条）、
-17 的后半句（属于契约决策：补实现或改文档）。
+**G7 续 6 — 补掉最后一条真测试缺口：不变量 3（WebSocket 只发 `INBOX_AVAILABLE_V2`）**
+
+缺口 2 条 → **1 条**（只剩 17 的后半句，属契约决策）。
+
+新增 `MessagingV2DeliveryWakeupTest#a committed v2 send wakes the recipient with nothing but INBOX_AVAILABLE_V2`，
+这是 **`/api/v2/messages` 的第一个 HTTP 级测试**（此前 V2 发送只在 repository 层被测过）。
+做法：起真实 app → 建群 → 直接种「已确认且有 identity key」的设备（密文对服务端不透明，
+不必跑真实加密）→ 把登录会话绑到设备（否则路由回 409 DEVICE_NOT_READY）→
+**用真实 WebSocket 连上 u2** → 等它注册进 `ConnectionRegistry` → 发消息 → 收 u2 实际收到的帧。
+断言帧**逐字**等于 `{"type":"INBOX_AVAILABLE_V2","payload":"{}"}`，且不含密文、不含消息 id。
+刻意**不用 mock**：mock 只能证明「我以为会发什么」。
+
+反证（实测）：把 wake 帧的 payload 从 `{}` 改成带 `leak`/`cid` 的 JSON → 红：
+`投递 wake 帧必须只有信号类型、没有任何消息数据 ==> expected: <{"type":"INBOX_AVAILABLE_V2","payload":"{}"}> but was: <{...,"payload":"{\"leak\":\"u1\",\"cid\":\"wake_1\"}"}>`；
+还原后绿，`git diff server/src/main/` 为空。
+
+**这一轮还修了两处门禁/引用精度问题**（都是门禁自己抓出来的）：
+1. 门禁原先按「文件名 == 类名」找用例，而 `MinimalRouteTest.kt` 里有多个测试类、
+   新类并不在同名文件里 → 误报「找不到测试」。改成按**类声明**定位（`class|object <Name>`），
+   更贴合 Kotlin 实际。
+2. 我引用了 `MinimalRouteTest#legacy websocket message commands are rejected`，门禁立刻报
+   「找不到类声明 MinimalRouteTest」——那个用例真正属于 `WsLegacyMessageProtocolRetiredTest`。
+   引用已改正。**门禁连「类名写错」都不放过。**
+
+**仍未做（下一步）**：只剩 17 的后半句（「可选 bot/service 后续失败不得把已提交人类消息
+变成发送失败」）——查证结论是**客户端与服务端都没有该实现**，属于契约决策（补实现或改文档），
+不属于「补测试」范畴。

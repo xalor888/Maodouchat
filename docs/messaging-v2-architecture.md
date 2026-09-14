@@ -17,7 +17,7 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
 
 3. User presence is never consulted for delivery. WebSocket only emits `INBOX_AVAILABLE_V2`.
    → 验证：`MessagingV2RepositoryTest#send requires every current group device without checking online presence`
-   → 缺口：WebSocket 只发 INBOX_AVAILABLE_V2 这一半没有用例
+   → 验证：`MessagingV2DeliveryWakeupTest#a committed v2 send wakes the recipient with nothing but INBOX_AVAILABLE_V2`；`WsLegacyMessageProtocolRetiredTest#legacy websocket message commands are rejected`（反证：WS 不再接受发送命令）
 
 4. A device keeps pulling an envelope until it explicitly acknowledges it.
    → 验证：`MessagingV2RepositoryTest#group message is durable for offline devices and disappears only after ack`；`MailboxRetentionServiceTest#purge batch applies acknowledged unacknowledged and retired device policies`

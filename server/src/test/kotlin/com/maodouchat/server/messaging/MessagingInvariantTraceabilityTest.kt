@@ -98,15 +98,19 @@ class MessagingInvariantTraceabilityTest {
 
     @Test
     fun `every referenced test actually exists in the test sources`() {
+        // 规则刻意**不**假设「文件名 == 类名」：一个 .kt 里可以有多个测试类
+        // （MinimalRouteTest.kt 就是如此），按文件名找会误报「找不到测试」。
+        val sources = testSources.associateWith { it.readText() }
         val missing = mutableListOf<String>()
         audit().flatMap { it.verified }.distinct().forEach { ref ->
             val className = ref.substringBefore('#')
             val testName = ref.substringAfter('#')
-            val owner = testSources.filter { it.name == "$className.kt" }
+            val classDecl = Regex("""\b(class|object)\s+""" + Regex.escape(className) + """\b""")
+            val owners = sources.filterValues { classDecl.containsMatchIn(it) }
             when {
-                owner.isEmpty() -> missing += "$ref（找不到 $className.kt）"
-                owner.none { it.readText().contains("fun `$testName`") } ->
-                    missing += "$ref（$className.kt 里没有这个用例）"
+                owners.isEmpty() -> missing += "$ref（找不到类声明 $className）"
+                owners.none { (_, text) -> text.contains("fun `$testName`") } ->
+                    missing += "$ref（$className 里没有这个用例）"
             }
         }
         assertEquals(
@@ -120,7 +124,7 @@ class MessagingInvariantTraceabilityTest {
     fun `the number of declared gaps only goes down`() {
         val pending = audit().filter { it.pending }.map { it.number }
         assertEquals(
-            listOf(3, 17),
+            listOf(17),
             pending,
             "缺口集合变了。补上一条就把这里的编号删掉（这是预期工作流）；" +
                 "新增缺口则说明有契约退化，必须先补测试。",

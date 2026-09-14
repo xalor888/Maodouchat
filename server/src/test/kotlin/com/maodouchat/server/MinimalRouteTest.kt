@@ -4,6 +4,7 @@ import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.plugins.configureAuthentication
 import com.maodouchat.server.plugins.configureRouting
+import com.maodouchat.server.plugins.configureMessagingV2Routing
 import com.maodouchat.server.plugins.configureSerialization
 import com.maodouchat.server.plugins.configureSockets
 import com.maodouchat.server.plugins.configureStatusPages
@@ -36,6 +37,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -2939,5 +2942,145 @@ class BotHintRoutingTest {
         assertEquals("CALL:VOICE Use voice", repository.getById(voiceId)?.content)
         assertEquals("META:REACT Line Break", repository.getById(secretId)?.content)
         assertEquals("SYSTEM", repository.getById(secretId)?.type)
+    }
+}
+
+/**
+ * 不变量 3 的后半句：「WebSocket only emits `INBOX_AVAILABLE_V2`」。
+ *
+ * 此前只有一个反向用例（`legacy websocket message commands are rejected`，证明 WS **不再接受**
+ * 发送命令），但没有任何用例断言**投递时真正发到 socket 上的帧**是什么形状——也就是
+ * 「wake 帧里会不会被塞进消息内容」这条没人守；而 `/api/v2/messages` 至今没有 HTTP 级测试。
+ *
+ * 这里把发送端点真跑一遍，用**真实 WebSocket 连接**接收收件人实际收到的帧
+ * （不用 mock：mock 只能证明「我以为会发什么」）。
+ */
+class MessagingV2DeliveryWakeupTest {
+
+    private val cipherForU1Device2 = "CIPHERTEXT-FOR-U1-DEVICE2"
+    private val cipherForU2Device1 = "CIPHERTEXT-FOR-U2-DEVICE1"
+
+    @Test
+    fun `a committed v2 send wakes the recipient with nothing but INBOX_AVAILABLE_V2`() = testApplication {
+        application {
+            moduleUnderTest(seedDemoUsers = true)
+            // V2 路由由 Application.kt 单独装配，不在 configureRouting 里。
+            configureMessagingV2Routing(
+                com.maodouchat.server.messaging.v2.MessagingV2Repository(),
+            )
+        }
+
+        suspend fun login(email: String): String {
+            val response = client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"$email","password":"password123"}""")
+            }
+            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+            return extractToken(response.bodyAsText())
+        }
+
+        val alexToken = login("alex@example.com")
+        val aliceToken = login("alice@example.com")
+        val created = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":["u2"],"isGroup":true,"groupName":"Wakeup Test"}""")
+        }
+        assertEquals(HttpStatusCode.Created, created.status, created.bodyAsText())
+        val chatId = (Json.parseToJsonElement(created.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        acceptAllGroupInvites(aliceToken)
+
+        // 直接种「已确认且有 identity key」的设备：服务端只需要设备地址与密钥存在，
+        // 密文对它是不透明的，因此不必跑真实 Signal 加密。
+        org.jetbrains.exposed.sql.transactions.transaction {
+            listOf("u1" to 1, "u1" to 2, "u2" to 1).forEach { (userId, deviceId) ->
+                com.maodouchat.server.db.SignalDevices.insert {
+                    it[com.maodouchat.server.db.SignalDevices.userId] = userId
+                    it[com.maodouchat.server.db.SignalDevices.deviceId] = deviceId
+                    it[deviceName] = "$userId-$deviceId"
+                    it[status] = "CONFIRMED"
+                    it[confirmedAt] = 1L
+                    it[confirmedByDeviceId] = deviceId
+                    it[createdAt] = 1L
+                    it[lastSeenAt] = 1L
+                }
+                listOf("identity_key", "registration_id", "signed_pre_key", "signed_pre_key_signature")
+                    .forEach { keyType ->
+                        com.maodouchat.server.db.SignalKeys.insert {
+                            it[id] = "$userId-$deviceId-$keyType"
+                            it[com.maodouchat.server.db.SignalKeys.userId] = userId
+                            it[com.maodouchat.server.db.SignalKeys.deviceId] = deviceId
+                            it[com.maodouchat.server.db.SignalKeys.keyType] = keyType
+                            it[keyData] = "x"
+                            it[createdAt] = 1L
+                        }
+                    }
+            }
+            // 登录会话默认未绑定设备（V2 路由会回 409 DEVICE_NOT_READY），把它绑到 u1 的设备 1。
+            com.maodouchat.server.db.AuthSessions.update(
+                { com.maodouchat.server.db.AuthSessions.userId eq "u1" },
+            ) {
+                it[com.maodouchat.server.db.AuthSessions.signalDeviceId] = 1
+            }
+        }
+
+        val memberRevision = org.jetbrains.exposed.sql.transactions.transaction {
+            com.maodouchat.server.db.Chats.selectAll()
+                .where { com.maodouchat.server.db.Chats.id eq chatId }
+                .single()[com.maodouchat.server.db.Chats.memberRevision]
+        }
+        val http = client
+        val wsClient = createClient { install(io.ktor.client.plugins.websocket.WebSockets) }
+        val frames = mutableListOf<String>()
+
+        // 在同一个 suspend 作用域里：先连上并等它注册，再发消息，再收帧。
+        wsClient.webSocket(
+            request = {
+                url("/ws")
+                header(HttpHeaders.Authorization, "Bearer $aliceToken")
+            },
+        ) {
+            val registered = kotlinx.coroutines.withTimeoutOrNull(5_000L) {
+                while (com.maodouchat.server.plugins.ConnectionRegistry.onlineUsers["u2"].isNullOrEmpty()) {
+                    kotlinx.coroutines.delay(20)
+                }
+                true
+            }
+            assertTrue(registered == true, "u2 的 WebSocket 未在 5s 内注册")
+
+            val sent = http.post("/api/v2/messages") {
+                header(HttpHeaders.Authorization, "Bearer $alexToken")
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """
+                    {"id":"wake_1","conversationId":"$chatId","kind":"DATA","clientTimestamp":1000,"groupRevision":$memberRevision,
+                     "attachmentIds":[],
+                     "envelopes":[
+                       {"recipientUserId":"u1","recipientDeviceId":2,"ciphertextType":"TEXT","ciphertext":"$cipherForU1Device2"},
+                       {"recipientUserId":"u2","recipientDeviceId":1,"ciphertextType":"TEXT","ciphertext":"$cipherForU2Device1"}
+                     ]}
+                    """.trimIndent(),
+                )
+            }
+            assertEquals(HttpStatusCode.Accepted, sent.status, sent.bodyAsText())
+
+            // 收接下来的几帧（wake 之后不应再有别的）；每帧最多等 2s。
+            repeat(2) {
+                val next = kotlinx.coroutines.withTimeoutOrNull(2_000L) { incoming.receive() }
+                if (next is io.ktor.websocket.Frame.Text) frames += next.readText()
+            }
+        }
+
+        assertTrue(frames.isNotEmpty(), "收件人应至少收到一个 wake 帧")
+        frames.forEach { frame ->
+            assertEquals(
+                """{"type":"INBOX_AVAILABLE_V2","payload":"{}"}""",
+                frame,
+                "投递 wake 帧必须只有信号类型、没有任何消息数据",
+            )
+            assertFalse(frame.contains(cipherForU2Device1), "wake 帧里出现了密文：$frame")
+            assertFalse(frame.contains(cipherForU1Device2), "wake 帧里出现了密文：$frame")
+            assertFalse(frame.contains("wake_1"), "wake 帧里出现了消息 id：$frame")
+        }
     }
 }
