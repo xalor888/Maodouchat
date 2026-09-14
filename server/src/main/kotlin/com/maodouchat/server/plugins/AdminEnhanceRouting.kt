@@ -20,6 +20,8 @@ import com.maodouchat.server.model.UpdateAnnouncementRequest
 import com.maodouchat.server.repository.AnnouncementRepository
 import com.maodouchat.server.repository.RateLimitStatsRepository
 import com.maodouchat.server.repository.UserTagRepository
+import com.maodouchat.server.repository.AdminExportRepository
+import com.maodouchat.server.service.AdminExportService
 import com.maodouchat.server.service.csvCell
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -75,7 +77,9 @@ fun Application.configureAdminEnhanceRouting(
     userTagRepo: UserTagRepository,
     rateLimitStatsRepo: RateLimitStatsRepository,
     fcmPushService: com.maodouchat.server.service.FcmPushService? = null,
-    pushTokenRepo: com.maodouchat.server.repository.PushTokenRepository? = null
+    pushTokenRepo: com.maodouchat.server.repository.PushTokenRepository? = null,
+    exportRepository: AdminExportRepository = AdminExportRepository(),
+    exportService: AdminExportService = AdminExportService(exportRepository),
 ) {
     configureUserTagRoutes(userTagRepo)
 
@@ -107,25 +111,21 @@ fun Application.configureAdminEnhanceRouting(
                         return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("导出时间范围不得超过 90 天"))
                     }
                     val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5_000).coerceIn(1, 10_000)
-                    val (csv, exportedRows) = buildAuditExportCsv(scope, fromMs, toMs, limit)
+                    val export = exportService.auditExportCsv(scope, fromMs, toMs, limit)
                     val fileName = "maodouchat-${scope.lowercase()}-${fromMs}-${toMs}.csv"
-                    transaction {
-                        AuditExportRecords.insert {
-                            it[AuditExportRecords.id] = UUID.randomUUID().toString()
-                            it[AuditExportRecords.actorId] = actorId
-                            it[AuditExportRecords.scope] = scope
-                            it[AuditExportRecords.fromMs] = fromMs
-                            it[AuditExportRecords.toMs] = toMs
-                            // 9.140：此前恒记 0——审计追溯记录行数与实际导出内容不符
-                            it[AuditExportRecords.rowCount] = exportedRows.toLong()
-                            // fileRef 记下载文件名（CSV 流式返回不落盘，保留作为导出标识）
-                            it[AuditExportRecords.fileRef] = fileName
-                            it[AuditExportRecords.requestedAt] = System.currentTimeMillis()
-                        }
-                    }
+                    exportRepository.recordAuditExport(
+                        actorId = actorId,
+                        scope = scope,
+                        fromMs = fromMs,
+                        toMs = toMs,
+                        // 9.140：此前恒记 0——审计追溯记录行数与实际导出内容不符
+                        rowCount = export.rowCount.toLong(),
+                        // fileRef 记下载文件名（CSV 流式返回不落盘，保留作为导出标识）
+                        fileRef = fileName,
+                    )
                     recordAdminAudit(actorId, "ADMIN_AUDIT_TIME_EXPORT", "scope=$scope;from=$fromMs;to=$toMs;limit=$limit")
                     call.response.headers.append(HttpHeaders.ContentDisposition, "attachment; filename=\"$fileName\"")
-                    call.respondText(csv, contentType = io.ktor.http.ContentType.parse("text/csv; charset=utf-8"))
+                    call.respondText(export.body, contentType = io.ktor.http.ContentType.parse("text/csv; charset=utf-8"))
                 }
 
                 // ═══ 限流仪表盘 ═══
@@ -182,24 +182,16 @@ fun Application.configureAdminEnhanceRouting(
                 get("/device-consistency/summary") {
                     if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val userId = call.request.queryParameters["userId"]?.trim()?.takeIf { it.isNotBlank() }
-                    val sequences = transaction {
-                        val q = DeviceEventSequences.selectAll()
-                        (if (userId != null) q.andWhere { DeviceEventSequences.userId eq userId } else q)
-                            .orderBy(DeviceEventSequences.userId to SortOrder.ASC)
-                            .map { row ->
-                                DeviceSeqResponse(
-                                    userId = row[DeviceEventSequences.userId],
-                                    deviceId = row[DeviceEventSequences.deviceId],
-                                    eventType = row[DeviceEventSequences.eventType],
-                                    lastAppliedSeq = row[DeviceEventSequences.lastAppliedSeq],
-                                    lastEventAt = row[DeviceEventSequences.lastEventAt]
-                                )
-                            }
+                    val sequences = exportRepository.deviceSequences(userId).map { row ->
+                        DeviceSeqResponse(
+                            userId = row.userId,
+                            deviceId = row.deviceId,
+                            eventType = row.eventType,
+                            lastAppliedSeq = row.lastAppliedSeq,
+                            lastEventAt = row.lastEventAt,
+                        )
                     }
-                    val anomalyCount = transaction {
-                        val q = DeviceEventConsistencyLog.selectAll()
-                        (if (userId != null) q.andWhere { DeviceEventConsistencyLog.userId eq userId } else q).count()
-                    }
+                    val anomalyCount = exportRepository.deviceAnomalyCount(userId)
                     call.respond(DeviceConsistencySummaryResponse(sequences = sequences, anomalyCount = anomalyCount))
                 }
 
@@ -209,35 +201,19 @@ fun Application.configureAdminEnhanceRouting(
                     val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
                     val status = call.request.queryParameters["status"]?.trim()?.uppercase()?.take(20)
                     val userId = call.request.queryParameters["userId"]?.trim()?.takeIf { it.isNotBlank() }
-                    val events = transaction {
-                        val q = DeviceEventConsistencyLog.selectAll()
-                        val filtered = when {
-                            userId != null && status != null -> q.andWhere {
-                                (DeviceEventConsistencyLog.userId eq userId) and (DeviceEventConsistencyLog.status eq status)
-                            }
-                            userId != null -> q.andWhere { DeviceEventConsistencyLog.userId eq userId }
-                            status != null -> q.andWhere { DeviceEventConsistencyLog.status eq status }
-                            else -> q
-                        }
-                        filtered.orderBy(
-                            DeviceEventConsistencyLog.lastSeenAt to SortOrder.DESC,
-                            DeviceEventConsistencyLog.id to SortOrder.DESC
+                    val events = exportRepository.deviceAnomalies(userId, status, limit, offset).map { row ->
+                        DeviceAnomalyResponse(
+                            id = row.id,
+                            userId = row.userId,
+                            deviceId = row.deviceId,
+                            eventType = row.eventType,
+                            seq = row.seq,
+                            status = row.status,
+                            referenceId = row.referenceId,
+                            firstSeenAt = row.firstSeenAt,
+                            lastSeenAt = row.lastSeenAt,
+                            detail = row.detail,
                         )
-                            .limit(limit, offset)
-                            .map { row ->
-                                DeviceAnomalyResponse(
-                                    id = row[DeviceEventConsistencyLog.id],
-                                    userId = row[DeviceEventConsistencyLog.userId],
-                                    deviceId = row[DeviceEventConsistencyLog.deviceId],
-                                    eventType = row[DeviceEventConsistencyLog.eventType],
-                                    seq = row[DeviceEventConsistencyLog.seq],
-                                    status = row[DeviceEventConsistencyLog.status],
-                                    referenceId = row[DeviceEventConsistencyLog.referenceId],
-                                    firstSeenAt = row[DeviceEventConsistencyLog.firstSeenAt],
-                                    lastSeenAt = row[DeviceEventConsistencyLog.lastSeenAt],
-                                    detail = row[DeviceEventConsistencyLog.detail]
-                                )
-                            }
                     }
                     call.respond(events)
                 }
@@ -461,99 +437,6 @@ object DeviceEventConsistencyGuard {
 // isAdminUser / recordAdminAudit / csvCell 已统一到 AdminSupport.kt（内部共享版本）。
 
 /** 时间范围导出：仅导出元数据/平台明文公告，绝不导出 E2EE 消息密文。返回 CSV 与实际行数。 */
-private fun buildAuditExportCsv(scope: String, fromMs: Long, toMs: Long, limit: Int): Pair<String, Int> {
-    val rows = when (scope) {
-        "ADMIN_AUDIT" -> transaction {
-            ModerationAuditLog.selectAll().where {
-                (ModerationAuditLog.createdAt greaterEq fromMs) and (ModerationAuditLog.createdAt less toMs)
-            }.orderBy(ModerationAuditLog.createdAt to SortOrder.ASC)
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        row[ModerationAuditLog.id], row[ModerationAuditLog.actorId], row[ModerationAuditLog.userId],
-                        row[ModerationAuditLog.action], row[ModerationAuditLog.detail], row[ModerationAuditLog.createdAt]
-                    )
-                }
-        }
-        "RISK_EVENTS" -> transaction {
-            RiskEvents.selectAll().where {
-                (RiskEvents.createdAt greaterEq fromMs) and (RiskEvents.createdAt less toMs)
-            }.orderBy(RiskEvents.createdAt to SortOrder.ASC)
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        row[RiskEvents.id], row[RiskEvents.userId], row[RiskEvents.sourceValue],
-                        row[RiskEvents.ruleId], row[RiskEvents.action], row[RiskEvents.matched],
-                        row[RiskEvents.referenceId], row[RiskEvents.needsReview], row[RiskEvents.createdAt]
-                    )
-                }
-        }
-        "ANNOUNCEMENTS" -> transaction {
-            SystemAnnouncements.selectAll().where {
-                (SystemAnnouncements.createdAt greaterEq fromMs) and (SystemAnnouncements.createdAt less toMs)
-            }.orderBy(SystemAnnouncements.createdAt to SortOrder.ASC)
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        row[SystemAnnouncements.id], row[SystemAnnouncements.title], row[SystemAnnouncements.content],
-                        row[SystemAnnouncements.level], row[SystemAnnouncements.targetAudience],
-                        row[SystemAnnouncements.targetTagId], row[SystemAnnouncements.startsAt],
-                        row[SystemAnnouncements.expiresAt], row[SystemAnnouncements.status],
-                        row[SystemAnnouncements.createdBy], row[SystemAnnouncements.createdAt],
-                        row[SystemAnnouncements.publishedAt], row[SystemAnnouncements.cancelledAt]
-                    )
-                }
-        }
-        "USER_TAGS" -> transaction {
-            val rows = UserTagAssignments.selectAll().where {
-                (UserTagAssignments.createdAt greaterEq fromMs) and (UserTagAssignments.createdAt less toMs)
-            }.orderBy(UserTagAssignments.createdAt to SortOrder.ASC)
-                .limit(limit)
-                .toList()
-            // 8.48 修复 M11：批量回查标签名（此前逐赋值查询 → N+1）
-            val tagIds = rows.map { it[UserTagAssignments.tagId] }.distinct()
-            val tagNameById = if (tagIds.isEmpty()) emptyMap() else
-                UserTags.selectAll().where { UserTags.id inList tagIds }
-                    .associate { it[UserTags.id] to it[UserTags.name] }
-            rows.map { row ->
-                    val tagName = tagNameById[row[UserTagAssignments.tagId]] ?: ""
-                    listOf(
-                        row[UserTagAssignments.tagId], tagName, row[UserTagAssignments.userId],
-                        row[UserTagAssignments.assignmentSource], row[UserTagAssignments.assignedBy],
-                        row[UserTagAssignments.createdAt]
-                    )
-                }
-        }
-        "RATE_LIMIT" -> transaction {
-            RateLimitStatsSnapshots.selectAll().where {
-                (RateLimitStatsSnapshots.bucketStartMs greaterEq fromMs) and
-                    (RateLimitStatsSnapshots.bucketStartMs less toMs)
-            }.orderBy(RateLimitStatsSnapshots.bucketStartMs to SortOrder.ASC)
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        row[RateLimitStatsSnapshots.bucketStartMs], row[RateLimitStatsSnapshots.allowed],
-                        row[RateLimitStatsSnapshots.rejected], row[RateLimitStatsSnapshots.totalBuckets],
-                        row[RateLimitStatsSnapshots.maxBuckets], row[RateLimitStatsSnapshots.maxPerMinute],
-                        row[RateLimitStatsSnapshots.sampledAt]
-                    )
-                }
-        }
-        else -> emptyList()
-    }
-
-    val header = when (scope) {
-        "ADMIN_AUDIT" -> "id,actorId,targetUserId,action,detail,createdAt"
-        "RISK_EVENTS" -> "id,userId,source,ruleId,action,matched,referenceId,needsReview,createdAt"
-        "ANNOUNCEMENTS" -> "id,title,content,level,audience,tagId,startsAt,expiresAt,status,createdBy,createdAt,publishedAt,cancelledAt"
-        "USER_TAGS" -> "tagId,tagName,userId,source,assignedBy,createdAt"
-        "RATE_LIMIT" -> "bucketStartMs,allowed,rejected,totalBuckets,maxBuckets,maxPerMinute,sampledAt"
-        else -> ""
-    }
-    val body = rows.joinToString("\r\n") { row -> row.joinToString(",") { cell -> csvCell(cell) } }
-    // 9.140：连同实际行数返回，供审计导出记录写入真实 rowCount
-    return "\uFEFF$header\r\n$body\r\n" to rows.size
-}
 
 
 

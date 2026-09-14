@@ -35,9 +35,9 @@ class ServerArchitectureTest {
     // 棘轮基线（当前实测值，见 DIRECTION.md 第 0 节）
     // ------------------------------------------------------------------
 
-    /** `plugins/` 下每个文件的 `transaction {` 出现次数。当前合计 49 处 / 17 个文件。 */
+    /** `plugins/` 下每个文件的 `transaction {` 出现次数。当前合计 40 处 / 17 个文件。 */
     private val frozenRouteTransactions: Map<String, Int> = mapOf(
-        "AdminEnhanceRouting.kt" to 12,
+        "AdminEnhanceRouting.kt" to 3,
         "AdminManagementRouting.kt" to 6,
         "DeveloperRouting.kt" to 4,
         "AnnouncementRouting.kt" to 4,

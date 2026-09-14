@@ -167,4 +167,25 @@ class AdminExportService(
         "id,type,title,memberCount,memberRevision,disappearingSeconds",
         repository.chats(limit),
     )
+
+    /**
+     * 审计时间范围导出（BOM + CRLF，与其它导出不同）。
+     *
+     * 该格式是原 `buildAuditExportCsv` 的行为：UTF-8 BOM 开头、`\r\n` 分隔，
+     * 句尾还有一个空行；Excel 依赖 BOM 才不会把中文当乱码。逐字保留。
+     */
+    fun auditExportCsv(scope: String, fromMs: Long, toMs: Long, limit: Int): CsvExport {
+        val rows = repository.auditExportRows(scope, fromMs, toMs, limit)
+        val header = when (scope) {
+            "ADMIN_AUDIT" -> "id,actorId,targetUserId,action,detail,createdAt"
+            "RISK_EVENTS" -> "id,userId,source,ruleId,action,matched,referenceId,needsReview,createdAt"
+            "ANNOUNCEMENTS" ->
+                "id,title,content,level,audience,tagId,startsAt,expiresAt,status,createdBy,createdAt,publishedAt,cancelledAt"
+            "USER_TAGS" -> "tagId,tagName,userId,source,assignedBy,createdAt"
+            "RATE_LIMIT" -> "bucketStartMs,allowed,rejected,totalBuckets,maxBuckets,maxPerMinute,sampledAt"
+            else -> ""
+        }
+        val body = rows.joinToString("\r\n") { row -> encodeRow(row) }
+        return CsvExport(body = "\uFEFF$header\r\n$body\r\n", rowCount = rows.size)
+    }
 }

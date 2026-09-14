@@ -1,5 +1,7 @@
 package com.maodouchat.server.repository
 
+import com.maodouchat.server.db.AnnouncementAcks
+import com.maodouchat.server.db.AuditExportRecords
 import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.ChatParticipants
@@ -13,22 +15,34 @@ import com.maodouchat.server.db.MessagingV2Messages
 import com.maodouchat.server.db.ModerationAuditLog
 import com.maodouchat.server.db.PinnedMessages
 import com.maodouchat.server.db.PushTokens
+import com.maodouchat.server.db.DeviceEventConsistencyLog
+import com.maodouchat.server.db.DeviceEventSequences
+import com.maodouchat.server.db.RateLimitStatsSnapshots
 import com.maodouchat.server.db.Reports
 import com.maodouchat.server.db.RiskEvents
+import com.maodouchat.server.db.SystemAnnouncements
+import com.maodouchat.server.db.UserTagAssignments
+import com.maodouchat.server.db.UserTags
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import com.maodouchat.server.model.ChatType
 import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
 import org.jetbrains.exposed.sql.count
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.util.UUID
 
 /**
  * M2：管理后台 CSV 导出的**唯一 SQL/Exposed 边界**。
@@ -545,5 +559,191 @@ class AdminExportRepository(
                 row[Chats.disappearingMessageSeconds].toString(),
             )
         }
+    }
+
+    // ── 审计时间范围导出（原 plugins/AdminEnhanceRouting.buildAuditExportCsv） ──
+
+    /**
+     * 按 scope 取审计导出行。
+     *
+     * 原实现是 5 个并列的 `transaction { }` 分支，每次调用只可能命中一个；
+     * 这里收成一个事务包住 `when`——语义等价（同样只有一条查询在事务里），
+     * 但少 4 个「route 层自己开事务」的点。
+     */
+    fun auditExportRows(scope: String, fromMs: Long, toMs: Long, limit: Int): List<List<Any?>> = transaction {
+        when (scope) {
+            "ADMIN_AUDIT" -> ModerationAuditLog.selectAll().where {
+                (ModerationAuditLog.createdAt greaterEq fromMs) and (ModerationAuditLog.createdAt less toMs)
+            }.orderBy(ModerationAuditLog.createdAt to SortOrder.ASC)
+                .limit(limit)
+                .map { row ->
+                    listOf(
+                        row[ModerationAuditLog.id], row[ModerationAuditLog.actorId], row[ModerationAuditLog.userId],
+                        row[ModerationAuditLog.action], row[ModerationAuditLog.detail], row[ModerationAuditLog.createdAt],
+                    )
+                }
+
+            "RISK_EVENTS" -> RiskEvents.selectAll().where {
+                (RiskEvents.createdAt greaterEq fromMs) and (RiskEvents.createdAt less toMs)
+            }.orderBy(RiskEvents.createdAt to SortOrder.ASC)
+                .limit(limit)
+                .map { row ->
+                    listOf(
+                        row[RiskEvents.id], row[RiskEvents.userId], row[RiskEvents.sourceValue],
+                        row[RiskEvents.ruleId], row[RiskEvents.action], row[RiskEvents.matched],
+                        row[RiskEvents.referenceId], row[RiskEvents.needsReview], row[RiskEvents.createdAt],
+                    )
+                }
+
+            "ANNOUNCEMENTS" -> SystemAnnouncements.selectAll().where {
+                (SystemAnnouncements.createdAt greaterEq fromMs) and (SystemAnnouncements.createdAt less toMs)
+            }.orderBy(SystemAnnouncements.createdAt to SortOrder.ASC)
+                .limit(limit)
+                .map { row ->
+                    listOf(
+                        row[SystemAnnouncements.id], row[SystemAnnouncements.title], row[SystemAnnouncements.content],
+                        row[SystemAnnouncements.level], row[SystemAnnouncements.targetAudience],
+                        row[SystemAnnouncements.targetTagId], row[SystemAnnouncements.startsAt],
+                        row[SystemAnnouncements.expiresAt], row[SystemAnnouncements.status],
+                        row[SystemAnnouncements.createdBy], row[SystemAnnouncements.createdAt],
+                        row[SystemAnnouncements.publishedAt], row[SystemAnnouncements.cancelledAt],
+                    )
+                }
+
+            "USER_TAGS" -> {
+                val rows = UserTagAssignments.selectAll().where {
+                    (UserTagAssignments.createdAt greaterEq fromMs) and (UserTagAssignments.createdAt less toMs)
+                }.orderBy(UserTagAssignments.createdAt to SortOrder.ASC)
+                    .limit(limit)
+                    .toList()
+                // 8.48 修复 M11：批量回查标签名（此前逐赋值查询 → N+1）
+                val tagIds = rows.map { it[UserTagAssignments.tagId] }.distinct()
+                val tagNameById = if (tagIds.isEmpty()) {
+                    emptyMap()
+                } else {
+                    UserTags.selectAll().where { UserTags.id inList tagIds }
+                        .associate { it[UserTags.id] to it[UserTags.name] }
+                }
+                rows.map { row ->
+                    val tagName = tagNameById[row[UserTagAssignments.tagId]] ?: ""
+                    listOf(
+                        row[UserTagAssignments.tagId], tagName, row[UserTagAssignments.userId],
+                        row[UserTagAssignments.assignmentSource], row[UserTagAssignments.assignedBy],
+                        row[UserTagAssignments.createdAt],
+                    )
+                }
+            }
+
+            "RATE_LIMIT" -> RateLimitStatsSnapshots.selectAll().where {
+                (RateLimitStatsSnapshots.bucketStartMs greaterEq fromMs) and
+                    (RateLimitStatsSnapshots.bucketStartMs less toMs)
+            }.orderBy(RateLimitStatsSnapshots.bucketStartMs to SortOrder.ASC)
+                .limit(limit)
+                .map { row ->
+                    listOf(
+                        row[RateLimitStatsSnapshots.bucketStartMs], row[RateLimitStatsSnapshots.allowed],
+                        row[RateLimitStatsSnapshots.rejected], row[RateLimitStatsSnapshots.totalBuckets],
+                        row[RateLimitStatsSnapshots.maxBuckets], row[RateLimitStatsSnapshots.maxPerMinute],
+                        row[RateLimitStatsSnapshots.sampledAt],
+                    )
+                }
+
+            else -> emptyList()
+        }
+    }
+
+    /** 审计导出追溯记录（9.140：rowCount 记真实行数）。 */
+    fun recordAuditExport(
+        actorId: String,
+        scope: String,
+        fromMs: Long,
+        toMs: Long,
+        rowCount: Long,
+        fileRef: String,
+    ): Unit = transaction {
+        AuditExportRecords.insert {
+            it[AuditExportRecords.id] = UUID.randomUUID().toString()
+            it[AuditExportRecords.actorId] = actorId
+            it[AuditExportRecords.scope] = scope
+            it[AuditExportRecords.fromMs] = fromMs
+            it[AuditExportRecords.toMs] = toMs
+            it[AuditExportRecords.rowCount] = rowCount
+            it[AuditExportRecords.fileRef] = fileRef
+            it[AuditExportRecords.requestedAt] = System.currentTimeMillis()
+        }
+    }
+
+    // ── 设备事件一致性（原 plugins/AdminEnhanceRouting 的 handler 内事务） ──
+
+    data class DeviceSequenceRow(
+        val userId: String,
+        val deviceId: Int,
+        val eventType: String,
+        val lastAppliedSeq: Long,
+        val lastEventAt: Long,
+    )
+
+    fun deviceSequences(userId: String?): List<DeviceSequenceRow> = transaction {
+        val q = DeviceEventSequences.selectAll()
+        (if (userId != null) q.andWhere { DeviceEventSequences.userId eq userId } else q)
+            .orderBy(DeviceEventSequences.userId to SortOrder.ASC)
+            .map { row ->
+                DeviceSequenceRow(
+                    userId = row[DeviceEventSequences.userId],
+                    deviceId = row[DeviceEventSequences.deviceId],
+                    eventType = row[DeviceEventSequences.eventType],
+                    lastAppliedSeq = row[DeviceEventSequences.lastAppliedSeq],
+                    lastEventAt = row[DeviceEventSequences.lastEventAt],
+                )
+            }
+    }
+
+    fun deviceAnomalyCount(userId: String?): Long = transaction {
+        val q = DeviceEventConsistencyLog.selectAll()
+        (if (userId != null) q.andWhere { DeviceEventConsistencyLog.userId eq userId } else q).count()
+    }
+
+    data class DeviceAnomalyRow(
+        val id: String,
+        val userId: String,
+        val deviceId: Int,
+        val eventType: String,
+        val seq: Long,
+        val status: String,
+        val referenceId: String?,
+        val firstSeenAt: Long,
+        val lastSeenAt: Long,
+        val detail: String?,
+    )
+
+    fun deviceAnomalies(userId: String?, status: String?, limit: Int, offset: Long): List<DeviceAnomalyRow> = transaction {
+        val q = DeviceEventConsistencyLog.selectAll()
+        val filtered = when {
+            userId != null && status != null -> q.andWhere {
+                (DeviceEventConsistencyLog.userId eq userId) and (DeviceEventConsistencyLog.status eq status)
+            }
+            userId != null -> q.andWhere { DeviceEventConsistencyLog.userId eq userId }
+            status != null -> q.andWhere { DeviceEventConsistencyLog.status eq status }
+            else -> q
+        }
+        filtered.orderBy(
+            DeviceEventConsistencyLog.lastSeenAt to SortOrder.DESC,
+            DeviceEventConsistencyLog.id to SortOrder.DESC,
+        )
+            .limit(limit, offset)
+            .map { row ->
+                DeviceAnomalyRow(
+                    id = row[DeviceEventConsistencyLog.id],
+                    userId = row[DeviceEventConsistencyLog.userId],
+                    deviceId = row[DeviceEventConsistencyLog.deviceId],
+                    eventType = row[DeviceEventConsistencyLog.eventType],
+                    seq = row[DeviceEventConsistencyLog.seq],
+                    status = row[DeviceEventConsistencyLog.status],
+                    referenceId = row[DeviceEventConsistencyLog.referenceId],
+                    firstSeenAt = row[DeviceEventConsistencyLog.firstSeenAt],
+                    lastSeenAt = row[DeviceEventConsistencyLog.lastSeenAt],
+                    detail = row[DeviceEventConsistencyLog.detail],
+                )
+            }
     }
 }
