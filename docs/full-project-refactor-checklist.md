@@ -1189,6 +1189,9 @@ x86_64（arm64-v8a 保留给本机 Apple Silicon 模拟器）。
   且 `gh release list` 显示最新发布仍是 `v1.2.0`（2026-08-29）——**没有产出任何 release**。
   该验证用一个临时分支 + 空提交完成，探针分支与空提交事后已删除（`not on main`）。
   这条同时证明 `gh api` + `GITHUB_TOKEN` + job 级 `actions: read` 权限在 Actions 内可用。
+- 本记录所在 commit `16d14ea2`（含上述校正）的 run
+  **[34791550616](https://github.com/xalor888/Maodouchat/actions/runs/34791550616)** 同为
+  **success**，`Android Instrumented` / `Android` / `Server` / `Docker Compose Config` 四 job 全绿。
 
 **Deletion**：无（探针分支 `probe-release-gate` 与其空提交已删除）。
 
