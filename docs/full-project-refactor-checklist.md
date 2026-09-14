@@ -1724,3 +1724,48 @@ G8 的棘轮把两类债混在了一个数字里：`ui/` 下直连持久层 **20
    `已过期的会话必须销毁本地解密缓存：[read, isExpired, touch, sleep:60000]`；
 2. 基线更新过程中棘轮自己抓到一次 off-by-one：我用 `read().split('\n')` 数行（5049），
    而测试用 `readLines().size`（5048）——门禁当场报 `expected 5048 but was…`，已按测试口径统一。
+
+### G10 — 修掉密聊心跳泄漏的取消语义（G9 抽出的逻辑终于可测，并立刻抓到真缺陷）
+
+**背景**：G9 把密聊心跳从 `ChatDetailRoute` 的 `LaunchedEffect` 抽成
+`security/SecretChatActivityHeartbeat.kt`，当时就指出 `runCatching` 可能吞掉取消。
+本轮把它做成**红先绿后**的证据。
+
+**红（修复前，实测）**
+
+新增用例 `cancellation during the initial read performs no write at all`：让首次读取挂起，
+随即 `cancelAndJoin()`。当前实现跑出：
+
+```
+取消之后不得再有 destroy/touch —— touchActivity 会延长密聊 TTL：[touch]
+expected:<[]> but was:<[touch]>
+```
+
+**为什么这是安全相关的真缺陷**：`touchActivity` 写的是 `lastActivityAt`，而密聊 TTL 基于它判定过期。
+取消后仍写一次活动时间，等于让一次**泄漏的心跳给已离开 / 已销毁的会话续命**——TTL 与「已读销毁」
+的时间语义被悄悄延长。它此前埋在 5061 行的 Composable 里，没有任何测试能看见。
+
+**修复（最小改动，对齐项目自身惯例）**
+
+`SecretSessionTtl.destroySession` 的既有写法是
+`catch (error: CancellationException) { throw error } catch (_: Exception) { ... }`，
+而抽出来的 `runCatching { }` 恰好违背它。改法：
+1. 把 `runCatching` 换成显式 `try/catch`，**先**捕获并重抛 `CancellationException`，普通异常照旧吞掉；
+2. 进入时与**每次 `touch` 前**都 `currentCoroutineContext().ensureActive()`——
+   `touch` 是注入的回调，不保证协作取消，不能把「取消后无副作用」寄托在它身上。
+
+**绿（实测）**：7 tests / 0 failures（原 5 个 + 新增 2 个取消用例：
+初次读取期间取消→零回调、等待期间取消→不再有后续写入）。
+
+**双向反证（都实测）**
+1. 修复缺失（即上面的红）：取消后仍出现 `touch`；
+2. 把普通异常也一并重抛 → `a failed read does not stop the heartbeat` 红：
+   `java.lang.IllegalStateException: db locked`——证明「取消重抛」与「普通失败吞掉」两个分支都被覆盖，
+   不是把两者一起放过。
+
+**顺带记录（本轮刻意不扩大修改范围）**：`app/src/main` 里有 **541 处 `runCatching {`**，
+但只有 **10 处**显式处理取消。也就是说这类「把取消一起吞掉」的写法在仓库里是普遍模式，
+本轮只修了这一处可验证的点；其余需要单独评估（有些 `runCatching` 包的是非挂起代码，不构成问题）。
+
+**实测**：app JVM **1511 tests / 0 failures**（原 1509，+2）；`:core:testing` 5 / 0；
+server **419 / 0**（本轮无服务端改动，Gradle 对该任务判 UP-TO-DATE，非新跑）。

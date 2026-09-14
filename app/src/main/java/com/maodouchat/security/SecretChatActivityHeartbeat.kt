@@ -2,6 +2,9 @@ package com.maodouchat.security
 
 import android.content.Context
 import com.maodouchat.MaodouchatApp
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /**
  * B2 密聊活动心跳。
@@ -36,13 +39,27 @@ object SecretChatActivityHeartbeat {
     ) {
         // 进入前即时校验：会话已无活动过期时立即销毁本地解密缓存，
         // 再以本次进入为新的活动起点——不依赖 15 分钟周期清扫的滞后窗口。
-        runCatching {
+        //
+        // G10：不要用 `runCatching` 包这段。`runCatching` 会把 `CancellationException`
+        // 一起吞掉，于是任务被取消后仍会往下走一次 `touch`；而 `touchActivity` 会**延长
+        // 密聊 TTL**——等于让一次泄漏的心跳给已离开/已销毁的会话续命。
+        // 项目自身的惯例是显式重抛取消，见 `SecretSessionTtl.destroySession`。
+        currentCoroutineContext().ensureActive()
+        try {
             val lastActivityAt = readLastActivityAt(chatId)
+            currentCoroutineContext().ensureActive()
             if (lastActivityAt != null && isExpired(chatId, lastActivityAt)) {
                 destroy(chatId)
             }
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (_: Exception) {
+            // 普通读取失败（数据库锁住等）按抽出前的行为吞掉，不影响心跳。
         }
         while (true) {
+            // 每次写活动前重新确认未取消：`touch` 是注入的，不保证协作取消，
+            // 不能把「不会在取消后产生副作用」寄托在回调自己身上。
+            currentCoroutineContext().ensureActive()
             touch(chatId)
             sleep(intervalMs)
         }

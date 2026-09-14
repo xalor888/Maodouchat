@@ -1,5 +1,11 @@
 package com.maodouchat.security
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -100,6 +106,68 @@ class SecretChatActivityHeartbeatTest {
                 "心跳间隔必须保持 60s（原实现值）：${h.events}",
             )
         }
+    }
+
+    /**
+     * G10 回归：心跳被取消后**不得再产生任何副作用**。
+     *
+     * 这是取消语义的核心：`touchActivity` 会延长密聊 TTL。如果取消后还能写一次活动时间，
+     * 「离开会话/销毁会话」就可能被一次泄漏的心跳续命——TTL 语义被悄悄破坏。
+     *
+     * 当前实现用 `runCatching { }` 包住首次读取，会把取消异常一起吞掉，随后 `while(true)`
+     * 仍会调用一次（非协作的）`touch`。这个用例就是钉住它。
+     */
+    @Test
+    fun `cancellation during the initial read performs no write at all`() = runTest {
+        val h = Harness()
+        val readStarted = CompletableDeferred<Unit>()
+
+        val job = launch {
+            SecretChatActivityHeartbeat.run(
+                chatId = CHAT,
+                readLastActivityAt = {
+                    readStarted.complete(Unit)
+                    // 读取挂起在这里，模拟真实的数据库 IO 尚未返回。
+                    awaitCancellation()
+                },
+                isExpired = { _, _ -> h.events += "isExpired"; false },
+                destroy = { h.events += "destroy" },
+                touch = { h.events += "touch" },
+                // 用默认的 delay：取消会在这里被观察到，循环随之结束（不会空转）。
+            )
+        }
+
+        readStarted.await()
+        job.cancelAndJoin()
+
+        assertEquals(
+            emptyList(),
+            h.events,
+            "取消之后不得再有 destroy/touch —— touchActivity 会延长密聊 TTL：${h.events}",
+        )
+    }
+
+    @Test
+    fun `cancellation while waiting performs no further write`() = runTest {
+        val h = Harness()
+        val job = launch {
+            SecretChatActivityHeartbeat.run(
+                chatId = CHAT,
+                readLastActivityAt = { h.events += "read"; null },
+                isExpired = { _, _ -> false },
+                destroy = { h.events += "destroy" },
+                touch = { h.events += "touch" },
+            )
+        }
+
+        runCurrent()
+        assertEquals(1, h.events.count { it == "touch" }, "应当先写一次活动：${h.events}")
+
+        job.cancelAndJoin()
+        advanceTimeBy(3 * SecretChatActivityHeartbeat.HEARTBEAT_INTERVAL_MS)
+        runCurrent()
+
+        assertEquals(1, h.events.count { it == "touch" }, "取消后不得再写活动：${h.events}")
     }
 
     private companion object {
