@@ -2011,12 +2011,43 @@ outbox 线路边界（G7）、加密准备器（G13）、解密处理器（G14�
   而是实现里的 `sessionChanged + tokenChanged`（撤销的会话数 **加上** 一并吊销的 token 数）。
   安全网按这个真实语义断言。
 
-**本轮未做（下一步，棘轮尚未下调）**：把 6 处事务按职责搬进 `service/`/`repository/`
-（三处审计写入可合成一个 audit-log writer，两处读查询合成会话总览查询，一处是元数据搜索查询），
-然后把 `frozenRouteTransactions["AdminManagementRouting.kt"]` 从 6 精确下调、必要时从
-`frozenPluginsImportingExposed` 移除，并补「行为被改坏 → 新测试红」与「往 plugins 加事务 → 棘轮红」两个反证。
+**第二部分（同一目标第二轮）：搬迁 + 棘轮精确下调**
 
-**CI 实测**：run **34875265633**（headSha `876ec82d`）→ success，四 job 全绿
-（run id 由 `gh run list`/`gh run view` 实测取得）。
+6 处事务按职责收进新 owner `repository/AdminManagementRepository.kt`：
+- 三处**同样形状**的审计写入 → 收敛成一个 `recordAudit(actorId, userId, action, detail)`
+  （吊销 / 广播 / 强制下线三处共用）；
+- 会话总览的两处读查询 → `signalDevices(userId)` 与 `pushTokens(userId)`；
+- 管理搜索的一处读查询 → `searchMessageMetadata(filter)`，返回**只含元数据**的行对象
+  （刻意没有正文字段；「排除密聊 + 只取 MESSAGE」这条约束就在 SQL 里，被安全网钉住）。
 
-**实测**：server **430 / 0**（原 422，+8）。
+响应 JSON 的形状仍留在路由里——**路由管 HTTP，repository 管 SQL**，边界没有倒过来。
+
+顺带按 DIRECTION M2 第 2 项把 `plugins/AdminSupport.kt` 的 `escapeLikePattern` **下沉**到
+`repository/SqlLikePattern.kt`（它是纯 SQL 关注点；留在 plugins 会逼 repository 反向依赖 plugins），
+4 个使用方改为从新位置导入。
+
+**结果（实测）**
+
+| 指标 | 前 | 后 |
+|------|----|----|
+| `AdminManagementRouting.kt` 事务数 | 6 | **0** |
+| 该文件 import Exposed | 是（14 条） | **否，一条不剩** |
+| `plugins/` 事务总数 / 文件数 | 37 / 16 | **31 / 15** |
+| `plugins/` 中 import Exposed 的文件数 | 34 | **33** |
+
+棘轮是**删条目**而不是放宽规则：`frozenRouteTransactions` 与 `frozenPluginsImportingExposed`
+里该文件的两条都已移除。
+
+**反证（两次，实测）**
+1. 把 `recordAudit` 写入的 action 强制改错 → **3 个用例红**，报文直接指出被破坏的保证：
+   `吊销必须留下审计行（actor→target） ==> expected: <[(u1, u2)]> but was: <[]>`、
+   `广播必须留下审计行`、`强制下线必须留下审计行`；
+2. 往 `plugins/` 新增一个带 `transaction { }` 的文件 → **两个棘轮守卫都红**：
+   `handler 直写事务 实际 = 16 项 / 基线 = 15 项，新增：ProbeLeakRouting.kt` 与
+   `plugins 内直接 import Exposed 的文件 实际 = 34 项 / 基线 = 33 项`，
+   且报文自带方向：「必须先改代码，不能改基线」。探针文件已删除。
+
+**CI 实测**：第一部分 run **34875265633**（`876ec82d`）、第二部分 run **34879702525**（`b1a2ffa6`）
+→ 均 success、四 job 全绿（run id 均由 `gh run list`/`gh run view` 实测取得）。
+
+**实测**：server **430 / 0**（重构前后均 430 且全绿——搬迁没有改变行为）。
