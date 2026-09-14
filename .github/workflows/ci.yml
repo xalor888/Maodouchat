@@ -159,6 +159,13 @@ jobs:
       - name: Architecture check (A01 module dependency gate)
         run: ./gradlew checkArchitecture --no-daemon --console=plain
 
+      # M6：客户端架构门禁 + 热点棘轮。此前 :core:testing 被 include 进 settings，但
+      # 没有任何模块依赖它、CI 也从不调用它的 test 任务，于是 A01 的类级 ArchUnit 规则
+      # **从未在 CI 上执行过**（第三次「门禁不门禁」）。这一步让它真正运行：
+      # ArchUnit 规则 + ClientHotspotRatchetTest（热点行数 / UI 直连持久层次数，精确相等棘轮）。
+      - name: Client architecture gate and hotspot ratchet (A01/M6)
+        run: ./gradlew :core:testing:test --no-daemon --console=plain
+
       - name: Navigation registration check (P08 route gate)
         run: python3 scripts/check-nav-registration.py
 

@@ -726,7 +726,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [ ] 每个 domain command/query 有成功、失败、取消、重复和账号切换测试。
 - [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试。**G7 续已补掉第 9 条**（`MessagingV2OutboxPlaintextBoundaryTest`，2 例 + 双向反证）、第 5/6/7 条（`MessagingV2InboxSynchronizerTest`，3 例 + 三向反证）与第 2 条（`MessagingV2RepositoryTest` 的原子性回滚用例 + 提前提交反证）；第 4 轮更正了两条**假缺口**（21/24 其实早有 `ConversationLocalStateCoordinatorTest` 覆盖，是我第一轮按文件名收集候选用例时漏了 `conversation/**`），缺口降为 2 条）；第 6 轮补掉最后一条真测试缺口——不变量 3（新增 `/api/v2/messages` 的第一个 HTTP 级测试 + 真实 WebSocket 收帧 + 注入反证），缺口降为 **1 条**（只剩 17 的后半句，属契约决策）。
 - [ ] reducer/state machine 使用 fake clock 和确定性 dispatcher。
-- [~] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖（客户端：`core/testing/ArchitectureTest.kt` ArchUnit 2 条 + 根 `checkArchitecture` 模块依赖；**服务端已补 `server/src/test/.../architecture/ServerArchitectureTest.kt`**，随 `server:test` 自动进 CI：2 条绝对不变量 + 5 条精确相等棘轮，实测注入违规会红、基线过期也会红，见 M1 记录）。
+- [~] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖（客户端：`core/testing/ArchitectureTest.kt` ArchUnit 2 条 + 根 `checkArchitecture` 模块依赖；**服务端已补 `server/src/test/.../architecture/ServerArchitectureTest.kt`**，随 `server:test` 自动进 CI：2 条绝对不变量 + 5 条精确相等棘轮，实测注入违规会红、基线过期也会红，见 M1 记录）；**G8** 补：客户端 `:core:testing` 的 A01 规则此前从未在 CI 执行（已接进 CI），并新增可证伪的热点棘轮 `ClientHotspotRatchetTest`（热点行数 5061/3131/2298、UI 直连持久层 38 文件/200 处，精确相等）。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
 
 ### Q02 数据库与迁移
@@ -1628,3 +1628,45 @@ TLS: Let's Encrypt, CN=chat.mdou.me, 有效期至 2026-11-18
 **仍未做（下一步）**：只剩 17 的后半句（「可选 bot/service 后续失败不得把已提交人类消息
 变成发送失败」）——查证结论是**客户端与服务端都没有该实现**，属于契约决策（补实现或改文档），
 不属于「补测试」范畴。
+
+### G8 — 客户端假门禁转真 + 热点棘轮（M6 第一片）
+
+**Scope**：DIRECTION M6 第一步。先让客户端的架构门禁**真的运行**，再把热点量化成棘轮。
+
+**已查实：这是本项目第三次「门禁不门禁」**
+
+`:core:testing` 被 `include` 进 `settings.gradle.kts`，但——
+- **没有任何模块依赖它**（`grep -rn "core:testing" --include=*.kts` 只命中 settings 自己）；
+- **CI 从不调用它的 test 任务**（Android job 只跑 `:app:compileDebugKotlin :app:testDebugUnitTest`、
+  `checkArchitecture`、python 门禁、lint、assemble）。
+
+于是 `core/testing/.../ArchitectureTest.kt`（A01 客户端类级 ArchUnit 规则）**从未在 CI 上执行过**。
+前两次同类问题：仪器测试从不运行（G3）、追溯门禁因 Gradle 不把文档当输入而从不重跑（G7）。
+
+**并且它即便运行也几乎不会失败**：core/domain 模块的 build 文件里没有 androidx/app 依赖，
+想依赖 `com.maodouchat.ui..` 或 `androidx..` 的代码**根本编译不过**——真正该拦的
+「有人往 core 模块加 Android 依赖」靠的是 build 文件，不是这两条 ArchUnit 规则。
+所以「让门禁运行」本身收益有限，真正需要的是**可证伪的棘轮**。
+
+**Files**
+- 新增 `core/testing/src/test/kotlin/com/maodouchat/core/testing/ClientHotspotRatchetTest.kt`
+- 修改 `core/testing/build.gradle.kts`（把被扫描的源码声明为 test 输入）
+- 修改 `.github/workflows/ci.yml`（新增 `:core:testing:test` 步骤）
+- 修改本清单 Q01 / U02
+
+**棘轮内容（精确相等，只许下降）**
+- 三个热点文件行数：`ChatDetailRoute.kt` 5061、`ChatDetailViewModel.kt` 3131、`GroupPlayPolicy.kt` 2298。
+- `app/src/main/java/com/maodouchat/ui/` 下 `database.` / `secretChatDao` / `MaodouchatApp`
+  的出现次数，**实测基线 38 个文件 / 200 处**——这就是台账 U02
+  「平台动作通过 effect handler 执行，不在 Composable 内直接写库」尚未达标的具体量化
+  （最重的：`ChatDetailViewModel.kt` 36、`ChatListPorts.kt` 26、`SettingsSubScreens.kt` 11）。
+  注：我最初凭一次 grep **猜**了基线（1 个文件 2 处），被门禁当场打回实际值——
+  棘轮必须**测量**得到，不能拍脑袋。
+
+**反证（实测，三条）**
+1. 往 `GroupPlayPolicy.kt` 追加两行 → 红：`expected: <{}> but was: <{…GroupPlayPolicy.kt=2300}>`；
+2. 给 `SettingsViewModel.kt` 加一处 `database.` → 红：UI 直连基线被打回实际值；
+3. **顺带抓到棘轮自己的可靠性缺陷**：第一次注入探针后 `:core:testing:test` **660ms「BUILD SUCCESSFUL」**，
+   因为 Gradle 不知道这些 app 源码是 test 的输入，判了 UP-TO-DATE（与 G7 同类）。
+   已在 `core/testing/build.gradle.kts` 里把 `ui/` 目录与三个热点文件声明为输入；
+   修完再测，注入立刻变红（6s）。
