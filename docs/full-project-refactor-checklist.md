@@ -764,7 +764,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [ ] 生产签名 Secret 缺失必须失败，禁止回退 debug 签名。
 - [ ] 产出 SBOM、签名证书信息、checksum 和可复现构建记录。
 - [ ] Android 26、当前稳定 Android、target SDK 真机验收。
-- [~] 上线前完成 backup -> upgrade -> rollback/restore 演练（**G6**：`scripts/rehearse-pg-restore.sh` 用与生产 backup 相同的 `pg_dump --create --format=custom` 参数做 dump→restore 往返，逐表行数/内容/外键/索引比对，并含三类负面用例；已在本机 PG16 与 CI 的 PG16 service 上真跑通过。演练还实测出生产脚本的完整性检查**不够强**：`pg_restore --list` 只读归档尾部目录，截断/损坏的数据块照样通过——已在 `backup-production.sh` 与 `restore-production.sh` 补上「整档读一遍」。**仍缺**：生产机上的真实演练。G6 申请了一次部署访问，但该主机 sshd 只广播 `password`（公钥认证未启用），中介安装的一次性密钥无法使用；未做任何生产写入，访问已归还）。
+- [~] 上线前完成 backup -> upgrade -> rollback/restore 演练（**G6**：`scripts/rehearse-pg-restore.sh` 用与生产 backup 相同的 `pg_dump --create --format=custom` 参数做 dump→restore 往返，逐表行数/内容/外键/索引比对，并含三类负面用例；已在本机 PG16 与 CI 的 PG16 service 上真跑通过。演练还实测出生产脚本的完整性检查**不够强**：`pg_restore --list` 只读归档尾部目录，截断/损坏的数据块照样通过——已在 `backup-production.sh` 与 `restore-production.sh` 补上「整档读一遍」。**仍缺**：生产机上的真实演练。G6 申请了一次部署访问，但该主机 sshd 只广播 `password`（公钥认证未启用），中介安装的一次性密钥无法使用；未做任何生产写入，访问已归还。公开探针已只读核对：`/health/live` 与 `/health/ready` 均 200、DB 与 storage 正常，但生产 ready 的 checks **缺少 `migrations`/`backgroundTasks`**，说明生产构建比 main 旧——迁移版本可见性缺失，正是「先升级再谈发布」要解决的）。
 
 ## 12. 多 Agent 并行执行模式
 
@@ -1434,7 +1434,21 @@ dump 一个**停在 v3** 的真实库（用真实迁移链只跑到 v3 + 种子�
 - 演练自带 `KEEP`/cleanup，跑完不留 `maodou_rehearse_*` 库（本机已核对）
 
 **生产侧（只读，未做任何写入）**
-申请了一次部署访问，准备用只读模式核对生产可恢复能力。结果：
+
+**公开探针（无需 SSH，已实测）**
+```
+GET https://chat.mdou.me/health/live   → 200 {"status":"ok","timestamp":...}
+GET https://chat.mdou.me/health/ready  → 200 {"status":"ready","checks":{"database":"ok","storage":"ok"}}
+TLS: Let's Encrypt, CN=chat.mdou.me, 有效期至 2026-11-18
+```
+**这同时暴露了一条值得注意的事实**：生产 `/health/ready` 的 `checks` 只有 `database` + `storage`，
+而**当前 main 的 ready 探针还包含 `migrations` 与 `backgroundTasks`**（本轮在同一份代码上启动本地
+服务实测为 `{"database":"ok","migrations":"ok","storage":"ok","backgroundTasks":"ok"}`）。
+也就是说**生产跑的是比 main 旧的构建**，与「生产仍用 /root/maodouchat-v1.1.0 预构建包」一致。
+生产数据库与服务本身是健康的；缺的是迁移版本可见性。
+
+**SSH 侧（被基础设施挡住）**：申请了一次部署访问，准备用只读模式跑
+`backup --list/--dry-run`、`restore --dry-run`。结果：
 - `ssh -F <config> keepgoal-香港01` 报 `hostname contains invalid characters`——别名里的非 ASCII
   字符在默认 locale 下解析失败，`LC_ALL=C` 可绕过；
 - 绕过之后 `Authentications that can continue: password`：该主机（OpenSSH_8.2p1 Ubuntu）
