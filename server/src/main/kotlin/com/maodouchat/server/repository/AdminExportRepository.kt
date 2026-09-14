@@ -2,6 +2,7 @@ package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.BotApps
+import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.ChatUserSettings
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.GroupPollVotes
@@ -10,6 +11,7 @@ import com.maodouchat.server.db.BotCommandLogs
 import com.maodouchat.server.db.Friendships
 import com.maodouchat.server.db.MessagingV2Messages
 import com.maodouchat.server.db.ModerationAuditLog
+import com.maodouchat.server.db.PinnedMessages
 import com.maodouchat.server.db.PushTokens
 import com.maodouchat.server.db.Reports
 import com.maodouchat.server.db.RiskEvents
@@ -18,9 +20,12 @@ import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import com.maodouchat.server.model.ChatType
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.andWhere
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
 import org.jetbrains.exposed.sql.count
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -436,5 +441,109 @@ class AdminExportRepository(
                     row[Users.email].take(3) + "***",
                 )
             }
+    }
+
+    /** 邀请元数据 only — no message bodies；token 只给前 12 位。 */
+    fun groupInvites(limit: Int): List<List<Any?>> = transaction {
+        Chats.selectAll()
+            .where { Chats.groupInviteToken.isNotNull() }
+            .limit(limit)
+            .map { row ->
+                listOf(
+                    row[Chats.id],
+                    (row[Chats.groupInviteToken] ?: "").take(12),
+                    row[Chats.groupInviteExpiresAt].toString(),
+                    row[Chats.groupInviteMaxUses].toString(),
+                    row[Chats.groupInviteUseCount].toString(),
+                )
+            }
+    }
+
+    fun restrictedUsers(limit: Int): List<List<Any?>> {
+        val now = System.currentTimeMillis()
+        return transaction {
+            Users.selectAll()
+                .where {
+                    (Users.messageRestrictedUntil greater now) or
+                        (Users.postRestrictedUntil greater now) or
+                        (Users.suspendedUntil greater now)
+                }
+                .limit(limit)
+                .map { row ->
+                    listOf(
+                        row[Users.id],
+                        row[Users.messageRestrictedUntil].toString(),
+                        row[Users.postRestrictedUntil].toString(),
+                        row[Users.suspendedUntil].toString(),
+                    )
+                }
+        }
+    }
+
+    fun pollVotes(limit: Int): List<List<Any?>> = transaction {
+        GroupPollVotes.selectAll()
+            .limit(limit)
+            .map { row ->
+                listOf(
+                    row[GroupPollVotes.pollId],
+                    row[GroupPollVotes.userId],
+                    row[GroupPollVotes.optionIndex].toString(),
+                    row[GroupPollVotes.votedAt].toString(),
+                )
+            }
+    }
+
+    /** 置顶消息元数据 only — no message bodies / E2EE plaintext。 */
+    fun pinnedMessages(limit: Int): List<List<Any?>> = transaction {
+        PinnedMessages.selectAll()
+            .andWhere {
+                PinnedMessages.chatId notInSubQuery (
+                    Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
+                )
+            }
+            .orderBy(PinnedMessages.pinnedAt to SortOrder.DESC)
+            .limit(limit)
+            .map { row ->
+                listOf(
+                    row[PinnedMessages.chatId],
+                    row[PinnedMessages.messageId],
+                    row[PinnedMessages.pinnedBy],
+                    row[PinnedMessages.pinnedAt].toString(),
+                )
+            }
+    }
+
+    fun chats(limit: Int): List<List<Any?>> = transaction {
+        val chats = Chats.selectAll()
+            .where { Chats.chatType neq ChatType.SECRET }
+            .orderBy(Chats.memberRevision to SortOrder.DESC)
+            .limit(limit)
+            .toList()
+        // 8.48 修复 H2：GROUP BY 批量成员计数（此前逐会话 count → 最多 1 万次查询）
+        val chatIds = chats.map { it[Chats.id] }
+        val membersByChat = if (chatIds.isEmpty()) {
+            emptyMap()
+        } else {
+            ChatParticipants
+                .slice(ChatParticipants.chatId, ChatParticipants.userId.count())
+                .selectAll()
+                .where { ChatParticipants.chatId inList chatIds }
+                .groupBy(ChatParticipants.chatId)
+                .associate { it[ChatParticipants.chatId] to it[ChatParticipants.userId.count()].toLong() }
+        }
+        chats.map { row ->
+            val id = row[Chats.id]
+            val type = row[Chats.chatType].ifBlank { if (row[Chats.isGroup]) "GROUP" else "DIRECT" }
+            val name = (row[Chats.groupName] ?: "").take(80)
+            val members = membersByChat[id] ?: 0L
+            listOf(
+                id,
+                type.lowercase(),
+                name,
+                members.toString(),
+                row[Chats.memberRevision].toString(),
+                row[Chats.disappearingMessageSeconds].toString(),
+            )
+        }
     }
 }

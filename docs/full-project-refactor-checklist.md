@@ -672,16 +672,16 @@ Gate：token rotate、webhook 重启/死信、顺序幂等、群权限和 Telegr
 
 ### B13 Admin、运行配置、运营统计与审计
 
-当前状态：`[~]`。`AdminRouting.kt` 已缩为 22 行注册门面（非 4,575 行）；`RuntimeConfigService` 引入 typed registry（`RuntimeSettingsRegistry`，`defaults()`/`knownKeys` 三重复消除）；`OperationsQueryService` 承接运营统计只读查询；`AdminIdentity`（两级角色解析）+ `UserDispositionService`（单用户/批量处置 + 开关写命令门面）落地，AdminBulkRouting 1366→~800 行，管理路由无裸 `Users.update/insert`；AdminEnhanceRouting 1106→598 行（公告→`AnnouncementRouting`、用户标签→`UserTagRouting`、模型→`AnnouncementModels`/`UserTagModels`）；重复 helper（`receiveEnhanceJson`/`dayBucketExpression`/`recordAdminAudit`/`isAdminUser`/`csvCell`/`parseAdminIds`）全部去重，secrets 不入 `RuntimeConfigService`。**未完成**：route 内仍持 75 处 `transaction {`（18 个文件），其中 AdminExportsRouting(26)/AdminEnhanceRouting(12) 在 handler 内直写 Exposed DSL 与 CSV 映射，需补 `AdminExportService`/`AdminExportRepository` 等边界。
+当前状态：`[~]`。`AdminRouting.kt` 已缩为 22 行注册门面（非 4,575 行）；`RuntimeConfigService` 引入 typed registry（`RuntimeSettingsRegistry`，`defaults()`/`knownKeys` 三重复消除）；`OperationsQueryService` 承接运营统计只读查询；`AdminIdentity`（两级角色解析）+ `UserDispositionService`（单用户/批量处置 + 开关写命令门面）落地，AdminBulkRouting 1366→~800 行，管理路由无裸 `Users.update/insert`；AdminEnhanceRouting 1106→598 行（公告→`AnnouncementRouting`、用户标签→`UserTagRouting`、模型→`AnnouncementModels`/`UserTagModels`）；重复 helper（`receiveEnhanceJson`/`dayBucketExpression`/`recordAdminAudit`/`isAdminUser`/`csvCell`/`parseAdminIds`）全部去重，secrets 不入 `RuntimeConfigService`。**G4 后**：route 内仍有 49 处 `transaction {`（17 个文件），其中 AdminEnhanceRouting(12)/AdminManagementRouting(6) 在 handler 内直写 Exposed DSL；`AdminExportsRouting` 已完成 `AdminExportService`/`AdminExportRepository` 边界（1110→599 行、26→0 事务、Exposed 导入清零）。
 
 - [x] 建立 `AdminIdentity`、`UserDispositionService`、`OperationsQueryService`（`AdminIdentity`+`AdminIdentityResolver`、`UserDispositionService` 写命令门面、`OperationsQueryService` 只读统计）。
 - [x] Runtime settings 使用 typed registry 描述类型、默认值、范围、敏感性和重启要求（`RuntimeSettingsRegistry`：类型/默认/range/sensitive/restartRequired，`defaults()` 单一事实源派生 + `normalize` 校验）。
 - [x] 管理 route 按用户治理、内容审核、配置、统计、公告拆分（用户治理→Users/Bulk/Management、内容审核→Content/Moderation/Report/UserTag、配置→System、统计→Observability+OperationsQuery/Diagnostics、公告→Announcement）。
 - [x] 管理写操作统一 command + audit；统计走只读 query model（处置单/批量、开关、moderator、TOTP 全部走 `UserRepository` 命令 + 审计；统计走 `OperationsQueryService`）。
 - [x] 合并 AdminRouting/AdminEnhanceRouting 重复能力（`receiveEnhanceJson`→`receiveAdminJson`、`observabilityDayBucketExpression`→`dayBucketExpression`、`recordObservabilityAudit`→`recordAdminAudit`、`isAdminObservabilityUser`→`isAdminUser`、`observabilityCsvCell`→`csvCell` 等重复 helper 全部去重）。
-- [~] 删除重复 getter、路由事务和敏感配置导出（`knownKeys`/`defaults` 三重复消除；`dayBucketExpression`/`recordAdminAudit`/`isAdminUser`/`csvCell`/`parseAdminIds` 去重；secrets 只存 `ServerConfig`，不导出。**但「路由事务清零」不成立**：实测 `AdminEnhanceRouting`=12、`AdminManagementRouting`=6、`AdminDiagnosticsRouting`=4、`AdminBulkRouting`=3、`AdminUsersRouting`=3 处 `transaction {`，全项目 plugins/ 共 75 处、分布于 18 个文件；且 `AdminExportsRouting.kt`(1110 行/26 处) 与 `AdminEnhanceRouting.kt`(598 行/12 处) 仍在 route 内直写 Exposed SQL，缺 service/repository 边界）。
+- [~] 删除重复 getter、路由事务和敏感配置导出（`knownKeys`/`defaults` 三重复消除；`dayBucketExpression`/`recordAdminAudit`/`isAdminUser`/`csvCell`/`parseAdminIds` 去重；secrets 只存 `ServerConfig`，不导出。**但「路由事务清零」仍不成立**（G4 后）：实测 `AdminEnhanceRouting`=12、`AdminManagementRouting`=6、`AdminDiagnosticsRouting`=4、`AdminBulkRouting`=3、`AdminUsersRouting`=3 处 `transaction {`，全项目 plugins/ 共 **49 处 / 17 个文件**；`AdminExportsRouting.kt` 已清零，`AdminEnhanceRouting.kt`(598 行/12 处) 仍在 route 内直写 Exposed SQL）。
 
-- [ ] 管理/运维/开发者 route 面补齐 `route→service→repository` 边界（**本项此前漏列，是当前最大架构缺口**：全项目 `plugins/` 共 **75 处 `transaction {`，分布于 18 个文件**，其中 AdminExportsRouting=26、AdminEnhanceRouting=12、AdminManagementRouting=6、DeveloperRouting=4、AnnouncementRouting=4、AdminDiagnosticsRouting=4；34 个 plugin 文件与 6 个 service 文件直接 import Exposed；`AdminUsersRouting.kt:272` 与 `SecretSurfaceRouting.kt:185` 在 handler 内 `new Repository()`。最差 `AdminExportsRouting.kt`(1110 行/57 个 Exposed 操作) 每个 handler 内联 `selectAll()`+CSV 映射，需 `AdminExportService`/`AdminExportRepository`）。**现已由棘轮门禁冻结**：`ServerArchitectureTest` 断言「不许新增、减少必须同步下调基线」，新增 route 文件自写事务会直接红。
+- [~] 管理/运维/开发者 route 面补齐 `route→service→repository` 边界（**本项此前漏列，曾是最大架构缺口**。**G4 已完成第一块**：`AdminExportsRouting.kt` 从 **1110 行 / 26 处 `transaction {` / 直接 import Exposed** 收敛为 **599 行 / 0 处事务 / 0 个 Exposed 导入**，27 个 CSV 导出全部改走 `AdminExportRepository`（唯一 SQL 边界）+ `AdminExportService`（组装与 CSV 编码）。**剩余缺口**：全项目 `plugins/` 仍有 **49 处 `transaction {`，分布于 17 个文件**，其中 AdminEnhanceRouting=12、AdminManagementRouting=6、DeveloperRouting=4、AnnouncementRouting=4、AdminDiagnosticsRouting=4；`plugins/` 中仍有 **35 个文件**直接 import Exposed；`AdminUsersRouting.kt:272` 与 `SecretSurfaceRouting.kt:185` 在 handler 内 `new Repository()`。**棘轮已随之下调**：`ServerArchitectureTest` 的精确相等基线 75→49（文件 18→17）、Exposed 直连 36→35，并实测「下调之后新增一处违规仍会红」）。
 - [ ] 消除反向依赖：`repository/BotRepository.kt:18`→`plugins.isAllowedWebhookAddress`、`repository/RateLimitStatsRepository.kt:4-5`→`plugins.GlobalRateLimiter/RateLimitStats` 为真实倒置；`service/` 另有 4 个文件（`BotWebhookService`/`CallSignalingService`/`MaintenanceRunner`/`OrphanGcJob`）反向依赖 `plugins/`；另有 16 个 `*Service.kt`（约 3784 行，如 `repository/FeedQueryService.kt` 455 行、`repository/AccountLifecycleService.kt` 432 行）物理错放在 `repository/`，破坏「repository=SQL 边界」契约。以上三组均已进入 `ServerArchitectureTest` 棘轮基线。
 
 Gate：master/moderator/user 权限、审计、敏感配置和大数据查询性能通过。
@@ -1198,3 +1198,65 @@ x86_64（arm64-v8a 保留给本机 Apple Silicon 模拟器）。
 **Risks**：CI 仪器 job 依赖 x86_64 系统镜像与 KVM，首次真实运行前本机无法验证（Apple Silicon
 跑不了 x86_64 镜像）——所以这一项的最终判据只能是**真实 CI run**。模拟器 job 天然比单测慢，
 已单独成 job 且 `timeout-minutes: 45`，不阻塞其余门禁。
+
+### G4 — AdminExportsRouting 收敛为薄 route 层，棘轮第一次真正下调
+
+**Scope**：DIRECTION.md 的 M2 第一步。把管理后台 27 个 CSV 导出从 route 内直写 SQL 搬到
+`service→repository` 边界，并把 `ServerArchitectureTest` 的精确相等基线同步下调。
+
+**Files**
+- 新增 `server/src/test/kotlin/com/maodouchat/server/AdminExportsRouteTest.kt`（特征测试）
+- 新增 `server/src/main/kotlin/com/maodouchat/server/repository/AdminExportRepository.kt`
+- 新增 `server/src/main/kotlin/com/maodouchat/server/service/AdminExportService.kt`
+- 新增 `server/src/main/kotlin/com/maodouchat/server/service/CsvExportFormat.kt`
+- 修改 `server/src/main/kotlin/com/maodouchat/server/plugins/AdminExportsRouting.kt`
+- 修改 `plugins/AdminSupport.kt` + 另 3 个 plugin 文件（`csvCell` 迁移后的 import）
+- 修改 `ServerArchitectureTest.kt`（基线下调）
+
+**结果（可复核）**
+
+| 指标 | 起点 | 终点 |
+|------|------|------|
+| `AdminExportsRouting.kt` 行数 | 1110 | **599** |
+| 该文件 `transaction {` | 26 | **0** |
+| 该文件 `import org.jetbrains.exposed` | 14 行 | **0** |
+| `plugins/` 事务总数 / 文件数 | 75 / 18 | **49 / 17** |
+| `plugins/` 引用 Exposed 的文件 | 36 | **35** |
+
+实测 stdout：`plugins transaction blocks = 49 in 17 files`、`plugins importing Exposed = 35 files`。
+
+**顺序：先安全网，再动手**
+
+`AdminExportsRouteTest` 先把 27 个端点的对外契约钉死：未授权 → 401；持 admin session →
+200 + `text/csv` + `attachment; filename=` + **CSV 表头逐字相等**；另加 `/runtime-export` 的
+JSON 形状与 `/watermark/extract` 的输入校验。表头字符串逐字取自源码**写死**在测试里，
+故意不复用生产常量。
+
+- 反证 1（安全网非空转）：把 push-tokens 表头改成 `userId,deviceId,PLATFORM_X,...`
+  → AdminExportsRouteTest 在表头断言处 FAILED；还原后绿。
+- 反证 2（基线下调后仍会红）：基线降到 49/35 之后，新建
+  `plugins/GateProbeM2.kt`（含 `transaction { }` 与 Exposed import）→
+  **7 tests / 2 failures**，报 `实际 = 18 项 / 基线 = 17 项` 与 `36 / 35`，
+  并点名 `GateProbeM2.kt`；删除探针后恢复绿。
+
+**迁移中刻意保住的语义（都不是随手搬）**
+- `csvCell` 从 `plugins/AdminSupport.kt` 迁到 `service/CsvExportFormat.kt`：CSV 组装归 service，
+  而 **service 不得反向依赖 plugins**（棘轮守着），所以只能把工具下沉、让 plugins 反过来 import service。
+- message-stats 的排序在**编码之后**（原实现排的是 `listOf(csvCell(type),csvCell(count)).joinToString(",")`
+  整行字符串，不是原始 kind）——照搬，并在 repository 注释写明原因。
+- polls / chats 的 8.48 批量 count 修复、`limit*2` 再 `take(limit)`、`mapNotNull` 丢非正数、
+  SECRET 会话 `notInSubQuery` 隐私过滤、邮箱 `take(3)+"***"` 脱敏，全部逐字保留。
+- 4 个本来就没有事务、也不碰 Exposed 的 handler（`/online-export`、`/ai-feature-flags-export`、
+  `/runtime-export`、`/watermark/extract`）**有意留在路由层**：`/online-export` 依赖
+  `plugins.ConnectionRegistry`，搬进 repository 会制造 `repository → plugins` 反向依赖，反而违背目标。
+
+**Tests（实测）**
+- `cd server && ../gradlew test --tests "*AdminExportsRouteTest*"` → 4 tests / 0 failures
+- `cd server && ../gradlew test --tests "*ServerArchitectureTest*"` → 7 tests / 0 failures
+- `cd server && ../gradlew test` → **408 tests / 0 failures**（9m09s）
+
+**Deletion**：无生产行为删除；`AdminExportsRouting.kt` 的 14 行 Exposed 导入与 26 个 handler 内事务全部删除。
+
+**Risks**：特征测试只锁「形状」（状态码/表头/内容类型），**没有**锁每个导出的行级数据；
+行级语义靠 4 个批次的逐字搬运 + 全量 408 测试兜底。下一块缺口是 `AdminEnhanceRouting.kt`(12 处)
+与 `AdminManagementRouting.kt`(6 处)。

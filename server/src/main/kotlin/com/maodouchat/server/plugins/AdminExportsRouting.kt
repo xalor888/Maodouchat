@@ -44,20 +44,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
-import org.jetbrains.exposed.sql.lowerCase
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.update
 import java.lang.management.ManagementFactory
 import java.util.UUID
 
@@ -469,25 +455,9 @@ get("/polls-export") {
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Invite metadata only — no message bodies
-        val rows = transaction {
-            Chats.selectAll()
-                .where { Chats.groupInviteToken.isNotNull() }
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[Chats.id]),
-                        csvCell((row[Chats.groupInviteToken] ?: "").take(12)),
-                        csvCell(row[Chats.groupInviteExpiresAt].toString()),
-                        csvCell(row[Chats.groupInviteMaxUses].toString()),
-                        csvCell(row[Chats.groupInviteUseCount].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("chatId,tokenPrefix,expiresAt,maxUses,useCount")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "group_invites_export", detail = "count=${rows.size}")
+        val export = exportService.groupInvitesCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "group_invites_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-group-invites.csv\""
@@ -500,28 +470,9 @@ get("/restricted-users-export") {
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         val now = System.currentTimeMillis()
-        val rows = transaction {
-            Users.selectAll()
-                .where {
-                    (Users.messageRestrictedUntil greater now) or
-                        (Users.postRestrictedUntil greater now) or
-                        (Users.suspendedUntil greater now)
-                }
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[Users.id]),
-                        csvCell(row[Users.messageRestrictedUntil].toString()),
-                        csvCell(row[Users.postRestrictedUntil].toString()),
-                        csvCell(row[Users.suspendedUntil].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("userId,messageRestrictedUntil,postRestrictedUntil,suspendedUntil")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "restricted_users_export", detail = "count=${rows.size}")
+        val export = exportService.restrictedUsersCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "restricted_users_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-restricted-users.csv\""
@@ -533,23 +484,9 @@ get("/poll-votes-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
-        val rows = transaction {
-            GroupPollVotes.selectAll()
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[GroupPollVotes.pollId]),
-                        csvCell(row[GroupPollVotes.userId]),
-                        csvCell(row[GroupPollVotes.optionIndex].toString()),
-                        csvCell(row[GroupPollVotes.votedAt].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("pollId,userId,optionIndex,votedAt")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "poll_votes_export", detail = "count=${rows.size}")
+        val export = exportService.pollVotesCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "poll_votes_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-poll-votes.csv\""
@@ -562,29 +499,9 @@ get("/pinned-messages-export") {
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Pinned message metadata only — no message bodies / E2EE plaintext
-        val rows = transaction {
-            PinnedMessages.selectAll()
-                .andWhere {
-                    PinnedMessages.chatId notInSubQuery (
-                        Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
-                    )
-                }
-                .orderBy(PinnedMessages.pinnedAt to org.jetbrains.exposed.sql.SortOrder.DESC)
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[PinnedMessages.chatId]),
-                        csvCell(row[PinnedMessages.messageId]),
-                        csvCell(row[PinnedMessages.pinnedBy]),
-                        csvCell(row[PinnedMessages.pinnedAt].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("chatId,messageId,pinnedBy,pinnedAt")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "pinned_messages_export", detail = "count=${rows.size}")
+        val export = exportService.pinnedMessagesCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "pinned_messages_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-pinned-messages.csv\""
@@ -604,40 +521,8 @@ get("/pinned-messages-export") {
     get("/chats-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
-        val rows = transaction {
-            val chats = Chats.selectAll()
-                .where { Chats.chatType neq ChatType.SECRET }
-                .orderBy(Chats.memberRevision to org.jetbrains.exposed.sql.SortOrder.DESC)
-                .limit(limit)
-                .toList()
-            // 8.48 修复 H2：GROUP BY 批量成员计数（此前逐会话 count → 最多 1 万次查询）
-            val chatIds = chats.map { it[Chats.id] }
-            val membersByChat = if (chatIds.isEmpty()) emptyMap() else
-                ChatParticipants
-                    .slice(ChatParticipants.chatId, ChatParticipants.userId.count())
-                    .selectAll()
-                    .where { ChatParticipants.chatId inList chatIds }
-                    .groupBy(ChatParticipants.chatId)
-                    .associate { it[ChatParticipants.chatId] to it[ChatParticipants.userId.count()].toLong() }
-            chats.map { row ->
-                    val id = row[Chats.id]
-                    val type = row[Chats.chatType].ifBlank { if (row[Chats.isGroup]) "GROUP" else "DIRECT" }
-                    val name = (row[Chats.groupName] ?: "").take(80)
-                    val members = membersByChat[id] ?: 0L
-                    listOf(
-                        csvCell(id),
-                        csvCell(type.lowercase()),
-                        csvCell(name),
-                        csvCell(members.toString()),
-                        csvCell(row[Chats.memberRevision].toString()),
-                        csvCell(row[Chats.disappearingMessageSeconds].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("id,type,title,memberCount,memberRevision,disappearingSeconds")
-            rows.forEach { appendLine(it) }
-        }
+        val export = exportService.chatsCsv(limit)
+        val csv = export.body
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-chats-${System.currentTimeMillis()}.csv\""

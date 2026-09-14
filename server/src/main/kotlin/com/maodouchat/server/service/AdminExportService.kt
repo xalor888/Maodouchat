@@ -142,4 +142,29 @@ class AdminExportService(
         "userId,totpEnabled,emailHint",
         repository.totpUsers(limit),
     )
+
+    fun groupInvitesCsv(limit: Int) = csv(
+        "chatId,tokenPrefix,expiresAt,maxUses,useCount",
+        repository.groupInvites(limit),
+    )
+
+    fun restrictedUsersCsv(limit: Int) = csv(
+        "userId,messageRestrictedUntil,postRestrictedUntil,suspendedUntil",
+        repository.restrictedUsers(limit),
+    )
+
+    fun pollVotesCsv(limit: Int) = csv(
+        "pollId,userId,optionIndex,votedAt",
+        repository.pollVotes(limit),
+    )
+
+    fun pinnedMessagesCsv(limit: Int) = csv(
+        "chatId,messageId,pinnedBy,pinnedAt",
+        repository.pinnedMessages(limit),
+    )
+
+    fun chatsCsv(limit: Int) = csv(
+        "id,type,title,memberCount,memberRevision,disappearingSeconds",
+        repository.chats(limit),
+    )
 }
