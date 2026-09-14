@@ -118,6 +118,16 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
    → 验证：`MessageTerminalStoreTest#delete removes media before room row`
    → 验证：`ConversationLocalStateCoordinatorTest#history tombstones are durable before attachment cancellation starts`；`MessageTerminalStoreTest#delete removes media before room row`
 
+25. **The server holds no human message plaintext anywhere in its database.** For a human send the wire
+    carries per-device ciphertext only (see 9), and the server-side schema has no column for content:
+    `messaging_v2_messages` stores id/conversation/sender/kind/timestamps/request_digest, and
+    `messaging_v2_envelopes` stores the opaque ciphertext. Bot/service messages are the deliberate
+    exception — the server generates and audits them, so their text is stored server-side. A regression
+    that starts persisting human text (for example into the chat-list preview or a metadata column)
+    must fail a test instead of being discovered later.
+   → 验证：`ServerPlaintextSweepTest#a human v2 send leaves no plaintext anywhere in the server database`
+   → 验证：`ServerPlaintextSweepTest#the sweep really can find plaintext that the server does store`（正对照）
+
 ## Ownership Boundaries
 
 - `server/messaging/v2`: validates membership/device coverage and owns durable device mailboxes.

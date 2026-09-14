@@ -727,6 +727,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试。**G7 续已补掉第 9 条**（`MessagingV2OutboxPlaintextBoundaryTest`，2 例 + 双向反证）、第 5/6/7 条（`MessagingV2InboxSynchronizerTest`，3 例 + 三向反证）与第 2 条（`MessagingV2RepositoryTest` 的原子性回滚用例 + 提前提交反证）；第 4 轮更正了两条**假缺口**（21/24 其实早有 `ConversationLocalStateCoordinatorTest` 覆盖，是我第一轮按文件名收集候选用例时漏了 `conversation/**`），缺口降为 2 条）；第 6 轮补掉最后一条真测试缺口——不变量 3（新增 `/api/v2/messages` 的第一个 HTTP 级测试 + 真实 WebSocket 收帧 + 注入反证），缺口降为 **1 条**（只剩 17 的后半句，属契约决策）。
 - [ ] reducer/state machine 使用 fake clock 和确定性 dispatcher。
 - [~] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖（客户端：`core/testing/ArchitectureTest.kt` ArchUnit 2 条 + 根 `checkArchitecture` 模块依赖；**服务端已补 `server/src/test/.../architecture/ServerArchitectureTest.kt`**，随 `server:test` 自动进 CI：2 条绝对不变量 + 5 条精确相等棘轮，实测注入违规会红、基线过期也会红，见 M1 记录）；**G8** 补：客户端 `:core:testing` 的 A01 规则此前从未在 CI 执行（已接进 CI），并新增可证伪的热点棘轮 `ClientHotspotRatchetTest`（热点行数 5061/3131/2298、UI 直连持久层 38 文件/200 处，精确相等）。
+- [~] E2EE 命门有可执行证据：**G11** 新增第 25 条不变量「服务端全库不含人类消息明文」，由 `ServerPlaintextSweepTest` 用独立 JDBC 连接枚举全部表/列做哨兵扫描，并带 **正对照**（证明扫描器确能发现服务端确实保存的明文，实测命中 `CHATS.LAST_MESSAGE` / `SERVICE_MESSAGES.CONTENT`）；反证已实测（把明文写进 `Chats.lastMessage` → 扫描器红并报出位置）。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
 
 ### Q02 数据库与迁移
@@ -1780,3 +1781,53 @@ expected:<[]> but was:<[touch]>
 
 **实测**：app JVM **1512 tests / 0 failures**（原 1509，+3）；`:core:testing` 5 / 0；
 server **419 / 0**（本轮无服务端改动，Gradle 对该任务判 UP-TO-DATE，非新跑）。
+
+### G11 — E2EE 命门终于有服务端证据（新增第 25 条不变量）
+
+**Scope**：DIRECTION 轨道 B「把断言换成证据」里最核心的一条——证明**人对人消息在服务端全库不含明文**。
+
+**现状实测（缺口是真的）**
+
+- `MessagingV2Messages` 表只有 id / conversation_id / sender_user_id / sender_device_id / kind /
+  record_class / group_revision / 时间戳 / request_digest——**没有任何正文字段**；
+- 所以「服务端读不到人类消息」此前**完全靠 schema 结构成立，没有任何测试**能发现有人开始持久化正文；
+- 既有的 messaging-v2 不变量 9 只覆盖**客户端**一侧（网络请求只带每设备密文），服务端这一半是空的。
+
+这正是 DIRECTION 点名的失败模式：「宣称 E2EE 而某条路径其实没有」。
+
+**做法：带正对照的哨兵扫描**
+
+新增 `server/src/test/.../ServerPlaintextSweepTest.kt`（2 例）。扫描器用**一条独立 JDBC 连接**
+（不经过 Exposed 映射层）枚举当前 schema 全部表与全部列，逐行按字符串形式搜索随机哨兵，
+命中时返回精确的 `表.列`。
+
+- **正对照** `the sweep really can find plaintext that the server does store`：走 bot/service 发布
+  （该路径按设计在服务端保存明文），断言扫描器**确实找到**。没有这个正对照，「找不到」就是自证——
+  一个永远返回空的扫描器也能"通过"。
+  实测命中 4 处：`PUBLIC.CHATS.LAST_MESSAGE`、`PUBLIC.SERVICE_MESSAGES.CONTENT`、
+  `PUBLIC.MESSAGING_V2_ENVELOPES.CIPHERTEXT` ×2（bot 的信箱内容由服务端生成）。
+  **顺带说明一个真事实**：聊天列表预览列（`CHATS.LAST_MESSAGE`）与服务消息表是服务端**确实会持有
+  消息文本**的地方——对 bot/service 是设计如此，对**人类消息**则必须是空的。
+- **负断言（命门）** `a human v2 send leaves no plaintext anywhere in the server database`：
+  走人对人 V2 发送，断言全库搜不到明文哨兵；**同时断言密文确实落库且等于发出的密文**，
+  否则「什么都没存」也能让负结论通过。
+
+**反证（两次，都实测）**
+
+1. 先试「明文当密文发出去」（模拟客户端忘记加密）→ 测试红，但被**前置断言**拦下
+   （`落库的应当是密文本身 ==> expected: <CIPHERTEXT-...> but was: <PLAINTEXT-SENTINEL-...>`）；
+   这条前置断言本身也证明了价值，但没验到扫描器。
+2. 更干净的一次：密文照常发，另外把明文写进 `Chats.lastMessage`（模拟「服务端开始把正文写进
+   聊天预览」这个回归）→ **扫描器本身**红并报出位置：
+   `人类消息的明文出现在服务端库里了 ==> expected: <[]> but was: <[PUBLIC.CHATS.LAST_MESSAGE]>`。
+   证明扫描器是承重的，不是空转。
+
+**接进追溯体系**
+
+这条已作为**第 25 条不变量**写进 `docs/messaging-v2-architecture.md`（含 bot/service 是**有意例外**
+的说明），并标注两个 `→ 验证：ServerPlaintextSweepTest#...`。
+追溯门禁当场抓到「不变量条数从 24 变成 25」，要求显式同步审计：
+`不变量条数变了：文档改了就必须同步审计，不能悄悄增删 ==> expected: <24> but was: <25>`；
+同步冻结值后门禁绿，并已校验两个新引用真实存在。
+
+**实测**：server **421 / 0**（原 419，+2）；app JVM 1512 / 0；`:core:testing` 5 / 0。
