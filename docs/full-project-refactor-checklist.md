@@ -1166,7 +1166,31 @@ x86_64（arm64-v8a 保留给本机 Apple Silicon 模拟器）。
 - 绿 commit `9734a007`：`runs=1 ok=1` → 放行。
 - 无 CI run 的 commit `35b60169`：`runs=[] ok=0` → **REFUSED**。
 
-**Deletion**：无。
+**CI 实测（真 run，非叙述）**
+
+- run **[34790884256](https://github.com/xalor888/Maodouchat/actions/runs/34790884256)**
+  （headSha `59881670`）→ `conclusion = success`，**4 个 job 全绿**：
+  `Android Instrumented` / `Android` / `Server` / `Docker Compose Config`。
+- 关键：仪器 job **真的执行了测试**，不是"绿但没干活"（这正是本项目踩过的坑）。
+  job 日志实测：
+  ```
+  script: ./gradlew :app:connectedDebugAndroidTest --no-daemon --console=plain
+  > Task :app:connectedDebugAndroidTest
+  Starting 22 tests on emulator-5554 - 16
+  Finished 22 tests on emulator-5554 - 16
+  BUILD SUCCESSFUL in 8m 16s
+  ```
+  这同时证明 x86_64 ABI 放开的改动是必需的且正确——Apple Silicon 本机跑不了 x86_64 镜像，
+  这条只能在真 CI 上得到。
+- **发布门禁在真 CI 上验证为"会拦"**（run
+  **[34791491799](https://github.com/xalor888/Maodouchat/actions/runs/34791491799)**）：
+  在一个**没有任何 CI run** 的 sha 上手动 dispatch `release.yml`，结果
+  `Verify CI green for this commit` = **failure**、`Build & publish release` = **skipped**，
+  且 `gh release list` 显示最新发布仍是 `v1.2.0`（2026-08-29）——**没有产出任何 release**。
+  该验证用一个临时分支 + 空提交完成，探针分支与空提交事后已删除（`not on main`）。
+  这条同时证明 `gh api` + `GITHUB_TOKEN` + job 级 `actions: read` 权限在 Actions 内可用。
+
+**Deletion**：无（探针分支 `probe-release-gate` 与其空提交已删除）。
 
 **Risks**：CI 仪器 job 依赖 x86_64 系统镜像与 KVM，首次真实运行前本机无法验证（Apple Silicon
 跑不了 x86_64 镜像）——所以这一项的最终判据只能是**真实 CI run**。模拟器 job 天然比单测慢，
