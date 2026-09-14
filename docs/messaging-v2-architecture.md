@@ -41,7 +41,7 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
 
 9. Outbox plaintext exists only in the local SQLCipher database. Network requests contain only
    per-device ciphertext.
-   → 缺口：出站明文只在本机 SQLCipher、网络请求只含每设备密文——没有任何用例（SignalMessagingV2EnvelopePreparer 无测试）
+   → 验证：`MessagingV2OutboxPlaintextBoundaryTest#the wire request carries per-device ciphertext and never the local plaintext`；`MessagingV2OutboxPlaintextBoundaryTest#what gets staged for the wire is the prepared envelopes, not the plaintext`
 
 10. Group membership changes invalidate prepared outbox ciphertext and require encryption against
     the new member revision.

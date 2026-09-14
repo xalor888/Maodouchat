@@ -724,7 +724,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 ### Q01 单元与架构测试
 
 - [ ] 每个 domain command/query 有成功、失败、取消、重复和账号切换测试。
-- [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试）。
+- [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试。**G7 续已补掉第 9 条**（`MessagingV2OutboxPlaintextBoundaryTest`，2 例 + 双向反证），缺口降为 8 条）。
 - [ ] reducer/state machine 使用 fake clock 和确定性 dispatcher。
 - [~] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖（客户端：`core/testing/ArchitectureTest.kt` ArchUnit 2 条 + 根 `checkArchitecture` 模块依赖；**服务端已补 `server/src/test/.../architecture/ServerArchitectureTest.kt`**，随 `server:test` 自动进 CI：2 条绝对不变量 + 5 条精确相等棘轮，实测注入违规会红、基线过期也会红，见 M1 记录）。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
@@ -1508,5 +1508,23 @@ TLS: Let's Encrypt, CN=chat.mdou.me, 有效期至 2026-11-18
 
 **实测**：`cd server && ../gradlew test` → **417 tests / 0 failures**（原 414，+3 门禁用例）。
 
-**仍未做（下一步）**：9 条缺口里一条都还没补。按价值排序，先做第 9 条
-（`SignalMessagingV2EnvelopePreparer` 的「网络请求只含每设备密文」），再按 5/6/7（inbox 生命周期）推进。
+**G7 续 — 已补掉第 1 条缺口（不变量 9）**
+
+缺口从 9 条降到 **8 条**（`2,3,5,6,7,17,21,24`）；门禁里的冻结集合同步改小。
+
+新增 `app/src/test/.../MessagingV2OutboxPlaintextBoundaryTest.kt`（2 例），守的是
+**传输边界** `MessagingV2OutboxCoordinator`：
+- 发给线路层的请求只含每设备密文信封 + 元数据，**不含**本机明文；
+- 落盘留待发送的 `preparedEnvelopesJson` 也只含信封。
+手法是给 outbox 行塞一个**哨兵明文**，再检查真正交给线路层/落盘的东西里从不出现它——
+而不是去断言「我构造的密文长这样」（那是自证）。
+
+反证（实测，两条一起注入）：给 `SendMessageRequestV2` 加 `localPayload` 字段并在 coordinator 里
+填上 + 让 `envelopesJson = encoded + message.localPayload` →
+**2 tests / 2 failures**，报文里直接打印泄漏的明文：
+- `出站请求里出现了本机明文——不变量 9 被破坏了：{"id":"m1",...,"localPayload":"{"body":"PLAINTEXT-SENTINEL-…"}}`
+- `落盘留待发送的内容里出现了本机明文——不变量 9 被破坏了：[{…密文信封…}]{"body":"PLAINTEXT-SENTINEL-…"}`
+还原后绿（`git diff app/src/main/` 为空）。
+
+**仍未做（下一步）**：剩 8 条缺口，按价值排序做 5/6/7（inbox 生命周期：先落盘再解密、
+`ACK_PENDING` 提交顺序、跨进程存活），再是 2/3/17/21/24。
