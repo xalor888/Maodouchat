@@ -681,8 +681,8 @@ Gate：token rotate、webhook 重启/死信、顺序幂等、群权限和 Telegr
 - [x] 合并 AdminRouting/AdminEnhanceRouting 重复能力（`receiveEnhanceJson`→`receiveAdminJson`、`observabilityDayBucketExpression`→`dayBucketExpression`、`recordObservabilityAudit`→`recordAdminAudit`、`isAdminObservabilityUser`→`isAdminUser`、`observabilityCsvCell`→`csvCell` 等重复 helper 全部去重）。
 - [~] 删除重复 getter、路由事务和敏感配置导出（`knownKeys`/`defaults` 三重复消除；`dayBucketExpression`/`recordAdminAudit`/`isAdminUser`/`csvCell`/`parseAdminIds` 去重；secrets 只存 `ServerConfig`，不导出。**但「路由事务清零」仍不成立**（G4 后）：实测 `AdminEnhanceRouting`=12、`AdminManagementRouting`=6、`AdminDiagnosticsRouting`=4、`AdminBulkRouting`=3、`AdminUsersRouting`=3 处 `transaction {`，全项目 plugins/ 共 **49 处 / 17 个文件**；`AdminExportsRouting.kt` 已清零，`AdminEnhanceRouting.kt`(598 行/12 处) 仍在 route 内直写 Exposed SQL）。
 
-- [~] 管理/运维/开发者 route 面补齐 `route→service→repository` 边界（**本项此前漏列，曾是最大架构缺口**。**G4 已完成第一块**：`AdminExportsRouting.kt` 从 **1110 行 / 26 处 `transaction {` / 直接 import Exposed** 收敛为 **599 行 / 0 处事务 / 0 个 Exposed 导入**，27 个 CSV 导出全部改走 `AdminExportRepository`（唯一 SQL 边界）+ `AdminExportService`（组装与 CSV 编码）。**剩余缺口**：全项目 `plugins/` 仍有 **49 处 `transaction {`，分布于 17 个文件**，其中 AdminEnhanceRouting=12、AdminManagementRouting=6、DeveloperRouting=4、AnnouncementRouting=4、AdminDiagnosticsRouting=4；`plugins/` 中仍有 **35 个文件**直接 import Exposed；`AdminUsersRouting.kt:272` 与 `SecretSurfaceRouting.kt:185` 在 handler 内 `new Repository()`。**棘轮已随之下调**：`ServerArchitectureTest` 的精确相等基线 75→49（文件 18→17）、Exposed 直连 36→35，并实测「下调之后新增一处违规仍会红」）。
-- [ ] 消除反向依赖：`repository/BotRepository.kt:18`→`plugins.isAllowedWebhookAddress`、`repository/RateLimitStatsRepository.kt:4-5`→`plugins.GlobalRateLimiter/RateLimitStats` 为真实倒置；`service/` 另有 4 个文件（`BotWebhookService`/`CallSignalingService`/`MaintenanceRunner`/`OrphanGcJob`）反向依赖 `plugins/`；另有 16 个 `*Service.kt`（约 3784 行，如 `repository/FeedQueryService.kt` 455 行、`repository/AccountLifecycleService.kt` 432 行）物理错放在 `repository/`，破坏「repository=SQL 边界」契约。以上三组均已进入 `ServerArchitectureTest` 棘轮基线。
+- [~] 管理/运维/开发者 route 面补齐 `route→service→repository` 边界（**本项此前漏列，曾是最大架构缺口**。**G4 已完成第一块**：`AdminExportsRouting.kt` 从 **1110 行 / 26 处 `transaction {` / 直接 import Exposed** 收敛为 **599 行 / 0 处事务 / 0 个 Exposed 导入**，27 个 CSV 导出全部改走 `AdminExportRepository`（唯一 SQL 边界）+ `AdminExportService`（组装与 CSV 编码）。**G5 后剩余缺口**：全项目 `plugins/` 仍有 **37 处 `transaction {`，分布于 16 个文件**，其中 AdminManagementRouting=6、DeveloperRouting=4、AnnouncementRouting=4、AdminDiagnosticsRouting=4、AdminUsersRouting=3、AdminBulkRouting=3；`plugins/` 中仍有 **34 个文件**直接 import Exposed；`AdminUsersRouting.kt:272` 与 `SecretSurfaceRouting.kt:185` 在 handler 内 `new Repository()`。**棘轮已两度下调**：`ServerArchitectureTest` 的精确相等基线 75→49→**37**（文件 18→17→**16**）、Exposed 直连 36→35→**34**，两次都实测「下调之后新增一处违规仍会红」）。
+- [ ] 消除反向依赖：`repository/BotRepository.kt:18`→`plugins.isAllowedWebhookAddress`、`repository/RateLimitStatsRepository.kt:4-5`→`plugins.GlobalRateLimiter/RateLimitStats` 为真实倒置；`service/` 另有 3 个文件（`BotWebhookService`/`CallSignalingService`/`OrphanGcJob`）反向依赖 `plugins/`（G5 已把 `MaintenanceRunner` 的 `purgeAdminOperationalData` 迁到 repository 而消掉一条）；另有 16 个 `*Service.kt`（约 3784 行，如 `repository/FeedQueryService.kt` 455 行、`repository/AccountLifecycleService.kt` 432 行）物理错放在 `repository/`，破坏「repository=SQL 边界」契约。以上三组均已进入 `ServerArchitectureTest` 棘轮基线。
 
 Gate：master/moderator/user 权限、审计、敏感配置和大数据查询性能通过。
 
@@ -1284,3 +1284,66 @@ and never invent phantom rows`：
 **Risks**：行级断言覆盖的是 Users 系与「必然为空」两类，**不是** 27 个导出的逐行快照；
 其余导出的行级语义仍靠逐字搬运 + 全量测试兜底。下一块缺口是 `AdminEnhanceRouting.kt`(12 处)
 与 `AdminManagementRouting.kt`(6 处)。
+
+### G5 — AdminEnhanceRouting 收敛（M2 第二步），并顺带消掉一条反向依赖
+
+**Scope**：DIRECTION.md 的 M2 第二步。`AdminEnhanceRouting.kt`（599 行 / 12 处 `transaction {` /
+5 个端点）收敛到 `service→repository`。
+
+**Files**
+- 新增 `server/src/test/kotlin/com/maodouchat/server/AdminEnhanceRouteTest.kt`（特征测试）
+- 新增 `server/src/main/kotlin/com/maodouchat/server/repository/DeviceEventConsistencyGuard.kt`
+- 新增 `server/src/main/kotlin/com/maodouchat/server/repository/AdminOperationalDataPurge.kt`
+- 修改 `AdminExportRepository.kt` / `AdminExportService.kt`（审计导出 + 设备读）
+- 修改 `plugins/AdminEnhanceRouting.kt`、`service/MaintenanceRunner.kt`、
+  `plugins/AdminOperationalDataPurgeTest.kt`、`ServerArchitectureTest.kt`
+
+**结果（可复核）**
+
+| 指标 | 起点 | 终点 |
+|------|------|------|
+| `AdminEnhanceRouting.kt` 行数 | 599 | **322** |
+| 该文件 `transaction {` | 12 | **0** |
+| 该文件 `import org.jetbrains.exposed` | 12 行 | **0** |
+| `plugins/` 事务总数 / 文件数 | 49 / 17 | **37 / 16** |
+| `plugins/` 引用 Exposed 的文件 | 35 | **34** |
+| `service/` → `plugins/` 反向依赖 | 7 处 / 4 文件 | **6 处 / 3 文件** |
+
+实测 stdout：`plugins transaction blocks = 37 in 16 files`、`plugins importing Exposed = 34 files`。
+
+**做法**
+- `buildAuditExportCsv`（原 5 个并列 `transaction` 分支）→ `AdminExportRepository.auditExportRows`
+  + `AdminExportService.auditExportCsv`。5 个分支收成一个事务包住 `when`：每次调用只命中一个分支，
+  语义等价，但少 4 个 route 层开事务的点。BOM + `\r\n` + 句尾空行的格式逐字保留。
+- handler 内的事务：`AuditExportRecords.insert` → `recordAuditExport`；device-consistency
+  summary 两处 → `deviceSequences`/`deviceAnomalyCount`；events 一处 → `deviceAnomalies`。
+- 响应 DTO 留在 plugins，repository 返回自己的行类型再由路由映射——否则 repository 要 import
+  plugins，直接违反棘轮守的方向。
+- `DeviceEventConsistencyGuard` 与 `purgeAdminOperationalData` 整体迁入 `repository/`；
+  后者顺带消掉 `service(MaintenanceRunner) → plugins` 这条反向依赖。
+
+**Tests（实测）**
+- `AdminEnhanceRouteTest` → 5 tests / 0 failures。锁的是：4 个 GET + 1 个 POST 匿名 401；
+  审计导出的 6 类参数错误全 400；5 个 scope 各自的 `text/csv` + `Content-Disposition` +
+  UTF-8 BOM + 表头逐字相等；dashboard 的 1h/24h/7d/缺省/非法 range + JSON 八字段 + live 五字段；
+  sample 回 `{ok:true}`；summary 的 `sequences`/`anomalyCount`；events 空数组。
+- 全量：`cd server && ../gradlew test` → **414 tests / 0 failures**（8m52s）。
+
+**过程中两次红都查明是测试假设错，不是产品缺陷**
+1. 我最初用 `fromMs=0` 起算 = 56 年，撞上 90 天上限 → 改成最近 1 小时；
+2. 以为 `ADMIN_AUDIT` 为空，实际「换取 admin session」本身就写了一条 `ADMIN_SESSION_ISSUED`
+   的 `ModerationAuditLog` → 改成断言该 scope 必须取到这条真行（顺带证明查询确实按时间窗取到了真数据）。
+
+**反证（两条都实测）**
+- 安全网：把 `RATE_LIMIT` 表头列名改成 `SAMPLED_AT` → 表头断言 FAILED；还原后绿。
+- 棘轮：基线降到 37/34 后，往 route 文件里塞回一处 `transaction { }` + Exposed import →
+  **7 tests / 2 failures**，报「实际 = 17 / 基线 = 16」与「35 / 34」并点名 `AdminEnhanceRouting.kt`。
+
+**Deletion**：`AdminEnhanceRouting.kt` 的 12 行 Exposed 导入、`buildAuditExportCsv` 整段（92 行）
+与其内 5 处事务全部删除；`DeviceEventConsistencyGuard`（迁入时实测**全仓无任何调用方**，
+`grep -rn "applyEvent" server/src` 只命中定义本身）选择保留而非删除——它看起来是预留的设备事件
+加固扩展点，删除属于另一个决策，不在本目标授权范围内。
+
+**Risks**：特征测试锁的是形状（状态码/表头/JSON 字段）与「空库下无幽灵行」，
+不是每个 scope 的行级快照；行级语义靠逐字搬运 + 414 个测试兜底。剩余最大缺口：
+`AdminManagementRouting.kt`(6 处) 与 `DeveloperRouting.kt`/`AnnouncementRouting.kt`/`AdminDiagnosticsRouting.kt`（各 4 处）。

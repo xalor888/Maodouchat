@@ -6,6 +6,7 @@ import com.maodouchat.server.db.DeviceEventConsistencyLog
 import com.maodouchat.server.db.ModerationAuditLog
 import com.maodouchat.server.db.SystemAnnouncements
 import com.maodouchat.server.db.Users
+import com.maodouchat.server.repository.purgeAdminOperationalData
 import com.maodouchat.server.db.initDatabase
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert

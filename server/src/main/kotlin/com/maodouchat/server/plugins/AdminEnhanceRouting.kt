@@ -43,18 +43,6 @@ import io.ktor.server.routing.routing
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.andWhere
-import org.jetbrains.exposed.sql.count
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
 import java.util.UUID
 import java.util.concurrent.ScheduledThreadPoolExecutor
@@ -313,130 +301,12 @@ data class DeviceAnomalyResponse(
 // 设备事件一致性加固（幂等应用 + 异常记录）
 // ─────────────────────────────────────────────
 
-/**
- * 设备事件序列守卫：按 (userId, deviceId, eventType) 维护 lastAppliedSeq，
- * 拒绝 STALE（seq 落后）/ DUPLICATE（重复投递）事件；seq 跳号记为 OUT_OF_ORDER。
- * 单进程内按 key 加条纹锁串行化读-改-写；多实例部署需换 DB 行级锁（与 GlobalRateLimiter 同约束）。
- */
-object DeviceEventConsistencyGuard {
-    private val stripes = Array(256) { Any() }
-
-    enum class Status { APPLIED, STALE, DUPLICATE, OUT_OF_ORDER }
-
-    data class ApplyOutcome(val status: Status, val lastAppliedSeq: Long)
-
-    private fun stripe(userId: String, deviceId: Int, eventType: String): Any {
-        val hash = (userId.hashCode() * 31 + deviceId) * 31 + eventType.hashCode()
-        return stripes[Math.floorMod(hash, stripes.size)]
-    }
-
-    fun applyEvent(
-        userId: String,
-        deviceId: Int,
-        eventType: String,
-        seq: Long,
-        referenceId: String? = null,
-        now: Long = System.currentTimeMillis()
-    ): ApplyOutcome {
-        val lock = stripe(userId, deviceId, eventType)
-        synchronized(lock) {
-            return transaction {
-                val existing = DeviceEventSequences.selectAll().where {
-                    (DeviceEventSequences.userId eq userId) and
-                        (DeviceEventSequences.deviceId eq deviceId) and
-                        (DeviceEventSequences.eventType eq eventType)
-                }.firstOrNull()
-
-                if (existing == null) {
-                    DeviceEventSequences.insert {
-                        it[DeviceEventSequences.userId] = userId
-                        it[DeviceEventSequences.deviceId] = deviceId
-                        it[DeviceEventSequences.eventType] = eventType
-                        it[DeviceEventSequences.lastAppliedSeq] = seq
-                        it[DeviceEventSequences.lastEventAt] = now
-                    }
-                    return@transaction ApplyOutcome(Status.APPLIED, seq)
-                }
-
-                val lastApplied = existing[DeviceEventSequences.lastAppliedSeq]
-                when {
-                    seq < lastApplied -> {
-                        recordAnomaly(userId, deviceId, eventType, seq, "STALE", referenceId, now, "last=$lastApplied")
-                        ApplyOutcome(Status.STALE, lastApplied)
-                    }
-                    seq == lastApplied -> {
-                        recordAnomaly(userId, deviceId, eventType, seq, "DUPLICATE", referenceId, now, "already=$lastApplied")
-                        ApplyOutcome(Status.DUPLICATE, lastApplied)
-                    }
-                    seq > lastApplied + 1 -> {
-                        recordAnomaly(userId, deviceId, eventType, seq, "OUT_OF_ORDER", referenceId, now, "expected=${lastApplied + 1}")
-                        ApplyOutcome(Status.OUT_OF_ORDER, lastApplied)
-                    }
-                    else -> {
-                        DeviceEventSequences.update({
-                            (DeviceEventSequences.userId eq userId) and
-                                (DeviceEventSequences.deviceId eq deviceId) and
-                                (DeviceEventSequences.eventType eq eventType)
-                        }) {
-                            it[DeviceEventSequences.lastAppliedSeq] = seq
-                            it[DeviceEventSequences.lastEventAt] = now
-                        }
-                        ApplyOutcome(Status.APPLIED, seq)
-                    }
-                }
-            }
-        }
-    }
-
-    /** 异常汇总：按事件类型 + 状态统计（供仪表盘）。 */
-    fun anomalySummary(userId: String? = null): Map<String, Long> = transaction {
-        val q = DeviceEventConsistencyLog.selectAll()
-        val rows = if (userId != null) q.andWhere { DeviceEventConsistencyLog.userId eq userId } else q
-        rows.groupBy { it[DeviceEventConsistencyLog.status] }.mapValues { (_, v) -> v.size.toLong() }
-    }
-
-    private fun recordAnomaly(
-        userId: String,
-        deviceId: Int,
-        eventType: String,
-        seq: Long,
-        status: String,
-        referenceId: String?,
-        now: Long,
-        detail: String
-    ) {
-        val id = "${userId.take(32)}|$deviceId|${eventType.take(16)}|$status"
-        val existing = DeviceEventConsistencyLog.selectAll().where { DeviceEventConsistencyLog.id eq id }.firstOrNull()
-        if (existing == null) {
-            DeviceEventConsistencyLog.insert {
-                it[DeviceEventConsistencyLog.id] = id
-                it[DeviceEventConsistencyLog.userId] = userId
-                it[DeviceEventConsistencyLog.deviceId] = deviceId
-                it[DeviceEventConsistencyLog.eventType] = eventType
-                it[DeviceEventConsistencyLog.seq] = seq
-                it[DeviceEventConsistencyLog.status] = status
-                it[DeviceEventConsistencyLog.referenceId] = referenceId
-                it[DeviceEventConsistencyLog.firstSeenAt] = now
-                it[DeviceEventConsistencyLog.lastSeenAt] = now
-                it[DeviceEventConsistencyLog.detail] = detail.take(300)
-            }
-        } else {
-            DeviceEventConsistencyLog.update({ DeviceEventConsistencyLog.id eq id }) {
-                it[DeviceEventConsistencyLog.seq] = seq
-                it[DeviceEventConsistencyLog.referenceId] = referenceId
-                it[DeviceEventConsistencyLog.lastSeenAt] = now
-                it[DeviceEventConsistencyLog.detail] = detail.take(300)
-            }
-        }
-    }
-}
 
 // ─────────────────────────────────────────────
 // 内部辅助
 // ─────────────────────────────────────────────
 // isAdminUser / recordAdminAudit / csvCell 已统一到 AdminSupport.kt（内部共享版本）。
 
-/** 时间范围导出：仅导出元数据/平台明文公告，绝不导出 E2EE 消息密文。返回 CSV 与实际行数。 */
 
 
 
@@ -450,33 +320,3 @@ private val samplerLogger = LoggerFactory.getLogger("RateLimitStatsSampler")
 private const val MAX_EXPORT_RANGE_MS = 90L * 24L * 60L * 60L * 1_000L
 private const val SAMPLE_DELAY_MS = 60_000L
 
-/**
- * 清理 B6 运维数据中的过期记录（由 Routing.kt 的 6 小时周期循环调用），
- * 防止以下记录表无限增长：
- * - AnnouncementAcks 公告已读确认：ackedAt 超过 90 天删除
- * - DeviceEventConsistencyLog 设备一致性异常日志：lastSeenAt 超过 30 天删除
- * - AuditExportRecords 审计导出登记：requestedAt 超过 180 天删除
- * - ModerationAuditLog 管理操作审计：createdAt 超过 365 天删除
- *
- * 返回每个表本次删除的行数（仅供日志观测）。
- */
-fun purgeAdminOperationalData(): Map<String, Int> {
-    val now = System.currentTimeMillis()
-    val day = 86_400_000L
-    return transaction {
-        mapOf(
-            "announcementAcks" to AnnouncementAcks.deleteWhere {
-                AnnouncementAcks.ackedAt less now - 90 * day
-            },
-            "deviceEventLogs" to DeviceEventConsistencyLog.deleteWhere {
-                DeviceEventConsistencyLog.lastSeenAt less now - 30 * day
-            },
-            "auditExportRecords" to AuditExportRecords.deleteWhere {
-                AuditExportRecords.requestedAt less now - 180 * day
-            },
-            "moderationAuditLogs" to ModerationAuditLog.deleteWhere {
-                ModerationAuditLog.createdAt less now - 365 * day
-            }
-        )
-    }
-}

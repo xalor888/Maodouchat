@@ -35,9 +35,8 @@ class ServerArchitectureTest {
     // 棘轮基线（当前实测值，见 DIRECTION.md 第 0 节）
     // ------------------------------------------------------------------
 
-    /** `plugins/` 下每个文件的 `transaction {` 出现次数。当前合计 40 处 / 17 个文件。 */
+    /** `plugins/` 下每个文件的 `transaction {` 出现次数。当前合计 37 处 / 16 个文件。 */
     private val frozenRouteTransactions: Map<String, Int> = mapOf(
-        "AdminEnhanceRouting.kt" to 3,
         "AdminManagementRouting.kt" to 6,
         "DeveloperRouting.kt" to 4,
         "AnnouncementRouting.kt" to 4,
@@ -56,13 +55,12 @@ class ServerArchitectureTest {
         "AdminSupport.kt" to 1,
     )
 
-    /** `plugins/` 下直接引用 Exposed（`org.jetbrains.exposed`）的文件。当前 36 个。 */
+    /** `plugins/` 下直接引用 Exposed（`org.jetbrains.exposed`）的文件。当前 34 个。 */
     private val frozenPluginsImportingExposed: Set<String> = setOf(
         "AdminBulkRouting.kt",
         "AdminChatsRouting.kt",
         "AdminContentRouting.kt",
         "AdminDiagnosticsRouting.kt",
-        "AdminEnhanceRouting.kt",
         "AdminManagementRouting.kt",
         "AdminModerationRouting.kt",
         "AdminSupport.kt",
@@ -106,14 +104,15 @@ class ServerArchitectureTest {
     )
 
     /**
-     * `service/` 反向依赖 `plugins/` 的**引用处数**。当前 7 处 / 4 个文件。
+     * `service/` 反向依赖 `plugins/` 的**引用处数**。当前 6 处 / 3 个文件。
      *
-     * `CallSignalingService` 3 处、`OrphanGcJob` 2 处、`BotWebhookService`/`MaintenanceRunner` 各 1 处。
+     * `CallSignalingService` 3 处、`OrphanGcJob` 2 处、`BotWebhookService` 1 处。
+     * M2 第二步顺带消除了 `MaintenanceRunner` → `plugins.purgeAdminOperationalData`
+     * 这条倒置：清理函数已迁到 `repository/AdminOperationalDataPurge.kt`。
      */
     private val frozenServicesDependingOnPlugins: Map<String, Int> = mapOf(
         "BotWebhookService.kt" to 1,
         "CallSignalingService.kt" to 3,
-        "MaintenanceRunner.kt" to 1,
         "OrphanGcJob.kt" to 2,
     )
 
