@@ -122,4 +122,24 @@ class AdminExportService(
         "userId,chatId,notificationsMuted,updatedAt",
         repository.mutedChats(limit),
     )
+
+    fun onlinePresenceCsv(limit: Int) = csv(
+        "userId,isOnline,lastSeen,showOnline",
+        repository.onlinePresence(limit),
+    )
+
+    fun privacyFlagsCsv(limit: Int) = csv(
+        "userId,showOnline,showStatus,searchable",
+        repository.privacyFlags(limit),
+    )
+
+    fun identityUsersCsv(limit: Int) = csv(
+        "userId,searchable,showOnline,totpEnabled,emailHint",
+        repository.identityUsers(limit),
+    )
+
+    fun totpUsersCsv(limit: Int) = csv(
+        "userId,totpEnabled,emailHint",
+        repository.totpUsers(limit),
+    )
 }

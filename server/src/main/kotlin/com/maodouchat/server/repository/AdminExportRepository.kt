@@ -382,4 +382,59 @@ class AdminExportRepository(
             }
             .take(limit)
     }
+
+    fun onlinePresence(limit: Int): List<List<Any?>> = transaction {
+        Users.selectAll()
+            .limit(limit)
+            .map { row ->
+                listOf(
+                    row[Users.id],
+                    row[Users.isOnline].toString(),
+                    row[Users.lastSeen].toString(),
+                    row[Users.showOnline].toString(),
+                )
+            }
+    }
+
+    fun privacyFlags(limit: Int): List<List<Any?>> = transaction {
+        Users.selectAll()
+            .limit(limit)
+            .map { row ->
+                listOf(
+                    row[Users.id],
+                    row[Users.showOnline].toString(),
+                    row[Users.showStatus].toString(),
+                    row[Users.searchable].toString(),
+                )
+            }
+    }
+
+    /** 身份可发现性元数据 only — no secrets / bodies；邮箱只给前 3 位 + `***`。 */
+    fun identityUsers(limit: Int): List<List<Any?>> = transaction {
+        Users.selectAll()
+            .limit(limit)
+            .map { row ->
+                listOf(
+                    row[Users.id],
+                    row[Users.searchable].toString(),
+                    row[Users.showOnline].toString(),
+                    row[Users.totpEnabled].toString(),
+                    row[Users.email].take(3) + "***",
+                )
+            }
+    }
+
+    /** 只有 TOTP 状态 — no secrets / E2EE bodies。 */
+    fun totpUsers(limit: Int): List<List<Any?>> = transaction {
+        Users.selectAll()
+            .where { Users.totpEnabled eq true }
+            .limit(limit)
+            .map { row ->
+                listOf(
+                    row[Users.id],
+                    row[Users.totpEnabled].toString(),
+                    row[Users.email].take(3) + "***",
+                )
+            }
+    }
 }

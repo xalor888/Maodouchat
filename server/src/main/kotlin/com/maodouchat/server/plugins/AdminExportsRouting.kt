@@ -409,23 +409,9 @@ get("/polls-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
-        val rows = transaction {
-            Users.selectAll()
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[Users.id]),
-                        csvCell(row[Users.isOnline].toString()),
-                        csvCell(row[Users.lastSeen].toString()),
-                        csvCell(row[Users.showOnline].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("userId,isOnline,lastSeen,showOnline")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "online_presence_export", detail = "count=${rows.size}")
+        val export = exportService.onlinePresenceCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "online_presence_export", detail = "count=${export.rowCount}")
         call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"maodouchat-online-presence.csv\"")
         call.respondText(csv, io.ktor.http.ContentType.Text.CSV)
     }
@@ -435,23 +421,9 @@ get("/polls-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
-        val rows = transaction {
-            Users.selectAll()
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[Users.id]),
-                        csvCell(row[Users.showOnline].toString()),
-                        csvCell(row[Users.showStatus].toString()),
-                        csvCell(row[Users.searchable].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("userId,showOnline,showStatus,searchable")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "privacy_flags_export", detail = "count=${rows.size}")
+        val export = exportService.privacyFlagsCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "privacy_flags_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-privacy-flags.csv\""
@@ -465,24 +437,9 @@ get("/polls-export") {
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Identity discoverability metadata only — no secrets / bodies
-        val rows = transaction {
-            Users.selectAll()
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[Users.id]),
-                        csvCell(row[Users.searchable].toString()),
-                        csvCell(row[Users.showOnline].toString()),
-                        csvCell(row[Users.totpEnabled].toString()),
-                        csvCell(row[Users.email].take(3) + "***")
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("userId,searchable,showOnline,totpEnabled,emailHint")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "identity_users_export", detail = "count=${rows.size}")
+        val export = exportService.identityUsersCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "identity_users_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-identity-users.csv\""
@@ -496,23 +453,9 @@ get("/polls-export") {
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // TOTP status only — no secrets / E2EE bodies
-        val rows = transaction {
-            Users.selectAll()
-                .where { Users.totpEnabled eq true }
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[Users.id]),
-                        csvCell(row[Users.totpEnabled].toString()),
-                        csvCell(row[Users.email].take(3) + "***")
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("userId,totpEnabled,emailHint")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "totp_users_export", detail = "count=${rows.size}")
+        val export = exportService.totpUsersCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "totp_users_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-totp-users.csv\""
