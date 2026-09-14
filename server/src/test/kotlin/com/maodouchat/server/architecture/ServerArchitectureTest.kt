@@ -37,7 +37,6 @@ class ServerArchitectureTest {
 
     /** `plugins/` 下每个文件的 `transaction {` 出现次数。当前合计 37 处 / 16 个文件。 */
     private val frozenRouteTransactions: Map<String, Int> = mapOf(
-        "AdminManagementRouting.kt" to 6,
         "DeveloperRouting.kt" to 4,
         "AnnouncementRouting.kt" to 4,
         "AdminDiagnosticsRouting.kt" to 4,
@@ -61,7 +60,6 @@ class ServerArchitectureTest {
         "AdminChatsRouting.kt",
         "AdminContentRouting.kt",
         "AdminDiagnosticsRouting.kt",
-        "AdminManagementRouting.kt",
         "AdminModerationRouting.kt",
         "AdminSupport.kt",
         "AdminSystemRouting.kt",

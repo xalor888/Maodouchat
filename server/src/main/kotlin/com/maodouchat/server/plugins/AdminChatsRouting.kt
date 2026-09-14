@@ -4,6 +4,7 @@ import com.maodouchat.server.db.*
 import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.ConversationStateDeletion
+import com.maodouchat.server.repository.escapeLikePattern
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.jwt.JWTPrincipal

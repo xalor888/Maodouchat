@@ -6,6 +6,7 @@ import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.CommentAdminResponse
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.PostRepository
+import com.maodouchat.server.repository.escapeLikePattern
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.jwt.JWTPrincipal

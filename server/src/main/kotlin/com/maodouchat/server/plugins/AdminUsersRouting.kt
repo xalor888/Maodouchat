@@ -5,6 +5,7 @@ import com.maodouchat.server.db.*
 import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.AuthTokenRepository
+import com.maodouchat.server.repository.escapeLikePattern
 import com.maodouchat.server.repository.EncryptedAttachmentRepository
 import com.maodouchat.server.repository.GroupMediaReferenceRepository
 import com.maodouchat.server.repository.PostRepository

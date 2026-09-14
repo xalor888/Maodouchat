@@ -151,10 +151,6 @@ internal suspend inline fun <reified T> ApplicationCall.receiveAdminJson(): T? {
     return runCatching { adminJson.decodeFromString<T>(body) }.getOrNull()
 }
 
-/** Escape LIKE pattern special characters (%, _, \) so user input is treated literally. */
-internal fun escapeLikePattern(input: String): String =
-    input.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-
 /** 解析批量操作的 id 列表（JSON 数组或逗号/空白分隔字符串），去重并截断到 100。 */
 internal fun parseAdminIds(obj: JsonObject, key: String = "userIds"): List<String> {
     val raw = obj[key] ?: return emptyList()

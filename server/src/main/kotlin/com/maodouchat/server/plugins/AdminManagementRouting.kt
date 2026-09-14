@@ -6,6 +6,7 @@ import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.*
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
+import com.maodouchat.server.repository.escapeLikePattern
 import com.maodouchat.server.service.DispositionService
 import com.maodouchat.server.service.RuntimeConfigService
 import com.maodouchat.server.service.UserDispositionService
@@ -38,20 +39,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
-import org.jetbrains.exposed.sql.lowerCase
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.update
 import java.lang.management.ManagementFactory
 import java.util.UUID
 
@@ -66,6 +53,7 @@ internal fun Application.configureAdminManagementRouting(
     reportRepo: ReportWorkflow = ReportWorkflow()
 ) {
     val authTokenRepo = AuthTokenRepository()
+    val adminManagementRepo = com.maodouchat.server.repository.AdminManagementRepository()
     val adminSessionService = com.maodouchat.server.service.SessionService(authTokenRepo)
     val groupMediaReferenceRepo = GroupMediaReferenceRepository()
     val groupInvitationService = GroupInvitationService(GroupInvitationRepository())
@@ -177,31 +165,21 @@ internal fun Application.configureAdminManagementRouting(
                         put("active", s.revokedAt == null && s.expiresAt > System.currentTimeMillis())
                     }
                 }
-                val devices = transaction {
-                    SignalDevices.selectAll()
-                        .where { SignalDevices.userId eq id }
-                        .orderBy(SignalDevices.lastSeenAt to SortOrder.DESC)
-                        .map {
-                            buildJsonObject {
-                                put("deviceId", it[SignalDevices.deviceId])
-                                put("deviceName", it[SignalDevices.deviceName])
-                                put("status", it[SignalDevices.status])
-                                put("lastSeenAt", it[SignalDevices.lastSeenAt])
-                                put("createdAt", it[SignalDevices.createdAt])
-                            }
-                        }
+                val devices = adminManagementRepo.signalDevices(id).map { row ->
+                    buildJsonObject {
+                        put("deviceId", row.deviceId)
+                        put("deviceName", row.deviceName)
+                        put("status", row.status)
+                        put("lastSeenAt", row.lastSeenAt)
+                        put("createdAt", row.createdAt)
+                    }
                 }
-                val push = transaction {
-                    PushTokens.selectAll()
-                        .where { PushTokens.userId eq id }
-                        .orderBy(PushTokens.updatedAt to SortOrder.DESC)
-                        .map {
-                            buildJsonObject {
-                                put("deviceId", it[PushTokens.deviceId])
-                                put("platform", it[PushTokens.platform])
-                                put("updatedAt", it[PushTokens.updatedAt])
-                            }
-                        }
+                val push = adminManagementRepo.pushTokens(id).map { row ->
+                    buildJsonObject {
+                        put("deviceId", row.deviceId)
+                        put("platform", row.platform)
+                        put("updatedAt", row.updatedAt)
+                    }
                 }
                 call.respond(
                 buildJsonObject {
@@ -280,15 +258,12 @@ put("pushTokens", JsonArray(push))
                         disconnectUserSessionsByAuthSessionIds(id, revokedSessionIds, "admin session revoke")
                     }
                 }
-                transaction {
-                    ModerationAuditLog.insert {
-                        it[ModerationAuditLog.actorId] = actorId
-                        it[ModerationAuditLog.userId] = id
-                        it[ModerationAuditLog.action] = "ADMIN_SESSION_REVOKE"
-                        it[ModerationAuditLog.detail] = if (revokeAll) "all=$revoked" else "prefix=$prefix count=$revoked"
-                        it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                    }
-                }
+                adminManagementRepo.recordAudit(
+                    actorId = actorId,
+                    userId = id,
+                    action = "ADMIN_SESSION_REVOKE",
+                    detail = if (revokeAll) "all=$revoked" else "prefix=$prefix count=$revoked",
+                )
                 call.respond(
                 buildJsonObject {
 put("status", "ok")
@@ -309,43 +284,26 @@ put("userId", id)
                     return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("q or chatId or userId required"))
                 }
                 // Metadata-only search. Human payloads remain opaque to the server.
-                val rows = transaction {
-                    var query = MessagingV2Messages.selectAll()
-                    if (chatId.isNotBlank()) query = query.andWhere { MessagingV2Messages.conversationId eq chatId }
-                    if (userId.isNotBlank()) query = query.andWhere { MessagingV2Messages.senderUserId eq userId }
-                    query = query.andWhere {
-                        (MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE) and
-                        (MessagingV2Messages.conversationId notInSubQuery (
-                            Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
-                        ))
+                val rows = adminManagementRepo.searchMessageMetadata(
+                    com.maodouchat.server.repository.AdminMessageSearchFilter(
+                        q = q,
+                        chatId = chatId,
+                        userId = userId,
+                        limit = limit,
+                        offset = offset,
+                    ),
+                ).map { row ->
+                    buildJsonObject {
+                        put("id", row.id)
+                        put("chatId", row.chatId)
+                        put("senderId", row.senderId)
+                        put("type", row.kind)
+                        put("timestamp", row.timestamp)
+                        put("status", "DURABLE")
+                        put("sealedSender", true)
+                        put("contentPreview", "")
+                        put("e2eeLikely", row.kind != "SERVICE")
                     }
-                    if (q.isNotBlank()) {
-                        val like = "%" + escapeLikePattern(q.take(80)) + "%"
-                        query = query.andWhere {
-                            (MessagingV2Messages.id like like) or
-                                (MessagingV2Messages.conversationId like like) or
-                                (MessagingV2Messages.senderUserId like like) or
-                                (MessagingV2Messages.kind like like)
-                        }
-                    }
-                    query.orderBy(
-                        MessagingV2Messages.serverTimestamp to SortOrder.DESC,
-                        MessagingV2Messages.id to SortOrder.DESC,
-                    )
-                        .limit(limit, offset.toLong())
-                        .map {
-                            buildJsonObject {
-                                put("id", it[MessagingV2Messages.id])
-                                put("chatId", it[MessagingV2Messages.conversationId])
-                                put("senderId", it[MessagingV2Messages.senderUserId])
-                                put("type", it[MessagingV2Messages.kind])
-                                put("timestamp", it[MessagingV2Messages.serverTimestamp])
-                                put("status", "DURABLE")
-                                put("sealedSender", true)
-                                put("contentPreview", "")
-                                put("e2eeLikely", it[MessagingV2Messages.kind] != "SERVICE")
-                            }
-                        }
                 }
                 call.respond(
                 buildJsonObject {
@@ -391,15 +349,7 @@ post("/broadcast") {
                     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Exception) {
                     }
                 }
-                transaction {
-                    ModerationAuditLog.insert {
-                        it[ModerationAuditLog.actorId] = actorId
-                        it[ModerationAuditLog.userId] = null
-                        it[ModerationAuditLog.action] = "ADMIN_BROADCAST"
-                        it[ModerationAuditLog.detail] = text.take(400)
-                        it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                    }
-                }
+                adminManagementRepo.recordAudit(actorId, null, "ADMIN_BROADCAST", text.take(400))
                 call.respond(
                 buildJsonObject {
 put("status", "ok")
@@ -443,15 +393,7 @@ post("/users/{id}/force-logout") {
                     return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("user not found"))
                 }
                 bestEffortAdminDisconnect { disconnectUserSessions(id, "admin force logout") }
-                transaction {
-                    ModerationAuditLog.insert {
-                        it[ModerationAuditLog.actorId] = actorId
-                        it[ModerationAuditLog.userId] = id
-                        it[ModerationAuditLog.action] = "ADMIN_FORCE_LOGOUT"
-                        it[ModerationAuditLog.detail] = "force logout"
-                        it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                    }
-                }
+                adminManagementRepo.recordAudit(actorId, id, "ADMIN_FORCE_LOGOUT", "force logout")
                 call.respond(
                 buildJsonObject {
 put("status", "ok")
