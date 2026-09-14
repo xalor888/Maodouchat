@@ -1583,6 +1583,24 @@ TLS: Let's Encrypt, CN=chat.mdou.me, 有效期至 2026-11-18
 这正是追溯门禁的价值：门禁本身发现不了「我没看过的测试」，但它强迫我**为每条不变量点名一个用例**，
 而「点名」这个动作逼我重新去找——两次都立刻找到了。
 
-**仍未做（下一步）**：剩 2 条缺口 —— 3（WebSocket 只发 `INBOX_AVAILABLE_V2`；
-已确认 `/api/v2/messages` 至今没有任何 HTTP 级测试，需要完整脚手架）、
-17（bot/service 后续失败不得把已提交的人类消息变成发送失败；尚未定位到实现位置）。
+**G7 续 5 — 把缺口 17 从「没有用例」查成「无从测起」**
+
+本轮**棘轮没有下降**（仍是 `3, 17`），因为查完之后发现 17 的处置不该是「补个测试」：
+
+- 前半句「Send now 保持定时行直到文本 durable 暂存」**确实有用例**，已补上第二个引用
+  （`ConversationScheduledMessageDispatcherTest#dispatcher uses deterministic scheduled id through facade`
+  与 `#missing chat is rejected without staging`）；
+- 后半句「可选 bot/service 后续失败不得把已提交人类消息变成发送失败」在**客户端与服务端都找不到实现**：
+  `ServiceMessageRepository.publish` 在 `server/src/main` 里没有任何调用方，
+  `grep -rn "followUp|notifyBot|optionalBot" app/src/main` 也为空。
+  所以它不是「缺测试」而是**无从测起**：要么补实现，要么改文档——这属于契约决策，不能靠加个空测试糊过去。
+
+标注已改成这个更精确的结论（保留 `→ 缺口：` 前缀，棘轮数字不动）。
+
+**顺带验证了门禁本身**：我第一次把前缀写成 `→ 缺口（性质已查清）：`，门禁立刻红——
+`the number of declared gaps only goes down` 发现缺口集合变成 `[3]`。也就是说，
+**连「换一种写法描述缺口」都会被测出来**，这个门禁不是摆设。
+
+**仍未做（下一步）**：剩 2 条 —— 3（WebSocket 只发 `INBOX_AVAILABLE_V2`；已确认
+`/api/v2/messages` 至今没有 HTTP 级测试，需要完整脚手架，是本目标最贵的一条）、
+17 的后半句（属于契约决策：补实现或改文档）。

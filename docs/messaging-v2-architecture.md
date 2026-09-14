@@ -74,8 +74,8 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
 
 17. "Send now" keeps its scheduled row until the text is durably staged in the v2 outbox. Optional
     bot/service follow-up failure cannot turn an already committed human message into a failed send.
-   → 验证：`ConversationScheduledMessageDispatcherTest#missing chat is rejected without staging`
-   → 缺口：「bot/service 后续失败不得把已提交的人类消息变成发送失败」没有用例
+   → 验证：`ConversationScheduledMessageDispatcherTest#dispatcher uses deterministic scheduled id through facade`；`ConversationScheduledMessageDispatcherTest#missing chat is rejected without staging`
+   → 缺口：前半句「Send now 保持定时行直到文本durable 暂存」已有用例覆盖；后半句「可选 bot/service 后续失败不得把已提交人类消息变成发送失败」在客户端与服务端**都找不到实现**——`ServiceMessageRepository.publish` 在 `server/src/main` 里没有调用方，`grep -rn "followUp|notifyBot|optionalBot" app/src/main` 也为空。所以这不是「缺测试」而是「无从测起」：需要先确认这条契约是否仍然成立（补实现，或改文档）。
 
 18. A zero-target Sender Key status is complete only when this device already owns the current local
     Sender Key. This allows a single-device, single-member group to converge without an infinite
