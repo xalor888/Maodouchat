@@ -9,7 +9,7 @@ import kotlin.test.fail
 /**
  * M3：messaging-v2 不变量的**追溯门禁**。
  *
- * `docs/messaging-v2-architecture.md` 用不变量描述消息管线的契约（G7 时 24 条，G11 增至 25 条）。在加这个门禁之前，
+ * `docs/messaging-v2-architecture.md` 用不变量描述消息管线的契约（G7 时 24 条，G11 增至 25 条，G12 增至 26 条）。在加这个门禁之前，
  * 那份文档**没有任何一处提到测试**：当时全部 24 条都只是散文，读的人无从知道哪条真被验证过、
  * 哪条只是愿望。这次审计把每条都标上了 `→ 验证：`（指向真正执行它的用例）或
  * `→ 缺口：`（明确承认没有用例）。
@@ -81,10 +81,11 @@ class MessagingInvariantTraceabilityTest {
     fun `every messaging invariant is either verified by a real test or explicitly declared a gap`() {
         val audits = audit()
 
-        // G11 新增第 25 条「服务端全库不含人类消息明文」，故此处的冻结值由 24 同步为 25。
-        assertEquals(25, audits.size, "不变量条数变了：文档改了就必须同步审计，不能悄悄增删")
+        // G11 新增第 25 条（服务端全库不含人类消息明文）；G12 新增第 26 条
+        //（收件箱按设备隔离、离线可取、ACK 按设备且授权受限）。冻结值由 24 → 25 → 26 同步。
+        assertEquals(26, audits.size, "不变量条数变了：文档改了就必须同步审计，不能悄悄增删")
         assertEquals(
-            (1..25).toList(),
+            (1..26).toList(),
             audits.map { it.number },
             "不变量编号必须连续",
         )

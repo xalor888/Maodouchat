@@ -728,6 +728,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [ ] reducer/state machine 使用 fake clock 和确定性 dispatcher。
 - [~] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖（客户端：`core/testing/ArchitectureTest.kt` ArchUnit 2 条 + 根 `checkArchitecture` 模块依赖；**服务端已补 `server/src/test/.../architecture/ServerArchitectureTest.kt`**，随 `server:test` 自动进 CI：2 条绝对不变量 + 5 条精确相等棘轮，实测注入违规会红、基线过期也会红，见 M1 记录）；**G8** 补：客户端 `:core:testing` 的 A01 规则此前从未在 CI 执行（已接进 CI），并新增可证伪的热点棘轮 `ClientHotspotRatchetTest`（热点行数 5061/3131/2298、UI 直连持久层 38 文件/200 处，精确相等）。
 - [~] E2EE 命门有可执行证据：**G11** 新增第 25 条不变量「服务端全库不含人类消息明文」，由 `ServerPlaintextSweepTest` 用独立 JDBC 连接枚举全部表/列做哨兵扫描，并带 **正对照**（证明扫描器确能发现服务端确实保存的明文，实测命中 `CHATS.LAST_MESSAGE` / `SERVICE_MESSAGES.CONTENT`）；反证已实测（把明文写进 `Chats.lastMessage` → 扫描器红并报出位置）。
+- [~] 双账号双设备离线 E2E（Q04）：**G12** 落了第一个服务端切片——`MessagingV2TwoDeviceDeliveryTest` 用真实 HTTP 走通「A 发 → B（断言其无任何 WebSocket，即离线）拉 `GET /api/v2/inbox` 拿到逐字节相同的密文 → ACK 后自己清空 → 另一账号设备与**同账号另一台设备**均保留副本 → 越权 ACK 返回 0」。已实测两次反证；其中设备隔离反证第一次未红，暴露的是**测试太弱**（u2 当时只有一台设备），把测试改强后才红。**仍未覆盖真实客户端加密与 UI**，属于服务端边界证据。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
 
 ### Q02 数据库与迁移
@@ -1840,3 +1841,44 @@ server **419 / 0**（本轮无服务端改动，Gradle 对该任务判 UP-TO-DAT
 > 整份台账的可信度就归零。** 后续所有 run id 一律先 `gh run list` 核对再落笔。
 
 **实测**：server **421 / 0**（原 419，+2）；app JVM 1512 / 0；`:core:testing` 5 / 0。
+
+### G12 — M5 第一片：双设备端到端投递证据（新增第 26 条不变量）
+
+**Scope**：DIRECTION 轨道 B 第 5 项「双账号双设备离线 E2E」的第一个可落地切片——
+先在**服务端边界**上取证，不依赖模拟器。
+
+**先收尾 G11 的遗留问题（已实测）**
+
+`grep -rn lastMessage server/src/main/kotlin/com/maodouchat/server/messaging/v2/` → **0 命中**：
+人类 V2 发送路径**根本不碰** `chats.last_message`。该列只由 bot/service 发布写入，
+所以它虽然会持有文本，**对人类消息始终为空**。已写进文档第 25 条备注，消除「这一列可能藏人类明文」的误读。
+
+**新增用例** `MessagingV2TwoDeviceDeliveryTest#an offline device pulls the exact ciphertext and its ack keeps the sibling copy`
+（放在 `MinimalRouteTest.kt` 内，复用已验证的 HTTP 驱动方式；不 mock）：
+
+1. A=u1/d1 经真实 `POST /api/v2/messages` 发出三段密文（u1/d2、u2/d1、u2/d2）；
+2. B=u2/d1 **从未建立任何 WebSocket**，并**把这个事实变成断言**
+   （`ConnectionRegistry.onlineUsers["u2"].isNullOrEmpty()`），而不是靠叙述——然后经真实
+   `GET /api/v2/inbox` 拉取；
+3. 断言恰好取到**它这一台**那一份，且密文**逐字节相同**（服务端只中转、不重写）；
+4. 经真实 `POST /api/v2/inbox/ack` 确认后，自己的收件箱清空；
+5. **另一账号设备 u1/d2 仍保留副本**，**同账号另一台设备 u2/d2 也仍保留副本**——
+   ACK 必须按**设备**生效，不是按账号，更不是全局删除；
+6. **ACK 的授权作用域**：u2 的会话拿着 u1/d2 的 `envelopeId`（该 id 在客户端间并非秘密）
+   尝试确认，必须 `acknowledged == 0` 且对方副本不受影响。
+
+**反证（两次，且第一次暴露了我的测试缺陷）**
+
+- 反证 B（授权作用域）：去掉 `acknowledge` 里对 `recipientUserId`/`recipientDeviceId` 的归属校验
+  → 红：`u2 的会话不该能确认属于 u1/d2 的信封 ==> expected: <0> but was: <1>`。
+- 反证 A（设备隔离）**第一次竟然没红**：我把 `pending` 的 `recipientDeviceId eq deviceId` 去掉后，
+  用例**依然通过**。原因不是代码没问题，而是**我的测试测不出来**——当时 u2 只有一台设备，
+  「按 deviceId 过滤」与「按 userId 过滤」结果完全相同。
+  **修法是把测试改强**：给 u2 加第二台设备、发三段信封，于是再测反证 A 立刻红：
+  `离线设备应当恰好取到发给**它这一台**的那一份；取到 2 份说明是按账号而不是按设备过滤`。
+  这条教训值得记：**反证不红时，先怀疑测试，不要先给自己发免责声明。**
+
+**接进追溯体系**：作为**第 26 条不变量**写进 `docs/messaging-v2-architecture.md`；
+追溯门禁再次要求显式同步条数（25→26），同步后门禁绿并校验新引用真实存在。
+
+**实测**：server **422 / 0**（原 421，+1）；app JVM 1512 / 0；`:core:testing` 5 / 0。

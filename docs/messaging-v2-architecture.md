@@ -127,6 +127,18 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
     must fail a test instead of being discovered later.
    → 验证：`ServerPlaintextSweepTest#a human v2 send leaves no plaintext anywhere in the server database`
    → 验证：`ServerPlaintextSweepTest#the sweep really can find plaintext that the server does store`（正对照）
+   → 备注：人类 V2 发送路径**完全不写** `chats.last_message`（实测
+   `grep -rn lastMessage server/src/main/kotlin/com/maodouchat/server/messaging/v2/` 为 0 命中）；
+   该列只由 bot/service 发布写入。所以它虽然会持有文本，但对人类消息始终为空。
+
+26. **A device's mailbox is per-device, survives being offline, and is acknowledged per device.** A
+    message that was sent while the recipient had no live socket is still delivered: the recipient's
+    device pulls it over `GET /api/v2/inbox` and receives the **byte-identical** ciphertext that the
+    sender submitted — the server relays, it does not rewrite. Acknowledging one device's copy clears
+    only that device's mailbox: both another account's device and the **same account's** other device
+    keep their own copies. An acknowledgement is authorization-scoped: knowing another device's
+    `envelopeId` (which is not secret) must not let a caller clear a mailbox it does not own.
+   → 验证：`MessagingV2TwoDeviceDeliveryTest#an offline device pulls the exact ciphertext and its ack keeps the sibling copy`
 
 ## Ownership Boundaries
 

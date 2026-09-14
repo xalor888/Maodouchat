@@ -3084,3 +3084,190 @@ class MessagingV2DeliveryWakeupTest {
         }
     }
 }
+
+/**
+ * M5 第一片（G12）：**双设备端到端投递 + 离线可取 + ACK 按设备**。
+ *
+ * 与 `MessagingV2DeliveryWakeupTest` 的分工：那个用例只证明「投递时推的帧是纯信号」，
+ * 本用例证明**消息本身真的跨设备送达**——走真实 HTTP：A 发送 → B（从未建立任何 WebSocket，
+ * 即离线）拉取收件箱拿到**逐字节相同**的密文 → B 确认后自己清空 → 但发给同一会话里
+ * 另一个设备的副本必须还在。
+ *
+ * 最后一条是关键：如果不查这一条，「ACK 生效」完全可能是靠把**所有**设备的副本一起删掉
+ * 来实现的——那在真实使用里就是「一个人读了，另一个人的消息也没了」。
+ */
+class MessagingV2TwoDeviceDeliveryTest {
+
+    @Test
+    fun `an offline device pulls the exact ciphertext and its ack keeps the sibling copy`() = testApplication {
+        application {
+            moduleUnderTest(seedDemoUsers = true)
+            configureMessagingV2Routing(
+                com.maodouchat.server.messaging.v2.MessagingV2Repository(),
+            )
+        }
+
+        suspend fun login(email: String): String {
+            val response = client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"$email","password":"password123"}""")
+            }
+            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+            return extractToken(response.bodyAsText())
+        }
+
+        val alexToken = login("alex@example.com")
+        val aliceToken = login("alice@example.com")
+        val created = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":["u2"],"isGroup":true,"groupName":"Two Device Test"}""")
+        }
+        assertEquals(HttpStatusCode.Created, created.status, created.bodyAsText())
+        val chatId = (Json.parseToJsonElement(created.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        acceptAllGroupInvites(aliceToken)
+
+        val cipherForU1Device2 = "CIPHER-U1D2-" + java.util.UUID.randomUUID()
+        val cipherForU2Device1 = "CIPHER-U2D1-" + java.util.UUID.randomUUID()
+        val cipherForU2Device2 = "CIPHER-U2D2-" + java.util.UUID.randomUUID()
+
+        org.jetbrains.exposed.sql.transactions.transaction {
+            // u2 刻意给**两台**设备：只有这样才钉得住「收件箱是按设备隔离的」。
+            // 若 u2 只有一台设备，「按 deviceId 过滤」与「按 userId 过滤」结果相同，
+            // 去掉设备过滤的回归就测不出来（本轮反证时实测到这一点）。
+            listOf("u1" to 1, "u1" to 2, "u2" to 1, "u2" to 2).forEach { (userId, deviceId) ->
+                com.maodouchat.server.db.SignalDevices.insert {
+                    it[com.maodouchat.server.db.SignalDevices.userId] = userId
+                    it[com.maodouchat.server.db.SignalDevices.deviceId] = deviceId
+                    it[deviceName] = "$userId-$deviceId"
+                    it[status] = "CONFIRMED"
+                    it[confirmedAt] = 1L
+                    it[confirmedByDeviceId] = deviceId
+                    it[createdAt] = 1L
+                    it[lastSeenAt] = 1L
+                }
+                listOf("identity_key", "registration_id", "signed_pre_key", "signed_pre_key_signature")
+                    .forEach { keyType ->
+                        com.maodouchat.server.db.SignalKeys.insert {
+                            it[id] = "$userId-$deviceId-$keyType"
+                            it[com.maodouchat.server.db.SignalKeys.userId] = userId
+                            it[com.maodouchat.server.db.SignalKeys.deviceId] = deviceId
+                            it[com.maodouchat.server.db.SignalKeys.keyType] = keyType
+                            it[keyData] = "x"
+                            it[createdAt] = 1L
+                        }
+                    }
+            }
+            // 两个账号的登录会话都绑到各自设备 1，这样 u2 的 token 才能拉自己的收件箱。
+            com.maodouchat.server.db.AuthSessions.update(
+                { com.maodouchat.server.db.AuthSessions.userId eq "u1" },
+            ) {
+                it[com.maodouchat.server.db.AuthSessions.signalDeviceId] = 1
+            }
+            com.maodouchat.server.db.AuthSessions.update(
+                { com.maodouchat.server.db.AuthSessions.userId eq "u2" },
+            ) {
+                it[com.maodouchat.server.db.AuthSessions.signalDeviceId] = 1
+            }
+        }
+
+        val memberRevision = org.jetbrains.exposed.sql.transactions.transaction {
+            com.maodouchat.server.db.Chats.selectAll()
+                .where { com.maodouchat.server.db.Chats.id eq chatId }
+                .single()[com.maodouchat.server.db.Chats.memberRevision]
+        }
+
+        // A = u1/d1 发送。收件人只有 d1 的 u2 与同账号的另一台设备 u1/d2。
+        val sent = client.post("/api/v2/messages") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {"id":"two-device-1","conversationId":"$chatId","kind":"DATA","clientTimestamp":1000,
+                 "groupRevision":$memberRevision,"attachmentIds":[],
+                 "envelopes":[
+                   {"recipientUserId":"u1","recipientDeviceId":2,"ciphertextType":"TEXT","ciphertext":"$cipherForU1Device2"},
+                   {"recipientUserId":"u2","recipientDeviceId":1,"ciphertextType":"TEXT","ciphertext":"$cipherForU2Device1"},
+                   {"recipientUserId":"u2","recipientDeviceId":2,"ciphertextType":"TEXT","ciphertext":"$cipherForU2Device2"}
+                 ]}
+                """.trimIndent(),
+            )
+        }
+        assertEquals(HttpStatusCode.Accepted, sent.status, sent.bodyAsText())
+
+        // B 是**离线**的：本用例从未为 u2 建立任何 WebSocket 连接。把这一点变成可核对的事实，
+        // 而不是叙述。
+        assertTrue(
+            com.maodouchat.server.plugins.ConnectionRegistry.onlineUsers["u2"].isNullOrEmpty(),
+            "本用例刻意让 u2 保持离线；若这里有活跃 session，就不算离线投递",
+        )
+
+        val inbox = client.get("/api/v2/inbox?limit=100") {
+            header(HttpHeaders.Authorization, "Bearer $aliceToken")
+        }
+        assertEquals(HttpStatusCode.OK, inbox.status, inbox.bodyAsText())
+        val inboxJson = Json.parseToJsonElement(inbox.bodyAsText()).jsonObject
+        val envelopes = inboxJson["envelopes"]!!.jsonArray
+        assertEquals(
+            1,
+            envelopes.size,
+            "离线设备应当恰好取到发给**它这一台**的那一份；取到 2 份说明是按账号而不是按设备过滤：${inbox.bodyAsText()}",
+        )
+        val only = envelopes[0].jsonObject
+        assertEquals(
+            cipherForU2Device1,
+            only["ciphertext"]!!.jsonPrimitive.content,
+            "投递穿过服务端后，密文必须逐字节不变",
+        )
+        val envelopeId = only["envelopeId"]!!.jsonPrimitive.content
+
+        val ack = client.post("/api/v2/inbox/ack") {
+            header(HttpHeaders.Authorization, "Bearer $aliceToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"envelopeIds":["$envelopeId"]}""")
+        }
+        assertEquals(HttpStatusCode.OK, ack.status, ack.bodyAsText())
+        assertEquals(1, Json.parseToJsonElement(ack.bodyAsText()).jsonObject["acknowledged"]!!.jsonPrimitive.content.toInt())
+
+        val afterAck = client.get("/api/v2/inbox?limit=100") {
+            header(HttpHeaders.Authorization, "Bearer $aliceToken")
+        }
+        assertEquals(
+            0,
+            Json.parseToJsonElement(afterAck.bodyAsText()).jsonObject["envelopes"]!!.jsonArray.size,
+            "确认之后自己的收件箱应当清空：${afterAck.bodyAsText()}",
+        )
+
+        // 关键：ACK 必须是**按设备**的。同一会话里 u1/d2 那一份不能因为别人确认而消失。
+        val repository = com.maodouchat.server.messaging.v2.MessagingV2Repository()
+        val sibling = repository.pending("u1", 2, 100)
+        assertEquals(1, sibling.envelopes.size, "另一个账号设备的副本被误删了——ACK 变成了全局删除")
+        assertEquals(cipherForU1Device2, sibling.envelopes.single().ciphertext)
+
+        // 同一账号的另一台设备也必须保留自己那份：这才钉住「ACK 按设备」而不是「按账号」。
+        val sameAccountSibling = repository.pending("u2", 2, 100)
+        assertEquals(1, sameAccountSibling.envelopes.size, "同账号另一台设备的副本被误删了——ACK 是按账号生效了")
+        assertEquals(cipherForU2Device2, sameAccountSibling.envelopes.single().ciphertext)
+
+        // ACK 的**授权作用域**：拿着别人的 envelopeId 不能替别人确认。
+        // envelopeId 在客户端之间并非秘密（密文信封本来就带 id），所以「知道 id 就能删」
+        // 是一条真实的越权路径——那会让攻击者静默清掉别人尚未解密的消息。
+        val foreignEnvelopeId = sibling.envelopes.single().envelopeId
+        val foreignAck = client.post("/api/v2/inbox/ack") {
+            header(HttpHeaders.Authorization, "Bearer $aliceToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"envelopeIds":["$foreignEnvelopeId"]}""")
+        }
+        assertEquals(HttpStatusCode.OK, foreignAck.status, foreignAck.bodyAsText())
+        assertEquals(
+            0,
+            Json.parseToJsonElement(foreignAck.bodyAsText()).jsonObject["acknowledged"]!!.jsonPrimitive.content.toInt(),
+            "u2 的会话不该能确认属于 u1/d2 的信封",
+        )
+        assertEquals(
+            1,
+            repository.pending("u1", 2, 100).envelopes.size,
+            "越权 ACK 竟然真的删掉了别人的信封",
+        )
+    }
+}
