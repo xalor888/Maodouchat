@@ -729,6 +729,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [~] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖（客户端：`core/testing/ArchitectureTest.kt` ArchUnit 2 条 + 根 `checkArchitecture` 模块依赖；**服务端已补 `server/src/test/.../architecture/ServerArchitectureTest.kt`**，随 `server:test` 自动进 CI：2 条绝对不变量 + 5 条精确相等棘轮，实测注入违规会红、基线过期也会红，见 M1 记录）；**G8** 补：客户端 `:core:testing` 的 A01 规则此前从未在 CI 执行（已接进 CI），并新增可证伪的热点棘轮 `ClientHotspotRatchetTest`（热点行数 5061/3131/2298、UI 直连持久层 38 文件/200 处，精确相等）。
 - [~] E2EE 命门有可执行证据：**G11** 新增第 25 条不变量「服务端全库不含人类消息明文」，由 `ServerPlaintextSweepTest` 用独立 JDBC 连接枚举全部表/列做哨兵扫描，并带 **正对照**（证明扫描器确能发现服务端确实保存的明文，实测命中 `CHATS.LAST_MESSAGE` / `SERVICE_MESSAGES.CONTENT`）；反证已实测（把明文写进 `Chats.lastMessage` → 扫描器红并报出位置）。
 - [~] 双账号双设备离线 E2E（Q04）：**G12** 落了第一个服务端切片——`MessagingV2TwoDeviceDeliveryTest` 用真实 HTTP 走通「A 发 → B（断言其无任何 WebSocket，即离线）拉 `GET /api/v2/inbox` 拿到逐字节相同的密文 → ACK 后自己清空 → 另一账号设备与**同账号另一台设备**均保留副本 → 越权 ACK 返回 0」。已实测两次反证；其中设备隔离反证第一次未红，暴露的是**测试太弱**（u2 当时只有一台设备），把测试改强后才红。**仍未覆盖真实客户端加密与 UI**，属于服务端边界证据。
+- [~] 客户端加密路径有证据：**G13** 给 `SignalMessagingV2EnvelopePreparer` 补 7 个 JVM 单测（快照归属/会话一致性/群控过期/覆盖集合/明文边界），三处反证实测会红；解密路径 `SignalMessagingV2EnvelopeProcessor` 仍零测试，已列为下一步。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
 
 ### Q02 数据库与迁移
@@ -1885,3 +1886,48 @@ server **419 / 0**（本轮无服务端改动，Gradle 对该任务判 UP-TO-DAT
 （该 run id 由 `gh run list`/`gh run view` 实测取得，非凭记忆——见 G11 里那次纠正）。
 
 **实测**：server **422 / 0**（原 421，+1）；app JVM 1512 / 0；`:core:testing` 5 / 0。
+
+### G13 — 客户端加密路径的第一批证据：Signal 信封准备器（M5 往客户端推进）
+
+**Scope**：M5 服务端边界已有证据（G12），本轮往客户端推进一步。
+
+**现状实测（缺口是真的）**
+
+`app/src/main/java/com/maodouchat/messaging/v2/SignalMessagingV2Adapter.kt`（288 行）里含
+`SignalMessagingV2EnvelopePreparer`（加密路径）与 `SignalMessagingV2EnvelopeProcessor`（解密路径），
+而 `app/src/test/java/com/maodouchat/messaging/v2/` 下 20 个测试文件里**没有它**——
+这段决定「哪些明文、加密给哪些设备」的要害逻辑此前**零测试**。
+
+**可测性已确认**：三个依赖全部可注入（`SignalProtocol` + `MessagingV2ConversationSnapshotProvider`
++ `ensureGroupReady` lambda），`SignalProtocol` 只依赖两个 Room DAO，可用 app 测试已有的
+`io.mockk:mockk:1.13.8` 替换掉加密层，从而专门验准备器自己的守卫。
+
+**新增 7 个用例**（`SignalMessagingV2EnvelopePreparerTest`）
+1. 快照 `conversationId` 不匹配 → 抛 `messaging_v2_snapshot_mismatch`，且**加密从未被调用**；
+2. `ownerUserId` 不匹配 → 抛 `messaging_v2_snapshot_owner_mismatch`，同样不加密；
+3. 群控 `groupRevision` 过期 → 抛 `MessagingV2StaleGroupControlException`，**加密从未被调用**
+   （过期就不该产出任何密文）；
+4. 群控产出信封与 `snapshot.targets` 不一致 → `messaging_v2_group_control_coverage_mismatch`；
+5. 直聊覆盖不一致 → `messaging_v2_crypto_coverage_mismatch`；
+6. 直聊无目标设备 → 不加密、返回空信封；
+7. **明文边界**：断言「明文进加密层、密文出信封」——`capture` 到加密层确实收到明文、
+   确实产出信封、信封携带的是加密层返回的密文标记而非明文。
+   三截缺一不可：只断言「信封里没有明文」会退化成自证（什么都不做的实现也能过）。
+
+**反证（三处同时注入，实测 3 tests / 3 failures）**
+1. 去掉会话一致性校验 → `Expected an exception of IllegalArgumentException ... but was MockKException:
+   no answer found for SignalProtocol.encryptMultiRecipient...`（说明它**继续往下加密了**）；
+2. 去掉直聊覆盖校验 → `Expected ... IllegalStateException ... but was completed successfully`；
+3. 把明文当密文放进信封 →
+   `信封必须携带加密层返回的密文 expected:<[CIPHER-u2-1]> but was:<[{"type":"Text","body":"PLAINTEXT-SENTINEL-2f9c41d7"}]>`
+   ——报错信息里直接打出了泄漏的明文。
+还原后绿，`git diff app/src/main/` 为空（生产代码零改动）。
+
+**接进追溯体系**：在文档不变量 9 下追加这条准备器层的 `→ 验证`（不变量 9 现在同时有
+outbox 线路边界与准备器信封边界两层证据），追溯门禁已校验新引用真实存在，条数不变（仍 26）。
+
+**本轮只做侦察、未强行覆盖**：`SignalMessagingV2EnvelopeProcessor`（解密路径）含
+service 信封策略、内容策略、sender key 缺失回退等分支，依赖更多且需要更细的场景构造，
+留作下一个目标输入，不为了凑数写浅测试。
+
+**实测**：app JVM **1519 / 0**（原 1512，+7）；`:core:testing` 5 / 0；server **422 / 0**（本轮无服务端改动）。
