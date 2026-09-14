@@ -308,7 +308,7 @@ Gate：ViewModel reducer、快速切会话、进程恢复、单 intent 单命令
 - [x] 拆为 `ConversationRoute`、`TimelinePane`、`ComposerPane` 等子面板，`ChatDetailScreen.kt` 仅 42 行纯代理入口。
 - [x] sheets：转发、定时、举报、安全码、联系人、AI、媒体操作。
 - [x] banners：置顶、断线、群公告、消失消息、安全变化、Sender Key 健康。
-- [ ] 平台动作通过 effect handler 执行，不在 Composable 内直接写库（**未达标**：`ChatDetailRoute.kt:879` 在 Composable 内取 `secretChatDao()`，`:891` 于 `while(true)` 中每 60s `touchActivity()` 写库，并内联 TTL 过期判定/`destroySession`；`:1010/1025/1042/1059` 另取 4 个 `database` 句柄驱动 AI 业务逻辑。`ChatDetailRoute.kt` 实为单个 5061 行 composable，含 78 处 `LaunchedEffect`）。
+- [~] 平台动作通过 effect handler 执行，不在 Composable 内直接写库（**未达标，但已量化并上了棘轮**：`ChatDetailRoute.kt:879` 在 Composable 内取 `secretChatDao()`，`:891` 于 `while(true)` 中每 60s `touchActivity()` 写库，并内联 TTL 过期判定/`destroySession`；`:1010/1025/1042/1059` 另取 4 个 `database` 句柄驱动 AI 业务逻辑。`ChatDetailRoute.kt` 实为单个 5061 行 composable，含 78 处 `LaunchedEffect`。**G8 实测全量口径**：`app/src/main/java/com/maodouchat/ui/` 下 `database.`/`secretChatDao`/`MaodouchatApp` 共 **38 个文件 / 200 处**（最重 `ChatDetailViewModel.kt` 36、`ChatListPorts.kt` 26、`SettingsSubScreens.kt` 11），已由 `ClientHotspotRatchetTest` 精确相等冻结，只许下降；该门禁此前从不运行，G8 已接进 CI）。
 - [x] 子组件接收稳定 model/event。
 
 Gate：大字体、长文本、RTL、中英文、横屏、平板、键盘和弹窗互斥 Compose 测试通过。
