@@ -1773,7 +1773,10 @@ expected:<[]> but was:<[touch]>
 本轮只修了这一处可验证的点；其余需要单独评估（有些 `runCatching` 包的是非挂起代码，不构成问题）。
 
 **CI 实测**：run **[34843298930](https://github.com/xalor888/Maodouchat/actions/runs/34843298930)**
-（headSha `26b5dd09`）→ success，四 job 全绿。
+（headSha `26b5dd09`）修复本体 → success；后续两笔（U02 记录 `0a10e9db`、第三个取消用例 `af33fea9`）
+分别在 run 34846411305 与 **[34848046267](https://github.com/xalor888/Maodouchat/actions/runs/34848046267)** 上四 job 全绿。
+注：核对 af33fea9 那次时 `gh run watch --exit-status` 先返回 exit=1 而 Server job 仍 `in_progress`——
+我没有据此判定 CI 红，改为轮询 `status` 字段，最终确认为 success。
 
 **实测**：app JVM **1512 tests / 0 failures**（原 1509，+3）；`:core:testing` 5 / 0；
 server **419 / 0**（本轮无服务端改动，Gradle 对该任务判 UP-TO-DATE，非新跑）。
