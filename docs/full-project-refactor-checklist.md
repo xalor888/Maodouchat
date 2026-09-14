@@ -1265,6 +1265,20 @@ Docker Compose Config **四 job 全绿**。
 
 **Deletion**：无生产行为删除；`AdminExportsRouting.kt` 的 14 行 Exposed 导入与 26 个 handler 内事务全部删除。
 
-**Risks**：特征测试只锁「形状」（状态码/表头/内容类型），**没有**锁每个导出的行级数据；
-行级语义靠 4 个批次的逐字搬运 + 全量 408 测试兜底。下一块缺口是 `AdminEnhanceRouting.kt`(12 处)
+**行级断言（补齐目标里的「关键行数」）**
+
+只锁形状不够：接错表或写错过滤条件时，状态码与表头依然全绿。故补 `exports report real rows
+and never invent phantom rows`：
+- `createDefaultUsers()` 固定种下 u1..u13 → `/users-export`、`/online-presence-export`、
+  `/privacy-flags-export`、`/identity-users-export`、`/sessions-summary-export`
+  各断言 **14 行（1 表头 + 13 用户）**且含 u1；
+- `/users-export` 含 `alex@example.com`；`/identity-users-export` 含脱敏后的 `ale***`；
+- `/totp-users-export`、`/restricted-users-export`、`/blocks-export`、`/friends-export`
+  在测试库里必然为空 → 断言 **只有表头**，出现数据行即为查询写错（防幽灵行）；
+- 反证：把 `users` 查询加上 `where { isOnline eq true }` → 测试红，
+  报「期望 1 行表头 + 13 个种子用户，实际 1 行」。还原后绿。
+- `AdminExportsRouteTest` 现为 5 tests / 0 failures；全量 server **409 tests / 0 failures**。
+
+**Risks**：行级断言覆盖的是 Users 系与「必然为空」两类，**不是** 27 个导出的逐行快照；
+其余导出的行级语义仍靠逐字搬运 + 全量测试兜底。下一块缺口是 `AdminEnhanceRouting.kt`(12 处)
 与 `AdminManagementRouting.kt`(6 处)。

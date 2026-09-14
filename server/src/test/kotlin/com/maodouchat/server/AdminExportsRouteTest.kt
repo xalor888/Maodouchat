@@ -132,6 +132,55 @@ class AdminExportsRouteTest {
         }
     }
 
+    /**
+     * 行级断言（目标里的「关键行数」）。
+     *
+     * 只锁形状是不够的：把 SQL 搬进 repository 时，如果接错表、写错过滤条件，
+     * 状态码和表头依然全绿。所以这里对**有种子数据的 Users 系导出**断言真实行数与内容，
+     * 对**必然为空**的导出断言「只有表头、没有幽灵行」。
+     */
+    @Test
+    fun `exports report real rows and never invent phantom rows`() = testApplication {
+        application { moduleUnderTest() }
+        val admin = adminToken()
+
+        suspend fun csv(path: String): List<String> {
+            val response = client.get("/api/admin$path") {
+                header(HttpHeaders.Authorization, "Bearer $admin")
+            }
+            assertEquals(HttpStatusCode.OK, response.status, "$path → ${response.bodyAsText().take(200)}")
+            return response.bodyAsText().trim().lines().filter { it.isNotBlank() }
+        }
+
+        // createDefaultUsers() 固定种下 u1..u13，共 13 个用户。
+        listOf(
+            "/users-export",
+            "/online-presence-export",
+            "/privacy-flags-export",
+            "/identity-users-export",
+            "/sessions-summary-export",
+        ).forEach { path ->
+            val lines = csv(path)
+            assertEquals(14, lines.size, "$path 期望 1 行表头 + 13 个种子用户，实际 ${lines.size} 行")
+            assertTrue(lines.any { it.startsWith("\"u1\"") }, "$path 缺少 u1 行")
+        }
+
+        val users = csv("/users-export")
+        assertTrue(users.any { it.contains("\"alex@example.com\"") }, "users-export 缺少 alex 的邮箱")
+
+        // 邮箱脱敏：alex@example.com → "ale***"
+        assertTrue(
+            csv("/identity-users-export").any { it.contains("\"ale***\"") },
+            "identity-users-export 的邮箱脱敏列变了",
+        )
+
+        // 这些表在测试库里没有任何行：只允许出现表头，出现数据行就是查询写错了。
+        listOf("/totp-users-export", "/restricted-users-export", "/blocks-export", "/friends-export")
+            .forEach { path ->
+                assertEquals(1, csv(path).size, "$path 应为「只有表头」，实际出现了数据行")
+            }
+    }
+
     @Test
     fun `runtime-export keeps its json contract`() = testApplication {
         application { moduleUnderTest() }
