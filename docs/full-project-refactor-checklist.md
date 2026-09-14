@@ -1675,3 +1675,49 @@ TLS: Let's Encrypt, CN=chat.mdou.me, 有效期至 2026-11-18
    因为 Gradle 不知道这些 app 源码是 test 的输入，判了 UP-TO-DATE（与 G7 同类）。
    已在 `core/testing/build.gradle.kts` 里把 `ui/` 目录与三个热点文件声明为输入；
    修完再测，注入立刻变红（6s）。
+
+### G9 — 棘轮口径改准 + 第一处真实收敛（M6 第二片）
+
+**Scope**：DIRECTION M6 第二步。先把 G8 的棘轮口径改准，再动第一处真代码。
+
+**口径修正（这是本轮第一个真发现）**
+
+G8 的棘轮把两类债混在了一个数字里：`ui/` 下直连持久层 **200 处 / 38 文件**，其中
+**只有 87 处 / 17 文件落在含 `@Composable` 的文件里**。而台账 U02 的契约是
+「**不在 Composable 内**直接写库」——所以 U02 的真实数字是 **87**，不是 200；
+另外 113 处是 ViewModel / Ports 直接用 DAO（另一类债，该走 ports），混进来会让台账谎报进度。
+
+`ClientHotspotRatchetTest` 已拆成两个精确相等棘轮：
+- **主口径**（对齐 U02）：`@Composable` 文件直连持久层，基线 **84 处 / 17 文件**（本轮收敛后）；
+- **次口径**：整个 `ui/`，基线 **197 处 / 38 文件**。
+
+**第一处真实收敛：密聊活动心跳移出 Composable**
+
+`ChatDetailRoute.kt` 里那段自包含的 `LaunchedEffect`（取 `MaodouchatApp.database.secretChatDao()`
+→ TTL 过期即 `destroySession` → `while(true){ touchActivity; delay(60s) }`）抽成
+`security/SecretChatActivityHeartbeat.kt`，分两层：
+- `run(...)` 纯逻辑，依赖全部以函数注入（读 lastActivityAt / 判过期 / 销毁 / 写活动 / 睡眠）；
+- `start(context, chatId)` Android 侧装配。
+行为逐条保持不变（含「读失败按原来一样吞掉」）。
+
+**抽它的主要收益不是少几行，而是这段逻辑原先完全不可测**——新增 5 个单测把它钉住：
+过期→销毁、未过期→不销毁、无记录→不销毁、读失败→吞掉且心跳照常、每轮心跳写一次 activity 且间隔 60s。
+
+**收敛结果（实测）**
+
+| 指标 | 收敛前 | 收敛后 |
+|------|--------|--------|
+| `ChatDetailRoute.kt` 直连命中 | 9 | **6** |
+| `ChatDetailRoute.kt` 行数 | 5061 | **5048** |
+| Composable 口径（U02） | 87 处 / 17 文件 | **84 处 / 17 文件** |
+| 全 ui 口径 | 200 处 / 38 文件 | **197 处 / 38 文件** |
+
+这是客户端棘轮**第一次真正下调**（此前只会冻结）。
+
+**反证（实测）**
+1. 把 `if (lastActivityAt != null && isExpired(...))` 反成 `!isExpired(...)` →
+   **2 tests / 2 failures**：
+   `未过期绝不能销毁：[read, isExpired, destroy, touch, sleep:60000]` 与
+   `已过期的会话必须销毁本地解密缓存：[read, isExpired, touch, sleep:60000]`；
+2. 基线更新过程中棘轮自己抓到一次 off-by-one：我用 `read().split('\n')` 数行（5049），
+   而测试用 `readLines().size`（5048）——门禁当场报 `expected 5048 but was…`，已按测试口径统一。

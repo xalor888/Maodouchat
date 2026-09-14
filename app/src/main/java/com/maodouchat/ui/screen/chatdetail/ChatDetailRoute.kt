@@ -872,25 +872,12 @@ internal fun ChatDetailRoute(
     val disappearingActive = !state.chatIsGroup && state.disappearingMessageSeconds > 0
     val secretActive = state.isSecretChat == true
 
-    // B2 密聊 TTL（ttlz）：会话活跃心跳——进入与驻留期间持续更新 lastActivityAt，避免无活动误销毁
+    // B2 密聊 TTL（ttlz）：会话活跃心跳——进入与驻留期间持续更新 lastActivityAt，避免无活动误销毁。
+    // G9：逻辑已抽到 SecretChatActivityHeartbeat（非 Composable，可单测），这里只负责按会话触发。
     LaunchedEffect(secretActive, state.chat?.id) {
         if (!secretActive) return@LaunchedEffect
         val chatId = state.chat?.id ?: return@LaunchedEffect
-        val dao = (context.applicationContext as com.maodouchat.MaodouchatApp).database.secretChatDao()
-        // B2 密聊 TTL 进入前即时校验：会话已无活动过期时立即销毁本地解密缓存，
-        // 再以本次进入为新的活动起点——不依赖 15 分钟周期清扫的滞后窗口。
-        runCatching {
-            val entity = dao.get(chatId)
-            if (entity != null &&
-                com.maodouchat.security.SecretSessionTtl.isExpired(context, chatId, entity.lastActivityAt)
-            ) {
-                com.maodouchat.security.SecretSessionTtl.destroySession(context, chatId)
-            }
-        }
-        while (true) {
-            dao.touchActivity(chatId)
-            kotlinx.coroutines.delay(60_000L)
-        }
+        com.maodouchat.security.SecretChatActivityHeartbeat.start(context, chatId)
     }
 
     // B2 双因素门禁（2faz）：进入密聊会话前需系统认证，验证后窗口期内免重复验证

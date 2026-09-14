@@ -43,7 +43,7 @@ class ClientHotspotRatchetTest {
 
     /** 台账点名的客户端热点。行数精确冻结，只许下降。 */
     private val hotspotBaselines: Map<String, Int> = mapOf(
-        "app/src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 5061,
+        "app/src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 5048,
         "app/src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3131,
         "app/src/main/java/com/maodouchat/util/GroupPlayPolicy.kt" to 2298,
     )
@@ -61,40 +61,84 @@ class ClientHotspotRatchetTest {
     }
 
     /**
-     * UI 层不得直接摸数据库。
+     * UI 层不得直接摸数据库——**主口径，对齐台账 U02**。
      *
-     * 台账 U02 要求「平台动作通过 effect handler 执行，不在 Composable 内直接写库」。
-     * 这里数的是 `app/src/main/java/com/maodouchat/ui/` 下每个文件里
-     * `database.` / `secretChatDao` / `MaodouchatApp` 的出现次数：
-     * 精确冻结当前值，新增一处 UI 直连持久层就会红。
+     * U02 的契约是「平台动作通过 effect handler 执行，**不在 Composable 内直接写库**」，
+     * 所以真正该盯的是**含 `@Composable` 的文件**。G8 的初版把 ViewModel/Ports 用 DAO
+     * 也算进同一个数字（200 处），那个数**不等于 U02 的达标口径**——口径混了两类债，
+     * 会让台账谎报进度。这里拆开：本测试只看 `@Composable` 文件（实测 87 处 / 17 文件）。
      */
     @Test
-    fun `ui layer does not reach into the database directly`() {
-        val uiRoot = File(repoRoot, "app/src/main/java/com/maodouchat/ui")
-        assertTrue(uiRoot.isDirectory, "UI 源码目录不存在：${uiRoot.path}")
-
-        val actual = uiRoot.walkTopDown()
-            .filter { it.isFile && it.extension == "kt" }
-            .map { file ->
-                val text = file.readText()
-                val hits = listOf("database.", "secretChatDao", "MaodouchatApp").sumOf { needle ->
-                    Regex(Regex.escape(needle)).findAll(text).count()
-                }
-                file.relativeTo(uiRoot).path to hits
-            }
-            .filter { (_, hits) -> hits > 0 }
-            .toMap()
-            .toSortedMap()
-
+    fun `composable files do not reach into the database directly`() {
+        val actual = directPersistenceHits(onlyComposableFiles = true)
         assertEquals(
-            uiDirectPersistenceBaseline,
+            composableDirectPersistenceBaseline,
             actual,
-            "UI 层直连持久层/全局单例的次数变了。变多说明又绕过了 effect handler；" +
+            "Composable 直连持久层/全局单例的次数变了。变多说明又绕过了 effect handler（U02 未达标）；" +
                 "变少是好消息，请把基线改小。",
         )
     }
 
+    /**
+     * 次口径：整个 `ui/`（含 ViewModel / Ports）。
+     *
+     * ViewModel 直接持有 DAO 是**另一类**债（该走 ports），不该与 U02 混在一个数字里，
+     * 但同样值得只减不增，所以单独冻结。
+     */
+    @Test
+    fun `the whole ui layer keeps its direct persistence budget`() {
+        val actual = directPersistenceHits(onlyComposableFiles = false)
+        assertEquals(
+            uiDirectPersistenceBaseline,
+            actual,
+            "ui/ 直连持久层/全局单例的总次数变了。变多请先问是不是又绕过了 ports/effect handler；" +
+                "变少是好消息，请把基线改小。",
+        )
+    }
+
+    private fun directPersistenceHits(onlyComposableFiles: Boolean): Map<String, Int> {
+        val uiRoot = File(repoRoot, "app/src/main/java/com/maodouchat/ui")
+        assertTrue(uiRoot.isDirectory, "UI 源码目录不存在：${uiRoot.path}")
+        return uiRoot.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .map { file -> file.relativeTo(uiRoot).path to file.readText() }
+            .filter { (_, text) -> !onlyComposableFiles || text.contains("@Composable") }
+            .map { (path, text) ->
+                path to DIRECT_PERSISTENCE_SYMBOLS.sumOf { needle ->
+                    Regex(Regex.escape(needle)).findAll(text).count()
+                }
+            }
+            .filter { (_, hits) -> hits > 0 }
+            .toMap()
+            .toSortedMap()
+    }
+
     private companion object {
+        val DIRECT_PERSISTENCE_SYMBOLS = listOf("database.", "secretChatDao", "MaodouchatApp")
+
+        /**
+         * U02 主口径：含 `@Composable` 的文件里的命中数。实测 **84 处 / 17 文件**，只许下降。
+         */
+        val composableDirectPersistenceBaseline: Map<String, Int> = mapOf(
+            "navigation/CallNavigation.kt" to 9,
+            "navigation/MainContainerRoute.kt" to 6,
+            "navigation/NavGraph.kt" to 4,
+            "screen/call/CallHistoryScreen.kt" to 4,
+            "screen/chatdetail/AiTasksScreen.kt" to 9,
+            "screen/chatdetail/ChatDetailRoute.kt" to 6,
+            "screen/chatdetail/MediaCenterScreen.kt" to 6,
+            "screen/chatdetail/StarredMessagesScreen.kt" to 6,
+            "screen/chatlist/GlobalSearchScreen.kt" to 8,
+            "screen/chatlist/NotificationCenterScreen.kt" to 2,
+            "screen/contacts/ContactSubScreens.kt" to 4,
+            "screen/groupplay/GroupChainScreen.kt" to 2,
+            "screen/groupplay/GroupCheckinScreen.kt" to 2,
+            "screen/groupplay/GroupPkScreen.kt" to 2,
+            "screen/groupplay/GroupPollScreen.kt" to 2,
+            "screen/settings/SettingsSubScreens.kt" to 11,
+            "theme/Motion.kt" to 1,
+        )
+
         /**
          * 当前实测基线（本轮 `ui/` 的 `database.` / `secretChatDao` / `MaodouchatApp` 命中数）。
          * 只在真正减少时下调。
@@ -113,7 +157,7 @@ class ClientHotspotRatchetTest {
             "screen/chatdetail/ChatDetailDisappearing.kt" to 3,
             "screen/chatdetail/ChatDetailLiveLocation.kt" to 2,
             "screen/chatdetail/ChatDetailMedia.kt" to 1,
-            "screen/chatdetail/ChatDetailRoute.kt" to 9,
+            "screen/chatdetail/ChatDetailRoute.kt" to 6,
             "screen/chatdetail/ChatDetailViewModel.kt" to 36,
             "screen/chatdetail/ChatExportController.kt" to 2,
             "screen/chatdetail/GroupDetailViewModel.kt" to 2,
