@@ -304,6 +304,45 @@ class MessagingV2RepositoryTest {
         }
     }
 
+    /**
+     * 不变量 2 的另一半：**原子**提交。
+     *
+     * 附件校验发生在「元数据 + 全部设备信封」都插进去之后，所以这里抛错时事务里已经
+     * 写了一半。如果哪天有人把这三步拆出同一个事务（或提前提交），本用例会红——
+     * 而线上表现会是「消息在库里、信封没有」，收件人永远解不开。
+     */
+    @Test
+    fun `a failed attachment commit rolls back metadata and every envelope`() {
+        seedGroup()
+        val repository = MessagingV2Repository { 10_000L }
+
+        assertFailsWith<MessagingV2AttachmentNotReadyException> {
+            repository.send(
+                groupCommand().copy(
+                    id = "message-partial",
+                    attachmentIds = listOf("att-missing"),
+                ),
+            )
+        }
+
+        transaction {
+            assertEquals(
+                0,
+                MessagingV2Messages.selectAll()
+                    .where { MessagingV2Messages.id eq "message-partial" }
+                    .count(),
+                "附件提交失败后不允许留下消息元数据",
+            )
+            assertEquals(
+                0,
+                MessagingV2Envelopes.selectAll()
+                    .where { MessagingV2Envelopes.messageId eq "message-partial" }
+                    .count(),
+                "附件提交失败后不允许留下任何设备信封",
+            )
+        }
+    }
+
     @Test
     fun `moderation delete removes v2 transport metadata and attachment ownership`() {
         seedGroup()

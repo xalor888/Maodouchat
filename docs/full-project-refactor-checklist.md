@@ -724,7 +724,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 ### Q01 单元与架构测试
 
 - [ ] 每个 domain command/query 有成功、失败、取消、重复和账号切换测试。
-- [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试。**G7 续已补掉第 9 条**（`MessagingV2OutboxPlaintextBoundaryTest`，2 例 + 双向反证）与第 5/6/7 条（`MessagingV2InboxSynchronizerTest`，3 例 + 三向反证），缺口降为 5 条）。
+- [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试。**G7 续已补掉第 9 条**（`MessagingV2OutboxPlaintextBoundaryTest`，2 例 + 双向反证）、第 5/6/7 条（`MessagingV2InboxSynchronizerTest`，3 例 + 三向反证）与第 2 条（`MessagingV2RepositoryTest` 的原子性回滚用例 + 提前提交反证），缺口降为 4 条）。
 - [ ] reducer/state machine 使用 fake clock 和确定性 dispatcher。
 - [~] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖（客户端：`core/testing/ArchitectureTest.kt` ArchUnit 2 条 + 根 `checkArchitecture` 模块依赖；**服务端已补 `server/src/test/.../architecture/ServerArchitectureTest.kt`**，随 `server:test` 自动进 CI：2 条绝对不变量 + 5 条精确相等棘轮，实测注入违规会红、基线过期也会红，见 M1 记录）。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
@@ -1548,6 +1548,21 @@ TLS: Let's Encrypt, CN=chat.mdou.me, 有效期至 2026-11-18
   `仍然 pending 的 id 必须在下一轮被重发：[[e1]] expected:<2> but was:<1>`。
 还原后绿，`git diff app/src/main/` 为空（生产代码零改动）。
 
-**仍未做（下一步）**：剩 5 条缺口（2/3/17/21/24）——元数据+全部信封的事务回滚(2)、
-WebSocket 只发 `INBOX_AVAILABLE_V2`(3)、bot 后续失败不得污染已提交人类消息(17)、
-账号代际作用域(21)、清空历史先落墓碑(24)。
+**G7 续 3 — 补掉不变量 2（服务端写入的原子性）**
+
+缺口 5 条 → **4 条**（`3,17,21,24`）；门禁冻结集合同步改小。
+
+新增用例 `MessagingV2RepositoryTest#a failed attachment commit rolls back metadata and every envelope`。
+关键在于**故障注入点的选择**：`MessageAdmissionPolicy.send()` 的顺序是
+「插入消息元数据 → 逐个插入设备信封 → 校验并提交附件」，附件校验抛错时事务里**已经写了一半**，
+所以它天然是「部分写入后失败」的探针。断言失败后 `MessagingV2Messages` 与 `MessagingV2Envelopes`
+里该 messageId 的行数都为 0。
+（既有的 `v2 send commits uploaded attachment atomically` 只覆盖成功路径，没有覆盖回滚。）
+
+反证（实测）：在信封插入之后、附件校验之前插入
+`TransactionManager.current().commit()`（模拟「有人提前提交」）→ 红：
+`附件提交失败后不允许留下消息元数据 ==> expected: <0> but was: <1>`；
+还原后绿，`git diff server/src/main/` 为空。
+
+**仍未做（下一步）**：剩 4 条缺口 —— 3（WebSocket 只发 `INBOX_AVAILABLE_V2`）、
+17（bot 后续失败不得污染已提交人类消息）、21（账号代际作用域）、24（清空历史先落墓碑）。

@@ -13,7 +13,7 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
 
 2. The server atomically commits immutable message metadata and all per-device envelopes.
    → 验证：`MessagingV2RepositoryTest#v2 send commits uploaded attachment atomically`
-   → 缺口：元数据与**全部**信封同事务、部分写入失败时整体回滚，没有直接用例
+   → 验证：`MessagingV2RepositoryTest#a failed attachment commit rolls back metadata and every envelope`
 
 3. User presence is never consulted for delivery. WebSocket only emits `INBOX_AVAILABLE_V2`.
    → 验证：`MessagingV2RepositoryTest#send requires every current group device without checking online presence`
