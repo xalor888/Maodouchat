@@ -1714,6 +1714,9 @@ G8 的棘轮把两类债混在了一个数字里：`ui/` 下直连持久层 **20
 
 这是客户端棘轮**第一次真正下调**（此前只会冻结）。
 
+**CI 实测**：run **[34834646259](https://github.com/xalor888/Maodouchat/actions/runs/34834646259)**
+（headSha `3f9ca3ba`）→ success，四 job 全绿。
+
 **反证（实测）**
 1. 把 `if (lastActivityAt != null && isExpired(...))` 反成 `!isExpired(...)` →
    **2 tests / 2 failures**：
