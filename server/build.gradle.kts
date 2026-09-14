@@ -120,6 +120,12 @@ tasks.named("processResources") { dependsOn(extractWebRtcNativeLib) }
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // MessagingInvariantTraceabilityTest（M3 追溯门禁）在运行期读这份文档做解析。
+    // 不声明成输入的话，只改文档时 Gradle 会认为 test 是 UP-TO-DATE 而不重跑门禁——
+    // 实测踩过：改坏了文档里的测试引用，`gradlew test` 1 秒「BUILD SUCCESSFUL」什么都没跑。
+    inputs.file(project.file("../docs/messaging-v2-architecture.md"))
+        .withPropertyName("messagingV2InvariantDoc")
+        .optional()
     // Ktor 2.3.7 + H2 in-memory + Exposed TransactionManager 在多个 testApplication
     // 同进程下互相串台；强制每个测试方法跑在独立 JVM 进程 → 消除 flake。
     forkEvery = 1

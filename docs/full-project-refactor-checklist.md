@@ -724,6 +724,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 ### Q01 单元与架构测试
 
 - [ ] 每个 domain command/query 有成功、失败、取消、重复和账号切换测试。
+- [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试）。
 - [ ] reducer/state machine 使用 fake clock 和确定性 dispatcher。
 - [~] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖（客户端：`core/testing/ArchitectureTest.kt` ArchUnit 2 条 + 根 `checkArchitecture` 模块依赖；**服务端已补 `server/src/test/.../architecture/ServerArchitectureTest.kt`**，随 `server:test` 自动进 CI：2 条绝对不变量 + 5 条精确相等棘轮，实测注入违规会红、基线过期也会红，见 M1 记录）。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
@@ -1461,3 +1462,51 @@ TLS: Let's Encrypt, CN=chat.mdou.me, 有效期至 2026-11-18
 **Risks**：迁移矩阵用「只跑前 3 个迁移」模拟旧库，不是真实的「最后生产版本」数据 fixture；
 备份演练覆盖的是**数据库**那一半，uploads/caddy-data 两个 tar 只做到 `gzip -t` + `tar -tzf`
 （生产脚本的 `--inspect` 已能列出内容，但没有做真实解包往返）。
+
+### G7 — 给 messaging-v2 的 24 条不变量建立可执行追溯（M3 第一步）
+
+**Scope**：DIRECTION M3。把 `docs/messaging-v2-architecture.md` 的契约从散文变成
+「每条都能指到执行它的测试」。
+
+**审计结论（这是本步真正的产出）**
+
+- 不变量共 **24 条**（更正：我此前口头说的 33 条是整篇文档的编号列表数，不变量小节是 24 条）。
+- **15 条**已被现有测试真正验证（服务端 `MessagingV2RepositoryTest`/`MailboxRetentionServiceTest`/
+  `ConversationDeviceSnapshotStoreDirectoryTest`，客户端 `SenderKeyCoveragePolicyTest`/
+  `GroupSenderKeyMaintenanceCoordinatorTest`/`GroupMessagingCoordinatorTest`/
+  `MessagingV2MutationFacadeTest`/`MessagingV2OutboxOrderingPolicyTest`/
+  `MessagingV2InboxFailurePolicyTest`/`MessageTerminalStoreTest` 等）。
+- **9 条是明确缺口**：`2, 3, 5, 6, 7, 9, 17, 21, 24`。
+  其中最高价值的是**第 9 条**——「出站明文只存在于本机 SQLCipher，网络请求只含每设备密文」：
+  `SignalMessagingV2EnvelopePreparer`（288 行的 V2 加密适配器）**至今没有任何测试**。
+  其余缺口：元数据+全部信封的事务回滚(2)、WebSocket 只发 `INBOX_AVAILABLE_V2`(3)、
+  先落盘再解密与单一有序协调器(5)、ACK_PENDING 提交顺序与跨进程存活(6/7)、
+  bot 后续失败不得污染已提交人类消息(17)、账号代际作用域(21)、清空历史先落墓碑(24)。
+- 「没有测试」是**核实过的**，不是猜的：全仓 `grep -rn "ACK_PENDING" app/src/test server/src/test`
+  为空、`MessagingV2InboxSynchronizer`/`SignalMessagingV2EnvelopePreparer` 无测试文件。
+
+**文件**
+- 修改 `docs/messaging-v2-architecture.md`：每条不变量后加 `→ 验证：<Class>#<用例名>` 或
+  `→ 缺口：<原因>`（21 条验证标注、9 条缺口标注）。
+- 新增 `server/src/test/kotlin/com/maodouchat/server/messaging/MessagingInvariantTraceabilityTest.kt`。
+- 修改 `server/build.gradle.kts`（把文档声明为 test 输入）。
+- 修改清单 Q01。
+
+**门禁做什么**
+1. 每条不变量必须至少有 `→ 验证` 或 `→ 缺口`，不允许「忘了标」；
+2. 每个 `Class#用例名` 必须在测试源码里真实存在；
+3. 缺口集合按**棘轮**冻结为 `2,3,5,6,7,9,17,21,24`——只许减少，补一条就改小常量。
+
+**反证（实测）**
+- 把文档里 `MessagingV2RepositoryTest#idempotent replay bypasses new message admission limit`
+  改名（只改文档）→ 门禁红，点名
+  「`（MessagingV2RepositoryTest.kt 里没有这个用例）`」；还原后绿。
+- **顺带发现并修掉一个门禁自身的可靠性问题**：门禁运行期读文档，而 Gradle 不知道这一点——
+  只改文档时 `test` 会被判 UP-TO-DATE，实测 1 秒「BUILD SUCCESSFUL」什么都没跑，
+  门禁形同不存在。修法：在 `server/build.gradle.kts` 里把该文档声明为 test 的输入。
+  修完再验：只改文档、不删任何产物 → `Task :test` 真的执行且门禁报红。
+
+**实测**：`cd server && ../gradlew test` → **417 tests / 0 failures**（原 414，+3 门禁用例）。
+
+**仍未做（下一步）**：9 条缺口里一条都还没补。按价值排序，先做第 9 条
+（`SignalMessagingV2EnvelopePreparer` 的「网络请求只含每设备密文」），再按 5/6/7（inbox 生命周期）推进。
