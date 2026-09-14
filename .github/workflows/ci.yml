@@ -72,6 +72,18 @@ jobs:
         run: ../gradlew postgresIntegrationTest --no-daemon --console=plain
         working-directory: server
 
+      # Q06：备份→恢复演练。生产脚本的恢复路径此前从未被真正演练过；这里用 CI 的
+      # PostgreSQL 16 service 真跑一遍 dump/restore 往返 + 逐表行数比对 + 坏备份必须被拒绝。
+      # 同时它也是「生产备份的完整性检查够不够强」的回归网：脚本若退回只做 --list，
+      # 截断/损坏用例会立刻红（--list 抓不到数据块损坏，整档读才行）。
+      - name: Rehearse PostgreSQL backup and restore
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: maodouchat_test
+          PGPASSWORD: maodouchat_test_password
+        run: bash scripts/rehearse-pg-restore.sh
+
       - name: Install browser E2E dependency
         run: npm ci --ignore-scripts
 
@@ -278,7 +290,7 @@ jobs:
           PY
 
       - name: Validate production maintenance scripts
-        run: bash -n scripts/backup-production.sh scripts/restore-production.sh scripts/deploy.sh scripts/update.sh
+        run: bash -n scripts/backup-production.sh scripts/restore-production.sh scripts/rehearse-pg-restore.sh scripts/deploy.sh scripts/update.sh
 
       - name: Validate Caddy HTTPS proxy config
         run: |

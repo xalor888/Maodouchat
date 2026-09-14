@@ -114,6 +114,14 @@ if ! "${compose[@]}" exec -T db sh -ec 'exec pg_restore --list' < "$backup_dir/d
   exit 1
 fi
 
+# 1.371（演练实测补强）：--list 只读归档尾部的目录，**抓不到数据块截断/损坏**。
+# 恢复是破坏性操作、而且这里是停服前唯一的完整校验窗口，所以必须整档读一遍。
+echo "Validating database.dump integrity (full-archive read)..."
+if ! "${compose[@]}" exec -T db sh -ec 'exec pg_restore -f /dev/null' < "$backup_dir/database.dump" >/dev/null 2>&1; then
+  echo "FAIL: database.dump failed full-archive read (truncated or corrupt). Aborting restore; no services touched." >&2
+  exit 1
+fi
+
 # 1.370：停止服务前校验 uploads/caddy tar 可读（与 dump 校验一致），
 # 捕获损坏 tar 避免「停服+清空目录后才发现无法解压」
 echo "Validating uploads.tar.gz / caddy-data.tar.gz readability (gzip -t)..."

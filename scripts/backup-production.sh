@@ -141,6 +141,17 @@ services_stopped=1
   exit 1
 }
 
+# 1.371（演练实测补强）：`pg_restore --list` 只读归档**尾部**的目录（TOC），
+# 数据块被截断或写坏时它照样返回 0——实测「截断一半」和「中间写入 ZZZZ」两种 dump
+# 都能通过 --list，却在真正恢复时失败。也就是说只做 --list，坏备份会被当成好备份收下，
+# 直到恢复时（那时服务已经停了）才暴露。
+# 因此必须把整档读一遍：pg_restore -f /dev/null 会顺序读完所有数据块，不连数据库。
+"${compose[@]}" exec -T db sh -ec \
+  'exec pg_restore -f /dev/null' < "$partial_dir/database.dump" >/dev/null 2>&1 || {
+  echo "FAIL: database dump failed full-archive read (truncated or corrupt data blocks)" >&2
+  exit 1
+}
+
 "${compose[@]}" run --rm --no-deps -T --entrypoint tar server \
   -C /app/uploads -czf - . > "$partial_dir/uploads.tar.gz"
 

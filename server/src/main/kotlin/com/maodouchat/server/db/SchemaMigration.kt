@@ -73,6 +73,10 @@ private fun migrateMessageControlForeignKeys() {
             WHERE LOWER(tc.table_name) = '$tableName'
               AND LOWER(kcu.column_name) = 'message_id'
               AND tc.constraint_type = 'FOREIGN KEY'
+              -- 必须限定在当前 schema：不限定会把别的 schema 里同名表的约束也查出来，
+              -- 随后的 DROP CONSTRAINT 却在当前 schema 执行 → "constraint does not exist"。
+              AND tc.table_schema = CURRENT_SCHEMA
+              AND kcu.table_schema = CURRENT_SCHEMA
             """.trimIndent()
         ) { result ->
             buildList {
@@ -124,6 +128,8 @@ private fun dropMessagingV2SenderUserForeignKey() {
         WHERE LOWER(tc.table_name) = 'messaging_v2_messages'
           AND LOWER(kcu.column_name) = 'sender_user_id'
           AND tc.constraint_type = 'FOREIGN KEY'
+          AND tc.table_schema = CURRENT_SCHEMA
+          AND kcu.table_schema = CURRENT_SCHEMA
         """.trimIndent()
     ) { result ->
         buildList {
@@ -368,6 +374,13 @@ private fun ensureIndexes() {
 /** 9.4xx：PostgreSQL 模糊搜索索引。pg_trgm GIN 加速 %pattern% 形式的 LIKE（普通 B-tree 无法利用前导通配符）。 */
 private fun ensureSearchIndexes() {
     if (isH2Db()) return
+    // PostgreSQL 语义陷阱（M4 用真 PG 跑迁移矩阵时抓到）：
+    // 一条语句失败会让**整个事务**进入 aborted 状态，此后任何语句都报
+    // "current transaction is aborted"。也就是说「只 catch 异常并吞掉」并不能降级——
+    // 它会把基线迁移 v1 整个拖垮，服务直接起不来。而这正是这里声称要支持的场景
+    // （受限托管 PG / 无 superuser 建不了扩展）。
+    // 正解是用 SAVEPOINT 把失败点回滚掉，让事务恢复可用。
+    TransactionManager.current().exec("SAVEPOINT pg_trgm_setup")
     try {
         TransactionManager.current().exec("CREATE EXTENSION IF NOT EXISTS pg_trgm")
         TransactionManager.current().exec(
@@ -379,8 +392,10 @@ private fun ensureSearchIndexes() {
         TransactionManager.current().exec(
             "CREATE INDEX IF NOT EXISTS idx_users_email_trgm ON users USING GIN (lower(email) gin_trgm_ops)"
         )
+        TransactionManager.current().exec("RELEASE SAVEPOINT pg_trgm_setup")
     } catch (e: Exception) {
-        // 扩展不可用（受限托管 PG / 权限不足）时降级为原 LIKE 全扫描，不影响功能
+        // 扩展不可用（受限托管 PG / 权限不足 / 扩展不在 search_path）时降级为原 LIKE 全扫描。
+        runCatching { TransactionManager.current().exec("ROLLBACK TO SAVEPOINT pg_trgm_setup") }
         org.slf4j.LoggerFactory.getLogger("Database")
             .warn("pg_trgm search indexes unavailable; user search falls back to full scan: {}", e.message)
     }
