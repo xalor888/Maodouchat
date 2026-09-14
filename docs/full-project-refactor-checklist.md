@@ -1754,8 +1754,13 @@ expected:<[]> but was:<[touch]>
 2. 进入时与**每次 `touch` 前**都 `currentCoroutineContext().ensureActive()`——
    `touch` 是注入的回调，不保证协作取消，不能把「取消后无副作用」寄托在它身上。
 
-**绿（实测）**：7 tests / 0 failures（原 5 个 + 新增 2 个取消用例：
-初次读取期间取消→零回调、等待期间取消→不再有后续写入）。
+**绿（实测）**：8 tests / 0 failures（原 5 个 + 新增 3 个取消用例：
+初次读取期间取消→零回调、等待期间取消→不再有后续写入、
+读取已返回但随即取消→不得再判过期/销毁/写活动）。
+
+第三个用例专门守「读取之后」那一句 `ensureActive()`，并已验证它**不是空转**：
+去掉那句守卫 → 红：`[read, isExpired, destroy] expected:<[read]>`。
+也就是说没有守卫时，一个已被取消的心跳**仍会执行销毁**（以及随后的写活动）。
 
 **双向反证（都实测）**
 1. 修复缺失（即上面的红）：取消后仍出现 `touch`；
@@ -1770,5 +1775,5 @@ expected:<[]> but was:<[touch]>
 **CI 实测**：run **[34843298930](https://github.com/xalor888/Maodouchat/actions/runs/34843298930)**
 （headSha `26b5dd09`）→ success，四 job 全绿。
 
-**实测**：app JVM **1511 tests / 0 failures**（原 1509，+2）；`:core:testing` 5 / 0；
+**实测**：app JVM **1512 tests / 0 failures**（原 1509，+3）；`:core:testing` 5 / 0；
 server **419 / 0**（本轮无服务端改动，Gradle 对该任务判 UP-TO-DATE，非新跑）。

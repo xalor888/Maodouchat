@@ -170,7 +170,42 @@ class SecretChatActivityHeartbeatTest {
         assertEquals(1, h.events.count { it == "touch" }, "取消后不得再写活动：${h.events}")
     }
 
+    /**
+     * 取消发生在「读取已返回、但还没走到销毁/写活动」之间。
+     *
+     * 这一格专门守读取之后那一句 `ensureActive()`：读取回调本身不挂起，只是在返回前把当前任务取消掉，
+     * 所以修复前会**照常执行 destroy**（`runCatching` 吞不到任何异常，因为这里根本没抛），随后才在
+     * `touch` 前的检查处退出。取消后不该再产生任何副作用——包括销毁。
+     */
+    @Test
+    fun `cancellation right after the read prevents the destroy and the heartbeat`() = runTest {
+        val h = Harness()
+
+        val job = launch {
+            SecretChatActivityHeartbeat.run(
+                chatId = CHAT,
+                readLastActivityAt = { id ->
+                    h.events += "read"
+                    // 读取期间被取消（不抛异常，只把任务置为已取消）。
+                    kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]?.cancel()
+                    LAST_ACTIVITY_AT
+                },
+                isExpired = { _, _ -> h.events += "isExpired"; true },
+                destroy = { h.events += "destroy" },
+                touch = { h.events += "touch" },
+            )
+        }
+        job.join()
+
+        assertEquals(
+            listOf("read"),
+            h.events,
+            "读取之后已被取消，就不该再判过期、销毁或写活动：${h.events}",
+        )
+    }
+
     private companion object {
         const val CHAT = "c_secret"
+        const val LAST_ACTIVITY_AT = 10L
     }
 }
