@@ -1767,5 +1767,8 @@ expected:<[]> but was:<[touch]>
 但只有 **10 处**显式处理取消。也就是说这类「把取消一起吞掉」的写法在仓库里是普遍模式，
 本轮只修了这一处可验证的点；其余需要单独评估（有些 `runCatching` 包的是非挂起代码，不构成问题）。
 
+**CI 实测**：run **[34843298930](https://github.com/xalor888/Maodouchat/actions/runs/34843298930)**
+（headSha `26b5dd09`）→ success，四 job 全绿。
+
 **实测**：app JVM **1511 tests / 0 failures**（原 1509，+2）；`:core:testing` 5 / 0；
 server **419 / 0**（本轮无服务端改动，Gradle 对该任务判 UP-TO-DATE，非新跑）。
