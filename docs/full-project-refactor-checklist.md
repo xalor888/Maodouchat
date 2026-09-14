@@ -1360,6 +1360,7 @@ Docker Compose Config **四 job 全绿**。
 
 **Files**
 - 新增 `server/src/test/kotlin/com/maodouchat/server/PostgresMigrationMatrixTest.kt`（`@Tag("postgres")`）
+- 新增 `server/src/test/kotlin/com/maodouchat/server/PostgresRestoreUpgradeTest.kt`（`@Tag("postgres")`）
 - 新增 `scripts/rehearse-pg-restore.sh`
 - 修改 `server/src/main/kotlin/com/maodouchat/server/db/SchemaMigration.kt`（两个真缺陷）
 - 修改 `scripts/backup-production.sh`、`scripts/restore-production.sh`（完整性检查补强）
@@ -1393,6 +1394,18 @@ Docker Compose Config **四 job 全绿**。
    修法：两个脚本都补上「整档读一遍」（`pg_restore -f /dev/null`，顺序读完所有数据块、不连库）；
    恢复脚本的这条检查发生在**停服之前**，正是该抓的窗口。
 
+**联合路径（备份 → 恢复 → 升级）单独有证据**
+
+前两个产物各证明一半，真正决定「能不能升级线上」的是联合路径，因此补了
+`PostgresRestoreUpgradeTest`：用与生产相同的 `pg_dump --create --format=custom` 参数
+dump 一个**停在 v3** 的真实库（用真实迁移链只跑到 v3 + 种子用户 + 一条 chat），
+恢复进 scratch 库，然后在**恢复出来的副本**上跑完整迁移链——断言只补 `[4, 5]`、
+到达最新版本、且升级前后用户行数一致、探针行仍在。
+（真实 pg_dump/pg_restore 子进程；本机 Homebrew 客户端不在 PATH 时按已知路径兜底。）
+
+反证：把「旧库」改成跑到最新再 dump → 恢复后应补的版本变成空集，
+测试报 `恢复出的副本应当只补 v3 之后的版本 ==> expected: <[4, 5]> but was: <[]>`；还原后绿。
+
 **失败用例的价值（修完之前确实红过）**
 - 迁移矩阵最初 4 例里 3 例红，报的就是上面第 1、2 条；
 - 演练的负面用例最初 2 例红，报的就是第 3 条。
@@ -1400,7 +1413,7 @@ Docker Compose Config **四 job 全绿**。
 
 **实测（本机 PG 16.15）**
 - `POSTGRES_TEST_DATABASE_URL=... ../gradlew postgresIntegrationTest` →
-  **6 tests / 0 failures**（迁移矩阵 5 + 既有并发 1）
+  **7 tests / 0 failures**（迁移矩阵 5 + 恢复升级 1 + 既有并发 1）
 - `../gradlew test`（H2 全量）→ **414 tests / 0 failures**（`CURRENT_SCHEMA` 改动对 H2 无影响）
 - `bash scripts/rehearse-pg-restore.sh` → 全部 PASS、退出码 0：
   ```

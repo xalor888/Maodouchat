@@ -11,6 +11,12 @@
 # 用与生产**相同**的健全性检查（`pg_restore --list`）验归档，再恢复到一个 scratch 库
 # 并逐表比对行数。另外包含负面用例：截断/损坏的 dump 必须被拒绝，而不是「通过」。
 #
+# 分工：本脚本覆盖「备份 → 恢复」这半程（pg 工具链 + 内容比对 + 坏备份拒绝）；
+# 「恢复出来的旧副本 → 升级到最新版本」那半程由
+# `server/src/test/.../PostgresRestoreUpgradeTest.kt`（@Tag("postgres")）覆盖——
+# 它用同样的生产参数 dump 一个停在 v3 的库，恢复后跑完整迁移链并核对版本与数据。
+# 两者在 CI 的 server job 里都会真跑，合起来才是完整演练。
+#
 # 用法：
 #   scripts/rehearse-pg-restore.sh              # 跑完整演练
 #   KEEP=1 scripts/rehearse-pg-restore.sh       # 保留临时库与工作目录，便于排查
