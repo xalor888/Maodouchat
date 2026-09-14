@@ -2,6 +2,10 @@ package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.BotApps
+import com.maodouchat.server.db.ChatUserSettings
+import com.maodouchat.server.db.Chats
+import com.maodouchat.server.db.GroupPollVotes
+import com.maodouchat.server.db.GroupPolls
 import com.maodouchat.server.db.BotCommandLogs
 import com.maodouchat.server.db.Friendships
 import com.maodouchat.server.db.MessagingV2Messages
@@ -11,8 +15,13 @@ import com.maodouchat.server.db.Reports
 import com.maodouchat.server.db.RiskEvents
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
+import com.maodouchat.server.model.ChatType
 import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.andWhere
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
 import org.jetbrains.exposed.sql.count
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
@@ -248,5 +257,129 @@ class AdminExportRepository(
             }.count()
         }
         return MessageStats(byKind, total)
+    }
+
+    fun polls(limit: Int): List<List<Any?>> = transaction {
+        val polls = GroupPolls.selectAll()
+            .orderBy(
+                GroupPolls.createdAt to SortOrder.DESC,
+                GroupPolls.id to SortOrder.DESC,
+            )
+            .limit(limit)
+            .toList()
+        // 8.48 修复 H6：批量 count（此前逐投票查询 → limit 1 万次查询）
+        val pollIds = polls.map { it[GroupPolls.id] }
+        val votesByPoll = if (pollIds.isEmpty()) {
+            emptyMap()
+        } else {
+            GroupPollVotes
+                .slice(GroupPollVotes.pollId, GroupPollVotes.userId.count())
+                .selectAll()
+                .where { GroupPollVotes.pollId inList pollIds }
+                .groupBy(GroupPollVotes.pollId)
+                .associate { it[GroupPollVotes.pollId] to it[GroupPollVotes.userId.count()].toLong() }
+        }
+        polls.map { row ->
+            val id = row[GroupPolls.id]
+            val votes = votesByPoll[id] ?: 0L
+            listOf(
+                id,
+                row[GroupPolls.chatId],
+                row[GroupPolls.creatorId],
+                row[GroupPolls.question].take(120),
+                row[GroupPolls.multi].toString(),
+                row[GroupPolls.anonymous].toString(),
+                row[GroupPolls.closed].toString(),
+                votes.toString(),
+                row[GroupPolls.createdAt].toString(),
+                (row[GroupPolls.closesAt] ?: 0L).toString(),
+            )
+        }
+    }
+
+    /** 举报元数据 only — no message bodies / E2EE plaintext。 */
+    fun reportsMeta(limit: Int): List<List<Any?>> = transaction {
+        Reports.selectAll()
+            .orderBy(
+                Reports.createdAt to SortOrder.DESC,
+                Reports.id to SortOrder.DESC,
+            )
+            .limit(limit)
+            .map { row ->
+                listOf(
+                    row[Reports.id],
+                    row[Reports.reporterId],
+                    row[Reports.targetType],
+                    row[Reports.targetId],
+                    row[Reports.chatId] ?: "",
+                    row[Reports.reason].take(60),
+                    row[Reports.status],
+                    row[Reports.actionTaken] ?: "",
+                    row[Reports.createdAt].toString(),
+                )
+            }
+    }
+
+    /** 每用户会话设置元数据 only — no message bodies / SECRET ids。 */
+    fun chatSettings(limit: Int): List<List<Any?>> = transaction {
+        ChatUserSettings.selectAll()
+            .andWhere {
+                ChatUserSettings.chatId notInSubQuery (
+                    Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
+                )
+            }
+            .orderBy(ChatUserSettings.updatedAt to SortOrder.DESC)
+            .limit(limit)
+            .map { row ->
+                listOf(
+                    row[ChatUserSettings.userId],
+                    row[ChatUserSettings.chatId],
+                    row[ChatUserSettings.pinnedAt].toString(),
+                    row[ChatUserSettings.notificationsMuted].toString(),
+                    row[ChatUserSettings.archived].toString(),
+                    row[ChatUserSettings.markedUnread].toString(),
+                    row[ChatUserSettings.updatedAt].toString(),
+                )
+            }
+    }
+
+    /** 会话消失计时器元数据 only — no message bodies。 */
+    fun disappearingChats(limit: Int): List<List<Any?>> = transaction {
+        Chats.selectAll()
+            .andWhere { Chats.chatType neq ChatType.SECRET }
+            .orderBy(Chats.memberRevision to SortOrder.DESC)
+            .limit(limit)
+            .mapNotNull { row ->
+                val seconds = row[Chats.disappearingMessageSeconds]
+                if (seconds <= 0) return@mapNotNull null
+                listOf(
+                    row[Chats.id],
+                    row[Chats.isGroup].toString(),
+                    (row[Chats.groupName] ?: "").take(80),
+                    seconds.toString(),
+                )
+            }
+    }
+
+    /** 免打扰会话设置元数据 only — no message bodies。 */
+    fun mutedChats(limit: Int): List<List<Any?>> = transaction {
+        ChatUserSettings.selectAll()
+            .andWhere {
+                ChatUserSettings.chatId notInSubQuery (
+                    Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
+                )
+            }
+            .orderBy(ChatUserSettings.updatedAt to SortOrder.DESC)
+            .limit(limit * 2)
+            .mapNotNull { row ->
+                if (!row[ChatUserSettings.notificationsMuted]) return@mapNotNull null
+                listOf(
+                    row[ChatUserSettings.userId],
+                    row[ChatUserSettings.chatId],
+                    row[ChatUserSettings.notificationsMuted].toString(),
+                    row[ChatUserSettings.updatedAt].toString(),
+                )
+            }
+            .take(limit)
     }
 }

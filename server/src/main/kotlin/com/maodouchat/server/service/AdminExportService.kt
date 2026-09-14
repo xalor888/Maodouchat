@@ -97,4 +97,29 @@ class AdminExportService(
             rowCount = encoded.size + 1,
         )
     }
+
+    fun pollsCsv(limit: Int) = csv(
+        "id,chatId,creatorId,question,multi,anonymous,closed,voteRows,createdAt,closesAt",
+        repository.polls(limit),
+    )
+
+    fun reportsMetaCsv(limit: Int) = csv(
+        "id,reporterId,targetType,targetId,chatId,reason,status,actionTaken,createdAt",
+        repository.reportsMeta(limit),
+    )
+
+    fun chatSettingsCsv(limit: Int) = csv(
+        "userId,chatId,pinnedAt,notificationsMuted,archived,markedUnread,updatedAt",
+        repository.chatSettings(limit),
+    )
+
+    fun disappearingChatsCsv(limit: Int) = csv(
+        "chatId,isGroup,groupName,disappearingSeconds",
+        repository.disappearingChats(limit),
+    )
+
+    fun mutedChatsCsv(limit: Int) = csv(
+        "userId,chatId,notificationsMuted,updatedAt",
+        repository.mutedChats(limit),
+    )
 }

@@ -201,44 +201,7 @@ internal fun Route.configureAdminExportsRoutes(
 get("/polls-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
-        val rows = transaction {
-            val polls = GroupPolls.selectAll()
-                .orderBy(
-                    GroupPolls.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
-                    GroupPolls.id to org.jetbrains.exposed.sql.SortOrder.DESC
-                )
-                .limit(limit)
-                .toList()
-            // 8.48 修复 H6：批量 count（此前逐投票查询 → limit 1 万次查询）
-            val pollIds = polls.map { it[GroupPolls.id] }
-            val votesByPoll = if (pollIds.isEmpty()) emptyMap() else
-                GroupPollVotes
-                    .slice(GroupPollVotes.pollId, GroupPollVotes.userId.count())
-                    .selectAll()
-                    .where { GroupPollVotes.pollId inList pollIds }
-                    .groupBy(GroupPollVotes.pollId)
-                    .associate { it[GroupPollVotes.pollId] to it[GroupPollVotes.userId.count()].toLong() }
-            polls.map { row ->
-                    val id = row[GroupPolls.id]
-                    val votes = votesByPoll[id] ?: 0L
-                    listOf(
-                        csvCell(id),
-                        csvCell(row[GroupPolls.chatId]),
-                        csvCell(row[GroupPolls.creatorId]),
-                        csvCell(row[GroupPolls.question].take(120)),
-                        csvCell(row[GroupPolls.multi].toString()),
-                        csvCell(row[GroupPolls.anonymous].toString()),
-                        csvCell(row[GroupPolls.closed].toString()),
-                        csvCell(votes.toString()),
-                        csvCell(row[GroupPolls.createdAt].toString()),
-                        csvCell((row[GroupPolls.closesAt] ?: 0L).toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("id,chatId,creatorId,question,multi,anonymous,closed,voteRows,createdAt,closesAt")
-            rows.forEach { appendLine(it) }
-        }
+        val csv = exportService.pollsCsv(limit).body
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-polls-${System.currentTimeMillis()}.csv\""
@@ -304,32 +267,9 @@ get("/polls-export") {
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Report metadata only — no message bodies / E2EE plaintext
-        val rows = transaction {
-            Reports.selectAll()
-                .orderBy(
-                    Reports.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
-                    Reports.id to org.jetbrains.exposed.sql.SortOrder.DESC
-                )
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[Reports.id]),
-                        csvCell(row[Reports.reporterId]),
-                        csvCell(row[Reports.targetType]),
-                        csvCell(row[Reports.targetId]),
-                        csvCell((row[Reports.chatId] ?: "")),
-                        csvCell(row[Reports.reason].take(60)),
-                        csvCell(row[Reports.status]),
-                        csvCell((row[Reports.actionTaken] ?: "")),
-                        csvCell(row[Reports.createdAt].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("id,reporterId,targetType,targetId,chatId,reason,status,actionTaken,createdAt")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "reports_meta_export", detail = "count=${rows.size}")
+        val export = exportService.reportsMetaCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "reports_meta_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-reports-meta.csv\""
@@ -361,32 +301,9 @@ get("/polls-export") {
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Per-user chat settings metadata only — no message bodies / SECRET ids
-        val rows = transaction {
-            ChatUserSettings.selectAll()
-                .andWhere {
-                    ChatUserSettings.chatId notInSubQuery (
-                        Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
-                    )
-                }
-                .orderBy(ChatUserSettings.updatedAt to org.jetbrains.exposed.sql.SortOrder.DESC)
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[ChatUserSettings.userId]),
-                        csvCell(row[ChatUserSettings.chatId]),
-                        csvCell(row[ChatUserSettings.pinnedAt].toString()),
-                        csvCell(row[ChatUserSettings.notificationsMuted].toString()),
-                        csvCell(row[ChatUserSettings.archived].toString()),
-                        csvCell(row[ChatUserSettings.markedUnread].toString()),
-                        csvCell(row[ChatUserSettings.updatedAt].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("userId,chatId,pinnedAt,notificationsMuted,archived,markedUnread,updatedAt")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "chat_settings_export", detail = "count=${rows.size}")
+        val export = exportService.chatSettingsCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "chat_settings_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-chat-settings.csv\""
@@ -401,27 +318,9 @@ get("/polls-export") {
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Chat disappearing timer metadata only — no message bodies
-        val rows = transaction {
-            Chats.selectAll()
-                .andWhere { Chats.chatType neq ChatType.SECRET }
-                .orderBy(Chats.memberRevision to org.jetbrains.exposed.sql.SortOrder.DESC)
-                .limit(limit)
-                .mapNotNull { row ->
-                    val seconds = row[Chats.disappearingMessageSeconds]
-                    if (seconds <= 0) return@mapNotNull null
-                    listOf(
-                        csvCell(row[Chats.id]),
-                        csvCell(row[Chats.isGroup].toString()),
-                        csvCell((row[Chats.groupName] ?: "").take(80)),
-                        csvCell(seconds.toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("chatId,isGroup,groupName,disappearingSeconds")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "disappearing_chats_export", detail = "count=${rows.size}")
+        val export = exportService.disappearingChatsCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "disappearing_chats_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-disappearing-chats.csv\""
@@ -436,31 +335,9 @@ get("/polls-export") {
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Muted chat settings metadata only — no message bodies
-        val rows = transaction {
-            ChatUserSettings.selectAll()
-                .andWhere {
-                    ChatUserSettings.chatId notInSubQuery (
-                        Chats.select(Chats.id).where { Chats.chatType eq ChatType.SECRET }
-                    )
-                }
-                .orderBy(ChatUserSettings.updatedAt to org.jetbrains.exposed.sql.SortOrder.DESC)
-                .limit(limit * 2)
-                .mapNotNull { row ->
-                    if (!row[ChatUserSettings.notificationsMuted]) return@mapNotNull null
-                    listOf(
-                        csvCell(row[ChatUserSettings.userId]),
-                        csvCell(row[ChatUserSettings.chatId]),
-                        csvCell(row[ChatUserSettings.notificationsMuted].toString()),
-                        csvCell(row[ChatUserSettings.updatedAt].toString())
-                    ).joinToString(",")
-                }
-                .take(limit)
-        }
-        val csv = buildString {
-            appendLine("userId,chatId,notificationsMuted,updatedAt")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "muted_chats_export", detail = "count=${rows.size}")
+        val export = exportService.mutedChatsCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "muted_chats_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-muted-chats.csv\""
