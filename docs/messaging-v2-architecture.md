@@ -96,7 +96,7 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
     failed cache, notification, or scheduler operation cannot skip later privacy cleanup, while an
     account switch stops the old request before it can touch the new session's state.
    → 验证：`MessagingV2MutationFacadeTest#terminal cleanup continues after an earlier local projection failure`
-   → 缺口：账号代际（account-generation）作用域、以及切号时停掉旧请求，没有直接用例
+   → 验证：`ConversationLocalStateCoordinatorTest#account switch stops cleanup before touching later state`；`ConversationLocalStateCoordinatorTest#full deletion continues after isolated cache failure`
 
 22. `DATA` and `EVENT` commands preserve their real SQLite enqueue order within one conversation.
     Sender Key distribution, key repair, and receipts may bypass blocked data commands so protocol
@@ -116,7 +116,7 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
     and revoke also converge media cache, search documents, attachment transfer state, notification
     center references, and the matching system notification.
    → 验证：`MessageTerminalStoreTest#delete removes media before room row`
-   → 缺口：「清空历史先为每条消息落墓碑再取消 worker」没有用例
+   → 验证：`ConversationLocalStateCoordinatorTest#history tombstones are durable before attachment cancellation starts`；`MessageTerminalStoreTest#delete removes media before room row`
 
 ## Ownership Boundaries
 

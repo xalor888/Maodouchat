@@ -724,7 +724,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 ### Q01 单元与架构测试
 
 - [ ] 每个 domain command/query 有成功、失败、取消、重复和账号切换测试。
-- [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试。**G7 续已补掉第 9 条**（`MessagingV2OutboxPlaintextBoundaryTest`，2 例 + 双向反证）、第 5/6/7 条（`MessagingV2InboxSynchronizerTest`，3 例 + 三向反证）与第 2 条（`MessagingV2RepositoryTest` 的原子性回滚用例 + 提前提交反证），缺口降为 4 条）。
+- [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试。**G7 续已补掉第 9 条**（`MessagingV2OutboxPlaintextBoundaryTest`，2 例 + 双向反证）、第 5/6/7 条（`MessagingV2InboxSynchronizerTest`，3 例 + 三向反证）与第 2 条（`MessagingV2RepositoryTest` 的原子性回滚用例 + 提前提交反证）；第 4 轮更正了两条**假缺口**（21/24 其实早有 `ConversationLocalStateCoordinatorTest` 覆盖，是我第一轮按文件名收集候选用例时漏了 `conversation/**`），缺口降为 2 条）。
 - [ ] reducer/state machine 使用 fake clock 和确定性 dispatcher。
 - [~] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖（客户端：`core/testing/ArchitectureTest.kt` ArchUnit 2 条 + 根 `checkArchitecture` 模块依赖；**服务端已补 `server/src/test/.../architecture/ServerArchitectureTest.kt`**，随 `server:test` 自动进 CI：2 条绝对不变量 + 5 条精确相等棘轮，实测注入违规会红、基线过期也会红，见 M1 记录）。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
@@ -1564,5 +1564,25 @@ TLS: Let's Encrypt, CN=chat.mdou.me, 有效期至 2026-11-18
 `附件提交失败后不允许留下消息元数据 ==> expected: <0> but was: <1>`；
 还原后绿，`git diff server/src/main/` 为空。
 
-**仍未做（下一步）**：剩 4 条缺口 —— 3（WebSocket 只发 `INBOX_AVAILABLE_V2`）、
-17（bot 后续失败不得污染已提交人类消息）、21（账号代际作用域）、24（清空历史先落墓碑）。
+**G7 续 4 — 更正两条「假缺口」（21、24）**
+
+缺口 4 条 → **2 条**（`3, 17`）。本轮**没有新增用例**，做的是把审计本身改对：
+
+不变量 21（破坏性清理的账号代际作用域与步骤隔离）和 24 的「清空历史先为每条消息落墓碑
+再取消 worker」这两条，我此前标成了「缺口」，但 `ConversationLocalStateCoordinatorTest`
+里其实**早就有**用例：
+- `account switch stops cleanup before touching later state` → 21 的「切号时停掉旧请求」；
+- `full deletion continues after isolated cache failure` → 21 的「某步失败不得跳过后续隐私清理」；
+- `history tombstones are durable before attachment cancellation starts` → 24 的「先落墓碑再取消」。
+
+**为什么会错**：我第一轮审计是按文件名模式（`*Messaging*`/`*Outbox*`/`*Inbox*`/`*Tombstone*`/
+`*SenderKey*`/`*Scheduled*`/`*Terminal*`/`*Retry*`）收集候选用例的，而 `conversation/**` 不在其中——
+于是一整个目录的用例根本没进我的视野。**假缺口和漏掉缺口一样是不诚实的**：它会让台账谎报
+「还差多少」，也可能诱使人去补一个已经存在的测试。
+
+这正是追溯门禁的价值：门禁本身发现不了「我没看过的测试」，但它强迫我**为每条不变量点名一个用例**，
+而「点名」这个动作逼我重新去找——两次都立刻找到了。
+
+**仍未做（下一步）**：剩 2 条缺口 —— 3（WebSocket 只发 `INBOX_AVAILABLE_V2`；
+已确认 `/api/v2/messages` 至今没有任何 HTTP 级测试，需要完整脚手架）、
+17（bot/service 后续失败不得把已提交的人类消息变成发送失败；尚未定位到实现位置）。
