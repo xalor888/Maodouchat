@@ -1930,4 +1930,7 @@ outbox 线路边界与准备器信封边界两层证据），追溯门禁已校�
 service 信封策略、内容策略、sender key 缺失回退等分支，依赖更多且需要更细的场景构造，
 留作下一个目标输入，不为了凑数写浅测试。
 
+**CI 实测**：run **34865074355**（headSha `3e37da1a`）→ success，四 job 全绿
+（run id 由 `gh run list`/`gh run view` 实测取得）。
+
 **实测**：app JVM **1519 / 0**（原 1512，+7）；`:core:testing` 5 / 0；server **422 / 0**（本轮无服务端改动）。
