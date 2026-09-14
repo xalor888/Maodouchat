@@ -1663,6 +1663,11 @@ TLS: Let's Encrypt, CN=chat.mdou.me, 有效期至 2026-11-18
   注：我最初凭一次 grep **猜**了基线（1 个文件 2 处），被门禁当场打回实际值——
   棘轮必须**测量**得到，不能拍脑袋。
 
+**CI 实测**：run **[34831443868](https://github.com/xalor888/Maodouchat/actions/runs/34831443868)**
+（headSha `7540a118`）→ success，四 job 全绿；逐条核对 Android job 日志确认新步骤**真的执行**：
+`Run ./gradlew :core:testing:test` → `> Task :core:testing:test` → `BUILD SUCCESSFUL in 24s`
+（不是「步骤存在但从没跑」——那正是本轮要修的毛病）。
+
 **反证（实测，三条）**
 1. 往 `GroupPlayPolicy.kt` 追加两行 → 红：`expected: <{}> but was: <{…GroupPlayPolicy.kt=2300}>`；
 2. 给 `SettingsViewModel.kt` 加一处 `database.` → 红：UI 直连基线被打回实际值；
