@@ -24,15 +24,15 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
 
 5. The client stores an envelope before decrypting it and processes envelopes through one ordered
    coordinator, never from a screen or WebSocket collector.
-   → 缺口：客户端「先落盘再解密」「单一有序协调器、不得从 UI/WebSocket 收集器处理」没有用例（MessagingV2InboxSynchronizer 无测试）
+   → 验证：`MessagingV2InboxSynchronizerTest#an envelope is persisted before it is decrypted, by the single coordinator`
 
 6. Decrypted domain data is committed before the inbox row becomes `ACK_PENDING`.
-   → 缺口：「解密后的领域数据先提交、inbox 行才转 ACK_PENDING」没有用例（全仓没有任何测试提到 ACK_PENDING）
+   → 验证：`MessagingV2InboxSynchronizerTest#an envelope is persisted before it is decrypted, by the single coordinator`；`MessagingV2InboxSynchronizerTest#a failed decryption never marks the row ACK_PENDING`
 
 7. `ACK_PENDING` survives process death. Server ACK is idempotent, so a crash between remote ACK
    and local deletion converges on the next run.
    → 验证：`MessagingV2RepositoryTest#same encrypted request is idempotent but changed ciphertext conflicts`
-   → 缺口：ACK_PENDING 跨进程存活没有用例
+   → 验证：`MessagingV2InboxSynchronizerTest#an acknowledgement that stays pending is re-sent idempotently`
 
 8. A recoverable failed envelope stops the current processing pass until retry. Permanent poison
    envelopes and exhausted retries are server-ACKed into a local `DEAD_LETTER` record so unrelated

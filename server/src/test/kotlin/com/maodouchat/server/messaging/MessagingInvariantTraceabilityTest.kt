@@ -120,7 +120,7 @@ class MessagingInvariantTraceabilityTest {
     fun `the number of declared gaps only goes down`() {
         val pending = audit().filter { it.pending }.map { it.number }
         assertEquals(
-            listOf(2, 3, 5, 6, 7, 17, 21, 24),
+            listOf(2, 3, 17, 21, 24),
             pending,
             "缺口集合变了。补上一条就把这里的编号删掉（这是预期工作流）；" +
                 "新增缺口则说明有契约退化，必须先补测试。",

@@ -724,7 +724,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 ### Q01 单元与架构测试
 
 - [ ] 每个 domain command/query 有成功、失败、取消、重复和账号切换测试。
-- [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试。**G7 续已补掉第 9 条**（`MessagingV2OutboxPlaintextBoundaryTest`，2 例 + 双向反证），缺口降为 8 条）。
+- [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试。**G7 续已补掉第 9 条**（`MessagingV2OutboxPlaintextBoundaryTest`，2 例 + 双向反证）与第 5/6/7 条（`MessagingV2InboxSynchronizerTest`，3 例 + 三向反证），缺口降为 5 条）。
 - [ ] reducer/state machine 使用 fake clock 和确定性 dispatcher。
 - [~] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖（客户端：`core/testing/ArchitectureTest.kt` ArchUnit 2 条 + 根 `checkArchitecture` 模块依赖；**服务端已补 `server/src/test/.../architecture/ServerArchitectureTest.kt`**，随 `server:test` 自动进 CI：2 条绝对不变量 + 5 条精确相等棘轮，实测注入违规会红、基线过期也会红，见 M1 记录）。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
@@ -1526,5 +1526,28 @@ TLS: Let's Encrypt, CN=chat.mdou.me, 有效期至 2026-11-18
 - `落盘留待发送的内容里出现了本机明文——不变量 9 被破坏了：[{…密文信封…}]{"body":"PLAINTEXT-SENTINEL-…"}`
 还原后绿（`git diff app/src/main/` 为空）。
 
-**仍未做（下一步）**：剩 8 条缺口，按价值排序做 5/6/7（inbox 生命周期：先落盘再解密、
-`ACK_PENDING` 提交顺序、跨进程存活），再是 2/3/17/21/24。
+**G7 续 2 — 又补掉一组：不变量 5/6/7（接收侧 inbox 生命周期）**
+
+缺口 8 条 → **5 条**（`2,3,17,21,24`）；门禁冻结集合同步改小。
+
+新增 `app/src/test/.../MessagingV2InboxSynchronizerTest.kt`（3 例，此前
+`MessagingV2InboxSynchronizer` 零测试、全仓测试里没有任何一处提到 `ACK_PENDING`）：
+- **不变量 5**：断言调用顺序 `insertInbox` 在 `process`(解密) 之前——顺序反了就是
+  「崩在解密前，信封没了」；
+- **不变量 6**：正向断言 `markInboxAckPending` 排在解密提交之后；反向断言
+  **解密失败时 `markInboxAckPending` 一次都不许被调用**（否则就是没落库却告诉服务端已收到）；
+- **不变量 7**：同一批 id 仍在 `ACK_PENDING` 时必须在下一轮被**重发**（服务端幂等），
+  最终由本地删除收敛。
+
+反证（实测，三条同时注入）：
+- 把 `insertInbox` 挪到 `processAvailable` 之后 → 红：
+  `顺序错了——先解密后落盘就意味着崩溃会丢消息：[ackPending, decrypt, insertInbox]`；
+- 把 `markInboxAckPending` 挪到 `processor.process` 之前 → 红：
+  `markInboxAckPending ... should not be called`；
+- 删掉「拉完一页后补 ACK」那次 `flushAcknowledgements` → 红：
+  `仍然 pending 的 id 必须在下一轮被重发：[[e1]] expected:<2> but was:<1>`。
+还原后绿，`git diff app/src/main/` 为空（生产代码零改动）。
+
+**仍未做（下一步）**：剩 5 条缺口（2/3/17/21/24）——元数据+全部信封的事务回滚(2)、
+WebSocket 只发 `INBOX_AVAILABLE_V2`(3)、bot 后续失败不得污染已提交人类消息(17)、
+账号代际作用域(21)、清空历史先落墓碑(24)。
