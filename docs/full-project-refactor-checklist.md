@@ -1322,6 +1322,10 @@ and never invent phantom rows`：
 - `DeviceEventConsistencyGuard` 与 `purgeAdminOperationalData` 整体迁入 `repository/`；
   后者顺带消掉 `service(MaintenanceRunner) → plugins` 这条反向依赖。
 
+**CI 实测**：run **[34801798510](https://github.com/xalor888/Maodouchat/actions/runs/34801798510)**
+（headSha `039b83ab`）→ `conclusion = success`，Server / Android / Android Instrumented /
+Docker Compose Config **四 job 全绿**。
+
 **Tests（实测）**
 - `AdminEnhanceRouteTest` → 5 tests / 0 failures。锁的是：4 个 GET + 1 个 POST 匿名 401；
   审计导出的 6 类参数错误全 400；5 个 scope 各自的 `text/csv` + `Content-Disposition` +
