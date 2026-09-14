@@ -170,14 +170,6 @@ internal fun parseAdminIds(obj: JsonObject, key: String = "userIds"): List<Strin
     return values.map { it.take(64) }.distinct().take(100)
 }
 
-internal fun csvCell(value: Any?): String {
-    val raw = value?.toString() ?: ""
-    // 公式注入防护须按「去除前导空白后的首字符」判定：Excel 会忽略前导空白/制表符
-    // 求值单元格，此前仅查原始首字符，`" =CMD()"` 这类以空格开头的载荷仍会执行。
-    val formulaSafe = if (raw.trimStart().firstOrNull() in setOf('=', '+', '-', '@')) "'$raw" else raw
-    return "\"${formulaSafe.replace("\"", "\"\"")}\""
-}
-
 internal fun ResultRow.toUserAdminResponse(): UserAdminResponse = UserAdminResponse(
     id = this[Users.id],
     name = this[Users.name],

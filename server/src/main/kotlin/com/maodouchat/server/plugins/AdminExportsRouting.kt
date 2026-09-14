@@ -8,6 +8,8 @@ import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.DispositionService
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.AdminExportService
+import com.maodouchat.server.service.csvCell
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpHeaders
 import io.ktor.server.application.Application
@@ -62,39 +64,22 @@ import java.util.UUID
 private const val WATERMARK_EXTRACT_TIMEOUT_MS = 30_000L
 
 /** 管理后台子域路由（从 AdminManagementRouting.kt 拆出）。 */
-internal fun Route.configureAdminExportsRoutes(authTokenRepo: AuthTokenRepository) {
+internal fun Route.configureAdminExportsRoutes(
+    authTokenRepo: AuthTokenRepository,
+    exportService: AdminExportService = AdminExportService(),
+) {
     get("/push-tokens-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Privacy-safe: no full push token secret — prefix only
-        val rows = transaction {
-            PushTokens.selectAll()
-                .orderBy(PushTokens.updatedAt to org.jetbrains.exposed.sql.SortOrder.DESC)
-                .limit(limit)
-                .map { row ->
-                    val tok = row[PushTokens.token]
-                    val prefix = if (tok.length <= 12) tok.take(4) + "…" else tok.take(8) + "…" + tok.takeLast(4)
-                    listOf(
-                        csvCell(row[PushTokens.userId]),
-                        csvCell(row[PushTokens.deviceId]),
-                        csvCell(row[PushTokens.platform]),
-                        csvCell(prefix),
-                        csvCell(row[PushTokens.timezoneOffsetMinutes].toString()),
-                        csvCell(row[PushTokens.updatedAt].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("userId,deviceId,platform,tokenPrefix,timezoneOffsetMinutes,updatedAt")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "push_tokens_export", detail = "count=${rows.size}")
+        val export = exportService.pushTokensCsv(limit)
+        recordAdminAudit(actorId = adminId, action = "push_tokens_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-push-tokens.csv\""
         )
-        call.respondText(csv, io.ktor.http.ContentType.Text.CSV)
+        call.respondText(export.body, io.ktor.http.ContentType.Text.CSV)
     }
 
 
@@ -103,27 +88,8 @@ internal fun Route.configureAdminExportsRoutes(authTokenRepo: AuthTokenRepositor
     get("/users-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
-        val rows = transaction {
-            Users.selectAll()
-                .orderBy(Users.lastSeen to org.jetbrains.exposed.sql.SortOrder.DESC)
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[Users.id]),
-                        csvCell(row[Users.name]),
-                        csvCell(row[Users.email]),
-                        csvCell(row[Users.status]),
-                        csvCell(row[Users.isOnline].toString()),
-                        csvCell(row[Users.isModerator].toString()),
-                        csvCell(row[Users.suspendedUntil].toString()),
-                        csvCell(row[Users.lastSeen].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("id,name,email,status,isOnline,isModerator,suspendedUntil,lastSeen")
-            rows.forEach { appendLine(it) }
-        }
+        val export = exportService.usersCsv(limit)
+        val csv = export.body
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-users-${System.currentTimeMillis()}.csv\""
@@ -140,28 +106,7 @@ internal fun Route.configureAdminExportsRoutes(authTokenRepo: AuthTokenRepositor
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         // 只导出元数据：token 只含前缀，绝不导出 tokenHash
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 20000)
-        val rows = transaction {
-            BotApps.selectAll()
-                .orderBy(BotApps.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC)
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[BotApps.id]),
-                        csvCell(row[BotApps.name]),
-                        csvCell(row[BotApps.username]),
-                        csvCell(row[BotApps.ownerUserId]),
-                        csvCell(row[BotApps.tokenPrefix]),
-                        csvCell(row[BotApps.webhookUrl] ?: ""),
-                        csvCell(row[BotApps.enabled].toString()),
-                        csvCell(row[BotApps.createdAt].toString()),
-                        csvCell(row[BotApps.updatedAt].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("id,name,username,ownerUserId,tokenPrefix,webhookUrl,enabled,createdAt,updatedAt")
-            rows.forEach { appendLine(it) }
-        }
+        val csv = exportService.botsCsv(limit).body
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-bots-${System.currentTimeMillis()}.csv\""
@@ -399,29 +344,9 @@ get("/polls-export") {
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
         // Audit metadata only — no message bodies
-        val rows = transaction {
-            ModerationAuditLog.selectAll()
-                .orderBy(
-                    ModerationAuditLog.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
-                    ModerationAuditLog.id to org.jetbrains.exposed.sql.SortOrder.DESC
-                )
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[ModerationAuditLog.id]),
-                        csvCell(row[ModerationAuditLog.actorId].orEmpty()),
-                        csvCell(row[ModerationAuditLog.userId].orEmpty()),
-                        csvCell(row[ModerationAuditLog.action].take(40)),
-                        csvCell(row[ModerationAuditLog.detail].orEmpty().replace("\n", " ").take(160)),
-                        csvCell(row[ModerationAuditLog.createdAt].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("id,actorId,userId,action,detail,createdAt")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "moderation_audit_export", detail = "count=${rows.size}")
+        val export = exportService.moderationAuditCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "moderation_audit_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-moderation-audit.csv\""
@@ -436,29 +361,9 @@ get("/polls-export") {
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Command names only — no message bodies
-        val rows = transaction {
-            BotCommandLogs.selectAll()
-                .orderBy(
-                    BotCommandLogs.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
-                    BotCommandLogs.id to org.jetbrains.exposed.sql.SortOrder.DESC
-                )
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[BotCommandLogs.id]),
-                        csvCell(row[BotCommandLogs.botId]),
-                        csvCell((row[BotCommandLogs.chatId] ?: "").take(40)),
-                        csvCell((row[BotCommandLogs.userId] ?: "").take(40)),
-                        csvCell(row[BotCommandLogs.command].take(80)),
-                        csvCell(row[BotCommandLogs.createdAt].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("id,botId,chatId,userId,command,createdAt")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "bot_command_stats_export", detail = "count=${rows.size}")
+        val export = exportService.botCommandStatsCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "bot_command_stats_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-bot-command-stats.csv\""
@@ -473,27 +378,9 @@ get("/polls-export") {
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Friendship graph metadata only — no message bodies
-        val rows = transaction {
-            Friendships.selectAll()
-                .orderBy(
-                    Friendships.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
-                    Friendships.userLowId to org.jetbrains.exposed.sql.SortOrder.DESC,
-                    Friendships.userHighId to org.jetbrains.exposed.sql.SortOrder.DESC
-                )
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[Friendships.userLowId]),
-                        csvCell(row[Friendships.userHighId]),
-                        csvCell(row[Friendships.createdAt].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("userLowId,userHighId,createdAt")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "friends_export", detail = "count=${rows.size}")
+        val export = exportService.friendshipsCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "friends_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-friends.csv\""
@@ -548,21 +435,9 @@ get("/polls-export") {
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Block edges only — no message bodies
-        val rows = transaction {
-            BlockedUsers.selectAll()
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[BlockedUsers.blockerId]),
-                        csvCell(row[BlockedUsers.blockedId])
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("blockerId,blockedId")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "blocks_export", detail = "count=${rows.size}")
+        val export = exportService.blockedUsersCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "blocks_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-blocks.csv\""
