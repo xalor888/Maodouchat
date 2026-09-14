@@ -2015,4 +2015,7 @@ outbox 线路边界（G7）、加密准备器（G13）、解密处理器（G14�
 然后把 `frozenRouteTransactions["AdminManagementRouting.kt"]` 从 6 精确下调、必要时从
 `frozenPluginsImportingExposed` 移除，并补「行为被改坏 → 新测试红」与「往 plugins 加事务 → 棘轮红」两个反证。
 
+**CI 实测**：run **34875265633**（headSha `876ec82d`）→ success，四 job 全绿
+（run id 由 `gh run list`/`gh run view` 实测取得）。
+
 **实测**：server **430 / 0**（原 422，+8）。
