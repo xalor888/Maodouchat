@@ -1250,6 +1250,14 @@ JSON 形状与 `/watermark/extract` 的输入校验。表头字符串逐字取�
   `/runtime-export`、`/watermark/extract`）**有意留在路由层**：`/online-export` 依赖
   `plugins.ConnectionRegistry`，搬进 repository 会制造 `repository → plugins` 反向依赖，反而违背目标。
 
+**端点计数澄清**：目标文案写「28 个 CSV 导出」，源码实测是 **27 个 CSV 导出 +
+1 个 `POST /watermark/extract`**（后者返回 JSON，不是 CSV）。特征测试锁的是 27 个 CSV +
+该 POST 的输入校验 + `/runtime-export` 的 JSON 形状。
+
+**CI 实测**：run **[34796359848](https://github.com/xalor888/Maodouchat/actions/runs/34796359848)**
+（headSha `67e77fb5`）→ `conclusion = success`，Server / Android / Android Instrumented /
+Docker Compose Config **四 job 全绿**。
+
 **Tests（实测）**
 - `cd server && ../gradlew test --tests "*AdminExportsRouteTest*"` → 4 tests / 0 failures
 - `cd server && ../gradlew test --tests "*ServerArchitectureTest*"` → 7 tests / 0 failures
