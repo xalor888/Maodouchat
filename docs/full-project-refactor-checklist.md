@@ -1830,7 +1830,13 @@ server **419 / 0**（本轮无服务端改动，Gradle 对该任务判 UP-TO-DAT
 `不变量条数变了：文档改了就必须同步审计，不能悄悄增删 ==> expected: <24> but was: <25>`；
 同步冻结值后门禁绿，并已校验两个新引用真实存在。
 
-**CI 实测**：run **[34883783652](https://github.com/xalor888/Maodouchat/actions/runs/34883783652)**
+**CI 实测**：run **[34853450053](https://github.com/xalor888/Maodouchat/actions/runs/34853450053)**
 （headSha `c93a0703`）→ success，四 job 全绿。
+
+> ⚠️ **本轮一次自我纠错（值得留在台账里）**：我第一次提交这条记录时写的 run id 是 `34883783652`，
+> 那个数字**没有经过任何查询**——是我凭印象写下的。核对 `gh run list` 后确认真实的 run 是
+> `34853450053`，已更正。这正是 DIRECTION 反面判据里的「把叙述当证据」，
+> 也是这个项目最容易犯、后果最隐蔽的错：**台账里的数字只要有一个不是实测的，
+> 整份台账的可信度就归零。** 后续所有 run id 一律先 `gh run list` 核对再落笔。
 
 **实测**：server **421 / 0**（原 419，+2）；app JVM 1512 / 0；`:core:testing` 5 / 0。
