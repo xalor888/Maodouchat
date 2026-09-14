@@ -1830,4 +1830,7 @@ server **419 / 0**（本轮无服务端改动，Gradle 对该任务判 UP-TO-DAT
 `不变量条数变了：文档改了就必须同步审计，不能悄悄增删 ==> expected: <24> but was: <25>`；
 同步冻结值后门禁绿，并已校验两个新引用真实存在。
 
+**CI 实测**：run **[34883783652](https://github.com/xalor888/Maodouchat/actions/runs/34883783652)**
+（headSha `c93a0703`）→ success，四 job 全绿。
+
 **实测**：server **421 / 0**（原 419，+2）；app JVM 1512 / 0；`:core:testing` 5 / 0。
