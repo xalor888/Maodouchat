@@ -1881,4 +1881,7 @@ server **419 / 0**（本轮无服务端改动，Gradle 对该任务判 UP-TO-DAT
 **接进追溯体系**：作为**第 26 条不变量**写进 `docs/messaging-v2-architecture.md`；
 追溯门禁再次要求显式同步条数（25→26），同步后门禁绿并校验新引用真实存在。
 
+**CI 实测**：run **34860172279**（headSha `8669687d`）→ success，四 job 全绿
+（该 run id 由 `gh run list`/`gh run view` 实测取得，非凭记忆——见 G11 里那次纠正）。
+
 **实测**：server **422 / 0**（原 421，+1）；app JVM 1512 / 0；`:core:testing` 5 / 0。
