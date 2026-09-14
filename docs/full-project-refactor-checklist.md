@@ -731,8 +731,8 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 ### Q02 数据库与迁移
 
 - [~] Android 每个支持旧版本 -> 当前版本真实数据迁移测试（`AppDatabaseMigrationTest` 因 A03 抽取全挂已修复：27 处引用改走 `DatabaseMigrations`；新增 36→40 业务四表链测试。**此处的历史教训**：原先写的「CI 仪器测试执行」是错的——`ci.yml` 与 `release.yml` 都没有 `connectedDebugAndroidTest`（`grep -n "connected\|androidTest\|instrument" .github/workflows/*.yml` → 0 命中），4 个仪器测试文件从未被任何自动化执行。**G3 已补上 CI `instrumented` job**（emulator runner 跑 `connectedDebugAndroidTest`），第一次真跑就抓到 `migrate33To34CreatesTerminalTombstonesWithConversationCascade` 是红的。仍未覆盖：真实旧版本设备数据 fixture、SQLCipher 密钥/磁盘满/损坏等故障注入）。
-- [ ] Server 空库、最后生产版本、重复、中断、回滚/恢复 migration 测试。
-- [ ] PostgreSQL 是并发和约束测试真源，H2 只用于快速测试。
+- [~] Server 空库、最后生产版本、重复、中断、回滚/恢复 migration 测试（**G6 已在真 PostgreSQL 上落地**：`PostgresMigrationMatrixTest`（`@Tag("postgres")`，5 例）覆盖空库到最新、旧版本库只补缺失版本、失败整体回滚且重跑收敛、双实例并发被 advisory lock 串行化、pg_trgm 不可用时降级；备份/恢复往返由 `scripts/rehearse-pg-restore.sh` 覆盖（逐表行数 + 内容 + 外键 + 索引比对 + 坏备份必须被拒绝）。**仍缺**：「最后生产版本」的真实旧库 fixture（目前用「前 3 个迁移」模拟旧库））。
+- [~] PostgreSQL 是并发和约束测试真源，H2 只用于快速测试（PG 侧现有并发测试 + G6 的迁移矩阵；但 414 个 H2 用例仍是主体，绝大多数约束/并发语义**只在 H2 上验证过**）。
 - [ ] SQLCipher 密钥、磁盘满、事务故障和数据损坏测试。
 
 ### Q03 Compose 与系统集成
@@ -764,7 +764,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [ ] 生产签名 Secret 缺失必须失败，禁止回退 debug 签名。
 - [ ] 产出 SBOM、签名证书信息、checksum 和可复现构建记录。
 - [ ] Android 26、当前稳定 Android、target SDK 真机验收。
-- [ ] 上线前完成 backup -> upgrade -> rollback/restore 演练。
+- [~] 上线前完成 backup -> upgrade -> rollback/restore 演练（**G6**：`scripts/rehearse-pg-restore.sh` 用与生产 backup 相同的 `pg_dump --create --format=custom` 参数做 dump→restore 往返，逐表行数/内容/外键/索引比对，并含三类负面用例；已在本机 PG16 与 CI 的 PG16 service 上真跑通过。演练还实测出生产脚本的完整性检查**不够强**：`pg_restore --list` 只读归档尾部目录，截断/损坏的数据块照样通过——已在 `backup-production.sh` 与 `restore-production.sh` 补上「整档读一遍」。**仍缺**：生产机上的真实演练。G6 申请了一次部署访问，但该主机 sshd 只广播 `password`（公钥认证未启用），中介安装的一次性密钥无法使用；未做任何生产写入，访问已归还）。
 
 ## 12. 多 Agent 并行执行模式
 
@@ -1351,3 +1351,86 @@ Docker Compose Config **四 job 全绿**。
 **Risks**：特征测试锁的是形状（状态码/表头/JSON 字段）与「空库下无幽灵行」，
 不是每个 scope 的行级快照；行级语义靠逐字搬运 + 414 个测试兜底。剩余最大缺口：
 `AdminManagementRouting.kt`(6 处) 与 `DeveloperRouting.kt`/`AnnouncementRouting.kt`/`AdminDiagnosticsRouting.kt`（各 4 处）。
+
+### G6 — 用真 PostgreSQL 把「迁移」与「备份→恢复」变成证据
+
+**Scope**：DIRECTION M4（迁移与并发以 PG 为真源）+ Q06（backup→upgrade→rollback/restore 演练）。
+本机自带 PostgreSQL 16.15（brew 的 `postgresql@16`，已 initdb 未启动），因此可以用真库快速迭代，
+而不是拿 CI 当调试器。
+
+**Files**
+- 新增 `server/src/test/kotlin/com/maodouchat/server/PostgresMigrationMatrixTest.kt`（`@Tag("postgres")`）
+- 新增 `scripts/rehearse-pg-restore.sh`
+- 修改 `server/src/main/kotlin/com/maodouchat/server/db/SchemaMigration.kt`（两个真缺陷）
+- 修改 `scripts/backup-production.sh`、`scripts/restore-production.sh`（完整性检查补强）
+- 修改 `.github/workflows/ci.yml`（新增演练步骤 + `bash -n` 覆盖新脚本）
+- 修改清单 Q02 / Q06
+
+**它抓到三个真缺陷（都不是测试假设错）**
+
+1. **`ensureSearchIndexes()` 的「降级」在 PostgreSQL 上根本不生效——会把服务搞到起不来。**
+   代码注释写着「pg_trgm 不可用（受限托管 PG / 权限不足）时降级为原 LIKE 全扫描，不影响功能」，
+   但 PG 里一条语句失败会让**整个事务进入 aborted 状态**，此后任何语句都报
+   `current transaction is aborted`。只 `catch` 并吞掉异常并不能降级：基线迁移 v1 整个失败。
+   修法：`SAVEPOINT pg_trgm_setup` → 失败时 `ROLLBACK TO SAVEPOINT`，事务恢复可用。
+   新增用例 `migration survives an unavailable pg_trgm and still reaches the latest version`
+   专门盯这条（在独立 schema 里让 pg_trgm 不在 search_path 上，稳定复现）。
+
+2. **`information_schema` 查询没有限定 schema。**
+   `migrateMessageControlForeignKeys()` 与 `dropMessagingV2SenderUserForeignKey()` 按
+   `table_name` + `column_name` 查约束，却不过滤 `table_schema`，于是会把**别的 schema** 里
+   同名表的约束查出来，随后在当前 schema 执行 `DROP CONSTRAINT` →
+   `constraint "fk_star_messages_v2_message" does not exist`。单 schema 部署看不出来，
+   只要库里多一个 schema（迁移到一个副本、遗留 schema、并行测试）就会让基线迁移失败。
+   修法：加 `tc.table_schema = CURRENT_SCHEMA AND kcu.table_schema = CURRENT_SCHEMA`
+   （H2 与 PG 都支持；单 schema 部署行为完全不变）。
+
+3. **生产备份的完整性检查不够强：`pg_restore --list` 抓不到数据块损坏。**
+   演练的负面用例实测：把 dump 截断一半、或在中间写入垃圾字节，`pg_restore --list` **照样返回 0**
+   （它只读归档**尾部**的目录 TOC），而真正恢复会失败。
+   而 `backup-production.sh` 的注释正是「校验 dump 可读（pg_restore --list），捕获损坏备份」——
+   后果是坏备份被当好的收下，直到恢复时（那时服务已经停了）才暴露。
+   修法：两个脚本都补上「整档读一遍」（`pg_restore -f /dev/null`，顺序读完所有数据块、不连库）；
+   恢复脚本的这条检查发生在**停服之前**，正是该抓的窗口。
+
+**失败用例的价值（修完之前确实红过）**
+- 迁移矩阵最初 4 例里 3 例红，报的就是上面第 1、2 条；
+- 演练的负面用例最初 2 例红，报的就是第 3 条。
+两者都不是「测试写错了」，所以都没有去改测试迁就代码。
+
+**实测（本机 PG 16.15）**
+- `POSTGRES_TEST_DATABASE_URL=... ../gradlew postgresIntegrationTest` →
+  **6 tests / 0 failures**（迁移矩阵 5 + 既有并发 1）
+- `../gradlew test`（H2 全量）→ **414 tests / 0 failures**（`CURRENT_SCHEMA` 改动对 H2 无影响）
+- `bash scripts/rehearse-pg-restore.sh` → 全部 PASS、退出码 0：
+  ```
+  PASS: pg_restore 成功（含 --create 归档恢复到已存在的目标库）
+  PASS: schema_migrations: 3 行一致 / users: 200 / chats: 50 / messages: 5000
+  PASS: messages.m1 内容一致 / 外键数量一致（2）/ 索引数量一致（2）
+  NOTE: pg_restore --list 通过了截断的 dump —— 它只校验目录，不能当作完整性检查
+  PASS: 截断的 dump 被整档读拒绝（--list 拒绝不了它）
+  PASS: 损坏的 dump 被整档读拒绝
+  PASS: 恢复到不存在的库被拒绝
+  === 结论 === 演练通过：备份可恢复、内容与行数一致、坏备份会被拒绝。
+  ```
+
+**CI 实测**：run **[34804569895](https://github.com/xalor888/Maodouchat/actions/runs/34804569895)**
+（headSha `11662ed5`）→ `conclusion = success`，四 job 全绿。逐条核对 job 日志（不是只看结论）：
+- `postgresIntegrationTest` → `BUILD SUCCESSFUL in 27s`（含新增的迁移矩阵）
+- `Rehearse PostgreSQL backup and restore` → 在 CI 的 PG16 service 上真跑，上面那 14 条 PASS/NOTE 全部出现
+- 演练自带 `KEEP`/cleanup，跑完不留 `maodou_rehearse_*` 库（本机已核对）
+
+**生产侧（只读，未做任何写入）**
+申请了一次部署访问，准备用只读模式核对生产可恢复能力。结果：
+- `ssh -F <config> keepgoal-香港01` 报 `hostname contains invalid characters`——别名里的非 ASCII
+  字符在默认 locale 下解析失败，`LC_ALL=C` 可绕过；
+- 绕过之后 `Authentications that can continue: password`：该主机（OpenSSH_8.2p1 Ubuntu）
+  **只广播密码认证**，公钥认证未启用，因此中介安装的一次性密钥不可能生效。
+- 我**没有**尝试密码登录，**没有**在改动任何生产配置（`sshd_config` 无人值守下改会把人锁在外面），
+  **没有**执行任何 stop/restore/写操作；访问已立即归还，远端密钥已删除。
+
+**Deletion**：无。
+
+**Risks**：迁移矩阵用「只跑前 3 个迁移」模拟旧库，不是真实的「最后生产版本」数据 fixture；
+备份演练覆盖的是**数据库**那一半，uploads/caddy-data 两个 tar 只做到 `gzip -t` + `tar -tzf`
+（生产脚本的 `--inspect` 已能列出内容，但没有做真实解包往返）。
