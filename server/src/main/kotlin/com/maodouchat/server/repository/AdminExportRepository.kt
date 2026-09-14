@@ -4,10 +4,15 @@ import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.BotCommandLogs
 import com.maodouchat.server.db.Friendships
+import com.maodouchat.server.db.MessagingV2Messages
 import com.maodouchat.server.db.ModerationAuditLog
 import com.maodouchat.server.db.PushTokens
+import com.maodouchat.server.db.Reports
+import com.maodouchat.server.db.RiskEvents
 import com.maodouchat.server.db.Users
+import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
@@ -21,7 +26,9 @@ import org.jetbrains.exposed.sql.transactions.transaction
  *
  * 迁移原则：逐字搬运，行为不变；本类不引入任何新的过滤/排序/截断语义。
  */
-class AdminExportRepository {
+class AdminExportRepository(
+    private val authTokenRepo: AuthTokenRepository = AuthTokenRepository(),
+) {
 
     /** 只导出元数据：token 只含前缀，绝不导出 tokenHash。 */
     fun pushTokens(limit: Int): List<List<Any?>> = transaction {
@@ -148,5 +155,98 @@ class AdminExportRepository {
                     row[BlockedUsers.blockedId],
                 )
             }
+    }
+
+    fun reports(limit: Int): List<List<Any?>> = transaction {
+        Reports.selectAll()
+            .orderBy(
+                Reports.createdAt to SortOrder.DESC,
+                Reports.id to SortOrder.DESC,
+            )
+            .limit(limit)
+            .map { row ->
+                listOf(
+                    row[Reports.id],
+                    row[Reports.reporterId],
+                    row[Reports.targetType],
+                    row[Reports.targetId],
+                    row[Reports.reason].take(200),
+                    row[Reports.status],
+                    row[Reports.createdAt].toString(),
+                )
+            }
+    }
+
+    fun riskEvents(limit: Int): List<List<Any?>> = transaction {
+        RiskEvents.selectAll()
+            .orderBy(
+                RiskEvents.createdAt to SortOrder.DESC,
+                RiskEvents.id to SortOrder.DESC,
+            )
+            .limit(limit)
+            .map { row ->
+                listOf(
+                    row[RiskEvents.id],
+                    row[RiskEvents.userId],
+                    row[RiskEvents.sourceValue],
+                    row[RiskEvents.action],
+                    (row[RiskEvents.matched] ?: "").replace("\n", " ").take(200),
+                    row[RiskEvents.needsReview].toString(),
+                    row[RiskEvents.createdAt].toString(),
+                )
+            }
+    }
+
+    /** 隐私安全：每用户的活跃会话数，不含 token 秘密。 */
+    fun sessionsSummary(limit: Int): List<List<Any?>> = transaction {
+        // Aggregate active refresh sessions by userId if table exposes userId
+        try {
+            // Fall back to listing users with online flag only when refresh table schema is private
+            val users = Users.selectAll()
+                .orderBy(Users.lastSeen to SortOrder.DESC)
+                .limit(limit)
+                .toList()
+            // 8.48 修复 M7：批量统计活跃会话（此前逐用户 count → N+1）
+            val activeByUser = authTokenRepo.countActiveRefreshSessionsBatch(users.map { it[Users.id] })
+            users.map { row ->
+                val uid = row[Users.id]
+                listOf(
+                    uid,
+                    row[Users.name].take(40),
+                    row[Users.isOnline].toString(),
+                    (activeByUser[uid] ?: 0).toString(),
+                    row[Users.lastSeen].toString(),
+                )
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    /** 按 kind 聚合的持久化传输统计（只统计 MESSAGE 类，绝不导出消息体）。 */
+    data class MessageStats(val byKind: List<List<Any?>>, val total: Long)
+
+    fun messageStats(): MessageStats {
+        val byKind = transaction {
+            MessagingV2Messages
+                .slice(MessagingV2Messages.kind, MessagingV2Messages.kind.count())
+                .selectAll()
+                .where {
+                    MessagingV2Messages.recordClass eq MessagingV2RecordClass.MESSAGE
+                }
+                .groupBy(MessagingV2Messages.kind)
+                .map { row ->
+                    listOf(
+                        row[MessagingV2Messages.kind],
+                        row[MessagingV2Messages.kind.count()],
+                    )
+                }
+        }
+        val total = transaction {
+            MessagingV2Messages.selectAll().where {
+                MessagingV2Messages.recordClass eq MessagingV2RecordClass.MESSAGE
+            }.count()
+        }
+        return MessageStats(byKind, total)
     }
 }

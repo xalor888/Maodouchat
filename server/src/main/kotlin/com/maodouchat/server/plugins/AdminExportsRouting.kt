@@ -8,6 +8,7 @@ import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.DispositionService
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.repository.AdminExportRepository
 import com.maodouchat.server.service.AdminExportService
 import com.maodouchat.server.service.csvCell
 import io.ktor.http.HttpStatusCode
@@ -66,7 +67,7 @@ private const val WATERMARK_EXTRACT_TIMEOUT_MS = 30_000L
 /** 管理后台子域路由（从 AdminManagementRouting.kt 拆出）。 */
 internal fun Route.configureAdminExportsRoutes(
     authTokenRepo: AuthTokenRepository,
-    exportService: AdminExportService = AdminExportService(),
+    exportService: AdminExportService = AdminExportService(AdminExportRepository(authTokenRepo)),
 ) {
     get("/push-tokens-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
@@ -118,31 +119,7 @@ internal fun Route.configureAdminExportsRoutes(
     get("/message-stats-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         // Aggregate durable transport kinds only; never export message bodies.
-        val rows = transaction {
-            MessagingV2Messages
-                .slice(MessagingV2Messages.kind, MessagingV2Messages.kind.count())
-                .selectAll()
-                .where {
-                    MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE
-                }
-                .groupBy(MessagingV2Messages.kind)
-                .map { row ->
-                    val type = row[MessagingV2Messages.kind]
-                    val count = row[MessagingV2Messages.kind.count()]
-                    listOf(csvCell(type), csvCell(count)).joinToString(",")
-                }
-                .sorted()
-        }
-        val total = transaction {
-            MessagingV2Messages.selectAll().where {
-                MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE
-            }.count()
-        }
-        val csv = buildString {
-            appendLine("type,count")
-            rows.forEach { appendLine(it) }
-            appendLine(listOf(csvCell("TOTAL"), csvCell(total)).joinToString(","))
-        }
+        val csv = exportService.messageStatsCsv().body
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-message-stats-${System.currentTimeMillis()}.csv\""
@@ -155,30 +132,9 @@ internal fun Route.configureAdminExportsRoutes(
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
-        val rows = org.jetbrains.exposed.sql.transactions.transaction {
-            com.maodouchat.server.db.Reports.selectAll()
-                .orderBy(
-                    com.maodouchat.server.db.Reports.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
-                    com.maodouchat.server.db.Reports.id to org.jetbrains.exposed.sql.SortOrder.DESC
-                )
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[com.maodouchat.server.db.Reports.id]),
-                        csvCell(row[com.maodouchat.server.db.Reports.reporterId]),
-                        csvCell(row[com.maodouchat.server.db.Reports.targetType]),
-                        csvCell(row[com.maodouchat.server.db.Reports.targetId]),
-                        csvCell(row[com.maodouchat.server.db.Reports.reason].take(200)),
-                        csvCell(row[com.maodouchat.server.db.Reports.status]),
-                        csvCell(row[com.maodouchat.server.db.Reports.createdAt].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("id,reporterId,targetType,targetId,reason,status,createdAt")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "reports_export", detail = "count=${rows.size}")
+        val export = exportService.reportsCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "reports_export", detail = "count=${export.rowCount}")
         call.response.header(
             io.ktor.http.HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-reports.csv\""
@@ -191,30 +147,9 @@ internal fun Route.configureAdminExportsRoutes(
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
-        val rows = org.jetbrains.exposed.sql.transactions.transaction {
-            com.maodouchat.server.db.RiskEvents.selectAll()
-                .orderBy(
-                    com.maodouchat.server.db.RiskEvents.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
-                    com.maodouchat.server.db.RiskEvents.id to org.jetbrains.exposed.sql.SortOrder.DESC
-                )
-                .limit(limit)
-                .map { row ->
-                    listOf(
-                        csvCell(row[com.maodouchat.server.db.RiskEvents.id]),
-                        csvCell(row[com.maodouchat.server.db.RiskEvents.userId]),
-                        csvCell(row[com.maodouchat.server.db.RiskEvents.sourceValue]),
-                        csvCell(row[com.maodouchat.server.db.RiskEvents.action]),
-                        csvCell((row[com.maodouchat.server.db.RiskEvents.matched] ?: "").replace("\n", " ").take(200)),
-                        csvCell(row[com.maodouchat.server.db.RiskEvents.needsReview].toString()),
-                        csvCell(row[com.maodouchat.server.db.RiskEvents.createdAt].toString())
-                    ).joinToString(",")
-                }
-        }
-        val csv = buildString {
-            appendLine("id,userId,source,action,matched,needsReview,createdAt")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "risk_events_export", detail = "count=${rows.size}")
+        val export = exportService.riskEventsCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "risk_events_export", detail = "count=${export.rowCount}")
         call.response.header(
             io.ktor.http.HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-risk-events.csv\""
@@ -253,35 +188,9 @@ internal fun Route.configureAdminExportsRoutes(
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
         // Privacy-safe: session counts per user, no token secrets
-        val rows = transaction {
-            // Aggregate active refresh sessions by userId if table exposes userId
-            try {
-                // Fall back to listing users with online flag only when refresh table schema is private
-                val users = Users.selectAll()
-                    .orderBy(Users.lastSeen to org.jetbrains.exposed.sql.SortOrder.DESC)
-                    .limit(limit)
-                    .toList()
-                // 8.48 修复 M7：批量统计活跃会话（此前逐用户 count → N+1）
-                val activeByUser = authTokenRepo.countActiveRefreshSessionsBatch(users.map { it[Users.id] })
-                users.map { row ->
-                        val uid = row[Users.id]
-                        listOf(
-                            csvCell(uid),
-                            csvCell(row[Users.name].take(40)),
-                            csvCell(row[Users.isOnline].toString()),
-                            csvCell((activeByUser[uid] ?: 0).toString()),
-                            csvCell(row[Users.lastSeen].toString())
-                        ).joinToString(",")
-                    }
-            } catch (_: Exception) {
-                emptyList()
-            }
-        }
-        val csv = buildString {
-            appendLine("userId,name,isOnline,activeRefreshSessions,lastSeen")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "sessions_summary_export", detail = "count=${rows.size}")
+        val export = exportService.sessionsSummaryCsv(limit)
+        val csv = export.body
+        recordAdminAudit(actorId = adminId, action = "sessions_summary_export", detail = "count=${export.rowCount}")
         call.response.header(
             HttpHeaders.ContentDisposition,
             "attachment; filename=\"maodouchat-sessions-summary.csv\""
