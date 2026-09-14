@@ -43,6 +43,7 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
    per-device ciphertext.
    → 验证：`MessagingV2OutboxPlaintextBoundaryTest#the wire request carries per-device ciphertext and never the local plaintext`；`MessagingV2OutboxPlaintextBoundaryTest#what gets staged for the wire is the prepared envelopes, not the plaintext`
    → 验证：`SignalMessagingV2EnvelopePreparerTest#the plaintext goes into the cipher and never into the envelope`（加密准备器这一层的边界：明文进加密层、密文出信封）
+   → 验证：`SignalMessagingV2EnvelopeProcessorTest#every decrypt failure is reported and nothing is committed`（解密侧的对应边界：解不开的信封必须抛错，绝不能变成「已入库」）
 
 10. Group membership changes invalidate prepared outbox ciphertext and require encryption against
     the new member revision.

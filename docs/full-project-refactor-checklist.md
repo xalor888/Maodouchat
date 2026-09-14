@@ -730,6 +730,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [~] E2EE 命门有可执行证据：**G11** 新增第 25 条不变量「服务端全库不含人类消息明文」，由 `ServerPlaintextSweepTest` 用独立 JDBC 连接枚举全部表/列做哨兵扫描，并带 **正对照**（证明扫描器确能发现服务端确实保存的明文，实测命中 `CHATS.LAST_MESSAGE` / `SERVICE_MESSAGES.CONTENT`）；反证已实测（把明文写进 `Chats.lastMessage` → 扫描器红并报出位置）。
 - [~] 双账号双设备离线 E2E（Q04）：**G12** 落了第一个服务端切片——`MessagingV2TwoDeviceDeliveryTest` 用真实 HTTP 走通「A 发 → B（断言其无任何 WebSocket，即离线）拉 `GET /api/v2/inbox` 拿到逐字节相同的密文 → ACK 后自己清空 → 另一账号设备与**同账号另一台设备**均保留副本 → 越权 ACK 返回 0」。已实测两次反证；其中设备隔离反证第一次未红，暴露的是**测试太弱**（u2 当时只有一台设备），把测试改强后才红。**仍未覆盖真实客户端加密与 UI**，属于服务端边界证据。
 - [~] 客户端加密路径有证据：**G13** 给 `SignalMessagingV2EnvelopePreparer` 补 7 个 JVM 单测（快照归属/会话一致性/群控过期/覆盖集合/明文边界），三处反证实测会红；解密路径 `SignalMessagingV2EnvelopeProcessor` 仍零测试，已列为下一步。
+- [~] 客户端**解密**路径也有证据：**G14** 给 `SignalMessagingV2EnvelopeProcessor` 补 11 个 JVM 单测，重点是「解不开绝不静默」——六种失败变体各自抛错且都不提交、sender key 缺失必须触发修复、Duplicate 无 journal 不得静默丢正文、journal 必须先于提交；四处反证实测会红。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
 
 ### Q02 数据库与迁移
@@ -1934,3 +1935,39 @@ service 信封策略、内容策略、sender key 缺失回退等分支，依赖�
 （run id 由 `gh run list`/`gh run view` 实测取得）。
 
 **实测**：app JVM **1519 / 0**（原 1512，+7）；`:core:testing` 5 / 0；server **422 / 0**（本轮无服务端改动）。
+
+### G14 — 解密路径的证据：失败绝不静默（M5 客户端侧第二步）
+
+**Scope**：G13 覆盖了加密准备器，本轮覆盖 `SignalMessagingV2Adapter.kt:168-288` 的
+`SignalMessagingV2EnvelopeProcessor`（此前零测试）。
+
+**为什么这条比加密侧更值得先做**：它守着整个 App 最隐蔽的一类失败——**「消息收到了，但解不开」**。
+如果它把解不开的信封当成已提交，或静默丢掉正文，用户看到的是「消息没了」，而日志里一切正常。
+
+**新增 11 个用例**（`SignalMessagingV2EnvelopeProcessorTest`）
+1. 六种失败变体（`Failed`/`UntrustedIdentity`/`FutureEpoch`/`NotForThisDevice`/`UnsupportedEnvelope`/
+   `NoSession`）都必须抛错、**错误码互不相同**、且 `domainSink.commit` 一次都没被调用；
+2. **sender key 修复路径**：`NoSession` + `SENDER_KEY` + epoch>0 → **必须触发
+   `onSenderKeyMissing(envelope, epoch)`**（不触发 = 群消息永远解不开），同时仍抛 `no_session`；
+3. 拿不到 epoch 时**不得**发起修复（否则会用错误的 epoch 去要 sender key）；
+4. `Duplicate` 且无 journal、未投影 → 抛 `messaging_v2_duplicate_uncommitted`（**绝不静默丢正文**）；
+5. `Duplicate` 有 journal → 从 journal 恢复投影并清空 journal（进程死在提交前的唯一恢复路径）；
+6. `Duplicate` 的 `SENDER_KEY` → 静默通过（幂等重放必须能被 ACK，不能进死信）；
+7. **journal 先于提交**：普通 `Success` 路径必须先写 journal 再 commit（断言调用顺序）；
+8. service 信封必须满足发送方策略（设备号 0 + `SERVICE_PLAINTEXT` + `bot_`/`system`）才提交，
+   且不该碰 Signal 解密；
+9. **kind 绑定**：DATA 伪装成 RECEIPT（内容策略不接受）→ 不提交，防止污染有序收件箱；
+10. sender key 安装 `Failed` → 抛 `messaging_v2_sender_key_install_failed` 且不提交；
+11. sender key 安装 `Skipped`（已装过）→ 幂等通过，不产生投影。
+
+**反证（四处同时注入，实测 4 tests / 4 failures）**
+1. 让 `DecryptResult.Failed` 走提交 → `Expected an exception of IllegalStateException ... but was completed successfully`；
+2. 不再触发 sender key 修复 → `sender key 缺失必须触发修复请求，否则群消息永远解不开：[] expected:<[(e1, 9)]> but was:<[]>`；
+3. 把 journal 挪到提交之后 → `必须先写 journal 再提交 ... expected:<[journal, commit]> but was:<[commit, journal]>`；
+4. `Duplicate` 无 journal 时静默返回 → `Expected an exception ... but was completed successfully`。
+还原后绿，`git diff app/src/main/` 为空（生产代码零改动）。
+
+**接进追溯体系**：在不变量 9 下追加解密侧的 `→ 验证`。该不变量现在有三层证据：
+outbox 线路边界（G7）、加密准备器（G13）、解密处理器（G14）。门禁已校验新引用真实存在，条数仍 26。
+
+**实测**：app JVM **1530 / 0**（原 1519，+11）；`:core:testing` 5 / 0；server **422 / 0**（本轮无服务端改动）。
