@@ -1974,3 +1974,45 @@ outbox 线路边界（G7）、加密准备器（G13）、解密处理器（G14�
 （run id 由 `gh run list`/`gh run view` 实测取得）。
 
 **实测**：app JVM **1530 / 0**（原 1519，+11）；`:core:testing` 5 / 0；server **422 / 0**（本轮无服务端改动）。
+
+### G15（进行中）— `AdminManagementRouting` 的安全网先落地
+
+**Scope**：M2 续。最大剩余热点是 `AdminManagementRouting.kt`（525 行、**6 处 `transaction {`**，
+在 180/194/283/312/394/446 行），架构棘轮 `frozenRouteTransactions` 对它冻结为 6。
+按 G4/G5 已验证的顺序：**先建行为安全网，再搬代码**——没有网就搬 SQL 是拿管理后台赌运气。
+
+**本轮完成：安全网（8 个用例，`AdminManagementRouteTest`）**
+
+1. 匿名 → 五个端点全部 401；
+2. 非管理员 → 401（实测；见下方「查清的事实」）；且**非管理员连换发管理员会话都被 403**；
+3. 会话总览：`{userId, refreshSessions, activeRefreshCount, signalDevices, pushTokens}` 形状 +
+   设备/推送字段（`deviceName`/`status`/`platform`）；
+4. 吊销参数校验五种 400：既无 prefix 也无 all、两者互斥、prefix 非十六进制、all 非严格 boolean、未知用户 404；
+5. 按 prefix 吊销：响应形状 + **审计行 `ADMIN_SESSION_REVOKE`（actor→target）**；
+6. 消息搜索：无过滤条件 400、**密聊会话的消息绝不出现在结果里**、`contentPreview` 恒为空、
+   `sealedSender` 为 true、`status=DURABLE`；
+7. 广播：缺 text 400 + 响应形状 + **审计行 `ADMIN_BROADCAST`**；
+8. 强制下线：未知用户 404 + 响应形状 + **审计行 `ADMIN_FORCE_LOGOUT`**。
+
+第 5/7/8 条直接钉住**即将被搬走的那三处事务**（都是 `ModerationAuditLog.insert`）；
+第 6 条钉住 E2EE 相邻的「管理搜索只给元数据、且排除密聊」。
+
+**反证（实测）**：去掉搜索里「排除 SECRET 会话」那一块 → 红：
+`**密聊会话的消息绝不能出现在管理搜索里**：[msg_secret, msg_normal]`。
+还原后绿，`git diff server/src/main/` 为空。
+
+**查清的事实（都是实测，不是猜的；写下来避免后人重踩）**
+- 管理路由只认**管理员会话 token**：普通登录 token 直接打这些路由得到
+  `401 管理员会话无效或已过期`，必须先 `POST /api/admin/session` 换发（与 `AdminExportsRouteTest` 同流程）；
+- 因此 handler 里那句 `isAdminUser()` 的 **403 分支对非管理员不可达**——他们在认证层就被拒；
+  该分支只在「已发 admin session、之后 MASTER_ADMINS 被改并重启」时才可达；
+- `POST /users/{id}/sessions/revoke` 响应里的 `revoked` **不是**「匹配到的 token 数」，
+  而是实现里的 `sessionChanged + tokenChanged`（撤销的会话数 **加上** 一并吊销的 token 数）。
+  安全网按这个真实语义断言。
+
+**本轮未做（下一步，棘轮尚未下调）**：把 6 处事务按职责搬进 `service/`/`repository/`
+（三处审计写入可合成一个 audit-log writer，两处读查询合成会话总览查询，一处是元数据搜索查询），
+然后把 `frozenRouteTransactions["AdminManagementRouting.kt"]` 从 6 精确下调、必要时从
+`frozenPluginsImportingExposed` 移除，并补「行为被改坏 → 新测试红」与「往 plugins 加事务 → 棘轮红」两个反证。
+
+**实测**：server **430 / 0**（原 422，+8）。
