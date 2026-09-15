@@ -102,16 +102,26 @@ class MessagingInvariantTraceabilityTest {
     fun `every referenced test actually exists in the test sources`() {
         // 规则刻意**不**假设「文件名 == 类名」：一个 .kt 里可以有多个测试类
         // （MinimalRouteTest.kt 就是如此），按文件名找会误报「找不到测试」。
+        //
+        // 也刻意同时接受两种函数名写法：JVM 单测用反引号包住带空格的用例名
+        // （``fun `a human send leaves no plaintext` ``），而 **instrumented 测试不能**——
+        // DEX version < 040 不允许 SimpleName 里有空格，`app/src/androidTest` 只能用
+        // camelCase（`fun realX3dhSessionCarries...`）。此前这条规则只认反引号形式，
+        // 等于把整个 androidTest 排除在可引用范围之外；而 `app/src/androidTest/java`
+        // 明明在扫描列表里——正是这种「扫了却引用不了」的缝，让模拟器门禁静默失效了很久。
         val sources = testSources.associateWith { it.readText() }
         val missing = mutableListOf<String>()
         audit().flatMap { it.verified }.distinct().forEach { ref ->
             val className = ref.substringBefore('#')
             val testName = ref.substringAfter('#')
             val classDecl = Regex("""\b(class|object)\s+""" + Regex.escape(className) + """\b""")
+            val camelCaseDecl = Regex("""fun\s+""" + Regex.escape(testName) + """\s*\(""")
             val owners = sources.filterValues { classDecl.containsMatchIn(it) }
             when {
                 owners.isEmpty() -> missing += "$ref（找不到类声明 $className）"
-                owners.none { (_, text) -> text.contains("fun `$testName`") } ->
+                owners.none { (_, text) ->
+                    text.contains("fun `$testName`") || camelCaseDecl.containsMatchIn(text)
+                } ->
                     missing += "$ref（$className 里没有这个用例）"
             }
         }

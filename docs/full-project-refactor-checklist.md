@@ -732,6 +732,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [~] 双账号双设备离线 E2E（Q04）：**G12** 落了第一个服务端切片——`MessagingV2TwoDeviceDeliveryTest` 用真实 HTTP 走通「A 发 → B（断言其无任何 WebSocket，即离线）拉 `GET /api/v2/inbox` 拿到逐字节相同的密文 → ACK 后自己清空 → 另一账号设备与**同账号另一台设备**均保留副本 → 越权 ACK 返回 0」。已实测两次反证；其中设备隔离反证第一次未红，暴露的是**测试太弱**（u2 当时只有一台设备），把测试改强后才红。**仍未覆盖真实客户端加密与 UI**，属于服务端边界证据。
 - [~] 客户端加密路径有证据：**G13** 给 `SignalMessagingV2EnvelopePreparer` 补 7 个 JVM 单测（快照归属/会话一致性/群控过期/覆盖集合/明文边界），三处反证实测会红；解密路径 `SignalMessagingV2EnvelopeProcessor` 仍零测试，已列为下一步。
 - [~] 客户端**解密**路径也有证据：**G14** 给 `SignalMessagingV2EnvelopeProcessor` 补 11 个 JVM 单测，重点是「解不开绝不静默」——六种失败变体各自抛错且都不提交、sender key 缺失必须触发修复、Duplicate 无 journal 不得静默丢正文、journal 必须先于提交；四处反证实测会红。
+- [~] **真实加密往返**有 on-device 证据：**G17** 新增 `SignalE2eeRoundTripTest`（`app/src/androidTest`），用真实 libsignal 建真 X3DH 会话：A 加密 → B 解回**逐字节相同**原文 → 棘轮**双向**（回复走普通 `SignalMessage`）；四条反证各自实测会红——篡改一字节 / 第三方无会话 / 身份与签名不匹配 / 未建会话就加密；并用**生产** `SignalEnvelopeCodec` 构造上线信封，断言信封里既不含原文也不含原文标记、但仍承载密文。本地 arm64-v8a/API 36 与 CI x86_64 模拟器均实测 `tests=5 failures=0`。**边界**：这是「真实 libsignal 原语 + 真实生产信封编码器」这一层；`SignalDirectCipher` 的完整装配路径（依赖 `MaodouchatApp` 单例与 Room/SQLCipher store）与真实跨进程双设备投递仍未覆盖。同轮还修好了追溯门禁的一个盲点：它此前只认反引号用例名，而 androidTest 因 DEX 限制不能用带空格的名字，等于整个 `app/src/androidTest` 无法被引用——已改成两种写法都接受，并用假引用实测会红。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
 
 ### Q02 数据库与迁移
@@ -2152,3 +2153,79 @@ Android Instrumented；run id 由 `gh run list` / `gh run view` 实测取得）�
 > `success`（不再有 `skipped`），其中「Client architecture gate and hotspot ratchet」
 > 与「Run instrumented tests on emulator」都真实执行并通过——这是一次**门禁从静默跳过
 > 恢复到真正承重**的修复，价值高于任何一次绿灯本身。
+
+### G17 — E2EE 的真实加密往返：从「边界」推进到「密文真的能解回原文」
+
+**为什么只能这么做**：G13/G14 把客户端加密/解密的**边界**（明文进加密层、密文出信封、
+失败必须抛错）钉住了，但那两条 JVM 单测**不可能**证明「密文真的能被对方解回原文」。
+实测确认了原因：`org.signal:libsignal-android:0.41.0` 的 AAR 只带 Android JNI
+（`jni/{arm64-v8a,armeabi-v7a,x86,x86_64}/libsignal_jni.so`），**没有任何 host 动态库**
+（`unzip -l` 全量核对，`classes.jar` 仅 1.8KB）。所以 `app/src/test` 连密码学都加载不了——
+真实往返只能在 `app/src/androidTest` 做。
+
+而这里有个更刺眼的事实：**直到 G16 为止，CI 的模拟器 lane 每一步都是 `skipped`**
+（`setup-android` 在上游坏掉），也就是说就算当时写了 instrumented 测试，它也不会跑。
+**先把门禁修好，证据才有地方落地**——这是 G16 必须先做的原因。
+
+**新增** `app/src/androidTest/java/com/maodouchat/crypto/SignalE2eeRoundTripTest.kt`（5 例）
+
+1. `realX3dhSessionCarriesExactPlaintextBothDirections`：两个真实设备（`IdentityKeyPair.generate()`、
+   真签名预密钥、真预密钥、libsignal `InMemorySignalProtocolStore`）→ `SessionBuilder.process(bundle)`
+   建立真 X3DH → A 加密（断言首条是 `PREKEY_TYPE`，即**确实建了新会话**；并断言密文 ≠ 原文）
+   → B 解出**逐字节相同**原文 → B 回 A 也解得出（回复是 `WHISPER_TYPE`），
+   证明棘轮**双向**推进而不是单向偶然成功；
+2. `tamperedCiphertextFailsInsteadOfYieldingAnything`：先证明**未篡改**的那串字节确实能解回原文
+   （正对照），再用**全新会话**翻掉最后一个字节 → 必须在协议层失败；
+3. `thirdPartyWithNoSessionCannotDecrypt`：无会话的第三方必须失败，而合法收件人仍能解——
+   排除「密文本身坏了」这种解释；
+4. `wireEnvelopeNeverContainsPlaintext`：用**生产类** `SignalEnvelopeCodec` 构造真正会上行的信封，
+   断言信封里既不含原文、也不含原文标记，**同时**断言它确实承载密文且被认成加密信封
+   （否则「不含原文」可能只是因为这个信封什么都没装），最后再解回原文确认这串密文是真的；
+5. `signedPreKeyFromDifferentIdentityIsRejected`：用 Mallory 的身份冒充 Bob 派发 bundle
+   （预密钥与签名都来自 Bob）→ 必须验签失败；再用**全新的** Alice 设备做正对照，确认身份正确时会话能建立。
+
+**逐条反证（实测，每条只让它自己那一个用例变红，探针已全部回滚）**
+
+| 探针 | 做法 | 结果 |
+|------|------|------|
+| P1 篡改 | 把「解密被篡改的字节」换成解密未篡改字节 | `tamperedCiphertextFails...` 红 |
+| P2 第三方 | 让第三方用**合法收件人**的 store 去解 | `thirdPartyWithNoSessionCannotDecrypt` 红 |
+| P3 信封 | 把原文本身当作 ciphertext 塞进信封 | `wireEnvelopeNeverContainsPlaintext` 红 |
+| P4 身份 | 把伪造 bundle 的身份换回 Bob 正确的公钥 | `signedPreKeyFromDifferentIdentityIsRejected` 红 |
+| P5 会话 | 删掉 `SessionBuilder.process(...)`，不建会话就加密 | `realX3dhSessionCarries...` 红 |
+
+五次探针的汇总实测：`P1..P5` 每组都是 `tests=5 failed=1` 且红的正是对应用例；
+回滚后 `tests=5 failed=0`。
+
+**踩到的真实约束（值得记住）**：instrumented 测试**不能用带空格的反引号用例名**——
+R8/DEX 会报 `Space characters in SimpleName ... are not allowed prior to DEX version 040`，
+`dexBuilderDebugAndroidTest` 直接失败。所以 `app/src/androidTest` 一律用 camelCase；
+JVM 单测才用反引号。这个差异是本地跑出来的，不是猜的。
+
+**顺带修掉追溯门禁的一个结构性盲点**
+
+`MessagingInvariantTraceabilityTest` 此前只用 `text.contains("fun \`$testName\`")` 校验引用，
+也就是**只认反引号写法**。而 androidTest 因为上面的 DEX 限制**永远不可能**有反引号用例名 ⇒
+`app/src/androidTest/java` 虽然一直在扫描列表里，却**没有任何 instrumented 测试能被引用**。
+这正是「扫了却引用不了」的缝，和「门禁不门禁」是同一类问题。
+
+改成两种写法都接受（反引号形式，或精确的 `fun <name>(` 正则）。**没有放宽强度**：
+正则要求 `fun` + 完整精确名字 + `(`，所以错误名字仍然红。已用假引用实测：
+插入 `SignalE2eeRoundTripTest#thisCamelCaseCaseDoesNotExist` →
+门禁红并报 `（SignalE2eeRoundTripTest 里没有这个用例）`。
+
+**验证（都是实测数字，不是叙述）**
+
+- 本地 arm64-v8a / API 36 模拟器：`app/build/outputs/androidTest-results/.../TEST-maodou_test(AVD) - 16-_app-.xml`
+  → `tests=5 failures=0 errors=0 skipped=0`（逐用例名核对）；
+- CI x86_64：run **[34918429827](https://github.com/xalor888/Maodouchat/actions/runs/34918429827)**
+  （headSha `8defb85c`）→ **success，四 job 全绿**；下载 `android-instrumented-reports` 工件核对
+  `TEST-emulator-5554 - 16-_app-.xml` → **`tests=27 failures=0 errors=0 skipped=0`**，
+  其中 `SignalE2eeRoundTripTest` **5 例全 ok**（run id 与工件均由 `gh` 实测取得）。
+  27 例覆盖 5 个测试类——这也第一次证明**整条 instrumented lane 真的在跑**。
+- 服务端 430 / 0（追溯门禁含在内）。
+
+**仍未覆盖（不得被本条冒充）**：`SignalDirectCipher` 的完整装配路径（依赖 `MaodouchatApp` 单例、
+Room/SQLCipher store、`SignalProtocolContext` 的初始化状态机）；真实**跨进程/跨网络**双设备投递；
+日志/导出/备份/崩溃报告是否含明文；生产 PostgreSQL 的其它表。
+本轮的证据层级是「真实 libsignal 原语 + 真实生产信封编码器」——比 JVM 替身强得多，但仍不是端到端装配。
