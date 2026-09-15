@@ -314,6 +314,10 @@ jobs:
           # 所以必须串在这里）。
           script: |
             ./gradlew :app:connectedDebugAndroidTest --no-daemon --console=plain
+            # 主套件的结果先另存一份：下面的 E2E 会写同一个目录，若不另存，
+            # 上传的主套件工件就只反映 E2E 的 4 个用例，55 个用例的证据会丢。
+            rm -rf app/build/outputs/androidTest-results-main
+            cp -r app/build/outputs/androidTest-results app/build/outputs/androidTest-results-main
             bash scripts/two-device-http-e2e.sh
 
       - name: Upload instrumented test reports
@@ -323,7 +327,7 @@ jobs:
           name: android-instrumented-reports
           path: |
             app/build/reports/androidTests/connected
-            app/build/outputs/androidTest-results
+            app/build/outputs/androidTest-results-main
           if-no-files-found: ignore
 
       # G23：E2E 自己的结果与服务端日志单独上传，便于逐用例核对与失败诊断。
