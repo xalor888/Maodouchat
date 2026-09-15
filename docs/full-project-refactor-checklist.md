@@ -728,7 +728,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试。**G7 续已补掉第 9 条**（`MessagingV2OutboxPlaintextBoundaryTest`，2 例 + 双向反证）、第 5/6/7 条（`MessagingV2InboxSynchronizerTest`，3 例 + 三向反证）与第 2 条（`MessagingV2RepositoryTest` 的原子性回滚用例 + 提前提交反证）；第 4 轮更正了两条**假缺口**（21/24 其实早有 `ConversationLocalStateCoordinatorTest` 覆盖，是我第一轮按文件名收集候选用例时漏了 `conversation/**`），缺口降为 2 条）；第 6 轮补掉最后一条真测试缺口——不变量 3（新增 `/api/v2/messages` 的第一个 HTTP 级测试 + 真实 WebSocket 收帧 + 注入反证），缺口降为 **1 条**（只剩 17 的后半句，属契约决策）。
 - [ ] reducer/state machine 使用 fake clock 和确定性 dispatcher。
 - [~] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖（客户端：`core/testing/ArchitectureTest.kt` ArchUnit 2 条 + 根 `checkArchitecture` 模块依赖；**服务端已补 `server/src/test/.../architecture/ServerArchitectureTest.kt`**，随 `server:test` 自动进 CI：2 条绝对不变量 + 5 条精确相等棘轮，实测注入违规会红、基线过期也会红，见 M1 记录）；**G8** 补：客户端 `:core:testing` 的 A01 规则此前从未在 CI 执行（已接进 CI），并新增可证伪的热点棘轮 `ClientHotspotRatchetTest`（热点行数 5061/3131/2298、UI 直连持久层 38 文件/200 处，精确相等）。
-- [~] E2EE 命门有可执行证据：**G11** 新增第 25 条不变量「服务端全库不含人类消息明文」，由 `ServerPlaintextSweepTest` 用独立 JDBC 连接枚举全部表/列做哨兵扫描，并带 **正对照**（证明扫描器确能发现服务端确实保存的明文，实测命中 `CHATS.LAST_MESSAGE` / `SERVICE_MESSAGES.CONTENT`）；反证已实测（把明文写进 `Chats.lastMessage` → 扫描器红并报出位置）。
+- [~] E2EE 命门有可执行证据：**G11** 新增第 25 条不变量（原表述「服务端全库不含人类消息明文」已在 **G33** 审计中**收窄**为「人类 V2 提交的载荷只落在自己的每设备信封里」——原用例扫的是一个**从未进入发送/加密路径**的随机明文哨兵，那种「扫不到」是自证）。现在 `ServerPlaintextSweepTest` 用独立 JDBC 连接枚举全部表/列，扫描**真正提交进 `SendMessageV2Command` 的载荷**，要求命中恰好只有 `MESSAGING_V2_ENVELOPES.CIPHERTEXT`，并同时断言 metadata 落库、**已有** `chats.last_message` 预览未被改写、同 messageId 无 `service_messages` 正文；仍带 **正对照**（证明扫描器确能发现服务端确实保存的 `SERVICE_MESSAGES.CONTENT` / `CHATS.LAST_MESSAGE`）。三处反证已实测：把载荷写进 `Chats.lastMessage` → 预览断言红；写进**没有任何显式断言**的 `Chats.groupAnnouncement` → 扫描器报出额外列 `[PUBLIC.CHATS.GROUP_ANNOUNCEMENT, PUBLIC.MESSAGING_V2_ENVELOPES.CIPHERTEXT]` 而红；扫描器恒空 → 正对照与新断言同时红。**证据边界**：只覆盖进程内 H2 与该 repository 路径；真实客户端 Signal 加密、日志/导出/备份、真实双设备仍无证据。
 - [~] 双账号双设备离线 E2E（Q04）：**G12** 落了第一个服务端切片——`MessagingV2TwoDeviceDeliveryTest` 用真实 HTTP 走通「A 发 → B（断言其无任何 WebSocket，即离线）拉 `GET /api/v2/inbox` 拿到逐字节相同的密文 → ACK 后自己清空 → 另一账号设备与**同账号另一台设备**均保留副本 → 越权 ACK 返回 0」。已实测两次反证；其中设备隔离反证第一次未红，暴露的是**测试太弱**（u2 当时只有一台设备），把测试改强后才红。**仍未覆盖真实客户端加密与 UI**，属于服务端边界证据。
 - [~] 客户端加密路径有证据：**G13** 给 `SignalMessagingV2EnvelopePreparer` 补 7 个 JVM 单测（快照归属/会话一致性/群控过期/覆盖集合/明文边界），三处反证实测会红；解密路径 `SignalMessagingV2EnvelopeProcessor` 仍零测试，已列为下一步。
 - [~] 客户端**解密**路径也有证据：**G14** 给 `SignalMessagingV2EnvelopeProcessor` 补 11 个 JVM 单测，重点是「解不开绝不静默」——六种失败变体各自抛错且都不提交、sender key 缺失必须触发修复、Duplicate 无 journal 不得静默丢正文、journal 必须先于提交；四处反证实测会红。
@@ -1790,6 +1790,11 @@ server **419 / 0**（本轮无服务端改动，Gradle 对该任务判 UP-TO-DAT
 
 **Scope**：DIRECTION 轨道 B「把断言换成证据」里最核心的一条——证明**人对人消息在服务端全库不含明文**。
 
+> ⚠️ **G33 审计更正**：本节的原始结论**超出了测试能力**，已收窄（见下方 G33 记录和第 25 条不变量的
+> 「证据边界」）。原用例生成了两个互不相关的随机串，只把其中一个当作密文送进发送命令，
+> 然后断言另一个扫不到——那不是证据。本节保留作历史记录，但**不得**再被引用来支撑
+> 「真实 Signal 加密正确」「全库无人类明文」「日志/备份安全」「双设备 E2EE」这些结论。
+
 **现状实测（缺口是真的）**
 
 - `MessagingV2Messages` 表只有 id / conversation_id / sender_user_id / sender_device_id / kind /
@@ -1855,6 +1860,11 @@ server **419 / 0**（本轮无服务端改动，Gradle 对该任务判 UP-TO-DAT
 `grep -rn lastMessage server/src/main/kotlin/com/maodouchat/server/messaging/v2/` → **0 命中**：
 人类 V2 发送路径**根本不碰** `chats.last_message`。该列只由 bot/service 发布写入，
 所以它虽然会持有文本，**对人类消息始终为空**。已写进文档第 25 条备注，消除「这一列可能藏人类明文」的误读。
+
+> ⚠️ **G33 审计更正**：「**对人类消息始终为空**」这句话是错的推论。正确的说法是
+> 「人类 V2 发送**不写**这一列」——但群内只要有 bot 发过消息，预览里就是服务端可见的明文。
+> 现在的用例因此改为：发送前先写入一个既定预览值，断言人类发送**不改写它**，
+> 而不是断言这一列在库里为空。第 25 条备注已同步改正。
 
 **新增用例** `MessagingV2TwoDeviceDeliveryTest#an offline device pulls the exact ciphertext and its ack keeps the sibling copy`
 （放在 `MinimalRouteTest.kt` 内，复用已验证的 HTTP 驱动方式；不 mock）：

@@ -120,18 +120,24 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
    → 验证：`MessageTerminalStoreTest#delete removes media before room row`
    → 验证：`ConversationLocalStateCoordinatorTest#history tombstones are durable before attachment cancellation starts`；`MessageTerminalStoreTest#delete removes media before room row`
 
-25. **The server holds no human message plaintext anywhere in its database.** For a human send the wire
-    carries per-device ciphertext only (see 9), and the server-side schema has no column for content:
-    `messaging_v2_messages` stores id/conversation/sender/kind/timestamps/request_digest, and
-    `messaging_v2_envelopes` stores the opaque ciphertext. Bot/service messages are the deliberate
-    exception — the server generates and audits them, so their text is stored server-side. A regression
-    that starts persisting human text (for example into the chat-list preview or a metadata column)
-    must fail a test instead of being discovered later.
-   → 验证：`ServerPlaintextSweepTest#a human v2 send leaves no plaintext anywhere in the server database`
-   → 验证：`ServerPlaintextSweepTest#the sweep really can find plaintext that the server does store`（正对照）
+25. **A human V2 send keeps its submitted payload inside its own per-device envelope.** The server
+    stores transport metadata (`messaging_v2_messages`: id/conversation/sender/kind/timestamps/
+    request_digest) plus one opaque ciphertext per destination device (`messaging_v2_envelopes.
+    ciphertext`). A human send must not copy that payload anywhere else — not into the chat-list
+    preview, not into a `service_messages` body, not into any other column. Bot/service messages are
+    the deliberate server-visible exception: the server generates and audits them, so their text is
+    stored server-side on purpose.
+   → 验证：`ServerPlaintextSweepTest#human v2 payload stays inside its own envelope and leaves existing preview alone`
+   → 验证：`ServerPlaintextSweepTest#the sweep really can find plaintext that the server does store`（扫描器正对照）
+   → 证据边界（G32/G33 审计收窄了 G11 的原始表述）：该用例只覆盖**一个进程内 H2 库、这条
+   repository 路径**。它**不**证明真实客户端 Signal 加密正确（载荷由测试直接构造、未经任何加密器），
+   也**不**证明「服务端全库不含人类明文」——日志、导出、备份、崩溃报告、反向代理、生产 PostgreSQL
+   的其它表都不在其扫描范围内，真实双设备 E2EE 另见第 26 条。真实加密链路仍是没有证据的缺口，
+   不得用本条冒充覆盖。
    → 备注：人类 V2 发送路径**完全不写** `chats.last_message`（实测
    `grep -rn lastMessage server/src/main/kotlin/com/maodouchat/server/messaging/v2/` 为 0 命中）；
-   该列只由 bot/service 发布写入。所以它虽然会持有文本，但对人类消息始终为空。
+   该列目前**只**由 `repository/ServiceMessageRepository.kt` 的 bot/service 发布路径写入。
+   但这**不等于**该列对某个会话始终为空：群里只要有 bot 发过消息，预览里就是服务端可见的明文。
 
 26. **A device's mailbox is per-device, survives being offline, and is acknowledged per device.** A
     message that was sent while the recipient had no live socket is still delivered: the recipient's
