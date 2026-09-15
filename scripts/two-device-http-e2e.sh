@@ -24,7 +24,10 @@ s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.clos
 PYPORT
 )"
 fi
-TEST_CLASS="${E2E_TEST_CLASS:-com.maodouchat.e2e.TwoAccountHttpRoundTripTest}"
+# 两个类一起跑：主类（真客户端↔真服务端矩阵）+ 本地数据生命周期类。
+# 后者**故意独立**——它的换号清理用例会真的销毁并重建进程内的 app 数据库，
+# 混进主类会影响其余 22 个用例。AndroidJUnitRunner 的 `class` 参数接受逗号分隔的多个类。
+TEST_CLASS="${E2E_TEST_CLASS:-com.maodouchat.e2e.TwoAccountHttpRoundTripTest,com.maodouchat.e2e.ClientDataLifecycleTest}"
 SERVER_LOG="${E2E_SERVER_LOG:-$ROOT/build/e2e-two-device-server.log}"
 RESULT_DIR="$ROOT/app/build/outputs/androidTest-results/connected/debug"
 SERVER_MAIN="com.maodouchat.server.ApplicationKt"
