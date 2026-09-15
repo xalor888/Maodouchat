@@ -2132,3 +2132,23 @@ bot/service 用例不再只断言「命中非空」，而是要求命中 `SERVIC
 **仍未解决（不得被本条冒充）**：真实客户端 Signal 加解密链路（`SignalMessagingV2EnvelopeProcessor`
 之外的端到端组合）、日志/导出/备份/崩溃报告是否含明文、真实双设备与离线 E2E。
 这些仍是缺口，缺口只有在有了会变红的用例之后才算被覆盖。
+
+**CI 实测**：run **[34915892498](https://github.com/xalor888/Maodouchat/actions/runs/34915892498)**
+（headSha `12660237`）→ **success，四 job 全绿**（Android / Server / Docker Compose Config /
+Android Instrumented；run id 由 `gh run list` / `gh run view` 实测取得）。
+
+> 首次推送（`42f3e641`）的 run `34914731652` 是 **failure**，但**不是这次改动造成的**：
+> `android-actions/setup-android@v4` 的引导执行 `sdkmanager tools`，而 Google 已把 legacy
+> `tools` 包移出主 channel，于是两个 Android job 都在「Set up Android SDK」这一步就死，
+> 后面**每一条**客户端门禁都被 `skipped`（编译、单测、A01 模块依赖、`:core:testing` 的
+> ArchUnit + 热点棘轮、P08/P09 脚本门禁、lint、APK 组装、aapt2 校验、模拟器测试）。
+> 同一 workflow 六小时前还是绿的，说明是上游/runner 镜像变化。attempt 2 在 16 秒内以同一步骤
+> 复现，确认是确定性失败而非抖动。
+>
+> 修法见 `f54eb9b9`：ubuntu-latest 镜像本身已预装 cmdline-tools/platform-tools，
+> 于是**去掉该 action**，改为显式定位 `sdkmanager`、导出 `ANDROID_SDK_ROOT`/`ANDROID_HOME`、
+> 把 cmdline-tools 与 platform-tools 放进 `GITHUB_PATH`，后面继续用裸 `sdkmanager`。
+> 复核方式不是「CI 绿了」而是**逐步骤结论**：修复后 Android job 的 20 个步骤全部
+> `success`（不再有 `skipped`），其中「Client architecture gate and hotspot ratchet」
+> 与「Run instrumented tests on emulator」都真实执行并通过——这是一次**门禁从静默跳过
+> 恢复到真正承重**的修复，价值高于任何一次绿灯本身。
