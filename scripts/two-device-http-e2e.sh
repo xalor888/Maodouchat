@@ -98,6 +98,7 @@ echo "[e2e] 在模拟器里跑 $TEST_CLASS -- 真实 HTTP，指向 http://10.0.2
 ./gradlew :app:connectedDebugAndroidTest \
   -PMAODOU_API_BASE_URL="http://10.0.2.2:$PORT" \
   -Pandroid.testInstrumentationRunnerArguments.class="$TEST_CLASS" \
+  -Pandroid.testInstrumentationRunnerArguments.e2eHttp=1 \
   --console=plain >"$ROOT/build/e2e-two-device-gradle.log" 2>&1
 gradle_status=$?
 

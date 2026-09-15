@@ -2,6 +2,7 @@ package com.maodouchat.e2e
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.maodouchat.crypto.SignalKeyExchange
 import com.maodouchat.crypto.SignalProtocol
@@ -40,8 +41,22 @@ class TwoAccountHttpRoundTripTest {
 
     private lateinit var db: AppDatabase
 
+    /**
+     * 这个类**必须**由 `scripts/two-device-http-e2e.sh` 运行——它才会在宿主上起一台真服务端。
+     * 默认的 CI instrumented 跑里没有服务端，所以这里用显式开关（而不是「连不上就跳过」式静默）：
+     * 没开时 JUnit 会记为 skipped 并在报告里留下原因，不会被当成通过。
+     */
+    private fun requireE2eServer() {
+        val enabled = InstrumentationRegistry.getArguments().getString("e2eHttp")
+        org.junit.Assume.assumeTrue(
+            "需要真服务端：请用 scripts/two-device-http-e2e.sh 运行（会注入 e2eHttp=1 与服务端地址）",
+            enabled == "1",
+        )
+    }
+
     @Before
     fun setUp() {
+        requireE2eServer()
         db = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
             AppDatabase::class.java,
@@ -50,7 +65,8 @@ class TwoAccountHttpRoundTripTest {
 
     @After
     fun tearDown() {
-        db.close()
+        // @After 在 @Before 的 assumption 跳过时**仍会执行**，此时 db 还没建。
+        if (this::db.isInitialized) db.close()
     }
 
     private val http = OkHttpClient.Builder()
