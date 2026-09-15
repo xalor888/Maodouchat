@@ -16,7 +16,14 @@ import com.maodouchat.messaging.v2.MessagingV2Content
 import com.maodouchat.messaging.v2.MessagingV2Event
 import com.maodouchat.messaging.v2.MessagingV2EventAction
 import com.maodouchat.messaging.v2.MessagingV2DomainSink
+import androidx.work.ListenableWorker
+import androidx.work.testing.TestListenableWorkerBuilder
+import androidx.work.workDataOf
 import com.maodouchat.data.local.entity.ChatEntity
+import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
+import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
+import com.maodouchat.data.local.entity.ScheduledMessageEntity
+import com.maodouchat.util.ScheduledMessageWorker
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.util.AttachmentCryptoException
 import com.maodouchat.util.AttachmentCryptoFailure
@@ -1785,6 +1792,10 @@ class TwoAccountHttpRoundTripTest {
             !encrypted.file.readBytes().toString(Charsets.ISO_8859_1).contains(marker),
         )
 
+        // 这个用例起步就要用 alex 的会话**显式**建立，不能依赖「上一个用例恰好留下谁」——
+        // 新增用例会改变 JUnit 的方法顺序，这个隐式依赖就是这么被暴露出来的（G33 实测）。
+        useSession(s.alex)
+
         // 本地大小守卫：`uploadEncryptedAttachment` 有 `total in 17L..(100 MiB + 64)` 的**本地**上限。
         // 用一个小到不可能通过下限的附件来钉住它（不需要真造 100 MiB 文件）。
         val tinyPlain = File(dir, "tiny.bin").apply { writeBytes(byteArrayOf(1)) }
@@ -2335,6 +2346,128 @@ class TwoAccountHttpRoundTripTest {
             "已使用的 messageId 不得再被附件占用（预期 Conflict），实际 $attachCode / $attachBody",
             409,
             attachCode,
+        )
+    }
+
+    /**
+     * **定时发送路径的终态守卫**：一条已被删除（墓碑）的消息，不得被定时任务复活。
+     * 这里驱动的是**生产 `ScheduledMessageWorker`**（`TestListenableWorkerBuilder`）+ 真实 app 数据库。
+     */
+    @Test
+    fun aScheduledSendForATombstonedMessageIsAbandonedNotRevived() {
+        baseUrl()
+        val s = ensureShared()
+        val app = ApplicationProvider.getApplicationContext<MaodouchatApp>()
+        val dao = app.database.scheduledMessageDao()
+
+        // 真机上本地会话本来就存在；写消息/墓碑都有 chat 外键。
+        runBlocking {
+            app.database.chatDao().insertChats(
+                listOf(
+                    ChatEntity(
+                        id = s.chatId,
+                        isGroup = false,
+                        chatType = "DIRECT",
+                        participantIds = "${s.alex.userId},${s.alice.userId}",
+                    ),
+                ),
+            )
+        }
+
+        fun schedule(text: String): String {
+            val id = "sch_${UUID.randomUUID().toString().take(12)}"
+            runBlocking {
+                dao.upsert(
+                    ScheduledMessageEntity(
+                        id = id,
+                        ownerUserId = s.alice.userId,
+                        chatId = s.chatId,
+                        peerUserId = s.alex.userId,
+                        text = text,
+                        sendAtMillis = System.currentTimeMillis() - 1_000L,
+                        createdAtMillis = System.currentTimeMillis() - 2_000L,
+                        isGroup = false,
+                        status = "PENDING",
+                        attempt = 0,
+                        repeatIntervalMs = 0L,
+                        repeatCount = 0,
+                        occurrencesSent = 0,
+                        weekdaysOnly = false,
+                        timeZoneId = "UTC",
+                        idempotencyKey = UUID.randomUUID().toString(),
+                    ),
+                )
+            }
+            return id
+        }
+
+        fun runWorker(scheduleId: String): ListenableWorker.Result = runBlocking {
+            TestListenableWorkerBuilder<ScheduledMessageWorker>(app)
+                .setInputData(
+                    workDataOf(
+                        ScheduledMessageWorker.KEY_SCHEDULE_ID to scheduleId,
+                        ScheduledMessageWorker.KEY_OWNER_USER_ID to s.alice.userId,
+                    ),
+                )
+                .build()
+                .doWork()
+        }
+
+        // 定时路径要过 BackgroundSessionGate，需要 TokenManager 里有有效会话。
+        useSession(s.alice)
+
+        // ① 对照组：没有墓碑时，定时消息必须真的被暂存（证明链路被驱动了，不是空跑）。
+        val okScheduleId = schedule("scheduled-ok-${UUID.randomUUID()}")
+        val okMessageId = "sm_${okScheduleId.removePrefix("sch_")}"
+        assertEquals("对照：worker 必须成功", ListenableWorker.Result.success(), runWorker(okScheduleId))
+        assertTrue(
+            "对照：定时消息必须真的进入发件箱（确定性 id $okMessageId）",
+            runBlocking { app.database.messagingV2Dao().getOutbox(okMessageId, s.alice.userId) } != null,
+        )
+
+        // ② 墓碑之后：同一条链路必须**拒绝**，且不得留下任何副作用。
+        val deadScheduleId = schedule("scheduled-deleted-${UUID.randomUUID()}")
+        val deadMessageId = "sm_${deadScheduleId.removePrefix("sch_")}"
+        runBlocking {
+            app.database.messagingV2Dao().upsertMessageTombstone(
+                MessageMutationTombstoneEntity(
+                    ownerUserId = s.alice.userId,
+                    messageId = deadMessageId,
+                    conversationId = s.chatId,
+                    kind = MessageMutationTombstoneKind.DELETE,
+                    terminalAt = System.currentTimeMillis(),
+                ),
+            )
+        }
+        val deadResult = runWorker(deadScheduleId)
+        assertEquals("被墓碑拒绝也应当以 success 收尾（abandon 语义）", ListenableWorker.Result.success(), deadResult)
+        assertTrue(
+            "墓碑之后：定时消息**不得**进入发件箱",
+            runBlocking { app.database.messagingV2Dao().getOutbox(deadMessageId, s.alice.userId) } == null,
+        )
+        assertTrue(
+            "墓碑之后：真实库里**不得**出现该消息",
+            runBlocking { app.database.messageDao().getMessageById(deadMessageId) } == null,
+        )
+
+        // ③ 服务端不得收到该 messageId（真 HTTP 侧核对收件人的收件箱）。
+        useSession(s.alex)
+        assertEquals(
+            "服务端不得收到被拒绝的定时消息",
+            0,
+            inboxFor(s, s.alex.token, s.chatId, deadMessageId).size,
+        )
+
+        // ④ 活性：被拒之后 schedule 行必须被 **abandon（删除）**，不能变成永远重试的僵尸行。
+        assertTrue(
+            "被墓碑拒绝后 schedule 行必须被删除（abandon），实际仍存在=" +
+                "${runBlocking { dao.getById(deadScheduleId, s.alice.userId) }}",
+            runBlocking { dao.getById(deadScheduleId, s.alice.userId) } == null,
+        )
+        // 对照组那行同样应当已被移除（正常路径 stage 之后删行）。
+        assertTrue(
+            "对照：stage 成功后 schedule 行也应被移除",
+            runBlocking { dao.getById(okScheduleId, s.alice.userId) } == null,
         )
     }
 }

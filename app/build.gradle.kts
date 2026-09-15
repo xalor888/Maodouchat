@@ -367,6 +367,8 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:core-ktx:1.6.1")
     androidTestImplementation("androidx.room:room-testing:2.8.4")
+    // G33：用 TestListenableWorkerBuilder 驱动**生产** ScheduledMessageWorker（定时路径的终态守卫）
+    androidTestImplementation("androidx.work:work-testing:2.9.1")
     // Robolectric 需要从互联网下载 Android SDK 镜像；在受限网络环境下无法运行。
     // 需要接入内网 mirror 后取消注释以下两行即可启用：
     // testImplementation("org.robolectric:robolectric:4.11.1")
