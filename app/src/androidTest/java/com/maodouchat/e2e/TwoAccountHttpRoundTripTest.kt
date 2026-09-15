@@ -17,6 +17,10 @@ import com.maodouchat.messaging.v2.MessagingV2Event
 import com.maodouchat.messaging.v2.MessagingV2EventAction
 import com.maodouchat.messaging.v2.MessagingV2DomainSink
 import com.maodouchat.data.repository.LocalMessageStore
+import com.maodouchat.util.AttachmentCryptoException
+import com.maodouchat.util.AttachmentCryptoFailure
+import com.maodouchat.util.EncryptedAttachmentCrypto
+import com.maodouchat.util.MediaCache
 import com.maodouchat.messaging.v2.ApiMessagingV2ConversationSnapshotProvider
 import com.maodouchat.messaging.v2.MessagingV2ArrivalNotifier
 import com.maodouchat.messaging.v2.MessagingV2InboxSynchronizer
@@ -34,6 +38,7 @@ import com.maodouchat.network.SendMessageRequestV2
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.api.AuthApiClient
 import com.maodouchat.network.api.ConversationApiClient
+import com.maodouchat.network.api.MediaApiClient
 import com.maodouchat.network.api.MessagingApiClient
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -43,12 +48,15 @@ import okhttp3.OkHttpClient
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
+import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -1727,5 +1735,290 @@ class TwoAccountHttpRoundTripTest {
         useSession(s.alice)
         val encryptedRows = inboxFor(s, s.alice.token, s.chatId).filter { it.ciphertext.contains(plaintext) }
         assertEquals("加密路径的 wire 载荷不得含原文", 0, encryptedRows.size)
+    }
+
+    private fun File.sha256(): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        inputStream().use { input ->
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private fun attachmentDir(): File =
+        File(ApplicationProvider.getApplicationContext<MaodouchatApp>().cacheDir, "e2e-attachments")
+            .apply { mkdirs() }
+
+    /**
+     * **附件路径**：客户端加密 → 真上传（分块/可续传）→ 真下载 → 解密回原文 → 完整性拒绝。
+     *
+     * 隐私边界是本条的重点：把**服务端实际持有的字节**原样拉回来，断言它就是密文、不是明文。
+     */
+    @Test
+    fun attachmentBytesAreEncryptedBeforeUploadAndRoundTripThroughTheServer() {
+        baseUrl()
+        val s = ensureShared()
+        val dir = attachmentDir()
+
+        val marker = "ATTACHMENT-PLAINTEXT-${UUID.randomUUID()}"
+        val plainFile = File(dir, "plain.bin")
+        plainFile.writeBytes(marker.toByteArray(Charsets.UTF_8) + ByteArray(8192) { (it % 251).toByte() })
+        val plainSha = plainFile.sha256()
+
+        // ① 生产加密：密文 ≠ 明文，且有 GCM 开销。
+        val encrypted = EncryptedAttachmentCrypto.encryptFile(plainFile, dir)
+        assertEquals("plainSha 必须与本地明文一致", plainSha, encrypted.plainSha256)
+        assertEquals("cipherSha 必须与密文文件一致", encrypted.file.sha256(), encrypted.cipherSha256)
+        assertTrue(
+            "密文长度必须不同于明文（GCM tag/IV 开销），实际 cipher=${encrypted.cipherSize} plain=${encrypted.plainSize}",
+            encrypted.cipherSize != encrypted.plainSize,
+        )
+        assertTrue(
+            "密文里不得出现明文标记",
+            !encrypted.file.readBytes().toString(Charsets.ISO_8859_1).contains(marker),
+        )
+
+        // ② 真上传（密文），并用生产校验接口确认就绪。
+        useSession(s.alex)
+        val messageId = "e2e-att-${UUID.randomUUID()}"
+        val upload = runBlocking {
+            MediaApiClient.uploadEncryptedAttachment(
+                token = s.alex.token,
+                chatId = s.chatId,
+                messageId = messageId,
+                encryptedFile = encrypted.file,
+                cipherSha256 = encrypted.cipherSha256,
+                onProgress = { _, _ -> },
+                onCheckpoint = { _, _, _ -> },
+            ).getOrThrow()
+        }
+        assertEquals("服务端记录的密文 sha 必须与本地一致", encrypted.cipherSha256, upload.cipherSha256)
+        assertEquals("服务端记录的密文长度必须与本地一致", encrypted.cipherSize, upload.cipherSize)
+
+        val reference = MediaCache.EncryptedAttachmentReference(
+            attachmentId = upload.id,
+            keyBase64 = encrypted.keyBase64,
+            ivBase64 = encrypted.ivBase64,
+            cipherSha256 = encrypted.cipherSha256,
+            plainSha256 = encrypted.plainSha256,
+            cipherSize = encrypted.cipherSize,
+            fileName = "plain.bin",
+            mimeType = "application/octet-stream",
+            plainSize = encrypted.plainSize,
+        )
+        val referenceJson = MediaCache.encodeEncryptedAttachmentReference(reference)
+        assertTrue("引用里必须带 key", referenceJson.contains(encrypted.keyBase64))
+
+        // **关联之前不允许下载**：这是服务端的真实规则（实测「附件尚未关联消息」），把它钉住。
+        useSession(s.alex)
+        val beforeAssociation = runBlocking {
+            MediaApiClient.downloadEncryptedAttachment(
+                s.alex.token, upload.id, encrypted.cipherSha256, encrypted.cipherSize,
+                File(dir, "before-association.bin"), { _, _ -> },
+            )
+        }
+        assertTrue(
+            "关联消息之前不得下载附件，实际=${beforeAssociation.getOrNull()}",
+            beforeAssociation.isFailure,
+        )
+
+        // **必须先真正发出关联这条附件的消息**：服务端在关联之前会回
+        // 「附件尚未关联消息」（实测撞到），这是产品的真实时序。
+        sendContent(s, s.chatId, attachmentContentJson(upload.id, referenceJson), messageId, wireAttachmentIds = listOf(upload.id))
+
+        // ③ **隐私边界**：以**收件人**身份把服务端持有的字节原样拉回来 —— 它必须是密文。
+        // 校验接口要求是**上传者**本人（服务端按 uploaderId 查上传会话）。
+        useSession(s.alex)
+        val ready = runBlocking {
+            MediaApiClient.verifyEncryptedAttachmentReady(
+                s.alex.token, s.chatId, messageId, upload.id, encrypted.cipherSha256, encrypted.cipherSize,
+            ).getOrThrow()
+        }
+        assertTrue("关联消息后上传必须被判定为完成，实际=${ready.status}", ready.complete)
+        useSession(s.alice)
+        val serverCopy = File(dir, "server-copy.bin")
+        runBlocking {
+            MediaApiClient.downloadEncryptedAttachment(
+                s.alice.token, upload.id, encrypted.cipherSha256, encrypted.cipherSize, serverCopy, { _, _ -> },
+            ).getOrThrow()
+        }
+        assertEquals("服务端那份必须就是本地密文", encrypted.cipherSha256, serverCopy.sha256())
+        assertTrue("服务端那份不得是明文", serverCopy.sha256() != plainSha)
+        assertTrue(
+            "服务端那份不得含明文标记",
+            !serverCopy.readBytes().toString(Charsets.ISO_8859_1).contains(marker),
+        )
+
+        // ④ 生产解密回原文，逐字节比对。
+        val restored = File(dir, "restored.bin")
+        EncryptedAttachmentCrypto.decrypt(serverCopy, restored, reference)
+        assertArrayEquals(
+            "解密结果必须逐字节等于原明文（${plainFile.length()} 字节）",
+            plainFile.readBytes(),
+            restored.readBytes(),
+        )
+
+        // ⑤ 完整性：翻转密文一个字节后，生产解密必须**失败**且是 INTEGRITY_FAILED。
+        val tamperedBytes = serverCopy.readBytes()
+        val mid = tamperedBytes.size / 2
+        tamperedBytes[mid] = (tamperedBytes[mid].toInt() xor 0x01).toByte()
+        val tampered = File(dir, "tampered.bin").apply { writeBytes(tamperedBytes) }
+        val failure = runCatching {
+            EncryptedAttachmentCrypto.decrypt(tampered, File(dir, "should-not-exist.bin"), reference)
+        }.exceptionOrNull()
+        assertTrue(
+            "被篡改的密文必须失败，实际=$failure",
+            failure is AttachmentCryptoException && failure.failure == AttachmentCryptoFailure.INTEGRITY_FAILED,
+        )
+
+        // ⑥ 引用不过网：key/iv 是随端到端加密的内容走的，wire 载荷不得泄漏。
+        useSession(s.alice)
+        val wireRows = inboxFor(s, s.alice.token, s.chatId, messageId)
+        assertEquals("附件引用消息必须送达", 1, wireRows.size)
+        val wire = wireRows.single().ciphertext
+        assertTrue("wire 载荷不得含附件 key", !wire.contains(encrypted.keyBase64))
+        assertTrue("wire 载荷不得含附件 iv", !wire.contains(encrypted.ivBase64))
+        assertTrue("wire 载荷不得含明文标记", !wire.contains(marker))
+    }
+
+    /** 附件消息的内容：引用（key/iv/sha）随端到端加密内容走，wire 上只有 `attachmentIds`。 */
+    private fun attachmentContentJson(attachmentId: String, referenceJson: String): String =
+        json.encodeToString(
+            MessagingV2Content.serializer(),
+            MessagingV2Content(
+                version = 2,
+                type = "TEXT",
+                body = "attachment",
+                attachmentIds = listOf(attachmentId),
+                attributes = mapOf("attachmentReference" to referenceJson),
+            ),
+        )
+
+    /** 发送一条任意的内容 JSON（附件引用等场景用）。
+     *  `wireAttachmentIds` 是**线上明文**的附件绑定字段：服务端读不到加密内容里的 attachmentIds，
+     *  只能靠这个字段把附件与消息**关联**（没关联时下载会回「附件尚未关联消息」，实测撞到）。 */
+    private fun sendContent(
+        s: Shared,
+        conversationId: String,
+        contentJson: String,
+        messageId: String,
+        wireAttachmentIds: List<String> = emptyList(),
+    ) {
+        useSession(s.alex)
+        val snapshot = runBlocking {
+            MessagingApiClient.getConversationSnapshotV2(s.alex.token, conversationId).getOrThrow()
+        }
+        val encrypted = runBlocking {
+            s.alexProtocol.encryptMultiRecipientContentEnvelopeWithTargets(
+                token = s.alex.token,
+                recipientIds = snapshot.targets.map { it.userId }.distinct(),
+                plaintext = contentJson,
+                payloadType = "TEXT",
+                includeCurrentUserDevices = true,
+                requiredRecipientIds = snapshot.targets.map { it.userId }
+                    .filterNot { it == s.alex.userId }.toSet(),
+            ).getOrThrow()
+        }
+        val preparer = SignalMessagingV2EnvelopePreparer(
+            signalProtocol = s.alexProtocol,
+            snapshotProvider = { _, _ -> error("E2E 不使用 snapshotProvider") },
+        )
+        runBlocking {
+            MessagingApiClient.sendMessageV2(
+                s.alex.token,
+                SendMessageRequestV2(
+                    id = messageId,
+                    conversationId = conversationId,
+                    kind = "DATA",
+                    clientTimestamp = System.currentTimeMillis(),
+                    groupRevision = snapshot.memberRevision,
+                    attachmentIds = wireAttachmentIds,
+                    envelopes = encrypted.ciphertexts.map {
+                        EncryptedDeviceEnvelopeRequestV2(
+                            recipientUserId = it.userId,
+                            recipientDeviceId = it.deviceId,
+                            ciphertextType = preparer.wireCiphertextType(it.ciphertextType),
+                            ciphertext = it.ciphertext,
+                        )
+                    },
+                ),
+            ).getOrThrow()
+        }
+    }
+
+    /**
+     * ⑦ **分块**：文件大于 `ATTACHMENT_CHUNK_BYTES = 4 MiB`，上传必须真的跨多个 chunk。
+     */
+    @Test
+    fun aMultiChunkAttachmentUploadsAndRoundTripsByteForByte() {
+        baseUrl()
+        val s = ensureShared()
+        val dir = attachmentDir()
+
+        val marker = "CHUNKED-PLAINTEXT-${UUID.randomUUID()}"
+        val plainFile = File(dir, "big-plain.bin")
+        File(dir, "big-plain.bin").outputStream().use { out ->
+            out.write(marker.toByteArray(Charsets.UTF_8))
+            val chunk = ByteArray(64 * 1024) { (it % 251).toByte() }
+            // 4 MiB + 64 KiB → 至少两个 chunk
+            repeat((4 * 1024 * 1024) / chunk.size + 1) { out.write(chunk) }
+        }
+        assertTrue("待上传文件必须大于一个 chunk，实际 ${plainFile.length()}", plainFile.length() > 4L * 1024 * 1024)
+
+        val encrypted = EncryptedAttachmentCrypto.encryptFile(plainFile, dir)
+        useSession(s.alex)
+        val messageId = "e2e-big-${UUID.randomUUID()}"
+        val checkpoints = mutableListOf<Long>()
+        val upload = runBlocking {
+            MediaApiClient.uploadEncryptedAttachment(
+                token = s.alex.token,
+                chatId = s.chatId,
+                messageId = messageId,
+                encryptedFile = encrypted.file,
+                cipherSha256 = encrypted.cipherSha256,
+                onProgress = { _, _ -> },
+                onCheckpoint = { _, uploaded, _ -> checkpoints += uploaded },
+            ).getOrThrow()
+        }
+        assertEquals(encrypted.cipherSize, upload.cipherSize)
+        assertTrue(
+            "必须真的跨多个 chunk 上传（>4 MiB 的文件），实际 checkpoints=$checkpoints",
+            checkpoints.size >= 2,
+        )
+
+        val reference = MediaCache.EncryptedAttachmentReference(
+            attachmentId = upload.id,
+            keyBase64 = encrypted.keyBase64,
+            ivBase64 = encrypted.ivBase64,
+            cipherSha256 = encrypted.cipherSha256,
+            plainSha256 = encrypted.plainSha256,
+            cipherSize = encrypted.cipherSize,
+            fileName = "big-plain.bin",
+            mimeType = "application/octet-stream",
+            plainSize = encrypted.plainSize,
+        )
+        // 关联消息之后才允许下载（见上一条用例的「附件尚未关联消息」）。
+        sendContent(
+            s, s.chatId,
+            attachmentContentJson(upload.id, MediaCache.encodeEncryptedAttachmentReference(reference)),
+            messageId,
+            wireAttachmentIds = listOf(upload.id),
+        )
+        useSession(s.alice)
+        val downloaded = File(dir, "big-downloaded.bin")
+        runBlocking {
+            MediaApiClient.downloadEncryptedAttachment(
+                s.alice.token, upload.id, encrypted.cipherSha256, encrypted.cipherSize, downloaded, { _, _ -> },
+            ).getOrThrow()
+        }
+        val restored = File(dir, "big-restored.bin")
+        EncryptedAttachmentCrypto.decrypt(downloaded, restored, reference)
+        assertEquals("分块上传后必须逐字节一致", plainFile.sha256(), restored.sha256())
+        assertEquals(plainFile.length(), restored.length())
     }
 }
