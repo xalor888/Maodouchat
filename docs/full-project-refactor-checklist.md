@@ -95,9 +95,21 @@
       **被记录**而不是被修掉。`writeStream` 的 tmp 两个方向都实测：成功后不留 `.tmp`；取消时返回 null
       且既不留 `.tmp` 也不留输出。**这一步还把 G35 的扫描变成了「被证明有效」**：用真实导出路径去喂它，
       它**必须**找到该文件（反证：把 `cacheDir` 从扫描根里去掉后命中为空）。
+    - **备份面 + 本地生命周期**（G37 实测，独立测试类 `ClientDataLifecycleTest`）：
+      - **备份面（运行时读已安装应用）**：`allowBackup` 关闭、**未声明自定义备份代理**
+        （`backupAgentName == null`），并**在运行时解析已安装 APK 的排除规则资源**，确认
+        `database`/`sharedpref`/`file` 在 **cloud-backup 与 device-transfer 两个域**里都被排除。
+      - **登出/换号去留是显式策略**（逐 `Reason` 断言）：`LOGOUT`/`TOKEN_EXPIRED` → **保留**加密库；
+        `ACCOUNT_SWITCH`/`DELETE_ACCOUNT`/`TRUST_DOMAIN_CHANGE` → **毁库**；三个派生策略
+        （普通媒体缓存 / Coil 磁盘缓存 / in-flight 附件）必须与主策略**一致**。
+      - **换号销毁有运行时证据**：带唯一标记的消息先证明在库（控制组）→ 用生产 `SecureSessionManager`
+        按策略清理 → 标记**读不到**。
+      - **诚实记录**：**`LOGOUT` 不毁库是设计**（同账号重登要能解密历史），所以「登出」≠「本地明文没了」；
+        这与 G35/G36 的结论（私有目录无明文 / 导出会留明文）**共存而不矛盾**。
+      - **静态结论（标注为静态）**：「**不存在应用内备份/恢复功能**」——依据是设置页无入口、无数据备份 API；
+        这是**静态**性质，**不作为**运行时证据。
   - **仍未覆盖**：**服务端**侧的「不得保存或检索人类明文」与「Bot/service 独立存储语义」本轮**没有新增证据**
-    （G11 的服务端清扫与 G28 的 service 边界是既有证据），以及**备份/恢复功能本身**的明文面
-    （导出已测，备份未测），故本条仍为 `[~]`。
+    （G11 的服务端清扫与 G28 的 service 边界是既有证据），故本条仍为 `[~]`。
 
 详细不变量见 `docs/messaging-v2-architecture.md`。
 
@@ -3439,3 +3451,51 @@ G35 证明了「私有目录里没有明文」，但那只是因为**没有用�
 **M5 状态**：覆盖在 G35 基础上新增**导出功能**这一层。
 **仍未覆盖**：同步器多页循环（`PULL_LIMIT = 200` 常量）、真·断网与网络抖动、附件 100 MiB 上界、
 **备份/恢复功能本身**的明文面、服务端侧新增证据、生产 PostgreSQL。
+
+### G37 — 本地数据的生命周期与备份面（客户端明文落点的最后一层）
+
+G35 证明「私有目录里没有明文」、G36 证明「导出会留明文」；本轮把**登出/换号时本地明文去哪了**
+与**备份面**补上，并核实「应用内备份功能是否存在」。
+
+**新增 3 例**（**独立测试类** `ClientDataLifecycleTest`——换号用例会真的销毁并重建进程内 app 数据库，
+放进主类会影响其余 22 个用例）：
+
+| 用例 | 断言 | 实测 |
+|------|------|------|
+| `logoutStorePolicyIsExplicitAndConsistent` | 逐 `Reason` 断言去留，并把「保留 vs 毁库」的设计写成可执行事实；三个派生策略必须与主策略一致 | 通过 |
+| `backupSurfaceIsClosedAtRuntime` | 已安装应用：`allowBackup` 关、**无自定义备份代理**、并**运行时解析排除规则资源**确认三域在两个域里都排除 | 通过 |
+| `accountSwitchPurgeRemovesLocalPlaintext` | 带标记的消息先证明在库（控制组）→ 生产 `purgeLocalSession`（按策略取 `ACCOUNT_SWITCH`）→ 标记**读不到** | 通过 |
+
+**设计语义（必须写清，避免误读）**：`LogoutStorePolicy` 明确——`LOGOUT`/`TOKEN_EXPIRED` → **保留**加密库
+（同账号重登要能解密历史）；`ACCOUNT_SWITCH`/`DELETE_ACCOUNT`/`TRUST_DOMAIN_CHANGE` → **毁库**。
+所以**「登出」不等于「本地明文没了」**，这是**设计**，不是缺陷；它与 G35（私有目录无明文）和
+G36（导出会留明文）**共存而不矛盾**。
+
+**静态结论（明确标注为静态）**：**不存在应用内备份/恢复功能**——依据是设置页无入口、无数据 backup/restore API
+（只有 draft/AI/Signal 状态的 restore）。这是**静态**性质，**没有**包装成运行时证据。
+
+**第一处返工**：我最初想断言 `ApplicationInfo.dataExtractionRulesRes`，但**这个字段在我编译用的
+API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行时解析已安装 APK 的排除规则资源**——
+比读一个字段更强：它断言的是**规则内容**，不只是「声明过」。
+
+**四处反证（探针全部回滚）**
+
+| 探针 | 结果（首行） |
+|------|--------------|
+| P1 换号策略不再毁库 | 2 个用例红：`换号必须毁库` / `换号策略必须是毁库，否则本条用例测不到清理` |
+| P2 执行者在 destroy 分支不毁库 | `换号清理之后本地明文必须读不到，实际=MessageEntity(id=purge-msg-…)` |
+| P3 派生策略与主策略不一致（Coil 恒清） | `Coil 磁盘缓存的清理策略必须与主策略一致（reason=LOGOUT） expected:<false> but was:<true>` |
+| P4 排除规则资源里不再有 exclude | `排除规则资源必须解析出条目，实际=[]` |
+
+**验证（实测数字）**
+
+- 本机 harness：`tests=25 failures=0 errors=0 skipped=0`（主类 22 + 本类 3）；
+- 本机默认 instrumented：`tests=76 failures=0 errors=0 skipped=25`；app JVM **1530 / 0**；
+  `app/src/main` / `server/src/main` **diff 为空**（本轮不需要改产品代码）；
+- CI：run **[35029083786](https://github.com/xalor888/Maodouchat/actions/runs/35029083786)**
+  （headSha `10fed6e4`）→ **success，四 job 全绿**；`two-device-http-e2e` → **`tests=25 failures=0 skipped=0`**；
+  `android-instrumented-reports` → **`tests=76 failures=0 skipped=25`**；服务端日志 `starts=1 logins=4`。
+
+**M5 状态**：覆盖在 G36 基础上新增**备份面**与**登出/换号生命周期**两层。
+**仍未覆盖**：同步器多页循环（`PULL_LIMIT = 200` 常量）、真·断网与网络抖动、附件 100 MiB 上界、
+服务端侧该不变量的新增证据、生产 PostgreSQL。
