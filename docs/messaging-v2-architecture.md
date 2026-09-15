@@ -48,11 +48,16 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
    → 验证：`SignalE2eeRoundTripTest#wireEnvelopeNeverContainsPlaintext`（**生产** `SignalEnvelopeCodec` 产出的上线信封里既不含原文、也不含原文标记，但仍承载密文并被认成加密信封）
    → 验证：`PersistentSignalStoreRoundTripTest#realX3dhRoundTripThroughProductionStore`（**本仓库生产 store**：两个账号都用 `PersistentSignalProtocolStore`（Room 支撑）跑真 X3DH，并把「写穿是真的」钉进 DAO——identity/session 行确实落库、被消费的一次性 PreKey 行已删除）
    → 验证：`PersistentSignalStoreRoundTripTest#ratchetStateSurvivesStoreReloadAfterLoadPersistedState`（**跨重启存活**：新 store 实例 + `loadPersistedState()` 后仍能解开对端后续消息。反证 `#aReloadedStoreWithoutHydrationCannotDecrypt` 证明这条结论真的来自持久化回填——不回填的新实例必须解不出来，回填后同一实例必须解得出来）
-   → 验证：`PersistentSignalStoreRoundTripTest#aCorruptSessionRowIsDroppedAndDecryptionFailsLoudly`；`PersistentSignalStoreRoundTripTest#aPersistenceFailureIsRecordedOnWriteAndThrownOnRead`；`PersistentSignalStoreRoundTripTest#anotherAccountCannotDecryptTheSameConversation`（损坏行被丢弃且随后**大声失败**、持久化失败写路径记录/读路径抛出、账号作用域隔离）
+   → 验证：`PersistentSignalStoreRoundTripTest#aCorruptSessionRowIsDroppedAndDecryptionFailsLoudly`
+   → 验证：`SignalGroupSenderKeyRoundTripTest#groupSenderKeyRoundTripThroughProductionCipher`（**群消息 SenderKey 真往返**：生产 `SignalGroupSenderKeyManager`/`SignalGroupCipher` 建分发 → 安装 → 加密 → 解回逐字节相同原文，连发两条；并用生产 `SignalEnvelopeCodec` 断言群信封与分发信封都**不含原文**、且都被认成对应信封类型）
+   → 验证：`SignalGroupSenderKeyRoundTripTest#aThirdPartyThatNeverInstalledTheDistributionCannotDecrypt`；`SignalGroupSenderKeyRoundTripTest#aGroupEnvelopeReplayedIntoAnotherGroupIsRejected`；`SignalGroupSenderKeyRoundTripTest#aTamperedGroupEnvelopeFailsAndNeverReturnsPlaintext`（未安装分发者解不出、跨群重放被拒、篡改必须收敛成 `DecryptResult.Failed`）
+；`PersistentSignalStoreRoundTripTest#aPersistenceFailureIsRecordedOnWriteAndThrownOnRead`；`PersistentSignalStoreRoundTripTest#anotherAccountCannotDecryptTheSameConversation`（损坏行被丢弃且随后**大声失败**、持久化失败写路径记录/读路径抛出、账号作用域隔离）
 
 10. Group membership changes invalidate prepared outbox ciphertext and require encryption against
     the new member revision.
    → 验证：`MessagingV2GroupControlPolicyTest#user data is re-prepared rather than discarded`；`GroupMessagingCoordinatorTest#epoch invalidation orders durable rows before key and attachment reconciliation`
+   → 验证：`SignalGroupSenderKeyRoundTripTest#staleEpochEncryptionIsRefusedAfterInvalidation`（**真机/模拟器上的真群密码学**：`invalidateGroupSenderKey` 之后**不能再按旧 epoch 加密**，且失败原因必须是 `group_sender_key_not_distributed`——只断言「失败」不够，因为另一条机制也会让那条路径失败，探针实测过这一点）
+   → 验证：`SignalGroupSenderKeyRoundTripTest#aFutureEpochEnvelopeIsRejected`（未来 epoch 的信封必须是 `DecryptResult.FutureEpoch`，不是被当成正常消息解掉）
 
 11. Account restrictions, group mute, channel ownership, and bilateral blocks are enforced inside
     the same server transaction that validates device coverage and inserts envelopes.

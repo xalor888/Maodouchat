@@ -734,6 +734,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [~] 客户端**解密**路径也有证据：**G14** 给 `SignalMessagingV2EnvelopeProcessor` 补 11 个 JVM 单测，重点是「解不开绝不静默」——六种失败变体各自抛错且都不提交、sender key 缺失必须触发修复、Duplicate 无 journal 不得静默丢正文、journal 必须先于提交；四处反证实测会红。
 - [~] **真实加密往返**有 on-device 证据：**G17** 新增 `SignalE2eeRoundTripTest`（`app/src/androidTest`），用真实 libsignal 建真 X3DH 会话：A 加密 → B 解回**逐字节相同**原文 → 棘轮**双向**（回复走普通 `SignalMessage`）；四条反证各自实测会红——篡改一字节 / 第三方无会话 / 身份与签名不匹配 / 未建会话就加密；并用**生产** `SignalEnvelopeCodec` 构造上线信封，断言信封里既不含原文也不含原文标记、但仍承载密文。本地 arm64-v8a/API 36 与 CI x86_64 模拟器均实测 `tests=5 failures=0`。**边界**：这是「真实 libsignal 原语 + 真实生产信封编码器」这一层；`SignalDirectCipher` 的完整装配路径（依赖 `MaodouchatApp` 单例与 Room/SQLCipher store）与真实跨进程双设备投递仍未覆盖。同轮还修好了追溯门禁的一个盲点：它此前只认反引号用例名，而 androidTest 因 DEX 限制不能用带空格的名字，等于整个 `app/src/androidTest` 无法被引用——已改成两种写法都接受，并用假引用实测会红。
 - [~] **生产 store + 跨重启**也有 on-device 证据：**G18** 新增 `PersistentSignalStoreRoundTripTest`，两个账号都用本仓库 `PersistentSignalProtocolStore`（Room 支撑）跑真 X3DH；并钉住「写穿是真的」（DAO 里确有 identity/session 行、被消费的一次性 PreKey 行已删除）、**跨重启存活**（新实例 + `loadPersistedState()` 仍能解开后续消息），以及三条边界：不回填必须解不出来、损坏行被丢弃且随后大声失败、写路径失败被记录/读路径抛 `SignalStorePersistenceException`、账号作用域隔离。五处探针各自实测变红。**边界**：仍不是 `SignalDirectCipher`/`SignalProtocol.initialize` 的完整装配（真实 SQLCipher、`MaodouchatApp` 单例、群 SenderKey 分发、真实跨进程双设备）。
+- [~] **群消息 SenderKey 真往返**有 on-device 证据：**G19** 新增 `SignalGroupSenderKeyRoundTripTest`，用生产 `SignalGroupSenderKeyManager`/`SignalGroupCipher`/`SignalEnvelopeCodec` 跑通建分发 → 安装 → 加密 → 解回逐字节相同原文（连发两条）；并钉住未安装分发者解不出、跨群重放被拒、未来 epoch 是 `FutureEpoch`、失效后不得再按旧 epoch 加密（原因必须是 `group_sender_key_not_distributed`）、篡改必须收敛成 `DecryptResult.Failed`。**并且修掉一个真实缺陷**：libsignal 把意外的 checked exception 包成 `AssertionError`（extends `Error`），只 `catch (Exception)` 会让被篡改的群信封把 `Error` 抛出方法外——已在 `SignalGroupCipher` 收窄成 `Failed`，由该用例守卫。**边界**：群分发走网络/多设备扇出、`SignalProtocol.initialize` 完整装配、真实跨进程双设备仍未覆盖。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
 
 ### Q02 数据库与迁移
@@ -2299,3 +2300,91 @@ Room/SQLCipher store、`SignalProtocolContext` 的初始化状态机）；真实
 （真实 SQLCipher 库、`MaodouchatApp` 单例、密钥交换走网络）；群 SenderKey 分发；
 真实**跨进程/跨网络**双设备投递；日志/导出/备份/崩溃报告；生产 PostgreSQL 的其它表。
 G17 + G18 合起来覆盖到「真密码学 + 真生产 store + 跨重启」，但**整条产品装配还没串起来**。
+
+### G19 — 群消息 SenderKey 真往返，并修掉一个「Error 穿出解密契约」的真实缺陷
+
+**为什么做这个**：G17/G18 的证据都在 1:1 直发上；**群侧此前没有任何 on-device 真证据**，
+而群消息是真实产品面。这条路好在**完全本地**：`GroupSessionBuilder` 只在 store 里读写 sender key，
+不需要网络，所以可以完整驱动。
+
+**新增** `app/src/androidTest/java/com/maodouchat/crypto/SignalGroupSenderKeyRoundTripTest.kt`（7 例）
+
+两个参与方都走生产链路：`SignalProtocolContext` + 生产 `PersistentSignalProtocolStore`（Room in-memory）
++ `SignalGroupSenderKeyManager` + `SignalGroupCipher` + `SignalEnvelopeCodec`。注意
+`SignalProtocolContext` 的构造器 `init` 会先按 `currentUserId == null` 生成一次（store 落在
+`anonymous` 作用域），所以测试里设好账号后要再调一次 `generateIdentityKeys()` 让作用域前缀正确——
+这一点是实测出来的，不是猜的。
+
+1. `groupSenderKeyRoundTripThroughProductionCipher`：建分发 → 生产编解码器打成上线信封 → 对端安装
+   （断言 `Installed`）→ 加密 → 解回**逐字节相同**原文，**连发两条**（sender key 可连续使用）；
+   断言生产编解码器认得群信封与分发信封，且**两者都不含原文**；
+2. `aThirdPartyThatNeverInstalledTheDistributionCannotDecrypt`：未安装者解不出，装了的人解得出来（正对照）；
+3. `aGroupEnvelopeReplayedIntoAnotherGroupIsRejected`：跨群重放必须被拒；
+   分发信封投到别的群也必须 `Skipped`；
+4. `aFutureEpochEnvelopeIsRejected`：对端还停在旧 epoch 时，新 epoch 信封必须是 `FutureEpoch`，不是被正常解掉；
+5. `staleEpochEncryptionIsRefusedAfterInvalidation`：key 失效后**不得**再按旧 epoch 加密；
+6. `aTamperedGroupEnvelopeFailsAndNeverReturnsPlaintext`：篡改必须收敛成 `DecryptResult.Failed`；
+7. `aTamperedDirectCiphertextAlsoReturnsADecryptResult`：直发路径同样必须只返回 `DecryptResult`。
+
+**发现的真实缺陷（已修，`e1b67442`）**
+
+加第 6 条时踩到：群信封被改一个字符后，`GroupCipher.decrypt` 抛
+`InvalidKeyException: invalid signature detected`，而它**直接穿出了** `decryptGroupContentEnvelope`
+（栈：`FilterExceptions.reportUnexpectedException` → `GroupCipher.decrypt` → `SignalGroupCipher.kt:163`）。
+
+根因用 libsignal 自己的源码核对过：
+
+```java
+private static AssertionError reportUnexpectedException(Exception e) {
+  return new AssertionError(e);        // FilterExceptions.java:46-49
+}
+```
+
+即 libsignal 把「意外的 checked exception」包成 **`AssertionError`**，而它 `extends Error`——
+所以原来的 `catch (e: Exception)` **根本抓不到**。这条路径是**远端可控输入**（信封由服务端中转），
+后果是：调用方按契约写的分类逻辑与重试记账全部被绕过，一个 `Error` 从「返回 DecryptResult」的方法里逃出来。
+
+修法是一处很窄的 `catch (e: AssertionError) → DecryptResult.Failed`（9 行，含解释）。
+
+**刻意没改的地方**：`SignalDirectCipher.decryptDeviceCiphertext` 代码形状相同，
+但第 7 条用例实测**没有复现**这条逃逸（它本来就会返回 `DecryptResult`）。
+没有证据就不动它——只把这个契约用一条回归用例钉住，避免「顺手改一个没验证的东西」。
+
+**六处反证（逐条实测变红，探针全部回滚）**
+
+| 探针 | 改哪里 | 结果 |
+|------|--------|------|
+| P1 | 生产：去掉新加的 `AssertionError` catch | `aTamperedGroupEnvelopeFails…` 红（缺陷复现） |
+| P2 | 生产：关掉解密侧的 `expectedGroupId` 校验 | `aGroupEnvelopeReplayedIntoAnotherGroup…` 红 |
+| P3 | 生产：关掉 future-epoch 校验 | `aFutureEpochEnvelopeIsRejected` 红 |
+| P4 | 生产：`requireExistingGroupDistributionId` 返回随机 UUID | `staleEpochEncryptionIsRefused…` 红 |
+| P5 | 生产：假装安装分发（不调 `GroupSessionBuilder.process`） | 6 例红（群链路整体失效） |
+| P6 | 测试侧：让第三方也安装分发 | `aThirdPartyThatNeverInstalled…` 红 |
+
+回滚后 `tests=7 failed=0`。
+
+> **P4 值得单独记**：它一开始**没有**变红——因为去掉那条 epoch 守卫后，加密仍会因
+> 「distribution id 未知」而失败，`assertTrue(stale.isFailure)` 照样绿。
+> 也就是说那条断言当时**并没有真正钉住这个守卫**。改成钉住失败原因
+> （必须含 `group_sender_key_not_distributed`）后 P4 才红。**「断言更严」和「断言更有效」不是一回事**，
+> 这一步只能靠探针发现。
+
+**本轮修掉的另外两个测试自身 bug**
+
+1. 签名预密钥的签名在 `generateIdentityKeys()` **之前**算，身份密钥重新生成后签名与 bundle 里
+   公布的公钥对不上 → `SessionBuilder.process` 抛 `InvalidKeyException`。改为在 init 里重新生成之后才算。
+2. 跨群重放用例复用了同一个信封：group id 不匹配会让该信封指纹进入**终态记录**（这是合理的生产行为），
+   导致后面的正对照也变成 `UnsupportedEnvelope`。改为正对照与重放各用一个信封。
+
+**验证（实测数字）**
+
+- 本地 arm64-v8a/API 36：整条 instrumented 套件 `tests=40 failures=0 errors=0 skipped=0`（G18 时 33，+7）；
+- CI x86_64：run **[34925004839](https://github.com/xalor888/Maodouchat/actions/runs/34925004839)**
+  （headSha `e1b67442`）→ **success，四 job 全绿**；下载工件核对
+  `tests=40 failures=0 errors=0 skipped=0`，其中 `SignalGroupSenderKeyRoundTripTest` **7 例全 ok**、
+  `PersistentSignalStoreRoundTripTest` 6 例、`SignalE2eeRoundTripTest` 5 例全 ok
+  （run id 与工件均由 `gh` 实测取得）；
+- 追溯门禁（不变量 9/10 新增 G19 引用）实测绿。
+
+**仍未覆盖（不得被本条冒充）**：群分发**走网络**与多设备扇出（本轮分发是本地直传信封）；
+`SignalProtocol.initialize` 的完整装配；真实跨进程/跨网络双设备投递；日志/导出/备份；生产 PostgreSQL。
