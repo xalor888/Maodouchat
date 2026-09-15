@@ -1,10 +1,13 @@
 package com.maodouchat.e2e
 
+import android.util.Base64
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.maodouchat.crypto.PersistentSignalProtocolStore
 import com.maodouchat.crypto.SignalKeyExchange
+import org.signal.libsignal.protocol.ecc.Curve
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
@@ -31,6 +34,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -83,11 +87,25 @@ class TwoAccountHttpRoundTripTest {
         val groupId: String,
         val groupSnapshot: ConversationSnapshotV2Dto,
         val groupEpoch: Long,
+        /** 同账号的**第二台已确认设备**（各自独立的 store 与登录会话）。 */
+        val alexDeviceId: Int,
+        val alex2: AuthResponse,
+        val alex2Protocol: SignalProtocol,
+        val aliceDeviceId: Int,
+        val alice2: AuthResponse,
+        val alice2Protocol: SignalProtocol,
     )
 
     private companion object {
         private var database: AppDatabase? = null
         private var shared: Shared? = null
+        private val extraDatabases = mutableListOf<AppDatabase>()
+
+        fun freshDatabase(): AppDatabase =
+            Room.inMemoryDatabaseBuilder(
+                ApplicationProvider.getApplicationContext(),
+                AppDatabase::class.java,
+            ).build().also { extraDatabases += it }
 
         fun database(): AppDatabase =
             database ?: Room.inMemoryDatabaseBuilder(
@@ -145,6 +163,18 @@ class TwoAccountHttpRoundTripTest {
         useSession(alice)
         check(aliceProtocol.initialize(alice.token, alice.userId)) { "alice Signal bootstrap 失败" }
 
+        // 两个账号各注册**第二台已确认设备**。**必须放在取快照之前**：设备集合一变，
+        // 之前取的快照就失效，服务端会以「设备列表已变化，请刷新密钥后重试」拒绝发送
+        // （本轮实测撞到——这是产品的真实保护，不是测试问题）。
+        val alexDeviceId = alexProtocol.context.localDeviceId
+        val (alex2, alex2Protocol, _) = registerConfirmedSecondDevice(
+            "alex@example.com", alex.userId, alexProtocol, alexDeviceId,
+        )
+        val aliceDeviceId = aliceProtocol.context.localDeviceId
+        val (alice2, alice2Protocol, _) = registerConfirmedSecondDevice(
+            "alice@example.com", alice.userId, aliceProtocol, aliceDeviceId,
+        )
+
         // 服务端只允许**会话参与者**之间取 prekey bundle（反枚举规则），所以必须先建会话。
         useSession(alex)
         val chat = ConversationApiClient
@@ -173,7 +203,73 @@ class TwoAccountHttpRoundTripTest {
             groupSnapshot = groupSnapshot,
             // 生产里 sender key 的 epoch 就是群 memberRevision（见 SignalMessagingV2Adapter）。
             groupEpoch = groupSnapshot.memberRevision,
+            alexDeviceId = alexDeviceId,
+            alex2 = alex2,
+            alex2Protocol = alex2Protocol,
+            aliceDeviceId = aliceDeviceId,
+            alice2 = alice2,
+            alice2Protocol = alice2Protocol,
         ).also { shared = it }
+    }
+
+    /**
+     * 给同一账号注册**第二台设备**并走完**审批**。
+     *
+     * 实测到的形状：新会话 + 新 store 上调 `initialize` 会向服务端注册一台**新设备**（deviceId 是
+     * 随机分配的，不是 1/2），此时它的状态是 `PENDING`；`initialize` 仍返回 true。
+     * 审批 = 用一台**已确认**设备的身份私钥对固定载荷签名：
+     * `"maodouchat-device-confirm:v1\n<userId>\n<approverDeviceId>\n<targetDeviceId>\n<targetIdentityKeyBase64>"`，
+     * 再 POST `/api/keys/devices/{target}/confirm`（服务端 `DeviceRegistry.verifyDeviceConfirmationProof`）。
+     */
+    private suspend fun registerConfirmedSecondDevice(
+        email: String,
+        userId: String,
+        approver: SignalProtocol,
+        approverDeviceId: Int,
+    ): Triple<AuthResponse, SignalProtocol, Int> {
+        val session = AuthApiClient.login(email, "password123", "").getOrThrow()
+        val db2 = freshDatabase()
+        val protocol = SignalProtocol(db2.signalKeyDao(), db2.identityTrustDao())
+        useSession(session)
+        check(protocol.initialize(session.token, userId)) { "$email 第二台设备的 bootstrap 失败" }
+        val deviceId = protocol.context.localDeviceId
+        check(deviceId != approverDeviceId) {
+            "第二台设备必须拿到不同的 deviceId，实际 $deviceId == $approverDeviceId"
+        }
+
+        val target = SignalKeyExchange.fetchDevices(session.token, userId, deviceId).getOrThrow()
+            .firstOrNull { it.deviceId == deviceId }
+            ?: error("服务端上找不到刚注册的设备 $deviceId")
+        if (target.status != "CONFIRMED") {
+            val payload = buildString {
+                append("maodouchat-device-confirm:v1\n")
+                append(userId); append('\n')
+                append(approverDeviceId); append('\n')
+                append(deviceId); append('\n')
+                append(target.identityKey)
+            }
+            val signature = Base64.encodeToString(
+                Curve.calculateSignature(
+                    approver.context.identityKeyPair.privateKey,
+                    payload.toByteArray(Charsets.UTF_8),
+                ),
+                Base64.NO_WRAP,
+            )
+            ApiService.confirmMyDevice(session.token, deviceId, approverDeviceId, signature).getOrThrow()
+        }
+        val confirmed = SignalKeyExchange.fetchDevices(session.token, userId, deviceId).getOrThrow()
+            .first { it.deviceId == deviceId }
+        check(confirmed.status == "CONFIRMED") { "设备 $deviceId 审批后仍不是 CONFIRMED：${confirmed.status}" }
+
+        // **审批之后客户端还必须重新初始化一次**：服务端已 CONFIRMED，但本机 `devicePendingApproval`
+        // 仍是 true，而 `isLocalCryptoReadyFor` = `!devicePendingApproval && storeReady`，
+        // 于是这台设备**能收到密文却解不开**（实测表现为解密返回 Failed，底层 libsignal 其实成功了）。
+        // 重新 `initialize` 会走 `verifyCurrentDevicePublication` 把状态刷新回来——这正是真机上的时序。
+        check(protocol.initialize(session.token, userId)) { "审批后重新初始化失败" }
+        check(!protocol.isDevicePendingApproval()) {
+            "审批后重新初始化仍处于待审批状态，isLocalCryptoReadyFor=${protocol.isLocalCryptoReadyFor(userId)}"
+        }
+        return Triple(session, protocol, deviceId)
     }
 
     @Test
@@ -394,6 +490,23 @@ class TwoAccountHttpRoundTripTest {
         groupRevisionProvider = { s.groupEpoch },
         onSenderKeyMissing = { _, _ -> },
         inboxDao = null,
+    )
+
+    private fun PendingEnvelopeV2Dto.forDevice(s: Shared, protocol: SignalProtocol) = MessagingV2InboxEntity(
+        envelopeId = envelopeId,
+        ownerUserId = s.alice.userId,
+        deviceId = protocol.context.localDeviceId,
+        sequence = sequence,
+        messageId = messageId,
+        conversationId = conversationId,
+        senderUserId = senderUserId,
+        senderDeviceId = senderDeviceId,
+        kind = kind,
+        groupRevision = groupRevision,
+        clientTimestamp = clientTimestamp,
+        serverTimestamp = serverTimestamp,
+        ciphertextType = ciphertextType,
+        ciphertext = ciphertext,
     )
 
     /** 收件箱给的是 DTO；processor 要的是收件箱实体（owner/device 由本地会话决定，不是服务端给的）。 */
@@ -715,6 +828,160 @@ class TwoAccountHttpRoundTripTest {
         assertTrue(
             "alice 的确认不得清掉 alex 的行，实际剩下 $alexStillThere",
             alexStillThere.containsAll(alexIds),
+        )
+    }
+
+    /**
+     * **同账号第二台设备**：注册 + 审批 + 多设备扇出 + 逐设备隔离。
+     *
+     * 断言：A 的另一台设备也收到自己那份（`includeCurrentUserDevices` 的真实语义）；B 的两台设备
+     * **各自**只有自己那份；**只有对应设备解得开**（把设备 1 的密文喂给设备 2 必须失败）；
+     * 设备 1 确认后设备 2 的行仍在且仍能解；每台设备对同一 messageId 只提交一次。
+     */
+    @Test
+    fun aSecondDeviceGetsItsOwnCopyAndOnlyThatDeviceCanDecryptIt() {
+        baseUrl()
+        val s = ensureShared()
+        val plaintext = "e2e-second-device-${UUID.randomUUID()}"
+        val alex2DeviceId = s.alex2Protocol.context.localDeviceId
+
+        // 取**当前**设备集合的快照：两台设备注册之后才取，才不会被「设备列表已变化」挡下。
+        useSession(s.alex)
+        val snapshot = runBlocking {
+            MessagingApiClient.getConversationSnapshotV2(s.alex.token, s.chatId).getOrThrow()
+        }
+        assertEquals(
+            "快照必须包含 alice 的两台设备",
+            2,
+            snapshot.targets.count { it.userId == s.alice.userId },
+        )
+        assertTrue(
+            "快照必须包含 alex 的**另一台**设备（includeCurrentUserDevices 的真实语义）",
+            snapshot.targets.any { it.userId == s.alex.userId && it.deviceId == alex2DeviceId },
+        )
+        assertTrue(
+            "快照不得包含发件设备自己",
+            snapshot.targets.none { it.userId == s.alex.userId && it.deviceId == s.alexDeviceId },
+        )
+
+        val encrypted = runBlocking {
+            s.alexProtocol.encryptMultiRecipientContentEnvelopeWithTargets(
+                token = s.alex.token,
+                recipientIds = snapshot.targets.map { it.userId }.distinct(),
+                plaintext = json.encodeToString(
+                    MessagingV2Content.serializer(),
+                    MessagingV2Content(version = 2, type = "TEXT", body = plaintext),
+                ),
+                payloadType = "TEXT",
+                includeCurrentUserDevices = true,
+                requiredRecipientIds = snapshot.targets.map { it.userId }
+                    .filterNot { it == s.alex.userId }.toSet(),
+            ).getOrThrow()
+        }
+        val preparer = SignalMessagingV2EnvelopePreparer(
+            signalProtocol = s.alexProtocol,
+            snapshotProvider = { _, _ -> error("E2E 不使用 snapshotProvider") },
+        )
+        val messageId = "e2e-dev2-${UUID.randomUUID()}"
+        runBlocking {
+            MessagingApiClient.sendMessageV2(
+                s.alex.token,
+                SendMessageRequestV2(
+                    id = messageId,
+                    conversationId = s.chatId,
+                    kind = "DATA",
+                    clientTimestamp = System.currentTimeMillis(),
+                    groupRevision = snapshot.memberRevision,
+                    attachmentIds = emptyList(),
+                    envelopes = encrypted.ciphertexts.map {
+                        EncryptedDeviceEnvelopeRequestV2(
+                            recipientUserId = it.userId,
+                            recipientDeviceId = it.deviceId,
+                            ciphertextType = preparer.wireCiphertextType(it.ciphertextType),
+                            ciphertext = it.ciphertext,
+                        )
+                    },
+                ),
+            ).getOrThrow()
+        }
+
+        // ① A 的**另一台**设备也拿到自己那份。
+        useSession(s.alex2)
+        val alex2Rows = inboxFor(s, s.alex2.token, s.chatId, messageId)
+        assertEquals("A 的第二台设备必须收到**恰好一份**自己的副本", 1, alex2Rows.size)
+
+        // ② B 的两台设备各自只有自己那份，而且是**不同**的信封/密文。
+        useSession(s.alice)
+        val alice1Rows = inboxFor(s, s.alice.token, s.chatId, messageId)
+        useSession(s.alice2)
+        val alice2Rows = inboxFor(s, s.alice2.token, s.chatId, messageId)
+        assertEquals("B 的设备 1 只应有自己那一份", 1, alice1Rows.size)
+        assertEquals("B 的设备 2 只应有自己那一份", 1, alice2Rows.size)
+        assertTrue(
+            "两台设备的信封必须不同（不是把同一份发给所有人）",
+            alice1Rows.single().envelopeId != alice2Rows.single().envelopeId &&
+                alice1Rows.single().ciphertext != alice2Rows.single().ciphertext,
+        )
+        assertTrue("两台设备的密文都不得含原文", (alice1Rows + alice2Rows).none { it.ciphertext.contains(plaintext) })
+
+        // ③ 只有对应设备解得开。
+        val sink1 = RecordingSink()
+        val processor1 = SignalMessagingV2EnvelopeProcessor(
+            signalProtocol = s.aliceProtocol,
+            domainSink = sink1,
+            groupRevisionProvider = { snapshot.memberRevision },
+            onSenderKeyMissing = { _, _ -> },
+            inboxDao = null,
+        )
+        runBlocking { alice1Rows.forEach { processor1.process(it.forAlice(s)) } }
+        assertEquals("B 设备 1 必须解出原文且只提交一次", listOf(plaintext), sink1.bodies)
+
+        val sink2 = RecordingSink()
+        val processor2 = SignalMessagingV2EnvelopeProcessor(
+            signalProtocol = s.alice2Protocol,
+            domainSink = sink2,
+            groupRevisionProvider = { snapshot.memberRevision },
+            onSenderKeyMissing = { _, _ -> },
+            inboxDao = null,
+        )
+        runBlocking { alice2Rows.forEach { processor2.process(it.forDevice(s, s.alice2Protocol)) } }
+        assertEquals("B 设备 2 必须能解开**自己那份**", listOf(plaintext), sink2.bodies)
+
+        // 把设备 1 那份密文喂给设备 2 → 必须失败（不同 store / 不同 prekey）。
+        val crossDevice = s.alice2Protocol.decryptDeviceCiphertext(
+            senderId = alice1Rows.single().senderUserId,
+            senderDeviceId = alice1Rows.single().senderDeviceId,
+            ciphertextType = alice1Rows.single().ciphertextType,
+            ciphertext = alice1Rows.single().ciphertext,
+        )
+        assertTrue(
+            "设备 1 的密文不得被设备 2 解开，实际 $crossDevice",
+            crossDevice !is com.maodouchat.core.crypto.DecryptResult.Success,
+        )
+
+        // ④ 设备 1 确认后，设备 2 的行仍在，且仍拉得到。
+        useSession(s.alice)
+        val acked = runBlocking {
+            MessagingApiClient.acknowledgeInboxV2(s.alice.token, alice1Rows.map { it.envelopeId }).getOrThrow()
+        }
+        assertEquals("设备 1 只确认自己那一份", 1, acked.acknowledged)
+        useSession(s.alice2)
+        val alice2AfterAck = inboxFor(s, s.alice2.token, s.chatId, messageId)
+        assertEquals("设备 2 的行不得被设备 1 的确认清掉", 1, alice2AfterAck.size)
+
+        // 真正的设备隔离：用**设备 1 的会话**去确认**设备 2 的**信封——必须无效。
+        // （只确认自己的 id 是测不到这条的：id 列表本身就已经限定了范围。G24 里用另一个账号验过同一件事，
+        //  这里才是同账号跨设备的版本。）
+        useSession(s.alice)
+        val impostor = runBlocking {
+            MessagingApiClient.acknowledgeInboxV2(s.alice.token, alice2Rows.map { it.envelopeId }).getOrThrow()
+        }
+        assertEquals("设备 1 不得确认设备 2 的信封", 0, impostor.acknowledged)
+        useSession(s.alice2)
+        assertEquals(
+            "设备 2 的行不得被设备 1 冒充确认清掉",
+            1,
+            inboxFor(s, s.alice2.token, s.chatId, messageId).size,
         )
     }
 }
