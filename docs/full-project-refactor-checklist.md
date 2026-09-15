@@ -79,6 +79,19 @@
     （它用**更高**的 candidate revision 把 `REVOKED` 子句单独隔离出来）。
 - [~] WebSocket 只承载唤醒、presence、typing 和通话信令，不得重新承载人类消息正文。
 - [~] 服务端不得保存或检索人类聊天明文；Bot/service message 使用独立存储语义。
+  - **G35 补的是「客户端那一半」**（此前零证据）：`clientPlaintextNeverLandsOnDiskAndBackupStaysDisabled`。
+    分层证据：
+    - **at-rest**：标记先经 DAO 读回（**控制组**：证明它真的在库里），再断言库文件与 `-wal`/`-shm` 的
+      **原始字节**里都读不到它 → SQLCipher 确实加密磁盘（反证：去掉 `SupportFactory` 后标记立刻出现在
+      `maodouchat.db` 原始字节里）。
+    - **备份面**：用 `PackageManager` 读**已安装**应用的 `ApplicationInfo.flags`，`FLAG_ALLOW_BACKUP` 为 0
+      （反证：manifest 改 `allowBackup="true"` 后安装态 flags 立刻带上该位）——**没有**拿 manifest 源码冒充。
+    - **明文不落盘**：`filesDir`/`cacheDir`/`shared_prefs` 里无标记；且 token 的可识别子串在 `shared_prefs`
+      原始字节里读不到（走 EncryptedSharedPreferences）。反证里「往 filesDir 写真实 marker」「往 prefs 明文写
+      token 子串」都被抓到——同时也证明**扫描本身有效**，不是永远绿。
+  - **仍未覆盖**：**服务端**侧的「不得保存或检索人类明文」与「Bot/service 独立存储语义」在本轮**没有新增证据**
+    （G11 的服务端清扫与 G28 的 service 边界是既有证据），以及**日志/导出/备份产品功能本身**的明文面
+    （本轮只证明「当前没有明文落到这些目录」，未逐个审导出/备份功能），故本条仍为 `[~]`。
 
 详细不变量见 `docs/messaging-v2-architecture.md`。
 
@@ -3338,3 +3351,46 @@ P1–P4 的第一轮里，**附件用例**每次都额外变红：`极小附件�
 - CI：run **[35014800546](https://github.com/xalor888/Maodouchat/actions/runs/35014800546)**
   （headSha `69ea92f4`）→ **success，四 job 全绿**；`two-device-http-e2e` → **`tests=20 failures=0 skipped=0`**；
   `android-instrumented-reports` → **`tests=71 failures=0 skipped=20`**；服务端日志 `starts=1 logins=4`。
+
+### G35 — 客户端「明文落点」清查（at-rest / 备份面 / 明文不落盘）
+
+不变量里「服务端不得保存人类明文」有服务端清扫，但**客户端那一半**（本地库、缓存、prefs、备份面）
+此前**零证据**。本轮补上，并且把**控制组**放在最前面——否则「磁盘上读不到」可能只是因为行没写进去。
+
+**新增 1 例（该类共 21 例）**：`clientPlaintextNeverLandsOnDiskAndBackupStaysDisabled`
+
+| 断言 | 实测 |
+|------|------|
+| ① **控制组** | 带唯一标记的消息经 `messageDao().getMessageById` **确实读回**（证明标记真在库里） |
+| ② **at-rest** | 库文件 + `-wal` + `-shm` + `-journal` 的**原始字节**里都**读不到**标记（WAL 先 checkpoint）→ SQLCipher 真加密磁盘 |
+| ③ **备份面** | `PackageManager` 读**已安装**应用 flags，`FLAG_ALLOW_BACKUP == 0` |
+| ④ **明文不落盘** | `filesDir`/`cacheDir`/`shared_prefs` 无标记（扫描面非空，实际扫了若干文件） |
+| ⑤ **token** | token 可识别子串在 `shared_prefs` 原始字节里读不到（EncryptedSharedPreferences） |
+
+**扫描范围与排除项写得明确**：真实库文件在②里**单独判定**，之后才从④排除——顺序反了就等于把结论做掉。
+
+**四处反证（探针全部回滚）**
+
+| 探针 | 结果（首行） |
+|------|--------------|
+| P1 **去掉 SQLCipher**（不用 `SupportFactory`） | `SQLCipher 必须加密磁盘…泄漏文件=[maodouchat.db]（已扫：[maodouchat.db, maodouchat.db-wal, maodouchat.db-shm]）` |
+| P2 `allowBackup="true"` 重新安装 | `已安装应用必须关闭 allowBackup…实际 flags=550026822` |
+| P3 往 `filesDir` 写含**真实 marker** 的文件 | `泄漏=[/data/user/0/com.maodouchat/files/probe-leak.bin]` |
+| P4 往 `shared_prefs` **明文**写 token 子串 | `token 不得明文出现在 shared_prefs…泄漏=[probe_plain.xml]` |
+
+> **P3 我写错了两次才红**，两次都值得记：第一次把探针文件写在**扫描列表构建之后**（扫的是旧列表）；
+> 第二次写了**占位字符串而不是真 marker**。两次都表现为「探针不红」——**扫描类断言最容易这样变成永远绿**，
+> 必须先证明它能抓到一次真泄漏。
+
+**验证（实测数字）**
+
+- 本机 harness：`tests=21 failures=0 errors=0 skipped=0`；
+- 本机默认 instrumented：`tests=72 failures=0 errors=0 skipped=21`；app JVM **1530 / 0**；
+  `app/src/main` / `server/src/main` **diff 为空**（本轮不需要改产品代码）；
+- CI：run **[35020048021](https://github.com/xalor888/Maodouchat/actions/runs/35020048021)**
+  （headSha `75ea462f`）→ **success，四 job 全绿**；`two-device-http-e2e` → **`tests=21 failures=0 skipped=0`**；
+  `android-instrumented-reports` → **`tests=72 failures=0 skipped=21`**；服务端日志 `starts=1 logins=4`。
+
+**M5 状态**：覆盖范围在 G34 基础上新增**客户端 at-rest/备份/prefs 边界**。
+**仍未覆盖**：同步器多页循环（`PULL_LIMIT = 200` 常量）、真·断网与网络抖动、附件 100 MiB 上界、
+**日志/导出/备份产品功能本身**的明文面、服务端侧该不变量的新增证据、生产 PostgreSQL。
