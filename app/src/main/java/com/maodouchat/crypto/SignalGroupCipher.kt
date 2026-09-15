@@ -172,6 +172,15 @@ class SignalGroupCipher internal constructor(
             } catch (e: InvalidMessageException) {
                 Log.w(SignalProtocolConstants.TAG, "decryptGroupContentEnvelope invalid message", e)
                 DecryptResult.Failed
+            } catch (e: AssertionError) {
+                // libsignal 的 FilterExceptions 会把「意外的 checked exception」包成 AssertionError
+                //（`reportUnexpectedException` → `new AssertionError(e)`），而 AssertionError extends Error，
+                // 所以下面的 catch (e: Exception) 抓不到它。被篡改/损坏的群信封正好走这条路：实测
+                // `InvalidKeyException: invalid signature detected` 会从 GroupCipher.decrypt 抛出并直接
+                // 穿出本方法——调用方按契约写的分类逻辑全部失效，该信封也不会被记入重试状态。
+                // 本方法的契约是返回 DecryptResult，所以在这里收敛成 Failed。
+                Log.w(SignalProtocolConstants.TAG, "decryptGroupContentEnvelope native assertion", e)
+                DecryptResult.Failed
             } catch (e: kotlinx.serialization.SerializationException) {
                 Log.w(SignalProtocolConstants.TAG, "decryptGroupContentEnvelope malformed envelope", e)
                 DecryptResult.UnsupportedEnvelope
