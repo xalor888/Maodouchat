@@ -132,6 +132,11 @@ if ! kill -0 "$SERVER_PID" 2>/dev/null; then
   echo "[e2e] 警告：测试期间服务端进程已不在（本次结果不可信）" >&2
 fi
 
+# 把本轮结果单独留一份：CI 里主 instrumented 套件的结果 XML 也会写在同一目录，
+# 若不另存，上传的工件只会反映**最后一次**运行，51 个用例的证据就丢了。
+mkdir -p "$ROOT/build/e2e-http-results"
+cp "$RESULT_DIR"/*.xml "$ROOT/build/e2e-http-results/" 2>/dev/null || true
+
 echo "[e2e] 清理服务端进程"
 cleanup
 SERVER_PID=""

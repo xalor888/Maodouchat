@@ -309,7 +309,12 @@ jobs:
           emulator-options: >-
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
             -camera-back none -camera-front none
-          script: ./gradlew :app:connectedDebugAndroidTest --no-daemon --console=plain
+          # G23：主套件跑完后，**在同一个模拟器生命周期内**再跑真客户端 ↔ 真服务端的 E2E
+          # （脚本自己起一台真服务端并注入 10.0.2.2 地址；emulator-runner 之外的步骤里模拟器已被关掉，
+          # 所以必须串在这里）。
+          script: |
+            ./gradlew :app:connectedDebugAndroidTest --no-daemon --console=plain
+            bash scripts/two-device-http-e2e.sh
 
       - name: Upload instrumented test reports
         if: always()
@@ -320,6 +325,18 @@ jobs:
             app/build/reports/androidTests/connected
             app/build/outputs/androidTest-results
           if-no-files-found: ignore
+
+      # G23：E2E 自己的结果与服务端日志单独上传，便于逐用例核对与失败诊断。
+      - name: Upload two-device HTTP E2E reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: two-device-http-e2e
+          path: |
+            build/e2e-http-results
+            build/e2e-two-device-server.log
+            build/e2e-two-device-gradle.log
+          if-no-files-found: warn
 
   docker-config:
     name: Docker Compose Config
