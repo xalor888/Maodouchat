@@ -2763,3 +2763,69 @@ G23 用「真客户端 ↔ 真服务端」抓到过一个两侧单测都看不�
 **M5 状态**：真 HTTP 层现在覆盖 直发 DATA / 群 SenderKey（分发+群文本）/ EVENT / ACK 幂等与设备隔离。
 **仍未覆盖**：真·**双设备/双进程同时在线**与设备审批流程、离线重连与补投、Sender Key repair 的**真实触发**
 （分发丢失后重新分发）、bot/service 明文分支、附件/媒体、日志/导出/备份、生产 PostgreSQL 实测。故 M5 仍不能标 `[x]`。
+
+### G25 — 同账号的**第二台设备**：注册 + 审批 + 多设备扇出 + 逐设备隔离
+
+这是 M5 里**唯一完全没有证据**的能力（G24 已经证明单设备账号拿不到「自己的副本」，
+ACK 的跨设备隔离只能用另一个账号间接验）。
+
+**靠实测摸出来的设备形状**（不是照文档假设的）
+
+| 事实 | 实测证据 |
+|------|----------|
+| deviceId 是**随机分配**的，不是 1/2/顺序 | recon 跑出 `213`（旧）与 `97`（新） |
+| 新会话 + 新 store 上 `initialize` 会注册一台**新设备**，状态 `PENDING` | `fetchDevices` → `97:PENDING:isCurrent=true` |
+| `PENDING` 时 `initialize` **仍返回 true** | recon `ok=true pendingApproval=true` |
+| 审批 = 用**已确认设备**的身份私钥签名固定载荷 | `maodouchat-device-confirm:v1\n<userId>\n<approverDeviceId>\n<targetDeviceId>\n<targetIdentityKeyBase64>`，服务端 `DeviceRegistry.verifyDeviceConfirmationProof` |
+
+**本轮唯一的新发现（客户端时序，不是服务端 bug）**
+
+审批通过后**客户端必须重新初始化一次**。服务端已经是 `CONFIRMED`，但本机 `devicePendingApproval`
+仍是 true，而 `isLocalCryptoReadyFor(userId) = !devicePendingApproval && storeReady`，
+于是这台设备**能收到密文却解不开**。重新 `initialize` 会经 `verifyCurrentDevicePublication` 刷新回来
+（真机上的时序就是「另一台设备批准 → 本机下次同步/启动时才发现」）。
+
+**这个失败信号是误导性的，值得单独记下**：`decryptMessage` 在**解密成功之后**才执行
+`throwIfSignalStorePersistenceFailed()` 与就绪检查，所以底层 libsignal 其实**解密成功了**，
+但对外表现为通用的 `messaging_v2_decrypt_failed`。我一开始把它当成「第二台设备解不开」的密码学问题，
+是**打印真实异常**（`IllegalStateException: signal_not_initialized`）才定位到的——
+说明「解密失败」这个结论在客户端是被包装过的，不能直接当密码学结论用。
+
+**另一条真实产品行为**：设备集合一变，**之前取的快照就失效**；服务端以
+「设备列表已变化，请刷新密钥后重试」拒绝基于旧快照的发送。所以快照必须在两台设备都存在之后再取
+（本轮先撞到、后修正）。
+
+**新增 1 例（该类共 8 例，全部真实 HTTP）**：A 的一台设备发消息给 B 后——
+①A 的**另一台**设备也收到自己那份（`includeCurrentUserDevices` 的真实语义）；
+②B 的两台设备**各自恰好一份**、信封与密文**都不同**；
+③各自都能解出原文且**只提交一次**；
+④**设备 1 的密文设备 2 解不开**（`DecryptResult` 不是 `Success`）；
+⑤设备 1 确认后设备 2 的行**仍在**；⑥设备 1 **无法确认设备 2 的信封**（`acknowledged=0`，且设备 2 的行不被清掉）。
+
+**四处反证（每条都让该用例红，探针全部回滚）**
+
+| 探针 | 改哪里 | 红在哪 / 首行信息 |
+|------|--------|-------------------|
+| P1 | 服务端 `pending` **忽略 `recipient_device_id`**（按账号下发） | 5 个用例红，`messaging_v2_decrypt_failed` |
+| P2 | 服务端 ack **预读**忽略设备过滤 | 第二设备用例红：`设备 1 不得确认设备 2 的信封 expected:<0> but was:<1>` |
+| P3 | 审批后**不重新初始化** | 第二设备用例红：`messaging_v2_decrypt_failed`（就绪门在拦） |
+| P4 | **完全跳过审批** | 第二设备用例红：`快照必须包含 alice 的两台设备 expected:<2> but was:<1>`（审批门在拦） |
+
+> P2 第一次**没有变红**：我原本只断言「设备 1 确认自己的 id 后设备 2 的行还在」，
+> 而 id 列表本身就已经限定了范围，设备过滤条件根本没被触到。补上「设备 1 冒充确认设备 2 的信封」
+> 这条断言后才真正测到隔离——**探针的价值就在于暴露了断言本身是空的**。
+
+**验证（实测数字）**
+
+- 本机 harness：`tests=8 failures=0 errors=0 skipped=0`；
+- 本机默认 instrumented：`tests=59 failures=0 errors=0 skipped=8`；app JVM **1530 / 0**；
+  `app/src/main` / `server/src/main` **diff 为空**（本轮不需要改产品代码）；
+- CI：run **[34957613654](https://github.com/xalor888/Maodouchat/actions/runs/34957613654)**
+  （headSha `0a8f6668`）→ **success，四 job 全绿**；两个工件逐用例核对：
+  `two-device-http-e2e` → **`tests=8 failures=0 errors=0 skipped=0`**（8 个用例名逐一确认，含第二设备用例）；
+  `android-instrumented-reports` → **`tests=59 failures=0 errors=0 skipped=8`**。
+
+**M5 状态**：真 HTTP 层现在覆盖 直发 DATA / 群 SenderKey / EVENT / ACK 幂等与设备隔离 /
+**同账号第二设备（注册+审批+扇出+逐设备隔离+冒充确认被拒）**。
+**仍未覆盖**：离线重连与补投（B 离线期间的消息与重连后的补投）、Sender Key repair 的**真实触发**、
+service（bot）明文分支、附件/媒体、日志/导出/备份、生产 PostgreSQL 实测。故 M5 仍不能标 `[x]`。
