@@ -735,6 +735,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [~] **真实加密往返**有 on-device 证据：**G17** 新增 `SignalE2eeRoundTripTest`（`app/src/androidTest`），用真实 libsignal 建真 X3DH 会话：A 加密 → B 解回**逐字节相同**原文 → 棘轮**双向**（回复走普通 `SignalMessage`）；四条反证各自实测会红——篡改一字节 / 第三方无会话 / 身份与签名不匹配 / 未建会话就加密；并用**生产** `SignalEnvelopeCodec` 构造上线信封，断言信封里既不含原文也不含原文标记、但仍承载密文。本地 arm64-v8a/API 36 与 CI x86_64 模拟器均实测 `tests=5 failures=0`。**边界**：这是「真实 libsignal 原语 + 真实生产信封编码器」这一层；`SignalDirectCipher` 的完整装配路径（依赖 `MaodouchatApp` 单例与 Room/SQLCipher store）与真实跨进程双设备投递仍未覆盖。同轮还修好了追溯门禁的一个盲点：它此前只认反引号用例名，而 androidTest 因 DEX 限制不能用带空格的名字，等于整个 `app/src/androidTest` 无法被引用——已改成两种写法都接受，并用假引用实测会红。
 - [~] **生产 store + 跨重启**也有 on-device 证据：**G18** 新增 `PersistentSignalStoreRoundTripTest`，两个账号都用本仓库 `PersistentSignalProtocolStore`（Room 支撑）跑真 X3DH；并钉住「写穿是真的」（DAO 里确有 identity/session 行、被消费的一次性 PreKey 行已删除）、**跨重启存活**（新实例 + `loadPersistedState()` 仍能解开后续消息），以及三条边界：不回填必须解不出来、损坏行被丢弃且随后大声失败、写路径失败被记录/读路径抛 `SignalStorePersistenceException`、账号作用域隔离。五处探针各自实测变红。**边界**：仍不是 `SignalDirectCipher`/`SignalProtocol.initialize` 的完整装配（真实 SQLCipher、`MaodouchatApp` 单例、群 SenderKey 分发、真实跨进程双设备）。
 - [~] **群消息 SenderKey 真往返**有 on-device 证据：**G19** 新增 `SignalGroupSenderKeyRoundTripTest`，用生产 `SignalGroupSenderKeyManager`/`SignalGroupCipher`/`SignalEnvelopeCodec` 跑通建分发 → 安装 → 加密 → 解回逐字节相同原文（连发两条）；并钉住未安装分发者解不出、跨群重放被拒、未来 epoch 是 `FutureEpoch`、失效后不得再按旧 epoch 加密（原因必须是 `group_sender_key_not_distributed`）、篡改必须收敛成 `DecryptResult.Failed`。**并且修掉一个真实缺陷**：libsignal 把意外的 checked exception 包成 `AssertionError`（extends `Error`），只 `catch (Exception)` 会让被篡改的群信封把 `Error` 抛出方法外——已在 `SignalGroupCipher` 收窄成 `Failed`，由该用例守卫。**边界**：群分发走网络/多设备扇出、`SignalProtocol.initialize` 完整装配、真实跨进程双设备仍未覆盖。
+- [~] **解密契约的畸形输入矩阵**：**G20** 新增 `SignalDecryptInputMatrixTest`，断言每个返回 `DecryptResult` 的入口都**只能**用返回 `DecryptResult` 的方式结束，并把所有逃逸**一次性**报出；同一密文在五个偏移各翻一个 bit（并断言这些坏输入两两不同、也不同于合法输入，防止矩阵静默失效）。用它**复现并修掉**了`decryptParsedMultiDeviceEnvelope` 整条分类链缺失（实测 `InvalidMessageException` 逃逸），并把三个直发入口的分类收敛到一个 `classifyDecryptFailure`（此前各写一份，正是漂移的根源）。**诚实标注**：`decryptContentEnvelope` 上的 `AssertionError` catch 是防御性——探针实测去掉它矩阵仍全绿，保留是为了对齐 G19 在群入口已复现的同类逃逸，不是本路径已被证明会触发。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
 
 ### Q02 数据库与迁移
@@ -2388,3 +2389,85 @@ private static AssertionError reportUnexpectedException(Exception e) {
 
 **仍未覆盖（不得被本条冒充）**：群分发**走网络**与多设备扇出（本轮分发是本地直传信封）；
 `SignalProtocol.initialize` 的完整装配；真实跨进程/跨网络双设备投递；日志/导出/备份；生产 PostgreSQL。
+
+### G20 — 把「解密入口必须只返回 DecryptResult」从个案收敛成一类，并用畸形输入矩阵守住
+
+**起点**：G19 修好群入口后做静态普查，发现**同一形状不止一处**。返回 `DecryptResult` 的入口：
+
+| 入口 | 普查时的状态 |
+|------|--------------|
+| `SignalGroupCipher.decryptGroupContentEnvelope` | G19 已补 `AssertionError` → 契约正确 |
+| `SignalDirectCipher.decryptContentEnvelope` | catch 链只到 `Exception` → `AssertionError` 会逃逸 |
+| `SignalDirectCipher.decryptDeviceCiphertext` | 同上 |
+| `SignalDirectCipher.decryptParsedMultiDeviceEnvelope` | **整条 try/catch 都没有** |
+| `SignalDirectCipher.decryptTextEnvelope` | 纯转发给 `decryptContentEnvelope` |
+
+**暴露面要说清（不夸大）**：`decryptParsedMultiDeviceEnvelope` 的唯一现有调用方
+（`SignalDirectCipher.kt:350`）在 `decryptContentEnvelope` 的 try 内部，所以**经正常路径**它不会漏出去；
+但它本身是公开入口，任何直接调用者都会撞上——所以仍然要修，只是不能把它说成「线上已在漏」。
+
+**矩阵先跑，缺陷后修**（顺序很重要，先有证据再改代码）
+
+新增 `app/src/androidTest/java/com/maodouchat/crypto/SignalDecryptInputMatrixTest.kt`（3 例）：
+对每个真实暴露的入口断言**任何 `Throwable` 都不许逃出 `DecryptResult` 契约**，
+并把所有违规**收集起来一次性报出**（否则一轮只能看到第一条）。覆盖的坏输入：
+
+- 同一段密文在**五个不同偏移**各翻一个 bit（直发信封、raw 密文、多设备信封都跑多偏移）；
+- 截断、空串、非 base64、截断 JSON、非 JSON；
+- 错误 `version`、错误 `algorithm`；
+- 群信封 ↔ 直发信封**跨类型互喂**；
+- 多设备信封只指向**本机不存在**的 device 9；
+- 直接调用那个原本没有分类链的多设备入口。
+
+矩阵在**未修**的生产代码上跑出的真实违规（这正是它存在的意义）：
+
+```
+decryptParsedMultiDeviceEnvelope/tampered → org.signal.libsignal.protocol.InvalidMessageException:
+                                            invalid PreKey message: decryption failed
+```
+
+**修法：一处收敛，而不是三处各补一刀**
+
+引入 `SignalDirectCipher.classifyDecryptFailure(operation, error)`，三个直发入口共用它——
+此前它们**各写一份** catch 链，正是这种漂移让「多设备入口整条链缺失」「另两个都漏 `AssertionError`」同时发生。
+**刻意不用 `catch (Throwable)` 一把梭**：那会把 `OutOfMemoryError` 一类也吞成 `Failed`；
+每个入口各自 `catch (Exception)` + `catch (AssertionError)`，只把分类交给同一个函数。
+
+**三处探针（实测，探针全部回滚）**
+
+| 探针 | 改哪里 | 结果 |
+|------|--------|------|
+| P1 | 生产：去掉多设备入口的整段分类 | 矩阵红（缺陷复现） |
+| P2 | 生产：去掉 `decryptContentEnvelope` 的 `AssertionError` catch | **矩阵仍全绿** |
+| P3 | 测试：把「篡改」改成原样返回（no-op） | 矩阵红（两两不同/不同于合法输入的断言生效） |
+
+> **P2 的绿是重要信息，不是失败**：它说明**直发信封路径上并没有复现出 `AssertionError` 逃逸**。
+> 所以那条 catch 的定位是**防御性**——依据是 G19 已在**群**入口实测复现过同一个 libsignal 包装行为
+> （`FilterExceptions.reportUnexpectedException` → `new AssertionError(e)`），而不是本路径已被证明会触发。
+> 生产代码里的注释已按这个事实写明，台账也不再把它说成「已证明承重」。
+> **能证明的写能证明，不能证明的标出来**——这是这一轮最该留下的习惯。
+
+矩阵里还有两个刻意的设计，都是被真实坑教出来的：
+
+1. **断言坏输入两两不同、且不同于合法输入**：否则矩阵可能已经在静默地不再篡改任何东西，却依然全绿
+   （P3 就是拿这条断言做反证）；
+2. **每次调用前 `clearDecryptRetryStateForSender`**：`decryptRetryTracker` 按发送方累计失败，
+   矩阵连打同一个发送方会让后续用例提前走「跳过密码学尝试」的短路，从而**把逃逸掩盖掉**（矩阵假绿）。
+
+**本轮也修掉两个测试自身的 bug**（都在矩阵里）：把「群信封喂给直发入口」写成了先调
+`encryptGroupTextEnvelope(...).getOrThrow()` 而**没有先建 distribution**，于是抛的是我自己的
+`Result` 失败而非生产逃逸；以及最初的 `assertEquals(String, emptyList(), ...)` 类型推断不过。
+
+**验证（实测数字）**
+
+- 本地 arm64-v8a/API 36：整条 instrumented 套件 `tests=43 failures=0 errors=0 skipped=0`（G19 时 40，+3）；
+  且 G17/G18/G19 的往返用例继续全绿——证明这次分类收敛**没有把正常解密变成失败**；
+- CI x86_64：run **[34928052544](https://github.com/xalor888/Maodouchat/actions/runs/34928052544)**
+  （headSha `b467020a`）→ **success，四 job 全绿**；下载工件核对
+  `tests=43 failures=0 errors=0 skipped=0`，其中 `SignalDecryptInputMatrixTest` 3 例全 ok
+  （run id 与工件均由 `gh` 实测取得）；
+- 追溯门禁（不变量 9 新增矩阵三条引用）实测绿。
+
+**仍未覆盖（不得被本条冒充）**：真实跨进程/跨网络双设备投递、`SignalProtocol.initialize` 完整装配、
+群分发走网络与多设备扇出、日志/导出/备份、生产 PostgreSQL。
+矩阵证明的是「这些入口在列出的畸形输入下不会漏 `Throwable`」，不是「所有可能输入都安全」。
