@@ -2061,3 +2061,74 @@ outbox 线路边界（G7）、加密准备器（G13）、解密处理器（G14�
 → 均 success、四 job 全绿（run id 均由 `gh run list`/`gh run view` 实测取得）。
 
 **实测**：server **430 / 0**（重构前后均 430 且全绿——搬迁没有改变行为）。
+
+### G16 — 收窄一条超出测试能力的 E2EE 结论（把「自证」换成真证据）
+
+**为什么先做这个**：DIRECTION 的反面判据写着「把 `[x]` 写成叙述而没有命令输出支撑」。
+G11 的第 25 条不变量正是那种情况——**它绿了很久，但它证明不了自己声称的东西**。
+
+**审计发现（读源码即可确认）**
+
+```kotlin
+val plaintextSentinel = ...random...
+val ciphertextForBob    = ...random...
+MessagingV2Repository { 10_000L }.send(humanCommand(ciphertextForBob))
+assertEquals(emptyList(), sweep(plaintextSentinel))
+```
+
+两个随机串**互不相关**：只有 `ciphertextForBob` 进了发送命令，`plaintextSentinel`
+**从未进入任何加密、发送或存储路径**。于是「扫不到它」在**任何**实现下都成立——
+就算有人明天把人类正文整段写进某个列，这个用例依然会绿。它不是证据，是同义反复。
+
+因此下面这些结论**当时没有任何测试支撑**，属于过度承诺：
+真实客户端 Signal 加密正确、服务端全库不含人类明文、日志/备份安全、真实双设备 E2EE。
+G11 的绿色 CI 只说明「那份测试按它当时的断言通过了」，不构成上述任何一条的证明。
+
+**改法：让被扫的值真的进系统**
+
+单一载荷 `OPAQUE-PAYLOAD-<uuid>` 直接进 `SendMessageV2Command.envelopes[].ciphertext`，然后断言：
+
+1. 发送**真的成功**（否则负结论没有意义）；
+2. metadata 落库，且信封里的密文与提交载荷**逐字相同**，接收方是预期的 `bob/d1`；
+3. 发送前写入的既定 `chats.last_message` 预览**未被改写**；
+4. 同 messageId 的 `service_messages` 正文**不存在**；
+5. 全库扫描命中**恰好一处**，且是 `messaging_v2_envelopes.ciphertext`。
+
+第 5 条是这条不变量的真正内容：**载荷只许待在自己的信封里**，任何额外副本都红。
+
+**三处反证（均实测变红，探针已全部回滚）**
+
+| # | 探针 | 结果 |
+|---|------|------|
+| 1 | 在 `MessageAdmissionPolicy` 把 envelope 载荷写进 `Chats.lastMessage` | 预览断言红：`expected: <pre-existing-service-preview> but was: <OPAQUE-PAYLOAD-...>` |
+| 2 | 改写成进 `Chats.groupAnnouncement`（**没有任何显式断言**盯这一列） | 扫描器红并列出额外列：`[PUBLIC.CHATS.GROUP_ANNOUNCEMENT, PUBLIC.MESSAGING_V2_ENVELOPES.CIPHERTEXT] ==> expected: <1> but was: <2>` |
+| 3 | 让 `sweep` 恒返回 `emptyList()` | 正对照红（定位不到 `SERVICE_MESSAGES.CONTENT`）**且**新边界断言红（`expected: <1> but was: <0>`） |
+
+反证 2 是这一轮最值得留下的：它证明**全库扫描**（而不是仅仅几个显式断言）才是承重的——
+如果只写 1/3/4 三条断言，载荷被复制到别的列时用例仍会绿。
+
+探针恢复后 `git diff -- server/src/main` 为空。
+
+**正对照的定位也一并钉准**
+
+bot/service 用例不再只断言「命中非空」，而是要求命中 `SERVICE_MESSAGES.CONTENT`
+**和** `CHATS.LAST_MESSAGE`——后者同时钉住「这一列确实会被服务端写入」这个事实，
+从测试层面反驳了旧备注「该列对人类消息始终为空」的错误推论。
+
+**文档与台账同步收窄**
+
+- 第 25 条不变量改名为「human V2 send keeps its submitted payload inside its own per-device
+  envelope」，并新增「证据边界」段，显式列出它**不**覆盖的面（日志、导出、备份、崩溃报告、
+  反向代理、生产 PostgreSQL、真实 Signal 加密、真实双设备）；
+- 第 25 条备注改正：人类发送**不写** `chats.last_message`，但该列**不等于**始终为空；
+- Q01 的 G11 条目、G11 小节、G12 的「始终为空」推论均已就地标注更正；
+- 追溯门禁实测承重：改名后旧引用立刻红——
+  `ServerPlaintextSweepTest#a human v2 send leaves no plaintext anywhere in the server database（ServerPlaintextSweepTest 里没有这个用例）`，
+  同步第 25 条引用后才恢复绿。
+
+**实测**：server **430 / 0**；app JVM **1530 / 0**；`:core:testing` **5 / 0**。
+客户端与服务端生产代码**零改动**（`server/src/main` diff 为空）。
+
+**仍未解决（不得被本条冒充）**：真实客户端 Signal 加解密链路（`SignalMessagingV2EnvelopeProcessor`
+之外的端到端组合）、日志/导出/备份/崩溃报告是否含明文、真实双设备与离线 E2E。
+这些仍是缺口，缺口只有在有了会变红的用例之后才算被覆盖。
