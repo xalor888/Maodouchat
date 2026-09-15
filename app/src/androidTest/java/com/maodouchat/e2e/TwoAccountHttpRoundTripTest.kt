@@ -50,6 +50,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
@@ -2045,5 +2046,144 @@ class TwoAccountHttpRoundTripTest {
         EncryptedAttachmentCrypto.decrypt(downloaded, restored, reference)
         assertEquals("分块上传后必须逐字节一致", plainFile.sha256(), restored.sha256())
         assertEquals(plainFile.length(), restored.length())
+    }
+
+    /** 拉一页收件箱（可指定 limit），返回 (页, hasMore)。 */
+    private fun pullPage(token: String, limit: Int) = runBlocking {
+        MessagingApiClient.getPendingInboxV2(token, limit).getOrThrow()
+    }
+
+    /**
+     * **分页契约**（真 HTTP，用小 `limit` 真实跨页——不需要造 200 条）。
+     * `EnvelopeMailboxStore.pending` 的实现是 `limit(limit + 1)` + `rows.take(limit)` + `hasMore = rows.size > limit`。
+     */
+    @Test
+    fun theMailboxPaginatesWithoutOverlapGapsOrReorder() {
+        baseUrl()
+        val s = ensureShared()
+        drainInbox(s)
+
+        val sentBodies = (0 until 5).map { "page-$it-${UUID.randomUUID()}" }
+        sentBodies.forEachIndexed { i, body ->
+            sendDirectTo(s, s.chatId, body, "page-msg-$i-${UUID.randomUUID()}")
+        }
+        useSession(s.alice)
+
+        val all = pullPage(s.alice.token, 500).envelopes
+        assertEquals("本用例应当只面对自己发的那 5 行（先 drainInbox 隔离）", 5, all.size)
+
+        // **实测到的契约**：`pending(limit)` **没有游标**——它每次都返回「最前面的 limit 条未确认行」
+        // （`orderBy(sequence)` + `acknowledgedAt IS NULL`），推进靠 **ack**，不是靠翻页参数。
+        // 所以「第 2 页」只有在 ack 掉第 1 页之后才会前进。
+        val page1 = pullPage(s.alice.token, 2)
+        assertEquals("第一页必须恰好 2 行", 2, page1.envelopes.size)
+        assertTrue("还有剩余时必须 hasMore=true", page1.hasMore)
+        assertEquals("页内必须按 sequence 严格升序", page1.envelopes.map { it.sequence }.sorted(), page1.envelopes.map { it.sequence })
+        assertEquals(
+            "无游标：不 ack 时重复拉取必须返回同一页（不能靠 map 偶然顺序）",
+            page1.envelopes.map { it.envelopeId },
+            pullPage(s.alice.token, 2).envelopes.map { it.envelopeId },
+        )
+        assertEquals("第一页必须等于基线的前 2 行", all.take(2).map { it.envelopeId }, page1.envelopes.map { it.envelopeId })
+
+        runBlocking {
+            MessagingApiClient.acknowledgeInboxV2(s.alice.token, page1.envelopes.map { it.envelopeId }).getOrThrow()
+        }
+        val page2 = pullPage(s.alice.token, 2)
+        assertEquals("ack 推进：第二页必须是基线的第 3、4 行", all.drop(2).take(2).map { it.envelopeId }, page2.envelopes.map { it.envelopeId })
+        assertTrue("还有剩余时必须 hasMore=true", page2.hasMore)
+        assertEquals("已 ack 的行不得再次返回", 0, page2.envelopes.count { it.envelopeId in page1.envelopes.map { p -> p.envelopeId } })
+
+        runBlocking {
+            MessagingApiClient.acknowledgeInboxV2(s.alice.token, page2.envelopes.map { it.envelopeId }).getOrThrow()
+        }
+        val page3 = pullPage(s.alice.token, 2)
+        assertEquals("第三页必须只剩基线最后 1 行", all.drop(4).map { it.envelopeId }, page3.envelopes.map { it.envelopeId })
+        assertFalse("没有剩余时必须 hasMore=false", page3.hasMore)
+
+        val union = page1.envelopes + page2.envelopes + page3.envelopes
+        assertEquals("跨页拼起来必须恰好等于基线（无缺口、无重复）", all.map { it.envelopeId }, union.map { it.envelopeId })
+        assertEquals("页间不得重复", union.size, union.map { it.envelopeId }.toSet().size)
+        assertEquals("跨页整体必须按 sequence 升序", union.map { it.sequence }.sorted(), union.map { it.sequence })
+
+        runBlocking {
+            MessagingApiClient.acknowledgeInboxV2(s.alice.token, page3.envelopes.map { it.envelopeId }).getOrThrow()
+        }
+        assertEquals("全部确认之后不得再返回这些行", 0, pullPage(s.alice.token, 50).envelopes.size)
+    }
+
+    /**
+     * **附件守卫**：本地 hash 守卫 + 服务端单块上限（真 HTTP 实测拒绝与状态码）。
+     */
+    @Test
+    fun attachmentGuardsRejectBadHashLocallyAndOversizeChunksOnTheServer() {
+        baseUrl()
+        val s = ensureShared()
+        val dir = attachmentDir()
+
+        val plain = File(dir, "guard-plain.bin").apply { writeBytes(ByteArray(4096) { (it % 97).toByte() }) }
+        val encrypted = EncryptedAttachmentCrypto.encryptFile(plain, dir)
+        useSession(s.alex)
+
+        // ① 本地 hash 守卫：故意给一个不匹配的 sha，必须在**本地**失败。
+        val wrongSha = "0".repeat(64)
+        val badHash = runBlocking {
+            MediaApiClient.uploadEncryptedAttachment(
+                token = s.alex.token,
+                chatId = s.chatId,
+                messageId = "guard-${UUID.randomUUID()}",
+                encryptedFile = encrypted.file,
+                cipherSha256 = wrongSha,
+                onProgress = { _, _ -> },
+                onCheckpoint = { _, _, _ -> },
+            )
+        }
+        // **实测结论（值得记）**：本地守卫**确实**会先拦下来（没有任何网络副作用），但
+        // `uploadEncryptedAttachment` 的 catch 链把**任何** Exception 都包成
+        // `ApiException(ApiFailureKind.UNEXPECTED)`——所以调用方在**顶层**看到的是「未预期错误」，
+        // 「sha 与文件不符」这个**本地校验**语义只存在于 **cause 链**里。
+        // 结果：真要判断「到底是不是本地校验失败」，必须顺着 cause 看。
+        val causeMessages = generateSequence(badHash.exceptionOrNull()) { it.cause }
+            .mapNotNull { it.message }
+            .toList()
+        assertTrue(
+            "sha 与文件不符必须在本地被拦下（attachment_source_hash_mismatch 应出现在 cause 链里），" +
+                "实际顶层=${badHash.exceptionOrNull()} causes=$causeMessages",
+            badHash.isFailure && causeMessages.any { it.contains("attachment_source_hash_mismatch") },
+        )
+
+        // ② 服务端单块上限：直接用原始 HTTP 建会话并 PUT 一个**超过 4 MiB** 的块。
+        val oversize = ByteArray(4 * 1024 * 1024 + 1) { (it % 251).toByte() }
+        val oversizeSha = MessageDigest.getInstance("SHA-256").digest(oversize)
+            .joinToString("") { "%02x".format(it) }
+        val sessionMessageId = "oversize-${UUID.randomUUID()}"
+        val (createCode, createBody) = postJson(
+            "${ApiConfig.BASE_URL}/api/attachment-uploads",
+            s.alex.token,
+            """{"chatId":"${s.chatId}","messageId":"$sessionMessageId","cipherSha256":"$oversizeSha","cipherSize":${oversize.size}}""",
+        )
+        // 服务端新建上传会话回 **201 Created**（实测），已存在时才是 200。
+        assertTrue("建上传会话必须成功，实际 $createCode / $createBody", createCode in setOf(200, 201))
+        val attachmentId = Json.parseToJsonElement(createBody).jsonObject["id"]!!.jsonPrimitive.content
+
+        val putRequest = Request.Builder()
+            .url("${ApiConfig.BASE_URL}/api/attachment-uploads/$attachmentId?offset=0")
+            .header("Authorization", "Bearer ${s.alex.token}")
+            .header("X-Chunk-SHA256", oversizeSha)
+            .put(oversize.toRequestBody("application/octet-stream".toMediaType()))
+            .build()
+        val (putCode, putBody) = http.newCall(putRequest).execute().use { it.code to (it.body?.string().orEmpty()) }
+        assertEquals(
+            "超过单块上限的块必须被服务端拒绝（确切断言见台账），实际 $putCode / $putBody",
+            400,
+            putCode,
+        )
+        assertTrue(
+            "拒绝必须可诊断（带明确错误体），实际=$putBody",
+            putBody.contains("附件分块参数无效"),
+        )
+        // 收尾：清掉这个未提交的会话，避免留下垃圾。
+        useSession(s.alex)
+        runBlocking { MediaApiClient.deleteUncommittedAttachment(s.alex.token, attachmentId) }
     }
 }
