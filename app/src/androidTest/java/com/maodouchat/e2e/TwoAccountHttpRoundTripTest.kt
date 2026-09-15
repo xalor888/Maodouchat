@@ -1,5 +1,6 @@
 package com.maodouchat.e2e
 
+import android.content.pm.ApplicationInfo
 import android.util.Base64
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -2700,6 +2701,130 @@ class TwoAccountHttpRoundTripTest {
                 app.database.messagingV2Dao().getOutbox(newMessageId, s.alice.userId)
             }}",
             runBlocking { app.database.messagingV2Dao().getOutbox(newMessageId, s.alice.userId) } != null,
+        )
+    }
+
+    private fun File.containsPlaintext(marker: String): Boolean =
+        runCatching { readBytes().toString(Charsets.ISO_8859_1).contains(marker) }.getOrDefault(false)
+
+    /**
+     * **客户端明文落点清查**：at-rest 加密 / 备份面 / 明文不落盘。
+     *
+     * 关键设计：先做**控制组**——证明标记**真的在库里**，再断言**原始字节里读不到**它；
+     * 否则「读不到」可能只是因为行压根没写进去，那就是空断言。
+     */
+    @Test
+    fun clientPlaintextNeverLandsOnDiskAndBackupStaysDisabled() {
+        baseUrl()
+        val s = ensureShared()
+        val ctx = ApplicationProvider.getApplicationContext<MaodouchatApp>()
+        runCatching {
+            runBlocking {
+                ctx.database.chatDao().insertChats(
+                    listOf(
+                        ChatEntity(
+                            id = s.chatId,
+                            isGroup = false,
+                            chatType = "DIRECT",
+                            participantIds = "${s.alex.userId},${s.alice.userId}",
+                        ),
+                    ),
+                )
+            }
+        }
+
+        val projector = MessagingV2TimelineProjector(
+            app = ctx,
+            messageStore = LocalMessageStore(ctx.database.messageDao(), ctx.database),
+            ownerUserId = { s.alice.userId },
+            notifier = MessagingV2ArrivalNotifier(ctx, { s.alice.userId }),
+            sendDeliveryReceipt = {},
+        )
+        val sink = object : MessagingV2DomainSink {
+            override suspend fun commit(envelope: MessagingV2InboxEntity, content: MessagingV2Content) {
+                projector.project(envelope, content)
+            }
+        }
+        val processor = SignalMessagingV2EnvelopeProcessor(
+            signalProtocol = s.aliceProtocol,
+            domainSink = sink,
+            groupRevisionProvider = { s.groupEpoch },
+            onSenderKeyMissing = { _, _ -> },
+            inboxDao = null,
+        )
+
+        val messageId = "atrest-${UUID.randomUUID()}"
+        val marker = "atrest-marker-${UUID.randomUUID()}"
+        sendDirectTo(s, s.chatId, marker, messageId)
+        useSession(s.alice)
+        val rows = inboxFor(s, s.alice.token, s.chatId, messageId)
+        assertTrue("消息必须送达", rows.isNotEmpty())
+        runBlocking { rows.forEach { processor.process(it.forAlice(s)) } }
+
+        // ① 控制组：标记必须**真的在库里**（否则后面的「读不到」是空断言）。
+        val stored = runBlocking { ctx.database.messageDao().getMessageById(messageId) }
+        assertTrue(
+            "控制组失败：标记必须真的写进本地库，实际=$stored",
+            stored != null && stored.content.contains(marker),
+        )
+        // 让 SQLCipher 把数据落到磁盘（WAL 落盘），否则下面的原始字节扫描看的是内存态。
+        runCatching {
+            runBlocking {
+                ctx.database.openHelper.writableDatabase
+                    .query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
+            }
+        }
+
+        // ② at-rest：库文件与它的 WAL/SHM/journal 原始字节里都**不得**出现明文标记。
+        val dbFile = ctx.getDatabasePath("maodouchat.db")
+        val dbSideFiles = listOf(
+            dbFile,
+            File(dbFile.path + "-wal"),
+            File(dbFile.path + "-shm"),
+            File(dbFile.path + "-journal"),
+        ).filter { it.exists() }
+        assertTrue(
+            "库文件必须存在，否则这条断言没有意义（实际=${dbFile.absolutePath} 存在=${dbFile.exists()}）",
+            dbSideFiles.isNotEmpty(),
+        )
+        val dbLeaks = dbSideFiles.filter { it.containsPlaintext(marker) }.map { it.name }
+        assertEquals(
+            "SQLCipher 必须加密磁盘：原始字节里不得出现明文标记，泄漏文件=$dbLeaks（已扫：${dbSideFiles.map { it.name }}）",
+            emptyList<String>(),
+            dbLeaks,
+        )
+
+        // ③ 备份面：读**已安装**应用的 flags（不是照抄 manifest 源码）。
+        val info = ctx.packageManager.getApplicationInfo(ctx.packageName, 0)
+        assertTrue(
+            "已安装应用必须关闭 allowBackup（FLAG_ALLOW_BACKUP=0），实际 flags=${info.flags}",
+            (info.flags and ApplicationInfo.FLAG_ALLOW_BACKUP) == 0,
+        )
+
+        // ④ 明文不落盘：扫 filesDir / cacheDir / shared_prefs。
+        //    **范围说明**：真实库文件已在②单独判定，这里才把它排除——顺序反了就等于把结论做掉。
+        val prefsDir = File(ctx.dataDir, "shared_prefs")
+        val roots = listOf(ctx.filesDir, ctx.cacheDir, prefsDir).filter { it.exists() }
+        val scanned = roots.flatMap { root ->
+            root.walkTopDown().filter { it.isFile }.toList()
+        }.filterNot { it.absolutePath == dbFile.absolutePath || it.absolutePath.startsWith(dbFile.absolutePath) }
+        assertTrue("扫描面不能为空（否则这条断言是空跑），实际扫了 ${scanned.size} 个文件", scanned.isNotEmpty())
+        val fileLeaks = scanned.filter { it.containsPlaintext(marker) }.map { it.absolutePath }
+        assertEquals("filesDir/cacheDir/shared_prefs 里不得出现明文标记，泄漏=$fileLeaks", emptyList<String>(), fileLeaks)
+
+        // ⑤ 高风险单点：token 不得明文出现在 shared_prefs 的原始字节里
+        //    （TokenManager 走 EncryptedSharedPreferences，所以原文应当读不到）。
+        val token = TokenManager.getInstance(ctx).getToken().orEmpty()
+        assertTrue("必须有可用 token 才能测这一条，实际长度=${token.length}", token.length > 24)
+        val tokenNeedle = token.substring(8, 28)
+        val prefLeaks = prefsDir.walkTopDown().filter { it.isFile }
+            .filter { it.containsPlaintext(tokenNeedle) }
+            .map { it.name }
+            .toList()
+        assertEquals(
+            "token 不得明文出现在 shared_prefs（应为 EncryptedSharedPreferences），泄漏=$prefLeaks",
+            emptyList<String>(),
+            prefLeaks,
         )
     }
 }
