@@ -3103,3 +3103,58 @@ G29 里分块用例的断言是 `checkpoints.size >= 2`。实测 `onCheckpoint` 
 service 明文与注入边界 / 附件加解密与分块——其中**分块现在是真验证**）。
 **仍未覆盖**：翻页（`hasMore`）、**真·断网与网络抖动**、附件 100 MiB 上界与超块拒绝、
 日志/导出/备份、生产 PostgreSQL。401 风暴**未归因**但已可复现-可诊断化。故 M5 仍不能标 `[x]`。
+
+### G31 — 分页契约与附件守卫的真 HTTP 证据
+
+这两项是 G29/G30 里明确标注「未覆盖」的边界项，且只有真 HTTP 这一层能钉。
+
+**新增 2 例（该类共 16 例，全部真实 HTTP）**
+
+**① 分页契约**——**我先把契约理解错了，是实测纠正的**
+
+第一版我假设「不 ack 也能翻到下一页」，实测直接红：`页间不得重复 expected:<6> but was:<2>`。
+真正的契约是：**`pending(limit)` 没有游标**，它每次都返回「最前面的 `limit` 条**未确认**行」
+（`orderBy(sequence)` + `acknowledgedAt IS NULL`），**推进靠 ack**，不靠翻页参数。
+（实现：`limit(limit + 1)` + `rows.take(limit)` + `hasMore = rows.size > limit`。）
+
+按真契约改后的断言：页大小与 `hasMore` 语义 · **页内**与**跨页**都必须 `sequence` 严格升序 ·
+不 ack 时重复拉取**必须返回同一页**（排除 map 偶然顺序）· ack 之后页码前进到基线的第 3、4 行 ·
+已 ack 的行**不再返回** · 全部 ack 后**不再返回任何行**。
+
+**② 附件守卫**（两条拒绝，都是实测）
+
+- **本地 sha 守卫确实先拦下**（没有任何网络副作用），**但**：`uploadEncryptedAttachment` 的 catch 链把
+  **任何** `Exception` 都包成 `ApiException(ApiFailureKind.UNEXPECTED)`，所以调用方在**顶层**看到的是
+  「未预期错误」，`attachment_source_hash_mismatch` 这个**本地校验**语义**只存在于 cause 链里**。
+  用例顺着 cause 链断言；这条对「上传失败怎么诊断」有实际价值，已写进台账。
+- **服务端单块上限**：用**原始 HTTP** 建会话（实测**新建回 201**，`POST /api/attachment-uploads`）后
+  `PUT …?offset=0` 一个 **4 MiB + 1** 的块 → **400** + `附件分块参数无效`（确切的码与响应体）。
+
+**四处反证（探针全部回滚）**
+
+| 探针 | 结果（首行） |
+|------|--------------|
+| P1 `pending` 忽略 `limit` | `第一页必须恰好 2 行 expected:<2> but was:<5>` |
+| P2 `pending` 改成按 id 排序 | 2 个用例红：`跨页整体必须按 sequence 升序 expected:<[75,78,81,84,87]> but was:<[78,84,87,75,81]>` |
+| P3 `pending` 去掉「未确认」过滤 | **4 个用例红**（收件箱永远排不空）：`本用例应当只面对自己发的那 5 行 expected:<5> but was:<27>` |
+| P4 去掉服务端单块上限校验 | `拒绝必须可诊断（带明确错误体），实际={"error":"附件分块长度或哈希无效"}` |
+
+> P4 值得注意：去掉上限校验后**仍然是 400**，只是错误体变成了另一条（长度/哈希不符）。
+> 也就是说**只断言状态码是不够的**——用例钉的是**拒绝原因**，这才能区分「被上限拦下」与「被别的校验拦下」。
+
+**验证（实测数字）**
+
+- 本机 harness：`tests=16 failures=0 errors=0 skipped=0`；
+- 本机默认 instrumented：`tests=67 failures=0 errors=0 skipped=16`；app JVM **1530 / 0**；
+  `app/src/main` / `server/src/main` **diff 为空**（本轮不需要改产品代码）；
+- CI：run **[34996732269](https://github.com/xalor888/Maodouchat/actions/runs/34996732269)**
+  （headSha `6c31d0f2`）→ **success，四 job 全绿**；两个工件逐用例核对：
+  `two-device-http-e2e` → **`tests=16 failures=0 errors=0 skipped=0`**（含两个新用例名）；
+  `android-instrumented-reports` → **`tests=67 failures=0 errors=0 skipped=16`**；
+  CI 服务端日志实测 `starts=1 logins=4`（G30 装的诊断在 CI 里也在工作，且本次无 401 风暴）。
+
+**M5 状态**：真 HTTP 层现在覆盖 直发 / 群 SenderKey（含修复闭环）/ EVENT / ACK 幂等与设备隔离 /
+同账号第二设备 / 离线补投与保序（含死信阶梯）/ service 明文与注入边界 / 附件加解密与分块 /
+**邮箱分页契约与 ack 推进** / **附件守卫（本地 sha、服务端单块上限）**。
+**仍未覆盖**：**同步器自身的多页循环**（`PULL_LIMIT = 200` 是常量，要 200+ 条真实发送才能触发）、
+真·断网与网络抖动、附件 100 MiB 上界、日志/导出/备份、生产 PostgreSQL。故 M5 仍不能标 `[x]`。
