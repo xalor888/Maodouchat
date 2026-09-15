@@ -2829,3 +2829,66 @@ ACK 的跨设备隔离只能用另一个账号间接验）。
 **同账号第二设备（注册+审批+扇出+逐设备隔离+冒充确认被拒）**。
 **仍未覆盖**：离线重连与补投（B 离线期间的消息与重连后的补投）、Sender Key repair 的**真实触发**、
 service（bot）明文分支、附件/媒体、日志/导出/备份、生产 PostgreSQL 实测。故 M5 仍不能标 `[x]`。
+
+### G26 — 离线重连与补投：驱动**生产 `MessagingV2InboxSynchronizer`**
+
+此前所有 E2E 都是**手写拉取**。本轮改成驱动真机上真正跑的那条补投路径
+（`MessagingV2InboxSynchronizer(dao, processor, clock)`，三个依赖全可注入），因此测的是产品代码本身，
+而不是我模仿的流程。
+
+**新增 2 例（该类共 10 例，全部真实 HTTP）**
+
+| 用例 | 断言 | 结果 |
+|------|------|------|
+| **离线补投** | B 不同步期间 A 在**直发 + 群**两个会话里交错发 6 条（外加一条 sender key 分发）；B 重连跑**一次**生产同步器 → 6 条**全部恰好提交一次**、**每个会话内严格保序**、分发**只安装不提交**；再同步一次 → **零新提交** | 通过 |
+| **保序 + 死信阶梯** | 中间夹一条**密文被篡改**的信封：第一轮**只提交它前面那条**（后面的不许先上）；反复重试（用同步器**可注入的 clock** 跳过退避，不真等）直到中间那条**死信**，后面的那条才被提交；且第一条**从未被重复提交** | 通过 |
+
+**一条新加的、让反证可达的断言**：离线窗口先断言**服务端投递本身按 sequence 升序**。
+本地 claim 也按 sequence，所以「服务端乱序」会被本地排序**掩盖**掉——没有这条断言，
+探针 P4 根本不会红。
+
+**两条必须**配合**而不是绕过**的产品行为**
+
+1. 服务端对 prekey bundle 有**产品自身的限流**：`RoutingHelpers.allowPreKeyFetch` = 每
+   (requester,target) **每分钟 10 次**。一个发 20+ 条消息的 E2E 类必然会撞到，表现为
+   `请求过于频繁`。处理方式是**等待后重试**（`withBoundedRateLimitRetry`），
+   不改服务端配置、也不放宽断言。为此把离线窗口从 12 条降到 6 条（够验证跨会话补投与保序）。
+2. `createChat` 对同一对参与者会**去重**返回已有会话——所以「第二个直发会话」根本造不出来
+   （实测断言 `chat2.id != s.chatId` 直接红）。第二个会话改用**群会话**。
+
+**一个值得记住的结构性发现：保序是「两处独立」共同保证的**
+
+- 同步器 `processAvailable` 失败即 `return false`；
+- 且 DAO 的 `nextProcessableInbox` 有 `NOT EXISTS (更早的 sequence 处于 RECEIVED/FAILED/PROCESSING)`
+  守卫。
+
+只去掉同步器那处 **完全不红**（探针 P3 第一版就是 0 红）；**两处都去掉**才红。
+——这正好说明「删掉看起来冗余的那个守卫」是危险的：它们互为兜底。
+
+**四处反证（每条都让特定用例红，探针全部回滚）**
+
+| 探针 | 改哪里 | 结果（首行） |
+|------|--------|--------------|
+| P1 | 同步器**每轮只处理一行** | 3 个用例红：`6 条必须全部送达 expected:<6> but was:<0>` |
+| P2 | **整体跳过处理** | 3 个用例红（同上） |
+| P3 | **两处保序都去掉** | `第一轮只应提交第 1 条 … but was:<[order-1, order-3, …]>` |
+| P4 | 服务端 `pending` **改成按 id 排序** | `服务端投递必须按 sequence 升序 expected:<[17,20,…]> but was:<[35,29,…]>` |
+
+> P1 的原始形式「忽略 `hasMore`」在 `PULL_LIMIT=200` 下**不可达**（一个页里就装完了），
+> 所以换成等价的「每轮只处理一行」。**翻页分支本轮明确未覆盖。**
+
+**验证（实测数字）**
+
+- 本机 harness：`tests=10 failures=0 errors=0 skipped=0`；
+- 本机默认 instrumented：`tests=61 failures=0 errors=0 skipped=10`；app JVM **1530 / 0**；
+  `app/src/main` / `server/src/main` **diff 为空**（本轮不需要改产品代码）；
+- CI：run **[34964609347](https://github.com/xalor888/Maodouchat/actions/runs/34964609347)**
+  （headSha `971aab9d`）→ **success，四 job 全绿**；两个工件逐用例核对：
+  `two-device-http-e2e` → **`tests=10 failures=0 errors=0 skipped=0`**（10 个用例名逐一确认，含两个新用例）；
+  `android-instrumented-reports` → **`tests=61 failures=0 errors=0 skipped=10`**。
+
+**M5 状态**：真 HTTP 层现在覆盖 直发 / 群 SenderKey / EVENT / ACK 幂等与设备隔离 / 同账号第二设备 /
+**离线补投与保序（含死信阶梯）**。
+**仍未覆盖**：翻页（`hasMore`，需 200+ 条，本轮按目标要求未灌量）、**真·断网重连与网络抖动**（当前是
+「不调同步器」而非真的断网/超时/半开连接）、Sender Key repair 的**真实触发**、service（bot）明文分支、
+附件/媒体、日志/导出/备份、生产 PostgreSQL 实测。故 M5 仍不能标 `[x]`。
