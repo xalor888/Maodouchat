@@ -2941,3 +2941,54 @@ service（bot）明文分支、附件/媒体、日志/导出/备份、生产 Pos
 同账号第二设备 / 离线补投与保序（含死信阶梯）。
 **仍未覆盖**：翻页（`hasMore`）、**真·断网与网络抖动**（当前是「不调同步器」而非真断网/超时/半开连接）、
 service（bot）明文分支、附件/媒体、日志/导出/备份、生产 PostgreSQL 实测。故 M5 仍不能标 `[x]`。
+
+### G28 — bot/service 明文分支：唯一一条「服务端可见明文」路径的端到端证据与注入边界
+
+这是全系统里**唯一**合法让服务端看到明文的投递路径（`ServiceMessagePublisher` 写
+`SERVICE_PLAINTEXT`）。此前只在 G22 的单进程内被断言过；本轮用**真 bot 凭证 + 真 HTTP**跑通，
+并把「服务端可见」这件事**明确写成断言**，而不是含糊带过。
+
+**新增 1 例（该类共 12 例，全部真实 HTTP）**
+
+| 步 | 断言 |
+|----|------|
+| ① 真 bot 路径 | 建 bot（响应带 `tokenOnce`）→ 拉进群（**实测 bot 只能进群聊**）→ 用 **bot token** 调 `POST /api/bot/sendSecretNewDeviceRiskHint`（该开关默认 true）→ 服务端经 publisher 发布 |
+| ② 形状 | `kind=SERVICE`、`ciphertextType=SERVICE_PLAINTEXT`、`senderDeviceId=0`、`senderUserId` 以 `bot_` 开头 |
+| ③ **载荷即明文** | 断言载荷里**确实含**服务文案（`NDV:RISK`）——**这就是与端到端加密路径的区别**，明确留证 |
+| ④ 生产 processor | 接受并提交该明文内容 |
+| ⑤ **人类不可注入** | 普通 token 以 `kind=SERVICE` 发送 → 服务端**因 kind 不合法**被拒，且收件箱**不得新增**该行 |
+| ⑥ 接收侧第二道防线 | 形状合法但**发送者非 bot/system**、**设备号非 0**、**类型非 SERVICE_PLAINTEXT** 的三种信封，生产 processor **都必须不提交** |
+| ⑦ 对照 | 同批次普通 V2 加密消息的 wire 载荷**不含**原文 |
+
+**两处由实测逼出来的修正（值得留台账）**
+
+1. **bot 只能被拉进群聊**（实测 400「只能向群聊邀请机器人」）；而把 bot 拉进**共享群**会改群成员版本，
+   直接让别的用例以 `群成员版本已变化:3` 变红。最终**为服务消息另建专用群**——「共享夹具被一个用例悄悄改了」
+   这类耦合，只有真跑才会暴露。
+2. **只断言「人类发送失败」太弱**：探针 P2 把 SERVICE 加进服务端 `messageKindsV2` 之后，该发送**仍然失败**
+   （因为设备列表已变化这类无关原因），断言照样绿。**探针第一次跑出来没红**，才逼我把断言改成
+   「必须因 **kind 不合法**被拒」（校验拒绝原因里含 `消息参数无效`）。这正是「门禁绿了 ≠ 测到了那道门」。
+
+**四处反证（探针全部回滚）**
+
+| 探针 | 改哪里 | 结果（首行） |
+|------|--------|--------------|
+| P1 | 放宽接收侧 service 策略（恒 true） | `发送者不是 bot/system 时不得提交 expected:<0> but was:<1>` |
+| P2 | 把 `SERVICE` 加进服务端 `messageKindsV2` | `人类用 kind=SERVICE 发送必须因 kind 不合法被拒 … reason=设备列表已变化，请刷新密钥后重试` |
+| P3 | 让 service 消息**不以明文**落库 | `**这条载荷本身就是明文**（服务端可见）… 实际=enc:}llun:…` |
+| P4 | service 信封的**设备号改成非 0** | `服务消息必须落到 alice 的收件箱 expected:<1> but was:<0>` |
+
+**验证（实测数字）**
+
+- 本机 harness：`tests=12 failures=0 errors=0 skipped=0`；
+- 本机默认 instrumented：`tests=63 failures=0 errors=0 skipped=12`；app JVM **1530 / 0**；
+  `app/src/main` / `server/src/main` **diff 为空**（本轮不需要改产品代码）；
+- CI：run **[34976372784](https://github.com/xalor888/Maodouchat/actions/runs/34976372784)**
+  （headSha `0d3527b0`）→ **success，四 job 全绿**；两个工件逐用例核对：
+  `two-device-http-e2e` → **`tests=12 failures=0 errors=0 skipped=0`**（12 个用例名逐一确认）；
+  `android-instrumented-reports` → **`tests=63 failures=0 errors=0 skipped=12`**。
+
+**M5 状态**：真 HTTP 层现在覆盖 直发 / 群 SenderKey（含修复闭环）/ EVENT / ACK 幂等与设备隔离 /
+同账号第二设备 / 离线补投与保序（含死信阶梯）/ **bot service 明文投递与注入边界**。
+**仍未覆盖**：翻页（`hasMore`）、**真·断网与网络抖动**、**附件/媒体**（含上传下载与加密附件）、
+日志/导出/备份、生产 PostgreSQL 实测。故 M5 仍不能标 `[x]`。
