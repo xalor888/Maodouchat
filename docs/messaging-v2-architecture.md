@@ -46,6 +46,9 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
    → 验证：`SignalMessagingV2EnvelopeProcessorTest#every decrypt failure is reported and nothing is committed`（解密侧的对应边界：解不开的信封必须抛错，绝不能变成「已入库」）
    → 验证：`SignalE2eeRoundTripTest#realX3dhSessionCarriesExactPlaintextBothDirections`（**真机/模拟器上的真实加密往返**：真 X3DH 建会话 → 对方解回逐字节相同原文 → 棘轮双向。这一层 JVM 单测覆盖不了，因为 libsignal 的 AAR 只带 Android JNI、没有 host 动态库；同文件另有四条反证：篡改一字节 / 第三方无会话 / 身份与签名不匹配 / 未建会话就加密）
    → 验证：`SignalE2eeRoundTripTest#wireEnvelopeNeverContainsPlaintext`（**生产** `SignalEnvelopeCodec` 产出的上线信封里既不含原文、也不含原文标记，但仍承载密文并被认成加密信封）
+   → 验证：`PersistentSignalStoreRoundTripTest#realX3dhRoundTripThroughProductionStore`（**本仓库生产 store**：两个账号都用 `PersistentSignalProtocolStore`（Room 支撑）跑真 X3DH，并把「写穿是真的」钉进 DAO——identity/session 行确实落库、被消费的一次性 PreKey 行已删除）
+   → 验证：`PersistentSignalStoreRoundTripTest#ratchetStateSurvivesStoreReloadAfterLoadPersistedState`（**跨重启存活**：新 store 实例 + `loadPersistedState()` 后仍能解开对端后续消息。反证 `#aReloadedStoreWithoutHydrationCannotDecrypt` 证明这条结论真的来自持久化回填——不回填的新实例必须解不出来，回填后同一实例必须解得出来）
+   → 验证：`PersistentSignalStoreRoundTripTest#aCorruptSessionRowIsDroppedAndDecryptionFailsLoudly`；`PersistentSignalStoreRoundTripTest#aPersistenceFailureIsRecordedOnWriteAndThrownOnRead`；`PersistentSignalStoreRoundTripTest#anotherAccountCannotDecryptTheSameConversation`（损坏行被丢弃且随后**大声失败**、持久化失败写路径记录/读路径抛出、账号作用域隔离）
 
 10. Group membership changes invalidate prepared outbox ciphertext and require encryption against
     the new member revision.
@@ -137,10 +140,11 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
    → 另一层证据（G17 补上）：**真实 Signal 加密往返**现在有 on-device 证据了，见第 9 条的
    `SignalE2eeRoundTripTest`（真 X3DH 建会话 → 对方解回逐字节相同原文 → 棘轮双向，另有四条反证）。
    所以「人类载荷在客户端确实被加密成只有目标设备能解的东西」不再是缺口。
-   → 仍然没有证据（不得用上面两条冒充）：真实**双设备跨进程/跨网络**投递（第 26 条只覆盖服务端
+   → 仍然没有证据（不得用上面几条冒充）：真实**双设备跨进程/跨网络**投递（第 26 条只覆盖服务端
    边界的 mailbox 语义）、日志/导出/备份/崩溃报告是否含明文、生产 PostgreSQL 的其它表、
-   以及 `SignalDirectCipher` 的完整装配路径（它依赖 `MaodouchatApp` 单例与 Room/SQLCipher store；
-   G17 走的是「真实 libsignal 原语 + 真实生产信封编码器」这一层）。
+   群 SenderKey 分发，以及 `SignalDirectCipher`/`SignalProtocol.initialize` 的完整装配路径
+   （它依赖 `MaodouchatApp` 单例与真实 SQLCipher 库；G17 覆盖「真实 libsignal 原语 + 真实生产
+   信封编码器」，G18 再覆盖「真实生产 store + 跨重启回填」，但两者都还没有把整条产品装配串起来）。
    → 备注：人类 V2 发送路径**完全不写** `chats.last_message`（实测
    `grep -rn lastMessage server/src/main/kotlin/com/maodouchat/server/messaging/v2/` 为 0 命中）；
    该列目前**只**由 `repository/ServiceMessageRepository.kt` 的 bot/service 发布路径写入。

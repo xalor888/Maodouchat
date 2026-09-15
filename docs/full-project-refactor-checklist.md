@@ -733,6 +733,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [~] 客户端加密路径有证据：**G13** 给 `SignalMessagingV2EnvelopePreparer` 补 7 个 JVM 单测（快照归属/会话一致性/群控过期/覆盖集合/明文边界），三处反证实测会红；解密路径 `SignalMessagingV2EnvelopeProcessor` 仍零测试，已列为下一步。
 - [~] 客户端**解密**路径也有证据：**G14** 给 `SignalMessagingV2EnvelopeProcessor` 补 11 个 JVM 单测，重点是「解不开绝不静默」——六种失败变体各自抛错且都不提交、sender key 缺失必须触发修复、Duplicate 无 journal 不得静默丢正文、journal 必须先于提交；四处反证实测会红。
 - [~] **真实加密往返**有 on-device 证据：**G17** 新增 `SignalE2eeRoundTripTest`（`app/src/androidTest`），用真实 libsignal 建真 X3DH 会话：A 加密 → B 解回**逐字节相同**原文 → 棘轮**双向**（回复走普通 `SignalMessage`）；四条反证各自实测会红——篡改一字节 / 第三方无会话 / 身份与签名不匹配 / 未建会话就加密；并用**生产** `SignalEnvelopeCodec` 构造上线信封，断言信封里既不含原文也不含原文标记、但仍承载密文。本地 arm64-v8a/API 36 与 CI x86_64 模拟器均实测 `tests=5 failures=0`。**边界**：这是「真实 libsignal 原语 + 真实生产信封编码器」这一层；`SignalDirectCipher` 的完整装配路径（依赖 `MaodouchatApp` 单例与 Room/SQLCipher store）与真实跨进程双设备投递仍未覆盖。同轮还修好了追溯门禁的一个盲点：它此前只认反引号用例名，而 androidTest 因 DEX 限制不能用带空格的名字，等于整个 `app/src/androidTest` 无法被引用——已改成两种写法都接受，并用假引用实测会红。
+- [~] **生产 store + 跨重启**也有 on-device 证据：**G18** 新增 `PersistentSignalStoreRoundTripTest`，两个账号都用本仓库 `PersistentSignalProtocolStore`（Room 支撑）跑真 X3DH；并钉住「写穿是真的」（DAO 里确有 identity/session 行、被消费的一次性 PreKey 行已删除）、**跨重启存活**（新实例 + `loadPersistedState()` 仍能解开后续消息），以及三条边界：不回填必须解不出来、损坏行被丢弃且随后大声失败、写路径失败被记录/读路径抛 `SignalStorePersistenceException`、账号作用域隔离。五处探针各自实测变红。**边界**：仍不是 `SignalDirectCipher`/`SignalProtocol.initialize` 的完整装配（真实 SQLCipher、`MaodouchatApp` 单例、群 SenderKey 分发、真实跨进程双设备）。
 - [ ] 协议模型有向前/向后兼容与 fuzz 测试。
 
 ### Q02 数据库与迁移
@@ -2229,3 +2230,72 @@ JVM 单测才用反引号。这个差异是本地跑出来的，不是猜的。
 Room/SQLCipher store、`SignalProtocolContext` 的初始化状态机）；真实**跨进程/跨网络**双设备投递；
 日志/导出/备份/崩溃报告是否含明文；生产 PostgreSQL 的其它表。
 本轮的证据层级是「真实 libsignal 原语 + 真实生产信封编码器」——比 JVM 替身强得多，但仍不是端到端装配。
+
+### G18 — 生产 store 与「跨重启存活」：E2EE 证据的第二层
+
+**为什么 G17 还不够**：G17 用的是 libsignal 自带的 `InMemorySignalProtocolStore`，
+它证明的是**密码学本身**可用。真正会藏 bug 的是本仓库的 `PersistentSignalProtocolStore`：
+
+- `loadPreKey` / `loadSession` **只读内存 map**（`preKeys[preKeyId]` / `sessions[key]`）；
+- 写操作经 `daoWrite` **写穿**到 Room（`signal_keys` 表，键为 `user:<accountId>:<logical>`）；
+- 进程重启后内存是空的，靠 `suspend fun loadPersistedState()` 从
+  `signalKeyDao.getKeysWithPrefix(prefix())` 回填 identities / preKeys / signedPreKeys /
+  **sessions** / senderKeys / kyberPreKeys / usedKyber。
+
+也就是说：**「消息在重启后还能不能解」取决于回填这一段**，而 G17 完全没碰它。
+
+**新增** `app/src/androidTest/java/com/maodouchat/crypto/PersistentSignalStoreRoundTripTest.kt`（6 例）
+（两个账号都用真实生产 store，Room in-memory `AppDatabase` 支撑，accountId 隔离）
+
+1. `realX3dhRoundTripThroughProductionStore`：真 X3DH → 加密 → 生产 store 解出逐字节相同原文
+   → 回复走 `WHISPER_TYPE` 且解得出。并把**写穿是真的**钉进 DAO：`session:alice|1`、
+   `identity:alice|1`、`session:bob|1` 确实存在，签名预密钥行仍在，**被消费的一次性 PreKey 行已删除**
+   （否则一次性密钥会被复用，前向安全失效）；
+2. `ratchetStateSurvivesStoreReloadAfterLoadPersistedState`：**跨重启存活**——新 store 实例
+   + `loadPersistedState()`（断言 `dropped == 0`）后，仍能解开对端后续消息；
+3. `aReloadedStoreWithoutHydrationCannotDecrypt`：**这条才是让第 2 条有意义的反证**。
+   不回填的新实例必须解不出来（且必须是协议层失败），随后对**同一个实例**调用
+   `loadPersistedState()` 必须解得出来——把「失败原因」精确锁定为「缺少回填」；
+4. `aCorruptSessionRowIsDroppedAndDecryptionFailsLoudly`：先跑**正对照**（健康的重启 store 能解一条新消息），
+   再把 session 行写成不可解析负载 → 回填必须丢弃并计数 1、行必须从 DAO 删除 → 之后的解密必须
+   **大声失败**且绝不把密文当原文返回；
+5. `aPersistenceFailureIsRecordedOnWriteAndThrownOnRead`：失败不得静默——**写路径**（`persist`）
+   记录失败但**不抛**（内存已更新，所以上层必须查 `persistenceFailure()`/`isSignalStoreHealthy()`，
+   这是本仓库的真实契约）；**读路径**（`daoWrite`）必须抛 `SignalStorePersistenceException`；
+6. `anotherAccountCannotDecryptTheSameConversation`：同库同设备号、不同 accountId 必须看不到会话。
+
+**五处反证（逐条实测变红，探针全部回滚、`app/src/main` diff 为空）**
+
+| 探针 | 改哪里 | 结果 |
+|------|--------|------|
+| P1 | 测试侧：重启时不调用 `loadPersistedState()` | `ratchetStateSurvives…` 红 |
+| P2 | 生产：`loadPersistedState` 不再丢弃不可解析行 | `aCorruptSessionRowIsDropped…` 红 |
+| P3 | 生产：`persist` 静默吞掉写失败 | `aPersistenceFailureIsRecorded…` 红 |
+| P4 | 生产：`prefix()` 去掉 accountId 作用域 | `anotherAccountCannotDecrypt…` 红（另带 2 个连带红） |
+| P5 | 生产：`removePreKey` 不再删除已消费的一次性 PreKey 行 | `realX3dhRoundTripThroughProductionStore` 红（另带 1 个连带红） |
+
+回滚后 `tests=6 failed=0`。
+
+**本轮修掉的两个「我自己写错的测试」——都属于同一类陷阱，值得留在台账**
+
+1. **关闭 in-memory Room 库并不会让写入失败**：`close()` 之后再写会**静默重开一个空库**，
+   于是「持久化失败必须被记录」这条断言永远绿。改成用 Kotlin 接口委托注入
+   `FailingSignalKeyDao`/`FailingIdentityTrustDao`（只覆写要失败的方法），失败才真的发生。
+2. **负断言必须把「解析」放在 `runCatching` 之外**：否则 `SignalMessage(bytes)` 的
+   `InvalidMessageException`（protobuf 解析失败）会被当成「解密失败」，
+   让「必须解不出来」的断言因为**完全无关的原因**变绿。本轮第一版就踩到了这个坑，
+   现在统一用 `parse()` + `decryptParsed()` 分开，解析失败会直接让用例报错。
+
+**验证（实测数字）**
+
+- 本地 arm64-v8a/API 36：整条 instrumented 套件 `tests=33 failures=0 errors=0 skipped=0`（G17 时为 27，+6）；
+- CI x86_64：run **[34921776149](https://github.com/xalor888/Maodouchat/actions/runs/34921776149)**
+  （headSha `ee499705`）→ **success，四 job 全绿**；下载 `android-instrumented-reports` 工件核对
+  `tests=33 failures=0 errors=0 skipped=0`，其中 `PersistentSignalStoreRoundTripTest` **6 例全 ok**、
+  `SignalE2eeRoundTripTest` 5 例全 ok（run id 与工件均由 `gh` 实测取得）；
+- 追溯门禁（第 9 条新增 4 条 G18 引用）实测绿。
+
+**仍未覆盖（不得被本条冒充）**：`SignalDirectCipher`/`SignalProtocol.initialize` 的**完整装配路径**
+（真实 SQLCipher 库、`MaodouchatApp` 单例、密钥交换走网络）；群 SenderKey 分发；
+真实**跨进程/跨网络**双设备投递；日志/导出/备份/崩溃报告；生产 PostgreSQL 的其它表。
+G17 + G18 合起来覆盖到「真密码学 + 真生产 store + 跨重启」，但**整条产品装配还没串起来**。
