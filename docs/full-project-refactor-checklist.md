@@ -2705,3 +2705,13 @@ E2E 直接调用**生产函数**而不是在测试里自己 `uppercase`——否
 `SignalProtocol` 实例）。**仍未覆盖**：真·**双设备/双进程同时在线**（两个模拟器或两个进程各自的
 登录会话与设备绑定）、离线重连与补投、Sender Key repair 的真实触发、附件/媒体、日志/导出/备份、
 生产 PostgreSQL 上的实测。故 M5 仍不能标 `[x]`。
+
+**CI 实测（最终 head）**：run **[34948368837](https://github.com/xalor888/Maodouchat/actions/runs/34948368837)**
+（headSha `759c3e94`）→ **success，四 job 全绿**。两个工件都逐用例核对过：
+- `two-device-http-e2e` → **`tests=4 failures=0 errors=0 skipped=0`**（E2E 在 CI 里**真的跑了**）；
+- `android-instrumented-reports` → **`tests=55 failures=0 errors=0 skipped=4`**，跳过的正是那 4 个 E2E 用例
+  （主套件的 51 个用例证据因此完整保留）。
+
+> 这里补了一次**证据质量**的修复：E2E 与主套件写同一个结果目录，而 E2E 跑在后面，
+> 导致主套件工件一度只剩 4 个用例（51 个用例的证据被覆盖）。现在脚本在跑 E2E **之前**先把主套件结果
+> 另存为 `androidTest-results-main` 并单独上传——「门禁绿了」不等于「证据还在」，这类覆盖同样会悄悄丢证据。
