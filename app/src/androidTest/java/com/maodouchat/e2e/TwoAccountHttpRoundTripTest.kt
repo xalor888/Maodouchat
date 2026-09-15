@@ -15,6 +15,7 @@ import com.maodouchat.messaging.v2.MessagingV2Content
 import com.maodouchat.messaging.v2.MessagingV2Event
 import com.maodouchat.messaging.v2.MessagingV2EventAction
 import com.maodouchat.messaging.v2.MessagingV2DomainSink
+import com.maodouchat.messaging.v2.MessagingV2InboxSynchronizer
 import com.maodouchat.messaging.v2.SignalMessagingV2EnvelopePreparer
 import com.maodouchat.messaging.v2.SignalMessagingV2EnvelopeProcessor
 import com.maodouchat.network.ApiConfig
@@ -295,10 +296,16 @@ class TwoAccountHttpRoundTripTest {
     fun bothAccountsExchangeKeysOverRealHttp() = runBlocking {
         baseUrl()
         val s = ensureShared()
+        // 服务端对 prekey bundle 有**产品自身的限流**：`allowPreKeyFetch` = 每 (requester,target)
+        // 每分钟 10 次（`RoutingHelpers.allowPreKeyFetch`）。这个 E2E 类会发 20+ 条消息，很容易撞到。
+        // 这里**遵守**它（等待后重试），而不是绕过或放宽服务端配置。
+        suspend fun fetchRespectingRateLimit(token: String, target: String) =
+            withBoundedRateLimitRetry { SignalKeyExchange.fetchPreKeyBundle(token, target) }
+
         useSession(s.alex)
-        val aliceFetched = SignalKeyExchange.fetchPreKeyBundle(s.alex.token, s.alice.userId)
+        val aliceFetched = fetchRespectingRateLimit(s.alex.token, s.alice.userId)
         useSession(s.alice)
-        val alexFetched = SignalKeyExchange.fetchPreKeyBundle(s.alice.token, s.alex.userId)
+        val alexFetched = fetchRespectingRateLimit(s.alice.token, s.alex.userId)
 
         assertTrue(
             "必须能从服务端取到 alice 的 prekey bundle，实际失败：${aliceFetched.exceptionOrNull()}",
@@ -983,5 +990,280 @@ class TwoAccountHttpRoundTripTest {
             1,
             inboxFor(s, s.alice2.token, s.chatId, messageId).size,
         )
+    }
+
+    /**
+     * 服务端 prekey bundle 限流（10 次/分钟/请求者-目标对）是**产品行为**；E2E 会发很多条消息，
+     * 因此这里遇到 429 就等待后重试，而不是把它当失败或去改服务端配置。
+     */
+    private suspend fun <T> withBoundedRateLimitRetry(
+        attempts: Int = 5,
+        waitMs: Long = 20_000,
+        block: suspend () -> Result<T>,
+    ): Result<T> {
+        var last: Result<T> = block()
+        repeat(attempts - 1) {
+            val message = last.exceptionOrNull()?.message.orEmpty()
+            if (last.isSuccess || "请求过于频繁" !in message) return last
+            Thread.sleep(waitMs)
+            last = block()
+        }
+        return last
+    }
+
+    /** 把 B 收件箱里遗留的未确认行确认掉，让「离线窗口」是干净的（测试隔离用，不是产品行为）。 */
+    private fun drainInbox(s: Shared) {
+        useSession(s.alice)
+        val pending = runBlocking {
+            MessagingApiClient.getPendingInboxV2(s.alice.token, 500).getOrThrow().envelopes
+        }
+        if (pending.isNotEmpty()) {
+            runBlocking {
+                MessagingApiClient.acknowledgeInboxV2(s.alice.token, pending.map { it.envelopeId }).getOrThrow()
+            }
+        }
+    }
+
+    /** A 的一条直发消息（真加密 → 真 POST）。 */
+    private fun sendDirectTo(
+        s: Shared,
+        conversationId: String,
+        body: String,
+        messageId: String,
+        tamperCiphertext: Boolean = false,
+    ) {
+        useSession(s.alex)
+        val snapshot = runBlocking {
+            MessagingApiClient.getConversationSnapshotV2(s.alex.token, conversationId).getOrThrow()
+        }
+        val encrypted = runBlocking {
+            s.alexProtocol.encryptMultiRecipientContentEnvelopeWithTargets(
+                token = s.alex.token,
+                recipientIds = snapshot.targets.map { it.userId }.distinct(),
+                plaintext = json.encodeToString(
+                    MessagingV2Content.serializer(),
+                    MessagingV2Content(version = 2, type = "TEXT", body = body),
+                ),
+                payloadType = "TEXT",
+                includeCurrentUserDevices = true,
+                requiredRecipientIds = snapshot.targets.map { it.userId }
+                    .filterNot { it == s.alex.userId }.toSet(),
+            ).getOrThrow()
+        }
+        val preparer = SignalMessagingV2EnvelopePreparer(
+            signalProtocol = s.alexProtocol,
+            snapshotProvider = { _, _ -> error("E2E 不使用 snapshotProvider") },
+        )
+        runBlocking {
+            MessagingApiClient.sendMessageV2(
+                s.alex.token,
+                SendMessageRequestV2(
+                    id = messageId,
+                    conversationId = conversationId,
+                    kind = "DATA",
+                    clientTimestamp = System.currentTimeMillis(),
+                    groupRevision = snapshot.memberRevision,
+                    attachmentIds = emptyList(),
+                    envelopes = encrypted.ciphertexts.map {
+                        val wire = preparer.wireCiphertextType(it.ciphertextType)
+                        // 篡改：改掉密文中段一个字符（服务端只当中转，不校验内容）。
+                        val ciphertext = if (tamperCiphertext) {
+                            val mid = it.ciphertext.length / 2
+                            val flipped = if (it.ciphertext[mid] == 'A') 'B' else 'A'
+                            it.ciphertext.substring(0, mid) + flipped + it.ciphertext.substring(mid + 1)
+                        } else {
+                            it.ciphertext
+                        }
+                        EncryptedDeviceEnvelopeRequestV2(
+                            recipientUserId = it.userId,
+                            recipientDeviceId = it.deviceId,
+                            ciphertextType = wire,
+                            ciphertext = ciphertext,
+                        )
+                    },
+                ),
+            ).getOrThrow()
+        }
+    }
+
+    /** 群控：sender key 分发（走多接收者加密，`kind=SENDER_KEY`）。 */
+    private fun sendGroupControl(s: Shared, messageId: String) {
+        useSession(s.alex)
+        val distribution = s.alexProtocol.createGroupSenderKeyDistribution(s.groupId, s.groupEpoch)
+        val distributionJson = s.alexProtocol.envelopeCodec.buildSenderKeyDistributionEnvelope(
+            groupId = s.groupId,
+            distributionId = distribution.distributionId,
+            message = distribution.message,
+            epoch = s.groupEpoch,
+            senderDeviceId = s.alexProtocol.context.localDeviceId,
+        )
+        val targetUserIds = s.groupSnapshot.targets.map { it.userId }.distinct()
+        val encrypted = runBlocking {
+            s.alexProtocol.encryptMultiRecipientContentEnvelopeWithTargets(
+                token = s.alex.token,
+                recipientIds = targetUserIds,
+                plaintext = distributionJson,
+                payloadType = "SENDER_KEY",
+                includeCurrentUserDevices = true,
+                requiredRecipientIds = targetUserIds.filterNot { it == s.alex.userId }.toSet(),
+            ).getOrThrow()
+        }
+        val preparer = SignalMessagingV2EnvelopePreparer(
+            signalProtocol = s.alexProtocol,
+            snapshotProvider = { _, _ -> error("E2E 不使用 snapshotProvider") },
+        )
+        val envelopes = encrypted.ciphertexts.map {
+            EncryptedDeviceEnvelopeRequestV2(
+                recipientUserId = it.userId,
+                recipientDeviceId = it.deviceId,
+                ciphertextType = preparer.wireCiphertextType(it.ciphertextType),
+                ciphertext = it.ciphertext,
+            )
+        }
+        send(s, s.groupId, "SENDER_KEY", messageId, envelopes, s.groupEpoch)
+    }
+
+    /** 群文本（sender key 信封，`ciphertextType=SENDER_KEY`）。 */
+    private fun sendGroupText(s: Shared, body: String, messageId: String) {
+        useSession(s.alex)
+        val contentJson = json.encodeToString(
+            MessagingV2Content.serializer(),
+            MessagingV2Content(version = 2, type = "TEXT", body = body),
+        )
+        val groupEnvelope = s.alexProtocol
+            .encryptGroupTextEnvelope(s.groupId, contentJson, "TEXT", s.groupEpoch)
+            .getOrThrow()
+        val preparer = SignalMessagingV2EnvelopePreparer(
+            signalProtocol = s.alexProtocol,
+            snapshotProvider = { _, _ -> error("E2E 不使用 snapshotProvider") },
+        )
+        val envelopes = s.groupSnapshot.targets.map {
+            EncryptedDeviceEnvelopeRequestV2(
+                recipientUserId = it.userId,
+                recipientDeviceId = it.deviceId,
+                ciphertextType = preparer.wireCiphertextType("SENDER_KEY"),
+                ciphertext = groupEnvelope,
+            )
+        }
+        send(s, s.groupId, "DATA", messageId, envelopes, s.groupEpoch)
+    }
+
+    /**
+     * ① **离线重连与补投**（驱动**生产 `MessagingV2InboxSynchronizer`**，不是手写拉取循环）：
+     * B 离线期间 A 在**两个会话**里交错发 12 条；B 重连后跑一次同步器 → 12 条**全部恰好提交一次**、
+     * **每个会话内严格保序**；紧接着再同步一次 → **不产生任何新提交**。
+     */
+    @Test
+    fun offlineCatchUpDeliversEveryMissedMessageOnceAndInOrder() {
+        baseUrl()
+        val s = ensureShared()
+        drainInbox(s)
+
+        // 两个会话：直发会话 + 群会话。（`createChat` 对同一对参与者会**去重**返回已有会话，
+        // 所以「第二个直发会话」造不出来——实测撞到后才改用群会话。）
+        val expected = linkedMapOf(s.chatId to mutableListOf<String>(), s.groupId to mutableListOf<String>())
+
+        // 群里必须先有 sender key 分发；把它也放进离线窗口，由同步器按 sequence 先处理（只安装、不提交）。
+        sendGroupControl(s, "offline-dist-${UUID.randomUUID()}")
+
+        repeat(6) { i ->
+            val body = "offline-$i-${UUID.randomUUID()}"
+            if (i % 3 == 2) {
+                sendGroupText(s, body, "offline-group-$i-${UUID.randomUUID()}")
+                expected.getValue(s.groupId) += body
+            } else {
+                sendDirectTo(s, s.chatId, body, "offline-dm-$i-${UUID.randomUUID()}")
+                expected.getValue(s.chatId) += body
+            }
+        }
+
+        // 服务端**投递本身**必须按 sequence 升序（本地 claim 也按 sequence，两处独立；
+        // 这条断言让「服务端乱序」成为可达的反证，否则本地排序会把服务端乱序掩盖掉）。
+        useSession(s.alice)
+        val rawOrder = runBlocking {
+            MessagingApiClient.getPendingInboxV2(s.alice.token, 500).getOrThrow().envelopes
+        }
+        assertTrue("离线窗口里应当有 6 条消息 + 1 条分发，实际 ${rawOrder.size}", rawOrder.size >= 7)
+        assertEquals(
+            "服务端投递必须按 sequence 升序",
+            rawOrder.map { it.sequence }.sorted(),
+            rawOrder.map { it.sequence },
+        )
+
+        // B 重连：用**生产同步器**（专用 inbox 库 + 生产 processor + 真 clock）。
+        // 注意 processor 与 synchronizer 必须共用**同一个** dao / sink，否则断言看的不是同一条链路。
+        val syncDb = freshDatabase()
+        val sink = RecordingSink()
+        val processor = SignalMessagingV2EnvelopeProcessor(
+            signalProtocol = s.aliceProtocol,
+            domainSink = sink,
+            groupRevisionProvider = { s.groupEpoch },
+            onSenderKeyMissing = { _, _ -> },
+            inboxDao = syncDb.messagingV2Dao(),
+        )
+        val syncer = MessagingV2InboxSynchronizer(syncDb.messagingV2Dao(), processor)
+        useSession(s.alice)
+        runBlocking { syncer.sync(s.alice.token, s.alice.userId, s.aliceDeviceId) }
+
+        val allExpected = expected.values.flatten()
+        assertEquals("6 条必须全部送达（分发信封只安装、不提交）", 6, sink.commits.size)
+        assertEquals("每条必须恰好一次", allExpected.sorted(), sink.bodies.sorted())
+        expected.forEach { (conversationId, bodies) ->
+            val got = sink.commits.filter { it.first.conversationId == conversationId }.map { it.second.body }
+            assertEquals("会话 $conversationId 内必须严格保序", bodies, got)
+        }
+
+        // ② 幂等重同步。
+        val before = sink.commits.size
+        runBlocking { syncer.sync(s.alice.token, s.alice.userId, s.aliceDeviceId) }
+        assertEquals("重同步不得产生新提交", before, sink.commits.size)
+    }
+
+    /**
+     * ④ **保序**：中间夹一条**必然解密失败**的信封时，本轮同步**不得提交它后面的行**
+     * （`processAvailable` 失败即 `return false`），且失败的这条会被重试、最终**死信**，
+     * 后面的行之后才能提交。用同步器**可注入的 clock** 跳过退避，不真等。
+     */
+    @Test
+    fun aFailedEnvelopeBlocksLaterOnesUntilItDeadLetters() {
+        baseUrl()
+        val s = ensureShared()
+        drainInbox(s)
+
+        val body1 = "order-1-${UUID.randomUUID()}"
+        val body3 = "order-3-${UUID.randomUUID()}"
+        sendDirectTo(s, s.chatId, body1, "order-msg-1-${UUID.randomUUID()}")
+        sendDirectTo(s, s.chatId, "tampered-${UUID.randomUUID()}", "order-msg-2-${UUID.randomUUID()}", tamperCiphertext = true)
+        sendDirectTo(s, s.chatId, body3, "order-msg-3-${UUID.randomUUID()}")
+
+        val syncDb = freshDatabase()
+        val sink = RecordingSink()
+        var fakeNow = System.currentTimeMillis()
+        val processor = SignalMessagingV2EnvelopeProcessor(
+            signalProtocol = s.aliceProtocol,
+            domainSink = sink,
+            groupRevisionProvider = { s.groupEpoch },
+            onSenderKeyMissing = { _, _ -> },
+            inboxDao = syncDb.messagingV2Dao(),
+        )
+        val syncer = MessagingV2InboxSynchronizer(syncDb.messagingV2Dao(), processor, clock = { fakeNow })
+        useSession(s.alice)
+        runBlocking { syncer.sync(s.alice.token, s.alice.userId, s.aliceDeviceId) }
+
+        assertEquals("第一轮只应提交第 1 条（失败的不能让它后面的先上）", listOf(body1), sink.bodies)
+
+        // 跳过退避反复重试，直到第 3 条被提交（或被判定为不可解）。
+        var rounds = 0
+        while (!sink.bodies.contains(body3) && rounds < 20) {
+            fakeNow += 24L * 60L * 60L * 1000L
+            runBlocking { syncer.sync(s.alice.token, s.alice.userId, s.aliceDeviceId) }
+            rounds++
+        }
+        assertTrue(
+            "第 3 条最终必须送达（失败的中间那条应当先死信），实际提交=${sink.bodies} rounds=$rounds",
+            sink.bodies.contains(body3),
+        )
+        assertEquals("第 1 条不得被重复提交", 1, sink.bodies.count { it == body1 })
+        assertTrue("死信需要跨过多次重试，rounds=$rounds 太少，可能没有真的走重试阶梯", rounds >= 5)
     }
 }
