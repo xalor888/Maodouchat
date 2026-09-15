@@ -2892,3 +2892,52 @@ service（bot）明文分支、附件/媒体、日志/导出/备份、生产 Pos
 **仍未覆盖**：翻页（`hasMore`，需 200+ 条，本轮按目标要求未灌量）、**真·断网重连与网络抖动**（当前是
 「不调同步器」而非真的断网/超时/半开连接）、Sender Key repair 的**真实触发**、service（bot）明文分支、
 附件/媒体、日志/导出/备份、生产 PostgreSQL 实测。故 M5 仍不能标 `[x]`。
+
+### G27 — Sender Key repair 的真实闭环（分发丢失 → 修复请求 → 重新分发 → 恢复可解）
+
+此前群分发只有「装上了」与「陈旧被跳过」两种证据；**坏掉之后怎么修**没有任何端到端证据，
+而这恰是群聊最容易出故障的地方。
+
+**新增 1 例（该类共 11 例，全部真实 HTTP）**，链路两端都用**生产代码**：
+
+| 环节 | 谁在做 | 断言 |
+|------|--------|------|
+| ① 触发缺失 | 生产 processor 的 `NoSession` 分支 → `onSenderKeyMissing` | 恰好触发**一次**（群 + epoch）；失败那条**一行都不许提交**；抛 `messaging_v2_no_session` |
+| ② 请求上线 | 回调里用**生产 `MessagingV2Outbox.enqueueSenderKeyRequest`** 入队 → 生产 snapshot provider + preparer → 真 POST | 回调必须**产出一条入队**；行 `kind=KEY_REQUEST`；wire 载荷不含明文 |
+| ③ 落到发送方 | 生产 processor 在 A 侧处理 | 落到 A 的收件箱、`groupRevision` = 该 epoch；提交内容的 `type=SENDER_KEY_REQUEST`、`requestedSenderUserId` = A、`failedMessageId` = 那条失败消息 |
+| ④ 响应侧判定 | **生产 `MessagingV2TimelineProjector`** | 必须恰好触发**一次**重新分发；且**不**为「指向别人的请求」「自己发给自己的请求」「epoch=0 的请求」触发 |
+| ⑤ 闭环闭合 | 按该 epoch 真重新分发（真 SENDER_KEY 信封 + 真 POST）| alice 安装后，**随后一条群消息必须解出原文并提交** —— 这才是闭环成立的判据 |
+
+**分层（哪段生产、哪段测试胶水）**：触发回调、请求/响应的**判定**、加解密、快照与准备**都是生产代码**；
+把「`onSenderKeyRequest` 被触发」接到「立刻重新分发」这个**动作**是测试侧胶水（生产接的是
+`SenderKeyRetryManager.redistributeNow`，需要完整 app runtime）；重新分发本身调用生产分发 API 并走真 HTTP。
+
+**四处反证（探针全部回滚）**
+
+| 探针 | 改哪里 | 结果（首行） |
+|------|--------|--------------|
+| P1 | 回调**不再产出请求**（等于 `onSenderKeyMissing` 没接上） | `回调必须触发一次请求入队 expected:<1> but was:<0>` |
+| P2 | 请求里的 `requestedSender` 指向**别人** | `requestedSender 必须是发送方自己 expected:<u[1]> but was:<u[2]>` |
+| P3 | 用**错误的 epoch** 重新分发 | `IllegalStateException: group_sender_key_not_distributed:epoch=2`（错误 epoch 的分发根本建不出来，闭环无法闭合） |
+| P4 | 让 `NoSession` **也提交** | `拿不到 sender key 时一行都不许提交 expected:<0> but was:<1>` |
+
+> 探针 P1 之所以有意义，是因为我把「入队」放在**回调内部**（生产就是这么接的），而不是在测试里直接
+> 调 writer——否则去掉回调也不会红。**反证的价值取决于链路有没有真的串起来。**
+> 另外我在写 attribute 键时**手写错过一次**（`requestedSender` ≠ 生产常量 `requestedSenderUserId`）：
+> 两个 companion 都是 private，测试取不到常量，最终靠**生产 projector 的判定**当守卫——
+> 键写错就不会触发重新分发，闭环断言必然红。
+
+**验证（实测数字）**
+
+- 本机 harness：`tests=11 failures=0 errors=0 skipped=0`；
+- 本机默认 instrumented：`tests=62 failures=0 errors=0 skipped=11`；app JVM **1530 / 0**；
+  `app/src/main` / `server/src/main` **diff 为空**（本轮不需要改产品代码）；
+- CI：run **[34970232182](https://github.com/xalor888/Maodouchat/actions/runs/34970232182)**
+  （headSha `8c751fb3`）→ **success，四 job 全绿**；两个工件逐用例核对：
+  `two-device-http-e2e` → **`tests=11 failures=0 errors=0 skipped=0`**（11 个用例名逐一确认）；
+  `android-instrumented-reports` → **`tests=62 failures=0 errors=0 skipped=11`**。
+
+**M5 状态**：真 HTTP 层现在覆盖 直发 / 群 SenderKey（含**修复闭环**）/ EVENT / ACK 幂等与设备隔离 /
+同账号第二设备 / 离线补投与保序（含死信阶梯）。
+**仍未覆盖**：翻页（`hasMore`）、**真·断网与网络抖动**（当前是「不调同步器」而非真断网/超时/半开连接）、
+service（bot）明文分支、附件/媒体、日志/导出/备份、生产 PostgreSQL 实测。故 M5 仍不能标 `[x]`。
