@@ -2471,3 +2471,95 @@ decryptParsedMultiDeviceEnvelope/tampered → org.signal.libsignal.protocol.Inva
 **仍未覆盖（不得被本条冒充）**：真实跨进程/跨网络双设备投递、`SignalProtocol.initialize` 完整装配、
 群分发走网络与多设备扇出、日志/导出/备份、生产 PostgreSQL。
 矩阵证明的是「这些入口在列出的畸形输入下不会漏 `Throwable`」，不是「所有可能输入都安全」。
+
+### G21 — M4 缺的那一角：V2 设备邮箱在**真 PostgreSQL** 上的并发与幂等
+
+**为什么这是缺口**：既有 PG 证据（G6）覆盖的是**迁移矩阵**与**群变更行锁**。而
+**收件箱 ACK**（不变量 26「按设备确认」）和**同一 messageId 重复发送**这两条并发路径，
+此前只在 H2 上跑过——H2 的行锁、唯一索引冲突行为、READ COMMITTED 下的重取语义都和 PG 不同，
+**H2 绿不能推出 PG 绿**。收件箱又是产品命门（离线投递 + 已读）。
+
+**本地环境先对齐 CI（实测踩到两个前提）**
+
+本机是 Homebrew PostgreSQL 16.15，当前用户有管理员权限。要让本地等价于 CI 必须补两步：
+
+1. 建与 CI 同名的 role/database（`maodouchat_test` / `maodouchat_test_password`）；
+2. **给该 role `CREATEDB` 与 `SUPERUSER`**——CI 里 docker 的 `POSTGRES_USER` 天生是超级用户，
+   而这些用例会**自己建库/建扩展**。只建 role 的后果是 7 个既有用例全红，报
+   `permission denied to create database` / `permission denied for database`。
+   这是**本地开发库**的权限对齐，与生产无关。
+
+**新增** `server/src/test/kotlin/com/maodouchat/server/PostgresV2MailboxConcurrencyTest.kt`（5 例，`@Tag("postgres")`）
+
+每个用例**先断言自己真的在 PostgreSQL 上**（读 `select version()` 并要求含 `PostgreSQL`），
+所以谁也没法在 H2 上把这份「PG 并发证据」跑绿：
+
+1. **同一设备并发 ACK 同一批**（4 个线程同时确认 5 个 envelope）：每一行都被确认；
+   `acknowledged_at` 只被置一次、重试不改写；同账号**另一台设备**与**另一个账号**的副本一行都没动；
+2. **同账号两台设备各自并发 ACK**：互不影响（不变量 26 的「按设备」）；
+3. **混入别人的 envelope id**：只计算并只改动属于自己的那部分（授权作用域）；
+4. **并发重复发送**（同 id + 同 digest）：最终只有一行 `messaging_v2_messages`、每台目标设备只有一个
+   envelope；输的那一次抛的是**领域异常** `MessagingV2DuplicateMessageException`，**不是**裸的 SQL 错误；
+5. `RateLimitStatsRepository.recordMinute` 的 **PG 原生 upsert 分支**（H2 走的是 select→update/insert，
+   这条分支此前没有任何 PG 证据）：同一分钟调用两次 → 只有一行且是更新。
+
+**一个「像 bug 但不是」的发现——本轮最重要的判断**
+
+并发 ACK 时，四个调用者**各自都返回 5**（合计 20 > envelope 数 5）。第一版测试据此断言「合计必须等于 5」，红了。
+
+看似该去修服务端（返回「实际更新行数」），但先查了调用方，发现**不能改**：
+`app/.../MessagingV2InboxSynchronizer.kt:92` 写着
+
+```kotlin
+check(response.acknowledged == ids.size) { "messaging_v2_ack_incomplete" }
+```
+
+也就是说 `acknowledged` 的契约是**幂等**的——「这次请求的 id 里，返回时已被确认的有几条」，
+而不是「这次调用改了几行」。客户端**重试**（行早已确认）正是靠它拿到满额才不报错。
+若把它改成更「严格」的口径，重试会拿到 0 → 客户端抛 `messaging_v2_ack_incomplete`，
+**把一条正常路径改成失败**。
+
+所以：**没有改服务端**，而是把测试写成钉住真实契约（并发/重试下每个调用者都应看到满额），
+并在注释里写清这条依赖关系。**先查清「谁依赖这个行为」再决定要不要『修』**——
+否则这种「顺手改严格一点」会直接打断重试路径。
+
+**四处反证（探针全部回滚；`server/src/main` diff 为空）**
+
+| 探针 | 改哪里 | 结果 |
+|------|--------|------|
+| P1 | 生产：去掉 ACK 的设备过滤 | 授权作用域用例红 |
+| P2 | 生产：去掉 UPDATE 的 `acknowledged_at IS NULL` | ACK 用例红（重试改写时间戳） |
+| P3 | 生产：让重复消息的存在性检查永不命中 | 并发重复发送用例红 |
+| P4 | 测试：把「真的在 PG 上」的断言改成期待 `SQLite` | 5 例全红（证明该守卫确实在跑） |
+
+**两处我自己的验证错误（都当场纠正，值得留在台账）**
+
+1. **探针脚本读到了旧的测试结果 XML，产出了一次假绿**：P1 第一次跑时探针其实**编译失败**
+   （我用 `and true` 伪造「恒真」，Exposed 不接受裸 `Boolean`），于是用例根本没跑，
+   脚本却读上一次的绿 XML 报「绿」。同样地 P3 一次编译失败被报成了「另一个用例红」。
+   修法：**每轮先删 `build/test-results/postgresIntegrationTest/*.xml`**，并在无结果时显式报
+   `NO-RESULTS`，同时检查日志里有没有 `e:`。这和「`UP-TO-DATE` 不是证据」是同一类陷阱。
+2. **时间戳断言在毫秒精度下不可靠**：`acknowledged_at` 是毫秒，断言「重试不改写」时若两次调用落在
+   同一毫秒，改写与不改写**不可区分**——P2 因此一开始探不出红。修法是重试前跨过一个毫秒
+   （`Thread.sleep(5)`），让断言真正能分辨。
+
+**顺带把「PG 证据可核对」这件事本身补上**
+
+Server job 此前只报告 `postgresIntegrationTest` **任务绿**——而任务绿**不等于用例跑了**
+（跳过/过滤/类不在 classpath 都会绿）。已加 `Upload PostgreSQL test results`（`if: always()`）
+上传结果 XML，现在可以像 androidTest 那样**逐用例核对**（`05e2293c`）。
+
+**验证（实测数字）**
+
+- 本机：`postgresIntegrationTest` → **12 tests / 0 failures**（G6 时 7，+5；4 个类）
+  ；`../gradlew test`（H2 全量）→ **430 / 0**，说明新增用例不影响 H2 全量；
+- CI：run **[34933014454](https://github.com/xalor888/Maodouchat/actions/runs/34933014454)**
+  （headSha `05e2293c`）→ **success，四 job 全绿**；**下载 `postgres-integration-results` 工件逐用例核对**：
+  `PostgresMigrationMatrixTest 5`、`PostgresGroupConcurrencyTest 1`、`PostgresRestoreUpgradeTest 1`、
+  `PostgresV2MailboxConcurrencyTest 5` → 合计 **12 tests / 0 failures**，五个新用例名逐一确认
+  （run id 与工件均由 `gh` 实测取得）。
+
+**M4 状态更新**：迁移矩阵（空/旧/重复/中断/回滚/双实例竞争）+ 群变更行锁 + **邮箱并发与幂等**
+现在都有 PG 证据。**仍未覆盖**：真实跨进程/跨网络双设备投递（PG 层面只是单进程多线程）、
+备份**加密**、以及**生产** PostgreSQL 上的实测（本轮全部在本机/CI 的一次性库上跑，
+生产库只读未写）。故 M4 仍不能标 `[x]`。
