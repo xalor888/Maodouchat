@@ -37,8 +37,12 @@ import com.maodouchat.network.api.ConversationApiClient
 import com.maodouchat.network.api.MessagingApiClient
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -1554,5 +1558,174 @@ class TwoAccountHttpRoundTripTest {
             listOf(afterPlaintext),
             sinkAfter.bodies,
         )
+    }
+
+    /** 用 jq 风格的原始 JSON POST（bot 凭证与 hint 路由没有客户端封装）。 */
+    private fun postJson(url: String, token: String, body: String): Pair<Int, String> {
+        val request = Request.Builder()
+            .url(url)
+            .header("Authorization", "Bearer $token")
+            .post(body.toRequestBody("application/json".toMediaType()))
+            .build()
+        http.newCall(request).execute().use { response ->
+            return response.code to (response.body?.string().orEmpty())
+        }
+    }
+
+    /**
+     * **service/bot 明文分支**：这是唯一一条「服务端可见明文」的合法投递路径。
+     *
+     * 分层：
+     * - **真 HTTP + 真凭证**：建 bot → 拿 `tokenOnce` → 拉 bot 进会话 → 用 **bot token** 调
+     *   `POST /api/bot/sendSecretNewDeviceRiskHint`（该开关默认 true）→ 服务端经
+     *   `ServiceMessagePublisher` 以 `SERVICE_PLAINTEXT` 写进设备邮箱。
+     * - **接收侧**：生产 processor 的 `MessagingV2ServiceEnvelopePolicy` 是第二道防线，
+     *   即使拿到「形状合法但来源不对」的信封也必须不提交。
+     */
+    @Test
+    fun theBotServicePlaintextPathWorksWhileHumansCannotInjectService() {
+        baseUrl()
+        val s = ensureShared()
+        drainInbox(s)
+
+        // ① 专用群：**不能**用共享群——把 bot 拉进群会改群成员版本（实测 `群成员版本已变化:3`），
+        // 从而让别的用例依赖的共享快照/epoch 失效。这里为服务消息另建一个群。
+        useSession(s.alex)
+        val botGroup = runBlocking {
+            ConversationApiClient.createChat(
+                s.alex.token, participantIds = listOf(s.alice.userId), isGroup = true, groupName = "service-e2e",
+            ).getOrThrow()
+        }
+        useSession(s.alice)
+        val botGroupInvite = runBlocking { ApiService.getGroupInvitations(s.alice.token).getOrThrow() }
+            .first { it.chatId == botGroup.id }
+        runBlocking { ApiService.acceptGroupInvitation(s.alice.token, botGroupInvite.id).getOrThrow() }
+
+        // 建 bot（返回里带 tokenOnce）并拉进这个群。
+        useSession(s.alex)
+        val (createCode, createBody) = postJson(
+            "${ApiConfig.BASE_URL}/api/bots",
+            s.alex.token,
+            """{"name":"E2E bot","username":"e2ebot${UUID.randomUUID().toString().replace("-", "").take(10)}"}""",
+        )
+        assertEquals("建 bot 必须成功，实际 $createCode / $createBody", 200, createCode)
+        val bot = Json.parseToJsonElement(createBody).jsonObject
+        val botId = bot["id"]!!.jsonPrimitive.content
+        val botToken = bot["tokenOnce"]!!.jsonPrimitive.content
+        assertTrue("bot id 必须形如 bot_*，实际 $botId", botId.startsWith("bot_"))
+        assertTrue("必须拿到 bot 凭证", botToken.isNotBlank())
+
+        // 服务端只允许把 bot 拉进**群聊**（实测 400「只能向群聊邀请机器人」），所以走共享群会话。
+        val (inviteCode, inviteBody) = postJson(
+            "${ApiConfig.BASE_URL}/api/chats/${botGroup.id}/bots",
+            s.alex.token,
+            """{"botId":"$botId"}""",
+        )
+        assertEquals("把 bot 拉进会话必须成功，实际 $inviteCode / $inviteBody", 200, inviteCode)
+
+        // 用 **bot token** 触发服务端发布一条 SYSTEM 服务消息。
+        val (hintCode, hintBody) = postJson(
+            "${ApiConfig.BASE_URL}/api/bot/sendSecretNewDeviceRiskHint",
+            botToken,
+            """{"chatId":"${botGroup.id}"}""",
+        )
+        assertEquals("hint 路由必须成功，实际 $hintCode / $hintBody", 200, hintCode)
+        val serviceMessageId = Json.parseToJsonElement(hintBody).jsonObject["messageId"]!!.jsonPrimitive.content
+
+        // ② alice 真拉收件箱：形状与「载荷即明文」。
+        useSession(s.alice)
+        val serviceRows = inboxFor(s, s.alice.token, botGroup.id, serviceMessageId)
+        assertEquals("服务消息必须落到 alice 的收件箱", 1, serviceRows.size)
+        val serviceRow = serviceRows.single()
+        assertEquals("kind 必须是 SERVICE", "SERVICE", serviceRow.kind)
+        assertEquals("密文类型必须是 SERVICE_PLAINTEXT", "SERVICE_PLAINTEXT", serviceRow.ciphertextType)
+        assertEquals("服务消息的设备号必须是 0", 0, serviceRow.senderDeviceId)
+        assertTrue("发送者必须是 bot_*，实际 ${serviceRow.senderUserId}", serviceRow.senderUserId.startsWith("bot_"))
+        assertTrue(
+            "**这条载荷本身就是明文**（服务端可见）——这正是与端到端加密路径的区别，实际=${serviceRow.ciphertext}",
+            serviceRow.ciphertext.contains("NDV:RISK"),
+        )
+
+        // 生产 processor 必须接受并提交它的明文内容。
+        val serviceSink = RecordingSink()
+        val serviceProcessor = SignalMessagingV2EnvelopeProcessor(
+            signalProtocol = s.aliceProtocol,
+            domainSink = serviceSink,
+            groupRevisionProvider = { s.groupEpoch },
+            onSenderKeyMissing = { _, _ -> },
+            inboxDao = null,
+        )
+        runBlocking { serviceProcessor.process(serviceRow.forAlice(s)) }
+        assertEquals("生产 processor 必须提交这条服务消息", 1, serviceSink.commits.size)
+        assertTrue(
+            "提交的内容必须含服务文案，实际=${serviceSink.commits.single().second}",
+            serviceSink.commits.single().second.body.contains("NDV:RISK"),
+        )
+
+        // ③ 人类**不能**注入 SERVICE：普通 token 走 V2 发送路由。
+        useSession(s.alex)
+        val spoofMessageId = "spoof-service-${UUID.randomUUID()}"
+        val spoof = runBlocking {
+            MessagingApiClient.sendMessageV2(
+                s.alex.token,
+                SendMessageRequestV2(
+                    id = spoofMessageId,
+                    conversationId = s.chatId,
+                    kind = "SERVICE",
+                    clientTimestamp = System.currentTimeMillis(),
+                    groupRevision = null,
+                    attachmentIds = emptyList(),
+                    envelopes = listOf(
+                        EncryptedDeviceEnvelopeRequestV2(
+                            recipientUserId = s.alice.userId,
+                            recipientDeviceId = s.aliceDeviceId,
+                            ciphertextType = "SERVICE_PLAINTEXT",
+                            ciphertext = "spoofed",
+                        ),
+                    ),
+                ),
+            )
+        }
+        // 必须**因为 kind 不合法**被拒（`v2 消息参数无效`），而不是因为别的原因（例如设备覆盖不匹配）失败——
+        // 否则这条断言会在「服务端已经允许 SERVICE」时仍然通过，等于没测到那道门。
+        val spoofReason = spoof.exceptionOrNull()?.message.orEmpty()
+        assertTrue(
+            "人类用 kind=SERVICE 发送必须因 kind 不合法被拒，实际=${spoof.getOrNull()} reason=$spoofReason",
+            spoof.isFailure && spoofReason.contains("消息参数无效"),
+        )
+        useSession(s.alice)
+        assertEquals(
+            "被拒的伪装不得在收件箱里留下任何行",
+            0,
+            inboxFor(s, s.alice.token, s.chatId, spoofMessageId).size,
+        )
+
+        // ④ 接收侧是第二道防线：形状合法但来源不对的三种信封都必须不提交。
+        val defensiveSink = RecordingSink()
+        val defensive = SignalMessagingV2EnvelopeProcessor(
+            signalProtocol = s.aliceProtocol,
+            domainSink = defensiveSink,
+            groupRevisionProvider = { s.groupEpoch },
+            onSenderKeyMissing = { _, _ -> },
+            inboxDao = null,
+        )
+        val base = serviceRow.forAlice(s)
+        listOf(
+            "发送者不是 bot/system" to base.copy(senderUserId = s.alex.userId),
+            "设备号不是 0" to base.copy(senderDeviceId = 1),
+            "密文类型不是 SERVICE_PLAINTEXT" to base.copy(ciphertextType = "signal", ciphertext = "AAAA"),
+        ).forEach { (label, entity) ->
+            runBlocking {
+                runCatching { defensive.process(entity.copy(envelopeId = "defense-${UUID.randomUUID()}")) }
+            }
+            assertEquals("$label 时不得提交", 0, defensiveSink.commits.size)
+        }
+
+        // ⑤ 对照：同批次里普通 V2 加密消息的 wire 载荷**不含**原文。
+        val plaintext = "contrast-${UUID.randomUUID()}"
+        sendDirectTo(s, s.chatId, plaintext, "contrast-${UUID.randomUUID()}")
+        useSession(s.alice)
+        val encryptedRows = inboxFor(s, s.alice.token, s.chatId).filter { it.ciphertext.contains(plaintext) }
+        assertEquals("加密路径的 wire 载荷不得含原文", 0, encryptedRows.size)
     }
 }
