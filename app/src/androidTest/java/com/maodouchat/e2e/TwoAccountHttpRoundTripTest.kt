@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.maodouchat.MaodouchatApp
 import com.maodouchat.crypto.PersistentSignalProtocolStore
 import com.maodouchat.crypto.SignalKeyExchange
 import org.signal.libsignal.protocol.ecc.Curve
@@ -15,7 +16,12 @@ import com.maodouchat.messaging.v2.MessagingV2Content
 import com.maodouchat.messaging.v2.MessagingV2Event
 import com.maodouchat.messaging.v2.MessagingV2EventAction
 import com.maodouchat.messaging.v2.MessagingV2DomainSink
+import com.maodouchat.data.repository.LocalMessageStore
+import com.maodouchat.messaging.v2.ApiMessagingV2ConversationSnapshotProvider
+import com.maodouchat.messaging.v2.MessagingV2ArrivalNotifier
 import com.maodouchat.messaging.v2.MessagingV2InboxSynchronizer
+import com.maodouchat.messaging.v2.MessagingV2Outbox
+import com.maodouchat.messaging.v2.MessagingV2TimelineProjector
 import com.maodouchat.messaging.v2.SignalMessagingV2EnvelopePreparer
 import com.maodouchat.messaging.v2.SignalMessagingV2EnvelopeProcessor
 import com.maodouchat.network.ApiConfig
@@ -499,9 +505,12 @@ class TwoAccountHttpRoundTripTest {
         inboxDao = null,
     )
 
-    private fun PendingEnvelopeV2Dto.forDevice(s: Shared, protocol: SignalProtocol) = MessagingV2InboxEntity(
+    private fun PendingEnvelopeV2Dto.forDevice(s: Shared, protocol: SignalProtocol) =
+        forUser(s.alice.userId, protocol)
+
+    private fun PendingEnvelopeV2Dto.forUser(ownerUserId: String, protocol: SignalProtocol) = MessagingV2InboxEntity(
         envelopeId = envelopeId,
-        ownerUserId = s.alice.userId,
+        ownerUserId = ownerUserId,
         deviceId = protocol.context.localDeviceId,
         sequence = sequence,
         messageId = messageId,
@@ -1265,5 +1274,285 @@ class TwoAccountHttpRoundTripTest {
         )
         assertEquals("第 1 条不得被重复提交", 1, sink.bodies.count { it == body1 })
         assertTrue("死信需要跨过多次重试，rounds=$rounds 太少，可能没有真的走重试阶梯", rounds >= 5)
+    }
+
+    /**
+     * **Sender Key repair 闭环**：分发丢失 → 触发修复请求 → 发送方重新分发 → 群消息恢复可解。
+     *
+     * 分层（哪段是生产代码、哪段是测试胶水）：
+     * - **生产**：失败分支的 `onSenderKeyMissing` 回调；用生产 `MessagingV2Outbox.enqueueSenderKeyRequest`
+     *   产出请求；用生产 `ApiMessagingV2ConversationSnapshotProvider` + 生产 preparer 准备并真 POST；
+     *   接收方用生产 processor；**响应侧判定用生产 `MessagingV2TimelineProjector`**。
+     * - **测试胶水**：把 `onSenderKeyRequest` 回调接到「重新分发」这个动作上（生产里接的是
+     *   `SenderKeyRetryManager.redistributeNow`，它需要完整 app runtime）；动作本身仍调用生产的
+     *   `createGroupSenderKeyDistribution` + 真 HTTP 发送。
+     */
+    @Test
+    fun aMissingSenderKeyTriggersARequestAndRedistributionRestoresGroupDecryption() {
+        baseUrl()
+        val s = ensureShared()
+
+        // 新群：alice 在这个群上**从来没有** alex 的 sender key。
+        useSession(s.alex)
+        val group = runBlocking {
+            ConversationApiClient.createChat(
+                s.alex.token, participantIds = listOf(s.alice.userId), isGroup = true, groupName = "repair-e2e",
+            ).getOrThrow()
+        }
+        useSession(s.alice)
+        val invite = runBlocking { ApiService.getGroupInvitations(s.alice.token).getOrThrow() }
+            .first { it.chatId == group.id }
+        runBlocking { ApiService.acceptGroupInvitation(s.alice.token, invite.id).getOrThrow() }
+        useSession(s.alex)
+        val snap = runBlocking { MessagingApiClient.getConversationSnapshotV2(s.alex.token, group.id).getOrThrow() }
+        val epoch = snap.memberRevision
+
+        // A 建好本地分发并加密一条群消息，但**故意不把分发发出去**。
+        s.alexProtocol.createGroupSenderKeyDistribution(group.id, epoch)
+        val failedMessageId = "repair-before-${UUID.randomUUID()}"
+        val beforeContent = json.encodeToString(
+            MessagingV2Content.serializer(),
+            MessagingV2Content(version = 2, type = "TEXT", body = "before-repair"),
+        )
+        val beforeEnvelope = s.alexProtocol.encryptGroupTextEnvelope(group.id, beforeContent, "TEXT", epoch).getOrThrow()
+        send(
+            s, group.id, "DATA", failedMessageId,
+            snap.targets.map { EncryptedDeviceEnvelopeRequestV2(it.userId, it.deviceId, "SENDER_KEY", beforeEnvelope) },
+            epoch,
+        )
+
+        // ① 制造缺失：alice 处理 → NoSession → 触发一次修复回调，且**一行都不提交**。
+        // 回调里用**生产 writer** 把请求写进 outbox —— 这正是生产 `MessagingV2Runtime` 的接线方式，
+        // 也让「没有回调就没有请求」这条链是真实的（否则 P1 反证毫无意义）。
+        val repairDb = freshDatabase()
+        val outbox = MessagingV2Outbox(
+            database = repairDb,
+            dao = repairDb.messagingV2Dao(),
+            ownerUserId = { s.alice.userId },
+            deviceId = { s.aliceDeviceId },
+            wakeTransport = {},
+        )
+        useSession(s.alice)
+        val beforeRows = inboxFor(s, s.alice.token, group.id, failedMessageId)
+        assertEquals("alice 必须收到那条群消息", 1, beforeRows.size)
+        val missing = mutableListOf<Pair<String, Long>>()
+        val enqueued = mutableListOf<String>()
+        val sinkBefore = RecordingSink()
+        val aliceProcessor = SignalMessagingV2EnvelopeProcessor(
+            signalProtocol = s.aliceProtocol,
+            domainSink = sinkBefore,
+            groupRevisionProvider = { epoch },
+            onSenderKeyMissing = { env, e ->
+                missing += env.conversationId to e
+                enqueued += runBlocking {
+                    outbox.enqueueSenderKeyRequest(
+                        conversationId = env.conversationId,
+                        requestedSenderUserId = env.senderUserId,
+                        groupRevision = e,
+                        failedMessageId = env.messageId,
+                    )
+                }
+            },
+            inboxDao = null,
+        )
+        val failure = runCatching {
+            runBlocking { beforeRows.forEach { aliceProcessor.process(it.forAlice(s)) } }
+        }.exceptionOrNull()
+        assertEquals("必须恰好触发一次修复回调（群 + epoch）", listOf(group.id to epoch), missing)
+        assertEquals("拿不到 sender key 时一行都不许提交", 0, sinkBefore.commits.size)
+        assertEquals("messaging_v2_no_session", failure?.message)
+
+        // ② 把回调产出的那条请求，用**生产 preparer** 真 POST 上线。
+        assertEquals("回调必须触发一次请求入队", 1, enqueued.size)
+        val requestRow = runBlocking { repairDb.messagingV2Dao().getOutbox(enqueued.single(), s.alice.userId) }
+            ?: error("生产 writer 必须把请求写进 outbox")
+        assertEquals("KEY_REQUEST", requestRow.kind)
+
+        useSession(s.alice)
+        val alicePreparer = SignalMessagingV2EnvelopePreparer(
+            signalProtocol = s.aliceProtocol,
+            snapshotProvider = ApiMessagingV2ConversationSnapshotProvider { s.alice.userId },
+        )
+        val preparedRequest = runBlocking { alicePreparer.prepare(s.alice.token, requestRow) }
+        assertTrue("请求必须真的被加密成信封", preparedRequest.envelopes.isNotEmpty())
+        assertTrue(
+            "请求的 wire 载荷不得含明文",
+            preparedRequest.envelopes.none { it.ciphertext.contains("SENDER_KEY_REQUEST") },
+        )
+        runBlocking {
+            MessagingApiClient.sendMessageV2(
+                s.alice.token,
+                SendMessageRequestV2(
+                    id = requestRow.messageId,
+                    conversationId = group.id,
+                    kind = requestRow.kind,
+                    clientTimestamp = System.currentTimeMillis(),
+                    groupRevision = preparedRequest.groupRevision,
+                    attachmentIds = emptyList(),
+                    envelopes = preparedRequest.envelopes,
+                ),
+            ).getOrThrow()
+        }
+
+        // ③ 请求落到 A 的收件箱，A 用生产 processor 处理，内容里带正确的 attributes。
+        useSession(s.alex)
+        val requestRows = inboxFor(s, s.alex.token, group.id, requestRow.messageId)
+        assertEquals("请求必须落到发送方的收件箱", 1, requestRows.size)
+        assertEquals("请求的 groupRevision 必须是那个 epoch", epoch, requestRows.single().groupRevision)
+        val alexSink = RecordingSink()
+        val alexProcessor = SignalMessagingV2EnvelopeProcessor(
+            signalProtocol = s.alexProtocol,
+            domainSink = alexSink,
+            groupRevisionProvider = { epoch },
+            onSenderKeyMissing = { _, _ -> },
+            inboxDao = null,
+        )
+        runBlocking { requestRows.forEach { alexProcessor.process(it.forUser(s.alex.userId, s.alexProtocol)) } }
+        assertEquals("KEY_REQUEST 必须被内容策略接受并提交", 1, alexSink.commits.size)
+        val (requestEnvelope, requestContent) = alexSink.commits.single()
+        assertEquals("SENDER_KEY_REQUEST", requestContent.type)
+        // 两个 attribute 键的权威值来自生产常量 `requestedSenderUserId` / `failedMessageId`
+        // （companion 是 private，测试取不到，只能写字面量）。真正的守卫是下一步：如果键写错了，
+        // 生产 TimelineProjector 的判定不会触发 → 「必须触发一次重新分发」断言就会红。
+        assertEquals(
+            "requestedSender 必须是发送方自己",
+            s.alex.userId,
+            requestContent.attributes["requestedSenderUserId"],
+        )
+        assertEquals(
+            "failedMessageId 必须是那条失败消息",
+            failedMessageId,
+            requestContent.attributes["failedMessageId"],
+        )
+
+        // ④ 响应侧：用**生产 TimelineProjector** 判定，并只在判定通过时**真重新分发**。
+        val app = ApplicationProvider.getApplicationContext<MaodouchatApp>()
+        var redistributed = 0
+        val onSenderKeyRequest: suspend (String, Long, String) -> Unit = { conversationId, requestedEpoch, requesterUserId ->
+            assertEquals("触发重新分发的会话必须是那个群", group.id, conversationId)
+            assertEquals("epoch 必须是请求里的那个", epoch, requestedEpoch)
+            assertEquals("请求者必须是 alice", s.alice.userId, requesterUserId)
+            redistributed++
+            // 真重新分发：生产 API 建分发 + 真 HTTP 发送（SENDER_KEY 走群控多接收者加密）。
+            useSession(s.alex)
+            val distribution = s.alexProtocol.createGroupSenderKeyDistribution(group.id, requestedEpoch)
+            val distributionJson = s.alexProtocol.envelopeCodec.buildSenderKeyDistributionEnvelope(
+                groupId = group.id,
+                distributionId = distribution.distributionId,
+                message = distribution.message,
+                epoch = requestedEpoch,
+                senderDeviceId = s.alexProtocol.context.localDeviceId,
+            )
+            val targetUserIds = snap.targets.map { it.userId }.distinct()
+            val encrypted = s.alexProtocol.encryptMultiRecipientContentEnvelopeWithTargets(
+                token = s.alex.token,
+                recipientIds = targetUserIds,
+                plaintext = distributionJson,
+                payloadType = "SENDER_KEY",
+                includeCurrentUserDevices = true,
+                requiredRecipientIds = targetUserIds.filterNot { it == s.alex.userId }.toSet(),
+            ).getOrThrow()
+            // 只需要生产函数做线上类型归一化；密文已经由上面的生产多接收者加密产出。
+            val preparer = SignalMessagingV2EnvelopePreparer(
+                signalProtocol = s.alexProtocol,
+                snapshotProvider = ApiMessagingV2ConversationSnapshotProvider { s.alex.userId },
+            )
+            runBlocking {
+                MessagingApiClient.sendMessageV2(
+                    s.alex.token,
+                    SendMessageRequestV2(
+                        id = "skd_${UUID.randomUUID()}",
+                        conversationId = group.id,
+                        kind = "SENDER_KEY",
+                        clientTimestamp = System.currentTimeMillis(),
+                        groupRevision = requestedEpoch,
+                        attachmentIds = emptyList(),
+                        envelopes = encrypted.ciphertexts.map {
+                            EncryptedDeviceEnvelopeRequestV2(
+                                it.userId, it.deviceId,
+                                preparer.wireCiphertextType(it.ciphertextType), it.ciphertext,
+                            )
+                        },
+                    ),
+                ).getOrThrow()
+            }
+        }
+        val projector = MessagingV2TimelineProjector(
+            app = app,
+            messageStore = LocalMessageStore(repairDb.messageDao(), repairDb),
+            ownerUserId = { s.alex.userId },
+            notifier = MessagingV2ArrivalNotifier(app, { s.alex.userId }),
+            sendDeliveryReceipt = {},
+            onSenderKeyRequest = onSenderKeyRequest,
+        )
+        runBlocking { projector.project(requestEnvelope, requestContent) }
+        assertEquals("生产判定必须触发一次重新分发", 1, redistributed)
+
+        // ⑤（负面）生产判定必须**只在** `requestedSender == 自己` 且请求者不是自己时才触发。
+        runBlocking {
+            projector.project(
+                requestEnvelope,
+                requestContent.copy(
+                    attributes = requestContent.attributes + ("requestedSenderUserId" to s.alice.userId),
+                ),
+            )
+        }
+        assertEquals("requestedSender 不是自己时不得触发重新分发", 1, redistributed)
+        runBlocking {
+            projector.project(
+                requestEnvelope.copy(senderUserId = s.alex.userId),
+                requestContent,
+            )
+        }
+        assertEquals("自己发给自己的请求不得触发重新分发", 1, redistributed)
+        runBlocking {
+            projector.project(
+                requestEnvelope.copy(groupRevision = 0L),
+                requestContent,
+            )
+        }
+        assertEquals("epoch 为 0 的请求不得触发重新分发", 1, redistributed)
+
+        // ⑤ 恢复：alice 安装新分发后，随后一条群消息必须解出原文并提交。
+        val afterMessageId = "repair-after-${UUID.randomUUID()}"
+        val afterPlaintext = "after-repair-${UUID.randomUUID()}"
+        useSession(s.alex)
+        val afterEnvelope = s.alexProtocol.encryptGroupTextEnvelope(
+            group.id,
+            json.encodeToString(
+                MessagingV2Content.serializer(),
+                MessagingV2Content(version = 2, type = "TEXT", body = afterPlaintext),
+            ),
+            "TEXT",
+            epoch,
+        ).getOrThrow()
+        send(
+            s, group.id, "DATA", afterMessageId,
+            snap.targets.map { EncryptedDeviceEnvelopeRequestV2(it.userId, it.deviceId, "SENDER_KEY", afterEnvelope) },
+            epoch,
+        )
+        useSession(s.alice)
+        val distributionRows = inboxFor(s, s.alice.token, group.id).filter { it.kind == "SENDER_KEY" }
+        assertTrue("alice 必须收到重新分发的信封", distributionRows.isNotEmpty())
+        val afterRows = inboxFor(s, s.alice.token, group.id, afterMessageId)
+        assertEquals(1, afterRows.size)
+        val sinkAfter = RecordingSink()
+        val recoveringProcessor = SignalMessagingV2EnvelopeProcessor(
+            signalProtocol = s.aliceProtocol,
+            domainSink = sinkAfter,
+            groupRevisionProvider = { epoch },
+            onSenderKeyMissing = { _, _ -> },
+            inboxDao = null,
+        )
+        runBlocking {
+            (distributionRows + afterRows).sortedBy { it.sequence }.forEach {
+                recoveringProcessor.process(it.forAlice(s))
+            }
+        }
+        assertEquals(
+            "重新分发之后，群消息必须恢复可解（闭环成立的判据），实际提交=${sinkAfter.bodies}",
+            listOf(afterPlaintext),
+            sinkAfter.bodies,
+        )
     }
 }
