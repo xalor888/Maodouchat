@@ -16,6 +16,7 @@ import com.maodouchat.messaging.v2.MessagingV2Content
 import com.maodouchat.messaging.v2.MessagingV2Event
 import com.maodouchat.messaging.v2.MessagingV2EventAction
 import com.maodouchat.messaging.v2.MessagingV2DomainSink
+import com.maodouchat.data.local.entity.ChatEntity
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.util.AttachmentCryptoException
 import com.maodouchat.util.AttachmentCryptoFailure
@@ -1930,6 +1931,7 @@ class TwoAccountHttpRoundTripTest {
         contentJson: String,
         messageId: String,
         wireAttachmentIds: List<String> = emptyList(),
+        kind: String = "DATA",
     ) {
         useSession(s.alex)
         val snapshot = runBlocking {
@@ -1956,7 +1958,7 @@ class TwoAccountHttpRoundTripTest {
                 SendMessageRequestV2(
                     id = messageId,
                     conversationId = conversationId,
-                    kind = "DATA",
+                    kind = kind,
                     clientTimestamp = System.currentTimeMillis(),
                     groupRevision = snapshot.memberRevision,
                     attachmentIds = wireAttachmentIds,
@@ -2185,5 +2187,154 @@ class TwoAccountHttpRoundTripTest {
         // 收尾：清掉这个未提交的会话，避免留下垃圾。
         useSession(s.alex)
         runBlocking { MediaApiClient.deleteUncommittedAttachment(s.alex.token, attachmentId) }
+    }
+
+    /**
+     * **删除/撤回是终态数据库事实，延迟 DATA 不得复活**（DIRECTION 不变量里仍是 `[~]` 的一条）。
+     *
+     * 这里把生产 `MessagingV2TimelineProjector` 接到**真实 app 数据库**上当作 domain sink，
+     * 于是「投影」这一步也是生产代码 + 真实落库，而不是我的假 sink。
+     */
+    @Test
+    fun aDeletedMessageStaysTerminalAndIsNotResurrectedByALateData() {
+        baseUrl()
+        val s = ensureShared()
+        drainInbox(s)
+
+        val app = ApplicationProvider.getApplicationContext<MaodouchatApp>()
+        // 真实库是文件库、跨用例共享：生产投影会把消息写进去，而写消息有 chat 外键。
+        // 真机上会话本来就存在，测试里必须自己补这一行本地会话（唯一的测试侧夹具，说明在此）。
+        runBlocking {
+            app.database.chatDao().insertChats(
+                listOf(
+                    ChatEntity(
+                        id = s.chatId,
+                        isGroup = false,
+                        chatType = "DIRECT",
+                        participantIds = "${s.alex.userId},${s.alice.userId}",
+                    ),
+                ),
+            )
+        }
+        val messageId = "terminal-${UUID.randomUUID()}"
+        val body = "terminal-body-${UUID.randomUUID()}"
+
+        // 生产投影器 + 真实库；sink 直接委托给它（这就是生产接线）。
+        val store = LocalMessageStore(app.database.messageDao(), app.database)
+        val projector = MessagingV2TimelineProjector(
+            app = app,
+            messageStore = store,
+            ownerUserId = { s.alice.userId },
+            notifier = MessagingV2ArrivalNotifier(app, { s.alice.userId }),
+            sendDeliveryReceipt = {},
+        )
+        val sink = object : MessagingV2DomainSink {
+            val bodies = mutableListOf<String>()
+            override suspend fun commit(envelope: MessagingV2InboxEntity, content: MessagingV2Content) {
+                bodies += content.body
+                projector.project(envelope, content)
+            }
+        }
+        val processor = SignalMessagingV2EnvelopeProcessor(
+            signalProtocol = s.aliceProtocol,
+            domainSink = sink,
+            groupRevisionProvider = { s.groupEpoch },
+            onSenderKeyMissing = { _, _ -> },
+            inboxDao = null,
+        )
+
+        // ① 基线：真发 + 真投影。
+        sendDirectTo(s, s.chatId, body, messageId)
+        useSession(s.alice)
+        val baseRows = inboxFor(s, s.alice.token, s.chatId, messageId)
+        assertTrue("基线消息必须送达", baseRows.isNotEmpty())
+        runBlocking { baseRows.forEach { processor.process(it.forAlice(s)) } }
+        assertEquals("基线必须提交一次", 1, sink.bodies.size)
+        assertTrue(
+            "基线消息必须落到真实库（否则后续断言无意义）",
+            runBlocking { app.database.messageDao().getMessageById(messageId) } != null,
+        )
+
+        // ② 终态事实：DELETE 事件 → 墓碑必须真的落库。
+        val deleteContent = json.encodeToString(
+            MessagingV2Content.serializer(),
+            MessagingV2Content(
+                version = 1,
+                type = "EVENT",
+                event = MessagingV2Event(action = MessagingV2EventAction.DELETE, targetMessageId = messageId),
+            ),
+        )
+        // DELETE 事件必须用 `kind=EVENT` 发送；用 DATA 时内容策略会把保留类型 EVENT 拒掉（G24 已钉过这一点）。
+        sendContent(s, s.chatId, deleteContent, "terminal-del-${UUID.randomUUID()}", kind = "EVENT")
+        useSession(s.alice)
+        val deleteRows = inboxFor(s, s.alice.token, s.chatId).filter { it.kind == "EVENT" }
+        assertTrue("DELETE 事件必须送达", deleteRows.isNotEmpty())
+        runBlocking { deleteRows.forEach { processor.process(it.forAlice(s)) } }
+        assertTrue(
+            "DELETE 之后必须出现终态墓碑",
+            runBlocking { app.database.messagingV2Dao().isMessageTerminal(s.alice.userId, messageId) },
+        )
+
+        // ③ 延迟 DATA 不得复活：同 messageId 的消息**再走一次真实投影**。
+        //    服务端是否允许同 id 二次发送先测出来（预期被拒），无论哪条路径，
+        //    「墓碑仍在 + 库里没有复活的消息」都必须成立。
+        val duplicateSend = runBlocking {
+            runCatching {
+                sendDirectTo(s, s.chatId, "late-$body", messageId)
+            }
+        }
+        val serverRejectedDuplicate = duplicateSend.isFailure
+        // 把服务端的行为**记录**出来（不靠失败信息猜）：它决定了 HTTP 这条路能不能到达客户端墓碑。
+        println("[G32] serverRejectedDuplicateId=$serverRejectedDuplicate err=${duplicateSend.exceptionOrNull()?.message}")
+        if (!serverRejectedDuplicate) {
+            // 服务端允许了同 id 的延迟发送 → 那它必须真的投递出来，否则「是谁在拦」就说不清。
+            useSession(s.alice)
+            val lateRows = inboxFor(s, s.alice.token, s.chatId, messageId)
+            assertTrue(
+                "服务端接受了同 messageId 的延迟发送，收件箱就必须真的多出同 id 的信封——" +
+                    "这条断言决定结论是「客户端墓碑在拦」而不是「服务端唯一性在拦」",
+                lateRows.isNotEmpty(),
+            )
+            runBlocking { lateRows.forEach { processor.process(it.forAlice(s)) } }
+        }
+        assertTrue(
+            "延迟 DATA 之后墓碑必须仍在（服务端是否拦下同 id：$serverRejectedDuplicate）",
+            runBlocking { app.database.messagingV2Dao().isMessageTerminal(s.alice.userId, messageId) },
+        )
+        val afterLate = runBlocking { app.database.messageDao().getMessageById(messageId) }
+        assertTrue(
+            "延迟 DATA 不得把已删除的消息复活（真实库里必须仍不存在该消息），实际=$afterLate " +
+                "（服务端拦下同 id=$serverRejectedDuplicate）",
+            afterLate == null,
+        )
+
+        // **不依赖服务端行为**地验证客户端那一层：直接用生产投影器再投一次同 id 的 DATA。
+        // 生产投影在事务里查 `isMessageTerminal` 才决定插不插（TimelineProjector 里那处判断），
+        // 所以这一步真的在测墓碑守卫本身。
+        val lateEnvelope = baseRows.first().forAlice(s).copy(envelopeId = "late-${UUID.randomUUID()}")
+        runBlocking {
+            projector.project(
+                lateEnvelope,
+                MessagingV2Content(version = 2, type = "TEXT", body = "late-direct-$body"),
+            )
+        }
+        assertTrue(
+            "直接走生产投影器也不能复活（墓碑守卫必须独立生效），实际=" +
+                "${runBlocking { app.database.messageDao().getMessageById(messageId) }}",
+            runBlocking { app.database.messageDao().getMessageById(messageId) } == null,
+        )
+
+        // ④ 附件路径也不得复活：用已被占用的 messageId 建上传会话，服务端必须拒绝。
+        useSession(s.alex)
+        val (attachCode, attachBody) = postJson(
+            "${ApiConfig.BASE_URL}/api/attachment-uploads",
+            s.alex.token,
+            """{"chatId":"${s.chatId}","messageId":"$messageId","cipherSha256":"${"a".repeat(64)}","cipherSize":4096}""",
+        )
+        assertEquals(
+            "已使用的 messageId 不得再被附件占用（预期 Conflict），实际 $attachCode / $attachBody",
+            409,
+            attachCode,
+        )
     }
 }

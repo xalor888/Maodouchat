@@ -43,6 +43,15 @@
 - [~] 群 Sender Key 分发和缺钥修复通过持久化加密邮箱，不要求成员同时在线。
 - [~] 群成员 revision 改变后，旧的预制群密文必须失效并重新准备。
 - [~] 删除和撤回是终态数据库事实；延迟 DATA、附件 finalize、定时任务不得复活消息。
+  - **G32 实测（真 HTTP + 真实 app 库）**：`aDeletedMessageStaysTerminalAndIsNotResurrectedByALateData`。
+    分层结论（**逐层钉住，不合并成一句**）：
+    - **客户端墓碑**是拦住「延迟 DATA」的那一层：DELETE 之后 `message_mutation_tombstones` 实测出现该 id，
+      `isMessageTerminal == true`；而**服务端并不按 messageId 去重**——实测同 id 的延迟发送被**接受**并
+      **真的再投递了一条同 messageId 的信封**，是生产投影器事务里的 `isMessageTerminal` 判断阻止了插入
+      （反证：去掉该判断，真实库里立刻**复活**出 `MessageEntity(id=…)`）。
+    - **附件 finalize** 由**服务端**拦住：用已使用的 messageId 建上传会话实测返回 **409 Conflict**
+      （反证：去掉 `UploadSessionService` 的两处占用检查后变成 **201**，会话被建出来）。
+    - **定时任务**这一支**仍无证据**（未覆盖），故本条整体仍为 `[~]`。
 - [~] WebSocket 只承载唤醒、presence、typing 和通话信令，不得重新承载人类消息正文。
 - [~] 服务端不得保存或检索人类聊天明文；Bot/service message 使用独立存储语义。
 
@@ -3158,3 +3167,54 @@ service 明文与注入边界 / 附件加解密与分块——其中**分块现�
 **邮箱分页契约与 ack 推进** / **附件守卫（本地 sha、服务端单块上限）**。
 **仍未覆盖**：**同步器自身的多页循环**（`PULL_LIMIT = 200` 是常量，要 200+ 条真实发送才能触发）、
 真·断网与网络抖动、附件 100 MiB 上界、日志/导出/备份、生产 PostgreSQL。故 M5 仍不能标 `[x]`。
+
+### G32 — 删除/撤回的终态性：延迟 DATA 不得复活（DIRECTION 不变量的一条）
+
+这是 DIRECTION 不变量清单里仍为 `[~]` 的一条：「删除和撤回是终态数据库事实；延迟 DATA、附件 finalize、
+定时任务不得复活消息」。本轮**不补新领域**，而是把这一条**逐层钉住**——关键收获是
+**「是谁在拦」与我最初的预期相反**。
+
+**新增 1 例（该类共 17 例，全部真实 HTTP）**：`aDeletedMessageStaysTerminalAndIsNotResurrectedByALateData`
+
+做法：把**生产 `MessagingV2TimelineProjector` 接到真实 app 数据库**上当 domain sink，
+于是「投影」这一步是真代码 + 真落库（不是我的假 sink）；唯一测试侧夹具是补一行本地 chat
+（真机上本来就存在，写消息有 chat 外键——第一次跑就是被 `FOREIGN KEY constraint failed` 教会的）。
+
+| 步 | 断言 | 实测结论 |
+|----|------|----------|
+| ① 基线 | 真发 → 真投影 → 真实库里有该消息 | 通过 |
+| ② 终态事实 | EVENT DELETE（`kind=EVENT`）→ 墓碑落库 + `isMessageTerminal == true` | 通过 |
+| ③ 延迟 DATA | 同 messageId 再发 → 服务端**接受**并**真的再投递一条同 id 信封** → 生产投影**不插入**；真实库里仍不存在该消息 | 通过 |
+| ④ 客户端那一层独立验证 | **直接**用生产投影器再投一次同 id DATA → 仍不插入 | 通过 |
+| ⑤ 附件不得复活 | 用已使用的 messageId 建上传会话 | **409 Conflict** |
+
+**分层结论（重点，与我最初的猜测相反）**
+
+- **拦住「延迟 DATA」的是客户端墓碑，不是服务端唯一性**：服务端**不按 messageId 去重**——它接受了同 id 的
+  第二次发送，并真的把第二条同 messageId 的信封投递给了收件人。真正阻止复活的是生产投影器事务里的
+  `isMessageTerminal(owner, projected.id)`（`MessagingV2TimelineProjector` 那一处判断）。
+  所以这条不变量在**客户端**是**承重**的，不是「服务端反正会拦」。
+- **拦住「附件 finalize」的是服务端**：`UploadSessionService` 的两处 messageId 占用检查 → **409 Conflict**。
+
+**四处反证（探针全部回滚）**
+
+| 探针 | 结果（首行） |
+|------|--------------|
+| P1 去掉投影器的墓碑判断 | **真的复活了**：`直接走生产投影器也不能复活…实际=MessageEntity(id=terminal-479ce2b8-…)` |
+| P2 墓碑不再落库 | `DELETE 之后必须出现终态墓碑` |
+| P3 DAO 的 `isMessageTerminal` 恒假 | `DELETE 之后必须出现终态墓碑` |
+| P4 服务端不再检查附件 messageId 占用（两处） | `已使用的 messageId 不得再被附件占用（预期 Conflict），实际 201 / {"id":"att_9ae23bce…"}` |
+
+> P1 是这轮最有说服力的一个：它**不是**让某条断言变红，而是让「已删除的消息**真的回到时间线**」——
+> 这正是这条不变量要防的事故本身。
+
+**验证（实测数字）**
+
+- 本机 harness：`tests=17 failures=0 errors=0 skipped=0`（服务端启动 1 次、登录 4 次，无 401 风暴）；
+- 本机默认 instrumented：`tests=68 failures=0 errors=0 skipped=17`；app JVM **1530 / 0**；
+  `app/src/main` / `server/src/main` **diff 为空**（本轮不需要改产品代码）；
+- 台账里那条不变量的依据已按「客户端墓碑 / 服务端附件占用 / 定时任务未覆盖」三层分别写明。
+
+**M5 状态**：真 HTTP 层覆盖范围在 G31 基础上不变（新增的是**终态性**这条不变量，不是新的传输分支）。
+**仍未覆盖**：**定时任务**是否会把已删除消息带回来、同步器自身多页循环（`PULL_LIMIT = 200` 常量）、
+真·断网与网络抖动、附件 100 MiB 上界、日志/导出/备份、生产 PostgreSQL。故 M5 与那条不变量都仍不能标 `[x]`。
