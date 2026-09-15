@@ -21,7 +21,9 @@ import androidx.work.ListenableWorker
 import androidx.work.testing.TestListenableWorkerBuilder
 import androidx.work.workDataOf
 import com.maodouchat.data.local.entity.ChatEntity
+import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
+import com.maodouchat.util.ChatExport
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
 import com.maodouchat.data.local.entity.ScheduledMessageEntity
@@ -2826,5 +2828,97 @@ class TwoAccountHttpRoundTripTest {
             emptyList<String>(),
             prefLeaks,
         )
+    }
+
+    /**
+     * **导出功能的明文落点**：`ChatExport` 把明文写进 `cacheDir/exports/`。
+     *
+     * 本轮的关键价值在第③步：用**真实产品路径**去喂 G35 那套扫描，证明那套扫描**能抓到真实的明文泄漏**，
+     * 而不是只抓到我上一轮自己塞的探针文件。同时把「导出会把明文留在私有 cache」如实记下来。
+     */
+    @Test
+    fun chatExportWritesPlaintextIntoCacheAndTheSweepCatchesIt() {
+        baseUrl()
+        val s = ensureShared()
+        val ctx = ApplicationProvider.getApplicationContext<MaodouchatApp>()
+        val unique = UUID.randomUUID().toString().take(8)
+        val exportDir = File(ctx.cacheDir, "exports")
+        val marker = "export-plaintext-marker-$unique"
+        val fileName = "export-probe-$unique"
+
+        // ① 控制组：生产导出必须成功、落在 cacheDir/exports 下、内容是**明文**（用户主动导出，属设计语义）。
+        val exported = ChatExport.write(ctx, fileName, "=== title ===\n$marker\n")
+        assertTrue("导出必须返回文件（失败会返回 null）", exported != null)
+        assertEquals(
+            "导出必须落在 cacheDir/exports 下",
+            exportDir.absolutePath,
+            exported!!.parentFile?.absolutePath,
+        )
+        assertTrue(
+            "导出内容必须是明文且含标记（这是用户主动要的导出，不是泄漏判定）",
+            exported.readText().contains(marker),
+        )
+
+        // ② 落点实测：导出返回之后文件**仍然存在**（明文留在应用私有 cache，没有被清理）。
+        assertTrue(
+            "实测结论：导出文件在返回后仍然存在（明文留在 cacheDir/exports，未被清理）",
+            exported.exists(),
+        )
+
+        // ③ **交叉验证**：G35 的扫描逻辑必须能抓到这条真实产品路径留下的明文。
+        val scanned = listOf(ctx.filesDir, ctx.cacheDir, File(ctx.dataDir, "shared_prefs"))
+            .filter { it.exists() }
+            .flatMap { root -> root.walkTopDown().filter { it.isFile }.toList() }
+        val hits = scanned.filter { it.containsPlaintext(marker) }.map { it.absolutePath }
+        assertTrue(
+            "G35 的扫描必须能抓到真实导出留下的明文（命中=$hits，扫了 ${scanned.size} 个文件）——" +
+                "否则那套扫描只是抓到了我自己的探针文件",
+            hits.contains(exported.absolutePath),
+        )
+
+        // ④ tmp 清理，两个方向都测。
+        val messages = (1..6).map {
+            Message(id = "m$it", chatId = s.chatId, senderId = s.alex.userId, content = "line-$it-$unique")
+        }
+        val okName = "export-ok-$unique"
+        val ok = ChatExport.writeStream(
+            context = ctx,
+            fileName = okName,
+            chatName = "会话",
+            ownerId = s.alice.userId,
+            messages = messages.asSequence(),
+            resolveSenderName = { it },
+            isCancelled = { false },
+        )
+        assertEquals("成功导出必须返回 $okName.txt", "$okName.txt", ok?.name)
+        assertTrue(
+            "成功之后不得留下 .tmp，实际=${exportDir.listFiles().orEmpty().map { it.name }}",
+            exportDir.listFiles().orEmpty().none { it.name == "$okName.tmp" },
+        )
+
+        val cancelName = "export-cancel-$unique"
+        var checks = 0
+        val cancelled = ChatExport.writeStream(
+            context = ctx,
+            fileName = cancelName,
+            chatName = "会话",
+            ownerId = s.alice.userId,
+            messages = messages.asSequence(),
+            resolveSenderName = { it },
+            isCancelled = { checks++ >= 2 },
+        )
+        assertTrue("取消必须返回 null，实际=$cancelled", cancelled == null)
+        assertTrue(
+            "取消之后不得留下 .tmp，实际=${exportDir.listFiles().orEmpty().map { it.name }}",
+            exportDir.listFiles().orEmpty().none { it.name == "$cancelName.tmp" },
+        )
+        assertTrue(
+            "取消之后不得留下输出文件，实际=${File(exportDir, "$cancelName.txt").exists()}",
+            !File(exportDir, "$cancelName.txt").exists(),
+        )
+
+        // 清理自己产生的东西：cache 目录会累积，不清理会污染后续用例的扫描。
+        exported.delete()
+        ok?.delete()
     }
 }
