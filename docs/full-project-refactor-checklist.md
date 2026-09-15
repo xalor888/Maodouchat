@@ -51,7 +51,18 @@
       （反证：去掉该判断，真实库里立刻**复活**出 `MessageEntity(id=…)`）。
     - **附件 finalize** 由**服务端**拦住：用已使用的 messageId 建上传会话实测返回 **409 Conflict**
       （反证：去掉 `UploadSessionService` 的两处占用检查后变成 **201**，会话被建出来）。
-    - **定时任务**这一支**仍无证据**（未覆盖），故本条整体仍为 `[~]`。
+    - **定时任务**（G33 实测，驱动**生产 `ScheduledMessageWorker`** + 真实 app 库）：
+      `aScheduledSendForATombstonedMessageIsAbandonedNotRevived`。链路是
+      `ScheduledMessageWorker` → `ConversationScheduledMessageDispatcher` → `ConversationCommandFacade`
+      → `MessagingV2MessageGateway`；定时消息的 id 是**确定性**的 `sm_<scheduleId>`，所以墓碑能精确命中。
+      实测：无墓碑时确实进发件箱（对照）；有墓碑时**拒绝**——发件箱无该 id、真实库无该消息、
+      收件人在**服务端**也收不到该 messageId；并且 scheduler 行被 **abandon（删除）**、worker 返回 success，
+      **不会**留下永远重试的僵尸行。
+      （顺带记录：M09 的 Gate 写「tombstone 测试通过」，但仓库里只有 `MessageMutationGateTest` /
+      `ConversationCommandFacadeTest`，**没有针对定时路径的墓碑用例**——那句话覆盖的是通用变更门，
+      缺的正是本轮补上的这条定时链路证据。）
+  - **三层现在都有证据**；但「撤回（REVOKE）」与「定时任务的重排分支（`repeatIntervalMs > 0` 重排后再次被拒）」
+    未单独覆盖，故本条仍保持 `[~]`。
 - [~] WebSocket 只承载唤醒、presence、typing 和通话信令，不得重新承载人类消息正文。
 - [~] 服务端不得保存或检索人类聊天明文；Bot/service message 使用独立存储语义。
 
@@ -3218,3 +3229,51 @@ service 明文与注入边界 / 附件加解密与分块——其中**分块现�
 **M5 状态**：真 HTTP 层覆盖范围在 G31 基础上不变（新增的是**终态性**这条不变量，不是新的传输分支）。
 **仍未覆盖**：**定时任务**是否会把已删除消息带回来、同步器自身多页循环（`PULL_LIMIT = 200` 常量）、
 真·断网与网络抖动、附件 100 MiB 上界、日志/导出/备份、生产 PostgreSQL。故 M5 与那条不变量都仍不能标 `[x]`。
+
+### G33 — 定时发送路径的终态守卫（那条不变量的最后一支）
+
+G32 把「延迟 DATA / 附件 finalize」两支钉住了，剩下的**「定时任务不得复活已删除消息」**本轮补上。
+
+**新增 1 例（该类共 18 例）**：`aScheduledSendForATombstonedMessageIsAbandonedNotRevived`
+——驱动的是**生产 `ScheduledMessageWorker`**（`TestListenableWorkerBuilder`，为此加了**仅测试**依赖
+`androidx.work:work-testing:2.9.1`）+ **真实 app 数据库**。
+
+| 断言 | 实测 |
+|------|------|
+| ① **对照**：无墓碑的定时消息必须真的被暂存 | 通过（发件箱出现确定性 id `sm_<scheduleId>`，证明链路被驱动、不是空跑） |
+| ② 有墓碑时必须**拒绝** | 通过（`TerminalTombstone` → `Rejected(TERMINAL_MESSAGE)`，发件箱**无**该 id） |
+| ③ 无副作用 | 通过（真实库无该消息；**服务端收件箱**也查不到该 messageId） |
+| ④ **活性**：scheduler 行的去向 | 被 **abandon（删除）**，worker 返回 `success` —— **不会**变成永远重试的僵尸行 |
+
+**四处反证（探针全部回滚）**
+
+| 探针 | 结果（首行） |
+|------|--------------|
+| P1 去掉 gateway 的 `isMessageTerminal` 检查（stage/retry 两处） | `墓碑之后：定时消息**不得**进入发件箱` |
+| P2 墓碑不再落库 | 同上 |
+| P3 DAO 的 `isMessageTerminal` 恒假 | 同上 |
+| P4 定时消息的 id 不再确定性 | `对照：定时消息必须真的进入发件箱（确定性 id sm_…）` |
+
+**顺带修掉我自己的一处测试卫生问题（探针替我发现的）**
+
+P1–P4 的第一轮里，**附件用例**每次都额外变红：`极小附件应当被接受…实际=null`。原因不是探针，
+而是那个用例**依赖「上一个用例恰好留下了谁的会话」**——而**新增用例改变了 JUnit 的方法顺序**，
+于是「上一个是 alex」不再成立，`session_changed`。已在用例开头**显式** `useSession(s.alex)`，
+修完后探针运行干净（只有目标用例红）。
+
+> 这条值得记住：**加一个用例会改变其他用例的执行顺序**，任何隐式的跨用例状态依赖都会在那一刻暴露。
+
+**验证（实测数字）**
+
+- 本机 harness：`tests=18 failures=0 errors=0 skipped=0`（服务端启动 1 次、登录 4 次）；
+- 本机默认 instrumented：`tests=69 failures=0 errors=0 skipped=18`；app JVM **1530 / 0**；
+  `app/src/main` / `server/src/main` **diff 为空**（本轮不需要改产品代码；`app/build.gradle.kts` 只加了**测试**依赖）；
+- CI：run **[35008321158](https://github.com/xalor888/Maodouchat/actions/runs/35008321158)**
+  （headSha `f77c6fb8`）→ **success，四 job 全绿**；两个工件逐用例核对：
+  `two-device-http-e2e` → **`tests=18 failures=0 errors=0 skipped=0`**（含新用例名）；
+  `android-instrumented-reports` → **`tests=69 failures=0 errors=0 skipped=18`**；
+  CI 服务端日志 `starts=1 logins=4`。
+
+**M5 状态**：覆盖与 G32 相同（本轮补的是**不变量的一支**，不是新传输分支）。
+**仍未覆盖**：**撤回（REVOKE）**与定时任务的**重排分支**、同步器自身多页循环（`PULL_LIMIT = 200` 常量）、
+真·断网与网络抖动、附件 100 MiB 上界、日志/导出/备份、生产 PostgreSQL。
