@@ -20,6 +20,7 @@ import androidx.work.ListenableWorker
 import androidx.work.testing.TestListenableWorkerBuilder
 import androidx.work.workDataOf
 import com.maodouchat.data.local.entity.ChatEntity
+import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
 import com.maodouchat.data.local.entity.ScheduledMessageEntity
@@ -162,6 +163,15 @@ class TwoAccountHttpRoundTripTest {
             "需要真服务端：请用 scripts/two-device-http-e2e.sh 运行（会注入 e2eHttp=1 与服务端地址）",
             enabled == "1",
         )
+        // 真实 app 库是**文件库**，跨用例、也**跨运行**累积。本类把它当「真机本地库」用（G32–G34 会往里写
+        // 会话/墓碑/定时行），不清理的话后续运行会被前一次的残留搞脏——G34 的探针运行实测撞到过
+        // `第二台设备的 bootstrap 失败`。每个用例前清一次本地会话（FK 级联同时清掉消息与墓碑）。
+        runCatching {
+            kotlinx.coroutines.runBlocking {
+                ApplicationProvider.getApplicationContext<MaodouchatApp>()
+                    .database.chatDao().deleteAllChats()
+            }
+        }
     }
 
     private fun baseUrl(): String {
@@ -2468,6 +2478,228 @@ class TwoAccountHttpRoundTripTest {
         assertTrue(
             "对照：stage 成功后 schedule 行也应被移除",
             runBlocking { dao.getById(okScheduleId, s.alice.userId) } == null,
+        )
+    }
+
+    /** 直接从真实库读墓碑的 kind（生产 DAO 没有暴露 kind 的读接口，用原始查询避免为测试改产品代码）。 */
+    private fun tombstoneKind(app: MaodouchatApp, ownerUserId: String, messageId: String): String? =
+        app.database.openHelper.readableDatabase.query(
+            "SELECT kind FROM message_mutation_tombstones WHERE ownerUserId = ? AND messageId = ?",
+            arrayOf(ownerUserId, messageId),
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+
+    /**
+     * **撤回（REVOKE）的终态性**：与 DELETE 不同——行**保留**但被标记为 `REVOKED`，
+     * 且撤回之后**不得被 EDIT 改回原文本**。
+     */
+    @Test
+    fun aRevokedMessageStaysRevokedAndCannotBeEditedBack() {
+        baseUrl()
+        val s = ensureShared()
+        val app = ApplicationProvider.getApplicationContext<MaodouchatApp>()
+        runBlocking {
+            app.database.chatDao().insertChats(
+                listOf(
+                    ChatEntity(
+                        id = s.chatId,
+                        isGroup = false,
+                        chatType = "DIRECT",
+                        participantIds = "${s.alex.userId},${s.alice.userId}",
+                    ),
+                ),
+            )
+        }
+
+        val projector = MessagingV2TimelineProjector(
+            app = app,
+            messageStore = LocalMessageStore(app.database.messageDao(), app.database),
+            ownerUserId = { s.alice.userId },
+            notifier = MessagingV2ArrivalNotifier(app, { s.alice.userId }),
+            sendDeliveryReceipt = {},
+        )
+        val sink = object : MessagingV2DomainSink {
+            override suspend fun commit(envelope: MessagingV2InboxEntity, content: MessagingV2Content) {
+                projector.project(envelope, content)
+            }
+        }
+        val processor = SignalMessagingV2EnvelopeProcessor(
+            signalProtocol = s.aliceProtocol,
+            domainSink = sink,
+            groupRevisionProvider = { s.groupEpoch },
+            onSenderKeyMissing = { _, _ -> },
+            inboxDao = null,
+        )
+
+        val messageId = "revoke-${UUID.randomUUID()}"
+        val originalBody = "revoke-body-${UUID.randomUUID()}"
+        useSession(s.alice)
+        sendDirectTo(s, s.chatId, originalBody, messageId)
+        // `sendDirectTo` 内部会切到 alex 的会话；用 alice 的 token 拉取前必须显式切回来。
+        useSession(s.alice)
+        val baseRows = inboxFor(s, s.alice.token, s.chatId, messageId)
+        assertTrue("基线消息必须送达", baseRows.isNotEmpty())
+        runBlocking { baseRows.forEach { processor.process(it.forAlice(s)) } }
+        val original = runBlocking { app.database.messageDao().getMessageById(messageId) }
+        assertTrue("基线必须落库，实际=$original", original != null)
+        assertEquals("基线类型必须是 TEXT", MessageType.TEXT.name, original!!.type)
+
+        // ① REVOKE：墓碑 kind 必须是 REVOKE，且**行保留**但类型变 REVOKED。
+        val revokeContent = json.encodeToString(
+            MessagingV2Content.serializer(),
+            MessagingV2Content(
+                version = 1,
+                type = "EVENT",
+                event = MessagingV2Event(action = MessagingV2EventAction.REVOKE, targetMessageId = messageId),
+            ),
+        )
+        val revokeEventId = "revoke-event-${UUID.randomUUID()}"
+        sendContent(s, s.chatId, revokeContent, revokeEventId, kind = "EVENT")
+        useSession(s.alice)
+        // 按 messageId 精确取这一条：不能取「全部 EVENT 行」，否则会把上一步已处理过的 REVOKE 再喂一次
+        // （实测会得到 `messaging_v2_duplicate_uncommitted`）。
+        val revokeRows = inboxFor(s, s.alice.token, s.chatId, revokeEventId)
+        assertTrue("REVOKE 事件必须送达", revokeRows.isNotEmpty())
+        runBlocking { revokeRows.forEach { processor.process(it.forAlice(s)) } }
+
+        assertEquals(
+            "墓碑 kind 必须是 REVOKE（不是 DELETE）",
+            MessageMutationTombstoneKind.REVOKE,
+            tombstoneKind(app, s.alice.userId, messageId),
+        )
+        val revoked = runBlocking { app.database.messageDao().getMessageById(messageId) }
+        assertTrue(
+            "REVOKE 必须**保留行**（与 DELETE 删行不同），实际=$revoked",
+            revoked != null,
+        )
+        assertEquals("REVOKE 之后类型必须是 REVOKED", MessageType.REVOKED.name, revoked!!.type)
+
+        // ② 撤回之后不得被 EDIT 改回原文本。
+        val resurrectText = "resurrect-${UUID.randomUUID()}"
+        val editContent = json.encodeToString(
+            MessagingV2Content.serializer(),
+            MessagingV2Content(
+                version = 1,
+                type = "EVENT",
+                event = MessagingV2Event(
+                    action = MessagingV2EventAction.EDIT,
+                    targetMessageId = messageId,
+                    content = resurrectText,
+                    editedAt = System.currentTimeMillis(),
+                ),
+            ),
+        )
+        val editEventId = "revoke-edit-${UUID.randomUUID()}"
+        sendContent(s, s.chatId, editContent, editEventId, kind = "EVENT")
+        useSession(s.alice)
+        val editRows = inboxFor(s, s.alice.token, s.chatId, editEventId)
+        runBlocking { editRows.forEach { processor.process(it.forAlice(s)) } }
+        val afterEdit = runBlocking { app.database.messageDao().getMessageById(messageId) }
+        assertEquals("撤回之后类型必须仍是 REVOKED", MessageType.REVOKED.name, afterEdit!!.type)
+        assertTrue(
+            "撤回之后内容不得被改回（不得出现 $resurrectText），实际=${afterEdit.content}",
+            !afterEdit.content.contains(resurrectText),
+        )
+    }
+
+    /**
+     * **重复定时消息的重排分支**：旧 messageId 被墓碑挡住之后，worker 会**重排**出**新 id** 的下一次。
+     * 这**不是复活**——messageId 变了，是「同一调度意图的下一次」。
+     */
+    @Test
+    fun aRepeatingScheduledMessageReschedulesToANewMessageIdAfterATombstone() {
+        baseUrl()
+        val s = ensureShared()
+        val app = ApplicationProvider.getApplicationContext<MaodouchatApp>()
+        val dao = app.database.scheduledMessageDao()
+        runBlocking {
+            app.database.chatDao().insertChats(
+                listOf(
+                    ChatEntity(
+                        id = s.chatId,
+                        isGroup = false,
+                        chatType = "DIRECT",
+                        participantIds = "${s.alex.userId},${s.alice.userId}",
+                    ),
+                ),
+            )
+        }
+
+        val oldScheduleId = "sch_${UUID.randomUUID().toString().take(12)}"
+        val oldMessageId = "sm_${oldScheduleId.removePrefix("sch_")}"
+        runBlocking {
+            dao.upsert(
+                ScheduledMessageEntity(
+                    id = oldScheduleId,
+                    ownerUserId = s.alice.userId,
+                    chatId = s.chatId,
+                    peerUserId = s.alex.userId,
+                    text = "repeating-${UUID.randomUUID()}",
+                    sendAtMillis = System.currentTimeMillis() - 1_000L,
+                    createdAtMillis = System.currentTimeMillis() - 2_000L,
+                    isGroup = false,
+                    status = "PENDING",
+                    attempt = 0,
+                    repeatIntervalMs = 3_600_000L,
+                    repeatCount = 0,
+                    occurrencesSent = 0,
+                    weekdaysOnly = false,
+                    timeZoneId = "UTC",
+                    idempotencyKey = UUID.randomUUID().toString(),
+                ),
+            )
+            app.database.messagingV2Dao().upsertMessageTombstone(
+                MessageMutationTombstoneEntity(
+                    ownerUserId = s.alice.userId,
+                    messageId = oldMessageId,
+                    conversationId = s.chatId,
+                    kind = MessageMutationTombstoneKind.DELETE,
+                    terminalAt = System.currentTimeMillis(),
+                ),
+            )
+        }
+
+        useSession(s.alice)
+        fun runWorker(scheduleId: String): ListenableWorker.Result = runBlocking {
+            TestListenableWorkerBuilder<ScheduledMessageWorker>(app)
+                .setInputData(
+                    workDataOf(
+                        ScheduledMessageWorker.KEY_SCHEDULE_ID to scheduleId,
+                        ScheduledMessageWorker.KEY_OWNER_USER_ID to s.alice.userId,
+                    ),
+                )
+                .build()
+                .doWork()
+        }
+
+        assertEquals("worker 必须成功收尾", ListenableWorker.Result.success(), runWorker(oldScheduleId))
+
+        // (a) 旧 id 永远不进发件箱；(b) 旧行被删。
+        assertTrue(
+            "被墓碑挡住的旧 id 不得进发件箱",
+            runBlocking { app.database.messagingV2Dao().getOutbox(oldMessageId, s.alice.userId) } == null,
+        )
+        assertTrue(
+            "旧 schedule 行必须被删",
+            runBlocking { dao.getById(oldScheduleId, s.alice.userId) } == null,
+        )
+
+        // (c) 出现一条**新**行：id 不同、occurrencesSent 已 +1、状态 PENDING。
+        val rows = runBlocking { dao.listForUser(s.alice.userId) }.filter { it.chatId == s.chatId }
+        assertEquals("重排后应当恰好剩一条新行，实际=${rows.map { it.id }}", 1, rows.size)
+        val rescheduled = rows.single()
+        assertTrue("新行 id 必须与旧的不同（否则旧墓碑会再次命中）", rescheduled.id != oldScheduleId)
+        assertEquals("occurrencesSent 必须 +1", 1, rescheduled.occurrencesSent)
+        assertEquals("新行必须仍是 PENDING", "PENDING", rescheduled.status)
+
+        // (d) 再跑一次 worker 处理**新**行 → 新 messageId 能被正常暂存（= 不是复活，是下一次）。
+        val newMessageId = "sm_${rescheduled.id.removePrefix("sch_")}"
+        assertTrue("新一次的 messageId 必须与旧的墓碑 id 不同", newMessageId != oldMessageId)
+        assertEquals("处理新行也必须成功", ListenableWorker.Result.success(), runWorker(rescheduled.id))
+        assertTrue(
+            "新一次必须能被正常暂存（这正是「换 id」的必要性），实际发件箱=${runBlocking {
+                app.database.messagingV2Dao().getOutbox(newMessageId, s.alice.userId)
+            }}",
+            runBlocking { app.database.messagingV2Dao().getOutbox(newMessageId, s.alice.userId) } != null,
         )
     }
 }
