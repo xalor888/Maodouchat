@@ -89,9 +89,15 @@
     - **明文不落盘**：`filesDir`/`cacheDir`/`shared_prefs` 里无标记；且 token 的可识别子串在 `shared_prefs`
       原始字节里读不到（走 EncryptedSharedPreferences）。反证里「往 filesDir 写真实 marker」「往 prefs 明文写
       token 子串」都被抓到——同时也证明**扫描本身有效**，不是永远绿。
-  - **仍未覆盖**：**服务端**侧的「不得保存或检索人类明文」与「Bot/service 独立存储语义」在本轮**没有新增证据**
-    （G11 的服务端清扫与 G28 的 service 边界是既有证据），以及**日志/导出/备份产品功能本身**的明文面
-    （本轮只证明「当前没有明文落到这些目录」，未逐个审导出/备份功能），故本条仍为 `[~]`。
+    - **导出功能**（G36 实测）：`chatExportWritesPlaintextIntoCacheAndTheSweepCatchesIt`。
+      `ChatExport` 把**明文**写进 `cacheDir/exports/<name>.txt`（用户主动导出，明文属设计语义），
+      且**返回之后文件仍在**——所以 G35 的「cacheDir 无明文」**只在「没有导出过」时成立**，这一点是
+      **被记录**而不是被修掉。`writeStream` 的 tmp 两个方向都实测：成功后不留 `.tmp`；取消时返回 null
+      且既不留 `.tmp` 也不留输出。**这一步还把 G35 的扫描变成了「被证明有效」**：用真实导出路径去喂它，
+      它**必须**找到该文件（反证：把 `cacheDir` 从扫描根里去掉后命中为空）。
+  - **仍未覆盖**：**服务端**侧的「不得保存或检索人类明文」与「Bot/service 独立存储语义」本轮**没有新增证据**
+    （G11 的服务端清扫与 G28 的 service 边界是既有证据），以及**备份/恢复功能本身**的明文面
+    （导出已测，备份未测），故本条仍为 `[~]`。
 
 详细不变量见 `docs/messaging-v2-architecture.md`。
 
@@ -3394,3 +3400,42 @@ P1–P4 的第一轮里，**附件用例**每次都额外变红：`极小附件�
 **M5 状态**：覆盖范围在 G34 基础上新增**客户端 at-rest/备份/prefs 边界**。
 **仍未覆盖**：同步器多页循环（`PULL_LIMIT = 200` 常量）、真·断网与网络抖动、附件 100 MiB 上界、
 **日志/导出/备份产品功能本身**的明文面、服务端侧该不变量的新增证据、生产 PostgreSQL。
+
+### G36 — 导出功能的明文落点（并且让 G35 的扫描「被证明有效」）
+
+G35 证明了「私有目录里没有明文」，但那只是因为**没有用例跑过导出**。本轮跑真实导出，把落点如实量出来。
+
+**新增 1 例（该类共 22 例）**：`chatExportWritesPlaintextIntoCacheAndTheSweepCatchesIt`
+
+| 步 | 断言 | 实测 |
+|----|------|------|
+| ① 控制组 | 生产 `ChatExport.write` 返回文件、路径在 `cacheDir/exports` 下、**内容含明文标记** | 通过（导出是用户主动要的，明文属设计语义） |
+| ② 落点实测 | 返回之后文件**仍在** | 通过——**明文留在应用私有 cache，未被清理**（如实记录，未修） |
+| ③ **交叉验证（本轮关键）** | 用 G35 那套扫描逻辑扫 `filesDir`/`cacheDir`/`shared_prefs` → **必须找到**该导出文件 | 通过 → **G35 的扫描被证明能抓到真实产品路径的明文**，不再是「只抓到我自己的探针文件」 |
+| ④ tmp 两个方向 | 成功不留 `.tmp`；取消返回 null 且不留 `.tmp`、不留输出 | 通过 |
+
+**四处反证（探针全部回滚）**
+
+| 探针 | 结果（首行） |
+|------|--------------|
+| P1 把 `cacheDir` 从扫描根里去掉 | `G35 的扫描必须能抓到真实导出留下的明文（命中=[]，扫了 5 个文件）` |
+| P2 `writeStream` 取消时不再删 tmp | `取消之后不得留下 .tmp，实际=[export-probe-….txt, export-cancel-….tmp, export-ok-….txt]` |
+| P3 导出内容被改写（不再含标记） | `导出内容必须是明文且含标记（这是用户主动要的导出，不是泄漏判定）` |
+| P4 导出写到 `filesDir` 而不是 `cacheDir/exports` | `导出必须落在 cacheDir/exports 下 expected:<…/[cache]/exports> but was:<…/[files]/exports>` |
+
+> 第③步是这一轮最有价值的地方：**一次绿色的扫描本身证明不了任何事**——
+> 必须让它**抓到过一次真实的明文泄漏**。G35 的探针文件做到了「扫描有效」，但那毕竟是我自己塞的；
+> 这里换成**真实导出路径**再证一次，扫描的可信度才立得住。
+
+**验证（实测数字）**
+
+- 本机 harness：`tests=22 failures=0 errors=0 skipped=0`；
+- 本机默认 instrumented：`tests=73 failures=0 errors=0 skipped=22`；app JVM **1530 / 0**；
+  `app/src/main` / `server/src/main` **diff 为空**（本轮不需要改产品代码）；
+- CI：run **[35024928621](https://github.com/xalor888/Maodouchat/actions/runs/35024928621)**
+  （headSha `99668718`）→ **success，四 job 全绿**；`two-device-http-e2e` → **`tests=22 failures=0 skipped=0`**；
+  `android-instrumented-reports` → **`tests=73 failures=0 skipped=22`**；服务端日志 `starts=1 logins=4`。
+
+**M5 状态**：覆盖在 G35 基础上新增**导出功能**这一层。
+**仍未覆盖**：同步器多页循环（`PULL_LIMIT = 200` 常量）、真·断网与网络抖动、附件 100 MiB 上界、
+**备份/恢复功能本身**的明文面、服务端侧新增证据、生产 PostgreSQL。
