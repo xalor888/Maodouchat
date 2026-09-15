@@ -2715,3 +2715,51 @@ E2E 直接调用**生产函数**而不是在测试里自己 `uppercase`——否
 > 这里补了一次**证据质量**的修复：E2E 与主套件写同一个结果目录，而 E2E 跑在后面，
 > 导致主套件工件一度只剩 4 个用例（51 个用例的证据被覆盖）。现在脚本在跑 E2E **之前**先把主套件结果
 > 另存为 `androidTest-results-main` 并单独上传——「门禁绿了」不等于「证据还在」，这类覆盖同样会悄悄丢证据。
+
+### G24 — 真 HTTP 端到端扩成**消息分支矩阵**（群 SenderKey / EVENT / ACK）
+
+G23 用「真客户端 ↔ 真服务端」抓到过一个两侧单测都看不见的跨边界缺陷（`ciphertextType` 大小写）。
+本轮把同一层从「单条直发 DATA」扩到此前**没有任何真 HTTP 证据**的分支。
+
+**新增 3 例（该类共 7 例，全部真实 HTTP）**
+
+| 分支 | 断言 | 结果 |
+|------|------|------|
+| **群 SenderKey** | A 建群 → B 接受邀请 → A 先发分发信封（`kind=SENDER_KEY`）再发群文本；B 按 **sequence 升序**拉取处理：分发**只安装不提交**、群文本解出原文并**恰好提交一次**；两个 wire 载荷都不含原文 | 通过 |
+| **EVENT** | 合规事件提交且 `event.action == DELETE`；**同一载荷伪装成 `kind=DATA`** 时**不提交**（内容策略把 EVENT 当保留控制类型） | 通过 |
+| **ACK 走真 HTTP** | 返回计数 == 请求里属于自己的 id 数；**重复确认幂等**；混入**另一个账号设备**的 id **不计入**；对方行**不被清掉** | 通过 |
+
+**本轮结论：没有再发现跨边界缺陷**——群路径与 ACK 路径与服务端约定一致，`app/src/main` / `server/src/main`
+**diff 为空**。价值在于覆盖与反证，而不是「又修了一个 bug」；台账如实记录，不硬凑发现。
+
+**四处反证（每条都让特定用例红，且失败名精确；探针全部回滚）**
+
+| 探针 | 改哪里 | 红在哪 | 首行失败信息 |
+|------|--------|--------|--------------|
+| P1 | 群文本用**直发**密文类型 | 群用例 | `messaging_v2_decrypt_failed` |
+| P2 | 把**分发信封当 DATA** 发 | 群用例 | `messaging_v2_no_session`（分发没装上 → 群文本无会话） |
+| P3 | 服务端把**无归属 id 也计入**确认数 | ACK 用例 | `别人的 id 不得计入自己的确认数` |
+| P4 | 群消息**明文直接当密文**发 | 群用例 | `群 wire 载荷里不得出现原文` |
+
+**我自己两处错误假设（按实测改正，值得留台账）**
+
+1. **生产路径加密的是 `MessagingV2Content` 的 JSON**，不是裸字符串。我一开始直接加密裸字符串，
+   processor 解密成功后 `decodeFromString<MessagingV2Content>` 失败 → **静默 return**，
+   表现为「一行都没提交」而**没有任何异常**——正好是最容易误判成「产品 bug」的那种表象。
+2. **发件人自己的设备不在会话快照的 targets 里**（服务端 `conversationSnapshot` 会排除请求者本设备），
+   所以单设备账号**没有「自己的副本」**。我最初用「A 自己的副本」验 ACK 隔离，直接失败；
+   现在改成**反向再发一条（alice → alex）**，拿真正属于**另一个账号设备**的信封 id 来验隔离。
+
+**验证（实测数字）**
+
+- 本机 harness：`tests=7 failures=0 errors=0 skipped=0`；
+- 本机默认 instrumented：`tests=58 failures=0 errors=0 skipped=7`（跳过的正是那 7 个 E2E 用例，
+  主套件 51 个用例继续全绿，无回退）；app JVM **1530 / 0**；
+- CI：run **[34952493724](https://github.com/xalor888/Maodouchat/actions/runs/34952493724)**
+  （headSha `9089ae34`）→ **success，四 job 全绿**；**两个工件逐用例核对**：
+  `two-device-http-e2e` → **`tests=7 failures=0 errors=0 skipped=0`**（整个矩阵在 CI 里真跑了）；
+  `android-instrumented-reports` → **`tests=58 failures=0 errors=0 skipped=7`**（7 个用例名逐一确认）。
+
+**M5 状态**：真 HTTP 层现在覆盖 直发 DATA / 群 SenderKey（分发+群文本）/ EVENT / ACK 幂等与设备隔离。
+**仍未覆盖**：真·**双设备/双进程同时在线**与设备审批流程、离线重连与补投、Sender Key repair 的**真实触发**
+（分发丢失后重新分发）、bot/service 明文分支、附件/媒体、日志/导出/备份、生产 PostgreSQL 实测。故 M5 仍不能标 `[x]`。
