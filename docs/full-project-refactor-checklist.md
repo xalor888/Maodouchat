@@ -42,7 +42,7 @@
 - [~] ACK、send、pull、mutation、receipt 必须幂等。
 - [~] 群 Sender Key 分发和缺钥修复通过持久化加密邮箱，不要求成员同时在线。
 - [~] 群成员 revision 改变后，旧的预制群密文必须失效并重新准备。
-- [~] 删除和撤回是终态数据库事实；延迟 DATA、附件 finalize、定时任务不得复活消息。
+- [x] 删除和撤回是终态数据库事实；延迟 DATA、附件 finalize、定时任务不得复活消息。
   - **G32 实测（真 HTTP + 真实 app 库）**：`aDeletedMessageStaysTerminalAndIsNotResurrectedByALateData`。
     分层结论（**逐层钉住，不合并成一句**）：
     - **客户端墓碑**是拦住「延迟 DATA」的那一层：DELETE 之后 `message_mutation_tombstones` 实测出现该 id，
@@ -61,8 +61,22 @@
       （顺带记录：M09 的 Gate 写「tombstone 测试通过」，但仓库里只有 `MessageMutationGateTest` /
       `ConversationCommandFacadeTest`，**没有针对定时路径的墓碑用例**——那句话覆盖的是通用变更门，
       缺的正是本轮补上的这条定时链路证据。）
-  - **三层现在都有证据**；但「撤回（REVOKE）」与「定时任务的重排分支（`repeatIntervalMs > 0` 重排后再次被拒）」
-    未单独覆盖，故本条仍保持 `[~]`。
+    - **撤回（REVOKE）**（G34 实测）：`aRevokedMessageStaysRevokedAndCannotBeEditedBack`。墓碑 `kind == REVOKE`
+      （直接从真实库读，不为测试给产品加 DAO 接口），且行**保留**但 `type == REVOKED`——把「REVOKE 保留行、
+      DELETE 删行」这条差异钉住；随后再投 EDIT 也**不能**把原文改回来。
+    - **重复定时消息的重排**（G34 实测）：`aRepeatingScheduledMessageReschedulesToANewMessageIdAfterATombstone`。
+      旧 id 永不进发件箱、旧行被删，但 worker 会重排出**新 id** 的下一次（`occurrencesSent + 1`）并能正常暂存。
+      **这不是复活**——messageId 变了，属设计语义；反证里「重排复用同一条 id」会让新行直接消失，说明换 id 是**承重**的。
+  - **结论：本条升为 `[x]`**，支撑它的可执行证据（全部实跑）：
+    1. `aDeletedMessageStaysTerminalAndIsNotResurrectedByALateData`（E2E，run 35003751157）
+    2. `aScheduledSendForATombstonedMessageIsAbandonedNotRevived`（E2E，run 35008321158）
+    3. `aRevokedMessageStaysRevokedAndCannotBeEditedBack`（E2E，run 35014800546）
+    4. `aRepeatingScheduledMessageReschedulesToANewMessageIdAfterATombstone`（E2E，run 35014800546）
+    5. `LocalMessageMutationPolicyTest.edit cannot resurrect revoked message`（JVM 单测，**归因**用）
+  - **诚实保留的一点**：第 3 条的「不得被改回」在 **E2E 层无法归因是哪道守卫**——把投影器的终态判断与
+    变更策略里的 `REVOKED` 子句**同时**去掉后断言**仍然**通过（很可能因为该 EDIT 还输在
+    revision 先后比较上：撤回的 `editedAt` 是服务端时间、EDIT 的是客户端时间）。归因由第 5 条单测承担
+    （它用**更高**的 candidate revision 把 `REVOKED` 子句单独隔离出来）。
 - [~] WebSocket 只承载唤醒、presence、typing 和通话信令，不得重新承载人类消息正文。
 - [~] 服务端不得保存或检索人类聊天明文；Bot/service message 使用独立存储语义。
 
@@ -3277,3 +3291,50 @@ P1–P4 的第一轮里，**附件用例**每次都额外变红：`极小附件�
 **M5 状态**：覆盖与 G32 相同（本轮补的是**不变量的一支**，不是新传输分支）。
 **仍未覆盖**：**撤回（REVOKE）**与定时任务的**重排分支**、同步器自身多页循环（`PULL_LIMIT = 200` 常量）、
 真·断网与网络抖动、附件 100 MiB 上界、日志/导出/备份、生产 PostgreSQL。
+
+### G34 — 撤回（REVOKE）与重复定时消息的重排：那条不变量收口
+
+**新增 2 例（该类共 20 例）**
+
+**① REVOKE 与 DELETE 的差异（此前无人断言过）**：`aRevokedMessageStaysRevokedAndCannotBeEditedBack`
+- 墓碑 `kind == REVOKE`（用**原始 SQL** 从真实库读；生产 DAO 没有暴露 kind，不为测试给产品加接口）；
+- 行**仍然存在**且 `type == REVOKED`（DELETE 是删行）——这条差异被钉住；
+- 随后再投 EVENT EDIT，原文**不得**被改回来。
+
+**② 重复定时消息的重排（实测并如实定性）**：
+`aRepeatingScheduledMessageReschedulesToANewMessageIdAfterATombstone`
+- 旧 `sm_<id>` **永不进发件箱**、旧 schedule 行被删；
+- worker 重排出**新行**：id 不同、`occurrencesSent + 1`、`status = PENDING`；
+- 再跑 worker 处理**新**行 → 能被正常暂存。
+- **这不是复活**：messageId 变了，是「同一调度意图的下一次」。台账里明确这样写，**没有**含糊成
+  「重排会复活消息」，也**没有**为了好看说成「已完全阻止」。
+
+**四处反证（探针全部回滚）**
+
+| 探针 | 结果（首行） |
+|------|--------------|
+| P1 REVOKE 不再写墓碑 | `墓碑 kind 必须是 REVOKE（不是 DELETE） expected:<REVOKE> but was:<null>` |
+| P2 REVOKE 的墓碑 kind 写成 DELETE | `expected:<[REVOK]E> but was:<[DELET]E>` |
+| P3 重排**复用同一条 schedule id** | `重排后应当恰好剩一条新行，实际=[] expected:<1> but was:<0>` |
+| P4 去掉投影器终态判断（+变更策略的 `REVOKED` 子句） | **inconclusive**，见下 |
+
+> **P4 我如实记为 inconclusive**：先只去投影器的判断 → 0 红；把 `LocalMessageMutationPolicy` 里的
+> `existing.type == MessageType.REVOKED` 子句**也**去掉 → **仍然 0 红**。最可能的原因是这条 EDIT 还输在
+> revision 先后比较上（撤回的 `editedAt` 来自**服务端时间**，EDIT 的是**客户端时间**），所以断言通过
+> 并不能归因到「终态守卫」。归因改由 **policy 层单测**承担：`LocalMessageMutationPolicyTest.edit cannot
+> resurrect revoked message` 用**更高**的 candidate revision 把 `REVOKED` 子句单独隔离出来。
+
+**顺带修掉的跨运行污染（P4 的失败顺带暴露）**
+
+这些用例会往**真实文件库**里写会话/墓碑/定时行，而该库**跨运行**累积。P4 那次运行里共享前置
+以 `第二台设备的 bootstrap 失败` 挂掉，就是累积状态所致。现在每个用例前清一次本地会话
+（FK 级联同时清掉消息与墓碑），运行之间恢复独立。
+
+**验证（实测数字）**
+
+- 本机 harness：`tests=20 failures=0 errors=0 skipped=0`；
+- 本机默认 instrumented：`tests=71 failures=0 errors=0 skipped=20`；app JVM **1530 / 0**；
+  `app/src/main` / `server/src/main` **diff 为空**（本轮不需要改产品代码）；
+- CI：run **[35014800546](https://github.com/xalor888/Maodouchat/actions/runs/35014800546)**
+  （headSha `69ea92f4`）→ **success，四 job 全绿**；`two-device-http-e2e` → **`tests=20 failures=0 skipped=0`**；
+  `android-instrumented-reports` → **`tests=71 failures=0 skipped=20`**；服务端日志 `starts=1 logins=4`。
