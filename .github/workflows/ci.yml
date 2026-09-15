@@ -72,6 +72,17 @@ jobs:
         run: ../gradlew postgresIntegrationTest --no-daemon --console=plain
         working-directory: server
 
+      # G21：把 PG 用例的结果 XML 也当工件上传。此前只有「任务绿了」这一条信息——
+      # 而任务绿**不等于**用例真的跑了（用例被跳过、被过滤、或根本没进 classpath 时它照样绿）。
+      # 有了这份 XML 才能像 androidTest 那样**逐用例**核对数量与失败数。
+      - name: Upload PostgreSQL test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: postgres-integration-results
+          path: server/build/test-results/postgresIntegrationTest
+          if-no-files-found: warn
+
       # Q06：备份→恢复演练。生产脚本的恢复路径此前从未被真正演练过；这里用 CI 的
       # PostgreSQL 16 service 真跑一遍 dump/restore 往返 + 逐表行数比对 + 坏备份必须被拒绝。
       # 同时它也是「生产备份的完整性检查够不够强」的回归网：脚本若退回只做 --list，
