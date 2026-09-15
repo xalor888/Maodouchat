@@ -140,7 +140,33 @@ jobs:
           java-version: "21"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
+        # 不再使用 android-actions/setup-android@v4：该 action 的引导会执行
+        # `sdkmanager tools`，而 Google 已把 legacy `tools` 包移出主 channel，于是它在
+        # 「Set up Android SDK」阶段就直接退出：`Warning: Failed to find package 'tools'`
+        # → sdkmanager exit 1。两个 Android job 因此都在任何编译之前失败
+        # （2026-09-15 run 34914731652 的 attempt 1 与 attempt 2 均实测复现；
+        # attempt 2 在 16 秒内失败，失败步骤就是这一条）。
+        # ubuntu-latest 镜像本身已预装 cmdline-tools 与 platform-tools，这里只做
+        # 定位与导出，后续步骤继续直接用 `sdkmanager`（不再依赖任何第三方 action）。
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          test -d "$sdk_root" || { echo "Android SDK root not found: $sdk_root" >&2; exit 1; }
+          cmdline_bin="$(find "$sdk_root/cmdline-tools" -maxdepth 3 -type f -name sdkmanager -perm -u+x 2>/dev/null | head -n1 || true)"
+          if [ -z "$cmdline_bin" ]; then
+            echo "sdkmanager not found under $sdk_root/cmdline-tools" >&2
+            find "$sdk_root" -maxdepth 2 -type d >&2 || true
+            exit 1
+          fi
+          {
+            echo "ANDROID_SDK_ROOT=$sdk_root"
+            echo "ANDROID_HOME=$sdk_root"
+          } >> "$GITHUB_ENV"
+          {
+            echo "$(dirname "$cmdline_bin")"
+            echo "$sdk_root/platform-tools"
+          } >> "$GITHUB_PATH"
+          "$cmdline_bin" --version
 
       - name: Install Android SDK packages
         run: |
@@ -213,7 +239,33 @@ jobs:
           java-version: "21"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
+        # 不再使用 android-actions/setup-android@v4：该 action 的引导会执行
+        # `sdkmanager tools`，而 Google 已把 legacy `tools` 包移出主 channel，于是它在
+        # 「Set up Android SDK」阶段就直接退出：`Warning: Failed to find package 'tools'`
+        # → sdkmanager exit 1。两个 Android job 因此都在任何编译之前失败
+        # （2026-09-15 run 34914731652 的 attempt 1 与 attempt 2 均实测复现；
+        # attempt 2 在 16 秒内失败，失败步骤就是这一条）。
+        # ubuntu-latest 镜像本身已预装 cmdline-tools 与 platform-tools，这里只做
+        # 定位与导出，后续步骤继续直接用 `sdkmanager`（不再依赖任何第三方 action）。
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          test -d "$sdk_root" || { echo "Android SDK root not found: $sdk_root" >&2; exit 1; }
+          cmdline_bin="$(find "$sdk_root/cmdline-tools" -maxdepth 3 -type f -name sdkmanager -perm -u+x 2>/dev/null | head -n1 || true)"
+          if [ -z "$cmdline_bin" ]; then
+            echo "sdkmanager not found under $sdk_root/cmdline-tools" >&2
+            find "$sdk_root" -maxdepth 2 -type d >&2 || true
+            exit 1
+          fi
+          {
+            echo "ANDROID_SDK_ROOT=$sdk_root"
+            echo "ANDROID_HOME=$sdk_root"
+          } >> "$GITHUB_ENV"
+          {
+            echo "$(dirname "$cmdline_bin")"
+            echo "$sdk_root/platform-tools"
+          } >> "$GITHUB_PATH"
+          "$cmdline_bin" --version
 
       - name: Install Android SDK packages
         run: |
