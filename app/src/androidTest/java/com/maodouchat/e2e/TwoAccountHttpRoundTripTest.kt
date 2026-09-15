@@ -1783,6 +1783,27 @@ class TwoAccountHttpRoundTripTest {
             !encrypted.file.readBytes().toString(Charsets.ISO_8859_1).contains(marker),
         )
 
+        // 本地大小守卫：`uploadEncryptedAttachment` 有 `total in 17L..(100 MiB + 64)` 的**本地**上限。
+        // 用一个小到不可能通过下限的附件来钉住它（不需要真造 100 MiB 文件）。
+        val tinyPlain = File(dir, "tiny.bin").apply { writeBytes(byteArrayOf(1)) }
+        val tinyEncrypted = EncryptedAttachmentCrypto.encryptFile(tinyPlain, dir)
+        val tinyResult = runBlocking {
+            MediaApiClient.uploadEncryptedAttachment(
+                token = s.alex.token,
+                chatId = s.chatId,
+                messageId = "tiny-${UUID.randomUUID()}",
+                encryptedFile = tinyEncrypted.file,
+                cipherSha256 = tinyEncrypted.cipherSha256,
+                onProgress = { _, _ -> },
+                onCheckpoint = { _, _, _ -> },
+            )
+        }
+        // **实测结论**：本地下限 `17L` 恰好等于 GCM 的最小密文长度（1 字节明文 + 16 字节 tag），
+        // 所以它是防「空/坏文件」的 sanity 检查，**不是**用户可见的限制——1 字节的附件会被正常接受。
+        // 真正的上限是 `100 MiB + 64`，本轮**没有**用真 HTTP 去撞它（要造 100 MiB 文件），已在台账标注未覆盖。
+        assertEquals("最小密文长度应当就是本地下限 17", 17L, tinyEncrypted.cipherSize)
+        assertTrue("极小附件应当被接受（下限是 sanity 检查而非用户限制），实际=${tinyResult.getOrNull()}", tinyResult.isSuccess)
+
         // ② 真上传（密文），并用生产校验接口确认就绪。
         useSession(s.alex)
         val messageId = "e2e-att-${UUID.randomUUID()}"
@@ -1986,9 +2007,13 @@ class TwoAccountHttpRoundTripTest {
             ).getOrThrow()
         }
         assertEquals(encrypted.cipherSize, upload.cipherSize)
+        // **必须出现中间 checkpoint**（0 < uploaded < total）才算真的跨了多个 chunk：
+        // `onCheckpoint` 在「建/复用上传会话后」和「每块之后」都会调一次，所以单块上传也会有
+        // **两次**回调——用 `checkpoints.size >= 2` 是**空断言**（G29 里就是这么写错的，本轮修正）。
+        val intermediate = checkpoints.filter { it > 0L && it < encrypted.cipherSize }
         assertTrue(
-            "必须真的跨多个 chunk 上传（>4 MiB 的文件），实际 checkpoints=$checkpoints",
-            checkpoints.size >= 2,
+            "必须真的跨多个 chunk（应出现中间 checkpoint），实际 checkpoints=$checkpoints total=${encrypted.cipherSize}",
+            intermediate.isNotEmpty(),
         )
 
         val reference = MediaCache.EncryptedAttachmentReference(

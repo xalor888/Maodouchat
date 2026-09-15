@@ -132,6 +132,13 @@ if ! kill -0 "$SERVER_PID" 2>/dev/null; then
   echo "[e2e] 警告：测试期间服务端进程已不在（本次结果不可信）" >&2
 fi
 
+# 永久诊断：服务端「重启过几次」与「登录过几次」。
+# G30 里一次 401 风暴（Token 无效或已过期）因为当时没有这些数字而无法归因——
+# 服务端重启会丢掉内存库里的会话，重启次数是最先要看的一个数。
+server_starts="$(grep -c 'Responding at' "$SERVER_LOG" 2>/dev/null || echo 0)"
+login_attempts="$(grep -c 'login attempt' "$SERVER_LOG" 2>/dev/null || echo 0)"
+echo "[e2e] 服务端启动次数=$server_starts 登录尝试次数=$login_attempts"
+
 # 把本轮结果单独留一份：CI 里主 instrumented 套件的结果 XML 也会写在同一目录，
 # 若不另存，上传的工件只会反映**最后一次**运行，51 个用例的证据就丢了。
 mkdir -p "$ROOT/build/e2e-http-results"
