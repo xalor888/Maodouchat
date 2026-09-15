@@ -372,27 +372,55 @@ class SignalDirectCipher internal constructor(
                     else -> DecryptResult.UnsupportedEnvelope
                 }
             }
-        } catch (e: NoSessionException) {
-            DecryptResult.NoSession
-        } catch (e: org.signal.libsignal.protocol.UntrustedIdentityException) {
-            DecryptResult.UntrustedIdentity
-        } catch (e: org.signal.libsignal.protocol.DuplicateMessageException) {
-            DecryptResult.Duplicate
-        } catch (e: InvalidMessageException) {
-            Log.w(SignalProtocolConstants.TAG, "decryptContentEnvelope invalid message", e)
-            DecryptResult.Failed
-        } catch (e: kotlinx.serialization.SerializationException) {
-            Log.w(SignalProtocolConstants.TAG, "decryptContentEnvelope malformed envelope", e)
-            DecryptResult.UnsupportedEnvelope
-        } catch (e: IllegalArgumentException) {
-            Log.w(SignalProtocolConstants.TAG, "decryptContentEnvelope malformed encoding", e)
-            DecryptResult.UnsupportedEnvelope
         } catch (e: Exception) {
-            Log.w(SignalProtocolConstants.TAG, "decryptContentEnvelope unexpected failure", e)
-            DecryptResult.Failed
+            classifyDecryptFailure("decryptContentEnvelope", e)
+        } catch (e: AssertionError) {
+            // 防御性：libsignal 把意外的 checked exception 包成 AssertionError（extends Error），
+            // 上面的 catch (e: Exception) 抓不到它。**诚实标注**：这一类逃逸在 G19 的**群**入口上
+            // 已实测复现（`invalid signature detected`），但在本入口上，G20 的多偏移畸形输入矩阵
+            // **没有**复现出来（把这条 catch 去掉，矩阵依然全绿）。保留它是为了对齐已被证实的同类
+            // 行为，而不是因为本路径已被证明会触发它。
+            classifyDecryptFailure("decryptContentEnvelope", e)
         }
         rememberDecryptOutcome(senderId, fingerprint, result)
         return result
+    }
+
+    /**
+     * 解密失败的统一分类（G20）。
+     *
+     * 三个返回 `DecryptResult` 的直发入口共用它，而不是各写一份 catch 链——此前正是这种「各写一份」
+     * 造成了漂移：`decryptParsedMultiDeviceEnvelope` 干脆**整条链都没有**，另外两个都漏了
+     * `AssertionError`（libsignal 的 `FilterExceptions` 会把意外的 checked exception 包成它，
+     * 而它 `extends Error`，`catch (e: Exception)` 抓不到）。矩阵用例已经把两种逃逸都复现过。
+     *
+     * 刻意**不**用 `catch (Throwable)` 一把梭：那会把 `OutOfMemoryError` 之类也吞成 Failed。
+     * 调用方各自显式 `catch (Exception)` + `catch (AssertionError)`，这里只负责分类。
+     */
+    private fun classifyDecryptFailure(operation: String, error: Throwable): DecryptResult = when (error) {
+        is NoSessionException -> DecryptResult.NoSession
+        is org.signal.libsignal.protocol.UntrustedIdentityException -> DecryptResult.UntrustedIdentity
+        is org.signal.libsignal.protocol.DuplicateMessageException -> DecryptResult.Duplicate
+        is InvalidMessageException -> {
+            Log.w(SignalProtocolConstants.TAG, "$operation invalid message", error)
+            DecryptResult.Failed
+        }
+        is kotlinx.serialization.SerializationException -> {
+            Log.w(SignalProtocolConstants.TAG, "$operation malformed envelope", error)
+            DecryptResult.UnsupportedEnvelope
+        }
+        is IllegalArgumentException -> {
+            Log.w(SignalProtocolConstants.TAG, "$operation malformed encoding", error)
+            DecryptResult.UnsupportedEnvelope
+        }
+        is AssertionError -> {
+            Log.w(SignalProtocolConstants.TAG, "$operation native assertion", error)
+            DecryptResult.Failed
+        }
+        else -> {
+            Log.w(SignalProtocolConstants.TAG, "$operation unexpected failure", error)
+            DecryptResult.Failed
+        }
     }
 
     fun decryptParsedMultiDeviceEnvelope(
@@ -401,15 +429,23 @@ class SignalDirectCipher internal constructor(
     ): DecryptResult {
         val entry = MultiDeviceEnvelopePolicy.selectEntry(envelope, context.currentUserId, context.localDeviceId)
             ?: return DecryptResult.NotForThisDevice
-        val ciphertext = Base64.decode(entry.ciphertext, Base64.NO_WRAP)
-        return DecryptResult.Success(
-            decryptMessage(
-                senderId = senderId,
-                ciphertext = ciphertext,
-                deviceId = envelope.senderDeviceId,
-                ciphertextType = entry.ciphertextType
+        return try {
+            val ciphertext = Base64.decode(entry.ciphertext, Base64.NO_WRAP)
+            DecryptResult.Success(
+                decryptMessage(
+                    senderId = senderId,
+                    ciphertext = ciphertext,
+                    deviceId = envelope.senderDeviceId,
+                    ciphertextType = entry.ciphertextType
+                )
             )
-        )
+        } catch (e: Exception) {
+            classifyDecryptFailure("decryptParsedMultiDeviceEnvelope", e)
+        } catch (e: AssertionError) {
+            // libsignal 的 FilterExceptions 会把意外的 checked exception 包成 AssertionError，
+            // 而它 extends Error，所以上面那条 catch (e: Exception) 抓不到。
+            classifyDecryptFailure("decryptParsedMultiDeviceEnvelope", e)
+        }
     }
 
     fun decryptMessage(
@@ -460,19 +496,10 @@ class SignalDirectCipher internal constructor(
                 ciphertextType = ciphertextType,
             ),
         )
-    } catch (error: NoSessionException) {
-        DecryptResult.NoSession
-    } catch (error: org.signal.libsignal.protocol.UntrustedIdentityException) {
-        DecryptResult.UntrustedIdentity
-    } catch (error: org.signal.libsignal.protocol.DuplicateMessageException) {
-        DecryptResult.Duplicate
-    } catch (error: InvalidMessageException) {
-        DecryptResult.Failed
-    } catch (error: IllegalArgumentException) {
-        DecryptResult.UnsupportedEnvelope
     } catch (error: Exception) {
-        Log.w(SignalProtocolConstants.TAG, "decryptDeviceCiphertext unexpected failure", error)
-        DecryptResult.Failed
+        classifyDecryptFailure("decryptDeviceCiphertext", error)
+    } catch (error: AssertionError) {
+        classifyDecryptFailure("decryptDeviceCiphertext", error)
     }
 
     fun shouldAcknowledgeDecrypt(envelopeId: String, result: DecryptResult): Boolean =
