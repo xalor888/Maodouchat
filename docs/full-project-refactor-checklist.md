@@ -2636,3 +2636,72 @@ Server job 此前只报告 `postgresIntegrationTest` **任务绿**——而任�
 **仍未覆盖（不得被本条冒充）**：真实**跨进程/跨网络**双设备投递（本轮是一个进程内的装配，
 两个账号共用同一个内存库）；`SignalProtocol.initialize` 的联网密钥上传/恢复路径；群分发**走网络**
 与多设备扇出；日志/导出/备份；生产 PostgreSQL。
+
+### G23 — 真客户端 ↔ 真服务端：M5 的第一片真端到端，并抓出一个跨边界缺陷
+
+**三层证据的递进**（每一层都有独立断言，避免把「脚本能起服务」说成「端到端通了」）：
+
+| 层 | 证明什么 | 证据 |
+|----|----------|------|
+| 服务端边界 | 邮箱按设备投递、ACK 幂等/授权 | G12（HTTP）、G21（真 PG 并发） |
+| 客户端装配 | 信封 → 解密 → 内容策略 → 落库 | G22（单进程内，生产类全链路） |
+| **真实 HTTP 往返** | 模拟器里的真客户端 ↔ 宿主上的真服务端进程 | **G23（本轮）** |
+
+**编排脚本** `scripts/two-device-http-e2e.sh`：挑空闲端口起真服务端（H2 + 种子用户）→ 轮询
+`/health/ready` → 用 `-PMAODOU_API_BASE_URL=http://10.0.2.2:<port>` 在模拟器里跑
+`TwoAccountHttpRoundTripTest` → 无论成败清理 → 失败时打印**服务端日志尾部 + 逐用例 XML 摘要**，
+并把本轮结果另存到 `build/e2e-http-results/`（主套件与它写同一目录，不另存的话工件只反映最后一次运行）。
+
+**用例（4 例，全部真实 HTTP）**：①模拟器能摸到宿主服务端；②两账号用本仓库 `AuthApiClient` 真登录；
+③两账号各自生产 `SignalProtocol.initialize` 上传密钥、并能取回对端 prekey bundle；
+④**一条真加密消息走完 客户端 → 服务端 → 另一个客户端**：A 用生产多接收者加密产出每设备密文，
+真实 POST；B 真实 GET 拉自己的收件箱，交给生产 `SignalMessagingV2EnvelopeProcessor` 解出原文；
+并断言**服务端中转的那段载荷里不含原文**。
+
+**本轮抓到的真实缺陷（已修，`7ed1ce54`）——这是「只有真端到端才能发现」的那一类**
+
+客户端直发密码学常量是**小写**（`prekey` / `signal`，`SignalProtocolConstants`），而适配器把它们
+**原样写上线**；服务端对 `ciphertextType` 的校验是 `^[A-Z0-9_-]{1,32}$`（**只接受大写**），
+于是**真客户端的每一次人类 V2 发送都会被回 400 INVALID_MESSAGE**。
+
+两侧各自的测试都**不可能**发现它：服务端所有 V2 测试都发字面量 `"TEXT"`（大写，恰好合法），
+客户端测试只到「信封里是密文」为止、从不碰真服务端。只有「真客户端 + 真服务端」这一层能撞出来。
+
+修法：**只在线上边界归一化**（`SignalMessagingV2Adapter.wireCiphertextType`，改成 `internal` 以便
+E2E 直接调用**生产函数**而不是在测试里自己 `uppercase`——否则这个修复没有守卫）。密码学常量不动：
+解密侧的 `else` 分支本来就会按内容判断 PreKey/Signal，所以大写值照样解得开。
+
+**另外两条必须遵守的真实规则（都已写进用例）**
+
+1. **一个已确认设备同一时刻只能绑定一个活跃会话**。每个用例各自重新登录 + 重新 bootstrap，会让
+   第二次上传因 device 1 已被上一个会话占用而失败（DEVICE_ID_CONFLICT），新会话拿不到绑定，
+   v2 下所有接口回 409 DEVICE_NOT_READY。→ 登录/bootstrap/建会话提升为**类级一次**共享。
+2. **服务端只给会话参与者发 prekey bundle**（反枚举），所以必须先建会话才能交换密钥。
+
+**三处反证（每条都让第 ④ 条用例红，探针全部回滚）**
+
+| 探针 | 改哪里 | 结果 |
+|------|--------|------|
+| P1 | 生产：把线上归一化退化成恒等（修复前状态） | 往返用例红 |
+| P2 | 测试侧：把明文直接当密文发（绕过加密） | 往返用例红（「载荷不含原文」断言） |
+| P3 | 测试侧：用**错误账号**的协议去解 B 的信封 | 往返用例红 |
+
+**CI 接线**：E2E 必须跑在**模拟器生命周期内**——`android-emulator-runner` 的 script 里串上
+`bash scripts/two-device-http-e2e.sh`（该 action 之外的步骤里模拟器已被关掉）；E2E 自己的结果 XML
+与服务端日志单独上传为 `two-device-http-e2e` 工件。默认 instrumented 跑里这个类用显式 `e2eHttp=1`
+开关**跳过**（不是静默通过），报告里能看到 skipped 与原因。
+
+**验证（实测数字）**
+
+- 本机 harness：`tests=4 failures=0 errors=0 skipped=0`（真服务端 + 真 HTTP）；
+- 本机默认 instrumented：`tests=55 failures=0 errors=0 skipped=4`（那 4 个正是 E2E 类）；
+- app JVM：**1530 / 0**（归一化改动没有回归——已核对，受影响的只是线上边界）；
+- CI：run **[34944762232](https://github.com/xalor888/Maodouchat/actions/runs/34944762232)**
+  （headSha `2072fd12`）→ **success，四 job 全绿**；下载 `two-device-http-e2e` 工件核对
+  **`tests=4 failures=0 errors=0 skipped=0`**，四个用例名逐一确认——**E2E 在 CI 里真的跑了，不是跳过**
+  （run id 与工件均由 `gh` 实测取得）。
+
+**M5 状态**：现在有「真客户端 ↔ 真服务端」的一条消息往返（单模拟器、两个账号、同进程内两个
+`SignalProtocol` 实例）。**仍未覆盖**：真·**双设备/双进程同时在线**（两个模拟器或两个进程各自的
+登录会话与设备绑定）、离线重连与补投、Sender Key repair 的真实触发、附件/媒体、日志/导出/备份、
+生产 PostgreSQL 上的实测。故 M5 仍不能标 `[x]`。
