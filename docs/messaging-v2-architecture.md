@@ -51,7 +51,9 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
    → 验证：`PersistentSignalStoreRoundTripTest#aCorruptSessionRowIsDroppedAndDecryptionFailsLoudly`
    → 验证：`SignalGroupSenderKeyRoundTripTest#groupSenderKeyRoundTripThroughProductionCipher`（**群消息 SenderKey 真往返**：生产 `SignalGroupSenderKeyManager`/`SignalGroupCipher` 建分发 → 安装 → 加密 → 解回逐字节相同原文，连发两条；并用生产 `SignalEnvelopeCodec` 断言群信封与分发信封都**不含原文**、且都被认成对应信封类型）
    → 验证：`SignalGroupSenderKeyRoundTripTest#aThirdPartyThatNeverInstalledTheDistributionCannotDecrypt`
-   → 验证：`SignalDecryptInputMatrixTest#directEnvelopeEntryPointNeverLetsAThrowableEscape`；`SignalDecryptInputMatrixTest#deviceCiphertextEntryPointNeverLetsAThrowableEscape`；`SignalDecryptInputMatrixTest#multiDeviceAndCrossTypeInputsNeverLetAThrowableEscape`（**解密契约的畸形输入矩阵**：每个返回 `DecryptResult` 的入口都只能用返回 `DecryptResult` 的方式结束，任何 `Throwable` 逃逸都算红；同一密文在**五个不同偏移**各翻一个 bit，并额外覆盖截断/空/非 base64/错误 version 与 algorithm/跨类型互喂/多设备信封指向不存在的本机设备。G20 用它复现并修掉了「多设备入口整条分类链缺失」以及统一了三个入口的分类——`AssertionError`（libsignal 把意外的 checked exception 包成它，`extends Error`）从此有唯一收口）
+   → 验证：`SignalDecryptInputMatrixTest#directEnvelopeEntryPointNeverLetsAThrowableEscape`
+   → 验证：`SignalMessagingV2EnvelopeProcessorAssemblyTest#directEnvelopeIsDecryptedAndCommittedExactlyOnce`；`SignalMessagingV2EnvelopeProcessorAssemblyTest#aPolicyRejectedPayloadIsNotCommittedAndDoesNotThrow`；`SignalMessagingV2EnvelopeProcessorAssemblyTest#undecryptableEnvelopesCommitNothingAndFailWithTheirOwnName`；`SignalMessagingV2EnvelopeProcessorAssemblyTest#duplicateWithoutJournalIsNotCommittedTwiceAndFailsNamed`；`SignalMessagingV2EnvelopeProcessorAssemblyTest#duplicateWithJournalRecoversTheProjectionFromTheJournal`（**装配层**：驱动生产 `SignalMessagingV2EnvelopeProcessor.process(envelope)` 的完整路径——解密 → 内容策略 → 落库 sink。钉住「失败一行都不提交」以及**具名失败**（调用方据此分重试/死信），并覆盖策略拒绝不提交不抛错、重复信封不二次提交、以及有 journal 时从 journal 恢复投影的路径）
+；`SignalDecryptInputMatrixTest#deviceCiphertextEntryPointNeverLetsAThrowableEscape`；`SignalDecryptInputMatrixTest#multiDeviceAndCrossTypeInputsNeverLetAThrowableEscape`（**解密契约的畸形输入矩阵**：每个返回 `DecryptResult` 的入口都只能用返回 `DecryptResult` 的方式结束，任何 `Throwable` 逃逸都算红；同一密文在**五个不同偏移**各翻一个 bit，并额外覆盖截断/空/非 base64/错误 version 与 algorithm/跨类型互喂/多设备信封指向不存在的本机设备。G20 用它复现并修掉了「多设备入口整条分类链缺失」以及统一了三个入口的分类——`AssertionError`（libsignal 把意外的 checked exception 包成它，`extends Error`）从此有唯一收口）
 ；`SignalGroupSenderKeyRoundTripTest#aGroupEnvelopeReplayedIntoAnotherGroupIsRejected`；`SignalGroupSenderKeyRoundTripTest#aTamperedGroupEnvelopeFailsAndNeverReturnsPlaintext`（未安装分发者解不出、跨群重放被拒、篡改必须收敛成 `DecryptResult.Failed`）
 ；`PersistentSignalStoreRoundTripTest#aPersistenceFailureIsRecordedOnWriteAndThrownOnRead`；`PersistentSignalStoreRoundTripTest#anotherAccountCannotDecryptTheSameConversation`（损坏行被丢弃且随后**大声失败**、持久化失败写路径记录/读路径抛出、账号作用域隔离）
 
@@ -165,6 +167,7 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
     keep their own copies. An acknowledgement is authorization-scoped: knowing another device's
     `envelopeId` (which is not secret) must not let a caller clear a mailbox it does not own.
    → 验证：`MessagingV2TwoDeviceDeliveryTest#an offline device pulls the exact ciphertext and its ack keeps the sibling copy`
+   → 验证：`SignalMessagingV2EnvelopeProcessorAssemblyTest#senderKeyDistributionInstallsWithoutCommitting`；`SignalMessagingV2EnvelopeProcessorAssemblyTest#aStaleDistributionIsSkippedAndTheGroupMessageStaysUndecryptable`（装配层安装 SenderKey：装成功后才解得出群消息；**epoch 比当前 revision 旧的分发被跳过**，其群消息因此保持不可解并触发修复回调——对应第 10 条的陈旧性保护在装配层的落地）
 
 ## Ownership Boundaries
 

@@ -2563,3 +2563,76 @@ Server job 此前只报告 `postgresIntegrationTest` **任务绿**——而任�
 现在都有 PG 证据。**仍未覆盖**：真实跨进程/跨网络双设备投递（PG 层面只是单进程多线程）、
 备份**加密**、以及**生产** PostgreSQL 上的实测（本轮全部在本机/CI 的一次性库上跑，
 生产库只读未写）。故 M4 仍不能标 `[x]`。
+
+### G22 — 客户端**装配层**的第一份端到端证据（信封 → 解密 → 内容策略 → 落库）
+
+**为什么这跟 G17–G20 不是一回事**：那四轮测的都是**组件**（真密码学、生产 store、群 SenderKey、
+畸形输入矩阵）。组件各自绿，不代表它们被**接起来**之后是对的——装配是漏洞最容易藏的地方：
+某个分支短路、某个策略被跳过、失败却仍然提交。真正承接服务端信封的是
+`SignalMessagingV2EnvelopeProcessor.process(envelope)`，本轮第一次把它当被测对象。
+
+**可行性（先实测再过手）**：`SignalProtocol(signalKeyDao, identityTrustDao)` **只用两个 DAO 构造**，
+内部自建 context/编解码/session/direct+group cipher；`SignalMessagingV2EnvelopeProcessor` 其余依赖
+（sink / revision provider / 修复回调 / inboxDao）都能在测试里提供。会话用 `SessionBuilder` 建立，
+**全程不需要网络**。
+
+**新增** `app/src/androidTest/.../SignalMessagingV2EnvelopeProcessorAssemblyTest.kt`（8 例）
+
+1. 直发信封 → sink **恰好提交一次**，内容/messageId/发送者/会话都对；
+2. SenderKey 分发信封：**只安装、不提交**；并用「随后能解开群消息」作为可观察结果
+   （而不是去查 `hasGroupDistributionId`，它说的是**自己**用于发送的 key）；
+3. **陈旧分发被跳过**：epoch 比当前 revision 旧 → 不安装、不提交，其群消息保持不可解，
+   且**必须触发一次修复回调**（不变量 10 的陈旧性保护在装配层的落地）；
+4. service（bot）信封走明文分支并提交；发送者不是 bot/system、设备号不是 0、密文类型不对——
+   三者各自都不提交；
+5. 篡改 / 非 base64 / 陌生发送者 → **一行都不提交**，且各自报出**具名**失败；
+6. 内容策略拒绝的载荷不提交、也不抛错；
+7. 重复信封（无 journal）不二次提交，报 `messaging_v2_duplicate_uncommitted`；
+8. 重复信封（有 journal）从 journal **恢复投影**，随后清空 journal（进程被杀后不丢正文）。
+
+**关于「失败」的契约——这里刻意不按「不许抛异常」写**
+
+`process` 的真实设计是**按结果抛具名 `IllegalStateException`**（`messaging_v2_decrypt_failed` /
+`messaging_v2_no_session` / …），由收件箱同步器据此分类成**重试**还是**死信**。
+所以断言钉的是「失败时一行都不提交」+「失败名必须准确」——名字错了就会把可重试判成永久失败。
+（我最初的目标草稿写成「不得抛穿」，那是错的假设；按实测的契约改正了。）
+
+**四处反证（探针全部回滚；`app/src/main` diff 为空——本轮**没有**发现需要修的生产缺陷）**
+
+| 探针 | 改哪里 | 结果 |
+|------|--------|------|
+| P1 | 跳过内容策略校验 | 策略拒绝用例红 |
+| P2 | 抑制 sender key 修复回调 | 陈旧分发用例红 |
+| P3 | 跳过 service 发送者策略 | service 用例红 |
+| P4 | 让解密失败也 `commit` | 不可解密用例红 |
+
+回滚后 `tests=8 failed=0`。
+
+**四处我自己的错误假设（都按实测改正，值得留在台账）**
+
+1. **`writePlaintextJournal` 只在 `state = 'PROCESSING'` 时写入**（`UPDATE ... WHERE state='PROCESSING'`）。
+   行存在但状态是 `RECEIVED` 时 journal **静默写不进去**（0 行）——真实时序是「先 claim 再 process」。
+   这条不写对，第 8 条用例就永远测不到恢复路径。
+2. **生产的 sender key epoch 就是群 memberRevision**（`SignalMessagingV2Adapter` 用
+   `snapshot.memberRevision`，同一编排里 `revisionProvider` 也返回它）。我先用了 epoch=1/revision=7
+   这种生产不会出现的组合，于是**有效的分发**被判成陈旧而跳过。
+3. **`hasGroupDistributionId` 不能用来判断「是否安装了别人的 sender key」**——它描述的是自己发送用的 key。
+   正确做法是「装完之后能不能解开对方的群消息」。
+4. **libsignal 0.41 对「地址没有会话」的普通 SignalMessage 抛的是 `InvalidMessageException`**（不是
+   `NoSessionException`），因此组件层落到 `Failed`、处理器报 `messaging_v2_decrypt_failed`。
+   用例现在**先断言组件层的真实结果**再断言处理器给出的名字——将来 libsignal 改分类，会明确指向是哪一层变了。
+
+> 另外又踩了一次「编译失败留下旧结果 XML」的陷阱（G21 记过一次）：探针脚本现在**先删结果 XML**、
+> 并在无结果时显式报 `NO-RESULTS`，同时检查日志里的 `e:`。
+
+**验证（实测数字）**
+
+- 本地 arm64-v8a/API 36：整条 instrumented 套件 `tests=51 failures=0 errors=0 skipped=0`（G21 时 40，+8，另有 G21 的 PG 用例不在此套件内）；G17–G20 的既有用例继续全绿，证明装配测试没有破坏组件级证据；
+- CI x86_64：run **[34935840432](https://github.com/xalor888/Maodouchat/actions/runs/34935840432)**
+  （headSha `a573c198`）→ **success，四 job 全绿**；下载 `android-instrumented-reports` 工件核对
+  `tests=51 failures=0 errors=0 skipped=0`，其中 8 个装配用例名逐一确认（run id 与工件均由 `gh` 实测取得）；
+- 追溯门禁（不变量 9/26 新增装配层引用）实测绿。
+
+**仍未覆盖（不得被本条冒充）**：真实**跨进程/跨网络**双设备投递（本轮是一个进程内的装配，
+两个账号共用同一个内存库）；`SignalProtocol.initialize` 的联网密钥上传/恢复路径；群分发**走网络**
+与多设备扇出；日志/导出/备份；生产 PostgreSQL。
