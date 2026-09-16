@@ -108,8 +108,17 @@
         这与 G35/G36 的结论（私有目录无明文 / 导出会留明文）**共存而不矛盾**。
       - **静态结论（标注为静态）**：「**不存在应用内备份/恢复功能**」——依据是设置页无入口、无数据备份 API；
         这是**静态**性质，**不作为**运行时证据。
-  - **仍未覆盖**：**服务端**侧的「不得保存或检索人类明文」与「Bot/service 独立存储语义」本轮**没有新增证据**
-    （G11 的服务端清扫与 G28 的 service 边界是既有证据），故本条仍为 `[~]`。
+  - **服务端半边**（G38 实测，把证据从 repository 层扩到 **HTTP 路由层**）：
+    `a human v2 payload sent over http lives in exactly one column and is not searchable`。
+    - 经 **`POST /api/v2/messages`** 真发（每个收件设备用**各自不同**的标记）→ 用**枚举全表**的方式扫：
+      每个标记**恰好出现 1 次**，且都在 `MESSAGING_V2_ENVELOPES.CIPHERTEXT`；
+    - **正对照**：同一套扫描必须能找到服务端**确实**保存的明文（bot/service 正文），否则「没扫到」不可信；
+    - **不得检索**：管理检索接口返回该消息的**元数据**（先断言控制组：响应里确实有 `http_sweep_1`），
+      但**不得**出现任何一封的载荷。
+    - **修正 G38 自己的前提**：我原先以为既有 `sweep(...)` 用的是人工表清单、所以「新表会漏」——
+      **读代码后发现它早已用 JDBC 元数据枚举全表**；真正的缺口是**HTTP 层**与**检索面**。
+  - **仍未覆盖**：**PG 上的同一条扫描**（本轮只在 H2 跑；CI 的 `postgresIntegrationTest` 是绿的，但那条扫描**没在 PG 上跑过**）、
+    AI/管理检索的**其余入口**、以及 `MessagingInvariantTraceabilityTest` 里仍标记为 gap 的条目，故本条仍为 `[~]`。
 
 详细不变量见 `docs/messaging-v2-architecture.md`。
 
@@ -3499,3 +3508,60 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 **M5 状态**：覆盖在 G36 基础上新增**备份面**与**登出/换号生命周期**两层。
 **仍未覆盖**：同步器多页循环（`PULL_LIMIT = 200` 常量）、真·断网与网络抖动、附件 100 MiB 上界、
 服务端侧该不变量的新增证据、生产 PostgreSQL。
+
+### G38 — 服务端「不得保存明文」：从 repository 层扩到 HTTP 路由层
+
+客户端那半边在 G35–G37 补齐后，服务端成了最薄弱的一侧。本轮把证据推到**客户端真正使用的路由**上。
+
+**先纠正我自己的前提**：我原以为既有 `ServerPlaintextSweepTest.sweep(...)` 是人工表清单、所以「新增表会漏」。
+**读代码后发现它早就用 JDBC 元数据枚举全表**——那个担心不成立。真正的缺口只有两个：**HTTP 层**与**检索面**。
+（这条错误前提值得记下来：我是只读了它的**断言**就下了结论，没读 `sweep(...)` 的实现。）
+
+**新增 1 例（server 测试，走 `POST /api/v2/messages`）**：
+`a human v2 payload sent over http lives in exactly one column and is not searchable`
+
+| 断言 | 实测 |
+|------|------|
+| HTTP 真发送（控制组） | 2xx，消息落库 |
+| **全表枚举扫描**：每个收件设备的标记**恰好 1 处**，且都在 `MESSAGING_V2_ENVELOPES.CIPHERTEXT` | 通过 |
+| **正对照**：同一套扫描必须扫到服务端**确实**存的明文（bot/service 正文） | 通过 |
+| **不得检索**：管理检索返回**元数据**（控制组：响应含 `http_sweep_1`）但**不含**任何一封载荷 | 通过 |
+
+**四处反证（探针全部回滚）**
+
+| 探针 | 结果（首行） |
+|------|--------------|
+| P1 人类发送**额外**把载荷写进 `Chats.lastMessage` | `这些位置出现了额外副本：[PUBLIC.CHATS.LAST_MESSAGE, PUBLIC.MESSAGING_V2_ENVELOPES…]` |
+| P2 让通用扫描的**表枚举退化成空** | `这些位置出现了额外副本：[] ==> expected: <1> but was: <0>` |
+| P3 管理检索**回出载荷** | `管理检索面不得回出人类消息明文（marker=…）：{"items":[{"id":"http_sweep_1",…` |
+| P4 信封**不再存**提交的载荷（存常量） | `expected: <1> but was: <0>`；**另外**一条既有投递用例同时红（`密文必须逐字节不变`） |
+
+**P3 探针暴露了我断言里的一个真空子**（值得单独记）：
+第一版只断言「响应里没有 **U2D1** 那个标记」，而管理接口回出的其实是**另一封（U1D2）**的载荷 →
+**探针没能变红**。改成**两个信封的标记都要断言**后才红。这正是「探针必须先能红」的价值。
+
+**五处实现返工（都会伪装成「测试通过了」）**
+
+1. **另开 JDBC 连接打不到应用的 H2 内存库**：`28000` 认证失败，**即便** url/user/password 全取自
+   `ServerConfig` 也一样；最终改成**复用应用自己的 Exposed 连接**（`ExposedConnection.connection`）拿元数据。
+2. 第一版断言「恰好 1 处」，却把**同一个密文**发给了两台设备（= 两行信封）→ 改为**每个信封各自的标记**。
+3. service 正对照还要求 **bot 是会话参与者**（且 `Users` 里有该用户），不只是 `BotApps` 一行。
+4. `ChatParticipants.insert { it[chatId] = ... }` 里的 `chatId` 被**同名局部变量**遮蔽 → 必须写全限定列名。
+5. 管理检索需要**独立的管理员会话**（直接用用户 token 是 401「管理员会话无效或已过期」）。
+
+**验证（实测数字）**
+
+- **本机 H2 全量**：`431 tests, 0 failures, 0 errors, 0 skipped`（`cd server && ../gradlew test`）；
+- **PG**：本机**没有** PG，故**没在本机跑**——由 CI 的 `../gradlew postgresIntegrationTest` 覆盖（该次 **BUILD SUCCESSFUL in 1m 3s**）；
+- CI：run **[35038980794](https://github.com/xalor888/Maodouchat/actions/runs/35038980794)**（headSha `febdcd66`）。
+  **第一次运行 Android Instrumented 失败**，但**不是本轮改动**（本轮只动 `server/src/test`）：
+  失败链是「共享夹具 `第二台设备的 bootstrap 失败`」→ 之后 **21 条**用例全部变成
+  `登录过于频繁，请稍后再试`（登录限流级联）。**`gh run rerun --failed` 后四 job 全绿**：
+  `android-instrumented-reports` → **`tests=76 failures=0 skipped=25`**；
+  `two-device-http-e2e` → **`tests=25 failures=0 skipped=0`**（服务端启动 1 次、登录 4 次）。
+  这条**按未归因记录**：单次夹具失败会把整类放大成 21 条假失败，CI 信号的可诊断性因此变差——
+  这本身是个值得后续处理的问题，但**不是**本轮改动引入的。
+
+**M5 状态**：覆盖在 G37 基础上新增**服务端 HTTP 层全表扫描 + 检索面**。
+**仍未覆盖**：**PG 上的同一条扫描**、AI/管理检索的其余入口、同步器多页循环（`PULL_LIMIT = 200` 常量）、
+真·断网与网络抖动、附件 100 MiB 上界、生产 PostgreSQL。
