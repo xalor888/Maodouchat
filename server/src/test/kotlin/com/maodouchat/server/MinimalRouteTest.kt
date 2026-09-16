@@ -3270,4 +3270,244 @@ class MessagingV2TwoDeviceDeliveryTest {
             "越权 ACK 竟然真的删掉了别人的信封",
         )
     }
+
+    /**
+     * G38：人类消息经 **HTTP 路由** `/api/v2/messages` 发出后，用**枚举全 schema**的方式扫它的明文标记——
+     * 必须只出现在信封密文列，并且**检索面取不回**。
+     *
+     * 之所以要有这一条：仓库里现有的最强证据（`ServerPlaintextSweepTest`）走的是 repository，
+     * 而**路由层**才是真正的攻击面。
+     */
+    @Test
+    fun `a human v2 payload sent over http lives in exactly one column and is not searchable`() = testApplication {
+        // alex(u1) 需要在管理检索面里是管理员，才能验证「不得检索」。
+        System.setProperty("MASTER_ADMINS", "u1")
+        application {
+            moduleUnderTest(seedDemoUsers = true)
+            configureMessagingV2Routing(
+                com.maodouchat.server.messaging.v2.MessagingV2Repository(),
+            )
+        }
+
+        suspend fun login(email: String): String {
+            val response = client.post("/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"$email","password":"password123"}""")
+            }
+            assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+            return extractToken(response.bodyAsText())
+        }
+
+        val alexToken = login("alex@example.com")
+        val aliceToken = login("alice@example.com")
+        val created = client.post("/api/chats") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"participantIds":["u2"],"isGroup":true,"groupName":"HTTP Sweep"}""")
+        }
+        assertEquals(HttpStatusCode.Created, created.status, created.bodyAsText())
+        val chatId = (Json.parseToJsonElement(created.bodyAsText()) as JsonObject)["id"]!!.jsonPrimitive.content
+        acceptAllGroupInvites(aliceToken)
+
+        org.jetbrains.exposed.sql.transactions.transaction {
+            listOf("u1" to 1, "u1" to 2, "u2" to 1).forEach { (userId, deviceId) ->
+                com.maodouchat.server.db.SignalDevices.insert {
+                    it[com.maodouchat.server.db.SignalDevices.userId] = userId
+                    it[com.maodouchat.server.db.SignalDevices.deviceId] = deviceId
+                    it[deviceName] = "$userId-$deviceId"
+                    it[status] = "CONFIRMED"
+                    it[confirmedAt] = 1L
+                    it[confirmedByDeviceId] = deviceId
+                    it[createdAt] = 1L
+                    it[lastSeenAt] = 1L
+                }
+                listOf("identity_key", "registration_id", "signed_pre_key", "signed_pre_key_signature")
+                    .forEach { keyType ->
+                        com.maodouchat.server.db.SignalKeys.insert {
+                            it[id] = "$userId-$deviceId-$keyType"
+                            it[com.maodouchat.server.db.SignalKeys.userId] = userId
+                            it[com.maodouchat.server.db.SignalKeys.deviceId] = deviceId
+                            it[com.maodouchat.server.db.SignalKeys.keyType] = keyType
+                            it[keyData] = "x"
+                            it[createdAt] = 1L
+                        }
+                    }
+            }
+            com.maodouchat.server.db.AuthSessions.update(
+                { com.maodouchat.server.db.AuthSessions.userId eq "u1" },
+            ) {
+                it[com.maodouchat.server.db.AuthSessions.signalDeviceId] = 1
+            }
+        }
+
+        val memberRevision = org.jetbrains.exposed.sql.transactions.transaction {
+            com.maodouchat.server.db.Chats.selectAll()
+                .where { com.maodouchat.server.db.Chats.id eq chatId }
+                .single()[com.maodouchat.server.db.Chats.memberRevision]
+        }
+
+        // 载荷是**不透明**的：服务端只需把它当字节搬，不需要、也不允许理解它。
+        // 每个收件设备用**各自不同**的标记：这样「每个标记恰好出现 1 次」才是精确断言
+        // （同一个密文发给两台设备会落两行信封，用同一个标记就只能断言「2 次」，说明不了位置）。
+        val markerForU1Device2 = "HTTP-HUMAN-OPAQUE-U1D2-" + java.util.UUID.randomUUID()
+        val markerForU2Device1 = "HTTP-HUMAN-OPAQUE-U2D1-" + java.util.UUID.randomUUID()
+        val sent = client.post("/api/v2/messages") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody(
+                """{"id":"http_sweep_1","conversationId":"$chatId","kind":"DATA","clientTimestamp":1000,"groupRevision":$memberRevision,
+                 "attachmentIds":[],
+                 "envelopes":[
+                   {"recipientUserId":"u1","recipientDeviceId":2,"ciphertextType":"TEXT","ciphertext":"$markerForU1Device2"},
+                   {"recipientUserId":"u2","recipientDeviceId":1,"ciphertextType":"TEXT","ciphertext":"$markerForU2Device1"}
+                 ]}""",
+            )
+        }
+        // 控制组：HTTP 发送必须真的成功，否则后面的负结论毫无意义。
+        assertTrue(sent.status.value in 200..299, "HTTP 发送必须成功：${sent.status} ${sent.bodyAsText()}")
+
+        // ① 枚举**全部用户表**的所有列，对**每个**标记断言「恰好出现在它自己的信封行里」。
+        listOf(markerForU1Device2, markerForU2Device1).forEach { marker ->
+            val hits = sweepAllTables(marker)
+            assertEquals(
+                1,
+                hits.size,
+                "人类载荷只允许出现在它自己的信封列（marker=$marker）；这些位置出现了额外副本：$hits",
+            )
+            assertTrue(
+                hits.single().endsWith("MESSAGING_V2_ENVELOPES.CIPHERTEXT"),
+                "载荷应当落在信封密文列（marker=$marker），实际是：$hits",
+            )
+        }
+
+        // ② 正对照：服务端**确实**保存明文的地方（bot/service 消息正文）必须被**同一套**扫描扫到，
+        //    否则「没扫到」可能只是扫描本身坏了，而不是服务端真的没存。
+        val serviceMarker = "SERVICE-PLAINTEXT-" + java.util.UUID.randomUUID()
+        org.jetbrains.exposed.sql.transactions.transaction {
+            // service 消息的插入条件（读 `ServiceMessageRepository.insert` 得到）：
+            // bot 存在且 enabled、其 owner 可投递、会话非密聊、且 **bot 是该会话的参与者**。
+            com.maodouchat.server.db.Users.insert {
+                it[id] = "bot_sweep"
+                it[name] = "sweep"
+                it[email] = "bot-sweep@test.local"
+                it[passwordHash] = "x"
+                it[isOnline] = false
+            }
+            com.maodouchat.server.db.BotApps.insert {
+                it[id] = "bot_sweep"
+                it[ownerUserId] = "u1"
+                it[name] = "sweep"
+                it[username] = "sweep_bot"
+                it[tokenHash] = "x"
+                it[tokenPrefix] = "x"
+                it[enabled] = true
+                it[createdAt] = 1L
+                it[updatedAt] = 1L
+            }
+            com.maodouchat.server.db.ChatParticipants.insert {
+                // 注意：必须写全限定列名——本作用域里有同名局部变量 `chatId`，
+                // 直接 `it[chatId]` 会被解析成那个 String 变量而不是列（实测编译报错）。
+                it[com.maodouchat.server.db.ChatParticipants.chatId] = chatId
+                it[com.maodouchat.server.db.ChatParticipants.userId] = "bot_sweep"
+                it[com.maodouchat.server.db.ChatParticipants.role] = "MEMBER"
+                it[com.maodouchat.server.db.ChatParticipants.joinedAt] = 1L
+            }
+        }
+        val inserted = com.maodouchat.server.repository.ServiceMessageRepository().insert(
+            id = "svc_sweep_1",
+            chatId = chatId,
+            botUserId = "bot_sweep",
+            content = serviceMarker,
+            timestamp = 1L,
+        )
+        assertTrue(inserted, "正对照的 service 消息必须插入成功，否则这一条对照无效")
+        val controlHits = sweepAllTables(serviceMarker)
+        assertTrue(
+            controlHits.isNotEmpty(),
+            "扫描必须能找到服务端**确实**保存的明文（bot/service 正文），否则扫描本身不可信",
+        )
+
+        // ③ 不得检索：管理面的消息检索**只允许元数据**，不得回出人类载荷。
+        // 管理面走的是**独立的管理员会话**（实测：直接用用户 token 会 401「管理员会话无效或已过期」）。
+        val adminSession = client.post("/api/admin/session") {
+            header(HttpHeaders.Authorization, "Bearer $alexToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"password":"password123"}""")
+        }
+        assertEquals(
+            HttpStatusCode.OK,
+            adminSession.status,
+            "管理员会话必须建立成功：${adminSession.status} ${adminSession.bodyAsText()}",
+        )
+        val adminToken = extractToken(adminSession.bodyAsText())
+        val search = client.get("/api/admin/messages/search?chatId=$chatId") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertTrue(
+            search.status.value in 200..299,
+            "管理检索接口应当可用：${search.status} ${search.bodyAsText()}",
+        )
+        // 控制组：检索**必须真的返回了这条消息的元数据**——否则「没回出明文」可能只是接口空转。
+        assertTrue(
+            search.bodyAsText().contains("http_sweep_1"),
+            "检索应当返回该消息的元数据（否则下面的负结论是空转）：${search.bodyAsText()}",
+        )
+        // **两个**信封的标记都要断言：只查其中一个会漏掉「回出了另一个信封」的泄漏
+        // （这正是 P3 探针第一次没能变红的原因——它回出的其实是另一个信封的载荷）。
+        listOf(markerForU1Device2, markerForU2Device1).forEach { leaked ->
+            assertFalse(
+                search.bodyAsText().contains(leaked),
+                "管理检索面不得回出人类消息明文（marker=$leaked）：${search.bodyAsText()}",
+            )
+        }
+    }
+
+    /**
+     * 枚举**全部用户表的所有列**扫一个标记。
+     *
+     * 刻意**不**维护人工表清单：新增的表或列会被自动纳入——「不保存明文」是全称断言，
+     * 用人工清单扫就等于把结论建立在一份会过期的名单上。
+     */
+    private fun sweepAllTables(needle: String): List<String> =
+        org.jetbrains.exposed.sql.transactions.transaction {
+            val hits = mutableListOf<String>()
+            // 关键：**复用应用自己的连接**（Exposed 当前事务的底层 JDBC 连接），不另开连接。
+            // 实测教训：另开 DriverManager 连接去打 H2 内存库会 28000 认证失败——即便
+            // url/user/password 全都取自 ServerConfig 也一样；复用同一连接才是可靠做法。
+            @Suppress("UNCHECKED_CAST")
+            val jdbc = (
+                org.jetbrains.exposed.sql.transactions.TransactionManager.current().connection
+                    as org.jetbrains.exposed.sql.statements.api.ExposedConnection<java.sql.Connection>
+                ).connection
+
+            // 扫描面 = **数据库里的全部用户表**（用 JDBC 元数据枚举，不维护人工表清单：
+            // 以后新增的表/列会自动进入扫描面，而不是把结论建立在一份会过期的名单上）。
+            val tables = mutableListOf<String>()
+            jdbc.metaData.getTables(null, null, "%", arrayOf("TABLE")).use { rs ->
+                while (rs.next()) {
+                    val schema = rs.getString("TABLE_SCHEM")
+                    // 跳过 H2 自己的元数据 schema：那里出现的标记不来自我们的数据。
+                    if (schema != null && schema.equals("INFORMATION_SCHEMA", ignoreCase = true)) continue
+                    val table = rs.getString("TABLE_NAME")
+                    tables += if (schema != null) "$schema.$table" else table
+                }
+            }
+
+            tables.forEach { table ->
+                jdbc.createStatement().use { statement ->
+                    statement.executeQuery("SELECT * FROM $table").use { rs ->
+                        val columnCount = rs.metaData.columnCount
+                        while (rs.next()) {
+                            for (index in 1..columnCount) {
+                                val value = rs.getString(index) ?: continue
+                                if (value.contains(needle)) {
+                                    hits += "$table.${rs.metaData.getColumnName(index)}"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            hits
+        }
 }
