@@ -35,7 +35,7 @@ class ServerArchitectureTest {
     // 棘轮基线（当前实测值，见 DIRECTION.md 第 0 节）
     // ------------------------------------------------------------------
 
-    /** `plugins/` 下每个文件的 `transaction {` 出现次数。当前合计 29 处 / 12 个文件。 */
+    /** `plugins/` 下每个文件的 `transaction {` 出现次数。当前合计 15 处 / 4 个文件（G46–G53 逐轮下调）。 */
     private val frozenRouteTransactions: Map<String, Int> = mapOf(
         "DeveloperRouting.kt" to 4,
         "AnnouncementRouting.kt" to 4,
@@ -43,7 +43,7 @@ class ServerArchitectureTest {
         "AdminBulkRouting.kt" to 3,
     )
 
-    /** `plugins/` 下直接引用 Exposed（`org.jetbrains.exposed`）的文件。当前 32 个。 */
+    /** `plugins/` 下直接引用 Exposed（`org.jetbrains.exposed`）的文件。当前 22 个（G46–G53 逐轮缩减）。 */
     private val frozenPluginsImportingExposed: Set<String> = setOf(
         "AdminBulkRouting.kt",
         "AdminDiagnosticsRouting.kt",

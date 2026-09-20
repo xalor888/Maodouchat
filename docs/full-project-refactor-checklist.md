@@ -35,6 +35,11 @@
   - **G46**：下沉 `HealthRoutes.kt` (1处)、`AdminSystemRouting.kt` (1处) 与 `AdminSupport.kt` (1处) 的裸 Exposed 事务，`plugins/` 事务数 37→29 (16→12 文件)；
   - **G47**：下沉 `AdminModerationRouting.kt` (2处)，并移除其全部 Exposed 导入，事务数 29→27 (12→11 文件)；
   - **G48**：下沉 `AdminUsersRouting.kt` (3处)，并移除其全部 7 张表与 Exposed 导入，事务数 24 处 (10 文件)，import Exposed 的文件降至 29 个。
+  - **G49**：下沉 `AdminChatsRouting.kt` (2处) 的群聊聚合列表与级联解散事务，事务数 22 处 / 9 文件。
+  - **G50**：把 `UserTagRouting.kt` 的风控告警写入并入 `UserTagRepository.assignTags` 同一事务，事务数 21 处 / 8 文件。
+  - **G51**：`SignalKeyRouting.kt` 改用在 G45 下沉的 `SignalKeyRepository.getDeviceIdForAuthSession`，事务数 20 处 / 7 文件。
+  - **G52**：`PollRouting.kt` 改调 `UserRepository.getSuspendedUntil`、`GroupAdministrationRouting.kt` 复用设备反查，事务数 18 处 / 5 文件。
+  - **G53**：`AdminContentRouting.kt` 的动态/评论列表下沉至 `AdminManagementRepository`，**实测裸事务 15 处 / 4 文件、Exposed 导入 22 个文件**（仅剩 `DeveloperRouting` 4、`AnnouncementRouting` 4、`AdminDiagnosticsRouting` 4、`AdminBulkRouting` 3）。
   - 核心里程碑完成判据「反向依赖 0 + 事务数单调下降」已全部达成。
 - [ ] 文档、监控、错误码、隐私边界和发布回滚方案同步更新。
 
@@ -3857,3 +3862,25 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **效果**：
   密钥管理表现层路由彻底解除与底层的直接耦合，严格遵循分层规范。
 
+
+### G52 — 治理 PollRouting / GroupAdministrationRouting 裸事务与设备反查（推进 M2 分层契约）
+- **目标**：一次性清除 `PollRouting.kt` 与 `GroupAdministrationRouting.kt` 中剩余的裸 Exposed 事务与表引用。
+- **实施**：
+  1. `PollRouting.kt`：移除封禁校验里的 `transaction { Users.selectAll()… }`，改调 `UserRepository.getSuspendedUntil(userId)`，`Users` 表与 Exposed 导入全删。
+  2. `GroupAdministrationRouting.kt`：`authDeviceId` 改用在 G51 下沉的 `SignalKeyRepository.getDeviceIdForAuthSession(sessionId)`，移除 `AuthSessions` 表与 Exposed 导入。
+  3. 架构基线降至 **18 处 / 5 个文件**、Exposed 导入文件 24 个。
+- **效果**：
+  群玩法与群管理两个业务路由彻底无 Exposed 依赖；`plugins/` 中仍留裸事务的文件收敛到 5 个。
+
+### G53 — 治理 AdminContentRouting 裸事务（内容管理列表下沉至仓储层）
+- **目标**：将管理后台动态列表与评论列表的聚合查询从路由层下沉至 `AdminManagementRepository`。
+- **实施**：
+  1. `AdminManagementRepository.kt` 新增 `listAdminPosts(limit, offset, authorId, status, search)` 与 `listAdminComments(limit, offset, search)`，把分页、模糊检索与作者名聚合完整收敛到仓储层（含 `innerJoin` 的评论联表）。
+  2. `toPostAdminResponse` 映射提取到中立包 `com.maodouchat.server.common.UserAdminMappers`，与 `toUserAdminResponse` 合并为同一映射 owner。
+  3. `AdminContentRouting.kt` 改为注入 `adminManagementRepo` 并直接委托，`Posts`/`PostComments`/`Users` 表与 `transaction` 导入全部移除（实测该文件已无 `exposed` / `transaction` 字样）。
+- **实测基线（grep 复核）**：
+  - `plugins/` 裸事务 **15 处 / 4 个文件**（仅剩 `DeveloperRouting` 4、`AnnouncementRouting` 4、`AdminDiagnosticsRouting` 4、`AdminBulkRouting` 3）；
+  - `frozenPluginsImportingExposed` **22 个文件**；
+  - `repository/ → plugins/` 与 `service/ → plugins/` 反向依赖均为 **0**。
+- **效果**：
+  `plugins/` 事务数从 G45 前的 37 处 / 16 文件降到 15 处 / 4 文件（-59%），M2「route 层裸事务单调下降 + 反向依赖 0」的判据继续成立。
