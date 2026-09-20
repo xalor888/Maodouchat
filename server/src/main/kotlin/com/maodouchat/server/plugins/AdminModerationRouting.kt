@@ -1,7 +1,6 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.config.AdminAccess
-import com.maodouchat.server.db.RiskEvents
 import com.maodouchat.server.model.ApplyReportActionRequest
 import com.maodouchat.server.model.CreateModerationRuleRequest
 import com.maodouchat.server.model.ErrorResponse
@@ -26,12 +25,6 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.andWhere
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
 
 /**
  * 管理后台「举报 + 风控」子域路由。只负责鉴权、DTO 校验、调用 repository 与错误映射；
@@ -44,6 +37,7 @@ internal fun Route.configureAdminModerationRoutes(
     moderationRuleRepo: ModerationRuleRepository,
     authTokenRepo: AuthTokenRepository,
     sessionService: com.maodouchat.server.service.SessionService,
+    adminManagementRepo: com.maodouchat.server.repository.AdminManagementRepository = com.maodouchat.server.repository.AdminManagementRepository(),
 ) {
     // ─── 举报管理（admin-jwt 代理） ────
     get("/reports") {
@@ -225,25 +219,7 @@ internal fun Route.configureAdminModerationRoutes(
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 200)
         val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
         val needsReviewOnly = call.request.queryParameters["pending"] == "true"
-        val events = transaction {
-            val query = RiskEvents.selectAll()
-            if (needsReviewOnly) query.andWhere { RiskEvents.needsReview eq true }
-            query.orderBy(RiskEvents.createdAt to SortOrder.DESC, RiskEvents.id to SortOrder.DESC)
-                .limit(limit, offset)
-                .map {
-                    RiskEventAdminResponse(
-                        id = it[RiskEvents.id],
-                        userId = it[RiskEvents.userId],
-                        source = it[RiskEvents.sourceValue],
-                        ruleId = it[RiskEvents.ruleId],
-                        action = it[RiskEvents.action],
-                        matched = it[RiskEvents.matched],
-                        referenceId = it[RiskEvents.referenceId],
-                        needsReview = it[RiskEvents.needsReview],
-                        createdAt = it[RiskEvents.createdAt]
-                    )
-                }
-        }
+        val events = adminManagementRepo.listRiskEvents(limit, offset, needsReviewOnly)
         call.respond(events)
     }
 
@@ -251,12 +227,7 @@ internal fun Route.configureAdminModerationRoutes(
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val actorId = call.requireUserId()
         val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少事件 ID"))
-        val updated = transaction {
-            val exists = RiskEvents.selectAll().where { RiskEvents.id eq id }.firstOrNull()
-                ?: return@transaction false
-            RiskEvents.update({ RiskEvents.id eq id }) { it[needsReview] = false }
-            true
-        }
+        val updated = adminManagementRepo.resolveRiskEvent(id)
         if (!updated) return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("事件不存在"))
         recordAdminAudit(actorId, "RISK_EVENT_RESOLVED", "eventId=$id")
         call.respond(
@@ -266,3 +237,4 @@ internal fun Route.configureAdminModerationRoutes(
         )
     }
 }
+

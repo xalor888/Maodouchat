@@ -35,35 +35,19 @@ class ServerArchitectureTest {
     // 棘轮基线（当前实测值，见 DIRECTION.md 第 0 节）
     // ------------------------------------------------------------------
 
-    /** `plugins/` 下每个文件的 `transaction {` 出现次数。当前合计 37 处 / 16 个文件。 */
+    /** `plugins/` 下每个文件的 `transaction {` 出现次数。当前合计 29 处 / 12 个文件。 */
     private val frozenRouteTransactions: Map<String, Int> = mapOf(
         "DeveloperRouting.kt" to 4,
         "AnnouncementRouting.kt" to 4,
         "AdminDiagnosticsRouting.kt" to 4,
-        "AdminUsersRouting.kt" to 3,
         "AdminBulkRouting.kt" to 3,
-        "AdminModerationRouting.kt" to 2,
-        "AdminContentRouting.kt" to 2,
-        "AdminChatsRouting.kt" to 2,
-        "UserTagRouting.kt" to 1,
-        "SignalKeyRouting.kt" to 1,
-        "PollRouting.kt" to 1,
-        "HealthRoutes.kt" to 1,
-        "GroupAdministrationRouting.kt" to 1,
-        "AdminSystemRouting.kt" to 1,
-        "AdminSupport.kt" to 1,
     )
 
-    /** `plugins/` 下直接引用 Exposed（`org.jetbrains.exposed`）的文件。当前 34 个。 */
+    /** `plugins/` 下直接引用 Exposed（`org.jetbrains.exposed`）的文件。当前 32 个。 */
     private val frozenPluginsImportingExposed: Set<String> = setOf(
         "AdminBulkRouting.kt",
-        "AdminChatsRouting.kt",
-        "AdminContentRouting.kt",
         "AdminDiagnosticsRouting.kt",
-        "AdminModerationRouting.kt",
         "AdminSupport.kt",
-        "AdminSystemRouting.kt",
-        "AdminUsersRouting.kt",
         "AnnouncementRouting.kt",
         "BotChatInviteRouting.kt",
         "BotChatMiscRouting.kt",
@@ -81,38 +65,19 @@ class ServerArchitectureTest {
         "BotPresentationWidgetsRouting.kt",
         "BotReactionRouting.kt",
         "DeveloperRouting.kt",
-        "GroupAdministrationRouting.kt",
-        "HealthRoutes.kt",
-        "PollRouting.kt",
-        "PublicProfileHtml.kt",
         "Routing.kt",
-        "SignalKeyRouting.kt",
         "StatusPages.kt",
-        "UserTagRouting.kt",
     )
 
     /**
-     * `repository/` 反向依赖 `plugins/` 的**引用处数**（非仅文件数）。当前 3 处 / 2 个文件。
-     *
-     * 按处数而非文件数冻结，是为了堵住「在已违规文件里再加一条引用」这条绕过路径。
+     * `repository/` 反向依赖 `plugins/` 的**引用处数**（非仅文件数）。已归零 (0 处 / 0 个文件)。
      */
-    private val frozenRepositoryDependingOnPlugins: Map<String, Int> = mapOf(
-        "BotRepository.kt" to 1,
-        "RateLimitStatsRepository.kt" to 2,
-    )
+    private val frozenRepositoryDependingOnPlugins: Map<String, Int> = emptyMap()
 
     /**
-     * `service/` 反向依赖 `plugins/` 的**引用处数**。当前 6 处 / 3 个文件。
-     *
-     * `CallSignalingService` 3 处、`OrphanGcJob` 2 处、`BotWebhookService` 1 处。
-     * M2 第二步顺带消除了 `MaintenanceRunner` → `plugins.purgeAdminOperationalData`
-     * 这条倒置：清理函数已迁到 `repository/AdminOperationalDataPurge.kt`。
+     * `service/` 反向依赖 `plugins/` 的**引用处数**。已归零 (0 处 / 0 个文件)。
      */
-    private val frozenServicesDependingOnPlugins: Map<String, Int> = mapOf(
-        "BotWebhookService.kt" to 1,
-        "CallSignalingService.kt" to 3,
-        "OrphanGcJob.kt" to 2,
-    )
+    private val frozenServicesDependingOnPlugins: Map<String, Int> = emptyMap()
 
     /** 物理错放在 `repository/` 的 `*Service.kt`。当前 16 个（应迁往 `service/`）。 */
     private val frozenServicesInRepositoryPackage: Set<String> = setOf(

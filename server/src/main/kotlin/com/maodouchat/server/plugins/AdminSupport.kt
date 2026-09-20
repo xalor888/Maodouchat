@@ -17,7 +17,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.transactions.transaction
 
 /**
  * 管理后台共享支撑：DTO、鉴权/审计辅助、限流器、CSV 导出与 SQL 表达式等纯基础设施。
@@ -40,16 +39,17 @@ internal suspend fun bestEffortAdminDisconnect(block: suspend () -> Unit) {
     }
 }
 
+private val adminSupportAuditRepository = com.maodouchat.server.repository.AdminManagementRepository()
+
 internal fun recordAdminAudit(actorId: String, action: String, detail: String) {
-    transaction {
-        ModerationAuditLog.insert {
-            it[ModerationAuditLog.actorId] = actorId
-            it[ModerationAuditLog.action] = action.take(40)
-            it[ModerationAuditLog.detail] = detail.take(500)
-            it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-        }
-    }
+    adminSupportAuditRepository.recordAudit(
+        actorId = actorId,
+        userId = null,
+        action = action.take(40),
+        detail = detail.take(500)
+    )
 }
+
 
 @Serializable
 data class WatermarkExtractResponse(
@@ -166,26 +166,7 @@ internal fun parseAdminIds(obj: JsonObject, key: String = "userIds"): List<Strin
     return values.map { it.take(64) }.distinct().take(100)
 }
 
-internal fun ResultRow.toUserAdminResponse(): UserAdminResponse = UserAdminResponse(
-    id = this[Users.id],
-    name = this[Users.name],
-    email = this[Users.email],
-    isModerator = this[Users.isModerator],
-    lastActiveAt = this[Users.lastSeen],
-    suspendedUntil = this[Users.suspendedUntil],
-    postRestrictedUntil = this[Users.postRestrictedUntil],
-    messageRestrictedUntil = this[Users.messageRestrictedUntil],
-    deletedAt = this[Users.deletedAt]
-)
-
-internal fun ResultRow.toPostAdminResponse(authorName: String): PostAdminResponse = PostAdminResponse(
-    id = this[Posts.id],
-    authorId = this[Posts.authorId],
-    authorName = authorName,
-    content = this[Posts.content],
-    status = this[Posts.status],
-    createdAt = this[Posts.createdAt]
-)
+// mappers moved to com.maodouchat.server.common.UserAdminMappers
 
 @kotlinx.serialization.Serializable
 data class OpsSnapshotResponse(

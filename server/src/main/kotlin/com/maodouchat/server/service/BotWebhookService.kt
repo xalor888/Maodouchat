@@ -487,7 +487,7 @@ object BotWebhookService {
     private fun postJson(url: String, body: String, ts: Long, tokenHash: String, botId: String) {
         val signingInput = "$ts.$body"
         val signature = hmacSha256Hex(tokenHash, signingInput)
-        val response = com.maodouchat.server.plugins.postPinnedWebhookJson(
+        val response = com.maodouchat.server.common.postPinnedWebhookJson(
             url = url,
             body = body,
             headers = mapOf(

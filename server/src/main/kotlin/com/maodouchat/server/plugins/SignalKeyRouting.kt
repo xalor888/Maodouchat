@@ -1,7 +1,6 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.auth.JwtConfig
-import com.maodouchat.server.db.AuthSessions
 import com.maodouchat.server.model.ConfirmDeviceRequest
 import com.maodouchat.server.model.DeviceInfoResponse
 import com.maodouchat.server.model.ErrorResponse
@@ -30,9 +29,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
 
 /** Authenticated Signal device-key lifecycle and sealed-sender certificate adapter. */
 internal fun Route.configureSignalKeyRoutes(
@@ -195,12 +191,7 @@ internal fun Route.configureSignalKeyRoutes(
             val deviceId = call.requireDeviceId() ?: return@delete
             val authSessionId = JwtConfig.authSessionId(call.principal<JWTPrincipal>()!!.payload)
             val currentDeviceId = authSessionId?.let { sessionId ->
-                transaction {
-                    AuthSessions.selectAll()
-                        .where { AuthSessions.id eq sessionId }
-                        .firstOrNull()
-                        ?.get(AuthSessions.signalDeviceId)
-                }
+                signalKeyRepository.getDeviceIdForAuthSession(sessionId)
             }
             if (currentDeviceId == deviceId) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("不能移除当前登录设备"))

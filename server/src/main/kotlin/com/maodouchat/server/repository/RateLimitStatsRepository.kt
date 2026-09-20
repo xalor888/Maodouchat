@@ -1,8 +1,8 @@
 package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.RateLimitStatsSnapshots
-import com.maodouchat.server.plugins.GlobalRateLimiter
-import com.maodouchat.server.plugins.RateLimitStats
+import com.maodouchat.server.common.RateLimitStatsProvider
+import com.maodouchat.server.common.RateLimitStats
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -57,7 +57,7 @@ class RateLimitStatsRepository {
 
     /** 写入/更新一个分钟桶（幂等，按 bucketStartMs 唯一）。 */
     fun recordMinute(now: Long = System.currentTimeMillis()) {
-        val stats = GlobalRateLimiter.getInstance().stats()
+        val stats = RateLimitStatsProvider.get().getStats()
         val bucketStart = now - now % 60_000L
         transaction {
             if (com.maodouchat.server.db.isH2Db()) {
@@ -134,7 +134,7 @@ class RateLimitStatsRepository {
             totalAllowed = totalAllowed,
             totalRejected = totalRejected,
             peakRejectionsPerMinute = peakRejectedPerMinute,
-            live = GlobalRateLimiter.getInstance().stats()
+            live = RateLimitStatsProvider.get().getStats()
         )
     }
 

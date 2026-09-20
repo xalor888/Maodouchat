@@ -19,17 +19,13 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.andWhere
-import org.jetbrains.exposed.sql.count
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
 
 /**
  * 管理后台「系统安全快照 + 运营配置」子域路由。
  * /security-snapshot 只读汇总当前运行时开关与风控计数；/settings 读写运营开关。
  */
 internal fun Route.configureAdminSystemRoutes() {
+    val adminManagementRepository = com.maodouchat.server.repository.AdminManagementRepository()
 
     // ─── Blind watermark forensics ──────────────
 
@@ -51,17 +47,7 @@ internal fun Route.configureAdminSystemRoutes() {
         } catch (_: Exception) {
             0
         }
-        val (users, activeSessions, riskOpen) = transaction {
-            val u = Users.selectAll().count()
-            val s = runCatching {
-                // best-effort; table may vary
-                0L
-            }.getOrDefault(0L)
-            val r = runCatching {
-                RiskEvents.selectAll().where { RiskEvents.needsReview eq true }.count()
-            }.getOrDefault(0L)
-            Triple(u, s, r)
-        }
+        val (users, riskOpen) = adminManagementRepository.systemOverviewStats()
         call.respond(
         buildJsonObject {
 put("generatedAt", now)

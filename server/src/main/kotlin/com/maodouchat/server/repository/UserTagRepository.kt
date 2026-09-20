@@ -1,5 +1,6 @@
 package com.maodouchat.server.repository
 
+import com.maodouchat.server.db.RiskEvents
 import com.maodouchat.server.db.UserTagAssignments
 import com.maodouchat.server.db.UserTags
 import com.maodouchat.server.db.Users
@@ -20,6 +21,13 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
+
+/**
+ * `RiskEvents.matched` 的列宽（`varchar(280)`）。来源与
+ * `CoreTables.RiskEvents` 上那句「与 `ModerationRuleRepository.MAX_MATCHED_LENGTH`(280) 对齐」同源；
+ * 但后者在 private companion 里取不到，所以在写入侧独立声明一份并在超长时截断。
+ */
+private const val MAX_RISK_EVENT_MATCHED_LENGTH = 280
 
 /**
  * 用户标签仓储：运营给用户打的风险/分群标签，与风控联动。
@@ -180,6 +188,28 @@ class UserTagRepository {
                 this[UserTagAssignments.assignmentSource] = source.uppercase().take(20).ifBlank { "MANUAL" }
                 this[UserTagAssignments.assignedBy] = assignedBy
                 this[UserTagAssignments.createdAt] = now
+            }
+            // 8.44：高危标签打标时联动写入风控事件，供风控看板实时展示并支持按 needsReview 过滤。
+            // 只写 RiskEvents 真实存在的列（id/userId/source/ruleId/action/matched/referenceId/
+            // needsReview/createdAt）——标签本身的级别与名称编码进 matched，标签 id 进 referenceId。
+            val riskTags = UserTags.selectAll()
+                .where { (UserTags.id inList toInsert) and (UserTags.riskLevel inList listOf("HIGH", "CRITICAL")) }
+                .toList()
+            for (t in riskTags) {
+                val riskLevel = t[UserTags.riskLevel]
+                val tagName = t[UserTags.name]
+                RiskEvents.insert {
+                    it[RiskEvents.id] = UUID.randomUUID().toString()
+                    it[RiskEvents.userId] = userId
+                    it[RiskEvents.sourceValue] = "USER_TAG_ASSIGNED"
+                    it[RiskEvents.ruleId] = null
+                    it[RiskEvents.action] = "TAGGED"
+                    it[RiskEvents.matched] = "$riskLevel/$tagName · 操作人=${assignedBy ?: "system"}"
+                        .take(MAX_RISK_EVENT_MATCHED_LENGTH)
+                    it[RiskEvents.referenceId] = t[UserTags.id]
+                    it[RiskEvents.needsReview] = true
+                    it[RiskEvents.createdAt] = now
+                }
             }
         }
         userAssignments(userId)

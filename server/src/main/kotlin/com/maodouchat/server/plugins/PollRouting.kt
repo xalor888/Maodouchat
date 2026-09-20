@@ -4,7 +4,7 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.repository.GroupCheckinRepository
 import com.maodouchat.server.repository.PollRepository
-import com.maodouchat.server.db.Users
+import com.maodouchat.server.repository.UserRepository
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
@@ -26,8 +26,6 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 
 /**
@@ -52,15 +50,16 @@ private const val MAX_PK_TITLE_LENGTH = 120
 /** 群玩法写入频率限制：防止刷量放大。 */
 private val pollRateLimiter = BoundedRateLimiter()
 
+private val userRepoForSuspension = UserRepository()
+
 /** 8.33：封禁用户不得参与群玩法写入（签到/接龙/PK/投票）——与其余写路径 rejectIfSuspended 一致。 */
 private suspend fun ApplicationCall.rejectIfSuspendedForPolls(userId: String): Boolean {
-    val until = transaction {
-        Users.selectAll().where { Users.id eq userId }.firstOrNull()?.get(Users.suspendedUntil) ?: 0L
-    }
+    val until = userRepoForSuspension.getSuspendedUntil(userId)
     if (until <= 0L) return false
     respond(HttpStatusCode.Forbidden, ErrorResponse("账号已被临时封禁"))
     return true
 }
+
 
 private suspend fun ApplicationCall.rejectIfMutedForPolls(chatId: String, userId: String): Boolean {
     if (!PollRepository.isMuted(chatId, userId)) return false

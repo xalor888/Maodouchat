@@ -1,7 +1,6 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.auth.JwtConfig
-import com.maodouchat.server.db.AuthSessions
 import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.model.CreateChatRequest
 import com.maodouchat.server.model.CreateGroupInviteRequest
@@ -39,9 +38,6 @@ import io.ktor.server.routing.put
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
 
 /** Authenticated group profile, role, moderation, audit and key-coverage adapter. */
 internal fun Route.configureGroupAdministrationRoutes(
@@ -364,15 +360,13 @@ internal fun Route.configureGroupAdministrationRoutes(
     }
 }
 
+private val signalKeyRepoForAuthDevice = SignalKeyRepository()
+
 private fun authDeviceId(principal: JWTPrincipal): Int? {
     val sessionId = JwtConfig.authSessionId(principal.payload)?.takeIf(String::isNotBlank) ?: return null
-    return transaction {
-        AuthSessions.selectAll()
-            .where { AuthSessions.id eq sessionId }
-            .firstOrNull()
-            ?.get(AuthSessions.signalDeviceId)
-    }?.takeIf { it in 1..255 }
+    return signalKeyRepoForAuthDevice.getDeviceIdForAuthSession(sessionId)?.takeIf { it in 1..255 }
 }
+
 
 private suspend fun io.ktor.server.application.ApplicationCall.respondUpdatedGroup(
     queryRepository: ConversationQueryRepository,

@@ -54,6 +54,9 @@ class SignalKeyRepository(
     fun isAuthSessionBoundToDevice(userId: String, authSessionId: String, deviceId: Int): Boolean =
         deviceRegistry.isAuthSessionBoundToDevice(userId, authSessionId, deviceId)
 
+    fun getDeviceIdForAuthSession(authSessionId: String): Int? =
+        deviceRegistry.getDeviceIdForAuthSession(authSessionId)
+
     fun getDeviceInfos(userId: String, currentDeviceId: Int? = null, includePending: Boolean = false): List<DeviceInfo> =
         deviceRegistry.getDeviceInfos(userId, currentDeviceId, includePending)
 

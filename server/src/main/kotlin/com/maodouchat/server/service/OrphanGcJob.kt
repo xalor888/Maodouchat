@@ -1,7 +1,7 @@
 package com.maodouchat.server.service
 
-import com.maodouchat.server.plugins.ATTACHMENT_UPLOAD_TTL_MS
-import com.maodouchat.server.plugins.MEDIA_ORPHAN_GRACE_MS
+import com.maodouchat.server.common.AttachmentConstants.ATTACHMENT_UPLOAD_TTL_MS
+import com.maodouchat.server.common.AttachmentConstants.MEDIA_ORPHAN_GRACE_MS
 import com.maodouchat.server.repository.EncryptedAttachmentRepository
 import com.maodouchat.server.repository.MediaReferenceService
 import com.maodouchat.server.repository.PostRepository

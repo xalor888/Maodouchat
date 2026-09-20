@@ -1,6 +1,8 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.auth.JwtConfig
+import com.maodouchat.server.common.RateLimitStats
+import com.maodouchat.server.common.RateLimitStatsProvider
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.service.RuntimeConfigService
@@ -35,16 +37,7 @@ data class RateLimitDecision(
     val remaining: Int
 )
 
-/**
- * Snapshot of [GlobalRateLimiter] counters for observability endpoints.
- */
-data class RateLimitStats(
-    val allowed: Long,
-    val rejected: Long,
-    val totalBuckets: Int,
-    val maxBuckets: Int,
-    val maxPerMinute: Int
-)
+// RateLimitStats moved to com.maodouchat.server.common.RateLimitStats
 
 /**
  * Global per-IP rate limiter using sliding-window counters.
@@ -303,6 +296,10 @@ class GlobalRateLimiter(
             synchronized(this) {
                 if (instance === limiter) instance = null
             }
+        }
+
+        init {
+            RateLimitStatsProvider.register { getInstance().stats() }
         }
     }
 

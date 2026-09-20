@@ -13,9 +13,9 @@ import com.maodouchat.server.plugins.configureAdminEnhanceRouting
 import com.maodouchat.server.plugins.configureDeveloperRouting
 import com.maodouchat.server.plugins.configurePollRouting
 import com.maodouchat.server.plugins.configureSecretSurfaceRouting
-import com.maodouchat.server.plugins.isAllowedWebhookAddress
-import com.maodouchat.server.plugins.postPinnedWebhookJson
-import com.maodouchat.server.plugins.readPinnedWebhookResponse
+import com.maodouchat.server.common.isAllowedWebhookAddress
+import com.maodouchat.server.common.postPinnedWebhookJson
+import com.maodouchat.server.common.readPinnedWebhookResponse
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.AiGatewayResult
@@ -261,7 +261,13 @@ private val testJson = Json { ignoreUnknownKeys = true }
 private fun extractToken(body: String): String =
     (testJson.parseToJsonElement(body) as JsonObject)["token"]!!.jsonPrimitive.content
 
-private class FakeAiGateway : AiGateway {
+/**
+ * 测试用 AI 网关替身。
+ *
+ * 从 `private` 提升为 `internal`：`PostgresPlaintextSweepIntegrationTest` 等同样需要
+ * 装一个不发真实网络请求的网关；否则每个测试文件都得各写一份，替身会各自漂移。
+ */
+internal class FakeAiGateway : AiGateway {
     override val model: String = "test-model"
 }
 

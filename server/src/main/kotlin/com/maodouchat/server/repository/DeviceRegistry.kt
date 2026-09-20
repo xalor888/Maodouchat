@@ -300,6 +300,13 @@ class DeviceRegistry(
     fun deleteDeviceGuarded(userId: String, deviceId: Int): DeleteDeviceResult =
         deleteDeviceAndRevokeSessionsGuarded(userId, deviceId).result
 
+    fun getDeviceIdForAuthSession(authSessionId: String): Int? = transaction {
+        AuthSessions.selectAll()
+            .where { AuthSessions.id eq authSessionId }
+            .firstOrNull()
+            ?.get(AuthSessions.signalDeviceId)
+    }
+
     private fun verifyDeviceConfirmationProof(
         userId: String,
         approverDeviceId: Int,

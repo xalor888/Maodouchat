@@ -24,12 +24,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.put
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
-import org.jetbrains.exposed.sql.transactions.transaction
 
 /**
  * 管理后台「用户治理」子域路由：用户查询、封禁/禁动态/禁消息、处置模板与注销。
@@ -43,6 +37,7 @@ internal fun Route.configureAdminUsersRoutes(
     sessionService: com.maodouchat.server.service.SessionService,
     groupMediaReferenceRepo: GroupMediaReferenceRepository,
     userDispositionService: UserDispositionService,
+    adminManagementRepo: com.maodouchat.server.repository.AdminManagementRepository = com.maodouchat.server.repository.AdminManagementRepository(),
 ) {
 
     // ─── 用户管理 ─────────────────────
@@ -52,33 +47,14 @@ internal fun Route.configureAdminUsersRoutes(
         val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
         val search = call.request.queryParameters["q"]?.trim()?.takeIf { it.isNotBlank() }
         val status = call.request.queryParameters["status"]?.trim()?.takeIf { it.isNotBlank() }
-        val users = transaction {
-            val escapedSearch = search?.let { escapeLikePattern(it) }
-            val base = if (escapedSearch != null) {
-                val likePattern = org.jetbrains.exposed.sql.LikePattern("%$escapedSearch%", '\\')
-                Users.selectAll().where {
-                    (Users.name like likePattern) or (Users.email like likePattern)
-                }
-            } else Users.selectAll()
-            val now = System.currentTimeMillis()
-            val filtered = when (status) {
-                "active" -> base.andWhere { Users.deletedAt.isNull() and (Users.suspendedUntil lessEq now) }
-                "banned" -> base.andWhere { Users.deletedAt.isNull() and (Users.suspendedUntil greater now) }
-                "deleted" -> base.andWhere { Users.deletedAt.isNotNull() }
-                "online" -> base.andWhere { Users.deletedAt.isNull() and (Users.isOnline eq true) }
-                // 无关键字的默认列表隐藏已注销；带 q 时包含 tombstone，方便按 deleted_ 邮箱找回。
-                else -> if (escapedSearch != null) base else base.andWhere { Users.deletedAt.isNull() }
-            }
-            filtered.orderBy(Users.lastSeen to SortOrder.DESC, Users.id to SortOrder.DESC).limit(limit, offset)
-                .map { it.toUserAdminResponse() }
-        }
+        val users = adminManagementRepo.listUsers(limit, offset, search, status)
         call.respond(users)
     }
 
     get("/users/{id}") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
-        val user = transaction { Users.selectAll().where { Users.id eq id }.firstOrNull()?.toUserAdminResponse() }
+        val user = adminManagementRepo.getUserAdmin(id)
             ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
         call.respond(user)
     }
@@ -86,35 +62,11 @@ internal fun Route.configureAdminUsersRoutes(
     get("/users/{id}/detail") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
-        val detail = transaction {
-            val row = Users.selectAll().where { Users.id eq id }.firstOrNull()
-                ?: return@transaction null
-            UserDetailAdminResponse(
-                id = row[Users.id],
-                name = row[Users.name],
-                email = row[Users.email],
-                isModerator = row[Users.isModerator],
-                lastActiveAt = row[Users.lastSeen],
-                suspendedUntil = row[Users.suspendedUntil],
-                postRestrictedUntil = row[Users.postRestrictedUntil],
-                messageRestrictedUntil = row[Users.messageRestrictedUntil],
-                deletedAt = row[Users.deletedAt],
-                messageCount = MessagingV2Messages.selectAll().where {
-                    (MessagingV2Messages.senderUserId eq id) and
-                        (MessagingV2Messages.recordClass eq com.maodouchat.server.messaging.v2.MessagingV2RecordClass.MESSAGE)
-                }.count(),
-                postCount = Posts.selectAll().where { Posts.authorId eq id }.count(),
-                commentCount = PostComments.selectAll().where { PostComments.authorId eq id }.count(),
-                chatCount = ChatParticipants.selectAll().where { ChatParticipants.userId eq id }.count(),
-                pushTokenCount = PushTokens.selectAll().where { PushTokens.userId eq id }.count(),
-                reportCount = Reports.selectAll().where {
-                    (Reports.reporterId eq id) or (Reports.targetId eq id)
-                }.count(),
-                avatar = row[Users.avatar]
-            )
-        } ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
+        val detail = adminManagementRepo.getUserDetail(id)
+            ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
         call.respond(detail)
     }
+
 
     get("/disposition-templates") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))

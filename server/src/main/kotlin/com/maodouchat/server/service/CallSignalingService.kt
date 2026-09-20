@@ -1,9 +1,9 @@
 package com.maodouchat.server.service
 
 import com.maodouchat.server.model.SendSignalRequest
-import com.maodouchat.server.plugins.isValidCallId
-import com.maodouchat.server.plugins.isValidGroupSignalMetadata
-import com.maodouchat.server.plugins.isValidSignalPayload
+import com.maodouchat.server.common.CallSignalingValidators.isValidCallId
+import com.maodouchat.server.common.CallSignalingValidators.isValidGroupSignalMetadata
+import com.maodouchat.server.common.CallSignalingValidators.isValidSignalPayload
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.SignalingRepository
 import com.maodouchat.server.repository.UserRepository

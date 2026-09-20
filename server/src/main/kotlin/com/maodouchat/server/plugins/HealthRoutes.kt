@@ -199,11 +199,7 @@ private const val STICKER_MANIFEST_EMPTY =
     """{"version":1,"packs":[]}"""
 
 internal suspend fun ApplicationCall.respondReadiness() {
-    val databaseReady = runCatching {
-        org.jetbrains.exposed.sql.transactions.transaction {
-            exec("SELECT 1") { result -> result.next() && result.getInt(1) == 1 } ?: false
-        }
-    }.getOrDefault(false)
+    val databaseReady = com.maodouchat.server.db.isDatabaseReady()
     // B14：迁移状态——已应用版本需达到期望最新版本，否则判定未就绪（滚动发布期间暂停流量）。
     // 表缺失（直接建表/测试环境）视为无待办迁移，仅当表存在但版本落后才判 pending。
     val migrationsReady = runCatching {

@@ -20,7 +20,6 @@ internal const val MAX_TEXT_WIRE_CONTENT_LENGTH = 512_000
 internal const val MAX_MEDIA_CONTENT_LENGTH = 2_750_000
 internal const val MAX_HIDDEN_MESSAGE_CONTENT_LENGTH = 512_000
 internal const val MAX_STICKER_WIRE_CONTENT_LENGTH = 65_536
-internal const val MAX_SIGNALING_PAYLOAD_LENGTH = 32_768
 // BCrypt 实现静默截断 72 字节之后的输入（前 72 字节相同的密码互为等价）——上限必须 ≤72 字节
 internal const val MAX_PASSWORD_BYTES = 72
 
@@ -29,8 +28,6 @@ internal fun isValidPassword(password: String): Boolean {
     if (password.length < 6) return false
     return password.toByteArray(Charsets.UTF_8).size <= MAX_PASSWORD_BYTES
 }
-internal const val MAX_CALL_ID_LENGTH = 100
-internal const val MAX_MESH_CALL_MEMBERS = 6
 internal const val MAX_POST_CONTENT_LENGTH = 2_000
 internal const val MAX_POST_IMAGES = 9
 internal const val MAX_POST_IMAGE_URL_LENGTH = 500
@@ -40,9 +37,7 @@ internal val ALLOWED_POST_VISIBILITIES = setOf("PUBLIC", "CONTACTS", "PRIVATE")
 internal val ALLOWED_MESSAGE_TYPES = setOf("TEXT", "MARKDOWN", "IMAGE", "GIF", "STICKER", "LOCATION", "VOICE", "VIDEO", "FILE", "SK_DIST")
 // FAILED is client-local only; the server delivery ladder is SENT → DELIVERED → READ
 internal val ALLOWED_STATUSES = setOf("SENT", "DELIVERED", "READ")
-internal val ALLOWED_SIGNALING_TYPES = setOf("offer", "answer", "ice-candidate", "hang-up", "busy", "reject")
 internal val CLIENT_MESSAGE_ID_REGEX = Regex("^[A-Za-z0-9_-]{1,100}$")
-internal val CALL_ID_REGEX = Regex("^[A-Za-z0-9_-]{1,100}$")
 
 internal const val SENDER_KEY_ALGORITHM = "signal-sender-key-v1"
 internal const val SENDER_KEY_DISTRIBUTION_ALGORITHM = "signal-sender-key-distribution-v1"
@@ -282,13 +277,6 @@ internal fun isMatchingIdempotentMessageRetry(
     sealedSender = sealedSender,
 )
 
-internal fun isValidSignalPayload(type: String, payload: String): Boolean {
-    val payloadRequired = type !in setOf("hang-up", "busy", "reject")
-    return type in ALLOWED_SIGNALING_TYPES &&
-        (!payloadRequired || payload.isNotBlank()) &&
-        payload.length <= MAX_SIGNALING_PAYLOAD_LENGTH
-}
-
 internal fun isValidPostPayload(content: String, imageUrls: List<String>, visibility: String): Boolean {
     return (content.isNotBlank() || imageUrls.isNotEmpty()) &&
         content.length <= MAX_POST_CONTENT_LENGTH &&
@@ -302,28 +290,4 @@ internal fun isValidPostVisibility(visibility: String): Boolean = visibility in 
 
 internal fun isValidCommentPayload(content: String): Boolean {
     return content.isNotBlank() && content.length <= MAX_COMMENT_CONTENT_LENGTH
-}
-
-/** Non-blank session id required so hangup/clear never wipe unrelated 1:1 signaling. */
-internal fun isValidCallId(callId: String): Boolean =
-    callId.isNotBlank() && callId.length <= MAX_CALL_ID_LENGTH && CALL_ID_REGEX.matches(callId)
-
-internal fun isValidGroupSignalMetadata(
-    groupId: String,
-    groupMemberIds: List<String>,
-    groupInvite: Boolean,
-    callId: String,
-    fromUserId: String,
-    toUserId: String,
-    conversationQueryRepository: com.maodouchat.server.repository.ConversationQueryRepository
-): Boolean {
-    if (groupId.isBlank()) return groupMemberIds.isEmpty() && !groupInvite
-    if (callId.isBlank()) return false
-    if (!CALL_ID_REGEX.matches(groupId) || groupMemberIds.size !in 2..MAX_MESH_CALL_MEMBERS) return false
-    val distinctMembers = groupMemberIds.distinct()
-    if (distinctMembers.size != groupMemberIds.size || fromUserId !in distinctMembers || toUserId !in distinctMembers) return false
-    val chat = conversationQueryRepository.getById(groupId) ?: return false
-    if (!chat.isGroup) return false
-    val actualMembers = chat.participants.map { it.id }.toSet()
-    return distinctMembers.all { it in actualMembers }
 }

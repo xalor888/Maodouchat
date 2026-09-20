@@ -45,3 +45,17 @@ internal fun createSchemaTables() {
             JobLeases,
     )
 }
+
+/**
+ * Executes a lightweight validation query (`SELECT 1`) to check whether the database is responsive.
+ */
+fun isDatabaseReady(): Boolean {
+    return try {
+        org.jetbrains.exposed.sql.transactions.transaction {
+            exec("SELECT 1") { rs -> rs.next() } ?: false
+        }
+    } catch (_: Throwable) {
+        false
+    }
+}
+

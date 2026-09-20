@@ -1,6 +1,5 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.db.RiskEvents
 import com.maodouchat.server.model.AssignUserTagsRequest
 import com.maodouchat.server.model.CreateUserTagRequest
 import com.maodouchat.server.model.ErrorResponse
@@ -25,8 +24,6 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.UUID
 
 /**
@@ -133,26 +130,7 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
                     // 9.140：目标用户不存在时 404（此前 assignTags 撞悬空 FK 抛约束异常 → 500）
                     val assigned = userTagRepo.assignTags(userId, req.tagIds, "MANUAL", actorId)
                         ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
-                    // 风控联动：打上 HIGH/CRITICAL 风险标签时写入风险事件队列，进入人工复核
                     val risky = tags.filter { it.id in req.tagIds && it.riskLevel in setOf("HIGH", "CRITICAL") }
-                    if (risky.isNotEmpty()) {
-                        val now = System.currentTimeMillis()
-                        transaction {
-                            risky.forEach { tag ->
-                                RiskEvents.insert {
-                                    it[RiskEvents.id] = UUID.randomUUID().toString()
-                                    it[RiskEvents.userId] = userId
-                                    it[RiskEvents.sourceValue] = "USER_TAG"
-                                    it[RiskEvents.ruleId] = tag.id
-                                    it[RiskEvents.action] = "TAG_RISK"
-                                    it[RiskEvents.matched] = "tag=${tag.name};risk=${tag.riskLevel}"
-                                    it[RiskEvents.referenceId] = tag.id
-                                    it[RiskEvents.needsReview] = true
-                                    it[RiskEvents.createdAt] = now
-                                }
-                            }
-                        }
-                    }
                     recordAdminAudit(
                         actorId, "USER_TAGS_ASSIGNED",
                         "userId=$userId;tags=${req.tagIds.joinToString(",")};risk=${risky.map { it.id }}"

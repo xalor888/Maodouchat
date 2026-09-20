@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.maodouchat.server.auth.JwtConfig
+import com.maodouchat.server.common.postPinnedWebhookJson
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.BotCommandLogs
 import com.maodouchat.server.db.dayBucketExpression

@@ -15,7 +15,7 @@ import com.maodouchat.server.db.StarMessages
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.deleteMessagingV2ParticipantStateInTx
 import com.maodouchat.server.model.ChatType
-import com.maodouchat.server.plugins.isAllowedWebhookAddress
+import com.maodouchat.server.common.isAllowedWebhookAddress
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
