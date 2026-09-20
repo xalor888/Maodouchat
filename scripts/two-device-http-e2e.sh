@@ -67,6 +67,7 @@ JWT_SECRET=e2e-local-secret-12345678901234567890 \
 DATABASE_URL="jdbc:h2:mem:two-device-http-e2e-$PORT;DB_CLOSE_DELAY=-1" \
 DATABASE_DRIVER=org.h2.Driver \
 SEED_DEMO_USERS=true \
+AUTH_RATE_LIMIT_PER_MINUTE=100 \
 MASTER_ADMINS=u1 \
 SMTP_HOST="" \
   bash -c 'cd server && exec ../gradlew run --no-daemon --console=plain' >"$SERVER_LOG" 2>&1 &

@@ -33,6 +33,13 @@ internal class SignalProtocolContext(
 
     @Volatile var currentUserId: String? = null
     @Volatile var initializationSucceeded: Boolean = false
+
+    /**
+     * G39 诊断：`initialize` 过去把异常吞掉只回一个布尔，导致 E2E 夹具只能报
+     * 「bootstrap 失败」而没有任何因果信息。这里把**最后一次**初始化失败的原因记下来，
+     * 供诊断（生产上也能用来排障，不再只依赖 logcat）。
+     */
+    @Volatile var lastInitializationFailure: Throwable? = null
     @Volatile var localCryptoReady: Boolean = false
     @Volatile var identityRestoredFromStore: Boolean = false
     @Volatile var deviceIdMigrationOccurred: Boolean = false

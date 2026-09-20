@@ -131,6 +131,16 @@ class TwoAccountHttpRoundTripTest {
     private companion object {
         private var database: AppDatabase? = null
         private var shared: Shared? = null
+
+    /**
+     * 共享夹具的失败记录（G39）。
+     *
+     * 夹具一旦失败就**记下来**：后续用例直接 `Assume` 跳过，而不是**再登录一遍**——
+     * 每个用例都重试登录会触发服务端的登录限流（429），把**1 个**真实失败放大成 **21 个**
+     * 假失败（G38 两次 CI 实测：首条是「第二台设备的 bootstrap 失败」，其余 21 条全是
+     * `登录过于频繁，请稍后再试`），真正的原因反而被埋掉。
+     */
+    @Volatile private var sharedFailure: Throwable? = null
         private val extraDatabases = mutableListOf<AppDatabase>()
 
         fun freshDatabase(): AppDatabase =
@@ -189,6 +199,14 @@ class TwoAccountHttpRoundTripTest {
     /** 登录两个账号 → 各自 bootstrap → 建会话 → 取快照；**整个过程只做一次**。 */
     private fun ensureShared(): Shared = runBlocking {
         shared?.let { return@runBlocking it }
+        // 已经失败过：不要再登录一次，直接跳过本用例，并把**原始原因**留在报告里。
+        sharedFailure?.let { failure ->
+            org.junit.Assume.assumeNoException(
+                "共享夹具已在本次运行中失败；跳过本用例以避免把 1 个失败放大成登录限流级联",
+                failure,
+            )
+        }
+        try {
         val db = database()
 
         val alex = AuthApiClient.login("alex@example.com", "password123", "").getOrThrow()
@@ -251,6 +269,12 @@ class TwoAccountHttpRoundTripTest {
             alice2 = alice2,
             alice2Protocol = alice2Protocol,
         ).also { shared = it }
+        } catch (error: Throwable) {
+            // 记录第一次失败：后续用例会据此跳过，而不是各自重试登录（那会触发登录限流，
+            // 把 1 个真实失败放大成 21 个假失败）。
+            sharedFailure = error
+            throw error
+        }
     }
 
     /**
@@ -272,7 +296,11 @@ class TwoAccountHttpRoundTripTest {
         val db2 = freshDatabase()
         val protocol = SignalProtocol(db2.signalKeyDao(), db2.identityTrustDao())
         useSession(session)
-        check(protocol.initialize(session.token, userId)) { "$email 第二台设备的 bootstrap 失败" }
+        val bootstrapped = protocol.initialize(session.token, userId)
+        val bootstrapCause = protocol.lastInitializationFailure()
+            ?.let { "${it::class.java.simpleName}: ${it.message}" }
+            ?: "(initialize 没有记录异常——失败发生在返回 false 但不抛异常的分支)"
+        check(bootstrapped) { "$email 第二台设备的 bootstrap 失败；原因=$bootstrapCause" }
         val deviceId = protocol.context.localDeviceId
         check(deviceId != approverDeviceId) {
             "第二台设备必须拿到不同的 deviceId，实际 $deviceId == $approverDeviceId"

@@ -24,9 +24,21 @@ class SignalAccountBootstrapper internal constructor(
         try {
             val accountId = userId?.takeIf { it.isNotBlank() }
             when (SignalInitializationPolicy.action(context.initializationState(), accountId)) {
-                SignalInitializationAction.REUSE -> return@withLock true
-                SignalInitializationAction.UPLOAD_ONLY ->
-                    return@withLock finishInitializationUpload(token, accountId)
+                SignalInitializationAction.REUSE -> {
+                    context.lastInitializationFailure = null
+                    return@withLock true
+                }
+                SignalInitializationAction.UPLOAD_ONLY -> {
+                    val uploaded = finishInitializationUpload(token, accountId)
+                    if (uploaded) {
+                        context.lastInitializationFailure = null
+                    } else if (context.lastInitializationFailure == null) {
+                        context.lastInitializationFailure = IllegalStateException(
+                            "finishInitializationUpload returned false in UPLOAD_ONLY (localCryptoReady=${context.localCryptoReady}, devicePendingApproval=${context.devicePendingApproval})"
+                        )
+                    }
+                    return@withLock uploaded
+                }
                 SignalInitializationAction.FULL_INITIALIZATION -> Unit
             }
             val accountChanged = context.currentUserId != accountId
@@ -89,7 +101,15 @@ class SignalAccountBootstrapper internal constructor(
             )
             context.decryptRetryTracker.clearAll()
 
-            finishInitializationUpload(token, accountId)
+            val uploaded = finishInitializationUpload(token, accountId)
+            if (uploaded) {
+                context.lastInitializationFailure = null
+            } else if (context.lastInitializationFailure == null) {
+                context.lastInitializationFailure = IllegalStateException(
+                    "finishInitializationUpload returned false (localCryptoReady=${context.localCryptoReady}, devicePendingApproval=${context.devicePendingApproval})"
+                )
+            }
+            uploaded
         } catch (error: kotlinx.coroutines.CancellationException) {
             val invalidateLocalCrypto = SignalDeviceIdRecoveryPolicy.invalidatesLocalCrypto(error)
             if (invalidateLocalCrypto) {
@@ -105,6 +125,8 @@ class SignalAccountBootstrapper internal constructor(
             )
             throw error
         } catch (error: Exception) {
+            // G39：把原因留下来（不只是打日志），让调用方能给出因果关系。
+            context.lastInitializationFailure = error
             Log.w(SignalProtocolConstants.TAG, "Signal protocol initialization failed", error)
             val invalidateLocalCrypto = SignalDeviceIdRecoveryPolicy.invalidatesLocalCrypto(error)
             if (invalidateLocalCrypto) {

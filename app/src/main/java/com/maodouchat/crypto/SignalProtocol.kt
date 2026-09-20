@@ -87,6 +87,9 @@ class SignalProtocol(
 
     suspend fun clearLocalState() = accountBootstrapper.clearLocalState()
 
+    /** G39 诊断：上一次初始化失败的原因（成功时为空）。 */
+    fun lastInitializationFailure(): Throwable? = context.lastInitializationFailure
+
     suspend fun invalidateInMemoryAccountState() = accountBootstrapper.invalidateInMemoryAccountState()
 
     // ==========================================
