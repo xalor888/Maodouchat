@@ -6481,6 +6481,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明 + SecretNewDeviceRiskLocked（3667→3622）**：先搬 4 个顶层声明到 ChatDetailLocalizedLabels.kt（3667→3637）；B2 风控块抓块失败——收尾 `}` 与下一支 `else if` 的 `{` 同行，括号配平行内归零；改用**替换分支体**（16 行删掉、换成一行调用、两条 `} else if` 行原样保留）抽出到 ChatDetailSecretGates.kt（3637→3622）。无 Compose 测试基建，负控制用「参数出现次数 2→1」做代理。app JVM 单测 1906 例不变。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明（3667→3637）**：displayedTranslation + 三个 localizedLabel 重载搬到 ChatDetailLocalizedLabels.kt，调用点零改动。一次抓块失败：`} else if (x) {` 链式分支的收尾 `}` 与下一支起始 `{` 同行，括号配平行内归零——为 20 行去拆这种行不划算，改抽边界干净的顶层声明。app JVM 单测 1906 例不变。
+  - **G188 ChatDetailChatLockDialogs.kt 改名 ChatDetailConfirmDialogs.kt**：G187 记下的名不副实——文件已有 3 个不同主题确认框，名字只涵盖「聊天锁」。按共同点（破坏性操作前的二次确认）改名。成本近零：三个引用点都在 ChatDetailRoute.kt 且同包，无 import 需改。`git log --follow` 历史未断。本轮没有逻辑负控制——改名任务的「没改坏」证明是 rename 相似度 90% + diff 仅 KDoc 6 行。app JVM 单测 1906 例不变。
   - **G187 抽出 LiveLocationDurationDialog（3598→3578）**：28 行内联弹窗换成 8 行调用。一次 import 遗漏（Column/Modifier）已修。负控制按函数体切片（G186 教训直接复用）。**发现该文件已装 3 个 dialog 但名字还叫 ChatDetailChatLockDialogs——名不副实，已记录待改名，没顺手改（改名牵动 import 属另一件事）。** app JVM 单测 1906 例不变。
   - **G186 抽出 ClearChatHistoryConfirmDialog（3610→3598）**：33 行内联弹窗换成 21 行调用。SensitiveActionGate.confirm 那段**刻意留在调用点**——它是鉴权策略不是 UI。负控制踩到作用域问题：文件里两个 composable 都用 onConfirm，文件级 grep 计数是噪声；改成按函数体切片后才准确（2→1→2）。app JVM 单测 1906 例不变。
   - **G185 抽出 ForgotChatLockConfirmDialog（3622→3610）**：chatLockBlocking 分支里 20 行内联 AlertDialog 换成 8 行调用，新文件 ChatDetailChatLockDialogs.kt。这个块边界干净（首行完整、收尾单独一行），不像 G184 那块需要绕。目标文本里「出现 2 次」实测是 4 次——自检靠结构不变量没被带偏。app JVM 单测 1906 例不变。
@@ -7425,3 +7426,31 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   下一个 dialog 抽进来时应该先把它改名（例如 `ChatDetailConfirmDialogs.kt`），
   否则后来者会以为「实时位置」放错了地方。本轮先记下，没顺手改
   （改名会牵动 import，属于另一件事）。
+
+### G188 — ChatDetailChatLockDialogs.kt 改名 ChatDetailConfirmDialogs.kt
+- **做什么**：`git mv` 改名 + 更新文件头 KDoc。
+  G187 记下的名不副实：该文件已有三个不同主题的确认框
+  （`ForgotChatLockConfirmDialog` / `ClearChatHistoryConfirmDialog` /
+  `LiveLocationDurationDialog`），名字却只涵盖「聊天锁」一类。
+- **为什么叫 `ChatDetailConfirmDialogs`**：三个 dialog 的共同点是
+  **「破坏性/不可逆操作前的二次确认」**——按共性命名，而不是按第一个住进来的命名。
+  也和同目录既有风格一致（`ChatDetailChatSettingsDialogs` / `ChatDetailTextInputDialogs`
+  都是复数形式）。
+- **改名成本几乎为零的原因**：三个 dialog 的引用点**全在 `ChatDetailRoute.kt`**，
+  且**同包**——不需要改任何 import。这是「按包组织 + 同文件集中使用」的自然结果。
+- **验证**：
+  - `git diff --cached -M --summary` 显示 `rename ... (90%)`，
+    即 git 正确识别为改名而非「删旧建新」；改动只有 KDoc 的 5 增 1 删；
+  - `git log --oneline --follow` 能一路追溯到 G185 / G186 / G187 三个抽出提交，
+    历史没断；
+  - 编译通过、无未用 import；三个引用点仍在（`grep -c` = 3）；
+    旧文件名已不存在；
+  - **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    342 个套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**（用例数不变）。
+- **负控制**：本轮目标里我原本写「故意把 KDoc 留着不改」，意识到那没有意义
+  （KDoc 是文档不是逻辑，没有「变红」可言），**改成验证 rename 本身**：
+  确认 `git diff --stat` 只有 rename + KDoc 那 6 行、代码零改动。
+  这是改名类任务唯一有意义的「没改坏」证明。
+  **教训（第四十一次沉淀）：不是每轮都能有「变红」的负控制。
+     改名/挪文件这类任务，能证明的是**「除了名字和注释，别的一个字节没动」**——
+     用 rename 相似度 + diff 行数来证明，别硬造一个逻辑负控制。**
