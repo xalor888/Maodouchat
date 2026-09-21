@@ -1379,10 +1379,10 @@ class WebRTCManager(
                         val selected = members["selected"] as? Boolean
                             ?: (members["nominated"] as? Boolean)
                         if (selected == true) {
-                            readNumber(members["currentRoundTripTime"])?.let { rttSec ->
+                            readStatNumber(members["currentRoundTripTime"])?.let { rttSec ->
                                 rttMs = (rttSec * 1000.0).toLong()
                             }
-                            readNumber(members["availableOutgoingBitrate"])?.let { bps ->
+                            readStatNumber(members["availableOutgoingBitrate"])?.let { bps ->
                                 availableBitrateKbps = bps / 1000.0
                             }
                         }
@@ -1392,13 +1392,13 @@ class WebRTCManager(
                             ?: (members["mediaType"] as? String)
                             ?: ""
                         if (media == "audio" || media == "video" || media.isEmpty()) {
-                            readNumber(members["packetsLost"])?.let { packetsLost += it.toLong() }
-                            readNumber(members["packetsReceived"])?.let { packetsReceived += it.toLong() }
+                            readStatNumber(members["packetsLost"])?.let { packetsLost += it.toLong() }
+                            readStatNumber(members["packetsReceived"])?.let { packetsReceived += it.toLong() }
                         }
                     }
                     "remote-inbound-rtp" -> {
                         if (rttMs == null) {
-                            readNumber(members["roundTripTime"])?.let { rttSec ->
+                            readStatNumber(members["roundTripTime"])?.let { rttSec ->
                                 rttMs = (rttSec * 1000.0).toLong()
                             }
                         }
@@ -1408,11 +1408,7 @@ class WebRTCManager(
         } catch (_: Throwable) {
             return lastStatsSnapshot
         }
-        val lossPercent = if (packetsReceived + packetsLost > 0) {
-            packetsLost.toDouble() * 100.0 / (packetsReceived + packetsLost).toDouble()
-        } else {
-            null
-        }
+        val lossPercent = packetLossPercent(packetsLost, packetsReceived)
         if (rttMs == null && lossPercent == null && availableBitrateKbps == null) {
             return lastStatsSnapshot
         }
@@ -1423,9 +1419,4 @@ class WebRTCManager(
         )
     }
 
-    private fun readNumber(value: Any?): Double? = when (value) {
-        is Number -> value.toDouble()
-        is String -> value.toDoubleOrNull()
-        else -> null
-    }
 }
