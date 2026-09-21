@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G176 抽出 WebRTCStatsMath 两个纯函数（+10 例）**：WebRTCManager 是成员式大类、整体拆分风险高（G171），改从「不碰实例状态的纯函数」切入——抽出 readStatNumber 与 packetLossPercent。一次测试名不副实：`large counts do not overflow` 用 1e11 当大数，负控制改成 Long 运算后**没红**（溢出需 >9.2e16），名字在说谎；拆成「精度」与「真溢出」两条后立刻红。app JVM 单测 **1867 → 1877 例**，0 失败。
   - **G175 收敛 explore 包 3 处 relativeTime + 2 处 visibilityOptionLabel**：新建 ExploreRelativeTime.kt 提供两共享实现，删 5 处私有副本（69 行）。**没有**统一包内两种不同语义的 relativeTime（手写分档 vs RelativeTimePolicy+DateUtils，文案不同），只收敛逐字相同的，并在 KDoc 写明区别。保留的那个改名 relativeTimeLocalized 避开撞车。app JVM 单测 1867 例不变。
   - **G174 收敛 8 处完全同体的 currentUserId**：新建 util/CurrentUserId.kt 提供共享实现，删掉 8 个 Store/Preferences 里的私有三行副本。G173 暴露了先前扫描的 200 字符门槛会漏一行式样板，本轮换成「同名 + 函数体完全一致」口径，`currentUserId` ×8 是最大一组。纯收敛、无新增测试（TokenManager 本机测不了，不凑数）。app JVM 单测 1867 例不变。
   - **G173 收敛四个群玩 ViewModel 的重复样板**：新建 GroupPlayViewModelSupport.kt 提供 authToken()/localizedString(id)/groupPlayChatId(handle)，删掉四个文件里的私有副本（动手时发现扫出来的 3 个之外还有 GroupChainScreen 第四份——先前扫描有 200 字符门槛，漏掉了一行式样板）。`authToken()` 本机无法单测（无 Robolectric），明确记下未覆盖而非凑数。app JVM 单测 **1864 → 1867 例**，0 失败。
@@ -7004,3 +7005,44 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   在不同包、实现不同，不在范围）；无未用 import；
   **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
     335 个套件 / 1867 tests / 0 failures / 0 errors / 0 skipped**。
+
+### G176 — 抽出 WebRTCStatsMath 两个纯函数并可测（1867 → 1877 例）
+- **做了什么**：新建 `webrtc/WebRTCStatsMath.kt`，提供
+  `readStatNumber(value)` 与 `packetLossPercent(lost, received)`；
+  把 `WebRTCManager` 里私有的 `readNumber`（5 处调用点）与
+  `parseStatsReport` 内联的 `lossPercent` 计算换成调用这两个共享实现。
+  冻结上限 **1431 → 1422**（两处 mapOf）。
+- **为什么这么抽**：`WebRTCManager` 和 `CallViewModel` 一样是**成员式大类**
+  （约 55 个成员方法），G171 已判断整体拆分风险高、收益低。
+  改从「**不碰实例状态的纯函数**」切入——这两个函数是文件里最干净的切分点，
+  抽成顶层后普通 JVM 单测就能覆盖。
+- **10 条用例**：
+  - `readStatNumber` 4 条：Int/Long/Double/Float 转换、可解析字符串、
+    不可解析字符串/null/Boolean/List/Map 一律 null；
+  - `packetLossPercent` 6 条：**无样本返回 null 而不是 0%**、
+    全不丢 0%、全丢 100%、四组典型比例、结果恒在 0..100、
+    以及「荒谬量级不回绕」。
+- **一次测试名不副实（本轮最重要的自我纠正）**：
+  我最初写了条 `large counts do not overflow`，用 `1e11` 当「大数」。
+  但负控制把实现改成 `lost * 100L` 后**测试没红**——因为 Long 溢出要
+  `lost > 9.2e16`，`1e11` 根本不够。**那条测试的名字在说谎**：
+  它声称覆盖溢出，实际只覆盖了精度。
+  拆成两条：
+  - `very large but realistic counts stay exact and in range`（千亿级，验精度与范围）；
+  - `absurd counts still yield a sane percentage instead of overflowing`
+    （`Long.MAX_VALUE / 10`，真溢出场景）。
+  拆分后同一负控制立刻红。
+  **教训（第三十二次沉淀）：负控制不仅是「证明测试有效」的手段，
+     也是「证明测试名没撒谎」的手段。名字里带「不溢出」「不会丢失」
+     这类断言的用例，必须用**真的会溢出/丢失**的输入去跑一次负控制，
+     否则它可能只是一条精度测试戴了顶高帽子。**
+- **三次负控制，全部按预期红**：
+  1. `readStatNumber` 对 String 返回 `0.0` → 2 例红；
+  2. `lost * 100L` 先按 Long 算（真回绕）→ `absurd counts still yield a sane percentage` 红；
+  3. `total <= 0` 守卫减弱成 `total < 0` → `no samples means null not zero` 红。
+  三次均已定点恢复并复跑转绿。
+- **实测结果**：app JVM 单测 **1867 → 1877 例**（+10）；
+  `WebRTCManager.kt` 1431 → 1422 行。
+- **实跑验证**：10 条用例名逐条从 XML 读出确认在执行；三次负控制均红；无未用 import；
+  恢复后**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    336 个套件 / 1877 tests / 0 failures / 0 errors / 0 skipped**。

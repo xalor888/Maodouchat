@@ -67,12 +67,24 @@ class WebRTCStatsMathTest {
     }
 
     @Test
-    fun `large counts do not overflow`() {
-        // lost * 100 若先按 Long 算会溢出；实现必须先转 Double
+    fun `very large but realistic counts stay exact and in range`() {
+        // 真实通话里丢包数是百万级；这里放到千亿级验证精度与范围。
+        // 注意：Long 溢出要 lost > 9.2e16 才会发生，那不是真实场景，
+        // 所以这条**不**声称覆盖溢出——覆盖溢出见下面那条。
         val big = 100_000_000_000L
         val pct = packetLossPercent(big, big)!!
         assertEquals(50.0, pct, 1e-9)
         assertTrue("结果应在 0..100 之间", pct in 0.0..100.0)
+    }
+
+    @Test
+    fun `absurd counts still yield a sane percentage instead of overflowing`() {
+        // lost * 100 若先按 Long 算，超过 Long.MAX_VALUE/100 ≈ 9.2e16 就回绕成负数，
+        // 于是「几乎全丢」会被算成负百分比。实现必须先转 Double 再乘。
+        val huge = Long.MAX_VALUE / 10
+        val pct = packetLossPercent(huge, huge)!!
+        assertTrue("回绕成负数了: $pct", pct >= 0.0)
+        assertEquals(50.0, pct, 1e-6)
     }
 
     @Test
