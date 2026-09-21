@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明（3667→3637）**：displayedTranslation + 三个 localizedLabel 重载搬到 ChatDetailLocalizedLabels.kt，调用点零改动。一次抓块失败：`} else if (x) {` 链式分支的收尾 `}` 与下一支起始 `{` 同行，括号配平行内归零——为 20 行去拆这种行不划算，改抽边界干净的顶层声明。app JVM 单测 1906 例不变。
   - **G183 收敛 mediaDecryptFailed* 重复 when + 抽出 isDecryptable（+3 例）**：两处 8 分支 when 逐字相同（只收 Message / MessageType），让前者委托后者；并把纯集合判定的 isDecryptable 从类成员抽成顶层纯函数才能单测。两次负控制一红一绿——NC2「给一处加分支不同步另一处」变**绿**正是收敛成功的证明（没有第二处可漏改）。一次 KDoc 写长被行数门禁抓到，压回 3102。app JVM 单测 **1903 → 1906 例**，0 失败。
   - **G182 第二次全量复跑（四套 2410 例全绿）**：G171 之后又做了 9 轮只跑 app JVM 的改动，按 G171 的教训复跑四套——app 1903、server 461、PG 19、E2E 27。一次差点被 Gradle 缓存蒙过：server 首跑 `3s / 6 up-to-date` 是零执行，加 `--rerun-tasks` 后 `9m / 6 executed` 才是真测。沉淀出「BUILD SUCCESSFUL ≠ 测过了，看到 up-to-date 就是零执行信号」。app JVM 1903 例不变。
   - **G181 收敛 7 处 toHex 到共享实现（+6 例）**：新建 HexBytes.kt，删 7 处逐字相同的私有 toHex()。`%02x` 的补零是硬要求（不补零会让指纹长度漂移、产生歧义），散落 7 处风险高。一次正则写错：负回顾 `(?<![.\w])` 把唯一的调用形式 `.toHex()` 全排除了。app JVM 单测 **1897 → 1903 例**，0 失败。
@@ -7277,3 +7278,33 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   恢复后**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
     342 个套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**；
   `git status` 干净。
+
+### G184 — 从 ChatDetailRoute.kt 抽出 4 个顶层声明（3667 → 3637）
+- **做了什么**：把 `displayedTranslation()` 与三个 `localizedLabel()`
+  （`AiSummaryScope` / `AiImageAnalysisMode` / `AiFileAnalysisMode` 三种接收者的重载）
+  共 4 个顶层声明、30 行，搬到新文件 `ChatDetailLocalizedLabels.kt`（同包）。
+  冻结上限 **3667 → 3637**（两处 mapOf）。
+  调用点**零改动**——同包顶层声明，可见性不变。
+- **为什么先动这四个**：`ChatDetailRoute.kt` 3667 行里有一个 **3340 行的
+  `ChatDetailRoute` composable**，其余都是小声明。本轮先搬走与路由无耦合的顶层声明，
+  风险最低；composable 本身的拆分留到后续轮次。
+- **一次抓块失败，换了目标**：
+  我最初想抽的是 `} else if (deviceRiskLocked) { ... }` 那个 B2 风控块（约 20 行）。
+  但它的收尾 `}` 和下一条 `else if (chatLockBlocking) {` 的起始 `{` **在同一行**——
+  括号配平在行内就归零，抓出来的是整个文件剩余部分。
+  这是 G142 / G167 踩过的「声明交错/共享行」问题的又一变体。
+  **判断：为 20 行去拆一行 `} else if (...) {` 不划算**，
+  改抽四个边界干净的顶层声明。
+  **教训（第三十七次沉淀）：`} else if (x) {` 这种链式分支的边界
+     永远不能靠括号配平单独确定——必须同时看下一行。
+     真要从链中间抽一段，正确做法是把**整条链**一起搬，或者先重构成
+     若干独立 `if` 块再抽。**
+- **一次 import 遗漏**：新文件缺 `com.maodouchat.data.model.MessageMeta`
+  （三个 enum 在同包，不需要 import），补上即过。
+- **实测结果**：`ChatDetailRoute.kt` 3667 → **3637** 行；新文件 47 行；
+  app JVM 单测 **1906 例不变**（纯搬移）。
+- **实跑验证**：`git diff --stat` 显示原文件 **30 deletions**；
+  抓块时断言「块内恰好这 4 个顶层声明」「括号平衡」「每个 fun 行缩进为 0」；
+  `:app:compileDebugKotlin` 通过、无未用 import；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    342 个套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**。

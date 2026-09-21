@@ -293,36 +293,6 @@ internal val translationLanguageOptions = listOf(
     TranslationLanguageOption("Romanian", R.string.chat_language_romanian)
 )
 
-internal fun MessageMeta.displayedTranslation(): String? {
-    val preferred = preferredTranslationLanguage?.let(translations::get)
-    return preferred?.takeIf { it.isNotBlank() }
-        ?: translations["中文"]?.takeIf { it.isNotBlank() }
-        ?: translations.values.lastOrNull { it.isNotBlank() }
-}
-
-@Composable
-internal fun AiSummaryScope.localizedLabel(): String = stringResource(when (this) {
-    AiSummaryScope.RECENT -> R.string.chat_ai_summary_scope_recent
-    AiSummaryScope.TODAY -> R.string.chat_ai_summary_scope_today
-    AiSummaryScope.SEVEN_DAYS -> R.string.chat_ai_summary_scope_week
-    AiSummaryScope.THIRTY_DAYS -> R.string.chat_ai_summary_scope_month
-    AiSummaryScope.SEARCH_RESULTS -> R.string.chat_ai_summary_scope_search
-    AiSummaryScope.UNREAD -> R.string.chat_ai_summary_scope_unread
-})
-
-@Composable
-internal fun AiImageAnalysisMode.localizedLabel(): String = stringResource(when (this) {
-    AiImageAnalysisMode.DESCRIBE -> R.string.chat_ai_image_mode_describe
-    AiImageAnalysisMode.OCR -> R.string.chat_ai_image_mode_ocr
-    AiImageAnalysisMode.SAFETY -> R.string.chat_ai_image_mode_safety
-})
-
-@Composable
-internal fun AiFileAnalysisMode.localizedLabel(): String = stringResource(when (this) {
-    AiFileAnalysisMode.SUMMARIZE -> R.string.chat_ai_file_mode_summarize
-    AiFileAnalysisMode.QUESTION -> R.string.chat_ai_file_mode_question
-})
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域；lint 无法区分
