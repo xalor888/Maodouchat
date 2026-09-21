@@ -1,7 +1,5 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.db.AnnouncementAcks
-import com.maodouchat.server.db.SystemAnnouncements
 import com.maodouchat.server.model.ActiveAnnouncementsResponse
 import com.maodouchat.server.model.AnnouncementAckResponse
 import com.maodouchat.server.model.AnnouncementDto
@@ -28,14 +26,6 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.count
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.upsert
 
 /**
  * 系统公告子域路由：用户端可见公告 + 管理端公告 CRUD/发布/取消/统计。
@@ -55,10 +45,7 @@ fun Application.configureAnnouncementRoutes(
                 val now = System.currentTimeMillis()
                 val userTagIds = userTagRepo.userTagIds(userId)
                 val active = announcementRepo.activeForUser(userId, now, userTagIds)
-                val ackedIds = transaction {
-                    AnnouncementAcks.selectAll().where { AnnouncementAcks.userId eq userId }
-                        .map { it[AnnouncementAcks.announcementId] }.toSet()
-                }
+                val ackedIds = announcementRepo.ackedAnnouncementIds(userId)
                 call.respond(
                     ActiveAnnouncementsResponse(
                         announcements = active.map { it.toDto(acked = it.id in ackedIds) },
@@ -76,29 +63,15 @@ fun Application.configureAnnouncementRoutes(
                 // [startsAt,expiresAt] + 受众命中）——否则任意用户可对不可见的 TAGGED/过期公告打已读，
                 // 污染 stats 的 acked 统计。
                 val now = System.currentTimeMillis()
-                val tagIds = userTagRepo.userTagIds(userId).toSet()
-                val visible = transaction {
-                    SystemAnnouncements.selectAll().where {
-                        (SystemAnnouncements.id eq id) and
-                            (SystemAnnouncements.status eq "ACTIVE") and
-                            (SystemAnnouncements.startsAt lessEq now) and
-                            (SystemAnnouncements.expiresAt greaterEq now)
-                    }.firstOrNull()?.let { row ->
-                        val audience = row[SystemAnnouncements.targetAudience]
-                        if (audience == "ALL") true else {
-                            val tagId = row[SystemAnnouncements.targetTagId]
-                            tagId != null && tagId in tagIds
-                        }
-                    } ?: false
-                }
+                // 8.46：ack 与 activeForUser 同一可见性口径，仓库统一判定
+                val visible = announcementRepo.isAckVisibleToUser(
+                    id = id,
+                    userId = userId,
+                    now = now,
+                    userTagIds = userTagRepo.userTagIds(userId).toSet(),
+                )
                 if (!visible) return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("公告不存在或未发布"))
-                transaction {
-                    AnnouncementAcks.upsert(AnnouncementAcks.announcementId, AnnouncementAcks.userId) {
-                        it[AnnouncementAcks.announcementId] = id
-                        it[AnnouncementAcks.userId] = userId
-                        it[AnnouncementAcks.ackedAt] = System.currentTimeMillis()
-                    }
-                }
+                announcementRepo.markAcked(id, userId, now)
                 call.respond(AnnouncementAckResponse(ok = true, announcementId = id))
             }
         }
@@ -278,9 +251,7 @@ fun Application.configureAnnouncementRoutes(
                     val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少公告 ID"))
                     val stats = announcementRepo.stats(id)
                         ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("公告不存在"))
-                    val ackedCount = transaction {
-                        AnnouncementAcks.selectAll().where { AnnouncementAcks.announcementId eq id }.count()
-                    }
+                    val ackedCount = announcementRepo.ackedCount(id)
                     call.respond(
                         AnnouncementStatsResponse(
                             id = id,

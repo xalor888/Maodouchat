@@ -5,9 +5,8 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.common.postPinnedWebhookJson
 import com.maodouchat.server.config.ServerConfig
-import com.maodouchat.server.db.BotCommandLogs
-import com.maodouchat.server.db.dayBucketExpression
 import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.model.WebhookTestResult
 import com.maodouchat.server.repository.AuthTokenRepository
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.ConversationParticipantRepository
@@ -36,21 +35,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNotNull
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
-import org.jetbrains.exposed.sql.countDistinct
-import org.jetbrains.exposed.sql.Column
-import org.jetbrains.exposed.sql.Expression
-import org.jetbrains.exposed.sql.QueryBuilder
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.andWhere
-import org.jetbrains.exposed.sql.count
-import org.jetbrains.exposed.sql.select
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.Date
 import java.util.UUID
 import javax.crypto.Mac
@@ -135,6 +119,7 @@ private suspend fun ApplicationCall.respondDeveloperBotUnavailable() {
  *                                manage ALL their bots without per-bot tokens.
  */
 fun Application.configureDeveloperRouting() {
+    val developerAnalytics = com.maodouchat.server.repository.DeveloperAnalyticsRepository()
     val developerLoginRateLimiter = BoundedRateLimiter()
     /** 8.131：开发者登录按账号限流（防轮换源 IP 爆破，与主登录 loginEmailRateLimiter 同策略）。 */
     val developerLoginEmailRateLimiter = BoundedRateLimiter()
@@ -148,7 +133,7 @@ fun Application.configureDeveloperRouting() {
             // ─── Dashboard ────────────────────────
             get("/dashboard") {
                 val bot = authenticateDeveloperBot(call) ?: return@get
-                val dashboard = buildDashboard(bot.id, bot.ownerUserId)
+                val dashboard = developerAnalytics.dashboard(bot.id)
                 call.respond(dashboard)
             }
 
@@ -163,7 +148,7 @@ fun Application.configureDeveloperRouting() {
                     )
                 }
                 val days = (call.request.queryParameters["days"]?.toIntOrNull() ?: 7).coerceIn(1, 90)
-                val analytics = buildBotAnalytics(targetBotId, days)
+                val analytics = developerAnalytics.analytics(targetBotId, days)
                 call.respond(analytics)
             }
 
@@ -182,42 +167,13 @@ fun Application.configureDeveloperRouting() {
                 val commandFilter = call.request.queryParameters["command"]?.trim()?.takeIf { it.isNotBlank() }
                 val sinceMs = call.request.queryParameters["since"]?.toLongOrNull()
 
-                val logs = transaction {
-                    val query = BotCommandLogs.selectAll()
-                        .where { BotCommandLogs.botId eq targetBotId }
-                    if (commandFilter != null) {
-                        query.andWhere { BotCommandLogs.command eq commandFilter }
-                    }
-                    if (sinceMs != null && sinceMs > 0) {
-                        query.andWhere { BotCommandLogs.createdAt greater sinceMs }
-                    }
-                    // total 必须是「过滤后的总行数」而非本页条数——此前填 logs.size，
-                    // 客户端按 limit/offset 翻页时无法判断是否还有下一页
-                    val countQuery = BotCommandLogs.selectAll()
-                        .where { BotCommandLogs.botId eq targetBotId }
-                    if (commandFilter != null) {
-                        countQuery.andWhere { BotCommandLogs.command eq commandFilter }
-                    }
-                    if (sinceMs != null && sinceMs > 0) {
-                        countQuery.andWhere { BotCommandLogs.createdAt greater sinceMs }
-                    }
-                    val total = countQuery.count().coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-                    val rows = query.orderBy(
-                        BotCommandLogs.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
-                        BotCommandLogs.id to org.jetbrains.exposed.sql.SortOrder.DESC
-                    )
-                        .limit(limit, offset)
-                        .map { row ->
-                            BotLogEntry(
-                                id = row[BotCommandLogs.id],
-                                command = row[BotCommandLogs.command],
-                                chatId = row[BotCommandLogs.chatId],
-                                userId = row[BotCommandLogs.userId],
-                                createdAt = row[BotCommandLogs.createdAt]
-                            )
-                        }
-                    BotLogsResponse(logs = rows, total = total)
-                }
+                val logs = developerAnalytics.commandLogs(
+                    botId = targetBotId,
+                    commandFilter = commandFilter,
+                    sinceMs = sinceMs,
+                    limit = limit,
+                    offset = offset,
+                )
                 call.respond(logs)
             }
 
@@ -300,7 +256,7 @@ fun Application.configureDeveloperRouting() {
             // ─── Comprehensive health check ───────
             get("/health") {
                 val bot = authenticateDeveloperBot(call) ?: return@get
-                val health = buildDeveloperHealth(bot.id, bot.ownerUserId)
+                val health = developerAnalytics.health(bot.id)
                 call.respond(health)
             }
         }
@@ -668,176 +624,14 @@ private suspend fun authenticateDeveloperIdentity(call: ApplicationCall): Boolea
     return authenticateBot(call) != null
 }
 
-// 聚合查询内存上限：开发者看板/分析对 BotCommandLogs 做进程内 group-by，
-// 不限流会物化全表行导致 OOM。加行上限防止自残式 OOM（极繁忙 bot 退化为近似值）。
-private const val MAX_AGG_ROWS = 50_000
-
 // ─── Dashboard builder ─────────────────────────────
 
-private fun buildDashboard(botId: String, ownerUserId: String): DeveloperDashboardResponse {
-    return transaction {
-        val bot = BotRepository.get(botId)
-        val totalCommands = BotCommandLogs.selectAll()
-            .where { BotCommandLogs.botId eq botId }
-            .count()
-        val activeWebhook = !bot?.webhookUrl.isNullOrBlank()
-
-        // Command frequency (last 24h)
-        val dayAgo = System.currentTimeMillis() - 86_400_000L
-        val commands24h = BotCommandLogs.selectAll()
-            .where {
-                (BotCommandLogs.botId eq botId) and
-                    (BotCommandLogs.createdAt greater dayAgo)
-            }
-            .count()
-
-        // Unique users (last 24h) — 8.39：SQL 侧 COUNT(DISTINCT)，此前全表物化可 OOM
-        val uniqueUsers24h = BotCommandLogs.select(BotCommandLogs.userId)
-            .where {
-                (BotCommandLogs.botId eq botId) and
-                    (BotCommandLogs.createdAt greater dayAgo) and
-                    (BotCommandLogs.userId.isNotNull())
-            }
-            .withDistinct()
-            .count()
-
-        // Top commands
-        val topCommands = BotCommandLogs.selectAll()
-            .where { BotCommandLogs.botId eq botId }
-            .limit(MAX_AGG_ROWS)
-            .map { it[BotCommandLogs.command] }
-            .groupingBy { it }
-            .eachCount()
-            .entries
-            .sortedByDescending { it.value }
-            .take(10)
-            .map { CommandUsageEntry(command = it.key, count = it.value) }
-
-        // Pending updates count for display
-        val pendingCount = BotRepository.countPendingUpdates(botId)
-
-        DeveloperDashboardResponse(
-            botId = botId,
-            botName = bot?.name ?: "",
-            botUsername = bot?.username ?: "",
-            totalCommands = totalCommands,
-            commandsLast24h = commands24h,
-            uniqueUsersLast24h = uniqueUsers24h.toLong(),
-            pendingUpdates = pendingCount,
-            webhookConfigured = activeWebhook,
-            topCommands = topCommands,
-            generatedAt = System.currentTimeMillis()
-        )
-    }
-}
 
 // ─── Bot analytics builder ─────────────────────────
 
-private fun buildBotAnalytics(botId: String, days: Int): BotAnalyticsResponse {
-    val now = System.currentTimeMillis()
-    val dayMs = 86_400_000L
-    val cutoff = now - days * dayMs
-
-    return transaction {
-        val totalCommands = BotCommandLogs.selectAll()
-            .where { (BotCommandLogs.botId eq botId) and (BotCommandLogs.createdAt greater cutoff) }
-            .count()
-
-        val dailyStats = buildList<DailyStat> {
-            // 8.48 修复 M9：按天 GROUP BY 聚合（此前逐日 2 次 count → 30 天 = 60 次查询）
-            val dayBucket = dayBucketExpression(BotCommandLogs.createdAt)
-            val commandCounts = BotCommandLogs
-                .slice(dayBucket, BotCommandLogs.id.count())
-                .selectAll()
-                .where { (BotCommandLogs.botId eq botId) and (BotCommandLogs.createdAt greater cutoff) }
-                .groupBy(dayBucket)
-                .toList()
-                .associate { it[dayBucket] to it[BotCommandLogs.id.count()].toLong() }
-            val uniqueBucket = dayBucketExpression(BotCommandLogs.createdAt)
-            val uniqueCountExpr = BotCommandLogs.userId.countDistinct()
-            val uniqueCounts = BotCommandLogs
-                .slice(uniqueBucket, uniqueCountExpr)
-                .selectAll()
-                .where {
-                    (BotCommandLogs.botId eq botId) and
-                        (BotCommandLogs.createdAt greater cutoff) and
-                        (BotCommandLogs.userId.isNotNull())
-                }
-                .groupBy(uniqueBucket)
-                .toList()
-                .associate { it[uniqueBucket] to it[uniqueCountExpr].toLong() }
-            for (i in 0 until days) {
-                val dayStartNorm = unixDayStartMs(now - (days - 1 - i) * dayMs, dayMs)
-                add(DailyStat(
-                    day = dayStartNorm,
-                    commandCount = commandCounts[dayStartNorm / dayMs] ?: 0,
-                    uniqueUsers = uniqueCounts[dayStartNorm / dayMs] ?: 0
-                ))
-            }
-        }
-
-        val commandBreakdown = BotCommandLogs.selectAll()
-            .where { (BotCommandLogs.botId eq botId) and (BotCommandLogs.createdAt greater cutoff) }
-            .limit(MAX_AGG_ROWS)
-            .map { it[BotCommandLogs.command] }
-            .groupingBy { it }
-            .eachCount()
-            .entries
-            .sortedByDescending { it.value }
-            .take(20)
-            .map { CommandUsageEntry(command = it.key, count = it.value) }
-
-        BotAnalyticsResponse(
-            botId = botId,
-            periodDays = days,
-            totalCommands = totalCommands,
-            dailyStats = dailyStats,
-            commandBreakdown = commandBreakdown,
-            generatedAt = now
-        )
-    }
-}
 
 // ─── Developer health check ────────────────────────
 
-private fun buildDeveloperHealth(botId: String, ownerUserId: String): DeveloperHealthResponse {
-    return transaction {
-        val bot = BotRepository.get(botId)
-        val webhookHealthy = runCatching {
-            // Quick check: bot exists, webhook URL set, bot enabled
-            bot != null && bot.enabled && !bot.webhookUrl.isNullOrBlank()
-        }.getOrDefault(false)
-
-        val pendingUpdates = BotRepository.countPendingUpdates(botId)
-        val commandCount = BotCommandLogs.selectAll()
-            .where { BotCommandLogs.botId eq botId }
-            .count()
-
-        val botHealth = BotHealthStatus(
-            botId = botId,
-            enabled = bot?.enabled ?: false,
-            webhookConfigured = !bot?.webhookUrl.isNullOrBlank(),
-            webhookUrl = bot?.webhookUrl?.take(80),
-            pendingUpdates = pendingUpdates,
-            totalCommands = commandCount
-        )
-
-        val serverHealth = ServerHealthStatus(
-            serverTime = System.currentTimeMillis(),
-            maintenanceMode = RuntimeConfigService.isMaintenanceMode(),
-            botsAllowed = RuntimeConfigService.isBotsAllowed(),
-            mediaUploadEnabled = RuntimeConfigService.isMediaUploadEnabled(),
-            aiEnabled = RuntimeConfigService.isAiEnabled()
-        )
-
-        DeveloperHealthResponse(
-            status = if (webhookHealthy && !RuntimeConfigService.isMaintenanceMode()) "healthy" else "degraded",
-            bot = botHealth,
-            server = serverHealth,
-            checkedAt = System.currentTimeMillis()
-        )
-    }
-}
 
 // ─── Capability manifest ───────────────────────────
 
@@ -913,94 +707,6 @@ private fun hmacSha256Hex(secret: String, message: String): String {
 }
 
 // ─── Response data classes ─────────────────────────
-
-@Serializable
-data class DeveloperDashboardResponse(
-    val botId: String,
-    val botName: String,
-    val botUsername: String,
-    val totalCommands: Long,
-    val commandsLast24h: Long,
-    val uniqueUsersLast24h: Long,
-    val pendingUpdates: Long,
-    val webhookConfigured: Boolean,
-    val topCommands: List<CommandUsageEntry>,
-    val generatedAt: Long
-)
-
-@Serializable
-data class CommandUsageEntry(
-    val command: String,
-    val count: Int
-)
-
-@Serializable
-data class BotAnalyticsResponse(
-    val botId: String,
-    val periodDays: Int,
-    val totalCommands: Long,
-    val dailyStats: List<DailyStat>,
-    val commandBreakdown: List<CommandUsageEntry>,
-    val generatedAt: Long
-)
-
-@Serializable
-data class DailyStat(
-    val day: Long,
-    val commandCount: Long,
-    val uniqueUsers: Long
-)
-
-@Serializable
-data class BotLogEntry(
-    val id: String,
-    val command: String,
-    val chatId: String? = null,
-    val userId: String? = null,
-    val createdAt: Long
-)
-
-@Serializable
-data class BotLogsResponse(
-    val logs: List<BotLogEntry>,
-    val total: Int
-)
-
-@Serializable
-data class WebhookTestResult(
-    val success: Boolean,
-    val statusCode: Int,
-    val responseBody: String,
-    val latencyMs: Long,
-    val error: String? = null
-)
-
-@Serializable
-data class DeveloperHealthResponse(
-    val status: String,
-    val bot: BotHealthStatus,
-    val server: ServerHealthStatus,
-    val checkedAt: Long
-)
-
-@Serializable
-data class BotHealthStatus(
-    val botId: String,
-    val enabled: Boolean,
-    val webhookConfigured: Boolean,
-    val webhookUrl: String? = null,
-    val pendingUpdates: Long,
-    val totalCommands: Long
-)
-
-@Serializable
-data class ServerHealthStatus(
-    val serverTime: Long,
-    val maintenanceMode: Boolean,
-    val botsAllowed: Boolean,
-    val mediaUploadEnabled: Boolean,
-    val aiEnabled: Boolean
-)
 
 @Serializable
 data class CapabilityManifestResponse(

@@ -821,6 +821,8 @@
     <string name="message_voice_speaker">扬声器播放</string>
     <string name="chat_mention_everyone">所有人</string>
     <string name="chat_mention_everyone_restricted">仅群主或管理员可 @所有人</string>
+    <string name="chat_send_in_flight">正在发送，请稍候</string>
+    <string name="chat_send_empty">说点什么再发送</string>
     <string name="chat_mention_picker_title">选择提醒的人</string>
     <string name="chat_mention_picker_count">共 %1$d 位匹配（可滚动）</string>
     <string name="notification_mentioned_you">%1$s 提到了你</string>

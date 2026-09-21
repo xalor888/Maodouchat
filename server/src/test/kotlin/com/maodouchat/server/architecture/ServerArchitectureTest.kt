@@ -35,20 +35,17 @@ class ServerArchitectureTest {
     // 棘轮基线（当前实测值，见 DIRECTION.md 第 0 节）
     // ------------------------------------------------------------------
 
-    /** `plugins/` 下每个文件的 `transaction {` 出现次数。当前合计 15 处 / 4 个文件（G46–G53 逐轮下调）。 */
-    private val frozenRouteTransactions: Map<String, Int> = mapOf(
-        "DeveloperRouting.kt" to 4,
-        "AnnouncementRouting.kt" to 4,
-        "AdminDiagnosticsRouting.kt" to 4,
-        "AdminBulkRouting.kt" to 3,
-    )
+    /**
+     * `plugins/` 下每个文件的 `transaction {` 出现次数。
+     *
+     * G46–G57 逐轮下沉后已归零（最后一个是 `DeveloperRouting.kt` 的 4 处）。
+     * 这里保留**空 map + 棘轮断言**：今后任何路由层新开事务都会立刻红。
+     */
+    private val frozenRouteTransactions: Map<String, Int> = emptyMap()
 
-    /** `plugins/` 下直接引用 Exposed（`org.jetbrains.exposed`）的文件。当前 22 个（G46–G53 逐轮缩减）。 */
+    /** `plugins/` 下直接引用 Exposed（`org.jetbrains.exposed`）的文件。当前 18 个（G46–G57 逐轮缩减；DeveloperRouting 已清零）。 */
     private val frozenPluginsImportingExposed: Set<String> = setOf(
-        "AdminBulkRouting.kt",
-        "AdminDiagnosticsRouting.kt",
         "AdminSupport.kt",
-        "AnnouncementRouting.kt",
         "BotChatInviteRouting.kt",
         "BotChatMiscRouting.kt",
         "BotCoreRouting.kt",
@@ -64,7 +61,6 @@ class ServerArchitectureTest {
         "BotPresentationStatusRouting.kt",
         "BotPresentationWidgetsRouting.kt",
         "BotReactionRouting.kt",
-        "DeveloperRouting.kt",
         "Routing.kt",
         "StatusPages.kt",
     )

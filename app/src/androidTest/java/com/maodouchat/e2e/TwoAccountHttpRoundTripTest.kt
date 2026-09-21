@@ -2949,4 +2949,159 @@ class TwoAccountHttpRoundTripTest {
         exported.delete()
         ok?.delete()
     }
+
+    // ─── 真·断网与网络抖动（G60） ──────────────────────────────────
+    //
+    // 此前「离线补投」用例（offlineCatchUpDeliversEveryMissedMessageOnceAndInOrder）模拟离线的方式是
+    // **B 不去拉取**——那是「客户端不同步」，不是「网络真的不通」。本条补上真断层：
+    // 用 `cmd connectivity airplane-mode` 在用例执行期间**真的切断**模拟器的全部网络，
+    // 于是断言的是「请求确实发不出去」「恢复后幂等收敛」，而不是「我以为它离线了」。
+    //
+    // airplane-mode 在这台模拟器上实测有效（`svc wifi disable` **无效**：ping 10.0.2.2 照通，
+    // 因为 Wi-Fi 关掉后流量仍走虚拟路由；airplane-mode 才会让 `connect: Network is unreachable`）。
+
+    private val uiAutomation get() = InstrumentationRegistry.getInstrumentation().uiAutomation
+
+    /** 探测用的服务端端口（与 harness 用 `-PMAODOU_API_BASE_URL` 传进来的同一个）。 */
+    private fun serverPortForProbe(): Int =
+        ApiConfig.BASE_URL.substringAfterLast(':').substringBefore('/').toIntOrNull() ?: 8080
+
+    /**
+     * 用**真 HTTP 请求**探测连通性，不是裸 TCP connect。
+     *
+     * 实测教训：airplane-mode disable 之后裸 socket 会**立刻**连上（接口 up），但此时真发 HTTP 仍会
+     * `SocketTimeoutException`——虚拟网卡的数据路径比接口状态恢复得晚。用裸 socket 判定「已恢复」
+     * 会让紧随其后的发送撞上这个窗口（networkJitterDuringSendStillDeliversExactlyOnce 第一版就这么红的）。
+     */
+    private fun networkReachable(): Boolean = runCatching {
+        val request = okhttp3.Request.Builder()
+            .url("http://10.0.2.2:${serverPortForProbe()}/health/live")
+            .get()
+            .build()
+        probeHttpClient.newCall(request).execute().use { it.isSuccessful }
+    }.isSuccess
+
+    private val probeHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(2, TimeUnit.SECONDS)
+            .readTimeout(2, TimeUnit.SECONDS)
+            .callTimeout(3, TimeUnit.SECONDS)
+            .build()
+    }
+
+    /** 真的切断网络（airplane-mode enable）。返回前会等到「确实不通」为止。 */
+    private fun cutNetwork() {
+        uiAutomation.executeShellCommand("cmd connectivity airplane-mode enable")
+        // 等到真的不通：只发一次命令就往下走会 race——模式切换是异步的。
+        val deadline = System.currentTimeMillis() + 10_000L
+        while (System.currentTimeMillis() < deadline) {
+            if (!networkReachable()) return
+            Thread.sleep(200)
+        }
+        throw AssertionError("airplane-mode enable 之后网络仍然可达，本次断网不真实（结果不可信）")
+    }
+
+    /** 恢复网络（airplane-mode disable）。等到**真 HTTP 能通**为止。 */
+    private fun restoreNetwork() {
+        uiAutomation.executeShellCommand("cmd connectivity airplane-mode disable")
+        val deadline = System.currentTimeMillis() + 20_000L
+        while (System.currentTimeMillis() < deadline) {
+            if (networkReachable()) return
+            Thread.sleep(200)
+        }
+        throw AssertionError("airplane-mode disable 之后网络仍未恢复，后续断言不可信")
+    }
+
+    @Test
+    fun aRealNetworkOutageNeitherLosesNorDuplicatesTheMessage() {
+        baseUrl()
+        val s = ensureShared()
+        drainInbox(s)
+
+        // ① 基线：网络正常时发一条，服务端必须真的收到。
+        val baselineId = "outage-baseline-${UUID.randomUUID()}"
+        sendDirectTo(s, s.chatId, "baseline-${UUID.randomUUID()}", baselineId)
+        useSession(s.alice)
+        assertEquals("基线消息必须已在服务端", 1, inboxFor(s, s.alice.token, s.chatId, baselineId).size)
+
+        // ② 真的断网。
+        cutNetwork()
+
+        // ③ 断网期间发送必须**真的失败**（发不出去）。
+        val offlineId = "outage-offline-${UUID.randomUUID()}"
+        val offlineResult = runCatching {
+            sendDirectTo(s, s.chatId, "offline-${UUID.randomUUID()}", offlineId)
+        }
+        assertTrue(
+            "断网期间发送必须失败，实际却成功了（说明根本没断网）：${offlineResult.exceptionOrNull()}",
+            offlineResult.isFailure,
+        )
+
+        // ④ 恢复网络。
+        restoreNetwork()
+
+        // ⑤ 用**同一个 messageId** 重发（模拟客户端重试/同步器补发）。
+        val offlineBody = "offline-body-${UUID.randomUUID()}"
+        sendDirectTo(s, s.chatId, offlineBody, offlineId)
+
+        // ⑥ 幂等收敛：服务端恰好一行、收件人恰好收到一次（无幽灵投递、无重复）。
+        useSession(s.alice)
+        assertEquals("重试后服务端必须恰好有一行（不多不少）", 1, inboxFor(s, s.alice.token, s.chatId, offlineId).size)
+
+        // ⑦ 同 messageId 但**不同内容**必须被拒（幂等的另一半：同 id 只允许同内容重放）。
+        // 没有这条，「重试」就会被当成「改写已投递消息」的通道。
+        val conflicting = runCatching {
+            sendDirectTo(s, s.chatId, "tampered-${UUID.randomUUID()}", offlineId)
+        }
+        assertTrue("同 messageId 不同内容必须被拒，实际=${conflicting.isSuccess}", conflicting.isFailure)
+        useSession(s.alice)
+        assertEquals("被拒后服务端仍必须只有原来那一行", 1, inboxFor(s, s.alice.token, s.chatId, offlineId).size)
+
+        val syncDb = freshDatabase()
+        val sink = RecordingSink()
+        val processor = processorFor(s, sink)
+        val syncer = MessagingV2InboxSynchronizer(syncDb.messagingV2Dao(), processor)
+        runBlocking { syncer.sync(s.alice.token, s.alice.userId, s.aliceDeviceId) }
+        assertEquals("收件人必须恰好收到一次重试消息", 1, sink.bodies.filter { it == offlineBody }.size)
+    }
+
+    @Test
+    fun networkJitterDuringSendStillDeliversExactlyOnce() {
+        baseUrl()
+        val s = ensureShared()
+        drainInbox(s)
+
+        val messageId = "jitter-${UUID.randomUUID()}"
+        val body = "jitter-body-${UUID.randomUUID()}"
+
+        // 在发送窗口内连续抖动：断 → 通 → 断 → 通。每次切换都等到网络状态真实生效。
+        cutNetwork()
+        restoreNetwork()
+        cutNetwork()
+        restoreNetwork()
+
+        // 抖动结束后发送：必须成功且只投递一次。
+        // 抖动刚结束时连接池里可能留着切换前的死连接，客户端重试一次是**真实行为**（不是放过失败）。
+        var sent = false
+        repeat(3) {
+            if (sent) return@repeat
+            sent = runCatching { sendDirectTo(s, s.chatId, body, messageId) }.isSuccess
+            if (!sent) restoreNetwork()
+        }
+        assertTrue("抖动后发送必须最终成功", sent)
+        useSession(s.alice)
+        assertEquals("抖动后发送必须恰好一行", 1, inboxFor(s, s.alice.token, s.chatId, messageId).size)
+
+        val syncDb = freshDatabase()
+        val sink = RecordingSink()
+        val processor = processorFor(s, sink)
+        val syncer = MessagingV2InboxSynchronizer(syncDb.messagingV2Dao(), processor)
+        runBlocking { syncer.sync(s.alice.token, s.alice.userId, s.aliceDeviceId) }
+        assertEquals("抖动后收件人必须恰好收到一次", 1, sink.bodies.filter { it == body }.size)
+
+        // 再同步一次：不得重复投递（证明抖动没有在本地留下未收敛状态）。
+        val before = sink.bodies.size
+        runBlocking { syncer.sync(s.alice.token, s.alice.userId, s.aliceDeviceId) }
+        assertEquals("二次同步不得产生新投递", before, sink.bodies.size)
+    }
 }

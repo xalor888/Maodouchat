@@ -2,8 +2,11 @@ package com.maodouchat.server.repository
 
 import com.maodouchat.server.common.toPostAdminResponse
 import com.maodouchat.server.common.toUserAdminResponse
+import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
+import com.maodouchat.server.db.GroupPolls
+import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.MessagingV2Messages
 import com.maodouchat.server.db.ModerationAuditLog
 import com.maodouchat.server.db.PostComments
@@ -17,7 +20,9 @@ import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import com.maodouchat.server.model.ChatAdminResponse
 import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.model.CommentAdminResponse
+import com.maodouchat.server.model.OpsSnapshotResponse
 import com.maodouchat.server.model.PostAdminResponse
+import com.maodouchat.server.model.PushTokenAdminResponse
 import com.maodouchat.server.model.RiskEventAdminResponse
 import com.maodouchat.server.model.UserAdminResponse
 import com.maodouchat.server.model.UserDetailAdminResponse
@@ -32,6 +37,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
+import org.jetbrains.exposed.sql.batchInsert
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.innerJoin
 import org.jetbrains.exposed.sql.insert
@@ -119,6 +125,29 @@ class AdminManagementRepository {
                     updatedAt = it[PushTokens.updatedAt],
                 )
             }
+    }
+
+    /**
+     * 批量写审计行（批量管理端点一次要落 N 条）。
+     *
+     * 从 `plugins/AdminBulkRouting.kt` 的裸 `ModerationAuditLog.batchInsert` 下沉：
+     * 批量操作逐条 insert 会带来 N 次往返，这里一次 batchInsert 保持原子。
+     */
+    fun recordAuditBatch(
+        actorId: String,
+        action: String,
+        entries: List<Triple<String, String, Long>>,
+    ) {
+        if (entries.isEmpty()) return
+        transaction {
+            ModerationAuditLog.batchInsert(entries) { (userId, detail, createdAt) ->
+                this[ModerationAuditLog.userId] = userId
+                this[ModerationAuditLog.action] = action
+                this[ModerationAuditLog.detail] = detail
+                this[ModerationAuditLog.actorId] = actorId
+                this[ModerationAuditLog.createdAt] = createdAt
+            }
+        }
     }
 
     /** Metadata-only search. Human payloads remain opaque to the server. */
@@ -435,6 +464,52 @@ class AdminManagementRepository {
                 (Reports.reporterId eq id) or (Reports.targetId eq id)
             }.count(),
             avatar = row[Users.avatar],
+        )
+    }
+
+    /** 管理后台推送令牌列表（只含元数据，绝不含推送内容）。可选按 userId 精确过滤。 */
+    fun listPushTokens(limit: Int, offset: Long, userIdFilter: String?): List<PushTokenAdminResponse> = transaction {
+        val query = PushTokens.selectAll()
+        if (!userIdFilter.isNullOrBlank()) query.andWhere { PushTokens.userId eq userIdFilter }
+        query.orderBy(
+            PushTokens.updatedAt to SortOrder.DESC,
+            PushTokens.userId to SortOrder.DESC,
+            PushTokens.deviceId to SortOrder.DESC,
+        )
+            .limit(limit, offset)
+            .map {
+                PushTokenAdminResponse(
+                    userId = it[PushTokens.userId],
+                    deviceId = it[PushTokens.deviceId],
+                    platform = it[PushTokens.platform],
+                    timezoneOffsetMinutes = it[PushTokens.timezoneOffsetMinutes],
+                    updatedAt = it[PushTokens.updatedAt],
+                )
+            }
+    }
+
+    /**
+     * 运维快照：机器人 / 群投票 / 消息与用户体量计数。
+     * 只做只读聚合；此前这段写在 `plugins/AdminDiagnosticsRouting.kt` 的裸事务里。
+     */
+    fun opsSnapshot(generatedAt: Long = System.currentTimeMillis()): OpsSnapshotResponse = transaction {
+        OpsSnapshotResponse(
+            users = Users.selectAll().count(),
+            messages = MessagingV2Messages.selectAll().where {
+                MessagingV2Messages.recordClass eq MessagingV2RecordClass.MESSAGE
+            }.count(),
+            botsTotal = BotApps.selectAll().count(),
+            botsEnabled = BotApps.selectAll().where { BotApps.enabled eq true }.count(),
+            botsWithWebhook = BotApps.selectAll()
+                .mapNotNull { row ->
+                    val url = row[BotApps.webhookUrl]
+                    val enabled = row[BotApps.enabled]
+                    if (enabled && !url.isNullOrBlank()) 1 else null
+                }.size.toLong(),
+            pollsTotal = GroupPolls.selectAll().count(),
+            pollsOpen = GroupPolls.selectAll().where { GroupPolls.closed eq false }.count(),
+            pollVotes = GroupPollVotes.selectAll().count(),
+            generatedAt = generatedAt,
         )
     }
 }

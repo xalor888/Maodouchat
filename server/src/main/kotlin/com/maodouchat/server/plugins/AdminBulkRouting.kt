@@ -36,8 +36,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonPrimitive
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.transactions.transaction
 
 
 /** 管理后台子域路由（从 AdminManagementRouting.kt 拆出）。 */
@@ -46,6 +44,8 @@ internal fun Route.configureAdminBulkRoutes(
     groupInvitationService: GroupInvitationService,
     userDispositionService: com.maodouchat.server.service.UserDispositionService,
 ) {
+    val adminManagementRepo = com.maodouchat.server.repository.AdminManagementRepository()
+    val aiRepo = com.maodouchat.server.repository.AiRepository()
     post("/users/bulk-force-logout") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -78,15 +78,12 @@ internal fun Route.configureAdminBulkRoutes(
             bestEffortAdminDisconnect { disconnectUserSessions(id, "admin bulk force logout") }
             okIds += id
         }
-        transaction {
-            ModerationAuditLog.insert {
-                it[ModerationAuditLog.actorId] = actorId
-                it[ModerationAuditLog.userId] = actorId
-                it[ModerationAuditLog.action] = "ADMIN_BULK_FORCE_LOGOUT"
-                it[ModerationAuditLog.detail] = "ok=${okIds.size};skippedAdmins=${skippedAdmins.size}"
-                it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-            }
-        }
+        adminManagementRepo.recordAudit(
+            actorId = actorId,
+            userId = actorId,
+            action = "ADMIN_BULK_FORCE_LOGOUT",
+            detail = "ok=${okIds.size};skippedAdmins=${skippedAdmins.size}",
+        )
         call.respond(
         buildJsonObject {
 put("ok", true)
@@ -243,49 +240,20 @@ get("/ai-usage-export") {
         val adminId = call.requireUserId()
         val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
         // Metadata only — never export prompt/body
-        val rows = transaction {
-            val resultRows = AiAuditLogs.selectAll()
-                .orderBy(
-                    AiAuditLogs.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
-                    AiAuditLogs.id to org.jetbrains.exposed.sql.SortOrder.DESC
-                )
-                .limit(limit)
-                .toList()
-            // 9.137：token 列已进 Table 单例（启动迁移补列），参数化 SQL 批量回填。
-            val tokenById: Map<String, Pair<Long?, Long?>> = if (resultRows.isEmpty()) emptyMap() else {
-                val ids = resultRows.map { it[AiAuditLogs.id] }
-                val placeholders = List(ids.size) { "?" }.joinToString(",")
-                exec(
-                    "SELECT id, input_tokens, output_tokens FROM ai_audit_logs WHERE id IN ($placeholders)",
-                    ids.map { VarCharColumnType() to it }
-                ) { rs ->
-                    val m = mutableMapOf<String, Pair<Long?, Long?>>()
-                    while (rs.next()) {
-                        val input = rs.getLong(2)
-                        val inputTokens: Long? = if (rs.wasNull()) null else input
-                        val output = rs.getLong(3)
-                        val outputTokens: Long? = if (rs.wasNull()) null else output
-                        m[rs.getString(1)] = inputTokens to outputTokens
-                    }
-                    m
-                } ?: emptyMap()
-            }
-            resultRows.map { row ->
-                val tokens = tokenById[row[AiAuditLogs.id]]
-                listOf(
-                    csvCell(row[AiAuditLogs.id]),
-                    csvCell(row[AiAuditLogs.userId]),
-                    csvCell(row[AiAuditLogs.feature].take(40)),
-                    csvCell(row[AiAuditLogs.status]),
-                    csvCell(row[AiAuditLogs.inputChars].toString()),
-                    csvCell(row[AiAuditLogs.contextMessages].toString()),
-                    csvCell((row[AiAuditLogs.durationMs] ?: 0L).toString()),
-                    csvCell((row[AiAuditLogs.error] ?: "").replace("\n", " ").take(80)),
-                    csvCell(row[AiAuditLogs.createdAt].toString()),
-                    csvCell(tokens?.first?.toString() ?: ""),
-                    csvCell(tokens?.second?.toString() ?: "")
-                ).joinToString(",")
-            }
+        val rows = aiRepo.auditExportRows(limit).map { row ->
+            listOf(
+                csvCell(row.id),
+                csvCell(row.userId),
+                csvCell(row.feature.take(40)),
+                csvCell(row.status),
+                csvCell(row.inputChars.toString()),
+                csvCell(row.contextMessages.toString()),
+                csvCell((row.durationMs ?: 0L).toString()),
+                csvCell((row.error ?: "").replace("\n", " ").take(80)),
+                csvCell(row.createdAt.toString()),
+                csvCell(row.inputTokens?.toString() ?: ""),
+                csvCell(row.outputTokens?.toString() ?: "")
+            ).joinToString(",")
         }
         val csv = buildString {
             appendLine("id,userId,feature,status,inputChars,contextMessages,durationMs,error,createdAt,inputTokens,outputTokens")
@@ -671,15 +639,11 @@ post("/users/bulk-force-token-bump") {
             if (ok) updated += id else skipped += id
         }
         if (bumped.isNotEmpty()) {
-            transaction {
-                ModerationAuditLog.batchInsert(bumped) { entry ->
-                    this[ModerationAuditLog.userId] = entry.first
-                    this[ModerationAuditLog.action] = "ADMIN_BULK_TOKEN_BUMP"
-                    this[ModerationAuditLog.detail] = "version=${entry.second}"
-                    this[ModerationAuditLog.actorId] = actorId
-                    this[ModerationAuditLog.createdAt] = entry.third
-                }
-            }
+            adminManagementRepo.recordAuditBatch(
+                actorId = actorId,
+                action = "ADMIN_BULK_TOKEN_BUMP",
+                entries = bumped.map { Triple(it.first, "version=${it.second}", it.third) },
+            )
             bumped.forEach { (id, _, _) ->
                 try {
                     disconnectUserSessions(id, "admin bulk token bump")

@@ -167,16 +167,3 @@ internal fun parseAdminIds(obj: JsonObject, key: String = "userIds"): List<Strin
 }
 
 // mappers moved to com.maodouchat.server.common.UserAdminMappers
-
-@kotlinx.serialization.Serializable
-data class OpsSnapshotResponse(
-    val users: Long,
-    val messages: Long,
-    val botsTotal: Long,
-    val botsEnabled: Long,
-    val botsWithWebhook: Long,
-    val pollsTotal: Long,
-    val pollsOpen: Long,
-    val pollVotes: Long,
-    val generatedAt: Long
-)

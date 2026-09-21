@@ -1,5 +1,6 @@
 package com.maodouchat.server.repository
 
+import com.maodouchat.server.db.AnnouncementAcks
 import com.maodouchat.server.db.SystemAnnouncements
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.UserTagAssignments
@@ -21,6 +22,7 @@ import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import org.jetbrains.exposed.sql.upsert
 import java.util.UUID
 
 /**
@@ -270,6 +272,51 @@ class AnnouncementRepository {
         val publishedAt: Long?,
         val cancelledAt: Long?
     )
+
+    /** 某用户已读过的公告 id 集合（供 active 列表标记 `acked`）。 */
+    fun ackedAnnouncementIds(userId: String): Set<String> = transaction {
+        AnnouncementAcks.selectAll().where { AnnouncementAcks.userId eq userId }
+            .map { it[AnnouncementAcks.announcementId] }
+            .toSet()
+    }
+
+    /**
+     * ack 可见性判定：必须与 [activeForUser] 同一套口径
+     * （status=ACTIVE + 生效窗口 [startsAt, expiresAt] + 受众命中）。
+     *
+     * 8.46 修复的契约：否则任意用户都能对不可见的 TAGGED / 过期 / 未发布公告打已读，
+     * 污染管理后台的 acked 统计。返回 false 时路由应回 404。
+     */
+    fun isAckVisibleToUser(id: String, userId: String, now: Long, userTagIds: Set<String>): Boolean = transaction {
+        SystemAnnouncements.selectAll().where {
+            (SystemAnnouncements.id eq id) and
+                (SystemAnnouncements.status eq "ACTIVE") and
+                (SystemAnnouncements.startsAt lessEq now) and
+                (SystemAnnouncements.expiresAt greaterEq now)
+        }.firstOrNull()?.let { row ->
+            val audience = row[SystemAnnouncements.targetAudience]
+            if (audience == "ALL") true else {
+                val tagId = row[SystemAnnouncements.targetTagId]
+                tagId != null && tagId in userTagIds
+            }
+        } ?: false
+    }
+
+    /** 写入一条已读（幂等 upsert，重复 ack 不产生第二行）。 */
+    fun markAcked(announcementId: String, userId: String, ackedAt: Long = System.currentTimeMillis()) {
+        transaction {
+            AnnouncementAcks.upsert(AnnouncementAcks.announcementId, AnnouncementAcks.userId) {
+                it[AnnouncementAcks.announcementId] = announcementId
+                it[AnnouncementAcks.userId] = userId
+                it[AnnouncementAcks.ackedAt] = ackedAt
+            }
+        }
+    }
+
+    /** 某公告的已读人数（管理后台统计）。 */
+    fun ackedCount(announcementId: String): Long = transaction {
+        AnnouncementAcks.selectAll().where { AnnouncementAcks.announcementId eq announcementId }.count()
+    }
 
     private fun AnnouncementRow.withDerivedStatus(now: Long): AnnouncementRow =
         if (status == "ACTIVE" && expiresAt in 1 until now) copy(status = "EXPIRED") else this

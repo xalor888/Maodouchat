@@ -59,13 +59,45 @@ if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
   exit 3
 fi
 
+# 反假绿：声明了外部数据库就必须先确认它真的连得上。
+# 否则服务端起不来、健康检查超时，脚本只会报「服务端未就绪」——
+# 那种失败无法区分「矩阵有问题」和「数据库配错了」。
+if [[ "${E2E_DATABASE_URL:-}" == jdbc:postgresql:* ]]; then
+  if ! command -v psql >/dev/null 2>&1; then
+    echo "[e2e] FAIL: 声明了 PostgreSQL 但本机没有 psql，无法预先校验连通性" >&2
+    exit 4
+  fi
+  pg_target="${E2E_DATABASE_URL#jdbc:postgresql://}"
+  pg_host_port="${pg_target%%/*}"
+  pg_db="${pg_target#*/}"; pg_db="${pg_db%%\?*}"
+  pg_host="${pg_host_port%%:*}"; pg_port="${pg_host_port##*:}"
+  [[ "$pg_host" == "$pg_host_port" ]] && pg_port=5432
+  pg_user="${E2E_DATABASE_USER:-$(id -un)}"
+  if ! psql -h "$pg_host" -p "$pg_port" -U "$pg_user" -d "$pg_db" -c 'SELECT 1' >/dev/null 2>&1; then
+    echo "[e2e] FAIL: 连不上声明的 PostgreSQL（host=$pg_host port=$pg_port db=$pg_db user=$pg_user）" >&2
+    echo "[e2e]       这不是矩阵失败，是环境配置失败——修好再跑，不要当成用例红" >&2
+    exit 4
+  fi
+  echo "[e2e] PostgreSQL 连通性预检通过（db=$pg_db）"
+fi
+
 echo "[e2e] 启动真服务端 port=$PORT  log=$SERVER_LOG"
+# 数据库可切换（G62）：缺省仍走 H2 内存库（快测不变）；
+# 设 E2E_DATABASE_URL / E2E_DATABASE_DRIVER 即可把同一套矩阵推到真 PostgreSQL 上跑。
+# 这样「H2 快测 / PG 真源」是**同一份 harness、同一套用例**，而不是两份各跑一半的东西。
+E2E_DATABASE_URL="${E2E_DATABASE_URL:-jdbc:h2:mem:two-device-http-e2e-$PORT;DB_CLOSE_DELAY=-1}"
+E2E_DATABASE_DRIVER="${E2E_DATABASE_DRIVER:-org.h2.Driver}"
+E2E_DATABASE_USER="${E2E_DATABASE_USER:-}"
+E2E_DATABASE_PASSWORD="${E2E_DATABASE_PASSWORD:-}"
+echo "[e2e] 数据库 url=$E2E_DATABASE_URL driver=$E2E_DATABASE_DRIVER"
 APP_ENV=development \
 HOST=0.0.0.0 \
 PORT="$PORT" \
 JWT_SECRET=e2e-local-secret-12345678901234567890 \
-DATABASE_URL="jdbc:h2:mem:two-device-http-e2e-$PORT;DB_CLOSE_DELAY=-1" \
-DATABASE_DRIVER=org.h2.Driver \
+DATABASE_URL="$E2E_DATABASE_URL" \
+DATABASE_DRIVER="$E2E_DATABASE_DRIVER" \
+DATABASE_USER="$E2E_DATABASE_USER" \
+DATABASE_PASSWORD="$E2E_DATABASE_PASSWORD" \
 SEED_DEMO_USERS=true \
 AUTH_RATE_LIMIT_PER_MINUTE=100 \
 MASTER_ADMINS=u1 \

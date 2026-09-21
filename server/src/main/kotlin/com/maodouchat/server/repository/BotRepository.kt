@@ -624,6 +624,19 @@ object BotRepository {
     }
 
 
+    /**
+     * 管理后台专用启停：不校验 owner（管理员跨 owner 操作），只按 botId 更新并回读。
+     * 返回 null 表示 bot 不存在。此前这段写在 `plugins/AdminDiagnosticsRouting.kt` 的裸事务里。
+     */
+    fun setAdminEnabled(botId: String, enabled: Boolean): BotDto? = transaction {
+        val updated = BotApps.update({ BotApps.id eq botId }) {
+            it[BotApps.enabled] = enabled
+            it[updatedAt] = System.currentTimeMillis()
+        }
+        if (updated != 1) return@transaction null
+        BotApps.selectAll().where { BotApps.id eq botId }.firstOrNull()?.toDto()
+    }
+
     fun get(botId: String): BotDto? = transaction {
         BotApps.selectAll().where { BotApps.id eq botId }.firstOrNull()?.toDto()
     }
