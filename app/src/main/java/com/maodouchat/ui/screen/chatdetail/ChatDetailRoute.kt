@@ -2567,13 +2567,13 @@ if (showGroupCallTypeDialog) {
     }
 
     // 8.57：群公告全文弹窗
+    val groupAnnouncementText = state.chat?.groupAnnouncement?.trim().orEmpty()
     GroupAnnouncementDialog(
-        announcement = state.chat?.groupAnnouncement?.trim().orEmpty(),
+        visible = showAnnouncementDialog, announcement = groupAnnouncementText,
         onCopy = {
-            val text = state.chat?.groupAnnouncement?.trim().orEmpty()
-            if (text.isNotBlank()) {
+            if (groupAnnouncementText.isNotBlank()) {
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.group_announcement_copy), text))
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.group_announcement_copy), groupAnnouncementText))
                 Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
             }
             showAnnouncementDialog = false

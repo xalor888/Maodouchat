@@ -162,10 +162,12 @@ internal fun SecretChatConfirmDialog(
  */
 @Composable
 internal fun GroupAnnouncementDialog(
+    visible: Boolean,
     announcement: String,
     onCopy: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    if (!visible) return
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.group_announcement_dialog_title)) },
