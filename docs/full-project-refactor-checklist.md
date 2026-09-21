@@ -6481,6 +6481,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明 + SecretNewDeviceRiskLocked（3667→3622）**：先搬 4 个顶层声明到 ChatDetailLocalizedLabels.kt（3667→3637）；B2 风控块抓块失败——收尾 `}` 与下一支 `else if` 的 `{` 同行，括号配平行内归零；改用**替换分支体**（16 行删掉、换成一行调用、两条 `} else if` 行原样保留）抽出到 ChatDetailSecretGates.kt（3637→3622）。无 Compose 测试基建，负控制用「参数出现次数 2→1」做代理。app JVM 单测 1906 例不变。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明（3667→3637）**：displayedTranslation + 三个 localizedLabel 重载搬到 ChatDetailLocalizedLabels.kt，调用点零改动。一次抓块失败：`} else if (x) {` 链式分支的收尾 `}` 与下一支起始 `{` 同行，括号配平行内归零——为 20 行去拆这种行不划算，改抽边界干净的顶层声明。app JVM 单测 1906 例不变。
+  - **G192 抽出 NewDeviceRiskPromptDialog（3547→3538）**：24 行内联弹窗换成 14 行调用，归进 ChatDetailSecretGates.kt（与 G184 的 SecretNewDeviceRiskLocked 本是一对）。一次 import 遗漏（新文件没 AlertDialog）。**按 G191 教训当轮就跑 E2E（27/0）**——「抽完 UI 要跑 E2E」若只在复跑轮做就退化成分批攒验，中间抽错要很后面才发现。app JVM 1906 例不变。
   - **G191 第三次全量复跑（四套 2410 例全绿）**：G182 之后 8 轮改动后再跑四套——app 1906、server 461、PG 19、E2E 27。**E2E 那 27 例是七轮纯 UI 抽取唯一的验收手段**：app JVM 对 Compose 结构零覆盖（无 Robolectric），抽走弹窗/削 composable 这种事只有真机跑一遍能证伪。实测 27/0，说明抽取没改变运行时行为。app JVM 1906 例不变。
   - **G190 抽出 GroupAnnouncementDialog（3562→3547）**：28 行内联弹窗换成 13 行调用。剪贴板逻辑刻意留调用点（纯 I/O，同 G186 理由）。一次 import 遗漏（verticalScroll/rememberScrollState）——该文件的 import 块正在长齐一套「AlertDialog 常用件」。app JVM 单测 1906 例不变。
   - **G189 抽出 SecretChatConfirmDialog（3578→3562）**：24 行内联弹窗换成 8 行调用，归进 G188 刚改好名的 ChatDetailConfirmDialogs.kt——**上一轮改名的价值这一轮直接兑现**（这个 dialog 是「开启密聊的二次确认」，放进去名副其实）。app JVM 单测 1906 例不变。
@@ -7527,3 +7528,33 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **顺带确认**：G182 的 server 首次跑 `3s / up-to-date` 零执行的坑本轮没再踩
   （一开始就带 `--rerun-tasks`，`9m 6s / 6 executed`）。
 - **实测结果**：无代码改动（纯复跑）；工作区干净；app JVM 1906 例不变。
+
+### G192 — 抽出 NewDeviceRiskPromptDialog（3547 → 3538）
+- **做了什么**：把内联的「新设备风控提示」弹窗（24 行）抽成
+  `@Composable internal fun NewDeviceRiskPromptDialog(onRegister, onKeepLocked)`
+  **放进 `ChatDetailSecretGates.kt`**（与 G184 的 `SecretNewDeviceRiskLocked` 同属
+  「新设备风控」主题——一个是提示、一个是锁定态，本就是一对）；
+  原位置换成 14 行调用。冻结上限 **3547 → 3538**（两处 mapOf）。
+- **一次 import 遗漏**：`ChatDetailSecretGates.kt` 是 G184 新建的文件，
+  import 块只有 `SecretNewDeviceRiskLocked` 需要的那些（`Box`/`Column`/`Icon`…），
+  没有 `AlertDialog`。补上后通过。
+  这和 G187/G190 是同一类教训：**新 dialog 文件第一次装 AlertDialog 时要补 import**。
+- **自检（硬断言）**：体恰好 24 行、首行是 4 空格缩写的
+  `if (showDeviceRiskDialog) {`、末行是 4 空格缩进的 `}`、括号差为 0。
+- **负控制（按函数体切片）**：
+  把确认按钮的 `onClick = onRegister` 改成 `onClick = { }` →
+  `NewDeviceRiskPromptDialog` 函数体内 `onRegister` 出现次数 **2 → 1**，恢复后回到 2。
+- **按 G191 的教训跑了 E2E**：这是第八次纯 UI 抽取，
+  而 G191 刚确认「app JVM 对 Compose 结构零覆盖，E2E 是唯一验收手段」。
+  本轮**当轮就跑了** `scripts/two-device-http-e2e.sh` → **27 / 0 / 0**，
+  证明这次抽取在真机上行为没变。
+  **教训（第四十三次沉淀）：G191 那条「抽完 UI 要跑 E2E」如果只在复跑轮做，
+     就退化成了「攒一批再验」——中间任何一次抽错都要到很后面才发现。
+     正确做法是**每轮抽完当轮跑**。本轮就是这样。**
+- **实测结果**：`ChatDetailRoute.kt` 3547 → **3538** 行；
+  `ChatDetailSecretGates.kt` 72 → 100 行；app JVM 单测 **1906 例不变**；
+  E2E **27 / 0**。
+- **实跑验证**：`git diff` 显示 **24 删 14 增**；调用点两个回调齐全；无未用 import；
+  负控制触发并恢复；全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL
+  （342 套件 / 1906 tests / 0 failures / 0 errors / 0 skipped）；
+  E2E 27 / 0 / 0。

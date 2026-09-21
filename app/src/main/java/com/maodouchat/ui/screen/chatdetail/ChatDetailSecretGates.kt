@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.foundation.background
+import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,4 +63,41 @@ internal fun SecretNewDeviceRiskLocked(onRegisterClick: () -> Unit) {
             }
         }
     }
+}
+
+/**
+ * 新设备风控提示（G192 从 ChatDetailRoute 抽出，24 行）。
+ *
+ * **不可通过返回键/点击外部关闭**——设备未登记时用户必须做出选择：
+ * 登记（[onRegister]）或继续锁定（[onKeepLocked]）。
+ * 两个回调都是纯 I/O（写 Prefs + Toast），留在调用方。
+ */
+@Composable
+internal fun NewDeviceRiskPromptDialog(
+    onRegister: () -> Unit,
+    onKeepLocked: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = { /* 未登记设备必须决策 */ },
+        title = {
+            Text(
+                stringResource(R.string.secret_new_device_risk_prompt_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        },
+        text = {
+            Text(
+                stringResource(R.string.secret_new_device_risk_prompt_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onRegister) { Text(stringResource(R.string.common_confirm)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onKeepLocked) { Text(stringResource(R.string.common_cancel)) }
+        }
+    )
 }

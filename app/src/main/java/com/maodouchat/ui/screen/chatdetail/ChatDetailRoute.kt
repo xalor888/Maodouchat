@@ -904,30 +904,21 @@ internal fun ChatDetailRoute(
         deviceRiskPrompted = true
         showDeviceRiskDialog = true
     }
-    if (showDeviceRiskDialog) {
-        AlertDialog(
-            onDismissRequest = { /* 未登记设备必须决策 */ },
-            title = { Text(stringResource(R.string.secret_new_device_risk_prompt_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
-            text = { Text(stringResource(R.string.secret_new_device_risk_prompt_body), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeviceRiskDialog = false
-                    deviceRiskLocked = false
-                    if (deviceRiskId.isNotBlank()) {
-                        com.maodouchat.util.SecretNewDeviceRiskPrefs.registerDevice(context, deviceRiskId)
-                        Toast.makeText(context, context.getString(R.string.secret_new_device_risk_registered), Toast.LENGTH_SHORT).show()
-                    }
-                }) { Text(stringResource(R.string.common_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showDeviceRiskDialog = false
-                    deviceRiskLocked = true
-                    Toast.makeText(context, context.getString(R.string.secret_new_device_risk_locked), Toast.LENGTH_LONG).show()
-                }) { Text(stringResource(R.string.common_cancel)) }
+    NewDeviceRiskPromptDialog(
+        onRegister = {
+            showDeviceRiskDialog = false
+            deviceRiskLocked = false
+            if (deviceRiskId.isNotBlank()) {
+                com.maodouchat.util.SecretNewDeviceRiskPrefs.registerDevice(context, deviceRiskId)
+                Toast.makeText(context, context.getString(R.string.secret_new_device_risk_registered), Toast.LENGTH_SHORT).show()
             }
-        )
-    }
+        },
+        onKeepLocked = {
+            showDeviceRiskDialog = false
+            deviceRiskLocked = true
+            Toast.makeText(context, context.getString(R.string.secret_new_device_risk_locked), Toast.LENGTH_LONG).show()
+        },
+    )
 
     // B4 本地 AI 聚合：会话画像 / 本周周报（仅非密聊会话，密聊不参与避免落可搜索缓存）
     var showConversationProfile by rememberSaveable { mutableStateOf(false) }
