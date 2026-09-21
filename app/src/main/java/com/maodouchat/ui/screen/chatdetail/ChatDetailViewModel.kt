@@ -3030,17 +3030,9 @@ class ChatDetailViewModel(
     }
 
     internal fun String.isSenderKeyMessage(): Boolean = signalProtocol.isSenderKeyEnvelope(this)
-    internal fun MessageType.isDecryptable(): Boolean = this in setOf(MessageType.TEXT, MessageType.MARKDOWN, MessageType.IMAGE, MessageType.GIF, MessageType.STICKER, MessageType.LOCATION, MessageType.VIDEO, MessageType.VOICE, MessageType.FILE)
-    internal fun Message.mediaDecryptFailedText(): String = when (type) {
-        MessageType.IMAGE -> text(R.string.chat_decrypt_image_failed)
-        MessageType.GIF -> text(R.string.chat_decrypt_gif_failed)
-        MessageType.STICKER -> text(R.string.chat_decrypt_sticker_failed)
-        MessageType.LOCATION -> text(R.string.chat_decrypt_location_failed)
-        MessageType.VIDEO -> text(R.string.chat_decrypt_video_failed)
-        MessageType.VOICE -> text(R.string.chat_decrypt_voice_failed)
-        MessageType.FILE -> text(R.string.chat_decrypt_file_failed)
-        else -> text(R.string.chat_decrypt_failed)
-    }
+    // G183：与 mediaDecryptFailedTextForType 的 when 逐字相同——原先两份各写一遍，
+    // 加一种新 MessageType 时漏改一处就会让 UI 出现两种不同的失败文案。
+    internal fun Message.mediaDecryptFailedText(): String = mediaDecryptFailedTextForType(type)
 
     /**
      * Sync must not advance past recoverable decrypt failures (NoSession / identity / generic).
@@ -3101,3 +3093,10 @@ class ChatDetailViewModel(
         return if (nick.isNullOrBlank()) user else user.copy(nickname = nick)
     }
 }
+
+/** 可解密的消息类型（G183 从 ChatDetailViewModel 成员扩展抽成顶层纯函数：它不碰实例状态，留着只会无法单测）。 */
+internal fun MessageType.isDecryptable(): Boolean = this in setOf(
+    MessageType.TEXT, MessageType.MARKDOWN, MessageType.IMAGE, MessageType.GIF,
+    MessageType.STICKER, MessageType.LOCATION, MessageType.VIDEO,
+    MessageType.VOICE, MessageType.FILE,
+)
