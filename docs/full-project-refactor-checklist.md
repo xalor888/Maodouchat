@@ -7046,3 +7046,36 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实跑验证**：10 条用例名逐条从 XML 读出确认在执行；三次负控制均红；无未用 import；
   恢复后**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
     336 个套件 / 1877 tests / 0 failures / 0 errors / 0 skipped**。
+
+### G177 — 审计 42 条「名字带强断言」的测试（G176 教训的落地）
+- **动机**：G176 揪出一条名不副实的测试（`large counts do not overflow`
+  其实只覆盖精度）。当时我给自己留了条建议：**回头审查现有测试里名字带
+  「不溢出 / 不会丢失 / 保证唯一」这类断言的，是否真的用极端输入验过**。
+  本轮就是把这条建议做掉。
+- **方法**：用正则扫全 app 测试，找出用例名含
+  `不溢出|不会丢失|不会重复|保证唯一|不越界|不回绕|精确|exactly once|no overflow|never`
+  的**共 42 条**，逐条读实现，按「名字是否隐含定量/极端输入承诺」分两类：
+  1. **修辞式 never**（某分支不可达）：普通输入即可证明，无需极端值。**占绝大多数**，
+     例如 `control messages never become the separator`、
+     `my own messages are never unread`。
+  2. **定量承诺**（下界 / 上界 / 溢出 / 幂等）：必须用**边界值**证明。
+     典型是 `unlike never goes below zero`（下界）、
+     `markOpened flips flag exactly once`（幂等）。
+- **对第 2 类跑负控制（本轮实测，非推断）**：
+  | 用例 | 负控制 | 结果 |
+  |---|---|---|
+  | `ExploreFeedPolicyTest.unlike never goes below zero` | 去掉 `toggleLike` 里的 `.coerceAtLeast(0)` | **红**（名字没撒谎） |
+  | `ViewOncePolicyTest.markOpened flips flag exactly once` | 去掉 `markOpened` 里的 `viewOnceOpened` 幂等守卫 | **红**（名字没撒谎） |
+  两条都已定点恢复并复跑转绿。
+- **结论**：42 条中**绝大多数是修辞式 never**，普通输入即充分；
+  两条定量承诺经负控制确认都真的兜底。**未发现第二宗名不副实**
+  ——G176 那一宗是скоборateurs 写入时就错，不是普遍现象。
+- **可以顺手确认的一件事**：`unlike never goes below zero` 之所以站得住，
+  是因为它用了 `likes = 0` 这个**边界值**而不是 `likes = 5`。
+  下界类断言的铁律就是「输入必须已经贴在界上」。
+- **实测结果**：无代码改动（纯审计 + 两次负控制后恢复）；
+  app JVM 单测 **1877 例不变**，工作区干净。
+- **实跑验证**：两次负控制均按预期红；恢复后
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    336 个套件 / 1877 tests / 0 failures / 0 errors / 0 skipped**；
+  `git status` 干净。
