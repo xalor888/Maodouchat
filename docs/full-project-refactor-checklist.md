@@ -6481,6 +6481,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明 + SecretNewDeviceRiskLocked（3667→3622）**：先搬 4 个顶层声明到 ChatDetailLocalizedLabels.kt（3667→3637）；B2 风控块抓块失败——收尾 `}` 与下一支 `else if` 的 `{` 同行，括号配平行内归零；改用**替换分支体**（16 行删掉、换成一行调用、两条 `} else if` 行原样保留）抽出到 ChatDetailSecretGates.kt（3637→3622）。无 Compose 测试基建，负控制用「参数出现次数 2→1」做代理。app JVM 单测 1906 例不变。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明（3667→3637）**：displayedTranslation + 三个 localizedLabel 重载搬到 ChatDetailLocalizedLabels.kt，调用点零改动。一次抓块失败：`} else if (x) {` 链式分支的收尾 `}` 与下一支起始 `{` 同行，括号配平行内归零——为 20 行去拆这种行不划算，改抽边界干净的顶层声明。app JVM 单测 1906 例不变。
+  - **G154b 收敛 spoiler-media / view-once 类型集合（+4 例）**：扫「重复 MessageType 集合」发现 {IMAGE,VIDEO,GIF} 有 4 份——2 处内联剧透判定、1 处 VIEW_ONCE_TYPES（竟是 ViewOncePolicy.SUPPORTED 的副本）、1 处已命名。新建 SpoilerMediaPolicy，删掉重复的 VIEW_ONCE_TYPES 改用 ViewOncePolicy.supports；刻意不合并两者（概念独立）。app JVM 单测 **1906 → 1910 例**，0 失败。
   - **G193 修掉自身不一致 + 7 次抽取终检（3538 行不变）**：审计发现 ChatDetailConfirmDialogs.kt 里 GroupAnnouncementDialog 是唯一没有 visible 参数的（G185–G190 之间自己造成的不一致），补齐后该文件 4 个 dialog API 一致。加参数又撞行数上限——把重复的 groupAnnouncement 表达式提成局部变量省下一行抵消。终检用 git log -S 逐个核对 7 次抽取的资源集合，全部一致。app JVM 1906 例不变，E2E 27/0。
   - **G192 抽出 NewDeviceRiskPromptDialog（3547→3538）**：24 行内联弹窗换成 14 行调用，归进 ChatDetailSecretGates.kt（与 G184 的 SecretNewDeviceRiskLocked 本是一对）。一次 import 遗漏（新文件没 AlertDialog）。**按 G191 教训当轮就跑 E2E（27/0）**——「抽完 UI 要跑 E2E」若只在复跑轮做就退化成分批攒验，中间抽错要很后面才发现。app JVM 1906 例不变。
   - **G191 第三次全量复跑（四套 2410 例全绿）**：G182 之后 8 轮改动后再跑四套——app 1906、server 461、PG 19、E2E 27。**E2E 那 27 例是七轮纯 UI 抽取唯一的验收手段**：app JVM 对 Compose 结构零覆盖（无 Robolectric），抽走弹窗/削 composable 这种事只有真机跑一遍能证伪。实测 27/0，说明抽取没改变运行时行为。app JVM 1906 例不变。
@@ -7605,3 +7606,33 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL
   （342 套件 / 1906 tests / 0 failures / 0 errors / 0 skipped）；
   E2E 27 / 0 / 0。
+
+### G154b — 收敛 spoiler-media 与 view-once 的类型集合（+4 例）
+- **动机**：G193 终检后想换方向，先扫了一遍「重复的 `MessageType` 集合」，
+  发现 `{IMAGE, VIDEO, GIF}` 这个集合在 app 里有 **4 份**：
+  | 位置 | 形态 | 语义 |
+  |---|---|---|
+  | `util/ViewOncePolicy.kt` | `private val SUPPORTED`（已命名） | 阅后即焚 |
+  | `ui/component/MessagePresentation.kt:177` | `private val VIEW_ONCE_TYPES` | **同一集合的重复副本** |
+  | `attachment/AttachmentIntentController.kt:233` | 内联 `msgType in setOf(...)` | 剧透模糊 |
+  | `attachment/AttachmentSendWorkflow.kt:99` | 内联 `command.type in setOf(...)` | 剧透模糊 |
+- **做了什么**：
+  1. 新建 `util/SpoilerMediaPolicy.kt`（`SUPPORTED` + `supports(type)`），
+     两处内联判定改为调用；
+  2. **删掉** `MessagePresentation.VIEW_ONCE_TYPES`—— 它语义就是 view-once，
+     却自己抄了一份，改用已有的 `ViewOncePolicy.supports(...)`；
+  3. **刻意不合并** `SpoilerMediaPolicy` 与 `ViewOncePolicy`：两者当前取值相同但
+     概念独立（贴纸将来可能可剧透但不该阅后即焚），KDoc 已写明理由。
+- **4 条用例**（`SpoilerMediaPolicyTest`）：三个视觉媒体类型支持剧透；
+  十种非视觉类型不支持；**每个 `MessageType` 枚举值都被显式分类**；
+  集合恰 3 项。
+- **负控制**：从 `SUPPORTED` 去掉 `GIF` → 3 例红。恢复后转绿。
+- **实测结果**：`grep` 确认内联 `setOf(IMAGE, VIDEO, GIF)` 与 `VIEW_ONCE_TYPES`
+  在 main 里**均归零**（只剩两个 Policy 自己的定义与 KDoc 提及）；
+  app JVM 单测 **1906 → 1910 例**（+4）。
+- **实跑验证**：3 个文件改动共 3 增 4 删；编译通过、无未用 import；
+  负控制红并恢复；**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL**。
+- **教训（第四十六次沉淀）：「同名集合扫」要连**已命名的常量**一起看——
+     如果只看内联字面量，会发现 2 处重复；把 `private val` 也算进来，
+     才发现是 4 处、其中一处还是已有常量的副本。
+     扫描口径的宽度决定你能看到几成真相。**
