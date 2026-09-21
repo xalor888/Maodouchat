@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G170 把群 AI 助手与语义搜索抽出（557→340）**：69–285 行五个声明抽到 ChatDetailGroupAi.kt，上限同步收紧。KDoc 写明「密聊禁止群 AI 助手」。`ChatDetailAiGeneration.kt` 五轮累计 1975→340。app JVM 单测 1863 例不变。
   - **G169 把未读总结与 AI 上下文抽出（711→557）**：558–711 行四个声明抽到 ChatDetailAiContext.kt，上限同步收紧。块恰在文件尾部，一次取中。app JVM 单测 1863 例不变。
   - **G168 把 AI 总结抽出（884→711）**：456–628 行三个声明抽到 ChatDetailAiSummary.kt，上限同步收紧。先用 decl_name 打声明表确认真连续（G167 教训生效），一次抓通。新文件 KDoc 记下「aiAssisted 消息排除在总结候选外，避免总结套娃」。app JVM 单测 1863 例不变。
   - **G167 把 AI 媒体分析抽出（1300→884）**：630–1045 行五个声明抽到 ChatDetailAiMediaAnalysis.kt，上限同步收紧。抓块三处修正：单行 data class 无函数体导致假配平、`PreparedAiFile` 交错而非连续（G142 教训重演）、两段式抓取行号重叠——最终按首尾定位取整段。新文件 KDoc 写明两条安全约束。app JVM 单测 1863 例不变。
@@ -6830,4 +6831,24 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
     334 个套件 / 1863 tests / 0 failures / 0 errors / 0 skipped**；
   负控制（上限 557→620，须 `--rerun-tasks`）→
+  `hotspot line caps may not grow across commits` **红**。
+
+### G170 — 把群 AI 助手与语义搜索从 ChatDetailAiGeneration.kt 抽出（557 → 340）
+- **做了什么**：把 69–285 行（`groupAssistant` + `semanticSearch` +
+  `buildGroupAiContextMessages` + `inferGroupAiMode` + `parseGroupAiCommand`，217 行）
+  抽到新文件 `ChatDetailGroupAi.kt`；冻结上限 **557 → 340**（两处 mapOf）。
+- **新文件 KDoc 写明安全约束**：**密聊会话禁止群 AI 助手——解密明文不得送服务端 AI**。
+  并说明 `inferGroupAiMode` / `parseGroupAiCommand` 是纯本地判定
+  （推断助手模式、解析「/命令 参数」形式）。
+- **抓块顺利**：声明表确认五个声明连续，块后第一个声明是 `rewriteDraft`，一次取中。
+- **一次编译错误是漏 import**（`RuntimeFlags`），补上即过；无未用 import。
+- **实测结果**：`ChatDetailAiGeneration.kt` 557 → **340** 行；新文件 243 行；
+  `git diff --stat` 显示原文件 **217 deletions**。
+  **`ChatDetailAiGeneration.kt` 五轮累计：1975 → 340（-1635 行，缩到原长的 17%）。**
+- **实跑验证**：五项自检全通过（括号配平 / 恰好 5 个声明 / 每行缩进 >=4 /
+  括号差 0 / 无缩进 0 行），块后第一个声明确认为 `rewriteDraft`；
+  `:app:compileDebugKotlin` 通过、无未用 import；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    334 个套件 / 1863 tests / 0 failures / 0 errors / 0 skipped**；
+  负控制（上限 340→400，须 `--rerun-tasks`）→
   `hotspot line caps may not grow across commits` **红**。
