@@ -159,6 +159,51 @@ class ClientArchitectureTest {
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
 
+    /**
+     * G165：真正的外部基线棘轮。
+     *
+     * 上面那条 `hotspot line caps only ever shrink` 只比较**同一文件里**的两份 mapOf，
+     * 把两处一起改大它们依然相等——G164 的负控制证明了它抓不到「故意放宽」。
+     *
+     * 这里改成与 **git HEAD 里的上一版**解析结果比较：任何跨提交的放宽都会红。
+     * 收紧自由（拆分后往下调是该鼓励的），放宽必须是真的先删了代码。
+     *
+     * 降级策略：git 不可用 / 本文件未被跟踪（如首次提交前）时**跳过**而非误报。
+     */
+    @Test
+    fun `hotspot line caps may not grow across commits`() {
+        val previous = previousCapsFromGitHead() ?: run {
+            println("SKIP hotspot line caps may not grow across commits：拿不到 git HEAD 基线")
+            return
+        }
+        val grown = mutableListOf<String>()
+        frozenHotspotLineCaps.forEach { (path, cap) ->
+            val before = previous[path] ?: return@forEach // 新纳入监管的文件，无基线可比
+            if (cap > before) grown += "$path: 上限 $before -> $cap（放宽了 ${cap - before} 行）"
+        }
+        assertEquals(emptyList(), grown, "热点上限被放宽了——只能收紧；要放宽必须先真的删掉代码")
+    }
+
+    /**
+     * 从 git HEAD 读上一版 ClientArchitectureTest.kt，解析出 frozenHotspotLineCaps。
+     * 任何失败都返回 null（调用方据此跳过，而不是误报）。
+     */
+    private fun previousCapsFromGitHead(): Map<String, Int>? = runCatching {
+        val rel = "app/src/test/java/com/maodouchat/ClientArchitectureTest.kt"
+        val pb = ProcessBuilder("git", "show", "HEAD:$rel")
+            .directory(repoRoot)
+            .redirectErrorStream(true)
+        val out = pb.start().inputStream.bufferedReader().readText()
+        if (out.isBlank() || out.startsWith("fatal:")) return null
+        val start = out.indexOf("private val frozenHotspotLineCaps")
+        if (start < 0) return null
+        val blk = out.substring(start, out.indexOf(')', out.indexOf("mapOf(", start)))
+        val pattern = Regex(""""([^"]+)"\s*to\s*(\d+)""")
+        pattern.findAll(blk)
+            .associate { it.groupValues[1] to it.groupValues[2].toInt() }
+            .takeIf { it.isNotEmpty() }
+    }.getOrNull()
+
     // ─── 3. GroupPlayPolicy 不得有同名重复文件 ───
 
     @Test
