@@ -109,7 +109,7 @@ class ClientArchitectureTest {
         "com/maodouchat/util/GroupPlayPolicy.kt" to 2209,
         // G113：以下六个文件此前**没有任何行数门禁**，是 app 内剩下的大文件。
         // 纳入棘轮，之后每拆一块就往下调。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 1975,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 1300,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 672,
         "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1651,
         "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
@@ -143,7 +143,7 @@ class ClientArchitectureTest {
             "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3667,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3103,
             "com/maodouchat/util/GroupPlayPolicy.kt" to 2209,
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 1975,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 1300,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 672,
             "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1651,
             "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
