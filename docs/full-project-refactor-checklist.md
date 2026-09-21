@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G168 把 AI 总结抽出（884→711）**：456–628 行三个声明抽到 ChatDetailAiSummary.kt，上限同步收紧。先用 decl_name 打声明表确认真连续（G167 教训生效），一次抓通。新文件 KDoc 记下「aiAssisted 消息排除在总结候选外，避免总结套娃」。app JVM 单测 1863 例不变。
   - **G167 把 AI 媒体分析抽出（1300→884）**：630–1045 行五个声明抽到 ChatDetailAiMediaAnalysis.kt，上限同步收紧。抓块三处修正：单行 data class 无函数体导致假配平、`PreparedAiFile` 交错而非连续（G142 教训重演）、两段式抓取行号重叠——最终按首尾定位取整段。新文件 KDoc 写明两条安全约束。app JVM 单测 1863 例不变。
   - **G166 拆掉 ChatDetailAiGeneration.kt 最大的自包含块**：372–1046 行（generateAiSuggestions + buildOfflineAiSuggestions + offlineHas，675 行）抽到 ChatDetailOfflineSuggestions.kt，原文件 1975→1300，上限同步收紧。抓块五项自检（括号配平 / 恰好 3 声明 / 缩进 >=4 / 括号差 0 / 无缩进 0 行）。一次负控制被 Gradle 缓存蒙过，加 `--rerun-tasks` 后才红——沉淀出「门禁读外部状态时必须强制重跑」。app JVM 单测 1863 例不变。
   - **G165 落库 + 用 git HEAD 基线修好反向棘轮**：125 个未跟踪文件按主题分成 4 个提交落库（工作区变干净）；`hotspot line caps may not shrink` 的基线从「同文件第二份 mapOf」改成 git HEAD 解析结果，任何跨提交的放宽都会红，git 不可用/文件未跟踪/新纳入监管时降级为跳过。负控制：上限 432→567 两处同步，G164 全绿、G165 立刻红。app JVM 单测 **1862 → 1863 例**，0 失败。
@@ -6786,3 +6787,24 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
     334 个套件 / 1863 tests / 0 failures / 0 errors / 0 skipped**；
   负控制（上限 884→950，须 `--rerun-tasks`）→ `hotspot line caps may not grow across commits` **红**。
+
+### G168 — 把 AI 总结从 ChatDetailAiGeneration.kt 抽出（884 → 711）
+- **做了什么**：把 456–628 行（`summarizeMessages` + `summaryCandidates` +
+  `buildAiSummaryContextMessages`，173 行）抽到新文件 `ChatDetailAiSummary.kt`；
+  冻结上限 **884 → 711**（两处 mapOf）。
+- **新文件 KDoc 记下一条产品约束**：已由 AI 生成的消息（`aiAssisted`）
+  会被排除在总结候选外，**避免总结套娃**。
+- **抓块比 G167 顺**：先用 `decl_name` 打出整份声明表，确认这三个声明在表里
+  **真的连续**（G167 的教训生效），再按首尾定位取整段，一次通过。
+- **两次编译错误都是漏 import**（`AiOperationError`、`flow.update`、`viewModelScope`、
+  `launch`、`Dispatchers`、`withContext`、`AiPromptSafetyPolicy`、`R`），
+  分两轮补全；无未用 import。
+- **实测结果**：`ChatDetailAiGeneration.kt` 884 → **711** 行；新文件 188 行；
+  `git diff --stat` 显示原文件 **173 deletions**。
+- **实跑验证**：五项自检全通过（括号配平 / 恰好 3 个声明 / 每行缩进 >=4 /
+  括号差 0 / 无缩进 0 行），块后第一个声明确认为 `translateTextMessage`；
+  `:app:compileDebugKotlin` 通过、无未用 import；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    334 个套件 / 1863 tests / 0 failures / 0 errors / 0 skipped**；
+  负控制（上限 711→800，须 `--rerun-tasks`）→
+  `hotspot line caps may not grow across commits` **红**。
