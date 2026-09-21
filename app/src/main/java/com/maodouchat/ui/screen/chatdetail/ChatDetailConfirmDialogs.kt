@@ -13,7 +13,11 @@ import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
- * 聊天锁相关对话框（G185 从 ChatDetailRoute 的 chatLockBlocking 分支抽出）。
+ * 会话详情的「确认类」对话框集合（G188 由 ChatDetailChatLockDialogs.kt 改名而来）。
+ *
+ * 改名前名字只涵盖「聊天锁」一类，但文件里已经有三个不同主题的确认框：
+ * 忘记聊天锁密码（G185）、清空本地历史（G186）、实时位置分享时长（G187）。
+ * 它们共同点是「破坏性/不可逆操作前的二次确认」，所以按这个共性命名。
  */
 
 /**
