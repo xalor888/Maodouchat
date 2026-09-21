@@ -6481,6 +6481,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明 + SecretNewDeviceRiskLocked（3667→3622）**：先搬 4 个顶层声明到 ChatDetailLocalizedLabels.kt（3667→3637）；B2 风控块抓块失败——收尾 `}` 与下一支 `else if` 的 `{` 同行，括号配平行内归零；改用**替换分支体**（16 行删掉、换成一行调用、两条 `} else if` 行原样保留）抽出到 ChatDetailSecretGates.kt（3637→3622）。无 Compose 测试基建，负控制用「参数出现次数 2→1」做代理。app JVM 单测 1906 例不变。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明（3667→3637）**：displayedTranslation + 三个 localizedLabel 重载搬到 ChatDetailLocalizedLabels.kt，调用点零改动。一次抓块失败：`} else if (x) {` 链式分支的收尾 `}` 与下一支起始 `{` 同行，括号配平行内归零——为 20 行去拆这种行不划算，改抽边界干净的顶层声明。app JVM 单测 1906 例不变。
+  - **G189 抽出 SecretChatConfirmDialog（3578→3562）**：24 行内联弹窗换成 8 行调用，归进 G188 刚改好名的 ChatDetailConfirmDialogs.kt——**上一轮改名的价值这一轮直接兑现**（这个 dialog 是「开启密聊的二次确认」，放进去名副其实）。app JVM 单测 1906 例不变。
   - **G188 ChatDetailChatLockDialogs.kt 改名 ChatDetailConfirmDialogs.kt**：G187 记下的名不副实——文件已有 3 个不同主题确认框，名字只涵盖「聊天锁」。按共同点（破坏性操作前的二次确认）改名。成本近零：三个引用点都在 ChatDetailRoute.kt 且同包，无 import 需改。`git log --follow` 历史未断。本轮没有逻辑负控制——改名任务的「没改坏」证明是 rename 相似度 90% + diff 仅 KDoc 6 行。app JVM 单测 1906 例不变。
   - **G187 抽出 LiveLocationDurationDialog（3598→3578）**：28 行内联弹窗换成 8 行调用。一次 import 遗漏（Column/Modifier）已修。负控制按函数体切片（G186 教训直接复用）。**发现该文件已装 3 个 dialog 但名字还叫 ChatDetailChatLockDialogs——名不副实，已记录待改名，没顺手改（改名牵动 import 属另一件事）。** app JVM 单测 1906 例不变。
   - **G186 抽出 ClearChatHistoryConfirmDialog（3610→3598）**：33 行内联弹窗换成 21 行调用。SensitiveActionGate.confirm 那段**刻意留在调用点**——它是鉴权策略不是 UI。负控制踩到作用域问题：文件里两个 composable 都用 onConfirm，文件级 grep 计数是噪声；改成按函数体切片后才准确（2→1→2）。app JVM 单测 1906 例不变。
@@ -7454,3 +7455,23 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   **教训（第四十一次沉淀）：不是每轮都能有「变红」的负控制。
      改名/挪文件这类任务，能证明的是**「除了名字和注释，别的一个字节没动」**——
      用 rename 相似度 + diff 行数来证明，别硬造一个逻辑负控制。**
+
+### G189 — 抽出 SecretChatConfirmDialog（3578 → 3562）
+- **做了什么**：把内联的「开启密聊确认」弹窗（24 行）抽成
+  `@Composable internal fun SecretChatConfirmDialog(visible, onConfirm, onDismiss)`
+  （追加到 **G188 刚改好名**的 `ChatDetailConfirmDialogs.kt`——名字对上了）；
+  原位置换成 8 行调用。冻结上限 **3578 → 3562**（两处 mapOf）。
+- **G188 的改名当场见效**：这个 dialog 是「开启密聊的二次确认」，
+  归进 `ChatDetailConfirmDialogs.kt` **名副其实**。如果文件名还叫
+  `ChatDetailChatLockDialogs`，把它放进去就会立刻显得别扭——
+  上一轮改名的价值在这一轮直接兑现。
+- **自检（硬断言）**：体恰好 24 行、首行是 4 空格缩进的
+  `if (showSecretChatConfirm) {`、末行是 4 空格缩进的 `}`、括号差为 0。
+- **负控制（按函数体切片，G186/G187 同一手法）**：
+  把确认按钮的 `onClick = onConfirm` 改成 `onClick = { }` →
+  `SecretChatConfirmDialog` 函数体内 `onConfirm` 出现次数 **2 → 1**，恢复后回到 2。
+- **实测结果**：`ChatDetailRoute.kt` 3578 → **3562** 行；
+  `ChatDetailConfirmDialogs.kt` 128 → 156 行；app JVM 单测 **1906 例不变**。
+- **实跑验证**：`git diff` 显示 **24 删 8 增**；调用点三个参数齐全；无未用 import；
+  负控制触发并恢复；**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    342 个套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**。

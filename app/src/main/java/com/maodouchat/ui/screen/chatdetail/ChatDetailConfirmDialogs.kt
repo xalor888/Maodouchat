@@ -122,3 +122,32 @@ internal fun LiveLocationDurationDialog(
         }
     )
 }
+
+/**
+ * 「开启密聊」确认框（G189 从 ChatDetailRoute 抽出，24 行）。
+ *
+ * 密聊会改变这个会话的加密与留存行为，所以要二次确认。
+ */
+@Composable
+internal fun SecretChatConfirmDialog(
+    visible: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (!visible) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.secret_chat_confirm_enable_title)) },
+        text = { Text(stringResource(R.string.secret_chat_confirm_enable_body)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.common_done))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        }
+    )
+}

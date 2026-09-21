@@ -1621,30 +1621,14 @@ if (showGroupCallTypeDialog) {
     )
 
 
-    if (showSecretChatConfirm) {
-        AlertDialog(
-            onDismissRequest = { showSecretChatConfirm = false },
-            title = {
-                Text(stringResource(R.string.secret_chat_confirm_enable_title))
-            },
-            text = {
-                Text(stringResource(R.string.secret_chat_confirm_enable_body))
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showSecretChatConfirm = false
-                    viewModel.startSecretChat()
-                }) {
-                    Text(stringResource(R.string.common_done))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSecretChatConfirm = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            }
-        )
-    }
+    SecretChatConfirmDialog(
+        visible = showSecretChatConfirm,
+        onConfirm = {
+            showSecretChatConfirm = false
+            viewModel.startSecretChat()
+        },
+        onDismiss = { showSecretChatConfirm = false },
+    )
     val chatLiquidBackdrop = rememberLayerBackdrop()
     CompositionLocalProvider(LocalLiquidGlassBackdrop provides chatLiquidBackdrop) {
     ChatDetailScaffold(
