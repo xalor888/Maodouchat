@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G179 收敛两处 normalizeVisibility（+6 例）**：同一服务端字段在两处归一化而回落方向相反（设置页→PUBLIC、发布器→PRIVATE），服务端新增未知值时会「图与行为不一致」。**未擅自统一**（属产品/安全决策），改为让调用方显式传回落值，并用注释/KDoc/测试三重固化。过程中被自己的行数门禁抓到一次（1317>1315），压回 1314 并收紧上限。app JVM 单测 **1885 → 1891 例**，0 失败。
   - **G178 抽出 ICE 回落与音频约束两个纯策略（+8 例）**：「空则回落公共 STUN」这个安全不变量在 WebRTCManager 里出现了 3 次（字段初始化/refreshIceServers/buildIceServers），收敛成 resolveIceServers 一处；另抽 standardAudioConstraints。8 条用例盯空回落、非空 assertSame 原样返回、TURN 凭据不抹掉、无 goog* 废弃前缀。app JVM 单测 **1877 → 1885 例**，0 失败。
   - **G177 审计 42 条「名字带强断言」的测试**：落实 G176 的自我建议。扫出 42 条含「不溢出/不会丢失/exactly once/never」的用例，分两类：修辞式 never（分支不可达，普通输入即充分）占绝大多数；定量承诺（下界/幂等）必须用边界值。对后者抽 2 条跑负控制——`unlike never goes below zero` 去掉 coerceAtLeast(0) 后红、`markOpened flips flag exactly once` 去掉幂等守卫后红，两条都真的兜底。未发现第二宗名不副实。app JVM 单测 1877 例不变。
   - **G176 抽出 WebRTCStatsMath 两个纯函数（+10 例）**：WebRTCManager 是成员式大类、整体拆分风险高（G171），改从「不碰实例状态的纯函数」切入——抽出 readStatNumber 与 packetLossPercent。一次测试名不副实：`large counts do not overflow` 用 1e11 当大数，负控制改成 Long 运算后**没红**（溢出需 >9.2e16），名字在说谎；拆成「精度」与「真溢出」两条后立刻红。app JVM 单测 **1867 → 1877 例**，0 失败。
@@ -7108,3 +7109,39 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实跑验证**：8 条用例名逐条从 XML 读出确认在执行（4/4）；两次负控制均红；
   无未用 import；恢复后**全量 `:app:testDebugUnitTest --rerun-tasks` →
   BUILD SUCCESSFUL，338 个套件 / 1885 tests / 0 failures / 0 errors / 0 skipped**。
+
+### G179 — 收敛两处 normalizeVisibility，让分歧显式可见（1885 → 1891 例）
+- **做了什么**：新建 `SettingsVisibilityPolicy.kt`，提供
+  `normalizeVisibility(value, fallback)` 与共享集合 `VISIBILITY_VALUES`；
+  `SettingsViewModel.normalizeVisibility`（原回落 `PUBLIC`）与
+  `ExploreDraftPolicy.normalizeVisibility`（原回落 `PRIVATE`）都改为
+  **显式传入各自的回落值**。删掉 `ExploreDraftPolicy` 里已死的 `VISIBILITIES`。
+  冻结上限 **1315 → 1314**（两处 mapOf）。
+- **本轮发现的真问题（**未修**，记为待决策）**：
+  同一个服务端字段 `defaultPostVisibility` 在两处被归一化，而**回落方向相反**：
+  - 隐私设置页 → 不认识的值当 `PUBLIC`（**公开**）
+  - 发布器 → 不认识的值当 `PRIVATE`（**私密**）
+  服务端将来新增一个客户端还不认识的值（例如 `FRIENDS`）时，
+  用户在隐私页看到「公开」、实际发出去却是「私密」——**图与行为不一致**。
+  本伦**没有擅自统一**：改哪个方向都是产品/安全决策，且会影响现存行为。
+  已用三种方式把问题固化下来：
+  1. 两处调用点各留一行注释指向 `SettingsVisibilityPolicy.kt`；
+  2. 共享文件 KDoc 完整描述这个分歧；
+  3. 测试 `the two fallback directions are genuinely different` 钉住两方向确实不同。
+- **6 条用例**：三个合法值原样返回、未知值分别按 PUBLIC/PRIVATE 回落、
+  空串/全空白也回落、大小写敏感（`public` / `Public` / 尾随空格都不算）、
+  两方向确实不同、识别集合恰为三个协议值。
+- **一次被自己的门禁抓到**：改完 `SettingsViewModel.kt` 长到 **1317 行**、
+  越过 1315 的冻结上限，`client hotspot files may not grow` 红。
+  把注释从 5 行压到 1 行后回到 **1314**，并把上限收紧到 1314。
+  **这正说明 G172 那条覆盖性门禁和 G165 的 git 基线棘轮在起作用——
+     连我自己加注释都会被拦。**
+- **两次负控制，都按预期红**：
+  1. 合法值集合去掉 `PRIVATE` → 2 例红；
+  2. 忽略 `fallback` 参数硬编码 `PUBLIC` → 3 例红。
+  两次均已定点恢复并复跑转绿。
+- **实测结果**：app JVM 单测 **1885 → 1891 例**（+6）；
+  `SettingsViewModel.kt` 1315 → 1314 行。
+- **实跑验证**：6 条用例名逐条从 XML 读出确认在执行；两次负控制均红；无未用 import；
+  恢复后**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    339 个套件 / 1891 tests / 0 failures / 0 errors / 0 skipped**。
