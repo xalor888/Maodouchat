@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G180 收敛 6 个 Store 的 prefs()/key() 样板（+6 例）**：新建 UserScopedPrefs.kt，删 6 个 Store 的私有副本——比原计划多两个（ChatFolderPreferences / ChatAppearancePreferences），因为「同名且同体唯一」的口径把 `key` 整个名字漏了：它有 15 个实现、5 种分隔符约定，同体不唯一就被判非重复组。沉淀出「要按 (名字, 体哈希) 分组」。冒号版那 6 个是另一套约定，是否统一留作产品决策。app JVM 单测 **1891 → 1897 例**，0 失败。
   - **G179 收敛两处 normalizeVisibility（+6 例）**：同一服务端字段在两处归一化而回落方向相反（设置页→PUBLIC、发布器→PRIVATE），服务端新增未知值时会「图与行为不一致」。**未擅自统一**（属产品/安全决策），改为让调用方显式传回落值，并用注释/KDoc/测试三重固化。过程中被自己的行数门禁抓到一次（1317>1315），压回 1314 并收紧上限。app JVM 单测 **1885 → 1891 例**，0 失败。
   - **G178 抽出 ICE 回落与音频约束两个纯策略（+8 例）**：「空则回落公共 STUN」这个安全不变量在 WebRTCManager 里出现了 3 次（字段初始化/refreshIceServers/buildIceServers），收敛成 resolveIceServers 一处；另抽 standardAudioConstraints。8 条用例盯空回落、非空 assertSame 原样返回、TURN 凭据不抹掉、无 goog* 废弃前缀。app JVM 单测 **1877 → 1885 例**，0 失败。
   - **G177 审计 42 条「名字带强断言」的测试**：落实 G176 的自我建议。扫出 42 条含「不溢出/不会丢失/exactly once/never」的用例，分两类：修辞式 never（分支不可达，普通输入即充分）占绝大多数；定量承诺（下界/幂等）必须用边界值。对后者抽 2 条跑负控制——`unlike never goes below zero` 去掉 coerceAtLeast(0) 后红、`markOpened flips flag exactly once` 去掉幂等守卫后红，两条都真的兜底。未发现第二宗名不副实。app JVM 单测 1877 例不变。
@@ -7145,3 +7146,47 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实跑验证**：6 条用例名逐条从 XML 读出确认在执行；两次负控制均红；无未用 import；
   恢复后**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
     339 个套件 / 1891 tests / 0 failures / 0 errors / 0 skipped**。
+
+### G180 — 收敛 6 个 Store 的 prefs()/key() 样板（1891 → 1897 例）
+- **做了什么**：新建 `util/UserScopedPrefs.kt`，提供
+  `userScopedPrefs(context, prefsName)` 与 `userScopedKey(prefix, userId)`；
+  删掉 **6 个** Store 的私有副本（`PREFS_NAME` 仍是各自私有常量）。
+  涉及：`GifSearchPreferences` / `QuickPhrasePreferences` / `EmojiRecentPreferences` /
+  `StickerPreferences` / `ChatFolderPreferences` / `ChatAppearancePreferences`。
+- **收敛的两件事不只是"少几行"**：
+  - `userScopedPrefs` 固定用 `applicationContext`——直接持有调用方 Context
+    会在 Activity 重建后持有一个已死的 Context；
+  - `userScopedKey` 固定 `"${prefix}_$userId"` 约定——读和写必须用同一个格式，
+    约定散落 6 处就容易出现某处读用一种、写用另一种。
+- **又抓到一个扫描口径的漏洞（第三次，比前两次更隐蔽）**：
+  先前的「同名 + 函数体完全一致」口径要求**同名且同体唯一**。
+  但 `key` 在全 app 有 **15 个实现、5 种分隔符约定**：
+  - `"${prefix}_$userId"`（下划线，6 个文件）
+  - `"$base:$userId"`（冒号，6 个文件：AppLockManager / ScreenSecureManager /
+    SensitiveActionGate / FakeChatManager / PinLockRepository / AccountFeatureSwitch）
+  - `"${KEY_X}_$userId"`（写死前缀，5 个文件）
+  - `AccountIsolationPolicy.preferenceKey(...)`（已有共享实现，1 个文件）
+  - `FriendCacheStore` 的可空 owner 特例
+  因为**同名下体不唯一**，整个 `key` 名字在我的扫描里被判为"非重复组"，
+  于是那 6 个确实相同的下划线版被掩盖了。
+  **教训（第三十三次沉淀）：重复扫描不能只看「同名且同体唯一」——
+     同一个名字下有多种实现时，要**按 (名字, 函数体哈希) 分组**，
+     才能看出「同名不同体」里藏着「同名同体的子群」。
+     只看名字会漏，只看体也会漏。**
+- **遗留（本轮未动，记录在案）**：`"$base:$userId"` 那 6 个冒号版是**另一套约定**，
+  与下划线版不一致（同一个 userId 在两套约定下 key 不同，但各自读写自洽）。
+  是否统一是产品决策，本轮不擅自改。
+- **6 条用例**：key 拼接、userId 含特殊字符（`a:b_c` / 空格 / 空串）原样拼接不转义、
+  空前缀、prefix 与 userId 都含下划线时仍可逆、prefs 走 applicationContext 且名字透传、
+  mode 恒为 `MODE_PRIVATE`。
+- **两次负控制，都按预期红**：
+  1. `userScopedKey` 的 `_` 改成 `:` → 2 例红；
+  2. `userScopedPrefs` 去掉 `applicationContext` → 2 例红。
+  两次均已定点恢复并复跑转绿。
+- **实测结果**：6 个文件共删 12 个私有成员声明；
+  app JVM 单测 **1891 → 1897 例**（+6）。
+- **实跑验证**：`grep` 确认下划线版私有 `key` 全 app **归零**；无未用 import；
+  6 条用例名逐一从 XML 读出确认在执行；两次负控制均红；
+  恢复后**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    340 个套件 / 1897 tests / 0 failures / 0 errors / 0 skipped**；
+  `git status` 干净。
