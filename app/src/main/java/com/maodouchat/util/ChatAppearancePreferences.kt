@@ -26,19 +26,19 @@ object ChatAppearancePreferences {
 
     fun getWallpaper(context: Context): ChatWallpaperPreset {
         val userId = currentUserId(context) ?: return ChatWallpaperPreset.DEFAULT
-        val raw = prefs(context).getString(key(KEY_WALLPAPER, userId), null)
+        val raw = userScopedPrefs(context, PREFS_NAME).getString(userScopedKey(KEY_WALLPAPER, userId), null)
         return ChatAppearancePolicy.normalizeWallpaper(raw)
     }
 
     fun setWallpaper(context: Context, preset: ChatWallpaperPreset) {
         val userId = currentUserId(context) ?: return
-        prefs(context).edit().putString(key(KEY_WALLPAPER, userId), preset.id).apply()
+        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_WALLPAPER, userId), preset.id).apply()
     }
 
     /** 自定义图片壁纸的本地 URI（用户选择的图片）；null 表示未设置。 */
     fun getCustomWallpaperUri(context: Context): String? {
         val userId = currentUserId(context) ?: return null
-        return prefs(context).getString(key(KEY_CUSTOM_WALLPAPER, userId), null)
+        return userScopedPrefs(context, PREFS_NAME).getString(userScopedKey(KEY_CUSTOM_WALLPAPER, userId), null)
             ?.takeIf { it.isNotBlank() && it != "null" }
     }
 
@@ -57,13 +57,13 @@ object ChatAppearancePreferences {
             } ?: return null
             target.absoluteFile.toURI().toString()
         }.getOrNull()?.also { stored ->
-            prefs(context).edit().putString(key(KEY_CUSTOM_WALLPAPER, userId), stored).apply()
+            userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_CUSTOM_WALLPAPER, userId), stored).apply()
         }
     }
 
     fun clearCustomWallpaperUri(context: Context) {
         val userId = currentUserId(context) ?: return
-        prefs(context).edit().remove(key(KEY_CUSTOM_WALLPAPER, userId)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit().remove(userScopedKey(KEY_CUSTOM_WALLPAPER, userId)).apply()
         runCatching {
             java.io.File(context.filesDir, "wallpapers/custom_$userId.jpg").delete()
         }
@@ -71,45 +71,45 @@ object ChatAppearancePreferences {
 
     fun getFontScale(context: Context): ChatFontScale {
         val userId = currentUserId(context) ?: return ChatFontScale.NORMAL
-        val raw = prefs(context).getString(key(KEY_FONT, userId), null)
+        val raw = userScopedPrefs(context, PREFS_NAME).getString(userScopedKey(KEY_FONT, userId), null)
         return ChatAppearancePolicy.normalizeFontScale(raw)
     }
 
     fun setFontScale(context: Context, scale: ChatFontScale) {
         val userId = currentUserId(context) ?: return
-        prefs(context).edit().putString(key(KEY_FONT, userId), scale.id).apply()
+        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_FONT, userId), scale.id).apply()
     }
 
     /** 聊天气泡颜色 id（见 ChatBubbleColorPalette）。 */
     fun getBubbleColor(context: Context): String {
         val userId = currentUserId(context) ?: return com.maodouchat.ui.theme.ChatBubbleColorPalette.GREEN
-        val raw = prefs(context).getString(key(KEY_BUBBLE_COLOR, userId), null)
+        val raw = userScopedPrefs(context, PREFS_NAME).getString(userScopedKey(KEY_BUBBLE_COLOR, userId), null)
         return com.maodouchat.ui.theme.ChatBubbleColorPalette.normalize(raw)
     }
 
     /** 用户是否显式自定义过气泡色（主题接管发送气泡配色时用于判断优先级）。 */
     fun hasCustomBubbleColor(context: Context): Boolean {
         val userId = currentUserId(context) ?: return false
-        return prefs(context).getString(key(KEY_BUBBLE_COLOR, userId), null) != null
+        return userScopedPrefs(context, PREFS_NAME).getString(userScopedKey(KEY_BUBBLE_COLOR, userId), null) != null
     }
 
     fun setBubbleColor(context: Context, colorId: String) {
         val userId = currentUserId(context) ?: return
         val normalized = com.maodouchat.ui.theme.ChatBubbleColorPalette.normalize(colorId)
-        prefs(context).edit().putString(key(KEY_BUBBLE_COLOR, userId), normalized).apply()
+        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_BUBBLE_COLOR, userId), normalized).apply()
         _appearanceVersion.value++
     }
 
     /** 气泡圆角风格 id（default / tg / round）。 */
     fun getBubbleShape(context: Context): String {
         val userId = currentUserId(context) ?: return "default"
-        val raw = prefs(context).getString(key(KEY_BUBBLE_SHAPE, userId), null)
+        val raw = userScopedPrefs(context, PREFS_NAME).getString(userScopedKey(KEY_BUBBLE_SHAPE, userId), null)
         return normalizeBubbleShape(raw)
     }
 
     fun setBubbleShape(context: Context, shapeId: String) {
         val userId = currentUserId(context) ?: return
-        prefs(context).edit().putString(key(KEY_BUBBLE_SHAPE, userId), normalizeBubbleShape(shapeId)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_BUBBLE_SHAPE, userId), normalizeBubbleShape(shapeId)).apply()
         _appearanceVersion.value++
     }
 
@@ -120,21 +120,16 @@ object ChatAppearancePreferences {
 
     fun clearForUser(context: Context, userId: String) {
         if (userId.isBlank()) return
-        prefs(context).edit()
-            .remove(key(KEY_WALLPAPER, userId))
-            .remove(key(KEY_CUSTOM_WALLPAPER, userId))
-            .remove(key(KEY_FONT, userId))
-            .remove(key(KEY_BUBBLE_COLOR, userId))
-            .remove(key(KEY_BUBBLE_SHAPE, userId))
+        userScopedPrefs(context, PREFS_NAME).edit()
+            .remove(userScopedKey(KEY_WALLPAPER, userId))
+            .remove(userScopedKey(KEY_CUSTOM_WALLPAPER, userId))
+            .remove(userScopedKey(KEY_FONT, userId))
+            .remove(userScopedKey(KEY_BUBBLE_COLOR, userId))
+            .remove(userScopedKey(KEY_BUBBLE_SHAPE, userId))
             .apply()
         runCatching {
             java.io.File(context.filesDir, "wallpapers/custom_$userId.jpg").delete()
         }
     }
 
-
-    private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-
-    private fun key(prefix: String, userId: String): String = "${prefix}_$userId"
 }

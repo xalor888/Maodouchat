@@ -13,19 +13,19 @@ object StickerPreferences {
 
     fun getRecent(context: Context): List<String> {
         val userId = currentUserId(context) ?: return emptyList()
-        val raw = prefs(context).getString(key(KEY_RECENT, userId), null) ?: return emptyList()
+        val raw = userScopedPrefs(context, PREFS_NAME).getString(userScopedKey(KEY_RECENT, userId), null) ?: return emptyList()
         return PrefsJsonLists.decode(raw)
     }
 
     fun recordRecent(context: Context, sticker: String) {
         val userId = currentUserId(context) ?: return
         val next = StickerPolicy.pushRecent(getRecent(context), sticker)
-        prefs(context).edit().putString(key(KEY_RECENT, userId), PrefsJsonLists.encode(next)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_RECENT, userId), PrefsJsonLists.encode(next)).apply()
     }
 
     fun getEnabledPackIds(context: Context): List<String> {
         val userId = currentUserId(context) ?: return StickerCatalog.defaultEnabledPackIds()
-        val raw = prefs(context).getString(key(KEY_ENABLED_PACKS, userId), null)
+        val raw = userScopedPrefs(context, PREFS_NAME).getString(userScopedKey(KEY_ENABLED_PACKS, userId), null)
             ?: return StickerCatalog.defaultEnabledPackIds()
         return StickerPolicy.normalizeEnabledPackIds(PrefsJsonLists.decode(raw))
     }
@@ -33,22 +33,17 @@ object StickerPreferences {
     fun setEnabledPackIds(context: Context, packIds: List<String>) {
         val userId = currentUserId(context) ?: return
         val normalized = StickerPolicy.normalizeEnabledPackIds(packIds)
-        prefs(context).edit().putString(key(KEY_ENABLED_PACKS, userId), PrefsJsonLists.encode(normalized)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_ENABLED_PACKS, userId), PrefsJsonLists.encode(normalized)).apply()
     }
 
     fun clearForUser(context: Context, userId: String) {
         if (userId.isBlank()) return
-        prefs(context).edit()
-            .remove(key(KEY_RECENT, userId))
-            .remove(key(KEY_ENABLED_PACKS, userId))
+        userScopedPrefs(context, PREFS_NAME).edit()
+            .remove(userScopedKey(KEY_RECENT, userId))
+            .remove(userScopedKey(KEY_ENABLED_PACKS, userId))
             .apply()
     }
 
-
-    private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-
-    private fun key(prefix: String, userId: String): String = "${prefix}_$userId"
 
 
 }

@@ -14,27 +14,22 @@ object ChatFolderPreferences {
 
     fun getFolders(context: Context): List<ChatFolder> {
         val userId = currentUserId(context) ?: return emptyList()
-        val raw = prefs(context).getString(key(KEY_FOLDERS, userId), null) ?: return emptyList()
+        val raw = userScopedPrefs(context, PREFS_NAME).getString(userScopedKey(KEY_FOLDERS, userId), null) ?: return emptyList()
         return decodeFolders(raw)
     }
 
     fun setFolders(context: Context, folders: List<ChatFolder>) {
         val userId = currentUserId(context) ?: return
-        prefs(context).edit()
-            .putString(key(KEY_FOLDERS, userId), encodeFolders(folders))
+        userScopedPrefs(context, PREFS_NAME).edit()
+            .putString(userScopedKey(KEY_FOLDERS, userId), encodeFolders(folders))
             .apply()
     }
 
     fun clearForUser(context: Context, userId: String) {
         if (userId.isBlank()) return
-        prefs(context).edit().remove(key(KEY_FOLDERS, userId)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit().remove(userScopedKey(KEY_FOLDERS, userId)).apply()
     }
 
-
-    private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-
-    private fun key(prefix: String, userId: String): String = "${prefix}_$userId"
 
     private fun encodeFolders(folders: List<ChatFolder>): String {
         val arr = JSONArray()
