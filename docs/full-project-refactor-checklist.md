@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G171 全量验证扫描（2369 例全绿）**：四套全部本轮实测——app JVM 1863、server 461、PG 集成 19、E2E 27，0 失败。确认 server 是独立 Gradle 构建（`:server:test` 不存在，须 `cd server && ../gradlew`）；本机 5432 有活 PG 且 `maodouchat_pg_test` 已存在；模拟器在跑。`CallViewModel.kt` 是单 class 成员式结构，抽成员风险高收益低，决定不动。
   - **G170 把群 AI 助手与语义搜索抽出（557→340）**：69–285 行五个声明抽到 ChatDetailGroupAi.kt，上限同步收紧。KDoc 写明「密聊禁止群 AI 助手」。`ChatDetailAiGeneration.kt` 五轮累计 1975→340。app JVM 单测 1863 例不变。
   - **G169 把未读总结与 AI 上下文抽出（711→557）**：558–711 行四个声明抽到 ChatDetailAiContext.kt，上限同步收紧。块恰在文件尾部，一次取中。app JVM 单测 1863 例不变。
   - **G168 把 AI 总结抽出（884→711）**：456–628 行三个声明抽到 ChatDetailAiSummary.kt，上限同步收紧。先用 decl_name 打声明表确认真连续（G167 教训生效），一次抓通。新文件 KDoc 记下「aiAssisted 消息排除在总结候选外，避免总结套娃」。app JVM 单测 1863 例不变。
@@ -6852,3 +6853,31 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
     334 个套件 / 1863 tests / 0 failures / 0 errors / 0 skipped**；
   负控制（上限 340→400，须 `--rerun-tasks`）→
   `hotspot line caps may not grow across commits` **红**。
+
+### G171 — 全量验证扫描：四套测试实测（2369 例全绿）
+- **背景**：G145–G170 每轮都只实测 `:app:testDebugUnitTest`，另外三套
+  （server / PG 集成 / E2E）一直是**历史数字**。本轮把四套全部真跑一遍。
+- **实测结果（全部本轮新鲜产出，非历史引用）**：
+  | 套件 | 命令 | 结果 |
+  |---|---|---|
+  | app JVM | `./gradlew :app:testDebugUnitTest` | **1863 / 0 / 0 / 0**（334 套件） |
+  | server | `cd server && ../gradlew test` | **461 / 0 / 0 / 0**（150 XML） |
+  | PG 集成 | `POSTGRES_TEST_DATABASE_URL=jdbc:postgresql://localhost:5432/maodouchat_pg_test?user=xalor ../gradlew postgresIntegrationTest` | **19 / 0 / 0 / 0**（7 套件） |
+  | E2E | `bash scripts/two-device-http-e2e.sh` | **27 / 0 / 0**（20 条 TwoAccountHttpRoundTripTest + 3 条 ClientDataLifecycleTest + 4 条辅助） |
+  | **合计** | | **2369 例，0 失败 0 错误 0 跳过** |
+- **环境发现（都对后续有用）**：
+  1. server 是**独立 Gradle 构建**（`server/settings.gradle.kts`），根 `settings.gradle.kts`
+     **不 include 它**，所以 `:server:test` 会报 "project 'server' not found"；
+     正确姿势是 `cd server && ../gradlew test`（见 `scripts/two-device-http-e2e.sh`）。
+  2. 本机 **5432 有活着的 Postgres**，且已存在 `maodouchat_pg_test` 库，
+     PG 集成测试无需额外搭建。
+  3. **模拟器在跑**（`emulator-5556`），`adb` 在 `~/Library/Android/sdk/platform-tools/adb`，
+     E2E 脚本能直接跑通。
+- **`CallViewModel.kt`(1652) 暂不拆**：打声明表后发现它是**单个 `class CallViewModel`
+  的成员式结构**（约 45 个 `indent=4` 成员方法）。抽成员要把方法连同
+  `_uiState` / `groupAiJob` 等私有状态一起搬，风险远高于此前几轮抽**顶层声明**的做法，
+  而收益只是把一个大类变成两个大类。**本轮决定不动它**，转而在台账里记下这个判断。
+- **教训（第二十九次沉淀）：连续多轮只跑一套测试时，「其余套件还是绿的」会退化成
+     历史记忆而不是事实。本轮四套全跑才发现： server 的调用方式、PG 的库、
+     模拟器的可用性**全都和记忆一致**，但这是**重新测出来的**一致。
+     周期性全量复跑本身就是一种需要排进日程的工作。**
