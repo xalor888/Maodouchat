@@ -1566,22 +1566,7 @@ if (showGroupCallTypeDialog) {
             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         }
     } else if (deviceRiskLocked) {
-        // B2 新设备风控（ndz）：设备未登记 → 密聊内容锁定，仅保留重新登记入口
-        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Icon(Icons.Outlined.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
-                Text(
-                    stringResource(R.string.secret_new_device_risk_locked),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = LocalChatPalette.current.textSecondary,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 32.dp)
-                )
-                TextButton(onClick = { showDeviceRiskDialog = true }) {
-                    Text(stringResource(R.string.secret_new_device_risk_register), color = MaterialTheme.colorScheme.primary)
-                }
-            }
-        }
+        SecretNewDeviceRiskLocked(onRegisterClick = { showDeviceRiskDialog = true })
     } else if (chatLockBlocking) {
         ChatLockGate(
             chatName = state.contact.displayName.ifBlank {

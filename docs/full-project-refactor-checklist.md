@@ -6479,7 +6479,9 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明 + SecretNewDeviceRiskLocked（3667→3622）**：先搬 4 个顶层声明到 ChatDetailLocalizedLabels.kt（3667→3637）；B2 风控块抓块失败——收尾 `}` 与下一支 `else if` 的 `{` 同行，括号配平行内归零；改用**替换分支体**（16 行删掉、换成一行调用、两条 `} else if` 行原样保留）抽出到 ChatDetailSecretGates.kt（3637→3622）。无 Compose 测试基建，负控制用「参数出现次数 2→1」做代理。app JVM 单测 1906 例不变。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明（3667→3637）**：displayedTranslation + 三个 localizedLabel 重载搬到 ChatDetailLocalizedLabels.kt，调用点零改动。一次抓块失败：`} else if (x) {` 链式分支的收尾 `}` 与下一支起始 `{` 同行，括号配平行内归零——为 20 行去拆这种行不划算，改抽边界干净的顶层声明。app JVM 单测 1906 例不变。
+  - **G184（续）用「替换分支体」抽出 SecretNewDeviceRiskLocked（3637→3622）**：块的收尾 `}` 与下一支 `else if` 的 `{` 同行，括号配平无法定界；改为删 16 行、换成一行调用、两条 `} else if` 行原样保留——搬整块需精确边界，换内容只需知道删哪些行。自检断言先写成 17 行（实际 16），改对后一次过。负控制在无 Compose 基建下用「onRegisterClick 出现次数 2→1」做代理。app JVM 单测 1906 例不变。
   - **G183 收敛 mediaDecryptFailed* 重复 when + 抽出 isDecryptable（+3 例）**：两处 8 分支 when 逐字相同（只收 Message / MessageType），让前者委托后者；并把纯集合判定的 isDecryptable 从类成员抽成顶层纯函数才能单测。两次负控制一红一绿——NC2「给一处加分支不同步另一处」变**绿**正是收敛成功的证明（没有第二处可漏改）。一次 KDoc 写长被行数门禁抓到，压回 3102。app JVM 单测 **1903 → 1906 例**，0 失败。
   - **G182 第二次全量复跑（四套 2410 例全绿）**：G171 之后又做了 9 轮只跑 app JVM 的改动，按 G171 的教训复跑四套——app 1903、server 461、PG 19、E2E 27。一次差点被 Gradle 缓存蒙过：server 首跑 `3s / 6 up-to-date` 是零执行，加 `--rerun-tasks` 后 `9m / 6 executed` 才是真测。沉淀出「BUILD SUCCESSFUL ≠ 测过了，看到 up-to-date 就是零执行信号」。app JVM 1903 例不变。
   - **G181 收敛 7 处 toHex 到共享实现（+6 例）**：新建 HexBytes.kt，删 7 处逐字相同的私有 toHex()。`%02x` 的补零是硬要求（不补零会让指纹长度漂移、产生歧义），散落 7 处风险高。一次正则写错：负回顾 `(?<![.\w])` 把唯一的调用形式 `.toHex()` 全排除了。app JVM 单测 **1897 → 1903 例**，0 失败。
@@ -7308,3 +7310,38 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   `:app:compileDebugKotlin` 通过、无未用 import；
   **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
     342 个套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**。
+
+### G184（续）— 用「替换分支体」的方式抽出 SecretNewDeviceRiskLocked（3637 → 3622）
+- **上半场为什么失败**：目标是抽 `} else if (deviceRiskLocked) { ... }` 那个 B2 风控块。
+  括号配平在**行内**就归零——因为该块的收尾 `}` 与下一支
+  `} else if (chatLockBlocking) {` 的起始 `{` **在同一行**，
+  抓出来的是整个文件剩余部分。
+- **下半场的正确做法**：不做「搬走整块」，改做**替换分支体**。
+  - 新建 `ChatDetailSecretGates.kt`，把 16 行 UI 写成
+    `@Composable internal fun SecretNewDeviceRiskLocked(onRegisterClick: () -> Unit)`；
+  - 原位置只删那 16 行、换成一行调用
+    `SecretNewDeviceRiskLocked(onRegisterClick = { showDeviceRiskDialog = true })`；
+  - 两条 `} else if (...) {` 行**原样保留**，不需要拆行。
+  这样边界问题就不存在了——只做行级替换，不动链式结构。
+- **抓块自检（硬断言，全过才落盘）**：体恰好 16 行、首行是 `// B2 新设备风控` 注释、
+  末行是 `        }`、体内 `showDeviceRiskDialog` **只出现一次**（按钮那一处）、
+  括号差为 0。
+- **一次自检断言写错**：我先断言「体是 17 行」，实际 16 行，`assert` 失败、
+  **没有任何文件被改**（断言在写盘之前）。改成 16 后一次通过。
+- **负控制（按目标要求）**：把 composable 里的 `TextButton(onClick = onRegisterClick)`
+  改成 `onClick = { }` → 编译仍通过（本机无 Robolectric/Compose 测试基建），
+  但 **`onRegisterClick` 在文件里的出现次数从 2 掉到 1**——参数变成未被使用，
+  静态可查。恢复后回到 2。
+  **这是本机能做到的最强负控制：没有 UI 测试基建时，
+     「参数是否仍被使用」就是「点击是否仍被接通」的可执行代理。**
+- **实测结果**：`ChatDetailRoute.kt` 3637 → **3622** 行；新文件 72 行；
+  app JVM 单测 **1906 例不变**（纯搬移）。
+- **实跑验证**：`git diff` 显示原文件 **16 删 1 增**；调用点参数齐全
+  （`onRegisterClick = { showDeviceRiskDialog = true }`）；无未用 import；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    342 个套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**；
+  负控制按上述方式触发并恢复。
+- **教训（第三十八次沉淀）：「块的收尾与下一块的开头在同一行」时，
+     不要试图配平出边界——改成**替换内容**就行。
+     搬走整块需要精确边界，替换内容只需要知道「删哪些行、换成什么」，
+     后者对边界的鲁棒性高一个量级。**
