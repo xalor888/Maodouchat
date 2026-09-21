@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G183 收敛 mediaDecryptFailed* 重复 when + 抽出 isDecryptable（+3 例）**：两处 8 分支 when 逐字相同（只收 Message / MessageType），让前者委托后者；并把纯集合判定的 isDecryptable 从类成员抽成顶层纯函数才能单测。两次负控制一红一绿——NC2「给一处加分支不同步另一处」变**绿**正是收敛成功的证明（没有第二处可漏改）。一次 KDoc 写长被行数门禁抓到，压回 3102。app JVM 单测 **1903 → 1906 例**，0 失败。
   - **G182 第二次全量复跑（四套 2410 例全绿）**：G171 之后又做了 9 轮只跑 app JVM 的改动，按 G171 的教训复跑四套——app 1903、server 461、PG 19、E2E 27。一次差点被 Gradle 缓存蒙过：server 首跑 `3s / 6 up-to-date` 是零执行，加 `--rerun-tasks` 后 `9m / 6 executed` 才是真测。沉淀出「BUILD SUCCESSFUL ≠ 测过了，看到 up-to-date 就是零执行信号」。app JVM 1903 例不变。
   - **G181 收敛 7 处 toHex 到共享实现（+6 例）**：新建 HexBytes.kt，删 7 处逐字相同的私有 toHex()。`%02x` 的补零是硬要求（不补零会让指纹长度漂移、产生歧义），散落 7 处风险高。一次正则写错：负回顾 `(?<![.\w])` 把唯一的调用形式 `.toHex()` 全排除了。app JVM 单测 **1897 → 1903 例**，0 失败。
   - **G180 收敛 6 个 Store 的 prefs()/key() 样板（+6 例）**：新建 UserScopedPrefs.kt，删 6 个 Store 的私有副本——比原计划多两个（ChatFolderPreferences / ChatAppearancePreferences），因为「同名且同体唯一」的口径把 `key` 整个名字漏了：它有 15 个实现、5 种分隔符约定，同体不唯一就被判非重复组。沉淀出「要按 (名字, 体哈希) 分组」。冒号版那 6 个是另一套约定，是否统一留作产品决策。app JVM 单测 **1891 → 1897 例**，0 失败。
@@ -7242,3 +7243,37 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      任务真的 executed，否则你只是在读一份旧报告。**
 - **同时确认**：G181 之后工作区**干净**，无未提交改动。
 - **实测结果**：无代码改动（纯复跑）；app JVM 1903 例不变。
+
+### G183 — 收敛 mediaDecryptFailed* 重复 when，抽出 isDecryptable（1903 → 1906 例）
+- **做了什么**：
+  1. `Message.mediaDecryptFailedText()` 与 `mediaDecryptFailedTextForType(type)` 的
+     **8 分支 `when` 逐字相同**（只是一个收 `Message`、一个收 `MessageType`）——
+     让前者委托后者，删掉重复的 9 行。
+  2. `MessageType.isDecryptable()` 原本是 `ChatDetailViewModel` 的**成员**扩展，
+     但纯做集合判定、不碰任何实例状态；抽成**顶层纯函数**后才能被单测覆盖。
+     调用语法不变（仍是 `type.isDecryptable()`）。
+  冻结上限 **3104 → 3102**（两处 mapOf）。
+- **为什么要收敛那两份 when**：漏改一处就会让 UI 对同一种消息类型显示
+  **两种不同的失败文案**——而且这种事在 review 里几乎看不出来，
+  因为两段代码相隔 45 行、接收者类型还不同。
+- **3 条用例**（`ChatDetailDecryptPolicyTest`）：9 种内容类类型应可解密、
+  4 种控制类类型不可解密、以及**每个 `MessageType` 枚举值都被显式分类**——
+  将来新增类型忘了在这里决定，最后一条会红。
+- **一次又把自己的 KDoc 写长、被行数门禁抓到**：抽出时 KDoc 写了 9 行，
+  文件从 3104 长到 **3111**、越过冻结上限；压回 1 行注释后是 **3102** 才过，
+  并把上限收紧到 3102。
+  **教训（第三十六次沉淀）：「抽出以换取可测性」几乎总会让原文件**暂时变长**
+     （新声明 + 注释 > 删掉的旧声明）。这时候只有两条正当路：
+     压注释，或者把新声明放到**另一个文件**去。放松行数上限不是选项——
+     那正是棘轮存在的理由。**
+- **两次负控制，一红一绿，绿的才是重点**：
+  1. `isDecryptable` 去掉 `VOICE`/`FILE` → 2 例**红**（测试确实兜底）；
+  2. 给 `mediaDecryptFailedTextForType` 加一个分支「不同步另一处」→ **绿**。
+     绿是**收敛成功的证明**：现在只剩一份 `when`，没有第二处可漏改。
+     G183 之前这个负控制会让两处文案分叉——那正是本轮要消除的风险。
+- **实测结果**：`ChatDetailViewModel.kt` 3104 → **3102** 行，删掉 9 行重复 `when`；
+  app JVM 单测 **1903 → 1906 例**（+3）。
+- **实跑验证**：3 条用例名逐条从 XML 读出确认在执行；NC1 红、NC2 绿（符合预期）；
+  恢复后**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    342 个套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**；
+  `git status` 干净。
