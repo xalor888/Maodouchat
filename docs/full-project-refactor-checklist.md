@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G178 抽出 ICE 回落与音频约束两个纯策略（+8 例）**：「空则回落公共 STUN」这个安全不变量在 WebRTCManager 里出现了 3 次（字段初始化/refreshIceServers/buildIceServers），收敛成 resolveIceServers 一处；另抽 standardAudioConstraints。8 条用例盯空回落、非空 assertSame 原样返回、TURN 凭据不抹掉、无 goog* 废弃前缀。app JVM 单测 **1877 → 1885 例**，0 失败。
   - **G177 审计 42 条「名字带强断言」的测试**：落实 G176 的自我建议。扫出 42 条含「不溢出/不会丢失/exactly once/never」的用例，分两类：修辞式 never（分支不可达，普通输入即充分）占绝大多数；定量承诺（下界/幂等）必须用边界值。对后者抽 2 条跑负控制——`unlike never goes below zero` 去掉 coerceAtLeast(0) 后红、`markOpened flips flag exactly once` 去掉幂等守卫后红，两条都真的兜底。未发现第二宗名不副实。app JVM 单测 1877 例不变。
   - **G176 抽出 WebRTCStatsMath 两个纯函数（+10 例）**：WebRTCManager 是成员式大类、整体拆分风险高（G171），改从「不碰实例状态的纯函数」切入——抽出 readStatNumber 与 packetLossPercent。一次测试名不副实：`large counts do not overflow` 用 1e11 当大数，负控制改成 Long 运算后**没红**（溢出需 >9.2e16），名字在说谎；拆成「精度」与「真溢出」两条后立刻红。app JVM 单测 **1867 → 1877 例**，0 失败。
   - **G175 收敛 explore 包 3 处 relativeTime + 2 处 visibilityOptionLabel**：新建 ExploreRelativeTime.kt 提供两共享实现，删 5 处私有副本（69 行）。**没有**统一包内两种不同语义的 relativeTime（手写分档 vs RelativeTimePolicy+DateUtils，文案不同），只收敛逐字相同的，并在 KDoc 写明区别。保留的那个改名 relativeTimeLocalized 避开撞车。app JVM 单测 1867 例不变。
@@ -7080,3 +7081,30 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
     336 个套件 / 1877 tests / 0 failures / 0 errors / 0 skipped**；
   `git status` 干净。
+
+### G178 — 抽出 ICE 回落与音频约束两个纯策略（1877 → 1885 例）
+- **做了什么**：
+  1. `WebRTCIcePolicy.resolveIceServers(configured)`——「空则回落公共 STUN」这个不变量
+     在 `WebRTCManager` 里出现了 **3 次**（字段初始化、`refreshIceServers`、
+     `buildIceServers`），各写一遍 `ifEmpty { defaultStun() }`。收敛成一处。
+     另附 `buildWebRtcIceServers`（`CallIceServer` → `PeerConnection.IceServer`）。
+  2. `WebRTCAudioPolicy.standardAudioConstraints()`——三个标准约束名/值。
+  `WebRTCManager` 三处 `ifEmpty` 与 `createAudioConstraints` 改调用共享实现。
+  冻结上限 **1422 → 1416**（两处 mapOf）。
+- **为什么值得收敛那 3 处**：虽然只有一行，但它是**安全不变量**——
+  漏改一处会出现「TURN 凭据刷新后反而一个服务器都不剩」，
+  表现为通话突然完全连不上，且很难联想到是这里漏了 `ifEmpty`。
+- **8 条用例**（`WebRTCIcePolicyTest` 4 + `WebRTCAudioPolicyTest` 4）：
+  空列表回落 `defaultStun` 且回落结果是 STUN-only、非空**原样返回且是同一实例**
+  （`assertSame`）、TURN 配置逐字保留（含凭据不被抹掉）、
+  三个约束键名与值全对、**无 `goog*` 废弃前缀**、值恒为 `"true"`、
+  恰三条且无重复键。
+- **两次负控制，都按预期红**：
+  1. 去掉 `ifEmpty` 回落 → `empty configuration falls back to public stun` 红；
+  2. `echoCancellation` 改成废弃的 `googEchoCancellation` → 2 例红。
+  两次均已定点恢复并复跑转绿。
+- **实测结果**：`grep 'ifEmpty { CallIceServer.defaultStun() }'` 全 app **归零**；
+  `WebRTCManager.kt` 1422 → 1416 行；app JVM 单测 **1877 → 1885 例**（+8）。
+- **实跑验证**：8 条用例名逐条从 XML 读出确认在执行（4/4）；两次负控制均红；
+  无未用 import；恢复后**全量 `:app:testDebugUnitTest --rerun-tasks` →
+  BUILD SUCCESSFUL，338 个套件 / 1885 tests / 0 failures / 0 errors / 0 skipped**。
