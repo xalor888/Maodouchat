@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G166 拆掉 ChatDetailAiGeneration.kt 最大的自包含块**：372–1046 行（generateAiSuggestions + buildOfflineAiSuggestions + offlineHas，675 行）抽到 ChatDetailOfflineSuggestions.kt，原文件 1975→1300，上限同步收紧。抓块五项自检（括号配平 / 恰好 3 声明 / 缩进 >=4 / 括号差 0 / 无缩进 0 行）。一次负控制被 Gradle 缓存蒙过，加 `--rerun-tasks` 后才红——沉淀出「门禁读外部状态时必须强制重跑」。app JVM 单测 1863 例不变。
   - **G165 落库 + 用 git HEAD 基线修好反向棘轮**：125 个未跟踪文件按主题分成 4 个提交落库（工作区变干净）；`hotspot line caps may not shrink` 的基线从「同文件第二份 mapOf」改成 git HEAD 解析结果，任何跨提交的放宽都会红，git 不可用/文件未跟踪/新纳入监管时降级为跳过。负控制：上限 432→567 两处同步，G164 全绿、G165 立刻红。app JVM 单测 **1862 → 1863 例**，0 失败。
   - **G164 收紧 ChatListScreen.kt 的棘轮上限（567→432）**：该文件早已拆到 432 行但上限停在 567，等于留了 135 行免费增长额度。同时复核全部 12 个上限与实测一致。负控制发现**反向棘轮有漏洞**——`currentCaps` 与 `frozenHotspotLineCaps` 同源（同一文件硬编码），故意放宽抓不到，只能防手误；已记录待单独修。app JVM 单测 1862 例不变。
   - **G163 用同一模式收尾 formatNearbyDistance**：「距离→(资源,实参)」抽成纯函数 `nearbyDistanceLabel`。7 条用例盯 `coerceAtLeast(100)`（0/负数都夹到 100）与「一位小数」格式；一次把 coerce 输入混进透传列表的测试自错当场拆分。app JVM 单测 **1855 → 1862 例**，0 失败。**至此「抽取纯映射」系列（G160–G163）收尾：4 个函数拆成纯判定+薄包装，产品行为零变化。**
@@ -6719,3 +6720,37 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      基线必须来自**当前提交之外**。同文件里的两份数据再怎么写注释都只是提醒；
      而"外部基线"这个方案本身有前置条件——**工作得先落库**，
      否则基线不存在，棘轮只能降级成跳过。**
+
+### G166 — 拆掉 ChatDetailAiGeneration.kt 最大的自包含块（1975 → 1300）
+- **做了什么**：把 372–1046 行（`generateAiSuggestions` +
+  `buildOfflineAiSuggestions` + `offlineHas` 三个声明，675 行）抽到新文件
+  `ChatDetailOfflineSuggestions.kt`（同包），原位置删除；
+  冻结上限同步 **1975 → 1300**（两处 mapOf）。
+- **为什么选这一块**：它是文件里最大的自包含块，与「请求 / 流式 / 取消」逻辑无耦合，
+  且 `buildOfflineAiSuggestions` 不访问网络（本地话术库），边界最干净。
+- **抓块自检（全部通过才落盘）**：
+  1. 括号配平抓块，块 = 372..1046 共 675 行；
+  2. **块内恰好 3 个声明**，且顺序为 generateAiSuggestions →
+     buildOfflineAiSuggestions → offlineHas；
+  3. 每行缩进 **>= 4**（否则去缩进会损坏多行字符串续行）；
+  4. 括号差为 0；
+  5. **无缩进 0 的行**（证明没粘连到后面的 `cancelAiDraftStream`）。
+- **两次编译错误，都是漏 import**（`kotlinx.coroutines.flow.update` 与
+  `AiOperationError`），补上即过；无未用 import。
+- **一次自检断言写错**：我起初断言「块内每行缩进都 == 4」，
+  实际函数体是 8+ 缩进，断言误报。改成 `>= 4` 才是正确的安全性条件。
+  **教训（第二十六次沉淀）：去缩进的安全条件是「>= N」而不是「== N」——
+     写成 `== N` 会把正常深层缩进的函数体全判成异常。**
+- **实测结果**：`ChatDetailAiGeneration.kt` 1975 → **1300** 行；
+  新文件 693 行；`git diff --stat` 显示原文件 **675 deletions**。
+- **实跑验证**：
+  - `:app:compileDebugKotlin` 通过，无未用 import；
+  - **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    334 个套件 / 1863 tests / 0 failures / 0 errors / 0 skipped**（用例数不变，符合纯拆分预期）；
+  - 收紧上限被跨提交棘轮**放行**（这正是想要的方向）。
+- ⚠️ **一次被 Gradle 缓存蒙过的负控制**：上限 1300→1400 第一次跑显示 BUILD SUCCESSFUL，
+  加 `--rerun-tasks` 后才看到 `hotspot line caps may not grow across commits` **红**。
+  原因是测试任务被缓存（输入未变时直接复用结果）。
+  **教训（第二十七次沉淀）：改的是「测试自己读的外部状态」（这里是 git HEAD）时，
+     Gradle 可能认为输入没变而复用旧结果。验证这类门禁必须 `--rerun-tasks`，
+     否则「绿」是缓存里的绿，不是这一轮的绿。**
