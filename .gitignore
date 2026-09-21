@@ -85,3 +85,6 @@ server/src/main/resources/webrtc/
 emulator-*.png
 # keepgoal 的内部状态（台账、访问记录），不该进版本库
 .keepgoal/
+
+# QA 截图产物（不应入库）
+.qa-live/
