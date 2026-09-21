@@ -2576,34 +2576,19 @@ if (showGroupCallTypeDialog) {
     }
 
     // 8.57：群公告全文弹窗
-    if (showAnnouncementDialog) {
-        AlertDialog(
-            onDismissRequest = { showAnnouncementDialog = false },
-            title = { Text(stringResource(R.string.group_announcement_dialog_title)) },
-            text = {
-                Text(
-                    state.chat?.groupAnnouncement?.trim().orEmpty(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.verticalScroll(rememberScrollState())
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { showAnnouncementDialog = false }) { Text(stringResource(R.string.common_close)) }
-            },
-            // 1.301：复制公告全文（转发到别处 / 归档）
-            dismissButton = {
-                TextButton(onClick = {
-                    val text = state.chat?.groupAnnouncement?.trim().orEmpty()
-                    if (text.isNotBlank()) {
-                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.group_announcement_copy), text))
-                        Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
-                    }
-                    showAnnouncementDialog = false
-                }) { Text(stringResource(R.string.group_announcement_copy), color = MaterialTheme.colorScheme.primary) }
+    GroupAnnouncementDialog(
+        announcement = state.chat?.groupAnnouncement?.trim().orEmpty(),
+        onCopy = {
+            val text = state.chat?.groupAnnouncement?.trim().orEmpty()
+            if (text.isNotBlank()) {
+                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.group_announcement_copy), text))
+                Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
             }
-        )
-    }
+            showAnnouncementDialog = false
+        },
+        onDismiss = { showAnnouncementDialog = false },
+    )
 
     // G86：批量删除确认对话框（50 行）抽到 ChatDetailBatchDeleteDialog.kt，纯搬移不改判断。
     if (showBatchDeleteConfirm) {

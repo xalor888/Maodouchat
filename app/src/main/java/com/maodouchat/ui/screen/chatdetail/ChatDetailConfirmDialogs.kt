@@ -1,6 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
 import androidx.compose.ui.Modifier
@@ -147,6 +149,40 @@ internal fun SecretChatConfirmDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.common_cancel))
+            }
+        }
+    )
+}
+
+/**
+ * 群公告全文弹窗（G190 从 ChatDetailRoute 抽出，28 行）。
+ *
+ * 公告可能很长，所以正文可滚动。复制是**纯 I/O**（剪贴板 + Toast），
+ * 留在调用方的 [onCopy] 里——它和「这个弹窗长什么样」无关。
+ */
+@Composable
+internal fun GroupAnnouncementDialog(
+    announcement: String,
+    onCopy: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.group_announcement_dialog_title)) },
+        text = {
+            Text(
+                announcement,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_close)) }
+        },
+        // 1.301：复制公告全文（转发到别处 / 归档）
+        dismissButton = {
+            TextButton(onClick = onCopy) {
+                Text(stringResource(R.string.group_announcement_copy), color = MaterialTheme.colorScheme.primary)
             }
         }
     )
