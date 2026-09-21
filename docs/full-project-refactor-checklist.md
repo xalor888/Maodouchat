@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G165 落库 + 用 git HEAD 基线修好反向棘轮**：125 个未跟踪文件按主题分成 4 个提交落库（工作区变干净）；`hotspot line caps may not shrink` 的基线从「同文件第二份 mapOf」改成 git HEAD 解析结果，任何跨提交的放宽都会红，git 不可用/文件未跟踪/新纳入监管时降级为跳过。负控制：上限 432→567 两处同步，G164 全绿、G165 立刻红。app JVM 单测 **1862 → 1863 例**，0 失败。
   - **G164 收紧 ChatListScreen.kt 的棘轮上限（567→432）**：该文件早已拆到 432 行但上限停在 567，等于留了 135 行免费增长额度。同时复核全部 12 个上限与实测一致。负控制发现**反向棘轮有漏洞**——`currentCaps` 与 `frozenHotspotLineCaps` 同源（同一文件硬编码），故意放宽抓不到，只能防手误；已记录待单独修。app JVM 单测 1862 例不变。
   - **G163 用同一模式收尾 formatNearbyDistance**：「距离→(资源,实参)」抽成纯函数 `nearbyDistanceLabel`。7 条用例盯 `coerceAtLeast(100)`（0/负数都夹到 100）与「一位小数」格式；一次把 coerce 输入混进透传列表的测试自错当场拆分。app JVM 单测 **1855 → 1862 例**，0 失败。**至此「抽取纯映射」系列（G160–G163）收尾：4 个函数拆成纯判定+薄包装，产品行为零变化。**
   - **G162 用 G161 模式打通 messageSafetyWarning**：「告警码→详情文案」6 分支抽成纯函数 `safetyDetailText`，返回 `Pair<资源 id, host?>`（只有 SUSPICIOUS_LINK 有带/不带主机两种文案）。7 条用例盯住 null/空串/全空白/\t/\n 五种都算「无主机」；负控制把 `isNullOrBlank` 减弱成 `isNullOrEmpty` 立刻红。app JVM 单测 **1848 → 1855 例**，0 失败。
@@ -6676,3 +6677,45 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   `client hotspot files may not grow` 红；放宽回 567 时无测试红（即上述漏洞）；
   恢复 432 后**全量 `:app:testDebugUnitTest` → BUILD SUCCESSFUL，334 个套件 /
   1862 tests / 0 failures / 0 errors / 0 skipped**。
+
+### G165 — 把拖了很久的未提交工作落库，并用 git 基线修好棘轮漏洞
+- **做了什么（两步）**：
+  1. **落库**：`app/src` 下 125 个未跟踪文件 + 49 个已修改文件 + 5 个删除，
+     按主题分成 **4 个提交**（见下），工作区从「1 个未推送提交 + 全脏」变成**干净**；
+  2. **修棘轮**：新增 `hotspot line caps may not grow across commits`，
+     把基线从「同一文件里硬编码的第二份 mapOf」改成 **git HEAD 里的上一版**。
+- **4 个提交**：
+  - `d7962301` refactor(app)：拆分 6 个热点、收敛 11 处重复 highlightedText、
+    抽出 4 个纯函数、收紧 ChatListScreen 上限
+  - `7444096e` test(app)：20 个新测试文件，+206 例（1656 → 1862）
+  - `556913f0` refactor(server)：抽出 repository 层、精简 routing
+  - `4e7783a4` docs：G63–G164 台账 + `.qa-live/` 加入 .gitignore
+- **修的是 G164 发现的那个漏洞**：原 `hotspot line caps only ever shrink`
+  只把 `frozenHotspotLineCaps` 和**同一文件里**硬编码的 `currentCaps` 做相等比较。
+  G164 的负控制把两处一起从 432 改回 567，它们依然相等，**测试全绿**——
+  也就是说只能防「只改了一处」的手误，防不住故意放宽。
+- **新棘轮的三个降级分支**（都不是误报）：
+  - git 不可用 / `git show` 失败 → 返回 null，用例打印 SKIP 后返回；
+  - 本文件未被跟踪（首次提交前）→ 同样拿不到基线，跳过；
+  - 路径不在上一版里（新纳入监管的文件）→ `return@forEach` 跳过，只比共有的键。
+- **为什么现在才能修**：`ClientArchitectureTest.kt` 此前**从未被 git 跟踪**
+  （125 个未跟踪文件之一），`git show HEAD:` 拿不到东西。
+  **先落库，基线才存在**——这两步有依赖关系，所以合成一轮。
+- **负控制（关键，与 G164 对照）**：
+  - 把 `ChatListScreen.kt` 上限从 **432 调回 567**（两处同步）→
+    `hotspot line caps may not grow across commits` **红**。
+    **同一操作在 G164 是全绿的**——漏洞确实堵上了。
+  - 中间还试过改成 500：同样红。因为落库后基线已是 432，500 > 432 就是放宽，
+    判定正确（我一开始把基线记成 567，是错的）。
+- **实测结果**：app JVM 单测 **1862 → 1863 例**（+1 门禁用例）；工作区干净；
+  5 个新提交可见。
+- **实跑验证**：
+  - `ClientArchitectureTest` 9 个用例全绿，新用例名从 XML 读出确认在执行；
+  - 负控制（调回 567）按预期红；
+  - server 侧先跑过 **461 例 / 0 failures** 才提交，没有把烂代码落库；
+  - **全量 `:app:testDebugUnitTest` → BUILD SUCCESSFUL，334 个套件 / 1863 tests /
+    0 failures / 0 errors / 0 skipped**。
+- **教训（第二十五次沉淀）："只能变小"的棘轮要真的成立，
+     基线必须来自**当前提交之外**。同文件里的两份数据再怎么写注释都只是提醒；
+     而"外部基线"这个方案本身有前置条件——**工作得先落库**，
+     否则基线不存在，棘轮只能降级成跳过。**
