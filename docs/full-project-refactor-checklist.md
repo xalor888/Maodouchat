@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G169 把未读总结与 AI 上下文抽出（711→557）**：558–711 行四个声明抽到 ChatDetailAiContext.kt，上限同步收紧。块恰在文件尾部，一次取中。app JVM 单测 1863 例不变。
   - **G168 把 AI 总结抽出（884→711）**：456–628 行三个声明抽到 ChatDetailAiSummary.kt，上限同步收紧。先用 decl_name 打声明表确认真连续（G167 教训生效），一次抓通。新文件 KDoc 记下「aiAssisted 消息排除在总结候选外，避免总结套娃」。app JVM 单测 1863 例不变。
   - **G167 把 AI 媒体分析抽出（1300→884）**：630–1045 行五个声明抽到 ChatDetailAiMediaAnalysis.kt，上限同步收紧。抓块三处修正：单行 data class 无函数体导致假配平、`PreparedAiFile` 交错而非连续（G142 教训重演）、两段式抓取行号重叠——最终按首尾定位取整段。新文件 KDoc 写明两条安全约束。app JVM 单测 1863 例不变。
   - **G166 拆掉 ChatDetailAiGeneration.kt 最大的自包含块**：372–1046 行（generateAiSuggestions + buildOfflineAiSuggestions + offlineHas，675 行）抽到 ChatDetailOfflineSuggestions.kt，原文件 1975→1300，上限同步收紧。抓块五项自检（括号配平 / 恰好 3 声明 / 缩进 >=4 / 括号差 0 / 无缩进 0 行）。一次负控制被 Gradle 缓存蒙过，加 `--rerun-tasks` 后才红——沉淀出「门禁读外部状态时必须强制重跑」。app JVM 单测 1863 例不变。
@@ -6807,4 +6808,26 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
     334 个套件 / 1863 tests / 0 failures / 0 errors / 0 skipped**；
   负控制（上限 711→800，须 `--rerun-tasks`）→
+  `hotspot line caps may not grow across commits` **红**。
+
+### G169 — 把未读总结与 AI 上下文从 ChatDetailAiGeneration.kt 抽出（711 → 557）
+- **做了什么**：把 558–711 行（`maybeGenerateUnreadSummary` + `buildAiContextMessages`×2 +
+  `aiContextSenders`，154 行）抽到新文件 `ChatDetailAiContext.kt`；
+  冻结上限 **711 → 557**（两处 mapOf）。
+- **新文件 KDoc 记下两条**：
+  `unreadSummaryJob` 保证同一时刻只有一个未读总结在跑（晚到的取消早先的）；
+  `buildAiContextMessages` / `aiContextSenders` 负责把消息列表转成服务端 AI 上下文
+  并解析「我 / 对方 / 群成员」显示名。
+- **抓块顺利**：`decl_name` 声明表确认四个声明连续，且本块就在**文件尾部**
+  （块后无更多声明），按首尾定位一次取中。
+- **一次编译错误是漏 import**（`MessageType`、`withContext`、`Dispatchers`、
+  `AiPromptSafetyPolicy`），补上即过；无未用 import。
+- **实测结果**：`ChatDetailAiGeneration.kt` 711 → **557** 行；新文件 175 行；
+  `git diff --stat` 显示原文件 **154 deletions**。
+- **实跑验证**：五项自检全通过（括号配平 / 恰好 4 个声明 / 每行缩进 >=4 /
+  括号差 0 / 无缩进 0 行），确认块后无更多声明；
+  `:app:compileDebugKotlin` 通过、无未用 import；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    334 个套件 / 1863 tests / 0 failures / 0 errors / 0 skipped**；
+  负控制（上限 557→620，须 `--rerun-tasks`）→
   `hotspot line caps may not grow across commits` **红**。
