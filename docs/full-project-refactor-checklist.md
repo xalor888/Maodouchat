@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G174 收敛 8 处完全同体的 currentUserId**：新建 util/CurrentUserId.kt 提供共享实现，删掉 8 个 Store/Preferences 里的私有三行副本。G173 暴露了先前扫描的 200 字符门槛会漏一行式样板，本轮换成「同名 + 函数体完全一致」口径，`currentUserId` ×8 是最大一组。纯收敛、无新增测试（TokenManager 本机测不了，不凑数）。app JVM 单测 1867 例不变。
   - **G173 收敛四个群玩 ViewModel 的重复样板**：新建 GroupPlayViewModelSupport.kt 提供 authToken()/localizedString(id)/groupPlayChatId(handle)，删掉四个文件里的私有副本（动手时发现扫出来的 3 个之外还有 GroupChainScreen 第四份——先前扫描有 200 字符门槛，漏掉了一行式样板）。`authToken()` 本机无法单测（无 Robolectric），明确记下未覆盖而非凑数。app JVM 单测 **1864 → 1867 例**，0 失败。
   - **G172 把「1100+ 行全部在监」变成可执行断言**：新增 `every app source file above 1100 lines is under a frozen cap`，并给 vendored 的 ExtendedOutlinedIcons.kt（2671 行）补上冻结上限 2678 + 文件头说明。第一版误用 `File.length()`（字节）当行数，把三个 238/72/652 行的图标文件误判超限，改成 `readLines().size`。app JVM 单测 **1863 → 1864 例**，0 失败。
   - **G171 全量验证扫描（2369 例全绿）**：四套全部本轮实测——app JVM 1863、server 461、PG 集成 19、E2E 27，0 失败。确认 server 是独立 Gradle 构建（`:server:test` 不存在，须 `cd server && ../gradlew`）；本机 5432 有活 PG 且 `maodouchat_pg_test` 已存在；模拟器在跑。`CallViewModel.kt` 是单 class 成员式结构，抽成员风险高收益低，决定不动。
@@ -6942,3 +6943,37 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
     335 个套件 / 1867 tests / 0 failures / 0 errors / 0 skipped**；
   两次负控制均按预期红。
+
+### G174 — 收敛 8 处完全同体的 currentUserId
+- **做了什么**：新建 `util/CurrentUserId.kt`，提供
+  `internal fun currentUserId(context: Context): String?`；
+  删掉 8 个文件里私有的三行副本，调用点改共享。
+  ```
+  TokenManager.getInstance(context.applicationContext).getUserId()
+      ?.takeIf { it.isNotBlank() }
+  ```
+- **8 个文件**：`GifSearchPreferences` / `ChatFolderPreferences` / `QuickPhrasePreferences` /
+  `EmojiRecentPreferences` / `StickerPreferences` / `ChatAppearancePreferences` /
+  `ChatQuietHoursStore` / `CallLogStore`。
+- **为什么要收敛**：这些 Store / Preferences 都要**按用户隔离数据**
+  （key 前缀或分表），于是每个文件都私有了一份同样的取值逻辑。
+  收敛后，改 userId 的取值口径（比如将来加「匿名会话」分支）只需改一处，
+  不会漏掉其中一两个、导致某类数据串用户。
+- **发现方式**：G173 暴露了我先前重复扫描的**200 字符最小长度门槛**会漏掉一行式样板。
+  本轮换成「**同名 + 函数体完全一致**」的口径，立刻挖出 11 组，
+  其中 `currentUserId` ×8 是最大的一组。
+- **无新增测试**：共享实现只有一行、且调用的 `TokenManager` 本机无法单测
+  （G173 已确认：构造函数碰 `android.util.Log`，无 Robolectric）。
+  **没有为它凑用例**——纯收敛、行为零变化，由全量 app JVM 间接护航。
+- **实测结果**：8 个文件共删 8 个私有声明（-16 行 +2 行 import）；
+  app JVM 单测 **1867 例不变**（纯收敛）。
+- **实跑验证**：`grep -rn 'private fun currentUserId'` 全 app **归零**；
+  共享实现有 42 处调用点；无未用 import；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    335 个套件 / 1867 tests / 0 failures / 0 errors / 0 skipped**。
+- **同口径扫出、但本轮未动的其余候选**（记下来供后续轮次）：
+  `toHex` ×7（含 ApiService 与 5 个 ApiClient，属**有意的**一层转译，不动）、
+  `deleteForUser` ×3 与 `deleteByIdBlocking` / `deleteForChatBlocking` ×2（Room DAO
+  的方法名相同但表不同，属框架惯例，不动）、
+  `visibilityOptionLabel` ×2、`toast` ×2、`getRecent` ×2、`noteBackground` ×2、
+  `togglePostLike` ×2、`clearMessages` ×2。

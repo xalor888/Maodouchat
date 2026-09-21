@@ -2,6 +2,7 @@ package com.maodouchat.notification
 
 import android.content.Context
 import com.maodouchat.network.TokenManager
+import com.maodouchat.util.currentUserId
 import org.json.JSONObject
 
 /**
@@ -110,8 +111,6 @@ object ChatQuietHoursStore {
         prefs(context).edit().remove(key(userId)).apply()
     }
 
-    private fun currentUserId(context: Context): String? =
-        TokenManager.getInstance(context.applicationContext).getUserId()?.takeIf { it.isNotBlank() }
 
     private fun prefs(context: Context): android.content.SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

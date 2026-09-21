@@ -132,8 +132,6 @@ object ChatAppearancePreferences {
         }
     }
 
-    private fun currentUserId(context: Context): String? =
-        TokenManager.getInstance(context.applicationContext).getUserId()?.takeIf { it.isNotBlank() }
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
