@@ -6481,6 +6481,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明 + SecretNewDeviceRiskLocked（3667→3622）**：先搬 4 个顶层声明到 ChatDetailLocalizedLabels.kt（3667→3637）；B2 风控块抓块失败——收尾 `}` 与下一支 `else if` 的 `{` 同行，括号配平行内归零；改用**替换分支体**（16 行删掉、换成一行调用、两条 `} else if` 行原样保留）抽出到 ChatDetailSecretGates.kt（3637→3622）。无 Compose 测试基建，负控制用「参数出现次数 2→1」做代理。app JVM 单测 1906 例不变。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明（3667→3637）**：displayedTranslation + 三个 localizedLabel 重载搬到 ChatDetailLocalizedLabels.kt，调用点零改动。一次抓块失败：`} else if (x) {` 链式分支的收尾 `}` 与下一支起始 `{` 同行，括号配平行内归零——为 20 行去拆这种行不划算，改抽边界干净的顶层声明。app JVM 单测 1906 例不变。
+  - **G191 第三次全量复跑（四套 2410 例全绿）**：G182 之后 8 轮改动后再跑四套——app 1906、server 461、PG 19、E2E 27。**E2E 那 27 例是七轮纯 UI 抽取唯一的验收手段**：app JVM 对 Compose 结构零覆盖（无 Robolectric），抽走弹窗/削 composable 这种事只有真机跑一遍能证伪。实测 27/0，说明抽取没改变运行时行为。app JVM 1906 例不变。
   - **G190 抽出 GroupAnnouncementDialog（3562→3547）**：28 行内联弹窗换成 13 行调用。剪贴板逻辑刻意留调用点（纯 I/O，同 G186 理由）。一次 import 遗漏（verticalScroll/rememberScrollState）——该文件的 import 块正在长齐一套「AlertDialog 常用件」。app JVM 单测 1906 例不变。
   - **G189 抽出 SecretChatConfirmDialog（3578→3562）**：24 行内联弹窗换成 8 行调用，归进 G188 刚改好名的 ChatDetailConfirmDialogs.kt——**上一轮改名的价值这一轮直接兑现**（这个 dialog 是「开启密聊的二次确认」，放进去名副其实）。app JVM 单测 1906 例不变。
   - **G188 ChatDetailChatLockDialogs.kt 改名 ChatDetailConfirmDialogs.kt**：G187 记下的名不副实——文件已有 3 个不同主题确认框，名字只涵盖「聊天锁」。按共同点（破坏性操作前的二次确认）改名。成本近零：三个引用点都在 ChatDetailRoute.kt 且同包，无 import 需改。`git log --follow` 历史未断。本轮没有逻辑负控制——改名任务的「没改坏」证明是 rename 相似度 90% + diff 仅 KDoc 6 行。app JVM 单测 1906 例不变。
@@ -7500,3 +7501,29 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实跑验证**：`git diff` 显示 **28 删 13 增**；调用点三个参数齐全；无未用 import；
   负控制触发并恢复；**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
     342 个套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**。
+
+### G191 — 第三次全量复跑：四套 2410 例全绿（G182 之后 8 轮改动）
+- **动机**：G182 之后又做了 8 轮（G183–G190，其中 **G184–G190 七轮全是 ChatDetailRoute 的 UI 抽取**）。
+  app JVM 每轮都跑，但 server / PG / E2E 自 G182 起没再跑过。
+- **四套结果（全部本轮新鲜产出）**：
+  | 套件 | 命令 | 结果 |
+  |---|---|---|
+  | app JVM | `./gradlew :app:testDebugUnitTest --rerun-tasks` | **1906 / 0 / 0 / 0**（342 套件） |
+  | server | `cd server && ../gradlew test --no-daemon --rerun-tasks` | **461 / 0 / 0 / 0**（150 XML，9m 6s / 6 executed） |
+  | PG 集成 | `POSTGRES_TEST_DATABASE_URL=... ../gradlew postgresIntegrationTest --rerun-tasks` | **19 / 0 / 0 / 0**（7 套件） |
+  | E2E | `bash scripts/two-device-http-e2e.sh` | **27 / 0 / 0** |
+  | **合计** | | **2410 例，0 失败 0 错误 0 跳过** |
+  与 G182 的 2410 **完全一致**——因为 G183 只加了 3 例、G184–G190 全是纯搬移。
+- **本轮最值得记的一点**：E2E 是四套里**唯一跑真实 app** 的，
+  而 G184–G190 七轮都改的是 `ChatDetailRoute` 的 UI 结构
+  （抽走 6 个内联弹窗、把一个文件的 3340 行 composable 削掉 120 行）。
+  这类改动**完全可能只在运行时爆炸**（少传一个参数、某个 `visible` 判断写反、
+  剪贴板回调接错），而 app JVM 单测一套都碰不到。
+  实测 **27 / 0** —— 说明那 6 次抽取在真实设备上行为没变。
+  **教训（第四十二次沉淀）：纯 UI 抽取是「单测全绿但运行时可能炸」的典型场景。
+     app JVM suite 对 Compose 结构零覆盖（本机没有 Robolectric），
+     所以「抽完 UI 跑一遍 E2E」不是可选项，是**这类改动的唯一验收手段**。
+     它比任何负控制都更能证明抽对了。**
+- **顺带确认**：G182 的 server 首次跑 `3s / up-to-date` 零执行的坑本轮没再踩
+  （一开始就带 `--rerun-tasks`，`9m 6s / 6 executed`）。
+- **实测结果**：无代码改动（纯复跑）；工作区干净；app JVM 1906 例不变。
