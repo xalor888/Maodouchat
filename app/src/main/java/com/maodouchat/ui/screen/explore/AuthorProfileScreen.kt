@@ -595,7 +595,7 @@ fun AuthorProfileScreen(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Icon(Icons.Outlined.Public, contentDescription = stringResource(R.string.explore_visibility_public), tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.weight(1f))
-                                    Text(relativeTimeFmt(post.createdAt), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
+                                    Text(relativeTime(post.createdAt), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                                 }
                                 if (post.content.isNotBlank()) {
                                     Spacer(modifier = Modifier.height(8.dp))
@@ -657,25 +657,6 @@ fun AuthorProfileScreen(
 
 private const val AUTHOR_PAGE_SIZE = 40
 
-@Composable
-private fun relativeTimeFmt(ts: Long): String {
-    val diff = System.currentTimeMillis() - ts
-    return when {
-        diff < 60_000 -> stringResource(R.string.time_just_now)
-        diff < 3600_000 -> {
-            val count = (diff / 60_000).toInt()
-            pluralStringResource(R.plurals.time_minutes_ago, count, count)
-        }
-        diff < 86_400_000 -> {
-            val count = (diff / 3600_000).toInt()
-            pluralStringResource(R.plurals.time_hours_ago, count, count)
-        }
-        else -> {
-            val count = (diff / 86_400_000).toInt()
-            pluralStringResource(R.plurals.time_days_ago, count, count)
-        }
-    }
-}
 
 @androidx.compose.ui.tooling.preview.Preview
 @Composable

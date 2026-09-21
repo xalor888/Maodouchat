@@ -85,7 +85,7 @@ import androidx.compose.runtime.setValue
  *
  * 四个 Composable：`PostCard`（动态卡片）、`AnimatedLikeButton`（点赞动效按钮）、
  * `CommentsDialog`（完整评论列表 + 点赞 + 评论输入）、`LoadingMoreBlock`（分页加载态）。
- * 加四个私有辅助：`visibilityLabel` / `visibilityOptionLabel` / `relativeTime` /
+ * 加四个私有辅助：`visibilityLabel` / `visibilityOptionLabel` / `relativeTimeLocalized` /
  * `highlightedText`——它们在 `ExploreScreen.kt` / `ExplorePostDetailScreen.kt` /
  * `ExploreMomentsScreen.kt` 各有一份同名 private 副本，这是本代码库的既有模式。
  *
@@ -278,7 +278,7 @@ internal fun CommentsDialog(
                                                 onDoubleClick = { onToggleLike(comment) }
                                             )
                                         )
-                                        Text(relativeTime(comment.createdAt), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
+                                        Text(relativeTimeLocalized(comment.createdAt), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                                     }
                                     // 1.00：删除自己的评论 + 1.52：评论点赞
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -438,7 +438,7 @@ internal fun PostCard(
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(relativeTime(post.createdAt), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
+                        Text(relativeTimeLocalized(post.createdAt), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                         if (post.editedAt != null) {
                             Text(stringResource(R.string.explore_edited), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
                         }
@@ -578,15 +578,9 @@ private fun visibilityLabel(value: String): String = when (value) {
     else -> stringResource(R.string.explore_visibility_public)
 }
 
-@Composable
-private fun visibilityOptionLabel(value: String): String = when (value) {
-    "CONTACTS" -> stringResource(R.string.explore_visibility_contacts)
-    "PRIVATE" -> stringResource(R.string.explore_visibility_private)
-    else -> stringResource(R.string.explore_visibility_public)
-}
 
 @Composable
-private fun relativeTime(timestamp: Long): String {
+private fun relativeTimeLocalized(timestamp: Long): String {
     val now = System.currentTimeMillis()
     if (RelativeTimePolicy.shouldUseJustNow(timestamp, now)) {
         return stringResource(R.string.time_just_now)

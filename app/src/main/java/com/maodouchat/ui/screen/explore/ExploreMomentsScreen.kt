@@ -245,25 +245,6 @@ fun MomentsScreen(
     }
 }
 
-@Composable
-private fun relativeTime(ts: Long): String {
-    val diff = System.currentTimeMillis() - ts
-    return when {
-        diff < 60_000 -> stringResource(R.string.time_just_now)
-        diff < 3600_000 -> {
-            val count = (diff / 60_000).toInt()
-            pluralStringResource(R.plurals.time_minutes_ago, count, count)
-        }
-        diff < 86_400_000 -> {
-            val count = (diff / 3600_000).toInt()
-            pluralStringResource(R.plurals.time_hours_ago, count, count)
-        }
-        else -> {
-            val count = (diff / 86_400_000).toInt()
-            pluralStringResource(R.plurals.time_days_ago, count, count)
-        }
-    }
-}
 
 // G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
 @Composable

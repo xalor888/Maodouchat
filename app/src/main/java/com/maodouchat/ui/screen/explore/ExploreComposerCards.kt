@@ -534,9 +534,3 @@ internal fun ImageGrid(imageUrls: List<String>) {
     }
 }
 
-@Composable
-private fun visibilityOptionLabel(value: String): String = when (value) {
-    "CONTACTS" -> stringResource(R.string.explore_visibility_contacts)
-    "PRIVATE" -> stringResource(R.string.explore_visibility_private)
-    else -> stringResource(R.string.explore_visibility_public)
-}

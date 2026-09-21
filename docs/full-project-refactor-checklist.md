@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G175 收敛 explore 包 3 处 relativeTime + 2 处 visibilityOptionLabel**：新建 ExploreRelativeTime.kt 提供两共享实现，删 5 处私有副本（69 行）。**没有**统一包内两种不同语义的 relativeTime（手写分档 vs RelativeTimePolicy+DateUtils，文案不同），只收敛逐字相同的，并在 KDoc 写明区别。保留的那个改名 relativeTimeLocalized 避开撞车。app JVM 单测 1867 例不变。
   - **G174 收敛 8 处完全同体的 currentUserId**：新建 util/CurrentUserId.kt 提供共享实现，删掉 8 个 Store/Preferences 里的私有三行副本。G173 暴露了先前扫描的 200 字符门槛会漏一行式样板，本轮换成「同名 + 函数体完全一致」口径，`currentUserId` ×8 是最大一组。纯收敛、无新增测试（TokenManager 本机测不了，不凑数）。app JVM 单测 1867 例不变。
   - **G173 收敛四个群玩 ViewModel 的重复样板**：新建 GroupPlayViewModelSupport.kt 提供 authToken()/localizedString(id)/groupPlayChatId(handle)，删掉四个文件里的私有副本（动手时发现扫出来的 3 个之外还有 GroupChainScreen 第四份——先前扫描有 200 字符门槛，漏掉了一行式样板）。`authToken()` 本机无法单测（无 Robolectric），明确记下未覆盖而非凑数。app JVM 单测 **1864 → 1867 例**，0 失败。
   - **G172 把「1100+ 行全部在监」变成可执行断言**：新增 `every app source file above 1100 lines is under a frozen cap`，并给 vendored 的 ExtendedOutlinedIcons.kt（2671 行）补上冻结上限 2678 + 文件头说明。第一版误用 `File.length()`（字节）当行数，把三个 238/72/652 行的图标文件误判超限，改成 `readLines().size`。app JVM 单测 **1863 → 1864 例**，0 失败。
@@ -6977,3 +6978,29 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   的方法名相同但表不同，属框架惯例，不动）、
   `visibilityOptionLabel` ×2、`toast` ×2、`getRecent` ×2、`noteBackground` ×2、
   `togglePostLike` ×2、`clearMessages` ×2。
+
+### G175 — 收敛 explore 包 3 处 relativeTime + 2 处 visibilityOptionLabel
+- **做了什么**：新建 `ExploreRelativeTime.kt`，提供 `relativeTime(ts)` 与
+  `visibilityOptionLabel(value)` 两个 `@Composable` 共享实现；
+  删掉 5 个文件里的私有副本（3 × 18 行 + 2 × 5 行），调用点改共享。
+- **顺手对齐了一个改名**：`AuthorProfileScreen` 的那个原本叫 `relativeTimeFmt`，
+  与另两个不同名。既然函数体逐字相同，就一并改成 `relativeTime`。
+- **本轮**没有**统一两套 relativeTime 语义**：
+  explore 包里其实有**两种**不同实现——
+  - 一种手写「刚刚 / N 分钟 / N 小时 / N 天」分档 + `pluralStringResource`
+    （本轮收敛的这 3 份）；
+  - 另一种用 `RelativeTimePolicy.shouldUseJustNow` +
+    `DateUtils.getRelativeTimeSpanString`（`ExplorePostCards` 那一份），
+    多一层「刚刚」判定并用**系统本地化**区间。
+  二者行为不同（后者会输出「3 分钟前」之外的本地化表述），
+  **擅自统一会改变用户看到的文案**。本轮只收敛逐字相同的，
+  并在新文件 KDoc 里写明这个区别，把「要不要统一」留给后续决定。
+- **一次命名撞车**：共享 `relativeTime` 与 `ExplorePostCards` 保留的那个实现同名，
+  编译报 Conflicting overloads。把保留的那个改名为 `relativeTimeLocalized`
+  （名字反映它用系统本地化），3 处调用点同步改。
+- **实测结果**：5 个文件共删 69 行、新增共享文件 47 行；
+  app JVM 单测 **1867 例不变**（纯收敛）。
+- **实跑验证**：`grep` 确认 5 处目标私有副本全消失（另有两个 `relativeTime`
+  在不同包、实现不同，不在范围）；无未用 import；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    335 个套件 / 1867 tests / 0 failures / 0 errors / 0 skipped**。
