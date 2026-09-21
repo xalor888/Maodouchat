@@ -126,7 +126,7 @@ object MessagePresentationMapper {
                 AttachmentPresentation(
                     uri = body,
                     attachmentId = meta.attachmentId,
-                    viewOnce = meta.viewOnce && message.type in VIEW_ONCE_TYPES,
+                    viewOnce = meta.viewOnce && com.maodouchat.util.ViewOncePolicy.supports(message.type),
                     viewOnceOpened = meta.viewOnceOpened,
                     spoiler = meta.spoilerMedia,
                     spoilerRevealed = meta.spoilerRevealed,
@@ -174,5 +174,4 @@ object MessagePresentationMapper {
         MessageType.VOICE,
         MessageType.FILE,
     )
-    private val VIEW_ONCE_TYPES = setOf(MessageType.IMAGE, MessageType.GIF, MessageType.VIDEO)
 }

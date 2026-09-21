@@ -95,7 +95,7 @@ internal class AttachmentSendWorkflow(
             viewOnce = command.viewOnce &&
                 com.maodouchat.util.ViewOncePolicy.supports(command.type),
             spoilerMedia = command.spoilerMedia && !command.viewOnce &&
-                command.type in setOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF),
+                com.maodouchat.util.SpoilerMediaPolicy.supports(command.type),
         )
         val optimistic = command.existingMessage?.copy(
             chatId = command.chatId,

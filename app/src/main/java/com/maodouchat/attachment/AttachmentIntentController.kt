@@ -227,7 +227,7 @@ class DefaultAttachmentIntentController(
                 voiceDurationMs = prepared.durationMs,
                 viewOnce = intent.viewOnce && ViewOncePolicy.supports(msgType),
                 spoilerMedia = intent.spoilerMedia && !intent.viewOnce &&
-                    msgType in setOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF),
+                    com.maodouchat.util.SpoilerMediaPolicy.supports(msgType),
             )
 
             val optimisticMessage = Message(
