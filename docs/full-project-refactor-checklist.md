@@ -6481,6 +6481,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明 + SecretNewDeviceRiskLocked（3667→3622）**：先搬 4 个顶层声明到 ChatDetailLocalizedLabels.kt（3667→3637）；B2 风控块抓块失败——收尾 `}` 与下一支 `else if` 的 `{` 同行，括号配平行内归零；改用**替换分支体**（16 行删掉、换成一行调用、两条 `} else if` 行原样保留）抽出到 ChatDetailSecretGates.kt（3637→3622）。无 Compose 测试基建，负控制用「参数出现次数 2→1」做代理。app JVM 单测 1906 例不变。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明（3667→3637）**：displayedTranslation + 三个 localizedLabel 重载搬到 ChatDetailLocalizedLabels.kt，调用点零改动。一次抓块失败：`} else if (x) {` 链式分支的收尾 `}` 与下一支起始 `{` 同行，括号配平行内归零——为 20 行去拆这种行不划算，改抽边界干净的顶层声明。app JVM 单测 1906 例不变。
+  - **G186 抽出 ClearChatHistoryConfirmDialog（3610→3598）**：33 行内联弹窗换成 21 行调用。SensitiveActionGate.confirm 那段**刻意留在调用点**——它是鉴权策略不是 UI。负控制踩到作用域问题：文件里两个 composable 都用 onConfirm，文件级 grep 计数是噪声；改成按函数体切片后才准确（2→1→2）。app JVM 单测 1906 例不变。
   - **G185 抽出 ForgotChatLockConfirmDialog（3622→3610）**：chatLockBlocking 分支里 20 行内联 AlertDialog 换成 8 行调用，新文件 ChatDetailChatLockDialogs.kt。这个块边界干净（首行完整、收尾单独一行），不像 G184 那块需要绕。目标文本里「出现 2 次」实测是 4 次——自检靠结构不变量没被带偏。app JVM 单测 1906 例不变。
   - **G184（续）用「替换分支体」抽出 SecretNewDeviceRiskLocked（3637→3622）**：块的收尾 `}` 与下一支 `else if` 的 `{` 同行，括号配平无法定界；改为删 16 行、换成一行调用、两条 `} else if` 行原样保留——搬整块需精确边界，换内容只需知道删哪些行。自检断言先写成 17 行（实际 16），改对后一次过。负控制在无 Compose 基建下用「onRegisterClick 出现次数 2→1」做代理。app JVM 单测 1906 例不变。
   - **G183 收敛 mediaDecryptFailed* 重复 when + 抽出 isDecryptable（+3 例）**：两处 8 分支 when 逐字相同（只收 Message / MessageType），让前者委托后者；并把纯集合判定的 isDecryptable 从类成员抽成顶层纯函数才能单测。两次负控制一红一绿——NC2「给一处加分支不同步另一处」变**绿**正是收敛成功的证明（没有第二处可漏改）。一次 KDoc 写长被行数门禁抓到，压回 3102。app JVM 单测 **1903 → 1906 例**，0 失败。
@@ -7372,4 +7373,29 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实跑验证**：`git diff` 显示 **20 删 8 增**；调用点参数齐全（`visible` / `onDismiss` /
   `onConfirm` 三个都有）；无未用 import；
   **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    342 个套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**。
+
+### G186 — 抽出 ClearChatHistoryConfirmDialog（3610 → 3598）
+- **做了什么**：把内联的「清空本地历史」确认弹窗（33 行）抽成
+  `@Composable internal fun ClearChatHistoryConfirmDialog(visible, onDismiss, onConfirm)`
+  （追加到 `ChatDetailChatLockDialogs.kt`）；原位置换成 21 行调用。
+  冻结上限 **3610 → 3598**（两处 mapOf）。
+- **一个刻意的设计选择**：`SensitiveActionGate.confirm(...)` 那段**留在调用点的
+  `onConfirm` 里**，没有搬进 dialog。理由是它和「这个弹窗长什么样」无关——
+  它是**鉴权策略**，属于调用方。搬进去会让 dialog 依赖 `context` / `sensitiveAuthTitle`
+  等四个额外参数，只为渲染一个 AlertDialog。
+- **自检（硬断言）**：体恰好 33 行、首行是 4 空格缩进的
+  `if (showClearHistoryConfirm) {`、末行是 4 空格缩进的 `}`、括号差为 0。
+- **负控制的作用域修正**：`ChatDetailChatLockDialogs.kt` 里现在有**两个** composable
+  都用 `onConfirm` 这个名字，所以**文件级** `grep -c` 会算出 3 而不是预期的 2。
+  改成**按函数体切片**统计（`s.indexOf('fun ClearChatHistoryConfirmDialog')` 之后、
+  到下一个 `\n}\n` 之前），破坏后该函数内 `onConfirm` 从 2 掉到 1，恢复后回到 2。
+  **教训（第四十次沉淀）：用「参数出现次数」做负控制代理时，
+     作用域必须切到**单个函数体**。文件级计数在有多处同名参数时完全是噪声——
+     它会让你以为控制没触发，或者更糟：让你以为触发了其实没有。**
+- **实测结果**：`ChatDetailRoute.kt` 3610 → **3598** 行；新文件 47 → 88 行；
+  app JVM 单测 **1906 例不变**（纯搬移）。
+- **实跑验证**：`git diff` 显示 **33 删 21 增**；调用点三个参数齐全；
+  无未用 import；负控制按函数体切片触发并恢复；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUAL，
     342 个套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**。

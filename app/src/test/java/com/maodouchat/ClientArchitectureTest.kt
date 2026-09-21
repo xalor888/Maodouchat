@@ -104,7 +104,7 @@ class ClientArchitectureTest {
      * 但任何人往这些文件里堆代码 → 立刻红。要收紧上限，改小这里的数字即可。
      */
     private val frozenHotspotLineCaps: Map<String, Int> = mapOf(
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3610,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3598,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3103,
         "com/maodouchat/util/GroupPlayPolicy.kt" to 2209,
         // G113：以下六个文件此前**没有任何行数门禁**，是 app 内剩下的大文件。
@@ -145,7 +145,7 @@ class ClientArchitectureTest {
         // 反向棘轮：如果有人**调大**了上限来放行更大的文件，这里会红。
         // 上限只能往下调（收紧），往上调必须是真的先删了代码。
         val currentCaps = mapOf(
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3610,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3598,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3103,
             "com/maodouchat/util/GroupPlayPolicy.kt" to 2209,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 340,

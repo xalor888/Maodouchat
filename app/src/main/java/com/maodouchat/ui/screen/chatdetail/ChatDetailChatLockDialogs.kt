@@ -44,3 +44,36 @@ internal fun ForgotChatLockConfirmDialog(
         }
     )
 }
+
+/**
+ * 「清空本地聊天历史」确认框（G186 从 ChatDetailRoute 抽出）。
+ *
+ * 确认是**破坏性且不可恢复**的（清本地历史），所以：
+ * - 确认按钮用警示色；
+ * - 真正的动作由调用方在 [onConfirm] 里做——那里通常还要过
+ *   `SensitiveActionGate` 的二次鉴权。鉴权逻辑留在调用方，
+ *   因为它和「这个弹窗长什么样」无关。
+ */
+@Composable
+internal fun ClearChatHistoryConfirmDialog(
+    visible: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    if (!visible) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.chat_clear_local_history)) },
+        text = { Text(stringResource(R.string.chat_clear_history_body)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.common_clear), color = LocalChatPalette.current.unreadRed)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        }
+    )
+}

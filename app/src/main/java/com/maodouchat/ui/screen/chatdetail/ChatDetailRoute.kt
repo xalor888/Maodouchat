@@ -1589,39 +1589,27 @@ if (showGroupCallTypeDialog) {
             .fillMaxSize()
             .secretPageBlindWatermark(secretPagePayload)
     ) {
-    if (showClearHistoryConfirm) {
-        AlertDialog(
-            onDismissRequest = { showClearHistoryConfirm = false },
-            title = { Text(stringResource(R.string.chat_clear_local_history)) },
-            text = { Text(stringResource(R.string.chat_clear_history_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showClearHistoryConfirm = false
-                    SensitiveActionGate.confirm(
-                        context = context,
-                        action = SensitiveAction.CLEAR_CHAT_HISTORY,
-                        title = sensitiveAuthTitle,
-                        subtitle = sensitiveAuthClearHistory,
-                        onSuccess = { viewModel.clearLocalChatHistory() },
-                        onFailure = { msg ->
-                            Toast.makeText(
-                                context,
-                                msg?.takeIf { it.isNotBlank() } ?: sensitiveAuthFailed,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    )
-                }) {
-                    Text(stringResource(R.string.common_clear), color = LocalChatPalette.current.unreadRed)
+    ClearChatHistoryConfirmDialog(
+        visible = showClearHistoryConfirm,
+        onDismiss = { showClearHistoryConfirm = false },
+        onConfirm = {
+            showClearHistoryConfirm = false
+            SensitiveActionGate.confirm(
+                context = context,
+                action = SensitiveAction.CLEAR_CHAT_HISTORY,
+                title = sensitiveAuthTitle,
+                subtitle = sensitiveAuthClearHistory,
+                onSuccess = { viewModel.clearLocalChatHistory() },
+                onFailure = { msg ->
+                    Toast.makeText(
+                        context,
+                        msg?.takeIf { it.isNotBlank() } ?: sensitiveAuthFailed,
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearHistoryConfirm = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            }
-        )
-    }
+            )
+        },
+    )
     
     if (showLiveLocationDuration) {
         AlertDialog(
