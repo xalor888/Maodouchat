@@ -1,6 +1,9 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.Modifier
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -73,6 +76,44 @@ internal fun ClearChatHistoryConfirmDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.common_cancel))
+            }
+        }
+    )
+}
+
+/**
+ * 实时位置分享时长选择（G187 从 ChatDetailRoute 抽出，28 行）。
+ *
+ * 三个固定时长：15 分钟 / 1 小时 / 8 小时。选中即分享，
+ * 所以没有「确认」按钮——取消在 dismissButton 里。
+ */
+@Composable
+internal fun LiveLocationDurationDialog(
+    visible: Boolean,
+    onPick: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (!visible) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.chat_live_location_send)) },
+        text = {
+            Column {
+                listOf(
+                    15L * 60_000L to stringResource(R.string.live_location_duration_15m),
+                    60L * 60_000L to stringResource(R.string.live_location_duration_1h),
+                    8L * 60L * 60_000L to stringResource(R.string.live_location_duration_8h)
+                ).forEach { (ms, label) ->
+                    TextButton(
+                        onClick = { onPick(ms) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(label) }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
             }
         }
     )

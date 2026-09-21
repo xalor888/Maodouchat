@@ -1611,34 +1611,14 @@ if (showGroupCallTypeDialog) {
         },
     )
     
-    if (showLiveLocationDuration) {
-        AlertDialog(
-            onDismissRequest = { showLiveLocationDuration = false },
-            title = { Text(stringResource(R.string.chat_live_location_send)) },
-            text = {
-                Column {
-                    listOf(
-                        15L * 60_000L to stringResource(R.string.live_location_duration_15m),
-                        60L * 60_000L to stringResource(R.string.live_location_duration_1h),
-                        8L * 60L * 60_000L to stringResource(R.string.live_location_duration_8h)
-                    ).forEach { (ms, label) ->
-                        TextButton(
-                            onClick = {
-                                showLiveLocationDuration = false
-                                viewModel.sendLiveLocation(ms)
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text(label) }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showLiveLocationDuration = false }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            }
-        )
-    }
+    LiveLocationDurationDialog(
+        visible = showLiveLocationDuration,
+        onPick = { ms ->
+            showLiveLocationDuration = false
+            viewModel.sendLiveLocation(ms)
+        },
+        onDismiss = { showLiveLocationDuration = false },
+    )
 
 
     if (showSecretChatConfirm) {

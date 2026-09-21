@@ -6481,6 +6481,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明 + SecretNewDeviceRiskLocked（3667→3622）**：先搬 4 个顶层声明到 ChatDetailLocalizedLabels.kt（3667→3637）；B2 风控块抓块失败——收尾 `}` 与下一支 `else if` 的 `{` 同行，括号配平行内归零；改用**替换分支体**（16 行删掉、换成一行调用、两条 `} else if` 行原样保留）抽出到 ChatDetailSecretGates.kt（3637→3622）。无 Compose 测试基建，负控制用「参数出现次数 2→1」做代理。app JVM 单测 1906 例不变。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明（3667→3637）**：displayedTranslation + 三个 localizedLabel 重载搬到 ChatDetailLocalizedLabels.kt，调用点零改动。一次抓块失败：`} else if (x) {` 链式分支的收尾 `}` 与下一支起始 `{` 同行，括号配平行内归零——为 20 行去拆这种行不划算，改抽边界干净的顶层声明。app JVM 单测 1906 例不变。
+  - **G187 抽出 LiveLocationDurationDialog（3598→3578）**：28 行内联弹窗换成 8 行调用。一次 import 遗漏（Column/Modifier）已修。负控制按函数体切片（G186 教训直接复用）。**发现该文件已装 3 个 dialog 但名字还叫 ChatDetailChatLockDialogs——名不副实，已记录待改名，没顺手改（改名牵动 import 属另一件事）。** app JVM 单测 1906 例不变。
   - **G186 抽出 ClearChatHistoryConfirmDialog（3610→3598）**：33 行内联弹窗换成 21 行调用。SensitiveActionGate.confirm 那段**刻意留在调用点**——它是鉴权策略不是 UI。负控制踩到作用域问题：文件里两个 composable 都用 onConfirm，文件级 grep 计数是噪声；改成按函数体切片后才准确（2→1→2）。app JVM 单测 1906 例不变。
   - **G185 抽出 ForgotChatLockConfirmDialog（3622→3610）**：chatLockBlocking 分支里 20 行内联 AlertDialog 换成 8 行调用，新文件 ChatDetailChatLockDialogs.kt。这个块边界干净（首行完整、收尾单独一行），不像 G184 那块需要绕。目标文本里「出现 2 次」实测是 4 次——自检靠结构不变量没被带偏。app JVM 单测 1906 例不变。
   - **G184（续）用「替换分支体」抽出 SecretNewDeviceRiskLocked（3637→3622）**：块的收尾 `}` 与下一支 `else if` 的 `{` 同行，括号配平无法定界；改为删 16 行、换成一行调用、两条 `} else if` 行原样保留——搬整块需精确边界，换内容只需知道删哪些行。自检断言先写成 17 行（实际 16），改对后一次过。负控制在无 Compose 基建下用「onRegisterClick 出现次数 2→1」做代理。app JVM 单测 1906 例不变。
@@ -7399,3 +7400,28 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   无未用 import；负控制按函数体切片触发并恢复；
   **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUAL，
     342 个套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**。
+
+### G187 — 抽出 LiveLocationDurationDialog（3598 → 3578）
+- **做了什么**：把内联的「实时位置时长选择」弹窗（28 行）抽成
+  `@Composable internal fun LiveLocationDurationDialog(visible, onPick, onDismiss)`
+  （追加到 `ChatDetailChatLockDialogs.kt`）；原位置换成 8 行调用。
+  冻结上限 **3598 → 3578**（两处 mapOf）。
+- **一次 import 遗漏**：新 composable 用到 `Column` / `Modifier.fillMaxWidth()`，
+  新文件里没有这两个 import，编译报 `Unresolved reference 'Column'` 与
+  「@Composable invocations can only happen from the context of a @Composable function」。
+  补 `Column` / `fillMaxWidth` / `Modifier` 三个 import 后通过。
+- **自检（硬断言）**：体恰好 28 行、首行是 4 空格缩进的
+  `if (showLiveLocationDuration) {`、末行是 4 空格缩进的 `}`、括号差为 0。
+- **负控制（按函数体切片，G186 的教训直接复用）**：
+  把 `onClick = { onPick(ms) }` 改成 `onClick = { }` →
+  `LiveLocationDurationDialog` 函数体内 `onPick` 出现次数 **2 → 1**，恢复后回到 2。
+- **实测结果**：`ChatDetailRoute.kt` 3598 → **3578** 行；新文件 88 → 128 行；
+  app JVM 单测 **1906 例不变**（纯搬移）。
+- **实跑验证**：`git diff` 显示 **28 删 8 增**；调用点三个参数齐全；无未用 import；
+  负控制触发并恢复；**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    342 个套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**。
+- **一个小观察**：这个文件（`ChatDetailChatLockDialogs.kt`）现在装了 3 个 dialog，
+  名字却还叫「ChatLockDialogs」。**名字已经开始名不副实**——
+  下一个 dialog 抽进来时应该先把它改名（例如 `ChatDetailConfirmDialogs.kt`），
+  否则后来者会以为「实时位置」放错了地方。本轮先记下，没顺手改
+  （改名会牵动 import，属于另一件事）。
